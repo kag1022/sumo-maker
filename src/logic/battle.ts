@@ -52,7 +52,7 @@ export const calculateBattleResult = (rikishi: RikishiStatus, enemy: EnemyStats)
   const isWin = roll < winProbability;
 
   // 6. 決まり手の決定
-  let kimarite = '寄り切り';
+  let kimarite: string;
   if (isWin) {
     // 得意技で勝った場合、高確率でその決まり手になる
     if (usedSignatureMove && Math.random() < 0.7) {

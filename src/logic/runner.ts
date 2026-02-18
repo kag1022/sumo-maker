@@ -56,15 +56,19 @@ export const runSimulation = async (params: SimulationParams): Promise<RikishiSt
                  });
             }
 
-            // 履歴は新しい順に渡す
-            const pastRecords = [...status.history.records].slice(0, -1).reverse();
+            // 直近の成績のみ取得（新しい順: index 0 = 前場所, 1 = 前々場所）
+            const records = status.history.records;
+            const len = records.length;
+            const pastRecords = len >= 2
+                ? [records[len - 2], records[len - 3]].filter(Boolean)
+                : len >= 1 ? [records[len - 2]].filter(Boolean) : [];
             
             const rankChange = calculateNextRank(bashoRecord, pastRecords, status.isOzekiKadoban);
             
             // 昇進などのイベントログ
             if (rankChange.event) {
-                let eventType: 'PROMOTION' | 'DEMOTION' = 'PROMOTION';
-                let description = '';
+                let eventType: 'PROMOTION' | 'DEMOTION';
+                let description: string;
                 const recordStr = `(${bashoRecord.wins}勝${bashoRecord.losses}敗${bashoRecord.absent > 0 ? bashoRecord.absent + '休' : ''})`;
 
                 if (rankChange.event === 'KADOBAN') {

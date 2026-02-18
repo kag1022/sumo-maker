@@ -16,10 +16,15 @@ function App() {
     setIsSimulating(true);
     // UI反映のために微小な待機を入れる
     await new Promise(resolve => setTimeout(resolve, 50));
-    
-    const result = await runSimulation({ initialStats, oyakata });
-    setStatus(result);
-    setIsSimulating(false);
+
+    try {
+      const result = await runSimulation({ initialStats, oyakata });
+      setStatus(result);
+    } catch (error) {
+      console.error('Simulation failed', error);
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   const handleReset = () => {

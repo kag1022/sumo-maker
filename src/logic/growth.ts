@@ -11,7 +11,7 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
   // ステータスのコピー
   const stats = { ...currentStatus.stats };
   const { age, growthType, tactics, potential } = currentStatus;
-  let injuries = currentStatus.injuries ? currentStatus.injuries.map(i => ({...i})) : []; // Deep copy injuries
+  const injuries = currentStatus.injuries ? currentStatus.injuries.map(i => ({...i})) : []; // Deep copy injuries
 
   // --- 1. 怪我の回復・進行処理 ---
   let maxSeverity = 0;
@@ -77,7 +77,7 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
 
   // --- 3. 能力ごとの変動適用 ---
   (Object.keys(stats) as (keyof typeof stats)[]).forEach(statName => {
-      let delta = 0;
+      let delta: number;
 
       // 基本変動
       if (growthRate > 0) {

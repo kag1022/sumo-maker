@@ -1,6 +1,5 @@
-import { RikishiStatus, Rank, GrowthType, TacticsType } from './models';
+import { RikishiStatus, GrowthType } from './models';
 import { runSimulation } from './runner';
-import { CONSTANTS } from './constants';
 
 const NUM_SIMULATIONS = 100;
 

@@ -218,11 +218,10 @@ const calculateStandardRankChange = (record: BashoRecord): { nextRank: Rank, eve
              return { nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' }, event: 'PROMOTION_TO_MAKUUCHI' };
         }
         
-        let move = diff;
         // 上がりやすく落ちやすい
-        move = Math.floor(diff * 1.2);
+        const move = Math.floor(diff * 1.2);
         
-        let newNumber = num - move;
+        const newNumber = num - move;
         
         if (newNumber < 1) {
             // 筆頭より上 -> 幕内昇進 (上のifで漏れた場合)

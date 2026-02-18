@@ -8,6 +8,8 @@ export interface SavedRikishi {
     status: RikishiStatus;
 }
 
+const MAX_RECORDS = 200;
+
 export const saveRikishi = (status: RikishiStatus): void => {
     const data = loadAllRikishi();
     const newEntry: SavedRikishi = {
@@ -15,21 +17,39 @@ export const saveRikishi = (status: RikishiStatus): void => {
         savedAt: new Date().toISOString(),
         status
     };
-    data.push(newEntry);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    const next = [...data, newEntry].slice(-MAX_RECORDS);
+
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch (error) {
+        console.error('Failed to save rikishi (storage quota exceeded?)', error);
+    }
 };
 
 const isValidSavedRikishi = (item: any): item is SavedRikishi => {
-    // Simple schema check to prevent runtime errors
-    return (
-        typeof item === 'object' &&
-        item !== null &&
-        typeof item.id === 'string' &&
-        typeof item.status === 'object' &&
-        item.status !== null &&
-        typeof item.status.shikona === 'string' &&
-        typeof item.status.stats === 'object'
-    );
+    // Schema check to prevent runtime errors from malformed data
+    if (
+        typeof item !== 'object' || item === null ||
+        typeof item.id !== 'string' ||
+        typeof item.status !== 'object' || item.status === null ||
+        typeof item.status.shikona !== 'string' ||
+        typeof item.status.stats !== 'object'
+    ) return false;
+
+    // Validate nested history shape
+    const h = item.status.history;
+    if (
+        typeof h !== 'object' || h === null ||
+        !Array.isArray(h.records) ||
+        typeof h.maxRank !== 'object' || h.maxRank === null ||
+        typeof h.maxRank.name !== 'string' ||
+        typeof h.totalWins !== 'number' ||
+        typeof h.totalLosses !== 'number' ||
+        typeof h.yushoCount !== 'object' || h.yushoCount === null
+    ) return false;
+
+    return true;
 };
 
 export const loadAllRikishi = (): SavedRikishi[] => {

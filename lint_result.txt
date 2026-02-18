@@ -1,0 +1,22 @@
+
+C:\Games\sumo-maker2\src\components\input\ScoutScreen.tsx
+  56:9  error  'age' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Games\sumo-maker2\src\logic\battle.ts
+  55:7  error  This assigned value is not used in subsequent statements  no-useless-assignment
+
+C:\Games\sumo-maker2\src\logic\growth.ts
+  14:7   error  'injuries' is never reassigned. Use 'const' instead       prefer-const
+  80:11  error  This assigned value is not used in subsequent statements  no-useless-assignment
+
+C:\Games\sumo-maker2\src\logic\ranking.ts
+  221:13  error  This assigned value is not used in subsequent statements  no-useless-assignment
+  225:13  error  'newNumber' is never reassigned. Use 'const' instead      prefer-const
+
+C:\Games\sumo-maker2\src\logic\runner.ts
+  70:21  error  This assigned value is not used in subsequent statements  no-useless-assignment
+  71:21  error  This assigned value is not used in subsequent statements  no-useless-assignment
+
+笨・8 problems (8 errors, 0 warnings)
+  3 errors and 0 warnings potentially fixable with the `--fix` option.
+

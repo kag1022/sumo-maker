@@ -53,7 +53,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     const historyData = HISTORY_OPTIONS[history];
 
     // 2. 年齢と地位
-    let age = historyData.age;
+    const age = historyData.age;
     let rank = { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
     
     // 入門区分
