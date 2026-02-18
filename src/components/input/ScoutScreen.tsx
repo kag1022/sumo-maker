@@ -123,7 +123,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             events: [],
             maxRank: rank as any,
             totalWins: 0, totalLosses: 0, totalAbsent: 0,
-            yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 }
+            yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+            kimariteTotal: {}
         },
         statHistory: []
     };

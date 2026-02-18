@@ -16,6 +16,7 @@ export const runSimulation = async (params: SimulationParams): Promise<RikishiSt
     let status: RikishiStatus = JSON.parse(JSON.stringify(params.initialStats));
     status.statHistory = [];
     if (!status.injuries) status.injuries = []; // Init injuries array
+    if (!status.history.kimariteTotal) status.history.kimariteTotal = {}; // Init kimarite
     
     let year = new Date().getFullYear(); // 開始年
     
@@ -133,6 +134,7 @@ const runBasho = (status: RikishiStatus, year: number, month: number): BashoReco
     let wins = 0;
     let losses = 0;
     let absent = 0;
+    const kimariteCount: Record<string, number> = {};
 
     // 怪我による休場チェック（場所前）
     if (status.injuryLevel > 0) {
@@ -186,6 +188,8 @@ const runBasho = (status: RikishiStatus, year: number, month: number): BashoReco
         
         if (result.isWin) {
             wins++;
+            // 決まり手集計 (勝ち技のみ)
+            kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
         } else {
             losses++;
         }
@@ -209,7 +213,8 @@ const runBasho = (status: RikishiStatus, year: number, month: number): BashoReco
         rank: status.rank,
         wins, losses, absent,
         yusho,
-        specialPrizes: [] // 省略
+        specialPrizes: [], // 省略
+        kimariteCount
     };
 };
 
@@ -217,6 +222,14 @@ const updateCareerStats = (status: RikishiStatus, record: BashoRecord) => {
     status.history.totalWins += record.wins;
     status.history.totalLosses += record.losses;
     status.history.totalAbsent += record.absent;
+
+    // 決まり手集計
+    if (record.kimariteCount) {
+        if (!status.history.kimariteTotal) status.history.kimariteTotal = {};
+        for (const [move, count] of Object.entries(record.kimariteCount)) {
+            status.history.kimariteTotal[move] = (status.history.kimariteTotal[move] || 0) + count;
+        }
+    }
     
     if (record.yusho) {
         if (status.rank.division === 'Makuuchi') status.history.yushoCount.makuuchi++;
