@@ -4,7 +4,7 @@ import { getRankValueForChart } from '../../logic/ranking';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card';
 import { Button } from '../common/Button';
 import { ArrowLeft, Trophy, Activity, TrendingUp } from 'lucide-react'; // TrendingUp fixed
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 
 interface ReportScreenProps {
   status: RikishiStatus;
@@ -88,6 +88,15 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({ status, onReset }) =
         power: Math.round(item.stats.power),
     }));
   }, [status.statHistory]);
+
+  // 決まり手傾向データ (上位10件)
+  const kimariteData = React.useMemo(() => {
+    const total = history.kimariteTotal || {};
+    return Object.entries(total)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+  }, [history.kimariteTotal]);
 
   // 番付推移データ
   const lineData = history.records.map(r => {
@@ -207,6 +216,26 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({ status, onReset }) =
           </CardContent>
         </Card>
       </div>
+
+      {/* 決まり手傾向 */}
+      {kimariteData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center"><Trophy className="w-5 h-5 mr-2 text-amber-500"/>決まり手傾向 (上位10)</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={kimariteData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 13 }} />
+                <Tooltip formatter={(value: number) => [`${value}回`, '回数']}/>
+                <Bar dataKey="count" name="回数" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

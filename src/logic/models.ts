@@ -102,6 +102,7 @@ export interface CareerHistory {
     makushita: number;
     others: number;
   };
+  kimariteTotal: Record<string, number>; // 通算決まり手カウント
   title?: string; // 二つ名
 }
 
@@ -115,6 +116,7 @@ export interface BashoRecord {
   absent: number;
   yusho: boolean; // 優勝したか
   specialPrizes: string[]; // 三賞
+  kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
 }
 
 // タイムラインイベント
