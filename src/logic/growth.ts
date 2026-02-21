@@ -1,5 +1,6 @@
 import { RikishiStatus, Oyakata, Injury } from './models';
 import { CONSTANTS } from './constants';
+import { RandomSource } from './simulation/deps';
 
 /**
  * 能力成長・衰退ロジック
@@ -7,10 +8,15 @@ import { CONSTANTS } from './constants';
  * @param oyakata 親方パラメータ
  * @param _injuryOccurred (未使用: status.injuriesを参照)
  */
-export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | null, _injuryOccurred: boolean): RikishiStatus => {
+export const applyGrowth = (
+  currentStatus: RikishiStatus,
+  oyakata: Oyakata | null,
+  _injuryOccurred: boolean,
+  rng: RandomSource = Math.random,
+): RikishiStatus => {
   // ステータスのコピー
   const stats = { ...currentStatus.stats };
-  const { age, growthType, tactics, potential } = currentStatus;
+  const { age, growthType, tactics, potential, bodyType, traits } = currentStatus;
   const injuries = currentStatus.injuries ? currentStatus.injuries.map(i => ({...i})) : []; // Deep copy injuries
 
   // --- 1. 怪我の回復・進行処理 ---
@@ -23,6 +29,7 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
       // 回復量計算 (若いほど早い)
       let recovery = 1;
       if (age < 23) recovery++;
+      if (traits.includes('RECOVERY_MONSTER')) recovery++;
       
       // 慢性以外は回復
       if (injury.status !== 'CHRONIC') {
@@ -36,21 +43,26 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
               if (injury.status === 'ACUTE' && injury.severity <= 4) {
                   injury.status = 'SUBACUTE';
               }
-              // 慢性化判定 (一定確率で古傷として残る)
-              if (Math.random() < CONSTANTS.PROBABILITY.CHRONIC_CONVERSION) {
+              // 慢性化判定
+              let chronicChance = CONSTANTS.PROBABILITY.CHRONIC_CONVERSION;
+              // 【爆弾持ち】: 慢性化確率100%
+              if (traits.includes('BAKUDAN_MOCHI')) {
+                  chronicChance = 1.0;
+              }
+              if (rng() < chronicChance) {
                   injury.status = 'CHRONIC';
-                  injury.name = '古傷・' + injury.name;
+                  if (!injury.name.startsWith('古傷・')) {
+                      injury.name = '古傷・' + injury.name;
+                  }
                   injury.severity = Math.max(2, Math.ceil(injury.severity / 2)); 
               }
           }
       } else {
-          // 慢性障害: 基本的には治らないが、severityは低めで推移
-          // たまに悪化するロジックを入れてもいいが、今回は固定
+          // 慢性障害: 基本的には治らない
       }
 
       if (injury.status !== 'HEALED') {
           // 休場が必要なのは慢性以外（＝治療中）のみとする
-          // 慢性化した怪我は出場しながら付き合っていくものとする
           if (injury.status !== 'CHRONIC') {
               maxSeverity = Math.max(maxSeverity, injury.severity);
           }
@@ -63,7 +75,31 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
 
   // --- 2. 基本成長計算 ---
   let growthRate = 0;
-  const params = CONSTANTS.GROWTH_PARAMS[growthType];
+  const params = { ...CONSTANTS.GROWTH_PARAMS[growthType] };
+
+  // 【鉄人】: 衰退開始を+3年遅らせる
+  if (traits.includes('TETSUJIN')) {
+      params.decayStart += 3;
+      params.peakEnd += 3;
+  }
+
+  // 【早熟】: 成長カーブ変更
+  if (traits.includes('SOUJUKU')) {
+      if (age <= 24) {
+          params.growthRate *= 1.8;
+      }
+  }
+
+  // 【大器晩成】: 成長カーブ変更
+  if (traits.includes('TAIKI_BANSEI')) {
+      if (age <= 29) {
+          params.growthRate *= 0.5;
+      } else {
+          params.growthRate *= 1.8;
+          params.decayStart = Math.max(params.decayStart, 36);
+          params.peakEnd = Math.max(params.peakEnd, 35);
+      }
+  }
 
   if (age <= params.peakEnd) {
       // 成長期
@@ -73,19 +109,32 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
       // 衰退期
       const decayYears = age - params.decayStart;
       growthRate = -0.5 - (decayYears * 0.2); // 年々衰えが加速
+      // 【早熟】: 衰退加速
+      if (traits.includes('SOUJUKU') && age >= 27) {
+          growthRate *= 1.5; // より早く衰える（負の値がより大きくなる）
+      }
   }
 
   // --- 3. 能力ごとの変動適用 ---
+  // 怪我の影響を受けている能力を特定（稽古の虫用）
+  const injuredStats = new Set<string>();
+  for (const injury of activeInjuries) {
+      if (injury.status === 'HEALED') continue;
+      const data = CONSTANTS.INJURY_DATA[injury.type];
+      if (data) {
+          data.affectedStats.forEach(s => injuredStats.add(s));
+      }
+  }
+
   (Object.keys(stats) as (keyof typeof stats)[]).forEach(statName => {
       let delta: number;
 
       // 基本変動
       if (growthRate > 0) {
           // 成長
-          delta = (Math.random() * 2.0 + 1.0) * growthRate;
+          delta = (rng() * 2.0 + 1.0) * growthRate;
           
-          // 限界接近による鈍化 (Current / Potential)
-          // 敵の最大強さが150なので、Potential(100)を基準としつつそれ以上伸びるように緩和
+          // 限界接近による鈍化
           const limit = potential * 1.5;
           const current = stats[statName];
           
@@ -93,53 +142,78 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
               delta *= 0.5;
           }
           if (current > limit) {
-              delta *= 0.1; // 限界突破は厳しい
+              delta *= 0.1;
           }
       } else {
           // 衰退
-          delta = (Math.random() * 1.0) * growthRate; // growthRate is negative
+          delta = (rng() * 1.0) * growthRate;
       }
 
       // 戦術補正
       const tacticMod = CONSTANTS.TACTICAL_GROWTH_MODIFIERS[tactics][statName] || 1.0;
       if (growthRate > 0) delta *= tacticMod;
 
+      // --- 体格補正 ---
+      if (growthRate > 0) {
+          const bodyData = CONSTANTS.BODY_TYPE_DATA[bodyType];
+          const bodyMod = bodyData.growthMod[statName] || 1.0;
+          delta *= bodyMod;
+      }
+
       // 親方補正
       if (oyakata && growthRate > 0) {
-          const oyakataMod = oyakata.growthMod[statName] || 1.0;
+          let oyakataMod = oyakata.growthMod[statName] || 1.0;
+          // 【普通体格】: 親方バフ効果1.2倍
+          if (bodyType === 'NORMAL') {
+              const bodyData = CONSTANTS.BODY_TYPE_DATA[bodyType];
+              oyakataMod = 1.0 + (oyakataMod - 1.0) * bodyData.oyakataBuffMod;
+          }
           delta *= oyakataMod;
       }
 
       // ランダム揺らぎ
-      delta += (Math.random() * 2.0 - 1.0);
+      delta += (rng() * 2.0 - 1.0);
       
+      // --- スキル補正 ---
+      // 【稽古の虫】: 怪我のない能力の成長率1.12倍
+      if (traits.includes('KEIKO_NO_MUSHI') && growthRate > 0 && !injuredStats.has(statName)) {
+          delta *= 1.12;
+      }
+
+      // 【サボり癖】: 成長率0.8倍
+      if (traits.includes('SABORI_GUSE') && growthRate > 0) {
+          delta *= 0.8;
+      }
+
       // 成長期の上振れ（覚醒）
-      if (growthRate > 0 && Math.random() < CONSTANTS.PROBABILITY.AWAKENING_GROWTH) {
+      let awakeningChance = CONSTANTS.PROBABILITY.AWAKENING_GROWTH;
+      // 【サボり癖】: 覚醒確率UP
+      if (traits.includes('SABORI_GUSE')) {
+          awakeningChance = 0.20;
+      }
+      if (growthRate > 0 && rng() < awakeningChance) {
           delta += 2.0; // たまにグッと伸びる
       }
 
-      // 得意技ボーナス (NEW)
+      // 得意技ボーナス
       if (currentStatus.signatureMoves) {
           for (const move of currentStatus.signatureMoves) {
               const moveData = CONSTANTS.SIGNATURE_MOVE_DATA[move];
               if (moveData && moveData.relatedStats.includes(statName)) {
-                  delta += 0.3; // 成長ボーナス
+                  delta += 0.15;
               }
           }
       }
 
       // --- 怪我によるペナルティ ---
-      // アクティブな怪我の影響を受ける
       for (const injury of activeInjuries) {
           if (injury.status === 'HEALED') continue;
           const data = CONSTANTS.INJURY_DATA[injury.type];
           if (data && data.affectedStats.includes(statName)) {
-              // 該当箇所の怪我なら成長阻害 / 減衰加速
-              const penalty = injury.severity * 0.2; // 軽減: 0.5 -> 0.2
+              const penalty = injury.severity * 0.2;
               delta -= penalty;
           } else {
-              // 該当箇所でなくても全体的なトレーニング不足で微減
-              delta -= 0.05; // 軽減: 0.2 -> 0.05
+              delta -= 0.05;
           }
       }
 
@@ -166,9 +240,9 @@ export const applyGrowth = (currentStatus: RikishiStatus, oyakata: Oyakata | nul
  * @returns boolean 引退すべきか
  */
 export const checkRetirement = (status: RikishiStatus): { shouldRetire: boolean, reason?: string } => {
-    // 1. 強制引退年齢
-    if (status.age >= CONSTANTS.MANDATORY_RETIREMENT_AGE) {
-        return { shouldRetire: true, reason: '定年により引退' };
+    // 1. ゲーム上の寿命（定年制ではなく、気力・体力限界として扱う）
+    if (status.age >= CONSTANTS.PHYSICAL_LIMIT_RETIREMENT_AGE) {
+        return { shouldRetire: true, reason: '気力・体力の限界により引退' };
     }
 
     // 1.2. 長期休場による引退（30歳以上で5場所連続休場）
@@ -185,26 +259,22 @@ export const checkRetirement = (status: RikishiStatus): { shouldRetire: boolean,
     }
 
     // 1.5. 元関取の引き際（幕内・十両経験者）
-    // 最高位が十両以上の場合
     const isFormerSekitori = ['Makuuchi', 'Juryo'].includes(status.history.maxRank.division);
     
     if (isFormerSekitori) {
         // A. 幕下陥落（復帰を諦める）
         if (!['Makuuchi', 'Juryo'].includes(status.rank.division)) {
-            // 35歳以上で陥落したら引退（再起不能と判断されやすい）
             if (status.age >= 35) {
                  return { shouldRetire: true, reason: '度重なる怪我により気力・体力の限界' };
             }
         }
 
-        // B. 大怪我（関取としてのプライド、または公傷制度なき今）
-        // 怪我レベルが高い＝長期休場不可避
+        // B. 大怪我
         if (status.injuryLevel >= 9 && status.age >= 22) {
              return { shouldRetire: true, reason: '怪我の回復が見込めず引退（関取）' };
         }
         
         // C. 上位での限界（連続負け越し）
-        // 関取在位中でも、成績不振が続けば引退を選ぶ（35歳以上で4場所連続負け越し）
         if (status.age >= 35 && ['Makuuchi', 'Juryo'].includes(status.rank.division)) {
              const recs = status.history.records.slice(-4);
              if (recs.length === 4 && recs.every(r => r.wins < 8)) {
@@ -213,36 +283,26 @@ export const checkRetirement = (status: RikishiStatus): { shouldRetire: boolean,
         }
     }
 
-    // 2. 能力低下による引退（弱すぎて勝てない）
+    // 2. 能力低下による引退
     const totalStats = Object.values(status.stats).reduce((a, b) => a + b, 0);
 
-    // 横綱の引退勧告（厳格化と休場考慮）
+    // 横綱の引退勧告
     if (status.rank.name === '横綱') {
-        // 3場所連続負け越し（全休は除く）
-        // 横綱は怪我による休場（全休）はカウントせず、実際に出場して負け越した場所が続くと引退
-        // 横綱在位中の記録のみ抽出し、かつ全休（15休）を除外
         const effectiveRecords = status.history.records
             .filter(r => r.rank.name === '横綱')
             .filter(r => r.absent < 15);
         
         if (effectiveRecords.length >= 2) {
             const last2 = effectiveRecords.slice(-2);
-            
-            // 2連続で「出場して負け越し」
             if (last2.every(r => r.wins < 8)) {
                 return { shouldRetire: true, reason: '横綱として出場場所2連続負け越し' };
             }
         }
-        // 能力の大幅な衰え（プライドによる引退）
         if (totalStats < 250 && status.age > 30) {
              return { shouldRetire: true, reason: '体力の限界（横綱）' };
         }
     } else {
-        // 大関以下の引退判定
-        // 幕下以下で35歳以上かつ能力値がピークの半分以下...などの判定
-        // 簡易的に「十両以上の経験値がありながら幕下に低迷」かつ「年齢30超え」
         if (status.age > 30 && status.rank.division !== 'Makuuchi' && status.rank.division !== 'Juryo') {
-            // 元関取かどうかの判定が必要だが、ここでは「現在幕下以下」で一括
              if (totalStats < 200) {
                 return { shouldRetire: true, reason: '体力の限界' };
              }
@@ -250,9 +310,7 @@ export const checkRetirement = (status: RikishiStatus): { shouldRetire: boolean,
     }
 
     // 3. 怪我による引退
-    // リハビリが長引いて引退などはここで
-    if (status.injuryLevel > 10) { // 緩和: 5->10 (横綱は休みがちなので少し許容、あるいはロジック変更)
-         // 長期休場明けで復帰不能
+    if (status.injuryLevel > 10) {
          return { shouldRetire: true, reason: '怪我の回復が見込めず引退' };
     }
 
