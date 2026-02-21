@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": ".tmp/roster-integrity",
+    "rootDir": ".",
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["scripts/reports/roster_integrity_report.ts", "src/logic/**/*.ts"]
+}
+

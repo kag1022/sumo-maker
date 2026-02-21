@@ -1,80 +1,157 @@
-# Sumo Simulation 3
+# 爆速！横綱メーカー (`sumo-maker2`)
 
-大相撲のキャリアをシミュレーションするWebアプリケーションです。
-プレイヤーは新弟子を作成し、入門から引退までの相撲人生を見守ります。
+新弟子を作成し、入門から引退までの相撲人生を一気にシミュレーションする Web アプリです。  
+React + TypeScript + Vite で動作します。
 
-## 概要
+## 現在の機能
 
-本プロジェクトは、力士の成長、本場所での取組、番付の昇降、そして引退までの過程を詳細なパラメータに基づいてシミュレーションします。
-現実の大相撲に近い厳格なルールと、ランダム要素を含む成長システムにより、毎回異なる力士のキャリアを楽しむことができます。
+- 新弟子作成
+  - 四股名、入門経歴、戦術、体格、スキルを選択
+  - 入門年齢（例: 15/18/22）を保持し、レポート表示に反映
+- キャリアシミュレーション
+  - 年6場所を進行し、勝敗・怪我・成長・番付昇降・引退を計算
+- レポート表示
+  - 通算成績、階級別成績、能力推移、番付推移、イベント年表
+- 保存機能
+  - 殿堂入りデータを IndexedDB（Dexie）に保存/閲覧/削除
+  - シミュレーション中は 1場所ごとにドラフト保存し、引退後に手動で殿堂入り確定
 
-## 主な機能
-
-1.  **力士作成**
-    - 四股名、成長タイプ（早熟・晩成など）、初期能力配分を設定可能。
-    - 戦術タイプ（突き押し、四つ相撲など）の選択により、成長しやすい能力が変化。
-
-2.  **キャリアシミュレーション**
-    - 15歳で入門し、年6回の本場所を戦います。
-    - 1場所ごとの勝敗、優勝、昇進・陥落を自動で計算。
-    - 幕内、十両、幕下以下の各階級における取組数や昇降格基準を実装。
-
-3.  **成長と衰退**
-    - 年齢と成長タイプに応じた成長曲線。
-    - ランダムな成長係数により、不規則で予測できない成長を実現。
-    - 怪我の発生と、それに伴う能力低下や休場リスク。
-
-4.  **詳細なレポート**
-    - 生涯戦歴および階級別の詳細成績（場所数、勝敗、優勝回数）。
-    - 能力値の推移グラフ。
-    - 番付の推移グラフ。
-    - 特筆すべきイベント（昇進、優勝、怪我、引退）のタイムライン表示。
-
-## シミュレーション仕様
-
-### 成長システム
-
-力士の能力成長は以下の要素によって決定されます。
-
-- **基本成長率**: 年齢と選択した「成長タイプ」に基づき算出されます。
-- **戦術タイプ**: 「突き押し」「四つ相撲」「技」「バランス」の選択により、特定の能力（押し、組み、技など）の伸びやすさが変化します。
-- **ランダム要素**: 毎場所、0.0倍から1.5倍のランダム係数が掛かり、成長の早さにムラが生じます。
-
-### 怪我と休場
-
-- 取組中に一定確率で怪我が発生します。
-- 怪我を負うと「怪我レベル」が上昇し、翌場所以降も休場（全休）するリスクが高まります。
-- 度重なる怪我は引退の直接的な要因となります。
-
-### 引退基準
-
-以下のいずれかの条件を満たした場合、力士は引退します。
-
-- **定年**: 一定の年齢に達した場合。
-- **能力低下**: 加齢や怪我により、現役を続行する力がなくなった場合。
-- **幕下陥落**: 元関取（十両以上経験者）が、30歳以上で幕下への陥落が確定した場合。
-- **限界**: 35歳以上の関取が、4場所連続で負け越した場合。
-- **大怪我**: ベテラン関取が長期休場を要する大怪我を負った場合。
-- **横綱の進退**: 横綱として2場所連続で負け越した場合（全休は除く）。
-
-## 技術スタック
-
-- **Frontend Framework**: React
-- **Language**: TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Visualization**: Recharts (グラフ描画)
-
-## セットアップ手順
-
-以下のコマンドで開発環境を起動できます。
+## 開発コマンド
 
 ```bash
-# 依存関係のインストール
 npm install
-
-# 開発サーバーの起動
 npm run dev
+npm run lint
+npm test
+npm run build
 ```
 
-ブラウザで `http://localhost:5173` にアクセスして動作を確認してください。
+- `npm test`: シミュレーションの決定論テストを実行（`scripts/tests/sim_tests.ts`）
+- `npm run build`: `tsc` + `vite build`
+
+## ディレクトリ構成（主要部）
+
+```text
+src/
+  app/
+    App.tsx
+  main.tsx
+  features/
+    scout/
+      components/
+        ScoutScreen.tsx
+    report/
+      components/
+        ReportScreen.tsx
+        AchievementView.tsx
+        HallOfFameGrid.tsx
+    simulation/
+      hooks/
+        useSimulation.ts
+      store/
+        simulationStore.ts
+      workers/
+        simulation.worker.ts
+  shared/
+    ui/
+      Button.tsx
+      Card.tsx
+  logic/
+    battle.ts / growth.ts / achievements.ts
+    models.ts / constants.ts / initialization.ts
+    catalog/
+      enemyData.ts
+    naming/
+      playerNaming.ts
+    persistence/
+      careerStorage.ts
+      db.ts
+      repository.ts
+    ranking/
+      index.ts
+      rankScore.ts
+      banzukeLayout.ts
+      topDivisionRules.ts
+      lowerDivision.ts
+      sekitoriCommittee.ts
+      sekitori/
+    simulation/
+      runner.ts / engine.ts / basho.ts / career.ts / world.ts
+      lowerQuota.ts / sekitoriQuota.ts / npcRecords.ts
+      npc/
+        npcShikonaGenerator.ts
+      topDivision/
+      lower/
+      sekitori/
+scripts/
+  tests/
+    sim_tests.ts
+    run_sim_tests.cjs
+  reports/
+    balance_report.cjs
+    run_balance_report.cjs
+docs/
+  ゲーム仕様.md
+  リザルト画面仕様.md
+  balance-report-500.md
+```
+
+## ディレクトリ運用ルール
+
+- `src/features`: 機能単位で UI・状態管理・worker をまとめる
+- `src/shared/ui`: 複数機能で使う共通 UI 部品
+- `src/logic`: ドメイン計算とシミュレーションロジックのみ（UI依存を持たない）
+- `scripts/tests`: テスト実行用スクリプト
+- `scripts/reports`: 分析・レポート生成用スクリプト
+- 使い捨ての作業ファイルはリポジトリ直下に置かず、`.tmp/` か `docs/` に寄せる
+
+## アーキテクチャ概要
+
+シミュレーションは以下の責務で分割されています。
+
+- `logic/simulation/engine.ts`
+  - 1場所単位の進行エンジン（進捗、Pause判定、NPC集計）
+- `features/simulation/workers/simulation.worker.ts`
+  - メインスレッド外でシミュレーション実行 + 場所ごとの永続化
+- `features/simulation/store/simulationStore.ts`
+  - Worker通信、進捗状態、殿堂入り操作を集約
+- `logic/simulation/basho.ts`
+  - 1場所の試合進行、怪我発生、優勝判定、主人公の取組詳細生成
+- `logic/simulation/career.ts`
+  - 初期化、イベント追加、通算成績更新、引退確定
+- `logic/battle.ts` / `logic/growth.ts` / `logic/ranking/index.ts`
+  - ドメイン計算ロジック（勝敗、成長、番付）
+- `logic/persistence/repository.ts`
+  - `careers` / `bashoRecords` / `boutRecords` への非同期保存
+
+### 依存注入（再現性向上）
+
+`runSimulation` は依存注入に対応しています。
+
+- `random`
+- `getCurrentYear`
+- `yieldControl`
+
+既定では従来通り `Math.random` / `new Date().getFullYear()` / `setTimeout(...,0)` を使います。  
+テスト時は固定 RNG を渡して再現可能な検証ができます。
+
+## テスト方針
+
+`scripts/tests/sim_tests.ts` では、以下を固定乱数で検証します。
+
+- `battle`: 決定論的な勝敗と逆転スキル挙動
+- `growth`: スナップショット的な能力変化
+- `ranking`: 代表的な昇降格分岐
+- `ranking` の簡易プロパティテスト（番付番号の下限保証）
+- `storage`: `careerStartYearMonth` / `careerEndYearMonth` と保存ソート
+- `simulation`: NPC集計範囲（全関取 + 主人公同階級）と重複防止
+
+## 既知の注意点
+
+- `vite build` で chunk size（500KB超）警告が出る場合があります。  
+  現状は主にレポート画面のグラフ依存（`recharts`）によるものです。
+- 警告はビルド失敗ではありません。
+- 保存データ互換性: `sumo-maker-v6` 以降は旧 IndexedDB（`sumo-maker-v5` 以前）と互換性がありません。
+- 番付編成モード:
+  - `SIMULATE`（既定）: 会議ロジックで次場所番付を算出
+  - `REPLAY`: 実データが与えられた力士は replay 指定番付を優先（完全再現向け）
