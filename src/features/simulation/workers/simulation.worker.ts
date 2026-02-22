@@ -41,6 +41,7 @@ const runLoop = async (): Promise<void> => {
           statusSnapshot: step.statusSnapshot,
           banzukePopulation: step.banzukePopulation,
           banzukeDecisions: step.banzukeDecisions,
+          diagnostics: step.diagnostics,
         });
 
         post({
@@ -105,12 +106,18 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
   const message = event.data;
 
   if (message.type === 'START') {
-    const { careerId, initialStats, oyakata } = message.payload;
+    const { careerId, initialStats, oyakata, simulationModelVersion } = message.payload;
 
     paused = false;
     stopped = false;
     activeCareerId = careerId;
-    engine = createSimulationEngine({ initialStats, oyakata, careerId, banzukeMode: 'SIMULATE' });
+    engine = createSimulationEngine({
+      initialStats,
+      oyakata,
+      careerId,
+      banzukeMode: 'SIMULATE',
+      simulationModelVersion,
+    });
     void runLoop();
     return;
   }

@@ -7,6 +7,15 @@ import {
 } from './catalog/enemyData';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
+import {
+  resolveBoutWinProb,
+  resolvePlayerAbility,
+} from './simulation/strength/model';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  isRealismModel,
+  SimulationModelVersion,
+} from './simulation/modelVersion';
 
 export { type EnemyStats };
 
@@ -25,6 +34,9 @@ export interface BoutContext {
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
+
+const resolveLegacyBoutWinProb = (powerDiff: number): number =>
+  clamp(1 / (1 + Math.exp(-0.082 * powerDiff)), 0.03, 0.97);
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
@@ -78,8 +90,9 @@ export const calculateBattleResult = (
   rikishi: RikishiStatus, 
   enemy: EnemyStats, 
   context?: BoutContext,
-  rng: RandomSource = Math.random
-): { isWin: boolean, kimarite: string } => {
+  rng: RandomSource = Math.random,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+): { isWin: boolean, kimarite: string; winProbability: number; opponentAbility: number } => {
   const traits = rikishi.traits || [];
   const numBouts = CONSTANTS.BOUTS_MAP[rikishi.rank.division];
 
@@ -102,6 +115,7 @@ export const calculateBattleResult = (
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
+  const baselinePower = myPower;
 
   // 得意技ボーナス
   let usedSignatureMove: string | null = null;
@@ -239,12 +253,34 @@ export const calculateBattleResult = (
       // ソップ型: 引き技ボーナス（後で決まり手に反映）
   }
   
-  // 4. 勝率計算
-  const powerDiff = myPower - enemy.power;
-  const winProbability = 1 / (1 + Math.exp(-0.05 * powerDiff));
-  
   // 5. 乱数判定
   const roll = rng();
+  const playerStyle =
+    rikishi.tactics === 'PUSH' ? 'PUSH' :
+      rikishi.tactics === 'GRAPPLE' ? 'GRAPPLE' :
+        rikishi.tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
+          'BALANCE';
+  const bonus = myPower - baselinePower;
+  const enemyAbility = enemy.ability ?? enemy.power;
+  const injuryPenalty = Math.max(0, rikishi.injuryLevel);
+  let winProbability: number;
+  let opponentAbility: number;
+  if (isRealismModel(simulationModelVersion)) {
+    const myAbility = resolvePlayerAbility(rikishi, baseMetrics) + bonus;
+    winProbability = resolveBoutWinProb({
+      attackerAbility: myAbility,
+      defenderAbility: enemyAbility,
+      attackerStyle: playerStyle,
+      defenderStyle: enemy.styleBias,
+      injuryPenalty,
+    });
+    opponentAbility = enemyAbility;
+  } else {
+    const legacyPower = myPower - injuryPenalty * 1.6;
+    const opponentPower = enemy.power;
+    winProbability = resolveLegacyBoutWinProb(legacyPower - opponentPower);
+    opponentAbility = opponentPower;
+  }
   const isWin = roll < winProbability;
 
   // 【土俵際の魔術師 / 土壇場返し】: 負け判定時に低確率で逆転
@@ -254,7 +290,7 @@ export const calculateBattleResult = (
       if (hasDohyogiwa || hasClutchReversal) {
         const reversalMoves = ['うっちゃり', '網打ち', '突き落とし', '肩透かし', 'とったり'];
         const kimarite = reversalMoves[Math.floor(rng() * reversalMoves.length)];
-        return { isWin: true, kimarite };
+        return { isWin: true, kimarite, winProbability, opponentAbility };
       }
   }
 
@@ -312,7 +348,7 @@ export const calculateBattleResult = (
     kimarite = losingMoves[Math.floor(rng() * losingMoves.length)];
   }
 
-  return { isWin, kimarite };
+  return { isWin, kimarite, winProbability, opponentAbility };
 };
 
 /**
@@ -386,6 +422,7 @@ export const generateEnemy = (
       : 1 - (slot - 1) / Math.max(1, poolDisplaySize[division] - 1);
     const rankPowerShift = (rankProgress - 0.5) * 6;
     const basePower = enemy.basePower + enemy.growthBias * 8 + eraShift + rankPowerShift;
+    const ability = basePower * 0.92 + enemy.growthBias * 4.5;
     const body = resolveEnemySeedBodyMetrics(division, `${enemy.seedId}-${slot}`);
 
     return {
@@ -397,6 +434,7 @@ export const generateEnemy = (
         rankSide,
         styleBias: enemy.styleBias,
         power: Math.round(basePower + powerFluctuation),
+        ability: ability + powerFluctuation * 0.7,
         heightCm: body.heightCm,
         weightKg: body.weightKg,
     };

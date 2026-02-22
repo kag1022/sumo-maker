@@ -27,6 +27,9 @@ export interface BanzukeCommitteeCase {
     losses: number;
     absent: number;
   };
+  strengthOfSchedule: number;
+  expectedWins: number;
+  performanceOverExpected: number;
   historyWindow: BashoRecord[];
   proposalRank: Rank;
   flags: string[];
@@ -54,6 +57,9 @@ export interface BanzukeComposeEntry {
   wins: number;
   losses: number;
   absent: number;
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   historyWindow: BashoRecord[];
   isOzekiKadoban?: boolean;
   isOzekiReturn?: boolean;

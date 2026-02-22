@@ -1,6 +1,7 @@
 import { generateTitle } from '../naming/playerNaming';
 import { getRankValue, RankChangeResult } from '../ranking';
 import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
+import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -39,6 +40,33 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
     }
     if (!Number.isFinite(status.bodyMetrics.weightKg)) {
       status.bodyMetrics.weightKg = DEFAULT_BODY_METRICS[status.bodyType].weightKg;
+    }
+  }
+  if (!status.ratingState) {
+    status.ratingState = {
+      ability: resolveAbilityFromStats(
+        status.stats,
+        status.currentCondition,
+        status.bodyMetrics,
+        resolveRankBaselineAbility(status.rank),
+      ),
+      form: 0,
+      uncertainty: 2.2,
+    };
+  } else {
+    if (!Number.isFinite(status.ratingState.ability)) {
+      status.ratingState.ability = resolveAbilityFromStats(
+        status.stats,
+        status.currentCondition,
+        status.bodyMetrics,
+        resolveRankBaselineAbility(status.rank),
+      );
+    }
+    if (!Number.isFinite(status.ratingState.form)) {
+      status.ratingState.form = 0;
+    }
+    if (!Number.isFinite(status.ratingState.uncertainty)) {
+      status.ratingState.uncertainty = 2.2;
     }
   }
   if (typeof status.entryAge !== 'number') status.entryAge = status.age;

@@ -8,6 +8,9 @@ export interface BashoRecordHistorySnapshot {
   wins: number;
   losses: number;
   absent: number;
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   yusho?: boolean;
   junYusho?: boolean;
   specialPrizes?: string[];
@@ -20,6 +23,9 @@ export interface BashoRecordSnapshot {
   wins: number;
   losses: number;
   absent: number;
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   yusho?: boolean;
   junYusho?: boolean;
   specialPrizes?: string[];

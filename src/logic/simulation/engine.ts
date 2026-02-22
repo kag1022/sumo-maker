@@ -38,7 +38,7 @@ import {
   createSimulationWorld,
   resolveTopDivisionFromRank,
   resolveTopDivisionQuotaForPlayer,
-  simulateOffscreenTopDivisionBasho,
+  simulateOffscreenSekitoriBasho,
   SimulationWorld,
   TopDivision,
 } from './world';
@@ -52,12 +52,20 @@ import {
   BanzukePopulationSnapshot,
   composeNextBanzuke,
 } from '../banzuke';
+import { updateAbilityAfterBasho } from './strength/update';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  isRealismModel,
+  SimulationModelVersion,
+} from './modelVersion';
+import { SimulationDiagnostics } from './diagnostics';
 
 export interface SimulationParams {
   initialStats: RikishiStatus;
   oyakata: Oyakata | null;
   careerId?: string;
   banzukeMode?: BanzukeMode;
+  simulationModelVersion?: SimulationModelVersion;
 }
 
 export interface BanzukeEntry {
@@ -96,6 +104,7 @@ export interface SimulationProgressSnapshot {
   jonokuchiActive: number;
   makuuchi: BanzukeEntry[];
   juryo: BanzukeEntry[];
+  lastDiagnostics?: SimulationDiagnostics;
 }
 
 export type PauseReason = 'PROMOTION' | 'INJURY' | 'RETIREMENT';
@@ -110,6 +119,7 @@ export interface BashoStepResult {
   npcBashoRecords: NpcBashoAggregate[];
   banzukePopulation: BanzukePopulationSnapshot;
   banzukeDecisions: BanzukeDecisionLog[];
+  diagnostics?: SimulationDiagnostics;
   events: TimelineEvent[];
   pauseReason?: PauseReason;
   statusSnapshot: RikishiStatus;
@@ -120,6 +130,7 @@ export interface CompletedStepResult {
   kind: 'COMPLETED';
   statusSnapshot: RikishiStatus;
   banzukeDecisions: BanzukeDecisionLog[];
+  diagnostics?: SimulationDiagnostics;
   pauseReason?: PauseReason;
   events: TimelineEvent[];
   progress: SimulationProgressSnapshot;
@@ -237,6 +248,7 @@ const createProgressSnapshot = (
   year: number,
   month: number,
   lastCommitteeWarnings: number,
+  lastDiagnostics?: SimulationDiagnostics,
 ): SimulationProgressSnapshot => {
   const sansho = summarizeSansho(status.history.records);
   const counts = buildDivisionHeadcount(world);
@@ -278,20 +290,32 @@ const createProgressSnapshot = (
     ).length,
     makuuchi: toTopDivisionBanzuke('Makuuchi', world.rosters.Makuuchi, world.makuuchiLayout),
     juryo: toTopDivisionBanzuke('Juryo', world.rosters.Juryo, world.makuuchiLayout),
+    lastDiagnostics,
   };
 };
 
 const resolveBoundaryAssignedRankForCurrentDivision = (
-  currentRank: Rank,
   ...candidates: Array<Rank | undefined>
 ): Rank | undefined => {
   for (const candidate of candidates) {
-    if (candidate && candidate.division !== currentRank.division) {
+    if (candidate) {
       return candidate;
     }
   }
   return undefined;
 };
+
+const resolveCurrentScaleSlots = (
+  world: SimulationWorld,
+  lowerDivisionQuotaWorld: LowerDivisionQuotaWorld,
+): RankCalculationOptions['scaleSlots'] => ({
+  Makuuchi: world.rosters.Makuuchi.length,
+  Juryo: world.rosters.Juryo.length,
+  Makushita: lowerDivisionQuotaWorld.rosters.Makushita.length,
+  Sandanme: lowerDivisionQuotaWorld.rosters.Sandanme.length,
+  Jonidan: lowerDivisionQuotaWorld.rosters.Jonidan.length,
+  Jonokuchi: lowerDivisionQuotaWorld.rosters.Jonokuchi.length,
+});
 
 const resolvePauseReason = (events: TimelineEvent[]): PauseReason | undefined => {
   if (events.some((event) => event.type === 'RETIREMENT')) return 'RETIREMENT';
@@ -311,6 +335,7 @@ export const createSimulationEngine = (
   dependencies?: Partial<SimulationDependencies>,
 ): SimulationEngine => {
   const deps = resolveSimulationDependencies(dependencies);
+  const simulationModelVersion = params.simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION;
   const world = createSimulationWorld(deps.random);
   const sekitoriBoundaryWorld = createSekitoriBoundaryWorld(deps.random);
   const lowerDivisionQuotaWorld = createLowerDivisionQuotaWorld(deps.random, world);
@@ -324,6 +349,7 @@ export const createSimulationEngine = (
   let seq = 0;
   let completed = false;
   let lastCommitteeWarnings = 0;
+  let lastDiagnostics: SimulationDiagnostics | undefined;
 
   appendEntryEvent(status, year);
 
@@ -333,6 +359,7 @@ export const createSimulationEngine = (
         kind: 'COMPLETED',
         statusSnapshot: cloneStatus(status),
         banzukeDecisions: [],
+        diagnostics: lastDiagnostics,
         events: [],
         progress: createProgressSnapshot(
           status,
@@ -341,6 +368,7 @@ export const createSimulationEngine = (
           year,
           MONTHS[Math.min(monthIndex, MONTHS.length - 1)],
           lastCommitteeWarnings,
+          lastDiagnostics,
         ),
       };
     }
@@ -358,6 +386,7 @@ export const createSimulationEngine = (
         kind: 'COMPLETED',
         statusSnapshot: cloneStatus(status),
         banzukeDecisions: [],
+        diagnostics: lastDiagnostics,
         events,
         pauseReason: 'RETIREMENT',
         progress: createProgressSnapshot(
@@ -367,6 +396,7 @@ export const createSimulationEngine = (
           year,
           month,
           lastCommitteeWarnings,
+          lastDiagnostics,
         ),
       };
     }
@@ -378,12 +408,8 @@ export const createSimulationEngine = (
     const currentRank = { ...status.rank };
     const playerTopDivision = resolveTopDivisionFromRank(status.rank);
 
-    if (playerTopDivision) {
-      const otherDivision = playerTopDivision === 'Makuuchi' ? 'Juryo' : 'Makuuchi';
-      simulateOffscreenTopDivisionBasho(world, otherDivision, deps.random);
-    } else {
-      simulateOffscreenTopDivisionBasho(world, 'Makuuchi', deps.random);
-      simulateOffscreenTopDivisionBasho(world, 'Juryo', deps.random);
+    if (!playerTopDivision) {
+      simulateOffscreenSekitoriBasho(world, deps.random, simulationModelVersion);
     }
 
     const bashoResult: BashoSimulationResult = runBashoDetailed(
@@ -393,6 +419,7 @@ export const createSimulationEngine = (
       deps.random,
       world,
       lowerDivisionQuotaWorld,
+      simulationModelVersion,
     );
     const bashoRecord = bashoResult.playerRecord;
 
@@ -409,6 +436,8 @@ export const createSimulationEngine = (
           absent: bashoRecord.absent,
         }
         : undefined,
+      bashoResult.lowerLeagueSnapshots,
+      simulationModelVersion,
     );
     runSekitoriQuotaStep(
       world,
@@ -424,6 +453,7 @@ export const createSimulationEngine = (
         }
         : undefined,
       lowerDivisionQuotaWorld,
+      simulationModelVersion,
     );
 
     status.history.records.push(bashoRecord);
@@ -433,20 +463,20 @@ export const createSimulationEngine = (
     const topDivisionQuota = resolveTopDivisionQuotaForPlayer(world, status.rank);
     const sekitoriQuota = resolveSekitoriQuotaForPlayer(sekitoriBoundaryWorld, status.rank);
     const lowerDivisionQuota = resolveLowerDivisionQuotaForPlayer(lowerDivisionQuotaWorld, status.rank);
+    const scaleSlots = resolveCurrentScaleSlots(world, lowerDivisionQuotaWorld);
+    bashoRecord.scaleSlots = scaleSlots;
     const boundaryAssignedNextRank = resolveBoundaryAssignedRankForCurrentDivision(
-      status.rank,
       sekitoriQuota?.assignedNextRank,
       lowerDivisionQuota?.assignedNextRank,
     );
-    const rankOptions: RankCalculationOptions | undefined =
-      topDivisionQuota || sekitoriQuota || lowerDivisionQuota || boundaryAssignedNextRank
-        ? {
-          ...(topDivisionQuota ? { topDivisionQuota } : {}),
-          ...(sekitoriQuota ? { sekitoriQuota } : {}),
-          ...(lowerDivisionQuota ? { lowerDivisionQuota } : {}),
-          ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
-        }
-        : undefined;
+    const rankOptions: RankCalculationOptions = {
+      ...(topDivisionQuota ? { topDivisionQuota } : {}),
+      ...(sekitoriQuota ? { sekitoriQuota } : {}),
+      ...(lowerDivisionQuota ? { lowerDivisionQuota } : {}),
+      ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
+      scaleSlots,
+      simulationModelVersion,
+    };
 
     const committee = composeNextBanzuke({
       careerId: params.careerId ?? 'runtime',
@@ -462,11 +492,14 @@ export const createSimulationEngine = (
           wins: bashoRecord.wins,
           losses: bashoRecord.losses,
           absent: bashoRecord.absent,
+          expectedWins: bashoRecord.expectedWins,
+          strengthOfSchedule: bashoRecord.strengthOfSchedule,
+          performanceOverExpected: bashoRecord.performanceOverExpected,
           historyWindow: pastRecords,
           isOzekiKadoban: status.isOzekiKadoban,
           isOzekiReturn: status.isOzekiReturn,
           options: {
-            ...(rankOptions ?? {}),
+            ...rankOptions,
             isOzekiReturn: status.isOzekiReturn,
           },
           replayNextRank:
@@ -489,7 +522,7 @@ export const createSimulationEngine = (
         status.isOzekiKadoban,
         deps.random,
         {
-          ...(rankOptions ?? {}),
+          ...rankOptions,
           isOzekiReturn: status.isOzekiReturn,
         },
       );
@@ -501,6 +534,15 @@ export const createSimulationEngine = (
     status.rank = rankChange.nextRank;
     status.isOzekiKadoban = rankChange.isKadoban;
     status.isOzekiReturn = rankChange.isOzekiReturn;
+    if (isRealismModel(simulationModelVersion)) {
+      status.ratingState = updateAbilityAfterBasho({
+        current: status.ratingState,
+        actualWins: bashoRecord.wins,
+        expectedWins: bashoRecord.expectedWins ?? bashoRecord.wins,
+        age: status.age,
+        careerBashoCount: status.history.records.length,
+      });
+    }
 
     const isNewInjury = status.injuryLevel === 0 && bashoRecord.absent > 0;
     status = applyGrowth(status, params.oyakata, isNewInjury, deps.random);
@@ -533,6 +575,24 @@ export const createSimulationEngine = (
     }
     reconcileNpcLeague(world, lowerDivisionQuotaWorld, sekitoriBoundaryWorld, deps.random, seq, month);
     const populationSnapshot = createPopulationSnapshot(world, seq, bashoRecord.year, bashoRecord.month);
+    lastDiagnostics = {
+      seq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      rank: currentRank,
+      wins: bashoRecord.wins,
+      losses: bashoRecord.losses,
+      absent: bashoRecord.absent,
+      expectedWins: bashoRecord.expectedWins ?? bashoRecord.wins,
+      strengthOfSchedule: bashoRecord.strengthOfSchedule ?? 0,
+      performanceOverExpected:
+        bashoRecord.performanceOverExpected ??
+        bashoRecord.wins - (bashoRecord.expectedWins ?? bashoRecord.wins),
+      promoted: rankChange.event?.includes('PROMOTION') ?? false,
+      demoted: rankChange.event?.includes('DEMOTION') ?? false,
+      reason: rankChange.event,
+      simulationModelVersion,
+    };
 
     const sekitoriNpc = buildSekitoriNpcRecords(world, world.makuuchiLayout);
     const sameDivisionNpc = buildSameDivisionLowerNpcRecords(lowerDivisionQuotaWorld, currentRank);
@@ -561,6 +621,7 @@ export const createSimulationEngine = (
       year,
       MONTHS[monthIndex],
       lastCommitteeWarnings,
+      lastDiagnostics,
     );
     return {
       kind: 'BASHO',
@@ -572,6 +633,7 @@ export const createSimulationEngine = (
       npcBashoRecords,
       banzukePopulation: populationSnapshot,
       banzukeDecisions: committee.decisionLogs,
+      diagnostics: lastDiagnostics,
       events: newEvents,
       pauseReason: resolvePauseReason(newEvents),
       statusSnapshot: cloneStatus(status),

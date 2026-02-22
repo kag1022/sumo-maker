@@ -1,5 +1,11 @@
 import { RandomSource } from './deps';
 import { EnemyStyleBias } from '../catalog/enemyData';
+import { resolveBoutWinProb } from './strength/model';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  isRealismModel,
+  SimulationModelVersion,
+} from './modelVersion';
 
 export type DivisionParticipant = {
   id: string;
@@ -9,11 +15,15 @@ export type DivisionParticipant = {
   forbiddenOpponentIds?: string[];
   rankScore: number;
   power: number;
+  ability?: number;
   styleBias?: EnemyStyleBias;
   heightCm?: number;
   weightKg?: number;
   wins: number;
   losses: number;
+  expectedWins?: number;
+  opponentAbilityTotal?: number;
+  boutsSimulated?: number;
   active: boolean;
 };
 
@@ -265,6 +275,12 @@ export const createDailyMatchups = (
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const resolveLegacyWinProb = (powerDiff: number): number =>
+  clamp(1 / (1 + Math.exp(-0.082 * powerDiff)), 0.03, 0.97);
+
 const resolveStyleEdge = (
   mine: EnemyStyleBias | undefined,
   other: EnemyStyleBias | undefined,
@@ -286,22 +302,48 @@ const resolveNpcWinProbability = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion,
 ): number => {
   const aMomentum = (a.wins - a.losses) * 0.35;
   const bMomentum = (b.wins - b.losses) * 0.35;
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
-  const diff =
-    (a.power + aMomentum + styleDiff + randomNoise(rng, 1.5)) -
-    (b.power + bMomentum + randomNoise(rng, 1.5));
-  return 1 / (1 + Math.exp(-0.06 * diff));
+  if (!isRealismModel(simulationModelVersion)) {
+    const aPower = a.power + aMomentum + styleDiff * 0.45 + randomNoise(rng, 1.4);
+    const bPower = b.power + bMomentum + randomNoise(rng, 1.4);
+    return resolveLegacyWinProb(aPower - bPower);
+  }
+  const aAbility = (a.ability ?? a.power) + aMomentum + randomNoise(rng, 1.4);
+  const bAbility = (b.ability ?? b.power) + bMomentum + randomNoise(rng, 1.4);
+  return resolveBoutWinProb({
+    attackerAbility: aAbility,
+    defenderAbility: bAbility,
+    attackerStyle: a.styleBias,
+    defenderStyle: b.styleBias,
+    bonus: styleDiff,
+  });
 };
 
 export const simulateNpcBout = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
-  const aWin = rng() < resolveNpcWinProbability(a, b, rng);
+  const aWinProbability = resolveNpcWinProbability(a, b, rng, simulationModelVersion);
+  const metricByModel = (participant: DivisionParticipant): number =>
+    isRealismModel(simulationModelVersion)
+      ? (participant.ability ?? participant.power)
+      : participant.power;
+  const aAbility = metricByModel(a);
+  const bAbility = metricByModel(b);
+  a.expectedWins = (a.expectedWins ?? 0) + aWinProbability;
+  b.expectedWins = (b.expectedWins ?? 0) + (1 - aWinProbability);
+  a.opponentAbilityTotal = (a.opponentAbilityTotal ?? 0) + bAbility;
+  b.opponentAbilityTotal = (b.opponentAbilityTotal ?? 0) + aAbility;
+  a.boutsSimulated = (a.boutsSimulated ?? 0) + 1;
+  b.boutsSimulated = (b.boutsSimulated ?? 0) + 1;
+
+  const aWin = rng() < aWinProbability;
   if (aWin) {
     a.wins += 1;
     b.losses += 1;

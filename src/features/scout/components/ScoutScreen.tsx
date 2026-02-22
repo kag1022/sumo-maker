@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Oyakata, RikishiStatus, BodyType, EntryDivision, PersonalityType, Trait } from "../../../logic/models";
+import { SimulationModelVersion } from "../../../logic/simulation/modelVersion";
 import { CONSTANTS } from "../../../logic/constants";
 import {
   buildInitialRikishiFromDraft,
@@ -19,11 +20,20 @@ import { getWalletState, spendWalletPoints, WalletState } from "../../../logic/p
 import { RefreshCw, Trophy, Sparkles } from "lucide-react";
 
 interface ScoutScreenProps {
-  onStart: (initialStats: RikishiStatus, oyakata: Oyakata | null) => void;
+  onStart: (
+    initialStats: RikishiStatus,
+    oyakata: Oyakata | null,
+    simulationModelVersion: SimulationModelVersion,
+  ) => void | Promise<void>;
 }
 
 // Manual testing mode: wallet points are not consumed in scout flow.
 const SCOUT_FREE_SPEND_FOR_MANUAL_TEST = true;
+
+const SIMULATION_MODEL_OPTIONS: Array<{ value: SimulationModelVersion; label: string }> = [
+  { value: "legacy-v6", label: "legacy-v6（既定）" },
+  { value: "realism-v1", label: "realism-v1（検証用）" },
+];
 
 const formatCountdown = (seconds: number): string => {
   const safe = Math.max(0, seconds);
@@ -43,6 +53,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDrawing, setIsDrawing] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [simulationModelVersion, setSimulationModelVersion] = useState<SimulationModelVersion>("legacy-v6");
 
   useEffect(() => {
     let active = true;
@@ -163,7 +174,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
       }
 
       const initialStats = buildInitialRikishiFromDraft(editedDraft);
-      onStart(initialStats, null);
+      await onStart(initialStats, null, simulationModelVersion);
     } finally {
       setIsRegistering(false);
     }
@@ -200,6 +211,22 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           <RefreshCw className="w-4 h-4" />
           {isDrawing ? "抽選中..." : `新弟子を抽選 (-${SCOUT_COST.DRAW}pt)`}
         </button>
+
+        <label className="text-xs font-black block space-y-1">
+          <span>シミュモデル</span>
+          <select
+            value={simulationModelVersion}
+            onChange={(event) => setSimulationModelVersion(event.target.value as SimulationModelVersion)}
+            className="w-full border-2 border-sumi px-3 py-2 bg-washi text-sm"
+            disabled={isDrawing || isRegistering}
+          >
+            {SIMULATION_MODEL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {errorMessage && (
           <p className="text-xs font-bold text-shuiro border border-shuiro p-2 bg-washi">{errorMessage}</p>

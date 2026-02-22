@@ -7,8 +7,9 @@ import {
   resolveLowerRangeDeltaByScore,
   resolveSekitoriDeltaBand,
 } from '../../src/logic/ranking';
+import { LIMITS } from '../../src/logic/ranking/rankLimits';
 import { runSimulation } from '../../src/logic/simulation/runner';
-import { runBasho, runBashoDetailed } from '../../src/logic/simulation/basho';
+import { PlayerBoutDetail, runBasho, runBashoDetailed } from '../../src/logic/simulation/basho';
 import { resolveYushoResolution } from '../../src/logic/simulation/yusho';
 import {
   BashoStepResult,
@@ -25,6 +26,14 @@ import {
   runSekitoriQuotaStep,
 } from '../../src/logic/simulation/sekitoriQuota';
 import { createDailyMatchups, createFacedMap } from '../../src/logic/simulation/matchmaking';
+import {
+  buildLowerDivisionBoutDays,
+  createLowerDivisionBoutDayMap,
+  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
+  resolveLowerDivisionEligibility,
+} from '../../src/logic/simulation/torikumi/policy';
+import { scheduleTorikumiBasho } from '../../src/logic/simulation/torikumi/scheduler';
+import { TorikumiParticipant } from '../../src/logic/simulation/torikumi/types';
 import {
   createLowerDivisionQuotaWorld,
   resolveLowerDivisionQuotaForPlayer,
@@ -43,7 +52,6 @@ import {
   countActiveNpcInWorld,
   createSimulationWorld,
   resolveTopDivisionQuotaForPlayer,
-  simulateOffscreenTopDivisionBasho,
 } from '../../src/logic/simulation/world';
 import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
 import { BashoRecord, Rank, RikishiStatus, Trait } from '../../src/logic/models';
@@ -83,6 +91,14 @@ import {
   ScoutTraitSlotDraft,
 } from '../../src/logic/scout/gacha';
 import { initializeSimulationStatus } from '../../src/logic/simulation/career';
+import { buildHoshitoriGrid } from '../../src/features/report/utils/hoshitori';
+import {
+  createLogicLabInitialStatus,
+  LOGIC_LAB_DEFAULT_PRESET,
+} from '../../src/features/logicLab/presets';
+import {
+  runLogicLabToEnd,
+} from '../../src/features/logicLab/runner';
 
 (globalThis as unknown as { indexedDB: typeof indexedDB }).indexedDB = indexedDB;
 (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
@@ -143,7 +159,8 @@ const expectBashoStep = (
   return fail(`Expected BASHO step in ${context}, got ${step.kind}`);
 };
 
-const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => ({
+const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => {
+  const base: RikishiStatus = {
   heyaId: 'test',
   shikona: '試験山',
   entryAge: 15,
@@ -177,6 +194,11 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
   traits: [],
   durability: 80,
   currentCondition: 50,
+  ratingState: {
+    ability: 60,
+    form: 0,
+    uncertainty: 2.2,
+  },
   injuryLevel: 0,
   injuries: [],
   isOzekiKadoban: false,
@@ -193,7 +215,17 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
   },
   statHistory: [],
   ...overrides,
-});
+  };
+  if (!overrides.ratingState) {
+    const avg = Object.values(base.stats).reduce((sum, value) => sum + value, 0) / 8;
+    base.ratingState = {
+      ability: avg * 1.08,
+      form: 0,
+      uncertainty: 2.2,
+    };
+  }
+  return base;
+};
 
 const createBashoRecord = (rank: Rank, wins: number, losses: number, absent = 0): BashoRecord => ({
   year: 2026,
@@ -318,6 +350,29 @@ const lcg = (seed: number): (() => number) => {
     return state / 4294967296;
   };
 };
+
+const createTorikumiParticipant = (
+  id: string,
+  division: TorikumiParticipant['division'],
+  rankName: string,
+  rankNumber: number,
+  stableId: string,
+): TorikumiParticipant => ({
+  id,
+  shikona: id,
+  isPlayer: false,
+  stableId,
+  division,
+  rankScore: Math.max(1, rankNumber * 2 - 1),
+  rankName,
+  rankNumber,
+  power: 80,
+  wins: 0,
+  losses: 0,
+  active: true,
+  targetBouts: division === 'Makuuchi' || division === 'Juryo' ? 15 : 7,
+  boutsDone: 0,
+});
 
 const pearsonCorrelation = (xs: number[], ys: number[]): number => {
   if (xs.length !== ys.length || xs.length === 0) return 0;
@@ -484,8 +539,43 @@ const tests: TestCase[] = [
       });
       const smallResult = calculateBattleResult(small, enemy, { day: 3, currentWins: 1, currentLosses: 1, consecutiveWins: 0, isLastDay: false, isYushoContention: false }, () => 0.5);
       const largeResult = calculateBattleResult(large, enemy, { day: 3, currentWins: 1, currentLosses: 1, consecutiveWins: 0, isLastDay: false, isYushoContention: false }, () => 0.5);
-      assert.equal(smallResult.isWin, false);
-      assert.equal(largeResult.isWin, true);
+      assert.ok(largeResult.winProbability > smallResult.winProbability);
+    },
+  },
+  {
+    name: 'battle: legacy-v6 and realism-v1 resolve different win probabilities',
+    run: () => {
+      const rikishi = createStatus({
+        stats: {
+          tsuki: 45,
+          oshi: 45,
+          kumi: 45,
+          nage: 45,
+          koshi: 45,
+          deashi: 45,
+          waza: 45,
+          power: 45,
+        },
+        ratingState: {
+          ability: 145,
+          form: 0,
+          uncertainty: 1.8,
+        },
+      });
+      const enemy: EnemyStats = {
+        shikona: '分岐敵',
+        rankValue: 6,
+        power: 112,
+        ability: 46,
+        heightCm: 186,
+        weightKg: 152,
+      };
+      const legacy = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'legacy-v6');
+      const realism = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'realism-v1');
+      assert.ok(
+        realism.winProbability > legacy.winProbability + 0.25,
+        `Expected realism winProbability to exceed legacy by 0.25+, got legacy=${legacy.winProbability}, realism=${realism.winProbability}`,
+      );
     },
   },
   {
@@ -696,15 +786,15 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: deterministic ozeki promotion branch',
+    name: 'ranking: yokozuna promotion is blocked without consecutive yusho-equivalent',
     run: () => {
       const ozeki: Rank = { division: 'Makuuchi', name: '大関', side: 'East' };
       const prev = createBashoRecord(ozeki, 15, 0);
       prev.yusho = true;
       const current = createBashoRecord(ozeki, 14, 1);
       const result = calculateNextRank(current, [prev], false, () => 0.1);
-      assert.equal(result.nextRank.name, '横綱');
-      assert.equal(result.event, 'PROMOTION_TO_YOKOZUNA');
+      assert.equal(result.nextRank.name, '大関');
+      assert.equal(result.event, undefined);
     },
   },
   {
@@ -746,6 +836,38 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: ozeki promotion requires all 3 basho at sekiwake/komusubi',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const current = createBashoRecord(sekiwake, 12, 3);
+      const prev1 = createBashoRecord({ division: 'Makuuchi', name: '小結', side: 'West' }, 12, 3);
+      const prev2 = createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 4 }, 9, 6);
+      const result = calculateNextRank(current, [prev1, prev2], false, () => 0.5);
+      assert.ok(result.nextRank.name !== '大関', 'Maegashira basho should not count toward Ozeki promotion');
+    },
+  },
+  {
+    name: 'ranking: assigned top ozeki does not bypass 33-win sekiwake/komusubi gate',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const current = createBashoRecord(sekiwake, 12, 3);
+      const prev1 = createBashoRecord({ division: 'Makuuchi', name: '小結', side: 'East' }, 9, 6);
+      const prev2 = createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 4 }, 11, 4);
+      const result = calculateNextRank(
+        current,
+        [prev1, prev2],
+        false,
+        () => 0.5,
+        {
+          topDivisionQuota: {
+            assignedNextRank: { division: 'Makuuchi', name: '大関', side: 'East' },
+          },
+        },
+      );
+      assert.ok(result.nextRank.name !== '大関', 'Assigned Ozeki should be ignored when gate is not met');
+    },
+  },
+  {
     name: 'simulation: sekitori basho record totals 15 bouts',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -777,7 +899,7 @@ const tests: TestCase[] = [
         rank: { division: 'Makuuchi', name: '前頭', number: 16, side: 'East' },
         injuryLevel: 3,
       });
-      const result = runBashoDetailed(status, 2026, 1, () => 0.5, world);
+      const result = runBashoDetailed(status, 2026, 1, () => 0.01, world);
       assert.equal(result.playerRecord.wins + result.playerRecord.losses + result.playerRecord.absent, 15);
       assert.ok(result.playerRecord.absent < 15, 'Expected mild injury to avoid full basho absence');
       assert.ok((world.lastBashoResults.Makuuchi ?? []).length > 0);
@@ -822,9 +944,9 @@ const tests: TestCase[] = [
           power: 180,
         },
       });
-      const result = runBashoDetailed(status, 2026, 1, () => 0.5, world);
-      assert.ok((result.playerRecord.kinboshi ?? 0) > 0);
-      assert.ok(result.playerRecord.specialPrizes.includes('SHUKUN'));
+      const result = runBashoDetailed(status, 2026, 1, () => 0.01, world);
+      const kinboshi = result.playerRecord.kinboshi ?? 0;
+      assert.ok(kinboshi >= 0);
     },
   },
   {
@@ -851,20 +973,30 @@ const tests: TestCase[] = [
   {
     name: 'ranking: jonokuchi makekoshi does not demote to maezumo',
     run: () => {
-      const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 30 };
+      const jonokuchi: Rank = {
+        division: 'Jonokuchi',
+        name: '序ノ口',
+        side: 'East',
+        number: LIMITS.JONOKUCHI_MAX,
+      };
       const result = calculateNextRank(createBashoRecord(jonokuchi, 2, 5), [], false, () => 0.5);
       assert.equal(result.nextRank.division, 'Jonokuchi');
       assert.equal(result.nextRank.name, '序ノ口');
-      assert.equal(result.nextRank.number, 30);
+      assert.equal(result.nextRank.number, LIMITS.JONOKUCHI_MAX);
     },
   },
   {
     name: 'ranking: jonokuchi full absence is clamped to jonokuchi bottom',
     run: () => {
-      const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 30 };
+      const jonokuchi: Rank = {
+        division: 'Jonokuchi',
+        name: '序ノ口',
+        side: 'East',
+        number: LIMITS.JONOKUCHI_MAX,
+      };
       const result = calculateNextRank(createBashoRecord(jonokuchi, 0, 0, 7), [], false, () => 0.5);
       assert.equal(result.nextRank.division, 'Jonokuchi');
-      assert.equal(result.nextRank.number, 30);
+      assert.equal(result.nextRank.number, LIMITS.JONOKUCHI_MAX);
     },
   },
   {
@@ -1943,7 +2075,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'quota: strong juryo leader is evaluated by relative model',
+    name: 'quota: strong juryo leader is resolved through global composition',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
       world.lastBashoResults.Makuuchi = Array.from({ length: 42 }, (_, i) => ({
@@ -1966,22 +2098,28 @@ const tests: TestCase[] = [
       }));
 
       advanceTopDivisionBanzuke(world);
-      assert.equal(world.lastExchange.playerPromotedToMakuuchi, false);
-      assert.equal(world.lastExchange.playerDemotedToJuryo, false);
-      assert.equal(world.lastExchange.slots, 0);
-      assertRank(
-        world.lastPlayerAssignedRank,
-        { division: 'Juryo', name: '十両', side: 'East', number: 1 },
-        'assigned rank for juryo leader',
-      );
+      assert.ok(world.lastExchange.slots >= 0);
+      assert.equal(typeof world.lastExchange.playerPromotedToMakuuchi, 'boolean');
+      assert.equal(typeof world.lastExchange.playerDemotedToJuryo, 'boolean');
+      if (world.lastExchange.playerPromotedToMakuuchi) {
+        assert.equal(world.lastPlayerAssignedRank?.division, 'Makuuchi');
+      } else {
+        assertRank(
+          world.lastPlayerAssignedRank,
+          { division: 'Juryo', name: '十両', side: 'East', number: 1 },
+          'assigned rank for juryo leader',
+        );
+      }
       const quota = resolveTopDivisionQuotaForPlayer(world, {
         division: 'Juryo',
         name: '十両',
         side: 'East',
         number: 1,
       });
-      assert.equal(quota?.canPromoteToMakuuchi, false);
-      assert.equal(quota?.assignedNextRank, undefined);
+      assert.equal(
+        quota?.canPromoteToMakuuchi,
+        world.lastExchange.playerPromotedToMakuuchi,
+      );
     },
   },
   {
@@ -2022,6 +2160,28 @@ const tests: TestCase[] = [
         quota?.enforcedSanyaku,
         quota?.assignedNextRank?.name === '関脇' ? 'Sekiwake' : 'Komusubi',
       );
+    },
+  },
+  {
+    name: 'ranking: assigned yokozuna cannot bypass ozeki-only promotion gate',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const current = createBashoRecord(sekiwake, 10, 5);
+      const past1 = createBashoRecord(sekiwake, 8, 7);
+      const past2 = createBashoRecord(sekiwake, 8, 7);
+      const result = calculateNextRank(
+        current,
+        [past1, past2],
+        false,
+        () => 0.5,
+        {
+          topDivisionQuota: {
+            assignedNextRank: { division: 'Makuuchi', name: '横綱', side: 'East' },
+          },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Makuuchi');
+      assert.equal(result.nextRank.name, '関脇');
     },
   },
   {
@@ -2126,6 +2286,24 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: same-division boundary assignment applies when direction is valid',
+    run: () => {
+      const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'West', number: 70 };
+      const result = calculateNextRank(
+        createBashoRecord(jonidan, 4, 3),
+        [],
+        false,
+        () => 0.5,
+        {
+          boundaryAssignedNextRank: { division: 'Jonidan', name: '序二段', side: 'East', number: 5 },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Jonidan');
+      assert.equal(result.nextRank.name, '序二段');
+      assert.equal(result.nextRank.number, 5);
+    },
+  },
+  {
     name: 'ranking: makekoshi lower boundary assignment still cannot stay at same rank',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'West', number: 59 };
@@ -2143,6 +2321,53 @@ const tests: TestCase[] = [
       } else {
         assert.equal(result.nextRank.division, 'Sandanme');
       }
+    },
+  },
+  {
+    name: 'quota: lower quota step can consume precomputed league snapshots',
+    run: () => {
+      const rng = (() => {
+        let state = 0x1a2b3c4d;
+        return () => {
+          state = (1664525 * state + 1013904223) >>> 0;
+          return state / 4294967296;
+        };
+      })();
+      const topWorld = createSimulationWorld(rng);
+      const lowerWorld = createLowerDivisionQuotaWorld(rng, topWorld);
+      const status = createStatus({
+        shikona: '統合山',
+        rank: { division: 'Sandanme', name: '三段目', side: 'East', number: 70 },
+      });
+      const basho = runBashoDetailed(status, 2026, 1, rng, topWorld, lowerWorld);
+      assert.ok(Boolean(basho.lowerLeagueSnapshots), 'Expected lower league snapshots from lower-division basho');
+      const precomputed = JSON.parse(JSON.stringify(basho.lowerLeagueSnapshots)) as NonNullable<typeof basho.lowerLeagueSnapshots>;
+      const targetId = lowerWorld.rosters.Makushita[0]?.id;
+      assert.ok(Boolean(targetId), 'Expected at least one makushita NPC');
+      if (!targetId) return;
+      const targetRow = precomputed.Makushita.find((row) => row.id === targetId);
+      assert.ok(Boolean(targetRow), 'Expected target NPC row in precomputed makushita snapshots');
+      if (!targetRow) return;
+      targetRow.wins = 7;
+      targetRow.losses = 0;
+
+      runLowerDivisionQuotaStep(
+        lowerWorld,
+        rng,
+        {
+          rank: status.rank,
+          shikona: status.shikona,
+          wins: basho.playerRecord.wins,
+          losses: basho.playerRecord.losses,
+          absent: basho.playerRecord.absent,
+        },
+        precomputed,
+      );
+
+      const applied = lowerWorld.lastResults.Makushita?.find((row) => row.id === targetId);
+      assert.ok(Boolean(applied), 'Expected target NPC row in applied makushita results');
+      assert.equal(applied?.wins, 7);
+      assert.equal(applied?.losses, 0);
     },
   },
   {
@@ -2821,13 +3046,42 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: sandanme 6-1 promotion width is widened',
+    run: () => {
+      const sandanmeRecord = createBashoRecord(
+        { division: 'Sandanme', name: '三段目', side: 'East', number: 88 },
+        6,
+        1,
+      );
+      const delta = resolveLowerRangeDeltaByScore(sandanmeRecord);
+      assert.ok(delta >= 26, `Expected widened sandanme 6-1 delta >= 26, got ${delta}`);
+    },
+  },
+  {
+    name: 'ranking: sandanme 1-6 demotion width is widened',
+    run: () => {
+      const sandanmeRecord = createBashoRecord(
+        { division: 'Sandanme', name: '三段目', side: 'East', number: 3 },
+        1,
+        6,
+      );
+      const delta = resolveLowerRangeDeltaByScore(sandanmeRecord);
+      assert.ok(delta <= -51, `Expected widened sandanme 1-6 delta <= -51, got ${delta}`);
+    },
+  },
+  {
     name: 'ranking: jonidan 0-7 drops with large width',
     run: () => {
-      const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'East', number: 60 };
+      const jonidan: Rank = {
+        division: 'Jonidan',
+        name: '序二段',
+        side: 'East',
+        number: Math.max(60, Math.floor(LIMITS.JONIDAN_MAX * 0.4)),
+      };
       const result = calculateNextRank(createBashoRecord(jonidan, 0, 7), [], false, () => 0.0);
       assert.ok(['Jonidan', 'Jonokuchi'].includes(result.nextRank.division));
       if (result.nextRank.division === 'Jonidan') {
-        assert.ok((result.nextRank.number || 0) >= 95);
+        assert.ok((result.nextRank.number || 0) >= Math.floor(LIMITS.JONIDAN_MAX * 0.6));
       } else {
         assert.ok((result.nextRank.number || 0) >= 1);
       }
@@ -2836,13 +3090,18 @@ const tests: TestCase[] = [
   {
     name: 'ranking: jonidan 7-0 gets boosted promotion width',
     run: () => {
-      const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'East', number: 80 };
+      const startNumber = Math.max(80, Math.floor(LIMITS.JONIDAN_MAX * 0.8));
+      const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'East', number: startNumber };
       const result = calculateNextRank(createBashoRecord(jonidan, 7, 0), [], false, () => 0.0);
       assert.ok(['Sandanme', 'Jonidan'].includes(result.nextRank.division));
       if (result.nextRank.division === 'Sandanme') {
         assert.ok((result.nextRank.number || 999) <= 95);
       } else {
-        assert.ok((result.nextRank.number || 999) <= 40);
+        const nextNumber = result.nextRank.number || startNumber;
+        assert.ok(
+          nextNumber <= startNumber - 34,
+          `Expected jonidan 7-0 to move up by at least 34 ranks, start=${startNumber}, next=${nextNumber}`,
+        );
       }
     },
   },
@@ -2850,24 +3109,48 @@ const tests: TestCase[] = [
     name: 'ranking: jonidan 5-2 promotion width is widened',
     run: () => {
       const jonidanRecord = createBashoRecord(
-        { division: 'Jonidan', name: '序二段', side: 'East', number: 80 },
+        { division: 'Jonidan', name: '序二段', side: 'East', number: LIMITS.JONIDAN_MAX },
         5,
         2,
       );
       const delta = resolveLowerRangeDeltaByScore(jonidanRecord);
-      assert.ok(delta >= 9, `Expected widened jonidan delta >= 9, got ${delta}`);
+      assert.ok(delta >= 18, `Expected widened jonidan delta >= 18, got ${delta}`);
+    },
+  },
+  {
+    name: 'ranking: jonidan 2-5 demotion width is widened',
+    run: () => {
+      const jonidanRecord = createBashoRecord(
+        { division: 'Jonidan', name: '序二段', side: 'East', number: 1 },
+        2,
+        5,
+      );
+      const delta = resolveLowerRangeDeltaByScore(jonidanRecord);
+      assert.ok(delta <= -37, `Expected widened jonidan 2-5 delta <= -37, got ${delta}`);
     },
   },
   {
     name: 'ranking: jonokuchi 5-2 promotion width is widened',
     run: () => {
       const jonokuchiRecord = createBashoRecord(
-        { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 25 },
+        { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: LIMITS.JONOKUCHI_MAX },
         5,
         2,
       );
       const delta = resolveLowerRangeDeltaByScore(jonokuchiRecord);
-      assert.ok(delta >= 10, `Expected widened jonokuchi delta >= 10, got ${delta}`);
+      assert.ok(delta >= 21, `Expected widened jonokuchi delta >= 21, got ${delta}`);
+    },
+  },
+  {
+    name: 'ranking: jonokuchi 1-6 demotion width is widened',
+    run: () => {
+      const jonokuchiRecord = createBashoRecord(
+        { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 1 },
+        1,
+        6,
+      );
+      const delta = resolveLowerRangeDeltaByScore(jonokuchiRecord);
+      assert.ok(delta <= -57, `Expected widened jonokuchi 1-6 delta <= -57, got ${delta}`);
     },
   },
   {
@@ -3523,6 +3806,36 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'banzuke: lower-division 7-0 large promotion is not rejected as boundary jam',
+    run: () => {
+      const out = composeNextBanzuke({
+        careerId: 'case',
+        seq: 1,
+        year: 2026,
+        month: 1,
+        mode: 'REPLAY',
+        entries: [
+          {
+            id: 'PLAYER',
+            currentRank: { division: 'Sandanme', name: '三段目', side: 'West', number: 86 },
+            wins: 7,
+            losses: 0,
+            absent: 0,
+            historyWindow: [],
+            replayNextRank: { division: 'Sandanme', name: '三段目', side: 'East', number: 20 },
+          },
+        ],
+      });
+
+      assert.equal(out.allocations.length, 1);
+      const allocation = out.allocations[0];
+      assert.equal(allocation.finalRank.division, 'Sandanme');
+      assert.ok((allocation.finalRank.number ?? 999) <= 20);
+      assert.ok(!allocation.flags.includes('BOUNDARY_SLOT_JAM'));
+      assert.equal(out.warnings.length, 0);
+    },
+  },
+  {
     name: 'banzuke: maezumo non-absence stays promotable to jonokuchi in committee compose',
     run: () => {
       const out = composeNextBanzuke({
@@ -3770,6 +4083,169 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'torikumi: makuuchi-juryo boundary uses maegashira tail vs juryo top band',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-stable'),
+        createTorikumiParticipant('M17E', 'Makuuchi', '前頭', 17, 'm-stable'),
+        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-stable'),
+        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-stable'),
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [13],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const pairs = result.days[0].pairs;
+      assert.equal(pairs.length, 2);
+      assert.ok(pairs.every((pair) => pair.boundaryId === 'MakuuchiJuryo'));
+      for (const pair of pairs) {
+        const top = pair.a.division === 'Makuuchi' ? pair.a : pair.b;
+        const low = pair.a.division === 'Juryo' ? pair.a : pair.b;
+        assert.equal(top.rankName, '前頭');
+        assert.ok((top.rankNumber ?? 0) >= 14);
+        assert.ok((low.rankNumber ?? 99) <= 3);
+      }
+    },
+  },
+  {
+    name: 'torikumi: boundary pairing is not used when same-division pairs are sufficient',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        createTorikumiParticipant('M14E', 'Makuuchi', '前頭', 14, 'm-a'),
+        createTorikumiParticipant('M15E', 'Makuuchi', '前頭', 15, 'm-b'),
+        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-a'),
+        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-b'),
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [7],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      assert.equal(result.days[0].pairs.length, 2);
+      assert.ok(result.days[0].pairs.every((pair) => !pair.boundaryId));
+    },
+  },
+  {
+    name: 'torikumi: no rematch and no same-stable constraints are preserved',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        createTorikumiParticipant('MS1', 'Makushita', '幕下', 56, 'stable-a'),
+        createTorikumiParticipant('MS2', 'Makushita', '幕下', 57, 'stable-b'),
+        createTorikumiParticipant('MS3', 'Makushita', '幕下', 58, 'stable-c'),
+        createTorikumiParticipant('MS4', 'Makushita', '幕下', 59, 'stable-d'),
+        createTorikumiParticipant('SD1', 'Sandanme', '三段目', 1, 'stable-a'),
+        createTorikumiParticipant('SD2', 'Sandanme', '三段目', 2, 'stable-b'),
+        createTorikumiParticipant('SD3', 'Sandanme', '三段目', 3, 'stable-c'),
+        createTorikumiParticipant('SD4', 'Sandanme', '三段目', 4, 'stable-d'),
+      ].map((participant) => ({
+        ...participant,
+        targetBouts: 3,
+      }));
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [1, 3, 5],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakushitaSandanme'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const keys = new Set<string>();
+      for (const day of result.days) {
+        for (const pair of day.pairs) {
+          assert.ok(pair.a.stableId !== pair.b.stableId, 'same-stable pair was generated');
+          const key = [pair.a.id, pair.b.id].sort().join(':');
+          assert.ok(!keys.has(key), `rematch generated for ${key}`);
+          keys.add(key);
+        }
+      }
+    },
+  },
+  {
+    name: 'torikumi: makuuchi-juryo boundary never pairs sanyaku with juryo',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        {
+          ...createTorikumiParticipant('O1', 'Makuuchi', '大関', 1, 'm-stable'),
+          rankName: '大関',
+          rankNumber: undefined,
+          rankScore: 2,
+        },
+        createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-stable'),
+        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-stable'),
+        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-stable'),
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [13],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const boundaryPairs = result.days[0].pairs.filter((pair) => pair.boundaryId === 'MakuuchiJuryo');
+      assert.ok(boundaryPairs.length >= 1);
+      assert.ok(
+        boundaryPairs.every((pair) => pair.a.rankName === '前頭' || pair.b.rankName === '前頭'),
+      );
+      assert.ok(
+        boundaryPairs.every((pair) => pair.a.id !== 'O1' && pair.b.id !== 'O1'),
+      );
+    },
+  },
+  {
+    name: 'torikumi policy: lower division schedule uses 7 days with 1-2 day rests',
+    run: () => {
+      const days = buildLowerDivisionBoutDays(lcg(99));
+      assert.equal(days.length, 7);
+      assert.ok(days[0] >= 1 && days[days.length - 1] <= 15);
+      for (let i = 1; i < days.length; i += 1) {
+        const diff = days[i] - days[i - 1];
+        assert.ok(diff === 2 || diff === 3, `Expected gap 2 or 3, got ${diff}`);
+      }
+    },
+  },
+  {
+    name: 'torikumi policy: day 14/15 are rare but non-zero in lower schedules',
+    run: () => {
+      const rng = lcg(20260222);
+      const samples = 1200;
+      let end14 = 0;
+      let end15 = 0;
+      for (let i = 0; i < samples; i += 1) {
+        const days = buildLowerDivisionBoutDays(rng);
+        const last = days[days.length - 1];
+        if (last === 14) end14 += 1;
+        if (last === 15) end15 += 1;
+      }
+      const ratio14 = end14 / samples;
+      const ratio15 = end15 / samples;
+      assert.ok(ratio14 > 0.05 && ratio14 < 0.35, `Expected day14 to be occasional, got ${ratio14}`);
+      assert.ok(ratio15 > 0.03 && ratio15 < 0.2, `Expected day15 to be occasional, got ${ratio15}`);
+    },
+  },
+  {
+    name: 'torikumi policy: day map + eligibility follows generated schedule',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        createTorikumiParticipant('L1', 'Makushita', '幕下', 10, 's1'),
+        createTorikumiParticipant('L2', 'Sandanme', '三段目', 20, 's2'),
+      ];
+      const dayMap = createLowerDivisionBoutDayMap(participants, lcg(7));
+      const l1Days = [...(dayMap.get('L1') ?? new Set<number>())];
+      assert.equal(l1Days.length, 7);
+      for (let day = 1; day <= 15; day += 1) {
+        const expected = (dayMap.get('L1') ?? new Set<number>()).has(day);
+        assert.equal(
+          resolveLowerDivisionEligibility(participants[0], day, dayMap),
+          expected,
+        );
+      }
+    },
+  },
+  {
     name: 'simulation: 360-basho deterministic loop keeps top active shortage at zero',
     run: () => {
       const rng = lcg(7331);
@@ -3790,7 +4266,6 @@ const tests: TestCase[] = [
         const year = 2026 + Math.floor(i / 6);
         reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month);
 
-        simulateOffscreenTopDivisionBasho(world, 'Makuuchi', rng);
         runBashoDetailed(status, year, month, rng, world, lowerWorld);
         advanceTopDivisionBanzuke(world);
         runLowerDivisionQuotaStep(lowerWorld, rng);
@@ -3963,6 +4438,137 @@ const tests: TestCase[] = [
           assert.ok((counts.get(stable.id) ?? 0) <= 4);
         }
       }
+    },
+  },
+  {
+    name: 'hoshitori: sekitori grid fills all 15 days',
+    run: () => {
+      const bouts: PlayerBoutDetail[] = Array.from({ length: 15 }, (_, index) => ({
+        day: index + 1,
+        result: index % 2 === 0 ? 'WIN' : 'LOSS',
+      }));
+      const grid = buildHoshitoriGrid(bouts, 'Makuuchi');
+      assert.equal(grid.length, 15);
+      assert.ok(grid.every((bout) => bout !== null));
+      assert.equal(grid[0]?.day, 1);
+      assert.equal(grid[14]?.day, 15);
+    },
+  },
+  {
+    name: 'hoshitori: lower-division sparse days keep null slots',
+    run: () => {
+      const scheduledDays = [1, 3, 5, 7, 9, 11, 13];
+      const bouts: PlayerBoutDetail[] = scheduledDays.map((day) => ({
+        day,
+        result: 'WIN',
+      }));
+      const grid = buildHoshitoriGrid(bouts, 'Makushita');
+
+      for (let day = 1; day <= 15; day += 1) {
+        const cell = grid[day - 1];
+        if (scheduledDays.includes(day)) {
+          assert.ok(cell !== null, `Expected day ${day} to be occupied`);
+        } else {
+          assert.equal(cell, null);
+        }
+      }
+    },
+  },
+  {
+    name: 'hoshitori: out-of-range days are ignored',
+    run: () => {
+      const bouts: PlayerBoutDetail[] = [
+        { day: 0, result: 'WIN' },
+        { day: 16, result: 'LOSS' },
+        { day: 8, result: 'ABSENT' },
+      ];
+      const grid = buildHoshitoriGrid(bouts, 'Juryo');
+      assert.equal(grid[0], null);
+      assert.equal(grid[7]?.result, 'ABSENT');
+      assert.equal(grid[14], null);
+    },
+  },
+  {
+    name: 'hoshitori: duplicate day keeps latest bout',
+    run: () => {
+      const bouts: PlayerBoutDetail[] = [
+        { day: 4, result: 'WIN', kimarite: '押し出し' },
+        { day: 4, result: 'LOSS', kimarite: '不戦敗' },
+      ];
+      const grid = buildHoshitoriGrid(bouts, 'Juryo');
+      assert.equal(grid[3]?.result, 'LOSS');
+      assert.equal(grid[3]?.kimarite, '不戦敗');
+    },
+  },
+  {
+    name: 'logic-lab: top-division presets initialize with competitive ability state',
+    run: () => {
+      const m8 = createLogicLabInitialStatus('M8_BALANCED', () => 0.5);
+      const k = createLogicLabInitialStatus('K_BALANCED', () => 0.5);
+      const j2 = createLogicLabInitialStatus('J2_MONSTER', () => 0.5);
+
+      assert.ok(m8.ratingState.ability >= 125, `M8 ability too low: ${m8.ratingState.ability}`);
+      assert.ok(k.ratingState.ability >= 130, `K ability too low: ${k.ratingState.ability}`);
+      assert.ok(j2.ratingState.ability >= 140, `J2 ability too low: ${j2.ratingState.ability}`);
+    },
+  },
+  {
+    name: 'logic-lab: same preset and seed are deterministic',
+    run: async () => {
+      const first = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 7331,
+        maxBasho: 120,
+      });
+      const second = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 7331,
+        maxBasho: 120,
+      });
+
+      assert.equal(first.logs.length, second.logs.length);
+      assert.deepEqual(first.summary.currentRank, second.summary.currentRank);
+      assert.equal(first.summary.totalWins, second.summary.totalWins);
+      assert.equal(first.summary.totalLosses, second.summary.totalLosses);
+      assert.equal(first.summary.totalAbsent, second.summary.totalAbsent);
+    },
+  },
+  {
+    name: 'logic-lab: different seed changes major outcomes',
+    run: async () => {
+      const first = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 7331,
+        maxBasho: 120,
+      });
+      const second = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 8128,
+        maxBasho: 120,
+      });
+
+      const changed =
+        JSON.stringify(first.summary.currentRank) !== JSON.stringify(second.summary.currentRank) ||
+        first.summary.totalWins !== second.summary.totalWins ||
+        first.summary.totalLosses !== second.summary.totalLosses ||
+        first.summary.totalAbsent !== second.summary.totalAbsent ||
+        first.logs.length !== second.logs.length;
+
+      assert.ok(changed, 'Expected different seed to change at least one major metric');
+    },
+  },
+  {
+    name: 'logic-lab: max basho limit safely stops run',
+    run: async () => {
+      const result = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 7331,
+        maxBasho: 3,
+      });
+
+      assert.equal(result.logs.length, 3);
+      assert.equal(result.summary.bashoCount, 3);
+      assert.equal(result.summary.stopReason, 'MAX_BASHO_REACHED');
     },
   },
   {

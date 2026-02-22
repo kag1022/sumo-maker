@@ -12,6 +12,9 @@ type DivisionBashoSnapshotLike = {
   wins: number;
   losses: number;
   absent?: number;
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   yusho?: boolean;
   junYusho?: boolean;
   specialPrizes?: string[];
@@ -81,6 +84,9 @@ export const buildTopDivisionRecords = (world: SimulationWorldLike): BashoRecord
       wins: result.wins,
       losses: result.losses,
       absent,
+      expectedWins: result.expectedWins,
+      strengthOfSchedule: result.strengthOfSchedule,
+      performanceOverExpected: result.performanceOverExpected,
       yusho: result.yusho ?? false,
       junYusho: result.junYusho ?? false,
       specialPrizes: result.specialPrizes ?? [],

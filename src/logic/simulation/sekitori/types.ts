@@ -7,6 +7,8 @@ export type MakushitaNpc = {
   shikona: string;
   stableId: string;
   basePower: number;
+  ability: number;
+  uncertainty: number;
   rankScore: number;
   volatility: number;
   form: number;

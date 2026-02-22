@@ -22,6 +22,10 @@ import {
   PlayerMakushitaRecord,
   SekitoriBoundaryWorld,
 } from './types';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from '../modelVersion';
 
 const resolvePlayerMakushitaRankScore = (rank: Rank): number => {
   const number = clamp(rank.number || 1, 1, 60);
@@ -59,11 +63,15 @@ const createMakushitaParticipants = (
       stableId: npc.stableId,
       rankScore: npc.rankScore,
       power: clamp(seasonalPower, MAKUSHITA_POWER_MIN, MAKUSHITA_POWER_MAX),
+      ability: npc.ability,
       styleBias: npc.styleBias,
       heightCm: npc.heightCm,
       weightKg: npc.weightKg,
       wins: 0,
       losses: 0,
+      expectedWins: 0,
+      opponentAbilityTotal: 0,
+      boutsSimulated: 0,
       active: true,
     };
   });
@@ -82,6 +90,8 @@ const evolveMakushitaPool = (
       if (!result) return npc;
 
       const diff = result.wins - result.losses;
+      const expectedWins = result.expectedWins ?? (result.wins + result.losses) / 2;
+      const performanceOverExpected = result.wins - expectedWins;
       const updated = {
         ...npc,
         basePower: clamp(
@@ -89,6 +99,8 @@ const evolveMakushitaPool = (
           MAKUSHITA_POWER_MIN,
           MAKUSHITA_POWER_MAX,
         ),
+        ability: (npc.ability ?? npc.basePower) + performanceOverExpected * 1.0 + randomNoise(rng, 0.35),
+        uncertainty: clamp((npc.uncertainty ?? 1.7) - 0.02, 0.6, 2.3),
         form: clamp(
           npc.form * 0.64 + (1 + diff * 0.012 + randomNoise(rng, 0.05)) * 0.36,
           0.85,
@@ -99,6 +111,8 @@ const evolveMakushitaPool = (
       const persistent = world.npcRegistry?.get(npc.id);
       if (persistent) {
         persistent.basePower = updated.basePower;
+        persistent.ability = updated.ability;
+        persistent.uncertainty = updated.uncertainty;
         persistent.form = updated.form;
         persistent.rankScore = updated.rankScore;
         persistent.growthBias = updated.growthBias ?? persistent.growthBias;
@@ -115,6 +129,7 @@ const evolveMakushitaPool = (
 export const simulateMakushitaBoundaryBasho = (
   world: SekitoriBoundaryWorld,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BoundarySnapshot[] => {
   const participants = createMakushitaParticipants(world, rng);
   const facedMap = createFacedMap(participants);
@@ -123,7 +138,7 @@ export const simulateMakushitaBoundaryBasho = (
     const day = 1 + boutIndex * 2;
     const daily = createDailyMatchups(participants, facedMap, rng, day, 15);
     for (const { a, b } of daily.pairs) {
-      simulateNpcBout(a, b, rng);
+      simulateNpcBout(a, b, rng, simulationModelVersion);
     }
   }
 
@@ -187,6 +202,8 @@ export const applyNpcExchange = (
         division: 'Juryo',
         stableId: rikishi.stableId,
         basePower: clamp(rikishi.basePower + 4, JURYO_POWER_MIN, JURYO_POWER_MAX),
+        ability: (rikishi.ability ?? rikishi.basePower) + 3.5,
+        uncertainty: Math.max(0.6, rikishi.uncertainty ?? 1.6),
         growthBias: rikishi.growthBias ?? 0,
         rankScore: JURYO_SIZE - slots + index + 1,
         volatility: rikishi.volatility,
@@ -208,6 +225,8 @@ export const applyNpcExchange = (
         shikona: rikishi.shikona,
         stableId: rikishi.stableId,
         basePower: clamp(rikishi.basePower - 3.5, MAKUSHITA_POWER_MIN, MAKUSHITA_POWER_MAX),
+        ability: (rikishi.ability ?? rikishi.basePower) - 3.2,
+        uncertainty: Math.min(2.3, (rikishi.uncertainty ?? 1.4) + 0.04),
         rankScore: index + 1,
         volatility: rikishi.volatility,
         form: rikishi.form,
@@ -250,6 +269,8 @@ export const applyNpcExchange = (
     npc.currentDivision = 'Juryo';
     npc.rankScore = rikishi.rankScore;
     npc.basePower = rikishi.basePower;
+    npc.ability = rikishi.ability;
+    npc.uncertainty = rikishi.uncertainty;
     npc.growthBias = rikishi.growthBias;
     npc.form = rikishi.form;
     npc.volatility = rikishi.volatility;
@@ -264,6 +285,8 @@ export const applyNpcExchange = (
     npc.currentDivision = 'Makushita';
     npc.rankScore = rikishi.rankScore;
     npc.basePower = rikishi.basePower;
+    npc.ability = rikishi.ability;
+    npc.uncertainty = rikishi.uncertainty;
     npc.growthBias = rikishi.growthBias ?? npc.growthBias;
     npc.form = rikishi.form;
     npc.volatility = rikishi.volatility;
@@ -286,6 +309,8 @@ export const createSekitoriMakushitaPool = (rng: RandomSource): MakushitaNpc[] =
         MAKUSHITA_POWER_MIN,
         MAKUSHITA_POWER_MAX,
       ),
+      ability: npc.ability,
+      uncertainty: npc.uncertainty,
       rankScore: index + 1,
       volatility: npc.volatility,
       form: npc.form,

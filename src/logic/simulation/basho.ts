@@ -10,7 +10,6 @@ import {
   withInjuryBattlePenalty,
 } from './injury';
 import {
-  createDailyMatchups,
   createFacedMap,
   DivisionParticipant,
   simulateNpcBout,
@@ -30,9 +29,21 @@ import {
   TopDivision,
 } from './world';
 import { resolveTopDivisionRank } from './topDivision/rank';
-import { LowerDivisionQuotaWorld } from './lowerQuota';
+import { LowerDivisionQuotaWorld, LowerLeagueSnapshots } from './lowerQuota';
+import { BoundarySnapshot, LowerDivision } from './lower/types';
 import { resolveYushoResolution } from './yusho';
 import { rankNumberSideToSlot, resolveDivisionSlots } from '../banzuke/scale/rankScale';
+import {
+  createLowerDivisionBoutDayMap,
+  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
+  resolveLowerDivisionEligibility,
+} from './torikumi/policy';
+import { scheduleTorikumiBasho } from './torikumi/scheduler';
+import { TorikumiParticipant } from './torikumi/types';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from './modelVersion';
 
 export type BoutOutcome = 'WIN' | 'LOSS' | 'ABSENT';
 
@@ -64,6 +75,7 @@ export interface BashoSimulationResult {
   playerRecord: BashoRecord;
   playerBoutDetails: PlayerBoutDetail[];
   sameDivisionNpcRecords: NpcBashoAggregate[];
+  lowerLeagueSnapshots?: LowerLeagueSnapshots;
 }
 
 const HONBASHO_TOTAL_DAYS = 15;
@@ -71,17 +83,41 @@ const HONBASHO_TOTAL_DAYS = 15;
 const resolveScheduledBoutDay = (boutIndex: number): number =>
   Math.min(HONBASHO_TOTAL_DAYS, 1 + boutIndex * 2);
 
-const addScheduledAbsentBoutDetails = (
-  details: PlayerBoutDetail[],
-  startBoutIndex: number,
-  totalBouts: number,
-): void => {
-  for (let boutIndex = startBoutIndex; boutIndex < totalBouts; boutIndex += 1) {
-    details.push({
-      day: resolveScheduledBoutDay(boutIndex),
-      result: 'ABSENT',
-    });
+const resolvePerformanceMetrics = (
+  wins: number,
+  expectedWins: number,
+  sosTotal: number,
+  sosCount: number,
+): Pick<BashoRecord, 'expectedWins' | 'strengthOfSchedule' | 'performanceOverExpected'> => ({
+  expectedWins,
+  strengthOfSchedule: sosCount > 0 ? sosTotal / sosCount : 0,
+  performanceOverExpected: wins - expectedWins,
+});
+
+const toBoundarySnapshotsByDivision = (
+  participants: TorikumiParticipant[],
+): LowerLeagueSnapshots => {
+  const divisions: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
+  const result = {
+    Makushita: [],
+    Sandanme: [],
+    Jonidan: [],
+    Jonokuchi: [],
+  } as LowerLeagueSnapshots;
+  for (const division of divisions) {
+    result[division] = participants
+      .filter((participant) => participant.division === division)
+      .map((participant) => ({
+        id: participant.id,
+        shikona: participant.shikona,
+        isPlayer: participant.isPlayer,
+        stableId: participant.stableId,
+        rankScore: participant.rankScore,
+        wins: participant.wins,
+        losses: participant.losses,
+      } satisfies BoundarySnapshot));
   }
+  return result;
 };
 
 export const runBashoDetailed = (
@@ -91,13 +127,14 @@ export const runBashoDetailed = (
   rng: RandomSource,
   world?: SimulationWorld,
   lowerWorld?: LowerDivisionQuotaWorld,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
   const topDivision = resolveTopDivisionFromRank(status.rank);
   if (topDivision && world) {
-    return runTopDivisionBasho(status, year, month, topDivision, rng, world);
+    return runTopDivisionBasho(status, year, month, topDivision, rng, world, simulationModelVersion);
   }
   if (status.rank.division === 'Maezumo' && lowerWorld) {
-    return runMaezumoBasho(status, year, month, rng, lowerWorld);
+    return runMaezumoBasho(status, year, month, rng, lowerWorld, simulationModelVersion);
   }
   if (
     (status.rank.division === 'Makushita' ||
@@ -106,9 +143,9 @@ export const runBashoDetailed = (
       status.rank.division === 'Jonokuchi') &&
     lowerWorld
   ) {
-    return runLowerDivisionBasho(status, year, month, rng, lowerWorld, world);
+    return runLowerDivisionBasho(status, year, month, rng, lowerWorld, world, simulationModelVersion);
   }
-  return runSimplifiedBasho(status, year, month, rng);
+  return runSimplifiedBasho(status, year, month, rng, simulationModelVersion);
 };
 
 export const runBasho = (
@@ -118,13 +155,23 @@ export const runBasho = (
   rng: RandomSource,
   world?: SimulationWorld,
   lowerWorld?: LowerDivisionQuotaWorld,
-): BashoRecord => runBashoDetailed(status, year, month, rng, world, lowerWorld).playerRecord;
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+): BashoRecord => runBashoDetailed(
+  status,
+  year,
+  month,
+  rng,
+  world,
+  lowerWorld,
+  simulationModelVersion,
+).playerRecord;
 
 const runSimplifiedBasho = (
   status: RikishiStatus,
   year: number,
   month: number,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP[status.rank.division];
   let wins = 0;
@@ -134,6 +181,9 @@ const runSimplifiedBasho = (
   let previousResult: BoutOutcome | undefined;
   let kinboshi = 0;
   const kimariteCount: Record<string, number> = {};
+  let expectedWins = 0;
+  let sosTotal = 0;
+  let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
 
   if (resolveInjuryParticipation(status).mustSitOut) {
@@ -148,6 +198,7 @@ const runSimplifiedBasho = (
         absent: numBouts,
         yusho: false,
         specialPrizes: [],
+        ...resolvePerformanceMetrics(0, 0, 0, 0),
       },
       playerBoutDetails,
       sameDivisionNpcRecords: [],
@@ -185,7 +236,16 @@ const runSimplifiedBasho = (
       previousResult,
     };
 
-    const result = calculateBattleResult(withInjuryBattlePenalty(status), enemy, boutContext, rng);
+    const result = calculateBattleResult(
+      withInjuryBattlePenalty(status),
+      enemy,
+      boutContext,
+      rng,
+      simulationModelVersion,
+    );
+    expectedWins += result.winProbability;
+    sosTotal += result.opponentAbility;
+    sosCount += 1;
 
     if (result.isWin) {
       wins += 1;
@@ -235,6 +295,7 @@ const runSimplifiedBasho = (
       absent,
       yusho,
       specialPrizes,
+      ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kinboshi,
       kimariteCount,
     },
@@ -286,6 +347,29 @@ const decodeJuryoRankFromScore = (
   };
 };
 
+const toDivisionParticipants = (
+  participants: TorikumiParticipant[],
+): DivisionParticipant[] =>
+  participants.map((participant) => ({
+    id: participant.id,
+    shikona: participant.shikona,
+    isPlayer: participant.isPlayer,
+    stableId: participant.stableId,
+    forbiddenOpponentIds: participant.forbiddenOpponentIds,
+    rankScore: participant.rankScore,
+    power: participant.power,
+    ability: participant.ability,
+    styleBias: participant.styleBias,
+    heightCm: participant.heightCm,
+    weightKg: participant.weightKg,
+    wins: participant.wins,
+    losses: participant.losses,
+    expectedWins: participant.expectedWins,
+    opponentAbilityTotal: participant.opponentAbilityTotal,
+    boutsSimulated: participant.boutsSimulated,
+    active: participant.active,
+  }));
+
 const runLowerDivisionBasho = (
   status: RikishiStatus,
   year: number,
@@ -293,6 +377,7 @@ const runLowerDivisionBasho = (
   rng: RandomSource,
   lowerWorld: LowerDivisionQuotaWorld,
   topWorld?: SimulationWorld,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
   const division = status.rank.division;
   if (
@@ -301,7 +386,7 @@ const runLowerDivisionBasho = (
     division !== 'Jonidan' &&
     division !== 'Jonokuchi'
   ) {
-    return runSimplifiedBasho(status, year, month, rng);
+    return runSimplifiedBasho(status, year, month, rng, simulationModelVersion);
   }
 
   const numBouts = CONSTANTS.BOUTS_MAP[division];
@@ -311,28 +396,45 @@ const runLowerDivisionBasho = (
   let consecutiveWins = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
+  let expectedWins = 0;
+  let sosTotal = 0;
+  let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
   const playerRankScore = resolveLowerRankScore(status.rank, lowerWorld);
-  const participants: DivisionParticipant[] = lowerWorld.rosters[division]
-    .filter((npc) => npc.active !== false)
-    .slice()
-    .sort((a, b) => a.rankScore - b.rankScore)
-    .map((npc) => ({
-      id: npc.id,
-      shikona: npc.shikona,
-      isPlayer: false,
-      stableId: npc.stableId,
-      rankScore: npc.rankScore,
-      power: Math.round(
-        npc.basePower * npc.form + (rng() * 2 - 1) * Math.max(1.2, npc.volatility),
-      ),
-      styleBias: npc.styleBias ?? 'BALANCE',
-      heightCm: npc.heightCm ?? 180,
-      weightKg: npc.weightKg ?? 130,
-      wins: 0,
-      losses: 0,
-      active: true,
-    }));
+  const lowerDivisions: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi'> = [
+    'Makushita',
+    'Sandanme',
+    'Jonidan',
+    'Jonokuchi',
+  ];
+  const participants: TorikumiParticipant[] = lowerDivisions.flatMap((lowerDivision) =>
+    lowerWorld.rosters[lowerDivision]
+      .filter((npc) => npc.active !== false)
+      .slice()
+      .sort((a, b) => a.rankScore - b.rankScore)
+      .map((npc) => ({
+        id: npc.id,
+        shikona: npc.shikona,
+        isPlayer: false,
+        stableId: npc.stableId,
+        division: lowerDivision,
+        rankScore: npc.rankScore,
+        rankName: resolveLowerRankName(lowerDivision),
+        rankNumber: Math.floor((npc.rankScore - 1) / 2) + 1,
+        power: Math.round(
+          npc.basePower * npc.form + (rng() * 2 - 1) * Math.max(1.2, npc.volatility),
+        ),
+        ability: Number.isFinite(npc.ability) ? npc.ability : npc.basePower * npc.form,
+        styleBias: npc.styleBias ?? 'BALANCE',
+        heightCm: npc.heightCm ?? 180,
+        weightKg: npc.weightKg ?? 130,
+        wins: 0,
+        losses: 0,
+        active: true,
+        targetBouts: 7,
+        boutsDone: 0,
+      })),
+  );
   const juryoGuestRankById = new Map<string, { number: number; side: 'East' | 'West' }>();
 
   if (
@@ -354,97 +456,91 @@ const runLowerDivisionBasho = (
         shikona: guest.shikona,
         isPlayer: false,
         stableId: guest.stableId,
-        rankScore: Math.max(1, Math.min(32, guest.rankScore)),
+        division: 'Juryo',
+        rankScore: Math.max(1, Math.min(28, guest.rankScore)),
+        rankName: '十両',
+        rankNumber: rank.number,
         power: Math.round(guest.basePower * guest.form + (rng() * 2 - 1) * 1.6),
+        ability: Number.isFinite(guest.ability) ? guest.ability : guest.basePower * guest.form,
         styleBias: guest.styleBias ?? 'BALANCE',
         heightCm: guest.heightCm ?? 186,
         weightKg: guest.weightKg ?? 152,
         wins: 0,
         losses: 0,
         active: true,
+        targetBouts: 1,
+        boutsDone: 0,
       });
     }
   }
 
-  if (resolveInjuryParticipation(status).mustSitOut) {
-    addScheduledAbsentBoutDetails(playerBoutDetails, 0, numBouts);
-    return {
-      playerRecord: {
-        year,
-        month,
-        rank: status.rank,
-        wins: 0,
-        losses: 0,
-        absent: numBouts,
-        yusho: false,
-        specialPrizes: [],
-      },
-      playerBoutDetails,
-      sameDivisionNpcRecords: [],
-    };
+  let replaceIndex = -1;
+  for (let i = participants.length - 1; i >= 0; i -= 1) {
+    if (participants[i].division === division && !participants[i].isPlayer) {
+      replaceIndex = i;
+      break;
+    }
   }
-
-  if (!participants.length) {
-    addScheduledAbsentBoutDetails(playerBoutDetails, 0, numBouts);
-    return {
-      playerRecord: {
-        year,
-        month,
-        rank: status.rank,
-        wins: 0,
-        losses: 0,
-        absent: numBouts,
-        yusho: false,
-        specialPrizes: [],
-      },
-      playerBoutDetails,
-      sameDivisionNpcRecords: [],
-    };
-  }
-
-  const replaceIndex = participants.length - 1;
-  participants.splice(replaceIndex, 1);
-  const player: DivisionParticipant = {
+  if (replaceIndex >= 0) participants.splice(replaceIndex, 1);
+  const player: TorikumiParticipant = {
     id: 'PLAYER',
     shikona: status.shikona,
     isPlayer: true,
     stableId: 'player-heya',
+    division,
     rankScore: playerRankScore,
+    rankName: resolveLowerRankName(division),
+    rankNumber: status.rank.number ?? Math.floor((playerRankScore - 1) / 2) + 1,
     power: 0,
     wins: 0,
     losses: 0,
     active: true,
+    targetBouts: numBouts,
+    boutsDone: 0,
   };
   participants.push(player);
-  const facedMap = createFacedMap(participants);
-
-  for (let boutIndex = 0; boutIndex < numBouts; boutIndex += 1) {
-    const day = resolveScheduledBoutDay(boutIndex);
-    const dailyMatchups = createDailyMatchups(participants, facedMap, rng, day, HONBASHO_TOTAL_DAYS);
-    let playerRecordedToday = false;
-    if (dailyMatchups.byeIds.includes(player.id)) {
-      absent += 1;
-      playerBoutDetails.push({ day, result: 'ABSENT' });
-      playerRecordedToday = true;
-      previousResult = 'ABSENT';
-    }
-
-    for (const { a, b } of dailyMatchups.pairs) {
+  const lowerDayMap = createLowerDivisionBoutDayMap(participants, rng);
+  const playerPlannedDays =
+    [...(lowerDayMap.get('PLAYER') ?? new Set(Array.from({ length: numBouts }, (_, i) => resolveScheduledBoutDay(i))))].sort(
+      (a, b) => a - b,
+    );
+  if (resolveInjuryParticipation(status).mustSitOut) {
+    player.active = false;
+  }
+  scheduleTorikumiBasho({
+    participants,
+    days: Array.from({ length: 15 }, (_, index) => index + 1),
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) =>
+      band.id === 'JuryoMakushita' ||
+      band.id === 'MakushitaSandanme' ||
+      band.id === 'SandanmeJonidan' ||
+      band.id === 'JonidanJonokuchi'),
+    facedMap: createFacedMap(participants),
+    dayEligibility: (participant, day) => {
+      if (participant.id.startsWith('JURYO_GUEST_')) return day >= 1 && day <= 15;
+      return resolveLowerDivisionEligibility(participant, day, lowerDayMap);
+    },
+    onPair: ({ a, b }, day) => {
       if (!a.isPlayer && !b.isPlayer) {
-        simulateNpcBout(a, b, rng);
-        continue;
+        simulateNpcBout(a, b, rng, simulationModelVersion);
+        return;
       }
 
       const opponent = a.isPlayer ? b : a;
+      const opponentDivision = opponent.division;
       const juryoGuestRank = juryoGuestRankById.get(opponent.id);
-      const rankName = juryoGuestRank ? '十両' : resolveLowerRankName(division);
+      const rankName =
+        opponentDivision === 'Juryo' ? '十両' : resolveLowerRankName(opponentDivision);
       const rankNumber = juryoGuestRank
         ? juryoGuestRank.number
         : Math.floor((opponent.rankScore - 1) / 2) + 1;
       const rankSide = juryoGuestRank
         ? juryoGuestRank.side
         : (opponent.rankScore % 2 === 1 ? 'East' : 'West');
-      const rankValue = juryoGuestRank ? 6 : LOWER_RANK_VALUE_MAP[division];
+      const rankValue =
+        opponentDivision === 'Juryo'
+          ? 6
+          : LOWER_RANK_VALUE_MAP[opponentDivision as keyof typeof LOWER_RANK_VALUE_MAP];
 
       if (rng() < resolveInjuryRate(status)) {
         losses += 1;
@@ -460,33 +556,15 @@ const runLowerDivisionBasho = (
           opponentRankSide: rankSide,
         });
         applyGeneratedInjury(status, generateInjury(status, year, month, rng));
-        const postInjury = resolveInjuryParticipation(status);
-        if (postInjury.mustSitOut) {
-          addScheduledAbsentBoutDetails(playerBoutDetails, boutIndex + 1, numBouts);
-          absent += numBouts - (boutIndex + 1);
-          return {
-            playerRecord: {
-              year,
-              month,
-              rank: status.rank,
-              wins,
-              losses,
-              absent,
-              yusho: false,
-              specialPrizes: [],
-              kimariteCount,
-            },
-            playerBoutDetails,
-            sameDivisionNpcRecords: [],
-          };
+        if (resolveInjuryParticipation(status).mustSitOut) {
+          player.active = false;
         }
         consecutiveWins = 0;
         previousResult = 'LOSS';
-        playerRecordedToday = true;
-        continue;
+        return;
       }
 
-      const isLastBout = boutIndex === numBouts - 1;
+      const isLastBout = player.boutsDone >= numBouts;
       const isYushoContention = isLastBout && wins >= numBouts - 1;
       const boutContext: BoutContext = {
         day,
@@ -505,11 +583,21 @@ const runLowerDivisionBasho = (
         rankNumber,
         rankSide,
         power: Math.round(opponent.power + (rng() * 2 - 1) * 1.4),
+        ability: opponent.ability ?? opponent.power,
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 180,
         weightKg: opponent.weightKg ?? 130,
       };
-      const result = calculateBattleResult(withInjuryBattlePenalty(status), enemy, boutContext, rng);
+      const result = calculateBattleResult(
+        withInjuryBattlePenalty(status),
+        enemy,
+        boutContext,
+        rng,
+        simulationModelVersion,
+      );
+      expectedWins += result.winProbability;
+      sosTotal += result.opponentAbility;
+      sosCount += 1;
       if (result.isWin) {
         wins += 1;
         player.wins += 1;
@@ -535,19 +623,29 @@ const runLowerDivisionBasho = (
         opponentRankNumber: enemy.rankNumber,
         opponentRankSide: enemy.rankSide,
       });
-      playerRecordedToday = true;
-    }
-
-    if (!playerRecordedToday) {
+    },
+    onBye: (participant, day) => {
+      if (participant.id !== 'PLAYER') return;
       absent += 1;
-      playerBoutDetails.push({ day, result: 'ABSENT' });
       previousResult = 'ABSENT';
-    }
+      playerBoutDetails.push({ day, result: 'ABSENT' });
+    },
+  });
+
+  const recordedDays = new Set(playerBoutDetails.map((detail) => detail.day));
+  for (const day of playerPlannedDays) {
+    if (recordedDays.has(day)) continue;
+    absent += 1;
+    playerBoutDetails.push({ day, result: 'ABSENT' });
+    previousResult = 'ABSENT';
   }
+  playerBoutDetails.sort((a, b) => a.day - b.day);
 
   const yushoResolution = resolveYushoResolution(
     participants
-      .filter((participant) => !participant.id.startsWith('JURYO_GUEST_'))
+      .filter((participant) =>
+        !participant.id.startsWith('JURYO_GUEST_') &&
+        participant.division === division)
       .map((participant) => ({
         id: participant.id,
         wins: participant.wins,
@@ -568,10 +666,14 @@ const runLowerDivisionBasho = (
       absent,
       yusho,
       specialPrizes: [],
+      ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kimariteCount,
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],
+    lowerLeagueSnapshots: toBoundarySnapshotsByDivision(
+      participants.filter((participant) => !participant.id.startsWith('JURYO_GUEST_')),
+    ),
   };
 };
 
@@ -581,6 +683,7 @@ const runMaezumoBasho = (
   month: number,
   rng: RandomSource,
   lowerWorld: LowerDivisionQuotaWorld,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP.Maezumo;
   let wins = 0;
@@ -588,6 +691,9 @@ const runMaezumoBasho = (
   let consecutiveWins = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
+  let expectedWins = 0;
+  let sosTotal = 0;
+  let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
 
   const maezumoCandidates = lowerWorld.maezumoPool
@@ -609,6 +715,7 @@ const runMaezumoBasho = (
         rankNumber: 1,
         rankSide: 'East' as const,
         power: Math.round(opponent.basePower * opponent.form + (rng() * 2 - 1) * Math.max(1, opponent.volatility)),
+        ability: opponent.ability ?? opponent.basePower * opponent.form,
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 176,
         weightKg: opponent.weightKg ?? 100,
@@ -628,7 +735,11 @@ const runMaezumoBasho = (
         previousResult,
       },
       rng,
+      simulationModelVersion,
     );
+    expectedWins += result.winProbability;
+    sosTotal += result.opponentAbility;
+    sosCount += 1;
 
     if (result.isWin) {
       wins += 1;
@@ -663,6 +774,7 @@ const runMaezumoBasho = (
       absent: 0,
       yusho: false,
       specialPrizes: [],
+      ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kimariteCount,
     },
     playerBoutDetails,
@@ -677,6 +789,7 @@ const runTopDivisionBasho = (
   division: TopDivision,
   rng: RandomSource,
   world: SimulationWorld,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP[division];
   const kimariteCount: Record<string, number> = {};
@@ -687,12 +800,49 @@ const runTopDivisionBasho = (
   let previousResult: BoutOutcome | undefined;
   const playerBoutDetails: PlayerBoutDetail[] = [];
   const kinboshiById = new Map<string, number>();
+  let expectedWins = 0;
+  let sosTotal = 0;
+  let sosCount = 0;
 
-  const participants = createDivisionParticipants(world, division, rng, {
-    shikona: status.shikona,
-    rankScore: resolvePlayerRankScore(status.rank, world.makuuchiLayout),
-  });
-  const facedMap = createFacedMap(participants);
+  const toTorikumiSekitoriParticipant = (
+    topDivision: TopDivision,
+    participant: DivisionParticipant,
+  ): TorikumiParticipant => {
+    const rank = resolveTopDivisionRank(topDivision, participant.rankScore, world.makuuchiLayout);
+    return {
+      ...participant,
+      division: topDivision,
+      rankName: rank.name,
+      rankNumber: rank.number,
+      targetBouts: 15,
+      boutsDone: 0,
+    };
+  };
+
+  const makuuchi = createDivisionParticipants(
+    world,
+    'Makuuchi',
+    rng,
+    division === 'Makuuchi'
+      ? {
+        shikona: status.shikona,
+        rankScore: resolvePlayerRankScore(status.rank, world.makuuchiLayout),
+      }
+      : undefined,
+  ).map((participant) => toTorikumiSekitoriParticipant('Makuuchi', participant));
+  const juryo = createDivisionParticipants(
+    world,
+    'Juryo',
+    rng,
+    division === 'Juryo'
+      ? {
+        shikona: status.shikona,
+        rankScore: resolvePlayerRankScore(status.rank, world.makuuchiLayout),
+      }
+      : undefined,
+  ).map((participant) => toTorikumiSekitoriParticipant('Juryo', participant));
+  const participants = makuuchi.concat(juryo);
+
   const player = participants.find((participant) => participant.isPlayer);
   if (!player) {
     throw new Error('Player participant was not initialized for top division basho');
@@ -705,23 +855,21 @@ const runTopDivisionBasho = (
     kinboshiById.set(id, (kinboshiById.get(id) ?? 0) + 1);
   };
 
-  for (let day = 1; day <= numBouts; day += 1) {
-    const dailyMatchups = createDailyMatchups(participants, facedMap, rng, day, numBouts);
-    let playerRecordedToday = false;
-    if (dailyMatchups.byeIds.includes(player.id)) {
-      absent += 1;
-      playerBoutDetails.push({ day, result: 'ABSENT' });
-      playerRecordedToday = true;
-      previousResult = 'ABSENT';
-    }
-
-    for (const { a, b } of dailyMatchups.pairs) {
+  scheduleTorikumiBasho({
+    participants,
+    days: Array.from({ length: 15 }, (_, index) => index + 1),
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    facedMap: createFacedMap(participants),
+    dayEligibility: () => true,
+    onPair: ({ a, b }, day) => {
       if (!a.isPlayer && !b.isPlayer) {
-        const aRank = resolveTopDivisionRank(division, a.rankScore, world.makuuchiLayout);
-        const bRank = resolveTopDivisionRank(division, b.rankScore, world.makuuchiLayout);
+        const aDivision = a.division as TopDivision;
+        const bDivision = b.division as TopDivision;
+        const aRank = resolveTopDivisionRank(aDivision, a.rankScore, world.makuuchiLayout);
+        const bRank = resolveTopDivisionRank(bDivision, b.rankScore, world.makuuchiLayout);
         const aWinsBefore = a.wins;
-        simulateNpcBout(a, b, rng);
-        if (division === 'Makuuchi') {
+        simulateNpcBout(a, b, rng, simulationModelVersion);
+        if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
           const aWon = a.wins > aWinsBefore;
           const winner = aWon ? a : b;
           const winnerRank = aWon ? aRank : bRank;
@@ -730,40 +878,22 @@ const runTopDivisionBasho = (
             addKinboshi(winner.id);
           }
         }
-        continue;
+        return;
       }
 
       const opponent = a.isPlayer ? b : a;
-      if (!player.active) {
-        opponent.wins += 1;
-        if (!playerRecordedToday) {
-          absent += 1;
-          const opponentRankForAbsent = resolveTopDivisionRank(
-            division,
-            opponent.rankScore,
-            world.makuuchiLayout,
-          );
-          playerBoutDetails.push({
-            day,
-            result: 'ABSENT',
-            opponentId: opponent.id,
-            opponentShikona: opponent.shikona,
-            opponentRankName: opponentRankForAbsent.name,
-            opponentRankNumber: opponentRankForAbsent.number,
-            opponentRankSide: opponentRankForAbsent.side,
-          });
-          playerRecordedToday = true;
-          previousResult = 'ABSENT';
-        }
-        continue;
-      }
+      const opponentDivision = opponent.division as TopDivision;
+      const opponentRank = resolveTopDivisionRank(
+        opponentDivision,
+        opponent.rankScore,
+        world.makuuchiLayout,
+      );
 
       if (rng() < resolveInjuryRate(status)) {
         losses += 1;
         player.losses += 1;
         opponent.wins += 1;
         consecutiveWins = 0;
-        playerRecordedToday = true;
         previousResult = 'LOSS';
 
         playerBoutDetails.push({
@@ -771,38 +901,30 @@ const runTopDivisionBasho = (
           result: 'LOSS',
           opponentId: opponent.id,
           opponentShikona: opponent.shikona,
-          opponentRankName: resolveTopDivisionRank(
-            division,
-            opponent.rankScore,
-            world.makuuchiLayout,
-          ).name,
-          opponentRankNumber: resolveTopDivisionRank(
-            division,
-            opponent.rankScore,
-            world.makuuchiLayout,
-          ).number,
-          opponentRankSide: resolveTopDivisionRank(
-            division,
-            opponent.rankScore,
-            world.makuuchiLayout,
-          ).side,
+          opponentRankName: opponentRank.name,
+          opponentRankNumber: opponentRank.number,
+          opponentRankSide: opponentRank.side,
         });
 
         applyGeneratedInjury(status, generateInjury(status, year, month, rng));
-        const postInjury = resolveInjuryParticipation(status);
-        if (postInjury.mustSitOut) {
+        if (resolveInjuryParticipation(status).mustSitOut) {
           player.active = false;
         }
-        continue;
+        return;
       }
 
       const enemy = {
         shikona: opponent.shikona,
-        rankValue: resolveTopDivisionRankValue(division, opponent.rankScore, world.makuuchiLayout),
+        rankValue: resolveTopDivisionRankValue(
+          opponentDivision,
+          opponent.rankScore,
+          world.makuuchiLayout,
+        ),
         power: Math.round(opponent.power + (rng() * 2 - 1) * 1.5),
+        ability: opponent.ability ?? opponent.power,
         styleBias: opponent.styleBias ?? 'BALANCE',
-        heightCm: opponent.heightCm ?? (division === 'Makuuchi' ? 188 : 186),
-        weightKg: opponent.weightKg ?? (division === 'Makuuchi' ? 160 : 152),
+        heightCm: opponent.heightCm ?? (opponentDivision === 'Makuuchi' ? 188 : 186),
+        weightKg: opponent.weightKg ?? (opponentDivision === 'Makuuchi' ? 160 : 152),
       };
 
       const isLastDay = day === numBouts;
@@ -817,7 +939,16 @@ const runTopDivisionBasho = (
         previousResult,
       };
 
-      const result = calculateBattleResult(withInjuryBattlePenalty(status), enemy, boutContext, rng);
+      const result = calculateBattleResult(
+        withInjuryBattlePenalty(status),
+        enemy,
+        boutContext,
+        rng,
+        simulationModelVersion,
+      );
+      expectedWins += result.winProbability;
+      sosTotal += result.opponentAbility;
+      sosCount += 1;
       if (result.isWin) {
         wins += 1;
         player.wins += 1;
@@ -825,12 +956,7 @@ const runTopDivisionBasho = (
         consecutiveWins += 1;
         kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
         if (division === 'Makuuchi' && isKinboshiEligibleRank(status.rank)) {
-          const opponentRankForKinboshi = resolveTopDivisionRank(
-            division,
-            opponent.rankScore,
-            world.makuuchiLayout,
-          );
-          if (opponentRankForKinboshi.name === '横綱') {
+          if (opponentRank.name === '横綱') {
             addKinboshi('PLAYER');
           }
         }
@@ -843,7 +969,6 @@ const runTopDivisionBasho = (
         previousResult = 'LOSS';
       }
 
-      const opponentRank = resolveTopDivisionRank(division, opponent.rankScore, world.makuuchiLayout);
       playerBoutDetails.push({
         day,
         result: result.isWin ? 'WIN' : 'LOSS',
@@ -854,37 +979,40 @@ const runTopDivisionBasho = (
         opponentRankNumber: opponentRank.number,
         opponentRankSide: opponentRank.side,
       });
-      playerRecordedToday = true;
-    }
-
-    if (!playerRecordedToday) {
+    },
+    onBye: (participant, day) => {
+      if (participant.id !== 'PLAYER') return;
       absent += 1;
-      playerBoutDetails.push({ day, result: 'ABSENT' });
       previousResult = 'ABSENT';
-    }
-  }
+      playerBoutDetails.push({ day, result: 'ABSENT' });
+    },
+  });
 
-  const accountedBouts = wins + losses + absent;
-  if (accountedBouts < numBouts) {
-    const missing = numBouts - accountedBouts;
-    absent += missing;
-    const existingDays = new Set(playerBoutDetails.map((detail) => detail.day));
-    for (let day = 1; day <= numBouts; day += 1) {
-      if (!existingDays.has(day)) {
-        playerBoutDetails.push({ day, result: 'ABSENT' });
-      }
-    }
-    playerBoutDetails.sort((a, b) => a.day - b.day);
+  const existingDays = new Set(playerBoutDetails.map((detail) => detail.day));
+  for (let day = 1; day <= numBouts; day += 1) {
+    if (existingDays.has(day)) continue;
+    absent += 1;
+    playerBoutDetails.push({ day, result: 'ABSENT' });
   }
+  playerBoutDetails.sort((a, b) => a.day - b.day);
 
-  evolveDivisionAfterBasho(world, division, participants, rng);
+  const makuuchiParticipants = toDivisionParticipants(
+    participants.filter((participant) => participant.division === 'Makuuchi'),
+  );
+  const juryoParticipants = toDivisionParticipants(
+    participants.filter((participant) => participant.division === 'Juryo'),
+  );
+  evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng);
+  evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng);
+
+  const divisionParticipants = division === 'Makuuchi' ? makuuchiParticipants : juryoParticipants;
   const divisionResults = world.lastBashoResults[division] ?? [];
   const yushoWinnerId = divisionResults.find((row) => row.yusho)?.id;
   const yusho = yushoWinnerId === 'PLAYER';
   const specialPrizesById = new Map(
     divisionResults.map((row) => [row.id, row.specialPrizes ?? []]),
   );
-  const sameDivisionNpcRecords = toNpcAggregateFromTopDivision(division, participants, numBouts, {
+  const sameDivisionNpcRecords = toNpcAggregateFromTopDivision(division, divisionParticipants, numBouts, {
     yushoWinnerId,
     specialPrizesById,
     kinboshiById,
@@ -904,6 +1032,7 @@ const runTopDivisionBasho = (
       absent,
       yusho,
       specialPrizes: playerSpecialPrizes,
+      ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kinboshi: playerKinboshi,
       kimariteCount,
     },

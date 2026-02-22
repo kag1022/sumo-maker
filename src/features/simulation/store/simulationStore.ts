@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Oyakata, RikishiStatus } from '../../../logic/models';
+import { SimulationModelVersion } from '../../../logic/simulation/modelVersion';
 import {
   buildCareerStartYearMonth,
   commitCareer,
@@ -33,7 +34,11 @@ interface SimulationStore {
   latestEvents: string[];
   hallOfFame: CareerListItem[];
   errorMessage?: string;
-  startSimulation: (initialStats: RikishiStatus, oyakata: Oyakata | null) => Promise<void>;
+  startSimulation: (
+    initialStats: RikishiStatus,
+    oyakata: Oyakata | null,
+    simulationModelVersion: SimulationModelVersion,
+  ) => Promise<void>;
   pauseSimulation: () => void;
   resumeSimulation: () => void;
   skipToEnd: () => void;
@@ -73,7 +78,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   hallOfFame: [],
   errorMessage: undefined,
 
-  startSimulation: async (initialStats, oyakata) => {
+  startSimulation: async (initialStats, oyakata, simulationModelVersion) => {
     const currentCareerId = get().currentCareerId;
     if (currentCareerId && !get().isCurrentCareerSaved) {
       await discardDraftCareer(currentCareerId);
@@ -85,6 +90,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const careerId = await createDraftCareer({
       initialStatus: initialStats,
       careerStartYearMonth: buildCareerStartYearMonth(now.getFullYear(), 1),
+      simulationModelVersion,
     });
 
     worker = new Worker(new URL('../workers/simulation.worker.ts', import.meta.url), {
@@ -186,6 +192,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         careerId,
         initialStats,
         oyakata,
+        simulationModelVersion,
       },
     });
   },

@@ -20,6 +20,8 @@ export interface PersistentNpc {
   currentDivision: Division;
   rankScore: number;
   basePower: number;
+  ability: number;
+  uncertainty: number;
   form: number;
   volatility: number;
   styleBias: EnemyStyleBias;

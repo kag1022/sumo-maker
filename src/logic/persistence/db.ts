@@ -1,6 +1,8 @@
 import Dexie, { Table } from 'dexie';
 import { Rank, RikishiStatus } from '../models';
 import type { BanzukeDecisionLog, BanzukePopulationSnapshot } from '../banzuke/types';
+import { SimulationDiagnostics } from '../simulation/diagnostics';
+import { SimulationModelVersion } from '../simulation/modelVersion';
 
 export type CareerState = 'draft' | 'saved';
 
@@ -27,6 +29,7 @@ export interface CareerRow {
   bashoCount: number;
   careerStartYearMonth: string;
   careerEndYearMonth: string | null;
+  simulationModelVersion: SimulationModelVersion;
   finalStatus?: RikishiStatus;
 }
 
@@ -86,6 +89,10 @@ export interface BanzukePopulationRow extends BanzukePopulationSnapshot {
 
 export type BanzukeDecisionRow = BanzukeDecisionLog;
 
+export interface SimulationDiagnosticsRow extends SimulationDiagnostics {
+  careerId: string;
+}
+
 class SumoMakerDatabase extends Dexie {
   careers!: Table<CareerRow, string>;
 
@@ -99,8 +106,10 @@ class SumoMakerDatabase extends Dexie {
 
   banzukeDecisions!: Table<BanzukeDecisionRow, [string, number, string]>;
 
+  simulationDiagnostics!: Table<SimulationDiagnosticsRow, [string, number]>;
+
   constructor() {
-    super('sumo-maker-v6');
+    super('sumo-maker-v7');
 
     this.version(1).stores({
       careers:
@@ -149,6 +158,7 @@ class SumoMakerDatabase extends Dexie {
       meta: '&key, updatedAt',
       banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
       banzukeDecisions: '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
     });
   }
 }

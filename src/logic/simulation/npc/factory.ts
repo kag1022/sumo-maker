@@ -24,6 +24,16 @@ const POWER_RANGE: Record<Division, { min: number; max: number }> = {
   Maezumo: { min: 28, max: 60 },
 };
 
+const ABILITY_DISTRIBUTION: Record<Division, { mean: number; sigma: number }> = {
+  Makuuchi: { mean: 122, sigma: 10 },
+  Juryo: { mean: 106, sigma: 8 },
+  Makushita: { mean: 90, sigma: 7 },
+  Sandanme: { mean: 76, sigma: 7 },
+  Jonidan: { mean: 64, sigma: 7 },
+  Jonokuchi: { mean: 54, sigma: 6 },
+  Maezumo: { mean: 46, sigma: 5 },
+};
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
@@ -46,9 +56,16 @@ const createNpc = (
   nameContext: NpcUniverse['nameContext'],
 ): PersistentNpc => {
   const range = POWER_RANGE[division];
+  const abilityDist = ABILITY_DISTRIBUTION[division];
   const shikona = generateUniqueNpcShikona(stableId, rng, nameContext);
   const entryAge = 15 + Math.floor(rng() * 10);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
+  const basePower = clamp(seed.basePower + randomNoise(rng, seed.powerVariance), range.min, range.max);
+  const ability =
+    basePower * 0.9 +
+    abilityDist.mean * 0.1 +
+    randomNoise(rng, abilityDist.sigma * 0.45) +
+    seed.growthBias * 5.2;
   return {
     id: `NPC-${serial}`,
     seedId: seed.seedId,
@@ -57,7 +74,9 @@ const createNpc = (
     division,
     currentDivision: division,
     rankScore,
-    basePower: clamp(seed.basePower + randomNoise(rng, seed.powerVariance), range.min, range.max),
+    basePower,
+    ability,
+    uncertainty: clamp(2.2 - rankScore * 0.004 + randomNoise(rng, 0.2), 0.7, 2.4),
     form: clamp(1 + randomNoise(rng, 0.05), 0.85, 1.15),
     volatility: clamp(seed.volatilityBase + rng() * 1.1, 0.75, 3.8),
     styleBias: seed.styleBias,
@@ -111,8 +130,8 @@ const createDivisionRoster = (
   const rankedRoster = roster
     .slice()
     .sort((a, b) => {
-      const aScore = a.basePower + a.growthBias * 14 + (a.form - 1) * 18;
-      const bScore = b.basePower + b.growthBias * 14 + (b.form - 1) * 18;
+      const aScore = a.ability + a.growthBias * 14 + (a.form - 1) * 18;
+      const bScore = b.ability + b.growthBias * 14 + (b.form - 1) * 18;
       if (bScore !== aScore) return bScore - aScore;
       return a.id.localeCompare(b.id);
     })

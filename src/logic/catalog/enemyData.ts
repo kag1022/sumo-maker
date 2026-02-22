@@ -7,6 +7,7 @@ export interface EnemyStats {
   shikona: string;
   rankValue: number;
   power: number;
+  ability?: number;
   heightCm: number;
   weightKg: number;
   styleBias?: EnemyStyleBias;

@@ -1,4 +1,6 @@
 import { Rank } from '../models';
+import { RankScaleSlots } from './rankLimits';
+import { SimulationModelVersion } from '../simulation/modelVersion';
 
 export interface RankChangeResult {
   nextRank: Rank;
@@ -32,4 +34,6 @@ export interface RankCalculationOptions {
   };
   boundaryAssignedNextRank?: Rank;
   isOzekiReturn?: boolean;
+  scaleSlots?: RankScaleSlots;
+  simulationModelVersion?: SimulationModelVersion;
 }

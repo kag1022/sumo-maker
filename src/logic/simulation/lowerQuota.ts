@@ -6,7 +6,7 @@ import {
   computeNeighborHalfStepNudge,
   randomNoise,
 } from './boundary/shared';
-import { createDailyMatchups, createFacedMap, DivisionParticipant, simulateNpcBout } from './matchmaking';
+import { createFacedMap, DivisionParticipant, simulateNpcBout } from './matchmaking';
 import { resolveBoundaryExchange, resolvePlayerRankScore } from './lower/exchange';
 import { createInitialNpcUniverse } from './npc/factory';
 import { pushNpcBashoResult } from './npc/retirement';
@@ -22,17 +22,30 @@ import {
   LowerNpc,
   PlayerLowerDivisionQuota,
   PlayerLowerRecord,
+  DIVISION_SIZE,
   POWER_RANGE,
 } from './lower/types';
 import { SimulationWorld } from './world';
 import { resolveLowerAssignedNextRank } from '../ranking/lowerCommittee';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../banzuke/population/flow';
+import {
+  createLowerDivisionBoutDayMap,
+  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
+  resolveLowerDivisionEligibility,
+} from './torikumi/policy';
+import { scheduleTorikumiBasho } from './torikumi/scheduler';
+import { TorikumiParticipant } from './torikumi/types';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from './modelVersion';
 
 export type {
   LowerBoundaryExchange,
   LowerDivisionQuotaWorld,
   PlayerLowerDivisionQuota,
 };
+export type LowerLeagueSnapshots = Record<LowerDivision, BoundarySnapshot[]>;
 
 const toLowerNpc = (division: LowerDivision, npc: LowerNpc | PersistentNpc): LowerNpc => ({
   ...npc,
@@ -54,18 +67,38 @@ const promoteMaezumoToJonokuchi = (
     return;
   }
 
+  const jonokuchiSlots = Math.max(1, world.rosters.Jonokuchi.length || DIVISION_SIZE.Jonokuchi);
+  const resolveRiseBandSlotRange = (riseBand: 1 | 2 | 3): [number, number] => {
+    if (riseBand === 1) {
+      return [
+        clamp(Math.round(jonokuchiSlots * 0.13), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.2), 1, jonokuchiSlots),
+      ];
+    }
+    if (riseBand === 2) {
+      return [
+        clamp(Math.round(jonokuchiSlots * 0.3), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.37), 1, jonokuchiSlots),
+      ];
+    }
+    return [
+      clamp(Math.round(jonokuchiSlots * 0.47), 1, jonokuchiSlots),
+      clamp(Math.round(jonokuchiSlots * 0.5), 1, jonokuchiSlots),
+    ];
+  };
+
   const promotions = world.maezumoPool.map((npc) => {
-    const seasonal = npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 1.1);
+    const baseAbility = Number.isFinite(npc.ability)
+      ? (npc.ability as number)
+      : npc.basePower * npc.form;
+    const seasonal = baseAbility + randomNoise(rng, npc.volatility) + randomNoise(rng, 1.1);
     const winProbability = clamp(0.25 + (seasonal - 28) / 42, 0.12, 0.88);
     let wins = 0;
     for (let i = 0; i < 3; i += 1) {
       if (rng() < winProbability) wins += 1;
     }
     const riseBand: 1 | 2 | 3 = wins === 3 ? 1 : wins === 2 ? 2 : 3;
-    const targetRange =
-      riseBand === 1 ? [8, 12] :
-        riseBand === 2 ? [18, 22] :
-          [28, 30];
+    const targetRange = resolveRiseBandSlotRange(riseBand);
     const targetRankScore = targetRange[0] + Math.floor(rng() * (targetRange[1] - targetRange[0] + 1));
     return {
       npc: {
@@ -187,6 +220,9 @@ const createDivisionParticipants = (
       const stableId = registryNpc?.stableId ?? npc.stableId;
       const seasonalPower =
         npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 0.9);
+      const seasonalAbility =
+        (Number.isFinite(npc.ability) ? (npc.ability as number) : npc.basePower * npc.form) +
+        randomNoise(rng, Math.max(0.8, npc.volatility * 0.45));
       return {
         id: npc.id,
         shikona,
@@ -194,15 +230,38 @@ const createDivisionParticipants = (
         stableId,
         rankScore: npc.rankScore,
         power: clamp(seasonalPower, range.min, range.max),
+        ability: seasonalAbility,
         styleBias: npc.styleBias,
         heightCm: npc.heightCm,
         weightKg: npc.weightKg,
         wins: 0,
         losses: 0,
+        expectedWins: 0,
+        opponentAbilityTotal: 0,
+        boutsSimulated: 0,
         active: true,
       };
     });
 };
+
+const resolveLowerRankName = (division: LowerDivision): string => {
+  if (division === 'Makushita') return '幕下';
+  if (division === 'Sandanme') return '三段目';
+  if (division === 'Jonidan') return '序二段';
+  return '序ノ口';
+};
+
+const toTorikumiLowerParticipant = (
+  division: LowerDivision,
+  participant: DivisionParticipant,
+): TorikumiParticipant => ({
+  ...participant,
+  division,
+  rankName: resolveLowerRankName(division),
+  rankNumber: Math.floor((participant.rankScore - 1) / 2) + 1,
+  targetBouts: 7,
+  boutsDone: 0,
+});
 
 const snapshotParticipants = (participants: DivisionParticipant[]): BoundarySnapshot[] =>
   participants.map((participant) => ({
@@ -213,6 +272,29 @@ const snapshotParticipants = (participants: DivisionParticipant[]): BoundarySnap
     rankScore: participant.rankScore,
     wins: participant.wins,
     losses: participant.losses,
+  }));
+
+const toDivisionParticipants = (
+  participants: TorikumiParticipant[],
+): DivisionParticipant[] =>
+  participants.map((participant) => ({
+    id: participant.id,
+    shikona: participant.shikona,
+    isPlayer: participant.isPlayer,
+    stableId: participant.stableId,
+    forbiddenOpponentIds: participant.forbiddenOpponentIds,
+    rankScore: participant.rankScore,
+    power: participant.power,
+    ability: participant.ability,
+    styleBias: participant.styleBias,
+    heightCm: participant.heightCm,
+    weightKg: participant.weightKg,
+    wins: participant.wins,
+    losses: participant.losses,
+    expectedWins: participant.expectedWins,
+    opponentAbilityTotal: participant.opponentAbilityTotal,
+    boutsSimulated: participant.boutsSimulated,
+    active: participant.active,
   }));
 
 const evolveDivisionRoster = (
@@ -230,8 +312,22 @@ const evolveDivisionRoster = (
       if (!result) return npc;
 
       const diff = result.wins - result.losses;
+      const expectedWins = Number.isFinite(result.expectedWins)
+        ? (result.expectedWins as number)
+        : (result.wins + result.losses) * 0.5;
+      const performanceOverExpected = result.wins - expectedWins;
+      const baseAbility = Number.isFinite(npc.ability)
+        ? (npc.ability as number)
+        : npc.basePower * npc.form;
       const updatedNpc = {
         ...npc,
+        ability: baseAbility + performanceOverExpected * 1.0 + diff * 0.25 + randomNoise(rng, 0.5),
+        uncertainty: clamp(
+          (Number.isFinite(npc.uncertainty) ? (npc.uncertainty as number) : 2.1) * 0.975 +
+          Math.min(0.14, Math.abs(performanceOverExpected) * 0.012),
+          0.7,
+          2.4,
+        ),
         basePower: clamp(
           npc.basePower + diff * 0.24 + (npc.growthBias ?? 0) * 0.8 + randomNoise(rng, 0.35),
           range.min,
@@ -247,6 +343,8 @@ const evolveDivisionRoster = (
 
       const registryNpc = world.npcRegistry.get(npc.id);
       if (registryNpc) {
+        registryNpc.ability = updatedNpc.ability;
+        registryNpc.uncertainty = updatedNpc.uncertainty ?? registryNpc.uncertainty;
         registryNpc.basePower = updatedNpc.basePower;
         registryNpc.form = updatedNpc.form;
         registryNpc.rankScore = updatedNpc.rankScore;
@@ -261,32 +359,141 @@ const evolveDivisionRoster = (
     .map((npc, index) => ({ ...npc, rankScore: index + 1 }));
 };
 
-const simulateDivisionBasho = (
+const simulateLowerLeagueBasho = (
   world: LowerDivisionQuotaWorld,
-  division: LowerDivision,
   rng: RandomSource,
-): BoundarySnapshot[] => {
-  const participants = createDivisionParticipants(world, division, rng);
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+): LowerLeagueSnapshots => {
+  const divisions: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
+  const participants = divisions.flatMap((division) =>
+    createDivisionParticipants(world, division, rng).map((participant) =>
+      toTorikumiLowerParticipant(division, participant),
+    ),
+  );
   const facedMap = createFacedMap(participants);
+  const dayMap = createLowerDivisionBoutDayMap(participants, rng);
 
-  for (let boutIndex = 0; boutIndex < 7; boutIndex += 1) {
-    const day = 1 + boutIndex * 2;
-    const daily = createDailyMatchups(participants, facedMap, rng, day, 15);
-    for (const { a, b } of daily.pairs) {
-      simulateNpcBout(a, b, rng);
-    }
+  scheduleTorikumiBasho({
+    participants,
+    days: Array.from({ length: 15 }, (_, index) => index + 1),
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) =>
+      band.id === 'MakushitaSandanme' ||
+      band.id === 'SandanmeJonidan' ||
+      band.id === 'JonidanJonokuchi'),
+    facedMap,
+    dayEligibility: (participant, day) => resolveLowerDivisionEligibility(participant, day, dayMap),
+    onPair: ({ a, b }) => {
+      simulateNpcBout(a, b, rng, simulationModelVersion);
+    },
+  });
+
+  const snapshotsByDivision = {
+    Makushita: snapshotParticipants(
+      toDivisionParticipants(
+        participants.filter((participant) => participant.division === 'Makushita'),
+      ),
+    ),
+    Sandanme: snapshotParticipants(
+      toDivisionParticipants(
+        participants.filter((participant) => participant.division === 'Sandanme'),
+      ),
+    ),
+    Jonidan: snapshotParticipants(
+      toDivisionParticipants(
+        participants.filter((participant) => participant.division === 'Jonidan'),
+      ),
+    ),
+    Jonokuchi: snapshotParticipants(
+      toDivisionParticipants(
+        participants.filter((participant) => participant.division === 'Jonokuchi'),
+      ),
+    ),
+  } satisfies LowerLeagueSnapshots;
+
+  for (const division of divisions) {
+    world.lastResults[division] = snapshotsByDivision[division];
+    evolveDivisionRoster(
+      world,
+      division,
+      toDivisionParticipants(
+        participants.filter((participant) => participant.division === division),
+      ),
+      rng,
+    );
   }
 
-  const snapshots = snapshotParticipants(participants);
-  world.lastResults[division] = snapshots;
-  evolveDivisionRoster(world, division, participants, rng);
-  return snapshots;
+  return snapshotsByDivision;
+};
+
+const buildDivisionParticipantsFromSnapshot = (
+  world: LowerDivisionQuotaWorld,
+  division: LowerDivision,
+  snapshots: BoundarySnapshot[],
+): DivisionParticipant[] => {
+  const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+  const participants: DivisionParticipant[] = world.rosters[division].map((npc) => {
+    const snapshot = byId.get(npc.id);
+    return {
+      id: npc.id,
+      shikona: npc.shikona,
+      isPlayer: false,
+      stableId: npc.stableId,
+      rankScore: npc.rankScore,
+      power: npc.basePower * npc.form,
+      ability: Number.isFinite(npc.ability) ? npc.ability : npc.basePower * npc.form,
+      styleBias: npc.styleBias,
+      heightCm: npc.heightCm,
+      weightKg: npc.weightKg,
+      wins: snapshot?.wins ?? 0,
+      losses: snapshot?.losses ?? 0,
+      active: npc.active !== false,
+    };
+  });
+
+  const playerSnapshot = snapshots.find((snapshot) => snapshot.id === 'PLAYER');
+  if (playerSnapshot) {
+    participants.push({
+      id: playerSnapshot.id,
+      shikona: playerSnapshot.shikona,
+      isPlayer: true,
+      stableId: playerSnapshot.stableId,
+      rankScore: playerSnapshot.rankScore,
+      power: 0,
+      ability: 0,
+      styleBias: 'BALANCE',
+      heightCm: 180,
+      weightKg: 130,
+      wins: playerSnapshot.wins,
+      losses: playerSnapshot.losses,
+      active: true,
+    });
+  }
+
+  return participants;
+};
+
+const evolveLowerLeagueFromSnapshots = (
+  world: LowerDivisionQuotaWorld,
+  snapshotsByDivision: LowerLeagueSnapshots,
+  rng: RandomSource,
+): void => {
+  for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
+    const snapshots = snapshotsByDivision[division] ?? [];
+    world.lastResults[division] = snapshots;
+    evolveDivisionRoster(
+      world,
+      division,
+      buildDivisionParticipantsFromSnapshot(world, division, snapshots),
+      rng,
+    );
+  }
 };
 
 const mergePlayerRecord = (
   baseResults: BoundarySnapshot[],
   division: LowerDivision,
   playerRecord?: PlayerLowerRecord,
+  slotsByDivision?: Partial<Record<LowerDivision, number>>,
 ): BoundarySnapshot[] => {
   if (!playerRecord || playerRecord.rank.division !== division) {
     return baseResults;
@@ -298,7 +505,7 @@ const mergePlayerRecord = (
     shikona: playerRecord.shikona,
     isPlayer: true,
     stableId: 'player-heya',
-    rankScore: resolvePlayerRankScore(playerRecord.rank),
+    rankScore: resolvePlayerRankScore(playerRecord.rank, slotsByDivision),
     wins,
     losses,
   };
@@ -309,19 +516,28 @@ export const runLowerDivisionQuotaStep = (
   world: LowerDivisionQuotaWorld,
   rng: RandomSource,
   playerRecord?: PlayerLowerRecord,
+  precomputedLeagueResults?: LowerLeagueSnapshots,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): Record<LowerBoundaryId, LowerBoundaryExchange> => {
   promoteMaezumoToJonokuchi(world, rng);
-
-  const makushitaRaw = simulateDivisionBasho(world, 'Makushita', rng);
-  const sandanmeRaw = simulateDivisionBasho(world, 'Sandanme', rng);
-  const jonidanRaw = simulateDivisionBasho(world, 'Jonidan', rng);
-  const jonokuchiRaw = simulateDivisionBasho(world, 'Jonokuchi', rng);
+  const lowerLeagueRaw =
+    precomputedLeagueResults ??
+    simulateLowerLeagueBasho(world, rng, simulationModelVersion);
+  if (precomputedLeagueResults) {
+    evolveLowerLeagueFromSnapshots(world, lowerLeagueRaw, rng);
+  }
+  const slotsByDivision: Record<LowerDivision, number> = {
+    Makushita: world.rosters.Makushita.length,
+    Sandanme: world.rosters.Sandanme.length,
+    Jonidan: world.rosters.Jonidan.length,
+    Jonokuchi: world.rosters.Jonokuchi.length,
+  };
 
   const results: Record<LowerDivision, BoundarySnapshot[]> = {
-    Makushita: mergePlayerRecord(makushitaRaw, 'Makushita', playerRecord),
-    Sandanme: mergePlayerRecord(sandanmeRaw, 'Sandanme', playerRecord),
-    Jonidan: mergePlayerRecord(jonidanRaw, 'Jonidan', playerRecord),
-    Jonokuchi: mergePlayerRecord(jonokuchiRaw, 'Jonokuchi', playerRecord),
+    Makushita: mergePlayerRecord(lowerLeagueRaw.Makushita, 'Makushita', playerRecord, slotsByDivision),
+    Sandanme: mergePlayerRecord(lowerLeagueRaw.Sandanme, 'Sandanme', playerRecord, slotsByDivision),
+    Jonidan: mergePlayerRecord(lowerLeagueRaw.Jonidan, 'Jonidan', playerRecord, slotsByDivision),
+    Jonokuchi: mergePlayerRecord(lowerLeagueRaw.Jonokuchi, 'Jonokuchi', playerRecord, slotsByDivision),
   };
   world.lastPlayerHalfStepNudge = {
     Makushita: computeNeighborHalfStepNudge(results.Makushita),
@@ -398,6 +614,8 @@ export const pruneRetiredLowerRosters = (world: LowerDivisionQuotaWorld): void =
           shikona: persistent.shikona,
           stableId: persistent.stableId,
           basePower: persistent.basePower,
+          ability: persistent.ability,
+          uncertainty: persistent.uncertainty,
           volatility: persistent.volatility,
           form: persistent.form,
           styleBias: persistent.styleBias,

@@ -44,7 +44,7 @@ const judges: Judge[] = [
     id: 'PerformanceJudge',
     weight: 0.4,
     score: (input, candidate) => {
-      const diff = input.result.wins - input.result.losses - input.result.absent;
+      const diff = input.performanceOverExpected;
       if (diff >= 0) {
         return compareRank(candidate, input.currentRank) <= 0 ? 8 + diff : -15;
       }
@@ -163,4 +163,3 @@ export const reviewBoard = (
 
   return { decisions, warnings };
 };
-

@@ -4,7 +4,13 @@ import { getRankValue } from './rankScore';
 import { resolveTopDivisionAssignedEvent } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
 import { RankCalculationOptions, RankChangeResult } from './options';
-import { LIMITS } from './rankLimits';
+import { canPromoteToYokozuna } from './yokozuna/promotion';
+import {
+  LIMITS,
+  RankScaleSlots,
+  resolveRankLimits,
+  resolveRankSlotOffset,
+} from './rankLimits';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -15,8 +21,19 @@ const scoreDiff = (record: BashoRecord): number => record.wins - totalLosses(rec
 
 const isSanyakuName = (name: string): boolean => ['関脇', '小結'].includes(name);
 
-const isSanyakuOrHigherName = (name: string): boolean =>
-  ['横綱', '大関', '関脇', '小結'].includes(name);
+const canPromoteToOzekiBy33Wins = (
+  currentRecord: BashoRecord,
+  pastRecords: BashoRecord[],
+): boolean => {
+  if (!isSanyakuName(currentRecord.rank.name)) return false;
+  const prev1 = pastRecords[0];
+  const prev2 = pastRecords[1];
+  if (!prev1 || !prev2) return false;
+  const chain = [currentRecord, prev1, prev2];
+  if (!chain.every((record) => isSanyakuName(record.rank.name))) return false;
+  const total = chain.reduce((sum, record) => sum + record.wins, 0);
+  return total >= 33 && currentRecord.wins >= 10;
+};
 
 const hasBanzukeSide = (rank: Rank): boolean => rank.division !== 'Maezumo';
 
@@ -29,16 +46,23 @@ const DIVISION_ORDER: Rank['division'][] = [
   'Jonokuchi',
   'Maezumo',
 ];
-const RANK_SLOT_OFFSET = {
-  Makuuchi: 0,
-  Juryo: 42,
-  Makushita: 70,
-  Sandanme: 190,
-  Jonidan: 390,
-  Jonokuchi: 590,
-  Maezumo: 650,
-} as const;
-const JONOKUCHI_BOTTOM_SLOT = RANK_SLOT_OFFSET.Jonokuchi + LIMITS.JONOKUCHI_MAX * 2 - 1;
+
+type SlotContext = {
+  limits: ReturnType<typeof resolveRankLimits>;
+  offsets: ReturnType<typeof resolveRankSlotOffset>;
+  jonokuchiBottomSlot: number;
+};
+
+const resolveSlotContext = (scaleSlots?: RankScaleSlots): SlotContext => {
+  const limits = resolveRankLimits(scaleSlots);
+  const offsets = resolveRankSlotOffset(scaleSlots);
+  return {
+    limits,
+    offsets,
+    jonokuchiBottomSlot: offsets.Jonokuchi + limits.JONOKUCHI_MAX * 2 - 1,
+  };
+};
+
 const MAKEKOSHI_STRICT_DEMOTION_DIVISIONS = new Set<Rank['division']>([
   'Juryo',
   'Makushita',
@@ -54,7 +78,19 @@ const KACHIKOSHI_STRICT_NON_DEMOTION_DIVISIONS = new Set<Rank['division']>([
   'Jonokuchi',
 ]);
 
-const resolveRankSlot = (rank: Rank): number => {
+const resolveStrictDivisionDemotionGuardSlots = (record: BashoRecord): number => {
+  const losses = totalLosses(record);
+  const deficit = Math.max(1, losses - record.wins);
+  const fullAbsenceThreshold = record.rank.division === 'Juryo' ? 15 : 7;
+  if (record.absent >= fullAbsenceThreshold) {
+    return clamp(deficit * 2 + 2, 2, 20);
+  }
+  return clamp(deficit * 2, 2, 14);
+};
+
+const resolveRankSlot = (rank: Rank, context: SlotContext): number => {
+  const limits = context.limits;
+  const offsets = context.offsets;
   const sideOffset = rank.side === 'West' ? 1 : 0;
   if (rank.division === 'Makuuchi') {
     if (rank.name === '横綱') return sideOffset;
@@ -65,30 +101,32 @@ const resolveRankSlot = (rank: Rank): number => {
     return 8 + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === 'Juryo') {
-    const n = clamp(rank.number || 1, 1, LIMITS.JURYO_MAX);
-    return RANK_SLOT_OFFSET.Juryo + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JURYO_MAX);
+    return offsets.Juryo + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === 'Makushita') {
-    const n = clamp(rank.number || 1, 1, LIMITS.MAKUSHITA_MAX);
-    return RANK_SLOT_OFFSET.Makushita + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.MAKUSHITA_MAX);
+    return offsets.Makushita + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === 'Sandanme') {
-    const n = clamp(rank.number || 1, 1, LIMITS.SANDANME_MAX);
-    return RANK_SLOT_OFFSET.Sandanme + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.SANDANME_MAX);
+    return offsets.Sandanme + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === 'Jonidan') {
-    const n = clamp(rank.number || 1, 1, LIMITS.JONIDAN_MAX);
-    return RANK_SLOT_OFFSET.Jonidan + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JONIDAN_MAX);
+    return offsets.Jonidan + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === 'Jonokuchi') {
-    const n = clamp(rank.number || 1, 1, LIMITS.JONOKUCHI_MAX);
-    return RANK_SLOT_OFFSET.Jonokuchi + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JONOKUCHI_MAX);
+    return offsets.Jonokuchi + (n - 1) * 2 + sideOffset;
   }
-  return RANK_SLOT_OFFSET.Maezumo;
+  return offsets.Maezumo;
 };
 
-const resolveRankFromSlot = (slot: number): Rank => {
-  const bounded = clamp(slot, 0, JONOKUCHI_BOTTOM_SLOT);
+const resolveRankFromSlot = (slot: number, context: SlotContext): Rank => {
+  const limits = context.limits;
+  const offsets = context.offsets;
+  const bounded = clamp(slot, 0, context.jonokuchiBottomSlot);
   if (bounded <= 7) {
     const names: Array<'横綱' | '大関' | '関脇' | '小結'> = ['横綱', '大関', '関脇', '小結'];
     const idx = Math.floor(bounded / 2);
@@ -98,7 +136,7 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: bounded % 2 === 0 ? 'East' : 'West',
     };
   }
-  if (bounded < RANK_SLOT_OFFSET.Juryo) {
+  if (bounded < offsets.Juryo) {
     const relative = bounded - 8;
     return {
       division: 'Makuuchi',
@@ -107,8 +145,8 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: relative % 2 === 0 ? 'East' : 'West',
     };
   }
-  if (bounded < RANK_SLOT_OFFSET.Makushita) {
-    const relative = bounded - RANK_SLOT_OFFSET.Juryo;
+  if (bounded < offsets.Makushita) {
+    const relative = bounded - offsets.Juryo;
     return {
       division: 'Juryo',
       name: '十両',
@@ -116,8 +154,8 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: relative % 2 === 0 ? 'East' : 'West',
     };
   }
-  if (bounded < RANK_SLOT_OFFSET.Sandanme) {
-    const relative = bounded - RANK_SLOT_OFFSET.Makushita;
+  if (bounded < offsets.Sandanme) {
+    const relative = bounded - offsets.Makushita;
     return {
       division: 'Makushita',
       name: '幕下',
@@ -125,8 +163,8 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: relative % 2 === 0 ? 'East' : 'West',
     };
   }
-  if (bounded < RANK_SLOT_OFFSET.Jonidan) {
-    const relative = bounded - RANK_SLOT_OFFSET.Sandanme;
+  if (bounded < offsets.Jonidan) {
+    const relative = bounded - offsets.Sandanme;
     return {
       division: 'Sandanme',
       name: '三段目',
@@ -134,8 +172,8 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: relative % 2 === 0 ? 'East' : 'West',
     };
   }
-  if (bounded < RANK_SLOT_OFFSET.Jonokuchi) {
-    const relative = bounded - RANK_SLOT_OFFSET.Jonidan;
+  if (bounded < offsets.Jonokuchi) {
+    const relative = bounded - offsets.Jonidan;
     return {
       division: 'Jonidan',
       name: '序二段',
@@ -143,11 +181,11 @@ const resolveRankFromSlot = (slot: number): Rank => {
       side: relative % 2 === 0 ? 'East' : 'West',
     };
   }
-  const relative = bounded - RANK_SLOT_OFFSET.Jonokuchi;
+  const relative = bounded - offsets.Jonokuchi;
   return {
     division: 'Jonokuchi',
     name: '序ノ口',
-    number: Math.floor(relative / 2) + 1,
+    number: clamp(Math.floor(relative / 2) + 1, 1, limits.JONOKUCHI_MAX),
     side: relative % 2 === 0 ? 'East' : 'West',
   };
 };
@@ -155,6 +193,7 @@ const resolveRankFromSlot = (slot: number): Rank => {
 const applyMakekoshiDirectionGuard = (
   currentRecord: BashoRecord,
   nextRank: Rank,
+  context: SlotContext,
 ): { nextRank: Rank; adjusted: boolean } => {
   if (currentRecord.rank.division === 'Maezumo') {
     return { nextRank, adjusted: false };
@@ -163,8 +202,8 @@ const applyMakekoshiDirectionGuard = (
   const losses = totalLosses(currentRecord);
   if (wins >= losses) return { nextRank, adjusted: false };
 
-  const currentSlot = resolveRankSlot(currentRecord.rank);
-  const nextSlot = resolveRankSlot(nextRank);
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const nextSlot = resolveRankSlot(nextRank, context);
   if (nextSlot > currentSlot) return { nextRank, adjusted: false };
 
   const strictDemotion = MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division);
@@ -172,12 +211,15 @@ const applyMakekoshiDirectionGuard = (
     return { nextRank, adjusted: false };
   }
 
-  const forcedSlot = clamp(currentSlot + 1, 0, JONOKUCHI_BOTTOM_SLOT);
+  const forcedDemotionSlots = strictDemotion
+    ? resolveStrictDivisionDemotionGuardSlots(currentRecord)
+    : 1;
+  const forcedSlot = clamp(currentSlot + forcedDemotionSlots, 0, context.jonokuchiBottomSlot);
   if (forcedSlot <= currentSlot) {
     return { nextRank: currentRecord.rank, adjusted: nextSlot !== currentSlot };
   }
   return {
-    nextRank: resolveRankFromSlot(forcedSlot),
+    nextRank: resolveRankFromSlot(forcedSlot, context),
     adjusted: forcedSlot !== nextSlot,
   };
 };
@@ -185,6 +227,7 @@ const applyMakekoshiDirectionGuard = (
 const applyKachikoshiDirectionGuard = (
   currentRecord: BashoRecord,
   nextRank: Rank,
+  context: SlotContext,
 ): { nextRank: Rank; adjusted: boolean } => {
   if (currentRecord.rank.division === 'Maezumo') {
     return { nextRank, adjusted: false };
@@ -196,8 +239,8 @@ const applyKachikoshiDirectionGuard = (
     return { nextRank, adjusted: false };
   }
 
-  const currentSlot = resolveRankSlot(currentRecord.rank);
-  const nextSlot = resolveRankSlot(nextRank);
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const nextSlot = resolveRankSlot(nextRank, context);
   if (nextSlot <= currentSlot) return { nextRank, adjusted: false };
   return { nextRank: currentRecord.rank, adjusted: true };
 };
@@ -224,7 +267,13 @@ const shouldApplyBoundaryAssignedRank = (
   assignedRank: Rank,
 ): boolean => {
   if (currentRecord.rank.division === 'Maezumo') return false;
-  return assignedRank.division !== currentRecord.rank.division;
+  const current = currentRecord.rank;
+  return (
+    assignedRank.division !== current.division ||
+    assignedRank.name !== current.name ||
+    (assignedRank.number ?? undefined) !== (current.number ?? undefined) ||
+    (assignedRank.side ?? undefined) !== (current.side ?? undefined)
+  );
 };
 
 const resolveNextRankSide = (
@@ -505,6 +554,7 @@ export const calculateNextRank = (
 ): RankChangeResult => {
   const currentRank = currentRecord.rank;
   const wins = currentRecord.wins;
+  const slotContext = resolveSlotContext(options?.scaleSlots);
   const finalize = (
     result: { nextRank: Rank; event?: string; isKadoban?: boolean; isOzekiReturn?: boolean },
   ): RankChangeResult => ({
@@ -512,10 +562,18 @@ export const calculateNextRank = (
     isKadoban: result.isKadoban ?? false,
     isOzekiReturn: result.isOzekiReturn ?? false,
     ...(() => {
-      const makekoshiGuarded = applyMakekoshiDirectionGuard(currentRecord, result.nextRank);
-      const guarded = applyKachikoshiDirectionGuard(currentRecord, makekoshiGuarded.nextRank);
-      const currentSlot = resolveRankSlot(currentRecord.rank);
-      const guardedSlot = resolveRankSlot(guarded.nextRank);
+      const makekoshiGuarded = applyMakekoshiDirectionGuard(
+        currentRecord,
+        result.nextRank,
+        slotContext,
+      );
+      const guarded = applyKachikoshiDirectionGuard(
+        currentRecord,
+        makekoshiGuarded.nextRank,
+        slotContext,
+      );
+      const currentSlot = resolveRankSlot(currentRecord.rank, slotContext);
+      const guardedSlot = resolveRankSlot(guarded.nextRank, slotContext);
       const adjustedEvent = (makekoshiGuarded.adjusted || guarded.adjusted)
         ? guardedSlot > currentSlot
           ? 'DEMOTION'
@@ -537,16 +595,7 @@ export const calculateNextRank = (
 
   // 2. 大関
   if (currentRank.name === '大関') {
-    const prevRecord = pastRecords[0];
-    if (currentRecord.yusho && prevRecord?.yusho && prevRecord.rank.name === '大関') {
-      return finalize({
-        nextRank: { division: 'Makuuchi', name: '横綱', side: 'East' },
-        event: 'PROMOTION_TO_YOKOZUNA',
-        isKadoban: false,
-      });
-    }
-    // 「準ずる成績」: 直前優勝 + 今場所14勝以上を一部認める（厳格化）
-    if (wins >= 14 && prevRecord?.yusho && prevRecord.rank.name === '大関' && rng() < 0.35) {
+    if (canPromoteToYokozuna(currentRecord, pastRecords)) {
       return finalize({
         nextRank: { division: 'Makuuchi', name: '横綱', side: 'East' },
         event: 'PROMOTION_TO_YOKOZUNA',
@@ -579,21 +628,12 @@ export const calculateNextRank = (
     }
   }
 
-  // 3. 三役 -> 大関（直近3場所33勝 + 直近場所10勝以上）
-  if (isSanyakuName(currentRank.name)) {
-    const r1 = currentRecord;
-    const r2 = pastRecords[0];
-    const r3 = pastRecords[1];
-    if (r2 && r3 && [r1, r2, r3].every((r) => isSanyakuOrHigherName(r.rank.name))) {
-      const wins3 = [r1, r2, r3].map((r) => r.wins);
-      const total3 = wins3.reduce((a, b) => a + b, 0);
-      if (total3 >= 33 && r1.wins >= 10) {
-        return finalize({
-          nextRank: { division: 'Makuuchi', name: '大関', side: 'East' },
-          event: 'PROMOTION_TO_OZEKI',
-        });
-      }
-    }
+  // 3. 小結/関脇 -> 大関（3場所すべて小結/関脇で合計33勝以上 + 直近10勝以上）
+  if (canPromoteToOzekiBy33Wins(currentRecord, pastRecords)) {
+    return finalize({
+      nextRank: { division: 'Makuuchi', name: '大関', side: 'East' },
+      event: 'PROMOTION_TO_OZEKI',
+    });
   }
 
   const assignedTopRank = options?.topDivisionQuota?.assignedNextRank;
@@ -603,10 +643,18 @@ export const calculateNextRank = (
     currentRank.name !== '横綱' &&
     currentRank.name !== '大関'
   ) {
-    return finalize({
-      nextRank: assignedTopRank,
-      event: resolveTopDivisionAssignedEvent(currentRank, assignedTopRank),
-    });
+    const blockedAssignedOzeki =
+      assignedTopRank.name === '大関' &&
+      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords);
+    const blockedAssignedYokozuna =
+      assignedTopRank.name === '横綱' &&
+      !canPromoteToYokozuna(currentRecord, pastRecords);
+    if (!blockedAssignedOzeki && !blockedAssignedYokozuna) {
+      return finalize({
+        nextRank: assignedTopRank,
+        event: resolveTopDivisionAssignedEvent(currentRank, assignedTopRank),
+      });
+    }
   }
 
   const assignedBoundaryRankRaw =
@@ -625,6 +673,15 @@ export const calculateNextRank = (
     currentRank.name !== '横綱' &&
     currentRank.name !== '大関'
   ) {
+    const blockedBoundaryYokozuna =
+      assignedBoundaryRank.name === '横綱' &&
+      !canPromoteToYokozuna(currentRecord, pastRecords);
+    const blockedBoundaryOzeki =
+      assignedBoundaryRank.name === '大関' &&
+      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords);
+    if (blockedBoundaryYokozuna || blockedBoundaryOzeki) {
+      return finalize(calculateStandardRankChange(currentRecord, options, rng));
+    }
     return finalize({
       nextRank: assignedBoundaryRank,
       event: resolveBoundaryAssignedEvent(currentRank, assignedBoundaryRank),

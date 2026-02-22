@@ -1,6 +1,6 @@
 import { Rank } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
-import { NpcNameContext, NpcRegistry } from '../npc/types';
+import { LOWER_DIVISION_SLOTS, NpcNameContext, NpcRegistry } from '../npc/types';
 
 export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
 export type LowerBoundaryId = 'MakushitaSandanme' | 'SandanmeJonidan' | 'JonidanJonokuchi';
@@ -13,6 +13,8 @@ export type LowerNpc = {
   currentDivision?: LowerDivision | 'Maezumo';
   stableId: string;
   basePower: number;
+  ability?: number;
+  uncertainty?: number;
   rankScore: number;
   volatility: number;
   form: number;
@@ -48,10 +50,10 @@ export type BoundaryCandidate = {
 };
 
 export type CandidateRule = {
-  mandatory: (number: number, wins: number, losses: number) => boolean;
-  bubble: (number: number, wins: number, losses: number) => boolean;
-  score: (number: number, wins: number, losses: number) => number;
-  fallbackScore: (number: number, wins: number, losses: number) => number;
+  mandatory: (number: number, wins: number, losses: number, maxNumber: number) => boolean;
+  bubble: (number: number, wins: number, losses: number, maxNumber: number) => boolean;
+  score: (number: number, wins: number, losses: number, maxNumber: number) => number;
+  fallbackScore: (number: number, wins: number, losses: number, maxNumber: number) => number;
 };
 
 export type BoundarySpec = {
@@ -104,17 +106,17 @@ export interface LowerDivisionQuotaWorld {
 }
 
 export const DIVISION_SIZE: Record<LowerDivision, number> = {
-  Makushita: 120,
-  Sandanme: 180,
-  Jonidan: 200,
-  Jonokuchi: 60,
+  Makushita: LOWER_DIVISION_SLOTS.Makushita,
+  Sandanme: LOWER_DIVISION_SLOTS.Sandanme,
+  Jonidan: LOWER_DIVISION_SLOTS.Jonidan,
+  Jonokuchi: LOWER_DIVISION_SLOTS.Jonokuchi,
 };
 
 export const DIVISION_MAX_NUMBER: Record<LowerDivision, number> = {
-  Makushita: 60,
-  Sandanme: 90,
-  Jonidan: 100,
-  Jonokuchi: 30,
+  Makushita: Math.ceil(DIVISION_SIZE.Makushita / 2),
+  Sandanme: Math.ceil(DIVISION_SIZE.Sandanme / 2),
+  Jonidan: Math.ceil(DIVISION_SIZE.Jonidan / 2),
+  Jonokuchi: Math.ceil(DIVISION_SIZE.Jonokuchi / 2),
 };
 
 export const POWER_RANGE: Record<LowerDivision, { min: number; max: number }> = {
@@ -133,31 +135,47 @@ export const EMPTY_EXCHANGE: LowerBoundaryExchange = {
   reason: 'NORMAL',
 };
 
+const topRounded = (maxNumber: number, ratio: number, minimum: number): number =>
+  Math.max(minimum, Math.round(maxNumber * ratio));
+
+const bottomStart = (maxNumber: number, ratio: number, minimumBandSize: number): number => {
+  const band = Math.max(minimumBandSize, Math.ceil(maxNumber * ratio));
+  return Math.max(1, maxNumber - band + 1);
+};
+
+const laneDepth = (num: number, maxNumber: number, ratio: number, minimumStart: number): number => {
+  const start = Math.max(minimumStart, Math.round(maxNumber * ratio));
+  return Math.max(0, num - start);
+};
+
 export const LOWER_BOUNDARIES: BoundarySpec[] = [
   {
     id: 'MakushitaSandanme',
     upper: 'Makushita',
     lower: 'Sandanme',
     demotionRule: {
-      mandatory: (num, wins) => (num >= 56 && wins <= 2) || (num >= 50 && wins === 0),
-      bubble: (num, wins) =>
-        (num >= 56 && wins <= 2) ||
-        (num >= 52 && wins <= 3) ||
-        (num >= 48 && wins <= 2),
-      score: (num, wins, losses) =>
-        (num - 44) * 2.0 + Math.max(0, 4 - wins) * 3.0 + Math.max(0, losses - wins) * 1.1,
-      fallbackScore: (num, wins, losses) =>
-        Math.max(0, num - 54) * 1.6 + Math.max(0, 4 - wins) * 1.25 + Math.max(0, losses - wins) * 0.45,
+      mandatory: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.08, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.18, 11) && wins === 0),
+      bubble: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.08, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.14, 9) && wins <= 3) ||
+        (num >= bottomStart(maxNumber, 0.22, 13) && wins <= 2),
+      score: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.73, 18) * 2.0 + Math.max(0, 4 - wins) * 3.0 + Math.max(0, losses - wins) * 1.1,
+      fallbackScore: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.9, 30) * 1.6 + Math.max(0, 4 - wins) * 1.25 + Math.max(0, losses - wins) * 0.45,
     },
     promotionRule: {
-      mandatory: (num, wins) => num === 1 ? wins >= 4 : (num <= 10 && wins === 7) || (num <= 5 && wins >= 6),
-      bubble: (num, wins) =>
+      mandatory: (num, wins, _losses, maxNumber) =>
+        num === 1 ? wins >= 4 : (num <= topRounded(maxNumber, 0.17, 10) && wins === 7) || (num <= topRounded(maxNumber, 0.08, 5) && wins >= 6),
+      bubble: (num, wins, _losses, maxNumber) =>
         (num === 1 && wins >= 4) ||
-        (num <= 10 && wins === 7) ||
-        (num <= 15 && wins >= 6) ||
-        (num <= 25 && wins === 7),
-      score: (num, wins, losses) =>
-        Math.max(0, wins - 3) * 2.95 + Math.max(0, 16 - num) * 1.75 + Math.max(0, wins - losses) * 1.05,
+        (num <= topRounded(maxNumber, 0.17, 10) && wins === 7) ||
+        (num <= topRounded(maxNumber, 0.25, 15) && wins >= 6) ||
+        (num <= topRounded(maxNumber, 0.42, 25) && wins === 7),
+      score: (num, wins, losses, maxNumber) =>
+        Math.max(0, wins - 3) * 2.95 + Math.max(0, topRounded(maxNumber, 0.27, 16) - num) * 1.75 + Math.max(0, wins - losses) * 1.05,
       fallbackScore: () => 0,
     },
   },
@@ -166,25 +184,28 @@ export const LOWER_BOUNDARIES: BoundarySpec[] = [
     upper: 'Sandanme',
     lower: 'Jonidan',
     demotionRule: {
-      mandatory: (num, wins) => (num >= 86 && wins <= 2) || (num >= 80 && wins === 0),
-      bubble: (num, wins) =>
-        (num >= 86 && wins <= 2) ||
-        (num >= 82 && wins <= 3) ||
-        (num >= 74 && wins <= 2),
-      score: (num, wins, losses) =>
-        (num - 68) * 1.65 + Math.max(0, 4 - wins) * 2.65 + Math.max(0, losses - wins) * 1.0,
-      fallbackScore: (num, wins, losses) =>
-        Math.max(0, num - 82) * 1.4 + Math.max(0, 4 - wins) * 1.15 + Math.max(0, losses - wins) * 0.4,
+      mandatory: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.06, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.13, 11) && wins === 0),
+      bubble: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.06, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.1, 9) && wins <= 3) ||
+        (num >= bottomStart(maxNumber, 0.18, 17) && wins <= 2),
+      score: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.76, 24) * 1.65 + Math.max(0, 4 - wins) * 2.65 + Math.max(0, losses - wins) * 1.0,
+      fallbackScore: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.91, 34) * 1.4 + Math.max(0, 4 - wins) * 1.15 + Math.max(0, losses - wins) * 0.4,
     },
     promotionRule: {
-      mandatory: (num, wins) => num === 1 ? wins >= 4 : (num <= 15 && wins === 7) || (num <= 8 && wins >= 6),
-      bubble: (num, wins) =>
+      mandatory: (num, wins, _losses, maxNumber) =>
+        num === 1 ? wins >= 4 : (num <= topRounded(maxNumber, 0.17, 15) && wins === 7) || (num <= topRounded(maxNumber, 0.09, 8) && wins >= 6),
+      bubble: (num, wins, _losses, maxNumber) =>
         (num === 1 && wins >= 4) ||
-        (num <= 15 && wins === 7) ||
-        (num <= 20 && wins >= 6) ||
-        (num <= 35 && wins === 7),
-      score: (num, wins, losses) =>
-        Math.max(0, wins - 3) * 2.75 + Math.max(0, 22 - num) * 1.3 + Math.max(0, wins - losses) * 1.0,
+        (num <= topRounded(maxNumber, 0.17, 15) && wins === 7) ||
+        (num <= topRounded(maxNumber, 0.22, 20) && wins >= 6) ||
+        (num <= topRounded(maxNumber, 0.39, 35) && wins === 7),
+      score: (num, wins, losses, maxNumber) =>
+        Math.max(0, wins - 3) * 2.75 + Math.max(0, topRounded(maxNumber, 0.24, 22) - num) * 1.3 + Math.max(0, wins - losses) * 1.0,
       fallbackScore: () => 0,
     },
   },
@@ -193,22 +214,27 @@ export const LOWER_BOUNDARIES: BoundarySpec[] = [
     upper: 'Jonidan',
     lower: 'Jonokuchi',
     demotionRule: {
-      mandatory: (num, wins) => (num >= 96 && wins <= 2) || (num >= 90 && wins === 0),
-      bubble: (num, wins) =>
-        (num >= 96 && wins <= 2) ||
-        (num >= 92 && wins <= 3) ||
-        (num >= 84 && wins <= 2),
-      score: (num, wins, losses) =>
-        (num - 80) * 1.6 + Math.max(0, 4 - wins) * 2.5 + Math.max(0, losses - wins) * 0.95,
-      fallbackScore: (num, wins, losses) =>
-        Math.max(0, num - 92) * 1.35 + Math.max(0, 4 - wins) * 1.1 + Math.max(0, losses - wins) * 0.35,
+      mandatory: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.05, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.11, 11) && wins === 0),
+      bubble: (num, wins, _losses, maxNumber) =>
+        (num >= bottomStart(maxNumber, 0.05, 5) && wins <= 2) ||
+        (num >= bottomStart(maxNumber, 0.09, 9) && wins <= 3) ||
+        (num >= bottomStart(maxNumber, 0.17, 17) && wins <= 2),
+      score: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.8, 30) * 1.6 + Math.max(0, 4 - wins) * 2.5 + Math.max(0, losses - wins) * 0.95,
+      fallbackScore: (num, wins, losses, maxNumber) =>
+        laneDepth(num, maxNumber, 0.92, 40) * 1.35 + Math.max(0, 4 - wins) * 1.1 + Math.max(0, losses - wins) * 0.35,
     },
     promotionRule: {
       mandatory: (num, wins) => num === 1 ? wins >= 4 : wins === 7,
-      bubble: (num, wins) =>
-        (num === 1 && wins >= 4) || wins === 7 || (num <= 10 && wins >= 6) || (num <= 18 && wins >= 5),
-      score: (num, wins, losses) =>
-        Math.max(0, wins - 3) * 2.65 + Math.max(0, 20 - num) * 1.15 + Math.max(0, wins - losses) * 0.95,
+      bubble: (num, wins, _losses, maxNumber) =>
+        (num === 1 && wins >= 4) ||
+        wins === 7 ||
+        (num <= topRounded(maxNumber, 0.33, 10) && wins >= 6) ||
+        (num <= topRounded(maxNumber, 0.6, 18) && wins >= 5),
+      score: (num, wins, losses, maxNumber) =>
+        Math.max(0, wins - 3) * 2.65 + Math.max(0, topRounded(maxNumber, 0.67, 20) - num) * 1.15 + Math.max(0, wins - losses) * 0.95,
       fallbackScore: () => 0,
     },
   },

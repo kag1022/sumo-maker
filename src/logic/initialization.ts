@@ -11,6 +11,7 @@ import {
   Trait,
 } from './models';
 import { CONSTANTS } from './constants';
+import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -41,10 +42,13 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
   MUSCULAR: { heightCm: 184, weightKg: 152 },
 };
 
-export const createInitialRikishi = (params: CreateInitialRikishiParams): RikishiStatus => {
+export const createInitialRikishi = (
+  params: CreateInitialRikishiParams,
+  random: () => number = Math.random,
+): RikishiStatus => {
   const archData = CONSTANTS.TALENT_ARCHETYPES[params.archetype];
   const [minPot, maxPot] = archData.potentialRange;
-  const potential = minPot + Math.floor(Math.random() * (maxPot - minPot + 1));
+  const potential = minPot + Math.floor(random() * (maxPot - minPot + 1));
 
   const stats: RikishiStatus['stats'] = {
     tsuki: 20,
@@ -72,7 +76,7 @@ export const createInitialRikishi = (params: CreateInitialRikishiParams): Rikish
   });
 
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
-    stats[k] += Math.floor(Math.random() * 11) - 5;
+    stats[k] += Math.floor(random() * 11) - 5;
     stats[k] = Math.max(1, stats[k]);
   });
 
@@ -80,6 +84,17 @@ export const createInitialRikishi = (params: CreateInitialRikishiParams): Rikish
     params.entryDivision && params.entryDivision !== 'Maezumo'
       ? params.entryDivision
       : undefined;
+
+  const resolvedBodyMetrics = params.bodyMetrics
+    ? { ...params.bodyMetrics }
+    : { ...DEFAULT_BODY_METRICS[params.bodyType] };
+
+  const initialAbility = resolveAbilityFromStats(
+    stats,
+    50,
+    resolvedBodyMetrics,
+    resolveRankBaselineAbility(params.startingRank),
+  );
 
   return {
     heyaId: 'my-heya',
@@ -96,12 +111,15 @@ export const createInitialRikishi = (params: CreateInitialRikishiParams): Rikish
     signatureMoves: [params.signatureMove],
     bodyType: params.bodyType,
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
-    bodyMetrics: params.bodyMetrics
-      ? { ...params.bodyMetrics }
-      : { ...DEFAULT_BODY_METRICS[params.bodyType] },
+    bodyMetrics: resolvedBodyMetrics,
     traits: [...params.traits],
     durability: 80,
     currentCondition: 50,
+    ratingState: {
+      ability: initialAbility,
+      form: 0,
+      uncertainty: 2.2,
+    },
     injuryLevel: 0,
     injuries: [],
     isOzekiKadoban: false,

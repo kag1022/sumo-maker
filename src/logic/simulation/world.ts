@@ -30,6 +30,14 @@ import { resolveYushoResolution } from './yusho';
 import { createInitialNpcUniverse } from './npc/factory';
 import { pushNpcBashoResult } from './npc/retirement';
 import { NpcNameContext, NpcRegistry, PersistentNpc } from './npc/types';
+import { resolveTopDivisionRank } from './topDivision/rank';
+import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from './torikumi/policy';
+import { scheduleTorikumiBasho } from './torikumi/scheduler';
+import { TorikumiParticipant } from './torikumi/types';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from './modelVersion';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
 type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
@@ -42,6 +50,8 @@ type WorldRikishi = {
   division: TopDivision;
   stableId: string;
   basePower: number;
+  ability: number;
+  uncertainty: number;
   growthBias: number;
   rankScore: number;
   volatility: number;
@@ -61,6 +71,9 @@ type DivisionBashoSnapshot = {
   wins: number;
   losses: number;
   absent?: number;
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   yusho?: boolean;
   junYusho?: boolean;
   specialPrizes?: SpecialPrizeCode[];
@@ -105,6 +118,16 @@ const DIVISION_SIZE: Record<TopDivision, number> = {
 const POWER_RANGE: Record<TopDivision, { min: number; max: number }> = {
   Makuuchi: { min: 95, max: 165 },
   Juryo: { min: 80, max: 125 },
+};
+
+const softClampPower = (value: number, range: { min: number; max: number }): number => {
+  if (value < range.min) {
+    return range.min - Math.log1p(range.min - value);
+  }
+  if (value > range.max) {
+    return range.max + Math.log1p(value - range.max);
+  }
+  return value;
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -152,6 +175,8 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       : 'Juryo',
     stableId: npc.stableId,
     basePower: npc.basePower,
+    ability: npc.ability,
+    uncertainty: npc.uncertainty,
     growthBias: npc.growthBias,
     rankScore: npc.rankScore,
     volatility: npc.volatility,
@@ -205,6 +230,10 @@ export const createDivisionParticipants = (
     const shikona = registryNpc?.shikona ?? npc.shikona;
     const stableId = registryNpc?.stableId ?? npc.stableId;
     const active = registryNpc?.active !== false;
+    const seasonalAbility =
+      (registryNpc?.ability ?? npc.ability ?? npc.basePower) +
+      npc.form * 3.2 +
+      randomNoise(rng, Math.max(0.8, npc.volatility * 0.45));
     const seasonalPower =
       npc.basePower * npc.form +
       randomNoise(rng, npc.volatility) +
@@ -215,12 +244,16 @@ export const createDivisionParticipants = (
       isPlayer: false,
       stableId,
       rankScore: npc.rankScore,
-      power: clamp(seasonalPower, POWER_RANGE[division].min, POWER_RANGE[division].max),
+      power: softClampPower(seasonalPower, POWER_RANGE[division]),
+      ability: seasonalAbility,
       styleBias: npc.styleBias,
       heightCm: npc.heightCm,
       weightKg: npc.weightKg,
       wins: 0,
       losses: 0,
+      expectedWins: 0,
+      opponentAbilityTotal: 0,
+      boutsSimulated: 0,
       active,
     };
   });
@@ -236,13 +269,56 @@ export const createDivisionParticipants = (
     stableId: 'player-heya',
     rankScore: player.rankScore,
     power: 0,
+    ability: 0,
     wins: 0,
     losses: 0,
+    expectedWins: 0,
+    opponentAbilityTotal: 0,
+    boutsSimulated: 0,
     active: true,
   });
 
   return participants;
 };
+
+const toTorikumiParticipant = (
+  division: TopDivision,
+  participant: DivisionParticipant,
+  world: SimulationWorld,
+): TorikumiParticipant => {
+  const rank = resolveTopDivisionRank(division, participant.rankScore, world.makuuchiLayout);
+  return {
+    ...participant,
+    division,
+    rankName: rank.name,
+    rankNumber: rank.number,
+    targetBouts: 15,
+    boutsDone: 0,
+  };
+};
+
+const toDivisionParticipants = (
+  participants: TorikumiParticipant[],
+): DivisionParticipant[] =>
+  participants.map((participant) => ({
+    id: participant.id,
+    shikona: participant.shikona,
+    isPlayer: participant.isPlayer,
+    stableId: participant.stableId,
+    forbiddenOpponentIds: participant.forbiddenOpponentIds,
+    rankScore: participant.rankScore,
+    power: participant.power,
+    ability: participant.ability,
+    styleBias: participant.styleBias,
+    heightCm: participant.heightCm,
+    weightKg: participant.weightKg,
+    wins: participant.wins,
+    losses: participant.losses,
+    expectedWins: participant.expectedWins,
+    opponentAbilityTotal: participant.opponentAbilityTotal,
+    boutsSimulated: participant.boutsSimulated,
+    active: participant.active,
+  }));
 
 const decodeMakuuchiRankFromScore = (
   rankScore: number,
@@ -291,6 +367,12 @@ export const evolveDivisionAfterBasho = (
         ? decodeMakuuchiRankFromScore(participant.rankScore, world.makuuchiLayout)
         : decodeJuryoRankFromScore(participant.rankScore);
     const absent = Math.max(0, 15 - (participant.wins + participant.losses));
+    const expectedWins = participant.expectedWins ?? 0;
+    const sos =
+      (participant.boutsSimulated ?? 0) > 0
+        ? (participant.opponentAbilityTotal ?? 0) / (participant.boutsSimulated ?? 1)
+        : 0;
+    const performanceOverExpected = participant.wins - expectedWins;
     const yusho = participant.id === yushoWinnerId;
     const junYusho = !yusho && junYushoIds.has(participant.id);
     const specialPrizes = specialPrizesById.get(participant.id) ?? [];
@@ -299,6 +381,9 @@ export const evolveDivisionAfterBasho = (
       wins: participant.wins,
       losses: participant.losses,
       absent,
+      expectedWins,
+      strengthOfSchedule: sos,
+      performanceOverExpected,
       yusho,
       junYusho,
       specialPrizes,
@@ -316,6 +401,9 @@ export const evolveDivisionAfterBasho = (
       wins: participant.wins,
       losses: participant.losses,
       absent,
+      expectedWins,
+      strengthOfSchedule: sos,
+      performanceOverExpected,
       yusho,
       junYusho,
       specialPrizes,
@@ -331,16 +419,22 @@ export const evolveDivisionAfterBasho = (
       if (!result) return npc;
 
       const diff = result.wins - result.losses;
-      const basePower = clamp(
-        npc.basePower + diff * 0.35 + npc.growthBias * 0.9 + randomNoise(rng, 0.5),
-        range.min,
-        range.max,
+      const expectedWins = result.expectedWins ?? (result.wins + result.losses) / 2;
+      const performanceOverExpected = result.wins - expectedWins;
+      const ability = (npc.ability ?? npc.basePower) +
+        performanceOverExpected * 1.05 +
+        npc.growthBias * 0.85 +
+        randomNoise(rng, 0.45);
+      const basePower = softClampPower(
+        npc.basePower + diff * 0.2 + performanceOverExpected * 0.3 + randomNoise(rng, 0.45),
+        range,
       );
       const nextForm = clamp(
         npc.form * 0.6 + (1 + diff * 0.01 + randomNoise(rng, 0.06)) * 0.4,
         0.85,
         1.15,
       );
+      const nextUncertainty = clamp((npc.uncertainty ?? 1.7) - 0.02, 0.55, 2.3);
       const nextRankScore = clamp(
         npc.rankScore - diff * 0.5 + randomNoise(rng, 0.3),
         1,
@@ -350,6 +444,8 @@ export const evolveDivisionAfterBasho = (
       const registryNpc = world.npcRegistry.get(npc.id);
       if (registryNpc) {
         registryNpc.basePower = basePower;
+        registryNpc.ability = ability;
+        registryNpc.uncertainty = nextUncertainty;
         registryNpc.form = nextForm;
         registryNpc.rankScore = nextRankScore;
         registryNpc.division = division;
@@ -360,6 +456,8 @@ export const evolveDivisionAfterBasho = (
       return {
         ...npc,
         basePower,
+        ability,
+        uncertainty: nextUncertainty,
         form: nextForm,
         rankScore: nextRankScore,
       };
@@ -425,6 +523,8 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
       registryNpc.currentDivision = division;
       registryNpc.rankScore = rikishi.rankScore;
       registryNpc.basePower = rikishi.basePower;
+      registryNpc.ability = rikishi.ability;
+      registryNpc.uncertainty = rikishi.uncertainty;
       registryNpc.growthBias = rikishi.growthBias;
       registryNpc.form = rikishi.form;
       registryNpc.volatility = rikishi.volatility;
@@ -490,6 +590,7 @@ export const simulateOffscreenTopDivisionBasho = (
   world: SimulationWorld,
   division: TopDivision,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
   const participants = createDivisionParticipants(world, division, rng);
   const facedMap = createFacedMap(participants);
@@ -498,11 +599,48 @@ export const simulateOffscreenTopDivisionBasho = (
     const dailyMatchups = createDailyMatchups(participants, facedMap, rng, day, 15);
     const pairs = dailyMatchups.pairs;
     for (const { a, b } of pairs) {
-      simulateNpcBout(a, b, rng);
+      simulateNpcBout(a, b, rng, simulationModelVersion);
     }
   }
 
   evolveDivisionAfterBasho(world, division, participants, rng);
+};
+
+export const simulateOffscreenSekitoriBasho = (
+  world: SimulationWorld,
+  rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+): void => {
+  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng).map((participant) =>
+    toTorikumiParticipant('Makuuchi', participant, world),
+  );
+  const juryo = createDivisionParticipants(world, 'Juryo', rng).map((participant) =>
+    toTorikumiParticipant('Juryo', participant, world),
+  );
+  const participants = makuuchi.concat(juryo);
+
+  scheduleTorikumiBasho({
+    participants,
+    days: Array.from({ length: 15 }, (_, index) => index + 1),
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    facedMap: createFacedMap(participants),
+    onPair: ({ a, b }) => {
+      simulateNpcBout(a, b, rng, simulationModelVersion);
+    },
+  });
+
+  evolveDivisionAfterBasho(
+    world,
+    'Makuuchi',
+    toDivisionParticipants(participants.filter((participant) => participant.division === 'Makuuchi')),
+    rng,
+  );
+  evolveDivisionAfterBasho(
+    world,
+    'Juryo',
+    toDivisionParticipants(participants.filter((participant) => participant.division === 'Juryo')),
+    rng,
+  );
 };
 
 export const resolveTopDivisionFromRank = (rank: Rank): TopDivision | null =>
@@ -525,13 +663,15 @@ export const pruneRetiredTopDivisionRosters = (world: SimulationWorld): void => 
         ...rikishi,
         shikona: registryNpc.shikona,
         stableId: registryNpc.stableId,
-          basePower: registryNpc.basePower,
-          growthBias: registryNpc.growthBias,
-          form: registryNpc.form,
-          volatility: registryNpc.volatility,
-          styleBias: registryNpc.styleBias,
-          heightCm: registryNpc.heightCm,
-          weightKg: registryNpc.weightKg,
+        basePower: registryNpc.basePower,
+        ability: registryNpc.ability,
+        uncertainty: registryNpc.uncertainty,
+        growthBias: registryNpc.growthBias,
+        form: registryNpc.form,
+        volatility: registryNpc.volatility,
+        styleBias: registryNpc.styleBias,
+        heightCm: registryNpc.heightCm,
+        weightKg: registryNpc.weightKg,
         };
       });
   }

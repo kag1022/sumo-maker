@@ -1,6 +1,7 @@
 import React from "react";
-import { RikishiStatus, Rank, Rarity } from "../../../logic/models";
+import { RankScaleSlots, RikishiStatus, Rank, Rarity } from "../../../logic/models";
 import { getRankValueForChart } from "../../../logic/ranking";
+import { LIMITS, resolveRankLimits, resolveRankSlotOffset } from "../../../logic/ranking/rankLimits";
 import { CONSTANTS } from "../../../logic/constants";
 import { Card } from "../../../shared/ui/Card";
 import { Button } from "../../../shared/ui/Button";
@@ -22,6 +23,8 @@ import {
   Award,
 } from "lucide-react";
 import { AchievementView } from "./AchievementView";
+import { HoshitoriCareerRecord, HoshitoriTable } from "./HoshitoriTable";
+import { listCareerPlayerBoutsByBasho } from "../../../logic/persistence/repository";
 import {
   ResponsiveContainer,
   LineChart,
@@ -106,13 +109,6 @@ const RANK_CHART_BANDS: Array<{
   { key: "Jonokuchi", label: "序ノ口", top: 370, bottom: 400 },
 ];
 
-const JONOKUCHI_BOTTOM_RANK_VALUE = getRankValueForChart({
-  division: "Jonokuchi",
-  name: "序ノ口",
-  number: 30,
-  side: "West",
-});
-
 const PERSONALITY_LABELS: Record<string, string> = {
   CALM: "冷静",
   AGGRESSIVE: "闘争的",
@@ -143,59 +139,42 @@ const formatRecordText = (
   absent: number,
 ): string => `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
 
-const DISPLAY_LIMITS = {
-  MAEGASHIRA_MAX: 17,
-  JURYO_MAX: 14,
-  MAKUSHITA_MAX: 60,
-  SANDANME_MAX: 100,
-  JONIDAN_MAX: 100,
-  JONOKUCHI_MAX: 30,
-};
-
-const DIVISION_SLOT_OFFSET = {
-  Makuuchi: 0,
-  Juryo: 42, // (横綱〜小結 8slot) + (前頭17枚 x 2slot)
-  Makushita: 70, // + 十両14枚 x 2slot
-  Sandanme: 190, // + 幕下60枚 x 2slot
-  Jonidan: 390, // + 三段目100枚 x 2slot
-  Jonokuchi: 590, // + 序二段100枚 x 2slot
-  Maezumo: 650, // + 序ノ口30枚 x 2slot
-} as const;
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const resolveRankSlot = (rank: Rank): number => {
+const resolveRankSlot = (rank: Rank, scaleSlots?: RankScaleSlots): number => {
+  const limits = resolveRankLimits(scaleSlots);
+  const rankSlotOffset = resolveRankSlotOffset(scaleSlots);
   const sideOffset = rank.side === "West" ? 1 : 0;
   if (rank.division === "Makuuchi") {
     if (rank.name === "横綱") return 0 + sideOffset;
     if (rank.name === "大関") return 2 + sideOffset;
     if (rank.name === "関脇") return 4 + sideOffset;
     if (rank.name === "小結") return 6 + sideOffset;
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.MAEGASHIRA_MAX);
+    const n = clamp(rank.number || 1, 1, limits.MAEGASHIRA_MAX);
     return 8 + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === "Juryo") {
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.JURYO_MAX);
-    return DIVISION_SLOT_OFFSET.Juryo + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JURYO_MAX);
+    return rankSlotOffset.Juryo + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === "Makushita") {
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.MAKUSHITA_MAX);
-    return DIVISION_SLOT_OFFSET.Makushita + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.MAKUSHITA_MAX);
+    return rankSlotOffset.Makushita + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === "Sandanme") {
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.SANDANME_MAX);
-    return DIVISION_SLOT_OFFSET.Sandanme + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.SANDANME_MAX);
+    return rankSlotOffset.Sandanme + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === "Jonidan") {
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.JONIDAN_MAX);
-    return DIVISION_SLOT_OFFSET.Jonidan + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JONIDAN_MAX);
+    return rankSlotOffset.Jonidan + (n - 1) * 2 + sideOffset;
   }
   if (rank.division === "Jonokuchi") {
-    const n = clamp(rank.number || 1, 1, DISPLAY_LIMITS.JONOKUCHI_MAX);
-    return DIVISION_SLOT_OFFSET.Jonokuchi + (n - 1) * 2 + sideOffset;
+    const n = clamp(rank.number || 1, 1, limits.JONOKUCHI_MAX);
+    return rankSlotOffset.Jonokuchi + (n - 1) * 2 + sideOffset;
   }
-  return DIVISION_SLOT_OFFSET.Maezumo;
+  return rankSlotOffset.Maezumo;
 };
 
 const formatBanzukeDelta = (deltaInBanzuke: number): string => {
@@ -250,6 +229,7 @@ interface ReportScreenProps {
   onReset: () => void;
   onSave?: () => void | Promise<void>;
   isSaved?: boolean;
+  careerId?: string | null;
 }
 
 export const ReportScreen: React.FC<ReportScreenProps> = ({
@@ -257,9 +237,17 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   onReset,
   onSave,
   isSaved = false,
+  careerId = null,
 }) => {
   const [activeTab, setActiveTab] = React.useState<TabId>("overview");
   const [savedFlash, setSavedFlash] = React.useState(false);
+  const [hoshitoriCareerRecords, setHoshitoriCareerRecords] = React.useState<
+    HoshitoriCareerRecord[]
+  >([]);
+  const [isHoshitoriLoading, setIsHoshitoriLoading] = React.useState(false);
+  const [hoshitoriErrorMessage, setHoshitoriErrorMessage] = React.useState<
+    string | undefined
+  >(undefined);
   const entryAge = React.useMemo(() => resolveEntryAge(status), [status]);
 
   const { shikona, history } = status;
@@ -331,6 +319,22 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       .map(([name, count]) => ({ name, count }));
   }, [history.kimariteTotal]);
 
+  const jonokuchiBottomRankValue = React.useMemo(() => {
+    const maxJonokuchiNumber = history.records.reduce((max, record) => {
+      const scaleMax = resolveRankLimits(record.scaleSlots).JONOKUCHI_MAX;
+      if (record.rank.division !== "Jonokuchi") {
+        return Math.max(max, scaleMax);
+      }
+      return Math.max(max, scaleMax, record.rank.number || 1);
+    }, LIMITS.JONOKUCHI_MAX);
+    return getRankValueForChart({
+      division: "Jonokuchi",
+      name: "序ノ口",
+      number: maxJonokuchiNumber,
+      side: "West",
+    });
+  }, [history.records]);
+
   const firstRecordYear = history.records[0]?.year ?? new Date().getFullYear();
   const lineData = history.records
     .filter((r) => r.rank.division !== "Maezumo")
@@ -355,8 +359,8 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         };
       }
 
-      const currentSlot = resolveRankSlot(record.rank);
-      const nextSlot = resolveRankSlot(next.rank);
+      const currentSlot = resolveRankSlot(record.rank, record.scaleSlots);
+      const nextSlot = resolveRankSlot(next.rank, next.scaleSlots);
       const deltaSlots = currentSlot - nextSlot;
       const deltaInBanzuke = deltaSlots / 2; // 1slot = 半枚（東西）
       const deltaKind: RankMovement["deltaKind"] =
@@ -373,6 +377,73 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       };
     });
   }, [history.records]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const baseRecords: HoshitoriCareerRecord[] = history.records
+      .filter((record) => record.rank.division !== "Maezumo")
+      .map((record) => ({
+        year: record.year,
+        month: record.month,
+        rank: record.rank,
+        wins: record.wins,
+        losses: record.losses,
+        absent: record.absent,
+        bouts: [],
+      }));
+
+    if (!careerId) {
+      setHoshitoriCareerRecords(baseRecords);
+      setIsHoshitoriLoading(false);
+      setHoshitoriErrorMessage(
+        "場所別の取組詳細データが見つからないため、記号のみで表示しています。",
+      );
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsHoshitoriLoading(true);
+    setHoshitoriErrorMessage(undefined);
+
+    void (async () => {
+      try {
+        const boutRows = await listCareerPlayerBoutsByBasho(careerId);
+        if (cancelled) return;
+
+        const boutsBySeq = new Map(
+          boutRows.map((entry) => [entry.bashoSeq, entry.bouts]),
+        );
+        const mergedRecords: HoshitoriCareerRecord[] = history.records
+          .map((record, index) => ({
+            year: record.year,
+            month: record.month,
+            rank: record.rank,
+            wins: record.wins,
+            losses: record.losses,
+            absent: record.absent,
+            bouts: boutsBySeq.get(index + 1) || [],
+          }))
+          .filter((record) => record.rank.division !== "Maezumo");
+
+        setHoshitoriCareerRecords(mergedRecords);
+      } catch {
+        if (cancelled) return;
+        setHoshitoriCareerRecords(baseRecords);
+        setHoshitoriErrorMessage(
+          "星取表データの取得に失敗したため、記号のみで表示しています。",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsHoshitoriLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [careerId, history.records]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -807,7 +878,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 tick={{ fontSize: 10 }}
               />
               <YAxis
-                domain={[-1 * JONOKUCHI_BOTTOM_RANK_VALUE, 10]}
+                domain={[-1 * jonokuchiBottomRankValue, 10]}
                 tickFormatter={(v) => {
                   const abs = Math.abs(v);
                   if (abs === 0) return "横綱";
@@ -952,7 +1023,14 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
 
   // -- 年表タブ --
   const renderTimeline = () => (
-    <EnhancedTimeline history={history} entryAge={entryAge} />
+    <div className="space-y-6 animate-in">
+      <HoshitoriTable
+        careerRecords={hoshitoriCareerRecords}
+        isLoading={isHoshitoriLoading}
+        errorMessage={hoshitoriErrorMessage}
+      />
+      <EnhancedTimeline history={history} entryAge={entryAge} />
+    </div>
   );
 
   return (

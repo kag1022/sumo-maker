@@ -70,6 +70,13 @@ export interface BodyMetrics {
   weightKg: number;
 }
 
+export interface RatingState {
+  ability: number;
+  form: number;
+  uncertainty: number;
+  lastBashoExpectedWins?: number;
+}
+
 // 怪我の種類
 export type InjuryType =
   | 'KNEE'
@@ -129,6 +136,7 @@ export interface RikishiStatus {
   traits: Trait[];             // スキル（特性）リスト
   durability: number;      // 基礎耐久力
   currentCondition: number; // 現在の調子 (0-100)
+  ratingState: RatingState; // 連続実力モデル状態
   injuryLevel: number;   // 【非推奨】怪我レベル (0:なし, >0:負傷あり) - 後方互換性のため残す
   injuries: Injury[];    // 詳細な怪我リスト
   isOzekiKadoban?: boolean; // 大関カド番
@@ -142,6 +150,8 @@ export interface RikishiStatus {
 
 // 階級定義
 export type Division = 'Makuuchi' | 'Juryo' | 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi' | 'Maezumo';
+export type RankedDivision = Exclude<Division, 'Maezumo'>;
+export type RankScaleSlots = Partial<Record<RankedDivision, number>>;
 
 // 番付情報
 export interface Rank {
@@ -191,8 +201,12 @@ export interface BashoRecord {
   absent: number;
   yusho: boolean; // 優勝したか
   specialPrizes: string[]; // 三賞
+  expectedWins?: number;
+  strengthOfSchedule?: number;
+  performanceOverExpected?: number;
   kinboshi?: number; // 金星獲得数（平幕が横綱を破った回数）
   kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
+  scaleSlots?: RankScaleSlots; // その場所時点の番付スロット構成（相対スケール）
 }
 
 // タイムラインイベント

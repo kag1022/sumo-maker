@@ -1,5 +1,6 @@
 import { BashoRecord, Oyakata, RikishiStatus, TimelineEvent } from '../models';
 import { PauseReason, SimulationProgressSnapshot } from './engine';
+import { SimulationModelVersion } from './modelVersion';
 
 export interface StartSimulationMessage {
   type: 'START';
@@ -7,6 +8,7 @@ export interface StartSimulationMessage {
     careerId: string;
     initialStats: RikishiStatus;
     oyakata: Oyakata | null;
+    simulationModelVersion?: SimulationModelVersion;
   };
 }
 

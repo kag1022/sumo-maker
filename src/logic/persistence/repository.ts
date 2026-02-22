@@ -8,9 +8,15 @@ import {
   BoutRecordRow,
   CareerRow,
   CareerState,
+  SimulationDiagnosticsRow,
   getDb,
 } from './db';
 import type { BanzukeDecisionLog, BanzukePopulationSnapshot } from '../banzuke/types';
+import { SimulationDiagnostics } from '../simulation/diagnostics';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from '../simulation/modelVersion';
 
 const MAX_SAVED_CAREERS = 200;
 
@@ -131,12 +137,14 @@ const removeCareerRows = async (careerId: string): Promise<void> => {
   await db.boutRecords.where('careerId').equals(careerId).delete();
   await db.banzukePopulation.where('careerId').equals(careerId).delete();
   await db.banzukeDecisions.where('careerId').equals(careerId).delete();
+  await db.simulationDiagnostics.where('careerId').equals(careerId).delete();
 };
 
 export interface CreateDraftCareerParams {
   id?: string;
   initialStatus: RikishiStatus;
   careerStartYearMonth: string;
+  simulationModelVersion?: SimulationModelVersion;
 }
 
 export interface AppendBashoChunkParams {
@@ -148,6 +156,7 @@ export interface AppendBashoChunkParams {
   statusSnapshot: RikishiStatus;
   banzukePopulation?: BanzukePopulationSnapshot;
   banzukeDecisions?: BanzukeDecisionLog[];
+  diagnostics?: SimulationDiagnostics;
 }
 
 export interface CareerListItem {
@@ -178,10 +187,16 @@ export interface HeadToHeadRow {
   lastSeenSeq: number;
 }
 
+export interface CareerPlayerBoutsByBasho {
+  bashoSeq: number;
+  bouts: PlayerBoutDetail[];
+}
+
 export const createDraftCareer = async ({
   id,
   initialStatus,
   careerStartYearMonth,
+  simulationModelVersion,
 }: CreateDraftCareerParams): Promise<string> => {
   const careerId = id || crypto.randomUUID();
   const now = new Date().toISOString();
@@ -201,6 +216,7 @@ export const createDraftCareer = async ({
     bashoCount: initialStatus.history.records.length,
     careerStartYearMonth,
     careerEndYearMonth: null,
+    simulationModelVersion: simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
     finalStatus: initialStatus,
   };
 
@@ -218,6 +234,7 @@ export const appendBashoChunk = async ({
   statusSnapshot,
   banzukePopulation,
   banzukeDecisions,
+  diagnostics,
 }: AppendBashoChunkParams): Promise<void> => {
   const db = getDb();
   const playerRow = toPlayerBashoRow(careerId, seq, playerRecord, statusSnapshot.shikona);
@@ -236,6 +253,7 @@ export const appendBashoChunk = async ({
     db.boutRecords,
     db.banzukePopulation,
     db.banzukeDecisions,
+    db.simulationDiagnostics,
   ];
 
   await db.transaction(
@@ -264,6 +282,14 @@ export const appendBashoChunk = async ({
           seq,
         }));
         await db.banzukeDecisions.bulkPut(rows);
+      }
+      if (diagnostics) {
+        const row: SimulationDiagnosticsRow = {
+          ...diagnostics,
+          careerId,
+          seq,
+        };
+        await db.simulationDiagnostics.put(row);
       }
 
       const now = new Date().toISOString();
@@ -298,6 +324,7 @@ export const commitCareer = async (careerId: string): Promise<void> => {
     db.boutRecords,
     db.banzukePopulation,
     db.banzukeDecisions,
+    db.simulationDiagnostics,
   ];
   await db.transaction('rw', writableTables, async () => {
     const career = await db.careers.get(careerId);
@@ -337,6 +364,7 @@ export const discardDraftCareer = async (careerId: string): Promise<void> => {
     db.boutRecords,
     db.banzukePopulation,
     db.banzukeDecisions,
+    db.simulationDiagnostics,
   ];
   await db.transaction('rw', writableTables, async () => {
     const row = await db.careers.get(careerId);
@@ -387,6 +415,7 @@ export const deleteCareer = async (careerId: string): Promise<void> => {
     db.boutRecords,
     db.banzukePopulation,
     db.banzukeDecisions,
+    db.simulationDiagnostics,
   ];
   await db.transaction('rw', writableTables, async () => {
     await removeCareerRows(careerId);
@@ -401,6 +430,36 @@ export const isCareerSaved = async (careerId: string): Promise<boolean> => {
 
 export const buildCareerStartYearMonth = (year: number, month: number): string =>
   toYearMonth(year, month);
+
+export const listCareerPlayerBoutsByBasho = async (
+  careerId: string,
+): Promise<CareerPlayerBoutsByBasho[]> => {
+  const db = getDb();
+  const rows = await db.boutRecords.where('careerId').equals(careerId).toArray();
+  const grouped = new Map<number, PlayerBoutDetail[]>();
+  const sortedRows = rows
+    .slice()
+    .sort((a, b) => a.bashoSeq - b.bashoSeq || a.day - b.day);
+
+  for (const row of sortedRows) {
+    const bouts = grouped.get(row.bashoSeq) ?? [];
+    bouts.push({
+      day: row.day,
+      result: row.result,
+      kimarite: row.kimarite,
+      opponentId: row.opponentId,
+      opponentShikona: row.opponentShikona,
+      opponentRankName: row.opponentRankName,
+      opponentRankNumber: row.opponentRankNumber,
+      opponentRankSide: row.opponentRankSide,
+    });
+    grouped.set(row.bashoSeq, bouts);
+  }
+
+  return [...grouped.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([bashoSeq, bouts]) => ({ bashoSeq, bouts }));
+};
 
 export const getCareerHeadToHead = async (careerId: string): Promise<HeadToHeadRow[]> => {
   const db = getDb();
@@ -472,6 +531,13 @@ export const appendBanzukeDecisionLogs = async (
   await db.banzukeDecisions.bulkPut(logs);
 };
 
+export const appendSimulationDiagnostics = async (
+  diagnostics: SimulationDiagnostics & { careerId: string },
+): Promise<void> => {
+  const db = getDb();
+  await db.simulationDiagnostics.put(diagnostics);
+};
+
 export const listBanzukeDecisions = async (
   careerId: string,
   seq: number,
@@ -485,4 +551,11 @@ export const listBanzukePopulation = async (
 ): Promise<Array<BanzukePopulationSnapshot & { careerId: string }>> => {
   const db = getDb();
   return db.banzukePopulation.where('careerId').equals(careerId).toArray();
+};
+
+export const listCareerSimulationDiagnostics = async (
+  careerId: string,
+): Promise<Array<SimulationDiagnostics & { careerId: string }>> => {
+  const db = getDb();
+  return db.simulationDiagnostics.where('careerId').equals(careerId).toArray();
 };

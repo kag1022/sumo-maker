@@ -17,6 +17,10 @@ import {
   simulateMakushitaBoundaryBasho,
 } from './sekitori/pool';
 import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from './modelVersion';
+import {
   BoundarySnapshot,
   EMPTY_EXCHANGE,
   PlayerMakushitaRecord,
@@ -47,6 +51,7 @@ export const runSekitoriQuotaStep = (
   rng: RandomSource,
   playerMakushitaRecord?: PlayerMakushitaRecord,
   lowerWorld?: LowerDivisionQuotaWorld,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): SekitoriExchange => {
   boundaryWorld.lastPlayerJuryoHalfStepNudge = 0;
   boundaryWorld.npcRegistry = lowerWorld?.npcRegistry ?? topWorld.npcRegistry;
@@ -57,7 +62,7 @@ export const runSekitoriQuotaStep = (
   const makushitaBase =
     lowerWorld?.lastResults.Makushita && lowerWorld.lastResults.Makushita.length
       ? lowerWorld.lastResults.Makushita
-      : simulateMakushitaBoundaryBasho(boundaryWorld, rng);
+      : simulateMakushitaBoundaryBasho(boundaryWorld, rng, simulationModelVersion);
   const makushitaResults = mergePlayerMakushitaRecord(makushitaBase, playerMakushitaRecord);
   const juryoRaw = topWorld.lastBashoResults.Juryo ?? [];
   const playerJuryoRow = juryoRaw.find((result) => result.id === 'PLAYER');

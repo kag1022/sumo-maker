@@ -1,0 +1,566 @@
+Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
+
+## Progress
+- Added model-level profile/body metrics types and expanded Trait union (+12 planned skills).
+- Added Dexie v2 meta table scaffold and wallet persistence module with time-based regen.
+- Added enemy body metric bases and battle logic hooks for size-based power adjustment + new trait effects.
+- Added compatibility defaults in initializeSimulationStatus for legacy saves.
+
+## TODO
+- Rebuild ScoutScreen into 2-step gacha + paid overrides wired to wallet.
+- Add scout gacha logic integration and costs UI.
+- Update ReportScreen to display profile/body metrics.
+- Finish battle context previous-result propagation and compile fixes.
+- Add/update tests for wallet, scout costs, body-metric battle effects, and new traits.
+- Run npm test/lint/build and fix all regressions.
+- Attempt Playwright verification loop if environment supports the develop-web-game script.
+- Implemented full scout rewrite with 2-step flow (draw -> paid overrides -> register), wallet display, and cost breakdown.
+- Implemented wallet persistence and regen policy (initial 300, cap 500, +1/min, offline regen).
+- Added profile/body metrics to RikishiStatus and compatibility patching for old saves.
+- Added body-metric battle influence and 12 new trait effects in battle/growth.
+- Removed body-type rarity dependency from UI and constants.
+- Updated report overview to show profile and body metrics.
+- Added/updated test coverage for wallet, scout cost rules, compatibility patching, and new battle/growth effects (102 tests pass).
+- Playwright run attempt was blocked by command policy when trying to run preview server in background process.
+- Playwright client produced screenshot at output/web-game/shot-0.png; verified initial scout screen renders with wallet and draw CTA.
+- Fixed slot reselection behavior: existing skills are preserved when changing slot count (truncate on decrease, append unique rolls on increase).
+- Changed slot override pricing to scale by selected slot count (0:0, 1:10, 2:20, 3:30, 4:40, 5:50).
+- Updated UI labels/options to show slot-dependent cost.
+- Added tests for slot preservation and slot-cost mapping; suite now 104 passing tests.
+- Redesigned scout skill-slot flow to per-slot 5-option drafts (no reroll-on-slot-change): added `traitSlotDrafts`, `resizeTraitSlots`, `selectTraitForSlot`, and `syncTraitsFromSlotDrafts`.
+- Implemented hidden-not-reset behavior: setting slots to 0 now hides active skills without deleting slot draft candidates/selections; restoring slots reuses prior drafts.
+- Updated slot pricing table to progressive costs: 0/10/25/45/70/100 and kept charge timing at registration (override estimate only in UI).
+- Updated ScoutScreen UI to render per-slot option buttons, enforce no-duplicate selection across active slots, and show explicit hidden-state message at 0 slots.
+- Reworked scout tests from old reroll model to new draft model: resize preserve/restore, duplicate rejection, and progressive slot-cost assertions.
+- Validation: `npm test` passed (105/105), `npm run lint` passed, `npm run build` passed.
+- Playwright loop retry still blocked in this environment by permission errors (`アクセスが拒否されました。`) when invoking the skill client script.
+- Implemented Expected Rank integration wiring: `calculateNextRank` now honors `boundaryAssignedNextRank` (and quota-provided assigned ranks) before standard single-rank movement for non-yokozuna/ozeki cases.
+- Updated simulation engine rank option assembly to pass top/sekitori/lower quotas and unified `boundaryAssignedNextRank` through `RankCalculationOptions`.
+- Added mandatory absence reason plumbing in exchange types and maintained forced-demotion handling in lower/sekitori boundary exchanges.
+- Updated report rank chart: excludes Maezumo points, switched line to `stepAfter`, fixed Y-axis lower bound to Jonokuchi bottom, and added division color bands + labels.
+- Added regression tests (3): lower-boundary full-absence mandatory demotion reason, boundary assigned-rank override in lower divisions, sekitori assigned-rank override from quota.
+- Validation: `npm test` passed (108/108), `npm run lint` passed, `npm run build` passed.
+- Skill loop: ran Playwright client (`web_game_playwright_client.js`) against local dev server; latest screenshot captured at `output/web-game/shot-0.png` and visually checked.
+- Adjusted promotion/demotion width model to address "small movement" feedback.
+- Sekitori bands (`src/logic/ranking/sekitori/bands.ts`): widened slot delta anchors for kachikoshi/makekoshi, loosened top-zone dampening, and raised top-maegashira 8-7 micro-rise band.
+- Sekitori safety guard (`src/logic/ranking/sekitori/safety.ts`): top-maegashira +1 cap relaxed from 0.5-rank to 1-rank equivalent.
+- Expected band model (`src/logic/ranking/expected/slotBands.ts`) now supports optional per-win custom slot ranges + rank-progress scaling.
+- Lower expected committee (`src/logic/ranking/lowerCommittee.ts`) now injects division-specific slot-range tables:
+  - Makushita tuned toward 4-3: +3~5, 5-2: +10~15 rank-class movement.
+  - Sandanme/Jonidan/Jonokuchi tuned to allow large "gobonuki" jumps.
+- Lower single-rank fallback (`src/logic/ranking/lowerDivision.ts`) updated with wider range tables consistent with requested movement profile.
+- Test suite updated for new width model (nudge checks now relative, large-jump expectations widened) and all pass.
+- Validation after changes: `npm test` (108/108), `npm run lint`, `npm run build` all pass.
+- Re-ran Playwright client loop and visually rechecked `output/web-game/shot-0.png` (no UI regression observed on scout screen).
+
+- 2026-02-21: Enemy-side overhaul implemented (persistent NPC body/style, fallback enemy rank+era drift, growthBias usage, and tests).
+- 2026-02-22: Added `scripts/reports/extract_banzuke_cases.ts` and generated `.tmp/banzuke_cases_report.json` from 16,632 transitions (13 scenarios) for banzuke QA.
+- Observed candidate regression: rare `J2 15-0 -> Komusubi` direct sanyaku jump in long-run simulation (`Jd90_mixed`, seed 23, seq 20).
+- Observed candidate regression: some `Komusubi 9-6/10-5` cases stay at Komusubi (or only side flip) instead of Sekiwake expansion.
+- 2026-02-22: Implemented banzuke logic fixes from QA findings.
+  - Engine now applies normalized top-division assigned rank (`topDivisionQuota.assignedNextRank`) instead of raw `world.lastPlayerAllocation.nextRank` to prevent bypass of juryo->makuuchi normalization.
+  - Komusubi sekiwake directive threshold changed from 10+ wins to 9+ wins.
+  - Added top-maegashira 8-7 guard both in sekitori safety and top-division player normalization to keep movement within maegashira lane.
+  - Re-tuned lower-division movement ranges (expected committee + single-rank fallback) to reduce extreme multi-division jumps and keep 7-0 around realistic 30-50 rank-class movement.
+- Added/updated tests in `scripts/tests/sim_tests.ts`:
+  - top maegashira 8-7 no sanyaku jump
+  - komusubi 9-6 promoted to sekiwake even with packed sekiwake
+  - quota-level guard for top-maegashira 8-7
+  - adjusted lower-division width assertions for new ranges
+- Validation after fixes: `npm test` passed (116/116).
+- Re-ran long-run extraction (`.tmp/banzuke_cases_report_after_fix3.json`):
+  - `potentialBug_juryo_top_14plus_promoted_to_sanyaku`: 1 -> 0
+  - `potentialBug_komusubi_9plus_not_promoted`: 10 -> 0
+  - top-maegashira 8-7 extracted samples no longer include sanyaku jumps.
+- 2026-02-22 (follow-up): Added final guards after re-sim validation.
+  - Engine assigned-rank shortcut now excludes Yokozuna/Ozeki/Sekiwake to avoid bypassing canonical promotion/demotion rules.
+  - Player top-division normalization now caps Maegashira/Komusubi upward normalization at Sekiwake ceiling.
+- Final long-run extraction (`.tmp/banzuke_cases_report_after_fix_final.json`) confirms:
+  - no `J1-3 14+/15-0 -> Sanyaku` direct jump,
+  - no `Komusubi 9+` non-promotion leftovers,
+  - no top-maegashira 8-7 sanyaku jumps,
+  - no Yokozuna demotion on full absence through assigned-rank path.
+- 2026-02-22: Implemented requested 3-point tuning.
+  - Added upper-lane pressure aware normalization in `playerNormalization`:
+    - Maegashira 8-7 context nudge (pressure high: slightly stronger rise, pressure low: softer rise/hold).
+    - Juryo top (J1-3) 14+/15-0 landing is now variable in Maegashira 8-12 lane based on upper-lane pressure.
+  - Added lower-division micro-dynamics:
+    - `lowerCommittee`: deterministic turbulence (+ boundary jam) applied to expected slot bands for extreme records.
+    - `lowerDivision`: small stochastic + position-aware half-step turbulence for extreme records.
+  - Added tests: 
+    - `quota: dominant juryo yusho lane shifts by upper-lane pressure`
+    - `quota: maegashira8 8-7 varies by upper-lane pressure`
+  - Added lightweight validation path:
+    - `scripts/reports/quick_banzuke_checks.ts`
+    - `scripts/reports/run_quick_banzuke_checks.cjs`
+    - `tsconfig.quickchecks.json`
+    - npm script `report:banzuke:quick`
+  - Validation:
+    - `npm test` passed (118/118)
+    - `npm run report:banzuke:quick` passed in ~38s with key checks all zero and synthetic pressure-difference signals visible.
+- 2026-02-22 (follow-up): Fixed regression where makekoshi could move upward (or stay) via assigned-rank paths.
+  - `singleRankChange`: added makekoshi direction guard at finalize stage (excludes Maezumo), with strict half-step forced demotion in Juryo/lower when assigned result is upward or unchanged.
+  - `lowerDivision`: blocked makekoshi upward jitter/nudge reversal (`nextPos < currentPos`) in direct lower-division fallback.
+  - `lowerCommittee`: for PLAYER only, added direction clamps (makekoshi cannot improve, kachikoshi cannot worsen) and full-absence minimum demotion floors (Ms: 30 slots, Sd/Jd: 24, Jk: 12).
+  - `sekitoriExpectedCommittee`: for PLAYER only, added direction clamps and Juryo full-absence minimum demotion floor (22 slots).
+- Added regression tests in `scripts/tests/sim_tests.ts`:
+  - makekoshi ignores upward assigned top-division rank,
+  - makekoshi lower boundary assignment cannot promote or stay,
+  - makekoshi juryo assignment cannot move upward,
+  - lower committee full-absence deep demotion floor.
+- Validation:
+  - `npm test` passed (122/122)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (core quick checks remain zero)
+- Playwright loop:
+  - Ran `web_game_playwright_client.js` against static HTTP serve of `dist`.
+  - Visually inspected latest screenshots (`output/web-game/shot-0.png`, `shot-1.png`): screen renders normally; no UI anomaly observed for the tested screen.
+  - Note: stale `output/web-game/errors-0.json` exists from a prior `file://` run (CORS-only artifact), not from the successful HTTP run.
+- 2026-02-22: Honwari realism update from user rule set (all divisions).
+  - `src/logic/simulation/matchmaking.ts`:
+    - Enforced hard constraints in regular torikumi generation: no same-stable bouts, no rematches within same basho.
+    - Added optional `forbiddenOpponentIds` check hook for future kinship/explicit bans.
+  - `src/logic/simulation/basho.ts`:
+    - Lower-division player basho (`Makushita/Sandanme/Jonidan/Jonokuchi`) reworked to field-wide pairing mode using `createDailyMatchups` + NPC-vs-NPC progression each scheduled bout.
+    - Lower-division schedule changed to 7 bouts on odd-numbered tournament days (`1,3,5,7,9,11,13`) instead of consecutive `1..7` labels.
+    - Added upper-Makushita special handling: injects Juryo guest opponents (bottom Juryo lanes) as potential "十両格" matchups when player is Ms15 or above and top-world context exists.
+    - Injury/absence handling in lower divisions updated to fill remaining scheduled bouts as absences on the odd-day schedule.
+    - Maezumo bout-day labels aligned to scheduled-day model.
+  - `src/logic/simulation/lowerQuota.ts`, `src/logic/simulation/sekitori/pool.ts`:
+    - Lower and boundary NPC simulations now run 7 scheduled rounds on odd-numbered days with `totalDays=15` phase context.
+- Validation:
+  - `npm test` passed (122/122).
+  - `npm run lint` passed.
+  - `npm run build` passed (existing chunk-size warning only).
+- TODO (next pass candidates):
+  - Add explicit kinship dataset + wiring to `forbiddenOpponentIds` for strict sibling/relative bans.
+  - Add boundary cross-division torikumi for Makuuchi lower vs Juryo upper in player top-division basho path.
+- Playwright smoke (develop-web-game skill):
+  - Ran `web_game_playwright_client.js` against `http://127.0.0.1:4173` with reference action payload.
+  - Latest screenshot: `output/web-game/shot-0.png` (visually checked; scout screen renders).
+  - No newer `errors-*.json` produced in this run (latest error artifact remains older file-protocol CORS record from prior run).
+- 2026-02-22: Fixed rank chart gap between Jonidan and Jonokuchi.
+  - `src/logic/ranking/rankScore.ts`: `getRankValueForChart` Jonokuchi base changed `470 -> 370`.
+  - `src/features/report/components/ReportScreen.tsx`: rank chart band for Jonokuchi changed `top/bottom: 470-500 -> 370-400`.
+  - Result: Jonidan/Jonokuchi boundary is now contiguous in chart scale (no large visual gap).
+- Validation:
+  - `npm run lint` passed.
+  - `npm test` passed (122/122).
+- 2026-02-22: Sekitori kyujo-heavy / low-win yusho anomaly fix.
+  - Root cause: strict torikumi constraints + single-pass greedy pairing caused avoidable bye explosions; byes are counted as absences in sekitori summaries, which could collapse win totals.
+  - `src/logic/simulation/matchmaking.ts`:
+    - Reworked daily pairing to multi-attempt best-match selection (maximize pair count) under strict constraints (same-stable/rematch/forbidden all blocked).
+    - Added deterministic tie-break for extra attempts to avoid large additional RNG consumption and preserve simulation reproducibility.
+  - `src/logic/simulation/world.ts`:
+    - Added sekitori yusho sanity guard (`MIN_SEKITORI_YUSHO_WINS = 8`); if top win count is below threshold, yusho/jun-yusho are not assigned for that basho.
+- Validation:
+  - `npm test` passed (122/122).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+- 2026-02-22: Manual testing convenience change for scout wallet.
+  - `src/features/scout/components/ScoutScreen.tsx`:
+    - Added `SCOUT_FREE_SPEND_FOR_MANUAL_TEST = true`.
+    - Draw/Register now call `spendWalletPoints(0)` in this mode, so wallet points do not decrease during manual testing.
+    - Draw button availability now ignores point balance in this mode.
+- Validation:
+  - `npm run lint` passed.
+  - `npm test` passed (122/122).
+
+- 2026-02-22: NPC league foundation refresh (root-cause fix for low-win yusho / inactive drift).
+  - Added `src/logic/simulation/npc/leagueReconcile.ts` with deterministic league reconciliation:
+    - canonical source = `npcRegistry` active members,
+    - target capacities enforced (`Makuuchi 42`, `Juryo 28`, `Makushita 120`, `Sandanme 200`, `Jonidan 200`, `Jonokuchi 60`),
+    - adjacency-only promote/demote chain with `Maezumo` intake fallback,
+    - post-reconcile full rankScore reindex and roster rebuild (`world`, `lowerWorld`, `boundaryWorld`).
+  - Engine flow updated (`src/logic/simulation/engine.ts`):
+    - pre-basho reconcile,
+    - post-retirement/intake reconcile,
+    - removed prune-based dependency from core loop,
+    - `SimulationProgressSnapshot` now includes `makuuchiSlots`, `juryoSlots`, `makuuchiActive`, `juryoActive`.
+  - Matchmaking fallback updated (`src/logic/simulation/matchmaking.ts`):
+    - Stage1 strict (same-stable + rematch blocked),
+    - Stage2 rematch allowed,
+    - Stage3 same-stable allowed (final fallback),
+    - staged only for unresolved byes.
+  - UI count display updated (`src/app/App.tsx`) to show active/slot counts instead of array length only.
+  - Persistence/API updates:
+    - DB name bumped to `sumo-maker-v5` (`src/logic/persistence/db.ts`) with old DB compatibility intentionally dropped.
+    - Added `getCareerHeadToHead(careerId)` + `HeadToHeadRow` (`src/logic/persistence/repository.ts`).
+  - Added optional roster integrity report tooling:
+    - `scripts/reports/roster_integrity_report.ts`,
+    - `scripts/reports/run_roster_integrity_report.cjs`,
+    - `tsconfig.roster_integrity.json`,
+    - npm script `report:roster:integrity`.
+  - Tests extended (`scripts/tests/sim_tests.ts`):
+    - active 42/28 reconciliation after heavy retirement,
+    - adjacency-only replenish path,
+    - staged matchmaking fallback recovery,
+    - 360-basho deterministic zero top active-shortage loop,
+    - progress active/slot field assertions,
+    - `getCareerHeadToHead` aggregation correctness.
+- Validation:
+  - `npm test` passed (131/131).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+  - `npm run report:roster:integrity` passed (seed 7331; `minActive` top = `42/28` over 360 basho).
+- Playwright note:
+  - Attempted `develop-web-game` Playwright smoke run against local preview, but background server launch command was blocked by environment policy.
+- 2026-02-22: Added Sansho counters to running progress UI.
+  - `SimulationProgressSnapshot` now includes `sanshoTotal`, `shukunCount`, `kantoCount`, `ginoCount` (`src/logic/simulation/engine.ts`).
+  - Added snapshot-time Sansho aggregation from `history.records` (supports code labels and Japanese labels).
+  - Running panel now shows `三賞: 合計（殊勲/敢闘/技能）` (`src/app/App.tsx`).
+  - Updated sim test to assert Sansho progress fields are non-negative and internally consistent (`scripts/tests/sim_tests.ts`).
+- Validation:
+  - `npm test` passed (134/134).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+- Playwright skill loop:
+  - Attempted local preview + Playwright client launch, but background preview start was blocked by policy.
+  - Fallback file URL run executed and produced `output/web-game/shot-0.png`, but screenshot is blank due expected file:// CORS blocking (`errors-0.json`).
+- 2026-02-22: Implemented banzuke overhaul foundation (v6).
+  - Added new `src/logic/banzuke/` modules:
+    - `types.ts` (policy/snapshot/case/decision types),
+    - `scale/rankScale.ts` (dynamic slot<->rank conversion helpers),
+    - `population/flow.ts` (fixed/variable policy + flow accounting),
+    - `committee/reviewBoard.ts` (3-judge weighted review),
+    - `committee/composeNextBanzuke.ts` (proposal->review->final pipeline).
+  - Engine integration:
+    - `createSimulationEngine` now supports `careerId` and `banzukeMode` params.
+    - Player next-rank decision is now resolved via `composeNextBanzuke`.
+    - Added committee warnings tracking and exposed via progress.
+    - Added per-basho population snapshot + committee decision logs to basho step outputs.
+  - Progress snapshot extended (`engine.ts`):
+    - `divisionHeadcount`, `divisionActiveHeadcount`, `lastCommitteeWarnings`.
+  - UI update (`App.tsx`): running panel now shows committee warning count.
+  - Persistence v6:
+    - DB name bumped to `sumo-maker-v6`.
+    - Added tables `banzukePopulation`, `banzukeDecisions`.
+    - Added repository APIs:
+      - `appendBanzukePopulation`, `appendBanzukeDecisionLogs`,
+      - `listBanzukePopulation`, `listBanzukeDecisions`.
+    - Worker now persists new banzuke artifacts per basho.
+  - Variable lower-capacity foundations:
+    - Sandanme baseline changed to 180 slots,
+    - intake soft-min adjusted to 630,
+    - reconcile now respects fixed/variable policy map (fixed upper, variable lower with min/softMax).
+    - lower-division match participants no longer hard-capped by static `DIVISION_SIZE` slicing.
+    - `Maezumo -> Jonokuchi` overflow cap now uses policy softMax instead of fixed 60.
+  - Added/updated tests (`sim_tests.ts`):
+    - banzuke flow accounting,
+    - dynamic rank scale roundtrip,
+    - committee correction behavior,
+    - banzuke persistence APIs,
+    - progress new fields,
+    - initial NPC total adjusted to 630 + stable-count near-target assertions.
+- Validation:
+  - `npm test` passed (138/138)
+  - `npm run lint` passed
+  - `npm run build` passed
+- 2026-02-22 (v6 rollout finalize): Completed real-world banzuke overhaul foundation integration.
+  - Added committee/population/rank-scale modules under `src/logic/banzuke/`.
+  - Engine now emits `divisionHeadcount`, `divisionActiveHeadcount`, `lastCommitteeWarnings`, plus per-basho `banzukePopulation` and `banzukeDecisions`.
+  - Persistence migrated to `sumo-maker-v6` with new tables and repository APIs for banzuke population/decision logs.
+  - Worker append pipeline persists banzuke artifacts; UI now shows committee warning count.
+  - Lower-division variable-capacity groundwork completed (fixed upper layers + variable lower bounds).
+- Validation (re-run): `npm test` PASS (138/138), `npm run lint` PASS, `npm run build` PASS.
+- develop-web-game skill smoke:
+  - Background preview start via `Start-Process` blocked by environment policy.
+  - Fallback Playwright run via `file://` executed, produced `output/web-game/shot-0.png` (blank) and `errors-0.json` (expected CORS blocking of CSS/JS from file origin).
+- 2026-02-22: Fixed bug where player could remain in Maezumo after non-absence basho under committee path.
+  - Root cause: `composeNextBanzuke` flagged normal Maezumo->Jonokuchi transition as `BOUNDARY_SLOT_JAM` (because rank-value delta was large), and reviewBoard rejected it.
+  - Fix: refined boundary-jam detection in `composeNextBanzuke` to ignore adjacent-division transitions and only flag truly abnormal jumps (>=2-division leap or same-division massive jump).
+  - Added regression test `banzuke: maezumo non-absence stays promotable to jonokuchi in committee compose` in `scripts/tests/sim_tests.ts`.
+  - Validation: `npm test` PASS (139/139), `npm run lint` PASS.
+- 2026-02-22: Implemented lifetime Hoshitori table UI integration.
+  - Added `src/features/report/utils/hoshitori.ts` with `buildHoshitoriGrid(bouts, division)` (15-day grid, day bounds guard, overwrite-on-duplicate).
+  - Added `src/features/report/components/HoshitoriTable.tsx`:
+    - 15-day x basho table, 2-line cell layout (symbol + opponent shikona), horizontal scroll.
+    - Symbol mapping: `WIN=〇`, `LOSS=●`, `ABSENT=や`, `不戦勝=□`, `不戦敗=■`, no-bout(`null`)=`や`.
+    - Custom tooltip (hover/focus/click) for opponent + kimarite.
+    - Sort toggle (newest/oldest), default newest.
+  - Added persistence reader API `listCareerPlayerBoutsByBasho(careerId)` in `src/logic/persistence/repository.ts`.
+  - Integrated into report flow:
+    - `ReportScreen` now accepts `careerId?: string | null` and loads bout details asynchronously.
+    - Timeline tab now renders `HoshitoriTable` first, then existing timeline.
+    - Maezumo records excluded from Hoshitori table rows.
+    - Fallback: if no `careerId` or load failure, show message and render symbol-only rows.
+  - Wired `currentCareerId` from `useSimulation()` to `ReportScreen` in `src/app/App.tsx`.
+  - Added 4 unit tests in `scripts/tests/sim_tests.ts` for `buildHoshitoriGrid`:
+    - 15-day sekitori fill
+    - lower-division sparse schedule null slots
+    - out-of-range day ignore
+    - duplicate-day latest overwrite
+- Validation:
+  - `npm run lint` passed.
+  - `npm test` passed (143/143).
+  - `npm run build` passed (existing chunk-size warning only).
+- Playwright smoke:
+  - File URL run executed via develop-web-game client; latest `output/web-game/shot-0.png` is blank due expected file-origin CORS (`errors-0.json` shows CSS/JS blocked from `file://`).
+  - Attempt to run `npm run preview` in background and hit HTTP URL was blocked by environment policy (`Start-Process ... rejected: blocked by policy`).
+- 2026-02-23: Added dev-only Logic Lab GUI for full-career logic inspection (no DB persistence).
+  - New feature modules:
+    - `src/features/logicLab/types.ts`
+    - `src/features/logicLab/presets.ts` (5 fixed presets)
+    - `src/features/logicLab/runner.ts` (seed/max normalization, deterministic run loop)
+    - `src/features/logicLab/store/logicLabStore.ts` (zustand + runToken stale-loop guard)
+    - `src/features/logicLab/components/LogicLabScreen.tsx` (settings/controls/summary/log/details panels)
+  - App integration:
+    - `src/app/App.tsx`: dev-only header toggle (`normal | logicLab`), blocked during running/paused simulation.
+  - Determinism support:
+    - `src/logic/initialization.ts`: `createInitialRikishi(params, random = Math.random)`.
+  - Docs:
+    - `README.md` updated with Logic Lab usage and non-persistence note.
+  - Tests:
+    - `scripts/tests/sim_tests.ts` added 3 logic-lab tests (same-seed deterministic, different-seed divergence, maxBasho stop).
+    - `tsconfig.simtests.json` include extended with `src/features/logicLab/**/*.ts`.
+- Validation:
+  - `npm test` PASS (157/157)
+  - `npm run lint` PASS
+  - `npm run build` PASS
+- Playwright/dev-loop note:
+  - Attempted develop-web-game Playwright smoke with local dev server job, but environment returned `アクセスが拒否されました。` when launching background process.
+- 2026-02-23: Fixed Ozeki promotion criteria and assigned-rank bypass.
+  - `src/logic/ranking/singleRankChange.ts`
+    - Added `canPromoteToOzekiBy33Wins` gate: current + previous 2 basho must all be at `関脇/小結`, total wins >= 33, and current wins >= 10.
+    - Updated direct Ozeki promotion branch to use the new gate.
+    - Blocked `topDivisionQuota.assignedNextRank = 大関` from bypassing this gate.
+  - `src/logic/ranking/sekitori/directives.ts`
+    - Aligned Ozeki promotion directive gate to require all 3 basho at `関脇/小結`.
+  - `scripts/tests/sim_tests.ts`
+    - Added regression test: one of 3 basho at Maegashira does not qualify for Ozeki promotion.
+    - Added regression test: assigned top-division Ozeki rank does not bypass the Ozeki gate.
+- Validation:
+  - `npm test` passed (159/159).
+  - `npm run lint` passed.
+- Playwright skill loop:
+  - Ran `web_game_playwright_client.js` against `http://127.0.0.1:4173` via temporary local `python -m http.server` job.
+  - Latest screenshot `output/web-game/shot-0.png` visually checked (Scout screen renders normally).
+  - No new `errors-*.json` artifact was produced in the HTTP run (latest error file remains older `file://` CORS artifact).
+- 2026-02-23: realism-v1 foundation + DB v7 migration started (root overhaul phase).
+  - Added continuous strength foundations:
+    - `src/logic/simulation/strength/model.ts` (`resolveBoutWinProb`, ability resolvers)
+    - `src/logic/simulation/strength/update.ts` (post-basho `actualWins - expectedWins` ability update)
+    - `src/logic/balance/realismV1.ts` (centralized realism-v1 balance constants)
+    - `src/logic/simulation/modelVersion.ts` (`legacy-v6` / `realism-v1` flag type)
+  - Expanded model contracts:
+    - `RikishiStatus.ratingState` added (`ability`, `form`, `uncertainty`, `lastBashoExpectedWins?`)
+    - `PersistentNpc` / sekitori / lower NPC structs now carry `ability` + `uncertainty` (basePower kept for legacy/display path)
+    - `BashoRecord` now stores `expectedWins`, `strengthOfSchedule`, `performanceOverExpected`.
+  - Battle + basho pipeline:
+    - `battle.ts` win-rate path migrated to ability-centric logistic via `resolveBoutWinProb`.
+    - `runBashoDetailed` (all branches) now accumulates expected wins and SOS diagnostics into player records.
+    - top-division/offscreen NPC bouts now accumulate expected wins + opponent ability totals for SOS/performance usage.
+  - Torikumi scheduler redesign (phase-weighted objective):
+    - Added `rankDistanceWeight(day)`, `scoreDistanceWeight(day)`, `boundaryNeedWeight(day, vacancy, pressure)` in policy.
+    - Scheduler pair scoring now day-phase aware with same-score weight cap and boundary-need adjustment.
+    - Mid/Late boundary handling shifted to day 6-10 / 11-15 phasing.
+  - Sekitori performance scoring path:
+    - Added `src/logic/ranking/sekitori/performanceIndex.ts`.
+    - `sekitori/scoring.ts` now prioritizes performance-over-expected + SOS boost instead of raw win/loss direct weighting.
+    - world -> topDivision banzuke snapshot now propagates expectedWins/SOS/performance fields.
+  - Yokozuna promotion logic responsibility split:
+    - Added `src/logic/ranking/yokozuna/promotion.ts`.
+    - `sekitori/directives.ts` and `singleRankChange.ts` now use shared yokozuna promotion evaluator.
+  - Engine + diagnostics:
+    - `SimulationParams` now supports `simulationModelVersion`.
+    - `SimulationProgressSnapshot` now carries `lastDiagnostics`.
+    - Added per-basho diagnostics object (`seq/rank/wins/losses/expectedWins/SOS/perfOverExpected/promoted-demoted reason/modelVersion`).
+    - `realism-v1` branch updates player ratingState after each basho.
+  - Persistence v7:
+    - DB name bumped to `sumo-maker-v7`.
+    - `careers` now persist `simulationModelVersion`.
+    - Added `simulationDiagnostics` table.
+    - Repository APIs added:
+      - `appendSimulationDiagnostics(...)`
+      - `listCareerSimulationDiagnostics(careerId)`
+    - `appendBashoChunk` now persists step diagnostics.
+  - Worker protocol path:
+    - START message accepts optional `simulationModelVersion` and forwards into engine.
+  - Validation:
+    - `npm run lint` passed.
+    - `npm test` passed (159/159).
+    - `npm run build` passed.
+  - develop-web-game skill loop:
+    - Ran Playwright client against local HTTP serve of `dist`.
+    - Latest screenshot `output/web-game/shot-0.png` visually checked (Scout screen rendered normally).
+    - No new error artifact was generated; latest `errors-0.json` timestamp remains from earlier run.
+- TODO (next pass):
+  - wire explicit model selector in UI/Logic Lab for side-by-side `legacy-v6` vs `realism-v1` runs.
+  - add Monte Carlo KPI scripts for Yokozuna 0.5-1.0% acceptance gate and persist summary into diagnostics exports.
+  - tighten sekitori/lower side APIs to consume `appendSimulationDiagnostics` directly where suitable (currently routed via appendBashoChunk).
+- 2026-02-23: Continued realism-v1 rollout follow-up (UI wiring + Logic Lab compare + Monte Carlo gate tooling).
+  - Scout -> App -> simulationStore start path now passes `simulationModelVersion` (`legacy-v6`/`realism-v1`), and draft careers persist chosen model version at creation time.
+  - Scout UI now exposes model selector (default `legacy-v6`) so manual runs can opt into `realism-v1` without code edits.
+  - Logic Lab expanded:
+    - run config now includes `simulationModelVersion`,
+    - single-run summary now includes model + max rank,
+    - new `2モデル比較` action runs `legacy-v6` and `realism-v1` side-by-side under same preset/seed/max and renders comparative metrics.
+  - Added realism acceptance report script:
+    - `scripts/reports/realism_monte_carlo.cjs`
+    - `scripts/reports/run_realism_monte_carlo.cjs`
+    - npm script `report:realism:mc`
+    - outputs markdown to `docs/balance/realism-v1-acceptance.md` and JSON to `.tmp/realism-v1-acceptance.json`.
+    - env overrides supported: `REALISM_MC_BASE_RUNS`, `REALISM_MC_UPSIDE_RUNS`.
+  - README updated for new report command, Logic Lab model comparison, and DB compatibility note (`sumo-maker-v7`).
+- Validation:
+  - `npm run lint` passed.
+  - `npm test` passed (159/159).
+  - `npm run build` passed.
+  - `REALISM_MC_BASE_RUNS=10 REALISM_MC_UPSIDE_RUNS=10 npm run report:realism:mc` passed (smoke; expected gate FAIL at tiny sample).
+  - Playwright skill loop executed against local HTTP static serve (`http://127.0.0.1:4174`) and produced updated screenshots `output/web-game/shot-0.png`, `output/web-game/shot-1.png`.
+- TODO (next pass):
+  - Run full acceptance set (`REALISM_MC_BASE_RUNS=500 REALISM_MC_UPSIDE_RUNS=500 npm run report:realism:mc`) and tune realism constants until baseline gates + upside significance pass.
+  - Optional: add career list/report UI indicator for saved `simulationModelVersion` to aid post-run analysis.
+- 2026-02-23: Logic Lab preset weakness fix (top-start all-loss regression).
+  - Root cause: `src/features/logicLab/presets.ts` was overriding stats after `createInitialRikishi`, but `ratingState.ability` stayed at pre-override value; additionally top presets were under-scaled versus NPC ability distribution.
+  - Fix: presets now explicitly set rank-appropriate target ability in `ratingState` and updated base stats:
+    - M8_BALANCED: base 156, target ability 132
+    - K_BALANCED: base 168, target ability 138
+    - J2_MONSTER: base 176, target ability 145
+    - SD70_MIX: base 132, target ability 92
+    - JD70_MIX: base 118, target ability 80
+  - Added regression test:
+    - `logic-lab: top-division presets initialize with competitive ability state`
+    - verifies minimum ability thresholds for M8/K/J2 presets.
+- Spot validation:
+  - First-basho sample (24 seeds):
+    - M8 avg 6.71 wins, K avg 7.67 wins (legacy-v6/realism-v1 both)
+  - 60-basho sample (M8, 12 seeds): no Jonidan/Jonokuchi sink observed in either model.
+- Validation:
+  - `npm test` passed (160/160).
+  - `npm run lint` passed.
+- 2026-02-23: Fixed `Sekiwake -> Yokozuna` invalid promotion path.
+  - Reproduced anomaly with deterministic seed (`realism-v1`, Logic Lab preset `M8_BALANCED`, seed=2): seq 93 showed `関脇 10-5 -> 横綱`.
+  - Root cause: `calculateNextRank` accepted `topDivisionQuota.assignedNextRank` (and boundary-assigned rank) without enforcing Yokozuna/Ozeki promotion gates.
+  - Fix in `src/logic/ranking/singleRankChange.ts`:
+    - Added hard gate for assigned ranks:
+      - `横綱` assignment requires `canPromoteToYokozuna(...)`.
+      - `大関` assignment requires `canPromoteToOzekiBy33Wins(...)`.
+    - If blocked in boundary-assigned path, fallback to standard rank change path.
+  - Added regression test in `scripts/tests/sim_tests.ts`:
+    - `ranking: assigned yokozuna cannot bypass ozeki-only promotion gate`.
+- Validation:
+  - `npm test` passed (161/161).
+  - `npm run lint` passed.
+  - Deterministic replay check (seed=2) confirms no `関脇 -> 横綱` transition in 220 basho window.
+
+- 2026-02-23: realism-v1 follow-up tuning for `前頭↔十両往復 + 十両優勝過多` complaint.
+  - Observation:
+    - Current preset runs still showed recurrent `Makuuchi makekoshi -> Juryo strong result -> Makuuchi` loops.
+    - Main lever identified in this pass: late-phase torikumi score-alignment pressure was still too strong (average reversion), over-pairing by record late basho.
+  - Change:
+    - `src/logic/balance/realismV1.ts` torikumi weights retuned to reduce same-score lock and re-emphasize rank proximity:
+      - `sameScoreWeightCap: 120 -> 78`
+      - `midRankDistanceWeight: 9 -> 11`
+      - `lateRankDistanceWeight: 5 -> 10`
+      - `midScoreDistanceWeight: 62 -> 36`
+      - `lateScoreDistanceWeight: 95 -> 50`
+  - Validation:
+    - `npm test` passed (161/161).
+    - `npm run lint` passed.
+    - Quick sampling (`realism-v1`, Logic Lab, 10 seeds x 80 basho):
+      - `M8_BALANCED`: Juryo yusho rate `~7.1%` (17/238), bounce-with-yusho `8/40`.
+      - `K_BALANCED`: Juryo yusho rate `~11.8%` (6/51), bounce-with-yusho `3/30`.
+      - `J2_MONSTER`: Juryo yusho rate `~34.8%` (8/23), bounce-with-yusho `2/2` (small denominator).
+  - Note:
+    - This pass keeps API/DB schema untouched and only tunes realism-v1 balance constants.
+- 2026-02-23: Implemented realism-v1 root fixes Phase A/B (ability scale recalibration + lower-league ability unification).
+  - A. Ability scale recalibration (root fix, not win-rate tweak):
+    - `src/logic/simulation/strength/model.ts`
+      - Added rank-based baseline ability resolver `resolveRankBaselineAbility(rank)` with continuous band anchors across all divisions.
+      - `resolveAbilityFromStats(...)` changed from raw stat absolute to `baseline + stat/condition/body offset` model.
+      - `resolvePlayerAbility(...)` removed hard 82/18 lock and now uses uncertainty-aware blend (`derivedAbilityBlend` center with clamp).
+    - `src/logic/initialization.ts`
+      - Initial `ratingState.ability` now seeded with rank baseline (`startingRank`) + stat offsets.
+    - `src/logic/simulation/career.ts`
+      - Legacy compatibility path (`initializeSimulationStatus`) now restores missing ability using current rank baseline (instead of rank-agnostic low scale).
+    - `src/logic/balance/realismV1.ts`
+      - Strength constants updated for offset-based model: `statsCenter`, `abilityFromStatsWeight`, `conditionWeight`, `bodyWeight`, `derivedAbilityBlend`.
+  - B. Lower-league ability unification:
+    - `src/logic/simulation/lowerQuota.ts`
+      - Lower NPC participants now always carry seasonal `ability` (not power-only).
+      - `toDivisionParticipants` now preserves `ability/expectedWins/opponentAbilityTotal/boutsSimulated`.
+      - `evolveDivisionRoster` now updates/persists `ability` and `uncertainty` based on `performanceOverExpected` + diff.
+      - `pruneRetiredLowerRosters` now rehydrates `ability/uncertainty` from registry.
+      - Maezumo->Jonokuchi promotion simulation now uses ability-centered seasonal estimate.
+    - `src/logic/simulation/basho.ts`
+      - Lower-division player opponents and Juryo guests now pass explicit `ability` into battle path, eliminating `power` fallback in lower player bouts.
+- Validation:
+  - `npm test` passed (161/161).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+  - Quick MC smoke after A/B (`REALISM_MC_BASE_RUNS=10`, `REALISM_MC_UPSIDE_RUNS=10`):
+    - Baseline now reaches sekitori/makuuchi in smoke sample (gate still FAIL overall due Yokozuna/Sanyaku constraints; expected at tiny sample).
+  - develop-web-game Playwright smoke:
+    - Ran client against `http://127.0.0.1:4175` via temporary `python -m http.server`.
+    - Latest screenshot: `output/web-game/shot-0.png` (visually checked; scout screen renders normally).
+- 2026-02-23: Implemented Phase C/D.
+  - C. Lower-league single-source integration (no double simulation for player lower-division basho):
+    - `src/logic/simulation/basho.ts`
+      - `BashoSimulationResult` now carries optional `lowerLeagueSnapshots`.
+      - Lower-division player basho now exports per-division boundary snapshots (`Makushita/Sandanme/Jonidan/Jonokuchi`) from the same torikumi run used for player bouts.
+    - `src/logic/simulation/lowerQuota.ts`
+      - Added `LowerLeagueSnapshots` type.
+      - `runLowerDivisionQuotaStep(...)` now accepts optional `precomputedLeagueResults` and, when provided, skips internal lower-league resimulation and evolves rosters from provided snapshots.
+      - Added snapshot-to-participant reconstruction path for roster evolution/persistence updates.
+    - `src/logic/simulation/engine.ts`
+      - `runLowerDivisionQuotaStep` now receives `bashoResult.lowerLeagueSnapshots`, unifying player lower basho and quota evaluation data source.
+  - D. Same-division assigned-rank adoption:
+    - `src/logic/simulation/engine.ts`
+      - Boundary assigned rank resolver no longer filters out same-division candidates.
+    - `src/logic/ranking/singleRankChange.ts`
+      - `shouldApplyBoundaryAssignedRank` now applies same-division assignments when rank tuple differs (division/name/number/side).
+      - Existing direction guards remain active, so invalid-direction assignments are still corrected/rejected.
+- Added regression tests (`scripts/tests/sim_tests.ts`):
+  - `ranking: same-division boundary assignment applies when direction is valid`
+  - `quota: lower quota step can consume precomputed league snapshots`
+- Validation:
+  - `npm test` passed (163/163).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+- 2026-02-23: Implemented Phase E (model branch responsibility split).
+  - Goal: remove “same battle model, only post-basho update differs” state.
+  - `legacy-v6` and `realism-v1` now use distinct bout-resolution paths across player + NPC simulations.
+  - `src/logic/battle.ts`:
+    - `calculateBattleResult(...)` now accepts `simulationModelVersion`.
+    - `realism-v1`: ability-centric logistic path (existing realism model).
+    - `legacy-v6`: power-centric logistic path (`resolveLegacyBoutWinProb`) with legacy-style injury handling.
+  - `src/logic/simulation/matchmaking.ts`:
+    - `simulateNpcBout(...)` now accepts `simulationModelVersion`.
+    - `realism-v1`: ability/momentum/style-driven probability.
+    - `legacy-v6`: power/momentum/style-driven probability.
+  - Propagation of model version through engine paths:
+    - `src/logic/simulation/basho.ts`: all player bouts and NPC-vs-NPC bouts now pass selected model version.
+    - `src/logic/simulation/world.ts`: offscreen sekitori/top-division NPC simulations now pass selected model version.
+    - `src/logic/simulation/lowerQuota.ts`: lower quota NPC league simulation accepts/uses selected model version.
+    - `src/logic/simulation/sekitori/pool.ts` + `src/logic/simulation/sekitoriQuota.ts`: makushita boundary NPC simulation accepts/uses selected model version.
+    - `src/logic/simulation/engine.ts`: selected `simulationModelVersion` is forwarded consistently to all above paths.
+  - Added regression test:
+    - `scripts/tests/sim_tests.ts`: `battle: legacy-v6 and realism-v1 resolve different win probabilities`
+    - Ensures branch split is behaviorally real (not nominal).
+- Validation:
+  - `npm test` passed (164/164).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+- 2026-02-23: Root fix for lower-division "makekoshi -0.5 only" stagnation.
+  - `src/logic/ranking/lowerCommittee.ts`
+    - Replaced player makekoshi minimum demotion from fixed `+1 slot` to dynamic floor by deficit (`losses-wins`), lane position, and division bias.
+    - For PLAYER makekoshi, demotion floor now applies to both `expectedSlot` and `minSlot` so allocator cannot collapse to half-rank demotion.
+  - `src/logic/ranking/singleRankChange.ts`
+    - Strengthened strict-division makekoshi direction guard fallback from fixed `+1 slot` to deficit-based demotion slots.
+    - This prevents fallback paths from reintroducing half-rank-only demotion in Juryo/lower divisions.
+- Validation:
+  - `npm test` passed (164/164).
+  - `npm run lint` passed.
+  - `npm run build` passed.
+- 2026-02-23: Fixed `7-0 but no promotion` regression in committee review path.
+  - Root cause: `composeNextBanzuke` flagged large lower-division moves as `BOUNDARY_SLOT_JAM`, and review rejection could retain current rank even on dominant 7-0 records.
+  - `src/logic/banzuke/committee/composeNextBanzuke.ts`:
+    - boundary-jam detection now skips lower-division-to-lower-division transitions (`Makushita/Sandanme/Jonidan/Jonokuchi`), where large movement is expected.
+  - Added regression test in `scripts/tests/sim_tests.ts`:
+    - `banzuke: lower-division 7-0 large promotion is not rejected as boundary jam`.
+- Validation:
+  - `npm test` passed (165/165).
+  - `npm run lint` passed.
+  - `npm run build` passed.

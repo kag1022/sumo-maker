@@ -26,8 +26,19 @@ const DIVISION_ORDER: Rank['division'][] = [
   'Jonokuchi',
   'Maezumo',
 ];
+const LOWER_DIVISIONS = new Set<Rank['division']>([
+  'Makushita',
+  'Sandanme',
+  'Jonidan',
+  'Jonokuchi',
+]);
 
 const hasBoundarySlotJamRisk = (currentRank: Rank, proposalRank: Rank): boolean => {
+  const currentLower = LOWER_DIVISIONS.has(currentRank.division);
+  const proposalLower = LOWER_DIVISIONS.has(proposalRank.division);
+  // In lower divisions, large movement for dominant records (e.g. 7-0) is expected.
+  if (currentLower && proposalLower) return false;
+
   if (currentRank.division === proposalRank.division) {
     const current = currentRank.number ?? 1;
     const proposed = proposalRank.number ?? 1;
@@ -131,6 +142,10 @@ export const composeNextBanzuke = (
         losses: entry.losses,
         absent: entry.absent,
       },
+      expectedWins: entry.expectedWins ?? entry.wins,
+      strengthOfSchedule: entry.strengthOfSchedule ?? 0,
+      performanceOverExpected:
+        entry.performanceOverExpected ?? (entry.wins - (entry.expectedWins ?? entry.wins)),
       historyWindow: entry.historyWindow,
       proposalRank,
       flags,
