@@ -5,6 +5,7 @@ export type TopDivision = 'Makuuchi' | 'Juryo';
 export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
 export type ActiveDivision = TopDivision | LowerDivision;
 export type ActorType = 'PLAYER' | 'NPC';
+export type NpcNamingSchoolId = 'HAYATE' | 'TRADITION' | 'KAREI' | 'GORIKI';
 
 export interface NpcBashoResult {
   division: Division;
@@ -48,8 +49,9 @@ export type ActorRegistry = Map<string, PersistentActor>;
 export type NpcRegistry = ActorRegistry;
 
 export interface NpcNameContext {
-  usedNormalizedShikona: Set<string>;
-  stableGlyphById: Map<string, string>;
+  blockedNormalizedShikona: Set<string>;
+  stableCrownById: Map<string, string>;
+  stableSchoolById: Map<string, NpcNamingSchoolId>;
   fallbackSerial: number;
 }
 

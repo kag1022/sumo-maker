@@ -480,7 +480,7 @@ const runLowerDivisionBasho = (
       .sort((a, b) => a.rankScore - b.rankScore)
       .map((npc) => ({
         id: npc.id,
-        shikona: npc.shikona,
+        shikona: lowerWorld.npcRegistry.get(npc.id)?.shikona ?? npc.shikona,
         isPlayer: npc.id === PLAYER_ACTOR_ID,
         stableId: npc.stableId,
         division: lowerDivision,
@@ -521,7 +521,7 @@ const runLowerDivisionBasho = (
       juryoGuestRankById.set(guestId, rank);
       participants.push({
         id: guestId,
-        shikona: guest.shikona,
+        shikona: topWorld.npcRegistry.get(guest.id)?.shikona ?? guest.shikona,
         isPlayer: false,
         stableId: guest.stableId,
         division: 'Juryo',
@@ -801,7 +801,7 @@ const runMaezumoBasho = (
     const enemy = opponent
       ? {
         id: opponent.id,
-        shikona: opponent.shikona,
+        shikona: lowerWorld.npcRegistry.get(opponent.id)?.shikona ?? opponent.shikona,
         rankValue: 11,
         rankName: '前相撲',
         rankNumber: 1,
@@ -889,7 +889,7 @@ const runTopDivisionBasho = (
   world: SimulationWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
-  syncPlayerActorInWorld(world, status);
+  syncPlayerActorInWorld(world, status, rng);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
   const kimariteCount: Record<string, number> = {};
   let wins = 0;

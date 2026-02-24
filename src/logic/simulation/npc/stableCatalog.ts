@@ -8,9 +8,17 @@ export type StableScale =
   | 'SMALL'
   | 'TINY';
 
+export type IchimonId =
+  | 'Ichimon-1'
+  | 'Ichimon-2'
+  | 'Ichimon-3'
+  | 'Ichimon-4'
+  | 'Ichimon-5';
+
 export interface StableDefinition {
   id: string;
   displayName: string;
+  ichimonId: IchimonId;
   scale: StableScale;
   targetHeadcount: number;
   minPreferred: number;
@@ -45,12 +53,33 @@ const resolveScaleByOrdinal = (ordinal: number): StableScale => {
   return 'TINY';
 };
 
+const clampIchimonBand = (band: number): number =>
+  Math.max(1, Math.min(5, band));
+
+const resolveIchimonByOrdinal = (ordinal: number): IchimonId => {
+  const band = clampIchimonBand(Math.floor((ordinal - 1) / 9) + 1);
+  if (band === 1) return 'Ichimon-1';
+  if (band === 2) return 'Ichimon-2';
+  if (band === 3) return 'Ichimon-3';
+  if (band === 4) return 'Ichimon-4';
+  return 'Ichimon-5';
+};
+
+export const resolveIchimonByStableId = (stableId: string): IchimonId => {
+  const match = stableId.match(/^stable-(\d{3})$/);
+  if (!match) return 'Ichimon-1';
+  const ordinal = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(ordinal) || ordinal <= 0) return 'Ichimon-1';
+  return resolveIchimonByOrdinal(ordinal);
+};
+
 const buildStableDefinition = (ordinal: number): StableDefinition => {
   const scale = resolveScaleByOrdinal(ordinal);
   const range = SCALE_PREFERRED_RANGE[scale];
   return {
     id: `stable-${String(ordinal).padStart(3, '0')}`,
     displayName: `仮部屋${String(ordinal).padStart(2, '0')}`,
+    ichimonId: resolveIchimonByOrdinal(ordinal),
     scale,
     targetHeadcount: SCALE_TARGET[scale],
     minPreferred: range.min,

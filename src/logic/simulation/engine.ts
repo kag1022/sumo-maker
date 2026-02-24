@@ -377,7 +377,7 @@ export const createSimulationEngine = (
   let lastCommitteeWarnings = 0;
   let lastDiagnostics: SimulationDiagnostics | undefined;
 
-  syncPlayerActorInWorld(world, status);
+  syncPlayerActorInWorld(world, status, deps.random);
   appendEntryEvent(status, year);
 
   const runNextBasho = async (): Promise<SimulationStepResult> => {
@@ -432,7 +432,7 @@ export const createSimulationEngine = (
       status.currentCondition = deps.random() < 0.5 ? 70 : 30;
     }
 
-    syncPlayerActorInWorld(world, status);
+    syncPlayerActorInWorld(world, status, deps.random);
 
     const currentRank = { ...status.rank };
     const playerTopDivision = resolveTopDivisionFromRank(status.rank);
@@ -568,7 +568,7 @@ export const createSimulationEngine = (
 
     const isNewInjury = status.injuryLevel === 0 && bashoRecord.absent > 0;
     status = applyGrowth(status, params.oyakata, isNewInjury, deps.random);
-    syncPlayerActorInWorld(world, status);
+    syncPlayerActorInWorld(world, status, deps.random);
 
     seq += 1;
 
