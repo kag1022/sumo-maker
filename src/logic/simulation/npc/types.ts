@@ -4,6 +4,8 @@ import { EnemyStyleBias } from '../../catalog/enemyData';
 export type TopDivision = 'Makuuchi' | 'Juryo';
 export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
 export type ActiveDivision = TopDivision | LowerDivision;
+export type ActorType = 'PLAYER' | 'NPC';
+export type NpcNamingSchoolId = 'HAYATE' | 'TRADITION' | 'KAREI' | 'GORIKI';
 
 export interface NpcBashoResult {
   division: Division;
@@ -11,7 +13,9 @@ export interface NpcBashoResult {
   losses: number;
 }
 
-export interface PersistentNpc {
+export interface PersistentActor {
+  actorId: string;
+  actorType: ActorType;
   id: string;
   seedId: string;
   shikona: string;
@@ -39,18 +43,22 @@ export interface PersistentNpc {
   recentBashoResults: NpcBashoResult[];
 }
 
-export type NpcRegistry = Map<string, PersistentNpc>;
+export type PersistentNpc = PersistentActor;
+
+export type ActorRegistry = Map<string, PersistentActor>;
+export type NpcRegistry = ActorRegistry;
 
 export interface NpcNameContext {
-  usedNormalizedShikona: Set<string>;
-  stableGlyphById: Map<string, string>;
+  blockedNormalizedShikona: Set<string>;
+  stableCrownById: Map<string, string>;
+  stableSchoolById: Map<string, NpcNamingSchoolId>;
   fallbackSerial: number;
 }
 
 export interface NpcUniverse {
-  registry: NpcRegistry;
-  rosters: Record<ActiveDivision, PersistentNpc[]>;
-  maezumoPool: PersistentNpc[];
+  registry: ActorRegistry;
+  rosters: Record<ActiveDivision, PersistentActor[]>;
+  maezumoPool: PersistentActor[];
   nameContext: NpcNameContext;
   nextNpcSerial: number;
 }
@@ -64,7 +72,7 @@ export const LOWER_DIVISION_SLOTS: Record<LowerDivision, number> = {
   Makushita: 120,
   Sandanme: 180,
   Jonidan: 200,
-  Jonokuchi: 60,
+  Jonokuchi: 64,
 };
 
 export const ACTIVE_DIVISIONS: ActiveDivision[] = [

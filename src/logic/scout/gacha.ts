@@ -1,12 +1,18 @@
 import { CONSTANTS } from '../constants';
 import { createInitialRikishi } from '../initialization';
 import {
+  BaseAbilityDNA,
   BasicProfile,
   BodyMetrics,
   BodyType,
+  CareerVarianceDNA,
+  DurabilityDNA,
   EntryDivision,
+  GrowthCurveDNA,
+  InjuryType,
   PersonalityType,
   Rank,
+  RikishiGenome,
   RikishiStatus,
   TacticsType,
   TalentArchetype,
@@ -76,6 +82,8 @@ export interface ScoutDraft {
   traitSlots: number;
   traits: Trait[];
   traitSlotDrafts: ScoutTraitSlotDraft[];
+  genomeDraft: RikishiGenome;
+  genomeBudget: number;
 }
 
 export interface ScoutTraitSlotDraft {
@@ -93,6 +101,7 @@ export interface ScoutOverrideCostBreakdown {
   traitSlots: number;
   history: number;
   tsukedashi: number;
+  genome: number;
 }
 
 export interface ScoutOverrideCost {
@@ -340,17 +349,134 @@ const rollProfile = (rng: RandomSource): BasicProfile => ({
   personality: PICK_LIST(rng, Object.keys(PERSONALITY_LABELS) as PersonalityType[]),
 });
 
+// === 三層DNA 生成 ===
+
+/** Box-Muller変換による正規分布乱数 */
+const gaussianRandom = (rng: RandomSource): number => {
+  const u1 = Math.max(1e-10, rng());
+  const u2 = rng();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+};
+
+/** [中央値, 分散] から正規分布サンプリングし、min/max でクランプ */
+const sampleDNA = (
+  rng: RandomSource,
+  dist: [number, number],
+  min: number,
+  max: number,
+): number => {
+  const [mean, std] = dist;
+  const raw = mean + gaussianRandom(rng) * std;
+  return Math.round(Math.max(min, Math.min(max, raw)) * 100) / 100;
+};
+
+/** アーキタイプとGrowthTypeからDNAを乱数生成 */
+export const rollGenomeDraft = (
+  archetype: TalentArchetype,
+  growthType: string,
+  rng: RandomSource = Math.random,
+): RikishiGenome => {
+  const dna = CONSTANTS.GENOME.ARCHETYPE_DNA[archetype];
+  const growthHint = CONSTANTS.GENOME.GROWTH_TYPE_TO_DNA[growthType];
+
+  // BaseAbilityDNA
+  const base: BaseAbilityDNA = {
+    powerCeiling: sampleDNA(rng, dna.base.powerCeiling, 0, 100),
+    techCeiling: sampleDNA(rng, dna.base.techCeiling, 0, 100),
+    speedCeiling: sampleDNA(rng, dna.base.speedCeiling, 0, 100),
+    ringSense: sampleDNA(rng, dna.base.ringSense, 0, 100),
+    styleFit: sampleDNA(rng, dna.base.styleFit, 0, 100),
+  };
+
+  // GrowthCurveDNA - growthHintを中心値にして少しブレさせる
+  const growth: GrowthCurveDNA = {
+    maturationAge: sampleDNA(
+      rng,
+      [growthHint?.maturationAge ?? dna.growth.maturationAge[0], dna.growth.maturationAge[1]],
+      18, 35,
+    ),
+    peakLength: sampleDNA(
+      rng,
+      [growthHint?.peakLength ?? dna.growth.peakLength[0], dna.growth.peakLength[1]],
+      1, 12,
+    ),
+    lateCareerDecay: sampleDNA(
+      rng,
+      [growthHint?.lateCareerDecay ?? dna.growth.lateCareerDecay[0], dna.growth.lateCareerDecay[1]],
+      0.1, 2.0,
+    ),
+    adaptability: sampleDNA(rng, dna.growth.adaptability, 0, 100),
+  };
+
+  // DurabilityDNA
+  const injuryTypes: InjuryType[] = ['KNEE', 'BACK', 'SHOULDER', 'ELBOW', 'ANKLE', 'NECK', 'WRIST', 'RIB', 'HAMSTRING', 'HIP'];
+  const partVulnerability: Partial<Record<InjuryType, number>> = {};
+  for (const part of injuryTypes) {
+    // 1/3 の確率で脆弱性を付与
+    if (rng() < 0.33) {
+      partVulnerability[part] = sampleDNA(rng, [1.5, 0.5], 0.5, 3.0);
+    }
+  }
+  const durability: DurabilityDNA = {
+    baseInjuryRisk: sampleDNA(rng, dna.durability.baseInjuryRisk, 0.3, 2.0),
+    partVulnerability,
+    recoveryRate: sampleDNA(rng, dna.durability.recoveryRate, 0.5, 2.0),
+    chronicResistance: sampleDNA(rng, dna.durability.chronicResistance, 0, 100),
+  };
+
+  // CareerVarianceDNA
+  const variance: CareerVarianceDNA = {
+    formVolatility: sampleDNA(rng, dna.variance.formVolatility, 0, 100),
+    clutchBias: sampleDNA(rng, dna.variance.clutchBias, -50, 50),
+    slumpRecovery: sampleDNA(rng, dna.variance.slumpRecovery, 0, 100),
+    streakSensitivity: sampleDNA(rng, dna.variance.streakSensitivity, 0, 100),
+  };
+
+  return { base, growth, durability, variance };
+};
+
+/** 2つのgenome間のDNA差分コストを計算 */
+export const resolveGenomeDiffCost = (
+  original: RikishiGenome,
+  edited: RikishiGenome,
+): number => {
+  let totalDiff = 0;
+  // Base
+  const bKeys = ['powerCeiling', 'techCeiling', 'speedCeiling', 'ringSense', 'styleFit'] as const;
+  for (const k of bKeys) totalDiff += Math.abs(original.base[k] - edited.base[k]);
+  // Growth
+  totalDiff += Math.abs(original.growth.maturationAge - edited.growth.maturationAge) * 5;
+  totalDiff += Math.abs(original.growth.peakLength - edited.growth.peakLength) * 5;
+  totalDiff += Math.abs(original.growth.lateCareerDecay - edited.growth.lateCareerDecay) * 30;
+  totalDiff += Math.abs(original.growth.adaptability - edited.growth.adaptability);
+  // Durability
+  totalDiff += Math.abs(original.durability.baseInjuryRisk - edited.durability.baseInjuryRisk) * 30;
+  totalDiff += Math.abs(original.durability.recoveryRate - edited.durability.recoveryRate) * 30;
+  totalDiff += Math.abs(original.durability.chronicResistance - edited.durability.chronicResistance);
+  // Variance
+  totalDiff += Math.abs(original.variance.formVolatility - edited.variance.formVolatility);
+  totalDiff += Math.abs(original.variance.clutchBias - edited.variance.clutchBias);
+  totalDiff += Math.abs(original.variance.slumpRecovery - edited.variance.slumpRecovery);
+  totalDiff += Math.abs(original.variance.streakSensitivity - edited.variance.streakSensitivity);
+
+  const cost = Math.round(totalDiff * CONSTANTS.GENOME.DNA_OVERRIDE_COST_PER_POINT);
+  return Math.min(cost, CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX);
+};
+
 export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const history = rollHistory(rng);
   const entryDivision = rollEntryDivision(history, rng);
   const bodyType = rollBodyType(rng);
   const traitSlots = rollTraitCount(rng);
+  const archetype = PICK_LIST(rng, Object.keys(CONSTANTS.TALENT_ARCHETYPES) as TalentArchetype[]);
+  const growthType = PICK_LIST(rng, Object.keys(CONSTANTS.GROWTH_PARAMS) as string[]);
+  const genomeDraft = rollGenomeDraft(archetype, growthType, rng);
   const baseDraft: ScoutDraft = {
     shikona: generateShikona(),
     profile: rollProfile(rng),
     history,
     entryDivision,
-    archetype: PICK_LIST(rng, Object.keys(CONSTANTS.TALENT_ARCHETYPES) as TalentArchetype[]),
+    archetype,
     tactics: PICK_LIST(rng, Object.keys(CONSTANTS.TACTICAL_GROWTH_MODIFIERS) as TacticsType[]),
     signatureMove: PICK_LIST(rng, Object.keys(CONSTANTS.SIGNATURE_MOVE_DATA)),
     bodyType,
@@ -358,6 +484,8 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     traitSlots,
     traits: [],
     traitSlotDrafts: [],
+    genomeDraft,
+    genomeBudget: CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX,
   };
 
   return resizeTraitSlots(baseDraft, traitSlots, rng);
@@ -453,6 +581,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
     entryDivision: history.canTsukedashi ? draft.entryDivision : undefined,
     profile: draft.profile,
     bodyMetrics: draft.bodyMetrics,
+    genome: draft.genomeDraft,
   });
 };
 
@@ -470,6 +599,7 @@ export const resolveScoutOverrideCost = (
     traitSlots: base.traitSlots !== edited.traitSlots ? resolveTraitSlotCost(edited.traitSlots) : 0,
     history: base.history !== edited.history ? SCOUT_COST.HISTORY : 0,
     tsukedashi: 0,
+    genome: resolveGenomeDiffCost(base.genomeDraft, edited.genomeDraft),
   };
 
   if (base.entryDivision !== edited.entryDivision) {

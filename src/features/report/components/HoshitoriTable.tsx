@@ -1,7 +1,6 @@
 import React from "react";
 import { Rank } from "../../../logic/models";
 import { PlayerBoutDetail } from "../../../logic/simulation/basho";
-import { Card } from "../../../shared/ui/Card";
 import { buildHoshitoriGrid } from "../utils/hoshitori";
 
 export interface HoshitoriCareerRecord {
@@ -26,12 +25,10 @@ const DAY_HEADERS = Array.from({ length: 15 }, (_, index) => index + 1);
 
 const formatRankName = (rank: Rank): string => {
   if (rank.name === "前相撲") return rank.name;
-
   const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
   if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) {
     return `${side}${rank.name}`;
   }
-
   const number = rank.number || 1;
   if (number === 1) return `${side}${rank.name}筆頭`;
   return `${side}${rank.name}${number}枚目`;
@@ -71,9 +68,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
   errorMessage,
 }) => {
   const [sortOrder, setSortOrder] = React.useState<SortOrder>("desc");
-  const [activeTooltipId, setActiveTooltipId] = React.useState<string | null>(
-    null,
-  );
+  const [activeTooltipId, setActiveTooltipId] = React.useState<string | null>(null);
 
   const sortedRecords = React.useMemo(() => {
     const records = careerRecords.slice();
@@ -87,18 +82,16 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
   const hasRows = sortedRecords.length > 0;
 
   return (
-    <Card className="overflow-hidden border-sumi">
-      <div className="px-5 pt-4 pb-3 border-b border-sumi/30 bg-washi">
+    <div className="game-panel overflow-hidden">
+      <div className="px-5 pt-4 pb-3 border-b border-kiniro-muted/15">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-bold text-sumi">生涯星取表</h3>
-          <div className="flex items-center gap-1 rounded-none border border-sumi p-0.5 text-xs">
+          <h3 className="section-header">生涯星取表</h3>
+          <div className="flex items-center gap-0.5 border border-kiniro-muted/20 p-0.5 text-xs">
             <button
               type="button"
               onClick={() => setSortOrder("desc")}
               className={`px-2 py-1 font-bold transition-all ${
-                sortOrder === "desc"
-                  ? "bg-sumi text-washi"
-                  : "bg-washi text-sumi hover:bg-washi-dark"
+                sortOrder === "desc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
               }`}
             >
               新しい順
@@ -107,9 +100,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
               type="button"
               onClick={() => setSortOrder("asc")}
               className={`px-2 py-1 font-bold transition-all ${
-                sortOrder === "asc"
-                  ? "bg-sumi text-washi"
-                  : "bg-washi text-sumi hover:bg-washi-dark"
+                sortOrder === "asc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
               }`}
             >
               古い順
@@ -125,7 +116,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
       )}
 
       {errorMessage && (
-        <div className="px-5 py-3 text-xs font-bold text-shuiro bg-washi border-b border-sumi/20">
+        <div className="px-5 py-3 text-xs font-bold text-shuiro bg-shuiro/5 border-b border-kiniro-muted/15">
           {errorMessage}
         </div>
       )}
@@ -137,25 +128,25 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
       )}
 
       {hasRows && (
-        <div className="overflow-x-auto bg-washi">
+        <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs min-w-[1120px]">
             <thead>
-              <tr className="bg-washi border-b-2 border-sumi">
-                <th className="border border-sumi px-2 py-2 text-left font-bold min-w-[96px]">
+              <tr className="border-b border-kiniro-muted/20">
+                <th className="border border-kiniro-muted/10 px-2 py-2 text-left font-bold min-w-[96px] text-kiniro">
                   年/月
                 </th>
-                <th className="border border-sumi px-2 py-2 text-left font-bold min-w-[128px]">
+                <th className="border border-kiniro-muted/10 px-2 py-2 text-left font-bold min-w-[128px] text-kiniro">
                   番付
                 </th>
                 {DAY_HEADERS.map((day) => (
                   <th
                     key={`day-${day}`}
-                    className="border border-sumi px-1 py-2 text-center font-bold min-w-[54px]"
+                    className="border border-kiniro-muted/10 px-1 py-2 text-center font-bold min-w-[54px] text-kiniro"
                   >
                     {day}
                   </th>
                 ))}
-                <th className="border border-sumi px-2 py-2 text-center font-bold min-w-[92px]">
+                <th className="border border-kiniro-muted/10 px-2 py-2 text-center font-bold min-w-[92px] text-kiniro">
                   成績
                 </th>
               </tr>
@@ -167,10 +158,10 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
 
                 return (
                   <tr key={rowKey} className="align-top">
-                    <td className="border border-sumi px-2 py-2 text-sumi-dark font-bold whitespace-nowrap">
+                    <td className="border border-kiniro-muted/10 px-2 py-2 text-sumi font-bold whitespace-nowrap">
                       {formatBashoLabel(record.year, record.month)}
                     </td>
-                    <td className="border border-sumi px-2 py-2 text-sumi-dark font-bold whitespace-nowrap">
+                    <td className="border border-kiniro-muted/10 px-2 py-2 text-sumi font-bold whitespace-nowrap">
                       {formatRankName(record.rank)}
                     </td>
                     {grid.map((bout, dayIndex) => {
@@ -183,50 +174,34 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
                       return (
                         <td
                           key={`${rowKey}-day-${dayIndex + 1}`}
-                          className="border border-sumi p-0 min-w-[54px]"
+                          className="border border-kiniro-muted/10 p-0 min-w-[54px]"
                         >
                           <div className="relative">
                             <button
                               type="button"
-                              className="w-full px-1 py-1.5 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-shuiro"
-                              onMouseEnter={() => {
-                                if (bout) setActiveTooltipId(tooltipId);
-                              }}
-                              onMouseLeave={() => {
-                                if (activeTooltipId === tooltipId) {
-                                  setActiveTooltipId(null);
-                                }
-                              }}
-                              onFocus={() => {
-                                if (bout) setActiveTooltipId(tooltipId);
-                              }}
-                              onBlur={() => {
-                                if (activeTooltipId === tooltipId) {
-                                  setActiveTooltipId(null);
-                                }
-                              }}
+                              className="w-full px-1 py-1.5 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-kiniro/40"
+                              onMouseEnter={() => { if (bout) setActiveTooltipId(tooltipId); }}
+                              onMouseLeave={() => { if (activeTooltipId === tooltipId) setActiveTooltipId(null); }}
+                              onFocus={() => { if (bout) setActiveTooltipId(tooltipId); }}
+                              onBlur={() => { if (activeTooltipId === tooltipId) setActiveTooltipId(null); }}
                               onClick={() => {
                                 if (!bout) return;
-                                setActiveTooltipId((prev) =>
-                                  prev === tooltipId ? null : tooltipId,
-                                );
+                                setActiveTooltipId((prev) => prev === tooltipId ? null : tooltipId);
                               }}
                             >
-                              <div
-                                className={`text-base font-black leading-none ${resolveSymbolColor(bout)}`}
-                              >
+                              <div className={`text-base font-black leading-none ${resolveSymbolColor(bout)}`}>
                                 {symbol}
                               </div>
-                              <div className="mt-1 text-[10px] leading-tight text-sumi-light truncate">
+                              <div className="mt-1 text-xs leading-tight text-sumi-light truncate">
                                 {opponent}
                               </div>
                             </button>
                             {showTooltip && (
-                              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 w-44 -translate-x-1/2 border-2 border-sumi bg-washi p-2 text-left shadow-[4px_4px_0px_0px_#2b2b2b]">
-                                <p className="text-[10px] font-bold text-sumi">
+                              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 w-44 -translate-x-1/2 border border-kiniro/30 bg-washi-light p-2 text-left shadow-game">
+                                <p className="text-xs font-bold text-sumi">
                                   相手: {bout?.opponentShikona || "-"}
                                 </p>
-                                <p className="mt-1 text-[10px] text-sumi-light">
+                                <p className="mt-1 text-xs text-sumi-light">
                                   決まり手: {kimarite}
                                 </p>
                               </div>
@@ -235,7 +210,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
                         </td>
                       );
                     })}
-                    <td className="border border-sumi px-2 py-2 text-center font-bold text-sumi-dark whitespace-nowrap">
+                    <td className="border border-kiniro-muted/10 px-2 py-2 text-center font-bold text-sumi whitespace-nowrap">
                       {formatRecord(record.wins, record.losses, record.absent)}
                     </td>
                   </tr>
@@ -245,6 +220,6 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
           </table>
         </div>
       )}
-    </Card>
+    </div>
   );
 };

@@ -30,6 +30,10 @@ export const applyGrowth = (
       let recovery = 1;
       if (age < 23) recovery++;
       if (traits.includes('RECOVERY_MONSTER')) recovery++;
+      // DNA: 回復力係数
+      if (currentStatus.genome) {
+        recovery = Math.max(1, Math.round(recovery * currentStatus.genome.durability.recoveryRate));
+      }
       
       // 慢性以外は回復
       if (injury.status !== 'CHRONIC') {
@@ -48,6 +52,10 @@ export const applyGrowth = (
               // 【爆弾持ち】: 慢性化確率100%
               if (traits.includes('BAKUDAN_MOCHI')) {
                   chronicChance = 1.0;
+              }
+              // DNA: 慢性化耐性（0-100で減算）
+              if (currentStatus.genome) {
+                  chronicChance *= 1 - (currentStatus.genome.durability.chronicResistance / 200);
               }
               if (rng() < chronicChance) {
                   injury.status = 'CHRONIC';
@@ -76,6 +84,14 @@ export const applyGrowth = (
   // --- 2. 基本成長計算 ---
   let growthRate = 0;
   const params = { ...CONSTANTS.GROWTH_PARAMS[growthType] };
+
+  // DNA: genome の成長カーブが存在する場合は DNA 主導で上書き
+  const genome = currentStatus.genome;
+  if (genome) {
+    params.peakStart = Math.round(genome.growth.maturationAge - genome.growth.peakLength * 0.3);
+    params.peakEnd = Math.round(genome.growth.maturationAge + genome.growth.peakLength * 0.7);
+    params.decayStart = params.peakEnd + 1;
+  }
 
   // 【鉄人】: 衰退開始を+3年遅らせる
   if (traits.includes('TETSUJIN')) {
@@ -108,7 +124,12 @@ export const applyGrowth = (
   } else if (age >= params.decayStart) {
       // 衰退期
       const decayYears = age - params.decayStart;
-      growthRate = -0.5 - (decayYears * 0.2); // 年々衰えが加速
+      let decayBase = -0.5 - (decayYears * 0.2); // 年々衰えが加速
+      // DNA: 衰退速度係数
+      if (genome) {
+        decayBase *= genome.growth.lateCareerDecay;
+      }
+      growthRate = decayBase;
       // 【早熟】: 衰退加速
       if (traits.includes('SOUJUKU') && age >= 27) {
           growthRate *= 1.5; // より早く衰える（負の値がより大きくなる）
@@ -135,7 +156,23 @@ export const applyGrowth = (
           delta = (rng() * 2.0 + 1.0) * growthRate;
           
           // 限界接近による鈍化
-          const limit = potential * 1.5;
+          // DNA: genome がある場合は ceiling から stat ごとの limit を計算
+          let limit: number;
+          if (genome) {
+            const cMap: Record<string, number> = {
+              tsuki: (genome.base.powerCeiling * 0.4 + genome.base.speedCeiling * 0.3 + genome.base.styleFit * 0.3),
+              oshi: (genome.base.powerCeiling * 0.5 + genome.base.speedCeiling * 0.3 + genome.base.styleFit * 0.2),
+              kumi: (genome.base.powerCeiling * 0.3 + genome.base.techCeiling * 0.4 + genome.base.ringSense * 0.3),
+              nage: (genome.base.techCeiling * 0.5 + genome.base.powerCeiling * 0.3 + genome.base.ringSense * 0.2),
+              koshi: (genome.base.ringSense * 0.4 + genome.base.powerCeiling * 0.3 + genome.base.speedCeiling * 0.3),
+              deashi: (genome.base.speedCeiling * 0.5 + genome.base.ringSense * 0.2 + genome.base.styleFit * 0.3),
+              waza: (genome.base.techCeiling * 0.4 + genome.base.ringSense * 0.4 + genome.base.styleFit * 0.2),
+              power: (genome.base.powerCeiling * 0.6 + genome.base.speedCeiling * 0.2 + genome.base.styleFit * 0.2),
+            };
+            limit = (cMap[statName] ?? 50) * 1.6;
+          } else {
+            limit = potential * 1.5;
+          }
           const current = stats[statName];
           
           if (current > limit * 0.8) {

@@ -1,10 +1,6 @@
-import { Rank } from '../models';
+import { Rank, RikishiStatus } from '../models';
 import { EnemyStyleBias } from '../catalog/enemyData';
-import {
-  BashoRecordHistorySnapshot,
-  BanzukeAllocation,
-  generateNextBanzuke,
-} from '../ranking';
+import { BashoRecordHistorySnapshot, BanzukeAllocation } from '../banzuke/providers/sekitori/types';
 import { RandomSource } from './deps';
 import {
   DEFAULT_MAKUUCHI_LAYOUT,
@@ -12,7 +8,7 @@ import {
   decodeMakuuchiRankFromScore as decodeMakuuchiRankByLayout,
   encodeMakuuchiRankToScore,
   resolveTopDivisionRankValueFromRank,
-} from '../ranking/banzukeLayout';
+} from '../banzuke/scale/banzukeLayout';
 import { evaluateSpecialPrizes, type SpecialPrizeCode } from './topDivision/specialPrizes';
 import { normalizePlayerAssignedRank } from './topDivision/playerNormalization';
 import {
@@ -20,6 +16,7 @@ import {
   buildTopDivisionRecords,
   resolvePlayerSanyakuQuota,
 } from './topDivision/banzuke';
+import { generateNextBanzuke } from '../banzuke/providers/topDivision';
 import {
   createDailyMatchups,
   createFacedMap,
@@ -29,7 +26,13 @@ import {
 import { resolveYushoResolution } from './yusho';
 import { createInitialNpcUniverse } from './npc/factory';
 import { pushNpcBashoResult } from './npc/retirement';
-import { NpcNameContext, NpcRegistry, PersistentNpc } from './npc/types';
+import {
+  ActorRegistry,
+  NpcNameContext,
+  NpcRegistry,
+  PersistentActor,
+  PersistentNpc,
+} from './npc/types';
 import { resolveTopDivisionRank } from './topDivision/rank';
 import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from './torikumi/policy';
 import { scheduleTorikumiBasho } from './torikumi/scheduler';
@@ -38,6 +41,9 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from './modelVersion';
+import { PLAYER_ACTOR_ID } from './actors/constants';
+import { createPlayerActorFromStatus, syncPlayerActorFromStatus } from './actors/playerBridge';
+import { generateUniqueNpcShikona, normalizeShikona } from './npc/npcShikonaGenerator';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
 type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
@@ -95,6 +101,7 @@ export interface SimulationWorld {
   rosters: Record<TopDivision, WorldRikishi[]>;
   lowerRosterSeeds: Record<LowerDivision, PersistentNpc[]>;
   maezumoPool: PersistentNpc[];
+  actorRegistry: ActorRegistry;
   npcRegistry: NpcRegistry;
   npcNameContext: NpcNameContext;
   nextNpcSerial: number;
@@ -165,9 +172,174 @@ export const resolvePlayerRankScore = (
   return 20;
 };
 
+const toWorldRikishiFromActor = (
+  actor: PersistentActor,
+  division: TopDivision,
+  rankScore: number,
+): WorldRikishi => ({
+  id: actor.id,
+  shikona: actor.shikona,
+  division,
+  stableId: actor.stableId,
+  basePower: actor.basePower,
+  ability: actor.ability,
+  uncertainty: actor.uncertainty,
+  growthBias: actor.growthBias,
+  rankScore,
+  volatility: actor.volatility,
+  form: actor.form,
+  styleBias: actor.styleBias,
+  heightCm: actor.heightCm,
+  weightKg: actor.weightKg,
+});
+
+const parseActorNumericId = (id: string): number => {
+  const match = id.match(/(\d+)$/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+};
+
+const compareActorIdAscending = (a: PersistentActor, b: PersistentActor): number => {
+  const aNum = parseActorNumericId(a.id);
+  const bNum = parseActorNumericId(b.id);
+  if (aNum !== bNum) return aNum - bNum;
+  return a.id.localeCompare(b.id);
+};
+
+const renameNpcCollidingWithPlayer = (
+  world: SimulationWorld,
+  playerShikona: string,
+  rng: RandomSource,
+): void => {
+  const normalizedPlayer = normalizeShikona(playerShikona);
+  const collidingActiveNpcs = [...world.npcRegistry.values()]
+    .filter(
+      (actor) =>
+        actor.actorType === 'NPC' &&
+        actor.active &&
+        normalizeShikona(actor.shikona) === normalizedPlayer,
+    )
+    .sort(compareActorIdAscending);
+
+  for (const npc of collidingActiveNpcs) {
+    npc.shikona = generateUniqueNpcShikona(
+      npc.stableId,
+      npc.currentDivision,
+      rng,
+      world.npcNameContext,
+      world.npcRegistry,
+      npc.id,
+    );
+  }
+};
+
+const syncTopRosterNamesFromRegistry = (world: SimulationWorld): void => {
+  for (const division of ['Makuuchi', 'Juryo'] as const) {
+    world.rosters[division] = world.rosters[division].map((rikishi) => {
+      const actor = world.npcRegistry.get(rikishi.id);
+      if (!actor) return rikishi;
+      return {
+        ...rikishi,
+        shikona: actor.shikona,
+        stableId: actor.stableId,
+      };
+    });
+  }
+};
+
+const syncLowerSeedsFromRegistry = (world: SimulationWorld): void => {
+  for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
+    world.lowerRosterSeeds[division] = world.lowerRosterSeeds[division].map((npc) => {
+      const actor = world.npcRegistry.get(npc.id);
+      if (!actor) return npc;
+      return {
+        ...npc,
+        shikona: actor.shikona,
+        stableId: actor.stableId,
+      };
+    });
+  }
+
+  world.maezumoPool = world.maezumoPool.map((npc) => {
+    const actor = world.npcRegistry.get(npc.id);
+    if (!actor) return npc;
+    return {
+      ...npc,
+      shikona: actor.shikona,
+      stableId: actor.stableId,
+    };
+  });
+};
+
+export const syncPlayerActorInWorld = (
+  world: SimulationWorld,
+  status: RikishiStatus,
+  rng: RandomSource,
+): void => {
+  const current = world.actorRegistry.get(PLAYER_ACTOR_ID);
+  const nextActor = current
+    ? syncPlayerActorFromStatus(current, status)
+    : createPlayerActorFromStatus(status);
+  world.actorRegistry.set(PLAYER_ACTOR_ID, nextActor);
+  world.npcRegistry = world.actorRegistry;
+  renameNpcCollidingWithPlayer(world, status.shikona, rng);
+
+  world.rosters.Makuuchi = world.rosters.Makuuchi.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
+  world.rosters.Juryo = world.rosters.Juryo.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
+
+  const topDivision = toTopDivision(status.rank);
+  if (topDivision) {
+    const rankScore = resolvePlayerRankScore(status.rank, world.makuuchiLayout);
+    const nextRoster = world.rosters[topDivision]
+      .slice()
+      .sort((a, b) => a.rankScore - b.rankScore);
+    if (nextRoster.length >= DIVISION_SIZE[topDivision]) {
+      nextRoster.pop();
+    }
+    nextRoster.push(toWorldRikishiFromActor(nextActor, topDivision, rankScore));
+    world.rosters[topDivision] = nextRoster
+      .slice()
+      .sort((a, b) => a.rankScore - b.rankScore)
+      .slice(0, DIVISION_SIZE[topDivision]);
+  }
+
+  syncTopRosterNamesFromRegistry(world);
+  syncLowerSeedsFromRegistry(world);
+};
+
 export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
   const universe = createInitialNpcUniverse(rng);
-  const toWorldRikishi = (npc: PersistentNpc): WorldRikishi => ({
+  if (!universe.registry.has(PLAYER_ACTOR_ID)) {
+    universe.registry.set(PLAYER_ACTOR_ID, {
+      actorId: PLAYER_ACTOR_ID,
+      actorType: 'PLAYER',
+      id: PLAYER_ACTOR_ID,
+      seedId: 'PLAYER',
+      shikona: 'PLAYER',
+      stableId: 'player-heya',
+      division: 'Maezumo',
+      currentDivision: 'Maezumo',
+      rankScore: 1,
+      basePower: 60,
+      ability: 60,
+      uncertainty: 2,
+      form: 1,
+      volatility: 1.2,
+      styleBias: 'BALANCE',
+      heightCm: 180,
+      weightKg: 130,
+      growthBias: 0,
+      retirementBias: 0,
+      entryAge: 15,
+      age: 15,
+      careerBashoCount: 0,
+      active: true,
+      entrySeq: 0,
+      recentBashoResults: [],
+    });
+  }
+  const toWorldRikishi = (npc: PersistentActor): WorldRikishi => ({
     id: npc.id,
     shikona: npc.shikona,
     division: npc.currentDivision === 'Makuuchi' || npc.currentDivision === 'Juryo'
@@ -198,6 +370,7 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       Jonokuchi: universe.rosters.Jonokuchi,
     },
     maezumoPool: universe.maezumoPool,
+    actorRegistry: universe.registry,
     npcRegistry: universe.registry,
     npcNameContext: universe.nameContext,
     nextNpcSerial: universe.nextNpcSerial,
@@ -218,7 +391,6 @@ export const createDivisionParticipants = (
   world: SimulationWorld,
   division: TopDivision,
   rng: RandomSource,
-  player?: { shikona: string; rankScore: number },
 ): DivisionParticipant[] => {
   const roster = world.rosters[division]
     .slice()
@@ -241,7 +413,7 @@ export const createDivisionParticipants = (
     return {
       id: npc.id,
       shikona,
-      isPlayer: false,
+      isPlayer: (registryNpc?.actorType ?? (npc.id === PLAYER_ACTOR_ID ? 'PLAYER' : 'NPC')) === 'PLAYER',
       stableId,
       rankScore: npc.rankScore,
       power: softClampPower(seasonalPower, POWER_RANGE[division]),
@@ -251,31 +423,13 @@ export const createDivisionParticipants = (
       weightKg: npc.weightKg,
       wins: 0,
       losses: 0,
+      currentWinStreak: 0,
+      currentLossStreak: 0,
       expectedWins: 0,
       opponentAbilityTotal: 0,
       boutsSimulated: 0,
       active,
     };
-  });
-
-  if (!player) return participants;
-
-  const replaceIndex = participants.length - 1;
-  participants.splice(replaceIndex, 1);
-  participants.push({
-    id: 'PLAYER',
-    shikona: player.shikona,
-    isPlayer: true,
-    stableId: 'player-heya',
-    rankScore: player.rankScore,
-    power: 0,
-    ability: 0,
-    wins: 0,
-    losses: 0,
-    expectedWins: 0,
-    opponentAbilityTotal: 0,
-    boutsSimulated: 0,
-    active: true,
   });
 
   return participants;
@@ -314,6 +468,8 @@ const toDivisionParticipants = (
     weightKg: participant.weightKg,
     wins: participant.wins,
     losses: participant.losses,
+    currentWinStreak: participant.currentWinStreak,
+    currentLossStreak: participant.currentLossStreak,
     expectedWins: participant.expectedWins,
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
@@ -478,7 +634,8 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
     return;
   }
 
-  const allocations = generateNextBanzuke(buildTopDivisionRecords(world));
+  const topDivisionRecords = buildTopDivisionRecords(world);
+  const allocations: BanzukeAllocation[] = generateNextBanzuke(topDivisionRecords);
   world.lastAllocations = allocations;
 
   const promotedToMakuuchiIds = allocations
@@ -498,8 +655,8 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
     slots: Math.min(promotedToMakuuchiIds.length, demotedToJuryoIds.length),
     promotedToMakuuchiIds,
     demotedToJuryoIds,
-    playerPromotedToMakuuchi: promotedToMakuuchiIds.includes('PLAYER'),
-    playerDemotedToJuryo: demotedToJuryoIds.includes('PLAYER'),
+    playerPromotedToMakuuchi: promotedToMakuuchiIds.includes(PLAYER_ACTOR_ID),
+    playerDemotedToJuryo: demotedToJuryoIds.includes(PLAYER_ACTOR_ID),
   };
 
   for (const allocation of allocations) {
@@ -507,7 +664,7 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
     world.ozekiReturnById.set(allocation.id, allocation.nextIsOzekiReturn);
   }
 
-  const playerAllocation = allocations.find((allocation) => allocation.id === 'PLAYER');
+  const playerAllocation = allocations.find((allocation) => allocation.id === PLAYER_ACTOR_ID);
   world.lastPlayerAllocation = playerAllocation;
   world.lastPlayerAssignedRank = playerAllocation?.nextRank;
   world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank);
@@ -558,10 +715,17 @@ export const resolveTopDivisionQuotaForPlayer = (
   const resolvedSanyakuQuota = resolvePlayerSanyakuQuota(
     normalizedAssignedRank ?? world.lastPlayerAssignedRank,
   );
+  const assigned = normalizedAssignedRank ?? world.lastPlayerAssignedRank;
+  const assignPromote = Boolean(
+    assigned && rank.division === 'Juryo' && assigned.division === 'Makuuchi',
+  );
+  const assignDemote = Boolean(
+    assigned && rank.division === 'Makuuchi' && assigned.division === 'Juryo',
+  );
 
   if (topDivision === 'Makuuchi') {
     return {
-      canDemoteToJuryo: world.lastExchange.playerDemotedToJuryo,
+      canDemoteToJuryo: assignDemote || world.lastExchange.playerDemotedToJuryo,
       enforcedSanyaku: resolvedSanyakuQuota.enforcedSanyaku,
       assignedNextRank: normalizedAssignedRank,
       nextIsOzekiKadoban: world.lastPlayerAllocation?.nextIsOzekiKadoban,
@@ -569,7 +733,7 @@ export const resolveTopDivisionQuotaForPlayer = (
     };
   }
   return {
-    canPromoteToMakuuchi: world.lastExchange.playerPromotedToMakuuchi,
+    canPromoteToMakuuchi: assignPromote || world.lastExchange.playerPromotedToMakuuchi,
     assignedNextRank: normalizedAssignedRank,
     nextIsOzekiKadoban: world.lastPlayerAllocation?.nextIsOzekiKadoban,
     nextIsOzekiReturn: world.lastPlayerAllocation?.nextIsOzekiReturn,
@@ -649,6 +813,7 @@ export const resolveTopDivisionFromRank = (rank: Rank): TopDivision | null =>
 export const countActiveNpcInWorld = (world: SimulationWorld): number => {
   let count = 0;
   for (const npc of world.npcRegistry.values()) {
+    if (npc.actorType === 'PLAYER') continue;
     if (npc.active) count += 1;
   }
   return count;

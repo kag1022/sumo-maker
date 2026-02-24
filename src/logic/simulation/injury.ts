@@ -46,7 +46,12 @@ export const resolveInjuryRate = (status: RikishiStatus): number => {
     injuryRate *= 0.5;
   }
   const bodyData = CONSTANTS.BODY_TYPE_DATA[status.bodyType];
-  return injuryRate * bodyData.injuryMod;
+  injuryRate *= bodyData.injuryMod;
+  // DNA: 基礎怪我リスク係数
+  if (status.genome) {
+    injuryRate *= status.genome.durability.baseInjuryRisk;
+  }
+  return injuryRate;
 };
 
 export const generateInjury = (
@@ -69,6 +74,11 @@ export const generateInjury = (
     const bodyData = CONSTANTS.BODY_TYPE_DATA[status.bodyType];
     if (bodyData.injuryWeightMod && bodyData.injuryWeightMod[injuryType]) {
       weight *= bodyData.injuryWeightMod[injuryType]!;
+    }
+
+    // DNA: 部位別脆弱性
+    if (status.genome?.durability.partVulnerability[injuryType]) {
+      weight *= status.genome.durability.partVulnerability[injuryType]!;
     }
 
     weights[injuryType] = weight;

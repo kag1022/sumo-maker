@@ -92,6 +92,19 @@ export type PlayerLowerDivisionQuota = {
   assignedNextRank?: Rank;
 };
 
+export type LowerDivisionPlacementTraceRow = {
+  id: string;
+  shikona: string;
+  wins: number;
+  losses: number;
+  absent: number;
+  scoreDiff: number;
+  beforeRank: Rank;
+  afterRank: Rank;
+  beforeGlobalSlot: number;
+  afterGlobalSlot: number;
+};
+
 export interface LowerDivisionQuotaWorld {
   rosters: Record<LowerDivision, LowerNpc[]>;
   maezumoPool: LowerNpc[];
@@ -99,6 +112,7 @@ export interface LowerDivisionQuotaWorld {
   lastExchanges: Record<LowerBoundaryId, LowerBoundaryExchange>;
   lastPlayerHalfStepNudge: Record<LowerDivision, number>;
   lastPlayerAssignedRank?: Rank;
+  lastPlacementTrace: LowerDivisionPlacementTraceRow[];
   npcRegistry: NpcRegistry;
   npcNameContext: NpcNameContext;
   nextNpcSerial: number;

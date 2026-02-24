@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Oyakata, RikishiStatus } from '../../../logic/models';
-import { SimulationModelVersion } from '../../../logic/simulation/modelVersion';
+import { normalizeNewRunModelVersion, SimulationModelVersion } from '../../../logic/simulation/modelVersion';
 import {
   buildCareerStartYearMonth,
   commitCareer,
@@ -22,6 +22,7 @@ import {
 } from '../../../logic/simulation/workerProtocol';
 
 export type SimulationPhase = 'idle' | 'running' | 'paused' | 'completed' | 'error';
+export type SimulationSpeed = 'instant' | 'yearly';
 
 interface SimulationStore {
   phase: SimulationPhase;
@@ -30,14 +31,16 @@ interface SimulationStore {
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
   isSkipToEnd: boolean;
+  simulationSpeed: SimulationSpeed;
   pauseReason?: PauseReason;
   latestEvents: string[];
   hallOfFame: CareerListItem[];
   errorMessage?: string;
+  setSimulationSpeed: (speed: SimulationSpeed) => void;
   startSimulation: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
-    simulationModelVersion: SimulationModelVersion,
+    simulationModelVersion?: SimulationModelVersion,
   ) => Promise<void>;
   pauseSimulation: () => void;
   resumeSimulation: () => void;
@@ -73,12 +76,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   currentCareerId: null,
   isCurrentCareerSaved: false,
   isSkipToEnd: false,
+  simulationSpeed: 'yearly',
   pauseReason: undefined,
   latestEvents: [],
   hallOfFame: [],
   errorMessage: undefined,
 
+  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+
   startSimulation: async (initialStats, oyakata, simulationModelVersion) => {
+    const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
     const currentCareerId = get().currentCareerId;
     if (currentCareerId && !get().isCurrentCareerSaved) {
       await discardDraftCareer(currentCareerId);
@@ -90,7 +97,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const careerId = await createDraftCareer({
       initialStatus: initialStats,
       careerStartYearMonth: buildCareerStartYearMonth(now.getFullYear(), 1),
-      simulationModelVersion,
+      simulationModelVersion: normalizedModelVersion,
     });
 
     worker = new Worker(new URL('../workers/simulation.worker.ts', import.meta.url), {
@@ -174,13 +181,15 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       terminateWorker();
     };
 
+    const isInstant = get().simulationSpeed === 'instant';
+
     set({
       phase: 'running',
       status: null,
       progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
-      isSkipToEnd: false,
+      isSkipToEnd: isInstant,
       pauseReason: undefined,
       latestEvents: [],
       errorMessage: undefined,
@@ -192,7 +201,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         careerId,
         initialStats,
         oyakata,
-        simulationModelVersion,
+        simulationModelVersion: normalizedModelVersion,
       },
     });
   },

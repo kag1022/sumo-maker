@@ -41,6 +41,9 @@ export const DEFAULT_TORIKUMI_BOUNDARY_BANDS: BoundaryBandSpec[] = [
 ];
 
 export const DEFAULT_TORIKUMI_LATE_EVAL_START_DAY = 13;
+export const DEFAULT_TORIKUMI_LATE_SURVIVAL_MATCH_BONUS = 360;
+export const DEFAULT_TORIKUMI_LATE_BOUNDARY_PLAYOFF_BONUS = 320;
+export const DEFAULT_TORIKUMI_LATE_BOUNDARY_FORCE_COUNT = 2;
 
 export const DEFAULT_TORIKUMI_BOUNDARY_PRIORITY: BoundaryId[] = [
   'MakuuchiJuryo',
@@ -76,6 +79,34 @@ export const boundaryNeedWeight = (
     promotionPressure * REALISM_V1_BALANCE.torikumi.boundaryPromotionPressureWeight +
     lateWeight
   );
+};
+
+const resolveBorderlineWins = (targetBouts: number): number => {
+  if (targetBouts === 15) return 7;
+  if (targetBouts === 7) return 3;
+  return Math.max(1, Math.floor(targetBouts / 2));
+};
+
+export const isBorderlineSurvivalMatchPoint = (
+  participant: Pick<TorikumiParticipant, 'wins' | 'losses' | 'targetBouts'>,
+): boolean => {
+  const border = resolveBorderlineWins(participant.targetBouts);
+  return participant.wins === border && participant.losses === border;
+};
+
+const resolveRankNumber = (participant: TorikumiParticipant): number =>
+  participant.rankNumber ?? Math.floor((participant.rankScore - 1) / 2) + 1;
+
+export const isJuryoDemotionBubble = (participant: TorikumiParticipant): boolean => {
+  if (participant.division !== 'Juryo') return false;
+  const rankNumber = resolveRankNumber(participant);
+  return rankNumber >= 12 && participant.wins <= 7;
+};
+
+export const isMakushitaPromotionBubble = (participant: TorikumiParticipant): boolean => {
+  if (participant.division !== 'Makushita') return false;
+  const rankNumber = resolveRankNumber(participant);
+  return rankNumber <= 15 && participant.wins >= 4 && participant.wins >= participant.losses;
 };
 
 export const buildBoundaryBandMap = (

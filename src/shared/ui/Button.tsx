@@ -7,7 +7,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -17,15 +17,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-none border-[1.5px] font-bold transition-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+          // ベーススタイル: RPGメニュー風
+          "inline-flex items-center justify-center font-pixel rounded-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50 disabled:pointer-events-none disabled:opacity-40 active:scale-[0.97]",
           {
-            'border-sumi bg-sumi text-washi hover:bg-shuiro hover:border-shuiro': variant === 'primary',
-            'border-sumi bg-transparent text-sumi hover:bg-sumi hover:text-washi': variant === 'secondary',
-            'border-sumi border-dashed bg-transparent text-sumi hover:border-solid hover:bg-washi-dark': variant === 'outline',
-            'border-transparent hover:border-sumi hover:bg-washi-dark': variant === 'ghost',
-            'h-9 px-3 text-sm': size === 'sm',
-            'h-10 px-4 py-2': size === 'md',
-            'h-12 px-8 text-lg': size === 'lg',
+            // プライマリ: 金色二重枠
+            'border-2 border-gold bg-bg-panel text-gold-bright hover:bg-bg-hover hover:shadow-rpg-glow': variant === 'primary',
+            // セカンダリ
+            'border-2 border-gold-muted bg-bg-panel text-text hover:border-gold/60 hover:bg-bg-hover': variant === 'secondary',
+            // アウトライン
+            'border-2 border-dashed border-gold-muted bg-transparent text-text-dim hover:border-gold/50 hover:text-text': variant === 'outline',
+            // ゴースト
+            'border-2 border-transparent text-text-dim hover:text-text hover:bg-bg-hover': variant === 'ghost',
+            // デンジャー: 朱色
+            'border-2 border-crimson bg-bg-panel text-crimson-bright hover:bg-crimson-dim/20 hover:shadow-rpg-red': variant === 'danger',
+            // サイズ: モバイルタップ対応 (最小44px)
+            'min-h-[36px] sm:min-h-[32px] px-3 text-xs': size === 'sm',
+            'min-h-[44px] px-4 py-2 text-sm': size === 'md',
+            'min-h-[48px] px-6 text-base': size === 'lg',
           },
           className
         )}

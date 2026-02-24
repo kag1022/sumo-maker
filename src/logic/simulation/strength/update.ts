@@ -1,5 +1,6 @@
-import { RatingState } from '../../models';
-import { REALISM_V1_BALANCE } from '../../balance/realismV1';
+import { Rank, RatingState } from '../../models';
+import { UNIFIED_V1_BALANCE } from '../../balance/unifiedV1';
+import { resolveRankBaselineAbility } from './model';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -10,27 +11,31 @@ export const updateAbilityAfterBasho = (input: {
   expectedWins: number;
   age: number;
   careerBashoCount: number;
+  currentRank: Rank;
 }): RatingState => {
-  const { current, actualWins, expectedWins, age, careerBashoCount } = input;
+  const { current, actualWins, expectedWins, age, careerBashoCount, currentRank } = input;
   const delta = actualWins - expectedWins;
   const experienceFactor = Math.max(
     0.65,
-    1 - careerBashoCount * REALISM_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay * 0.1,
+    1 - careerBashoCount * UNIFIED_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay * 0.1,
   );
   const youthFactor =
-    age <= REALISM_V1_BALANCE.ratingUpdate.youthBoostAge
-      ? REALISM_V1_BALANCE.ratingUpdate.youthBoost
+    age <= UNIFIED_V1_BALANCE.ratingUpdate.youthBoostAge
+      ? UNIFIED_V1_BALANCE.ratingUpdate.youthBoost
       : 1;
   const k =
-    REALISM_V1_BALANCE.ratingUpdate.baseK *
-    (1 + (current.uncertainty - 1) * REALISM_V1_BALANCE.ratingUpdate.uncertaintyK * 0.25) *
+    UNIFIED_V1_BALANCE.ratingUpdate.baseK *
+    (1 + (current.uncertainty - 1) * UNIFIED_V1_BALANCE.ratingUpdate.uncertaintyK * 0.25) *
     experienceFactor *
     youthFactor;
-  const nextAbility = current.ability + delta * k;
+  const baselineAbility = resolveRankBaselineAbility(currentRank);
+  const rawAbility = current.ability + delta * k;
+  const meanReversion = UNIFIED_V1_BALANCE.ratingUpdate.meanReversionToRankBaseline;
+  const nextAbility = rawAbility * (1 - meanReversion) + baselineAbility * meanReversion;
   const nextUncertainty = clamp(
-    current.uncertainty - REALISM_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay,
-    REALISM_V1_BALANCE.ratingUpdate.minUncertainty,
-    REALISM_V1_BALANCE.ratingUpdate.maxUncertainty,
+    current.uncertainty - UNIFIED_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay,
+    UNIFIED_V1_BALANCE.ratingUpdate.minUncertainty,
+    UNIFIED_V1_BALANCE.ratingUpdate.maxUncertainty,
   );
 
   return {

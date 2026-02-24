@@ -2,14 +2,252 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: theme("colors.washi.DEFAULT");
-  color: theme("colors.sumi.DEFAULT");
-  /* Add a very subtle noise texture to the background to enhance the paper feel */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+/* === ベースレイヤー: 和レトロゲームテーマ === */
+@layer base {
+  body {
+    background-color: #0a0e1a;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* CRTスキャンライン効果 */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+  }
+
+  /* スクロールバー: レトロ風 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #060a12;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #6B5010;
+    border: 1px solid #D4A017;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8B6914;
+  }
+
+  /* 入力要素: RPG風 */
+  input,
+  select,
+  textarea {
+    background-color: #0a0e1a;
+    border: 2px solid #6B5010;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #D4A017;
+    box-shadow: 0 0 0 1px #D4A017, 0 0 8px rgba(212, 160, 23, 0.3);
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  /* 選択テキスト */
+  ::selection {
+    background: rgba(212, 160, 23, 0.4);
+    color: #FFD700;
+  }
 }
 
-/* ウィザードUI用アニメーション - よりパキッとした動きに変更 */
+/* === コンポーネントレイヤー === */
+@layer components {
+  /* RPGパネル -- ドラクエ/FF風の二重枠 */
+  .rpg-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+
+  /* 旧 game-panel をエイリアスとして維持（段階移行用） */
+  .game-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+
+  /* セクション見出し */
+  .section-header {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.875rem;
+    font-weight: 400; /* DotGothic16 は weight 無関係 */
+    color: #FFD700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* データ行 */
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.75rem;
+  }
+  .data-row .data-key {
+    color: #8a8472;
+  }
+  .data-row .data-val {
+    color: #e8e0d0;
+    font-weight: 700;
+  }
+
+  /* RPGゲージバー (HPバー風) */
+  .gauge-bar {
+    height: 8px;
+    background: #1a1a2e;
+    border: 1px solid #6B5010;
+    position: relative;
+    overflow: hidden;
+  }
+  .gauge-bar .gauge-fill {
+    height: 100%;
+    transition: width 0.4s ease;
+  }
+
+  /* 統計ブロック */
+  .stat-block {
+    padding: 0.75rem;
+    border: 2px solid #6B5010;
+    background: #0a0e1a;
+  }
+  .stat-block .stat-label {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8a8472;
+    margin-bottom: 0.25rem;
+  }
+  .stat-block .stat-value {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #e8e0d0;
+    line-height: 1.2;
+  }
+  .stat-block .stat-sub {
+    font-size: 0.75rem;
+    color: #8a8472;
+    margin-top: 0.125rem;
+  }
+
+  /* RPGバッジ */
+  .rpg-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
+  }
+
+  /* 旧 game-badge エイリアス */
+  .game-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
+  }
+
+  /* RPGカーソル ▶ */
+  .rpg-cursor::before {
+    content: "▶";
+    color: #FFD700;
+    margin-right: 0.5rem;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* グロー効果 */
+  .glow-gold {
+    box-shadow:
+      0 0 10px rgba(212, 160, 23, 0.3),
+      0 0 24px rgba(212, 160, 23, 0.1);
+  }
+  .glow-red {
+    box-shadow:
+      0 0 10px rgba(200, 64, 64, 0.4),
+      0 0 20px rgba(200, 64, 64, 0.15);
+  }
+
+  /* セクション区切り線 */
+  .game-divider {
+    border-top: 2px solid #6B5010;
+  }
+
+  /* RPG風ボタンベース */
+  .rpg-btn {
+    position: relative;
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .rpg-btn:hover {
+    filter: brightness(1.15);
+  }
+  .rpg-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* 旧 game-btn エイリアス */
+  .game-btn {
+    position: relative;
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .game-btn:hover {
+    filter: brightness(1.15);
+  }
+}
+
+/* === アニメーション === */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -23,4 +261,75 @@ body {
 
 .animate-in {
   animation: fadeSlideIn 0.2s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 160, 23, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* レベルアップフラッシュ */
+@keyframes levelUpFlash {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
+  }
+  20% {
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+    background-color: rgba(255, 215, 0, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
+  }
+}
+
+.level-up-flash {
+  animation: levelUpFlash 0.6s ease-out;
+}
+
+/* レンジスライダー: レトロゲーム風 */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  background: #1a1a2e;
+  border: 1px solid #6B5010;
+  border-radius: 0;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
 }

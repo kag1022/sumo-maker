@@ -5,6 +5,7 @@ import {
   EntryDivision,
   GrowthType,
   Rank,
+  RikishiGenome,
   RikishiStatus,
   TacticsType,
   TalentArchetype,
@@ -27,6 +28,7 @@ export interface CreateInitialRikishiParams {
   growthType?: GrowthType;
   profile?: BasicProfile;
   bodyMetrics?: BodyMetrics;
+  genome?: RikishiGenome;
 }
 
 const DEFAULT_PROFILE: BasicProfile = {
@@ -40,6 +42,25 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
   SOPPU: { heightCm: 186, weightKg: 124 },
   ANKO: { heightCm: 180, weightKg: 162 },
   MUSCULAR: { heightCm: 184, weightKg: 152 },
+};
+
+/**
+ * DNA の BaseAbilityDNA ceiling 値から stat ごとのボーナスを算出する。
+ * ceiling が高いほどその系統の初期値が高くなる。
+ * 各 stat は複数の ceiling から重み付けで影響を受ける。
+ */
+const resolveGenomeStatBonus = (genome: RikishiGenome): Record<string, number> => {
+  const b = genome.base;
+  return {
+    tsuki: (b.powerCeiling * 0.4 + b.speedCeiling * 0.3 + b.styleFit * 0.3) / 100 * 15,
+    oshi: (b.powerCeiling * 0.5 + b.speedCeiling * 0.3 + b.styleFit * 0.2) / 100 * 15,
+    kumi: (b.powerCeiling * 0.3 + b.techCeiling * 0.4 + b.ringSense * 0.3) / 100 * 15,
+    nage: (b.techCeiling * 0.5 + b.powerCeiling * 0.3 + b.ringSense * 0.2) / 100 * 15,
+    koshi: (b.ringSense * 0.4 + b.powerCeiling * 0.3 + b.speedCeiling * 0.3) / 100 * 15,
+    deashi: (b.speedCeiling * 0.5 + b.ringSense * 0.2 + b.styleFit * 0.3) / 100 * 15,
+    waza: (b.techCeiling * 0.4 + b.ringSense * 0.4 + b.styleFit * 0.2) / 100 * 15,
+    power: (b.powerCeiling * 0.6 + b.speedCeiling * 0.2 + b.styleFit * 0.2) / 100 * 15,
+  };
 };
 
 export const createInitialRikishi = (
@@ -75,6 +96,14 @@ export const createInitialRikishi = (
     }
   });
 
+  // DNA genome がある場合、ceiling 由来のボーナスを適用
+  if (params.genome) {
+    const genomeBonus = resolveGenomeStatBonus(params.genome);
+    (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
+      stats[k] += genomeBonus[k] ?? 0;
+    });
+  }
+
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
     stats[k] += Math.floor(random() * 11) - 5;
     stats[k] = Math.max(1, stats[k]);
@@ -96,6 +125,11 @@ export const createInitialRikishi = (
     resolveRankBaselineAbility(params.startingRank),
   );
 
+  // DNA durability から耐久力を算出（genome がない場合は従来値 80）
+  const durability = params.genome
+    ? Math.round(80 * (1 / Math.max(0.3, params.genome.durability.baseInjuryRisk)))
+    : 80;
+
   return {
     heyaId: 'my-heya',
     shikona: params.shikona,
@@ -113,7 +147,7 @@ export const createInitialRikishi = (
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
     traits: [...params.traits],
-    durability: 80,
+    durability: Math.max(40, Math.min(160, durability)),
     currentCondition: 50,
     ratingState: {
       ability: initialAbility,
@@ -124,6 +158,7 @@ export const createInitialRikishi = (
     injuries: [],
     isOzekiKadoban: false,
     isOzekiReturn: false,
+    genome: params.genome,
     history: {
       records: [],
       events: [],
@@ -137,3 +172,4 @@ export const createInitialRikishi = (
     statHistory: [],
   };
 };
+

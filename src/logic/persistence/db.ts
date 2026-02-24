@@ -31,6 +31,7 @@ export interface CareerRow {
   careerEndYearMonth: string | null;
   simulationModelVersion: SimulationModelVersion;
   finalStatus?: RikishiStatus;
+  genomeSummary?: string;
 }
 
 export type BashoEntityType = 'PLAYER' | 'NPC';
@@ -109,7 +110,7 @@ class SumoMakerDatabase extends Dexie {
   simulationDiagnostics!: Table<SimulationDiagnosticsRow, [string, number]>;
 
   constructor() {
-    super('sumo-maker-v7');
+    super('sumo-maker-v9');
 
     this.version(1).stores({
       careers:
@@ -158,6 +159,33 @@ class SumoMakerDatabase extends Dexie {
       meta: '&key, updatedAt',
       banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
       banzukeDecisions: '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+    });
+
+    this.version(5).stores({
+      careers:
+        '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+    });
+
+    // v6: DNA genome support
+    this.version(6).stores({
+      careers:
+        '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
       simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
     });
   }

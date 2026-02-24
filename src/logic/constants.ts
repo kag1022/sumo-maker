@@ -300,5 +300,71 @@ export const CONSTANTS = {
       'UR': 3,
     } as Record<Rarity, number>,
   },
-};
 
+  // === 三層DNA（ゲノム）定数 ===
+  GENOME: {
+    // アーキタイプごとのDNA初期分布 [中央値, 分散(標準偏差相当)]
+    ARCHETYPE_DNA: {
+      'MONSTER': {
+        base: { powerCeiling: [90, 6], techCeiling: [75, 10], speedCeiling: [80, 8], ringSense: [70, 12], styleFit: [75, 10] },
+        growth: { maturationAge: [23, 2], peakLength: [8, 2], lateCareerDecay: [0.8, 0.2], adaptability: [60, 15] },
+        durability: { baseInjuryRisk: [0.6, 0.15], recoveryRate: [1.5, 0.2], chronicResistance: [70, 12] },
+        variance: { formVolatility: [35, 10], clutchBias: [20, 15], slumpRecovery: [70, 12], streakSensitivity: [50, 15] },
+      },
+      'GENIUS': {
+        base: { powerCeiling: [70, 10], techCeiling: [85, 8], speedCeiling: [80, 8], ringSense: [85, 6], styleFit: [80, 8] },
+        growth: { maturationAge: [22, 2], peakLength: [7, 2], lateCareerDecay: [1.0, 0.3], adaptability: [75, 10] },
+        durability: { baseInjuryRisk: [0.9, 0.2], recoveryRate: [1.2, 0.2], chronicResistance: [55, 15] },
+        variance: { formVolatility: [45, 12], clutchBias: [10, 20], slumpRecovery: [60, 15], streakSensitivity: [55, 15] },
+      },
+      'HARD_WORKER': {
+        base: { powerCeiling: [55, 12], techCeiling: [55, 12], speedCeiling: [55, 12], ringSense: [50, 15], styleFit: [50, 15] },
+        growth: { maturationAge: [26, 3], peakLength: [5, 2], lateCareerDecay: [1.0, 0.3], adaptability: [50, 15] },
+        durability: { baseInjuryRisk: [1.0, 0.25], recoveryRate: [1.0, 0.2], chronicResistance: [50, 15] },
+        variance: { formVolatility: [50, 15], clutchBias: [0, 15], slumpRecovery: [50, 15], streakSensitivity: [50, 15] },
+      },
+      'AVG_JOE': {
+        base: { powerCeiling: [40, 10], techCeiling: [40, 10], speedCeiling: [40, 10], ringSense: [35, 12], styleFit: [40, 12] },
+        growth: { maturationAge: [25, 3], peakLength: [4, 2], lateCareerDecay: [1.2, 0.3], adaptability: [40, 15] },
+        durability: { baseInjuryRisk: [1.2, 0.3], recoveryRate: [0.9, 0.2], chronicResistance: [40, 15] },
+        variance: { formVolatility: [60, 15], clutchBias: [-5, 15], slumpRecovery: [40, 15], streakSensitivity: [55, 15] },
+      },
+      'UNIVERSITY_YOKOZUNA': {
+        base: { powerCeiling: [75, 8], techCeiling: [80, 8], speedCeiling: [70, 10], ringSense: [80, 8], styleFit: [75, 10] },
+        growth: { maturationAge: [24, 2], peakLength: [6, 2], lateCareerDecay: [1.0, 0.3], adaptability: [70, 10] },
+        durability: { baseInjuryRisk: [0.85, 0.2], recoveryRate: [1.2, 0.2], chronicResistance: [55, 15] },
+        variance: { formVolatility: [40, 12], clutchBias: [10, 15], slumpRecovery: [60, 12], streakSensitivity: [45, 15] },
+      },
+      'HIGH_SCHOOL_CHAMP': {
+        base: { powerCeiling: [65, 10], techCeiling: [65, 10], speedCeiling: [70, 10], ringSense: [60, 12], styleFit: [65, 12] },
+        growth: { maturationAge: [25, 3], peakLength: [6, 2], lateCareerDecay: [0.9, 0.25], adaptability: [60, 12] },
+        durability: { baseInjuryRisk: [0.9, 0.2], recoveryRate: [1.1, 0.2], chronicResistance: [55, 15] },
+        variance: { formVolatility: [45, 12], clutchBias: [5, 15], slumpRecovery: [55, 15], streakSensitivity: [50, 15] },
+      },
+      'STREET_FIGHTER': {
+        base: { powerCeiling: [80, 10], techCeiling: [45, 15], speedCeiling: [65, 12], ringSense: [40, 15], styleFit: [50, 15] },
+        growth: { maturationAge: [24, 3], peakLength: [5, 2], lateCareerDecay: [1.1, 0.3], adaptability: [35, 15] },
+        durability: { baseInjuryRisk: [1.1, 0.25], recoveryRate: [1.3, 0.2], chronicResistance: [45, 15] },
+        variance: { formVolatility: [65, 15], clutchBias: [15, 20], slumpRecovery: [45, 15], streakSensitivity: [65, 15] },
+      },
+    } as Record<TalentArchetype, {
+      base: Record<string, [number, number]>;
+      growth: Record<string, [number, number]>;
+      durability: Record<string, [number, number]>;
+      variance: Record<string, [number, number]>;
+    }>,
+
+    // GrowthType から DNA.growth への変換ヒント
+    GROWTH_TYPE_TO_DNA: {
+      'EARLY': { maturationAge: 20, peakLength: 4, lateCareerDecay: 1.5 },
+      'NORMAL': { maturationAge: 26, peakLength: 5, lateCareerDecay: 1.0 },
+      'LATE': { maturationAge: 30, peakLength: 7, lateCareerDecay: 0.7 },
+      'GENIUS': { maturationAge: 22, peakLength: 8, lateCareerDecay: 0.9 },
+    } as Record<string, { maturationAge: number; peakLength: number; lateCareerDecay: number }>,
+
+    // 予算コスト: DNA軸1ポイント上書きあたりのコスト
+    DNA_OVERRIDE_COST_PER_POINT: 2,
+    // 予算コスト上限
+    DNA_OVERRIDE_COST_MAX: 200,
+  },
+};

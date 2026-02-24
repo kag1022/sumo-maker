@@ -232,13 +232,13 @@ npm run report:realism:mc
 
 - `npm test`: シミュレーションの決定論テストを実行（`scripts/tests/sim_tests.ts`）
 - `npm run build`: `tsc` + `vite build`
-- `npm run report:realism:mc`: `realism-v1` の Monte Carlo 受け入れ判定（既定 500本 + 500本）
+- `npm run report:realism:mc`: `unified-v1` の Monte Carlo 受け入れ判定（既定 500本 + 500本）
 
 ## ロジック検証モード（dev専用）
 
 - `npm run dev` でのみ、ヘッダーに `ロジック検証` ボタンが表示されます。
-- 検証モードでは `preset + model + seed` を指定してフルキャリアを GUI で追跡できます。
-- `2モデル比較` ボタンで、同一条件の `legacy-v6` / `realism-v1` を並列比較できます。
+- 検証モードでは `preset + seed` を指定してフルキャリアを GUI で追跡できます（通常実行モデルは `unified-v1` 固定）。
+- `2モデル比較` ボタンは旧モデル（`legacy-v6` / `realism-v1`）の参照比較専用です。
 - 同じ `preset + seed` の組み合わせで、初期能力生成からキャリア完了まで再現可能です。
 - 検証モードの実行結果は DB 保存しません（殿堂入りやドラフト保存は行いません）。
 
@@ -283,14 +283,18 @@ src/
     ranking/
       index.ts
       rankScore.ts
-      banzukeLayout.ts
-      topDivisionRules.ts
-      lowerDivision.ts
-      sekitoriCommittee.ts
-      sekitori/
+    banzuke/
+      committee/
+      providers/
+        expected/
+        sekitori/
+      rules/
+      population/
+      scale/
     simulation/
       engine.ts / basho.ts / career.ts / world.ts / modelVersion.ts
       lowerQuota.ts / sekitoriQuota.ts / npcRecords.ts
+      actors/
       npc/
         npcShikonaGenerator.ts
       topDivision/
@@ -330,12 +334,14 @@ docs/
   - Worker通信、進捗状態、殿堂入り操作を集約
 - `logic/simulation/basho.ts`
   - 1場所の試合進行、怪我発生、優勝判定、主人公の取組詳細生成
+- `logic/simulation/actors/` + `logic/simulation/world.ts`
+  - `PLAYER_ACTOR_ID` を含む actor registry を正本とし、player/NPC を同一経路で roster 参加させる
 - `logic/simulation/career.ts`
   - 初期化、イベント追加、通算成績更新、引退確定
-- `logic/battle.ts` / `logic/growth.ts` / `logic/ranking/index.ts`
-  - ドメイン計算ロジック（勝敗、成長、番付）
+- `logic/battle.ts` / `logic/growth.ts` / `logic/banzuke/`
+  - ドメイン計算ロジック（勝敗、成長、番付委員会）
 - `logic/persistence/repository.ts`
-  - `careers` / `bashoRecords` / `boutRecords` への非同期保存
+  - `careers` / `bashoRecords` / `boutRecords` / `banzukeDecisions` への非同期保存
 
 ### 依存注入（再現性向上）
 
@@ -358,13 +364,14 @@ docs/
 - `ranking` の簡易プロパティテスト（番付番号の下限保証）
 - `storage`: `careerStartYearMonth` / `careerEndYearMonth` と保存ソート
 - `simulation`: NPC集計範囲（全関取 + 主人公同階級）と重複防止
+- `banzuke`: 決定理由コード・制約ヒット・委員会ログの整合性
 
 ## 既知の注意点
 
 - `vite build` で chunk size（500KB超）警告が出る場合があります。  
   現状は主にレポート画面のグラフ依存（`recharts`）によるものです。
 - 警告はビルド失敗ではありません。
-- 保存データ互換性: `sumo-maker-v7` 以降は旧 IndexedDB（`sumo-maker-v6` 以前）と互換性がありません。
+- 保存データ互換性: `sumo-maker-v8` 以降は旧 IndexedDB（`sumo-maker-v7` 以前）と互換性がありません。
 - 番付編成モード:
   - `SIMULATE`（既定）: 会議ロジックで次場所番付を算出
   - `REPLAY`: 実データが与えられた力士は replay 指定番付を優先（完全再現向け）

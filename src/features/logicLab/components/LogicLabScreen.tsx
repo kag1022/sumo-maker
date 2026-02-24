@@ -1,78 +1,64 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { getRankValueForChart } from '../../../logic/ranking';
 import { Rank } from '../../../logic/models';
-import { SimulationModelVersion } from '../../../logic/simulation/modelVersion';
-import { LOGIC_LAB_PRESETS } from '../presets';
+import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
 import { useLogicLabStore } from '../store/logicLabStore';
 import { LogicLabBashoLogRow, LogicLabStopReason } from '../types';
 
+type LogFilter = 'ALL' | 'PROMOTION' | 'DEMOTION' | 'WARNING' | 'INJURY' | 'YUSHO';
+const LOG_FILTERS: Array<{ id: LogFilter; label: string }> = [
+  { id: 'ALL', label: '全件' },
+  { id: 'PROMOTION', label: '昇進' },
+  { id: 'DEMOTION', label: '降下' },
+  { id: 'WARNING', label: '警告' },
+  { id: 'INJURY', label: '怪我' },
+  { id: 'YUSHO', label: '優勝' },
+];
+
 const formatRankName = (rank: Rank): string => {
   const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結', '前相撲'].includes(rank.name)) {
-    return `${side}${rank.name}`;
-  }
-  const number = rank.number || 1;
-  return `${side}${rank.name}${number}`;
+  if (['横綱', '大関', '関脇', '小結', '前相撲'].includes(rank.name)) return `${side}${rank.name}`;
+  return `${side}${rank.name}${rank.number || 1}`;
 };
-
 const formatRecord = (wins: number, losses: number, absent: number): string =>
   `${wins}-${losses}${absent > 0 ? `-${absent}` : ''}`;
-
-const formatStopReason = (reason?: LogicLabStopReason): string => {
-  if (!reason) return '-';
-  if (reason === 'PROMOTION') return '昇進イベント';
-  if (reason === 'INJURY') return '負傷イベント';
-  if (reason === 'RETIREMENT') return '引退';
-  if (reason === 'MAX_BASHO_REACHED') return '最大場所数到達';
-  return reason;
-};
-
-const formatPhase = (phase: string): string => {
-  if (phase === 'idle') return '待機';
-  if (phase === 'ready') return '開始前';
-  if (phase === 'running') return '実行中';
-  if (phase === 'paused') return '一時停止';
-  if (phase === 'completed') return '完了';
-  if (phase === 'error') return 'エラー';
-  return phase;
-};
-
-const formatInjuryStatus = (status: string): string => {
-  if (status === 'ACUTE') return '急性';
-  if (status === 'SUBACUTE') return '亜急性';
-  if (status === 'CHRONIC') return '慢性';
-  if (status === 'HEALED') return '治癒';
-  return status;
-};
-
-const resolveRankDeltaText = (row: LogicLabBashoLogRow): string => {
-  const before = getRankValueForChart(row.rankBefore);
-  const after = getRankValueForChart(row.rankAfter);
-  const delta = before - after;
+const formatPhase = (phase: string): string =>
+  phase === 'idle' ? '待機' :
+    phase === 'ready' ? '開始前' :
+      phase === 'running' ? '実行中' :
+        phase === 'paused' ? '一時停止' :
+          phase === 'completed' ? '完了' :
+            phase === 'error' ? 'エラー' : phase;
+const formatStopReason = (reason?: LogicLabStopReason): string =>
+  !reason ? '-' :
+    reason === 'PROMOTION' ? '昇進イベント' :
+      reason === 'INJURY' ? '負傷イベント' :
+        reason === 'RETIREMENT' ? '引退' :
+          reason === 'MAX_BASHO_REACHED' ? '最大場所数到達' : reason;
+const rankDelta = (row: LogicLabBashoLogRow): number =>
+  getRankValueForChart(row.rankBefore) - getRankValueForChart(row.rankAfter);
+const rankDeltaText = (row: LogicLabBashoLogRow): string => {
+  const delta = rankDelta(row);
   if (Math.abs(delta) < 0.001) return '変化なし';
   return delta > 0 ? `昇進 +${delta.toFixed(1)}` : `降下 ${delta.toFixed(1)}`;
 };
+const isPromotion = (row: LogicLabBashoLogRow): boolean => rankDelta(row) > 0.001;
+const isDemotion = (row: LogicLabBashoLogRow): boolean => rankDelta(row) < -0.001;
+const isWarning = (row: LogicLabBashoLogRow): boolean => row.committeeWarnings > 0;
+const isInjury = (row: LogicLabBashoLogRow): boolean => row.injurySummary.activeCount > 0 || row.record.absent > 0;
+const isYusho = (row: LogicLabBashoLogRow): boolean => row.record.yusho;
 
-const MODEL_OPTIONS: Array<{ value: SimulationModelVersion; label: string }> = [
-  { value: 'legacy-v6', label: 'legacy-v6' },
-  { value: 'realism-v1', label: 'realism-v1' },
-];
-
-const isSekitoriRank = (rank: Rank): boolean =>
-  rank.division === 'Makuuchi' || rank.division === 'Juryo';
-
-const isMakuuchiRank = (rank: Rank): boolean => rank.division === 'Makuuchi';
-
-const isSanyakuRank = (rank: Rank): boolean =>
-  rank.division === 'Makuuchi' && ['横綱', '大関', '関脇', '小結'].includes(rank.name);
-
-const isYokozunaRank = (rank: Rank): boolean =>
-  rank.division === 'Makuuchi' && rank.name === '横綱';
+const matchesFilter = (row: LogicLabBashoLogRow, filter: LogFilter): boolean =>
+  filter === 'ALL' ? true :
+    filter === 'PROMOTION' ? isPromotion(row) :
+      filter === 'DEMOTION' ? isDemotion(row) :
+        filter === 'WARNING' ? isWarning(row) :
+          filter === 'INJURY' ? isInjury(row) :
+            isYusho(row);
 
 export const LogicLabScreen: React.FC = () => {
   const phase = useLogicLabStore((state) => state.phase);
   const presetId = useLogicLabStore((state) => state.presetId);
-  const simulationModelVersion = useLogicLabStore((state) => state.simulationModelVersion);
   const seedInput = useLogicLabStore((state) => state.seedInput);
   const maxBashoInput = useLogicLabStore((state) => state.maxBashoInput);
   const runConfig = useLogicLabStore((state) => state.runConfig);
@@ -84,7 +70,6 @@ export const LogicLabScreen: React.FC = () => {
   const autoPlay = useLogicLabStore((state) => state.autoPlay);
   const errorMessage = useLogicLabStore((state) => state.errorMessage);
   const setPresetId = useLogicLabStore((state) => state.setPresetId);
-  const setSimulationModelVersion = useLogicLabStore((state) => state.setSimulationModelVersion);
   const setSeedInput = useLogicLabStore((state) => state.setSeedInput);
   const setMaxBashoInput = useLogicLabStore((state) => state.setMaxBashoInput);
   const startRun = useLogicLabStore((state) => state.startRun);
@@ -96,342 +81,182 @@ export const LogicLabScreen: React.FC = () => {
   const selectLogIndex = useLogicLabStore((state) => state.selectLogIndex);
   const resetRun = useLogicLabStore((state) => state.resetRun);
 
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<LogFilter>('ALL');
+  const [desc, setDesc] = useState(true);
+
   const selectedRow = useMemo(() => {
-    if (typeof selectedLogIndex === 'number' && logs[selectedLogIndex]) {
-      return logs[selectedLogIndex];
-    }
-    if (logs.length === 0) return null;
-    return logs[logs.length - 1];
+    if (typeof selectedLogIndex === 'number' && logs[selectedLogIndex]) return logs[selectedLogIndex];
+    return logs.length ? logs[logs.length - 1] : null;
   }, [logs, selectedLogIndex]);
+  const comparisonPresetLabel = comparison ? resolveLogicLabPresetLabel(comparison.config.presetId) : '-';
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = logs.map((row, index) => ({ row, index })).filter(({ row }) => {
+      if (!matchesFilter(row, filter)) return false;
+      if (!q) return true;
+      const text = [
+        `${row.year}/${row.month}`,
+        formatRankName(row.rankBefore),
+        formatRankName(row.rankAfter),
+        row.events.join(' '),
+        row.banzukeReasons.join(' '),
+      ].join(' ').toLowerCase();
+      return text.includes(q);
+    });
+    return desc ? rows.slice().reverse() : rows;
+  }, [logs, query, filter, desc]);
+
+  const stats = useMemo(() => {
+    let promotion = 0;
+    let demotion = 0;
+    let warning = 0;
+    let injury = 0;
+    let yusho = 0;
+    for (const row of logs) {
+      if (isPromotion(row)) promotion += 1;
+      if (isDemotion(row)) demotion += 1;
+      if (isWarning(row)) warning += 1;
+      if (isInjury(row)) injury += 1;
+      if (isYusho(row)) yusho += 1;
+    }
+    return { promotion, demotion, warning, injury, yusho };
+  }, [logs]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
-      <div className="border-4 border-sumi bg-washi p-4 shadow-[6px_6px_0px_0px_#2b2b2b]">
-        <p className="text-xl font-black">ロジック検証モード（dev専用）</p>
-        <p className="text-xs font-bold text-sumi mt-1">
-          GUI上でフルキャリア進行を追跡します。保存は行われません。
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-4">
+      <section className="border-4 border-sumi bg-[linear-gradient(120deg,#203744,#2b2b2b,#5c6e46)] text-washi p-4 shadow-[6px_6px_0px_0px_#2b2b2b]">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xl font-black">ロジック検証モード</p>
+            <p className="text-xs font-bold text-washi/90">番付変化・会議理由・NPC文脈を集約表示</p>
+          </div>
+          <div className="text-[11px] font-black border border-washi/60 px-2 py-1 bg-kassairo/40">
+            状態: {formatPhase(phase)}
+          </div>
+        </div>
+      </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="border-2 border-sumi bg-washi p-4 space-y-3">
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-4 border-2 border-sumi bg-washi p-4 space-y-2">
           <p className="text-sm font-black">設定</p>
-          <label className="text-xs font-bold block space-y-1">
-            <span>プリセット</span>
+          <label className="text-xs font-bold block">
+            プリセット
             <select
               value={presetId}
               onChange={(event) => setPresetId(event.target.value as typeof presetId)}
-              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm"
+              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1"
               disabled={autoPlay}
             >
-              {LOGIC_LAB_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
+              {LOGIC_LAB_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
             </select>
           </label>
-          <label className="text-xs font-bold block space-y-1">
-            <span>モデル</span>
-            <select
-              value={simulationModelVersion}
-              onChange={(event) =>
-                setSimulationModelVersion(event.target.value as SimulationModelVersion)
-              }
-              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm"
-              disabled={autoPlay || comparisonBusy}
-            >
-              {MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-bold block space-y-1">
-            <span>Seed</span>
-            <input
-              value={seedInput}
-              onChange={(event) => setSeedInput(event.target.value)}
-              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm"
-              disabled={autoPlay || comparisonBusy}
-            />
-          </label>
-          <label className="text-xs font-bold block space-y-1">
-            <span>最大場所数</span>
-            <input
-              value={maxBashoInput}
-              onChange={(event) => setMaxBashoInput(event.target.value)}
-              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm"
-              disabled={autoPlay || comparisonBusy}
-            />
-          </label>
-          <p className="text-[11px] font-bold text-sumi">
-            反映中: preset={runConfig?.presetId ?? '-'} / model={runConfig?.simulationModelVersion ?? '-'} / seed={runConfig?.seed ?? '-'} / max={runConfig?.maxBasho ?? '-'}
-          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-bold block">
+              Seed
+              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1" disabled={autoPlay || comparisonBusy} />
+            </label>
+            <label className="text-xs font-bold block">
+              最大場所数
+              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1" disabled={autoPlay || comparisonBusy} />
+            </label>
+          </div>
+          <p className="text-[11px] font-bold text-sumi">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</p>
         </div>
 
-        <div className="border-2 border-sumi bg-washi p-4 space-y-3 lg:col-span-2">
+        <div className="xl:col-span-8 border-2 border-sumi bg-washi p-4 space-y-3">
           <p className="text-sm font-black">操作</p>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <button
-              onClick={() => void startRun()}
-              disabled={comparisonBusy}
-              className={`border-2 font-black px-2 py-2 text-xs ${
-                comparisonBusy
-                  ? 'border-sumi-light bg-washi-dark text-sumi-light'
-                  : 'border-sumi bg-kassairo text-washi'
-              }`}
-            >
-              開始
-            </button>
-            <button
-              onClick={() => void stepOne()}
-              disabled={autoPlay || comparisonBusy}
-              className={`border-2 font-black px-2 py-2 text-xs ${
-                autoPlay || comparisonBusy
-                  ? 'border-sumi-light bg-washi-dark text-sumi-light'
-                  : 'border-sumi bg-washi text-sumi'
-              }`}
-            >
-              1場所進む
-            </button>
-            {!autoPlay ? (
-              <button
-                onClick={() => void startAutoPlay()}
-                disabled={comparisonBusy}
-                className={`border-2 font-black px-2 py-2 text-xs ${
-                  comparisonBusy
-                    ? 'border-sumi-light bg-washi-dark text-sumi-light'
-                    : 'border-sumi bg-sumi text-washi'
-                }`}
-              >
-                自動再生
-              </button>
-            ) : (
-              <button
-                onClick={pauseAutoPlay}
-                className="border-2 border-shuiro bg-washi text-shuiro font-black px-2 py-2 text-xs"
-              >
-                停止
-              </button>
-            )}
-            <button
-              onClick={() => void runToEnd()}
-              disabled={autoPlay || comparisonBusy}
-              className={`border-2 font-black px-2 py-2 text-xs ${
-                autoPlay || comparisonBusy
-                  ? 'border-sumi-light bg-washi-dark text-sumi-light'
-                  : 'border-sumi bg-washi text-sumi'
-              }`}
-            >
-              最後まで
-            </button>
-            <button
-              onClick={() => void runComparison()}
-              disabled={autoPlay || comparisonBusy}
-              className={`border-2 font-black px-2 py-2 text-xs ${
-                autoPlay || comparisonBusy
-                  ? 'border-sumi-light bg-washi-dark text-sumi-light'
-                  : 'border-sumi bg-shuiro text-washi'
-              }`}
-            >
-              {comparisonBusy ? '比較中...' : '2モデル比較'}
-            </button>
-            <button
-              onClick={resetRun}
-              disabled={comparisonBusy}
-              className="border-2 border-sumi bg-washi text-sumi font-black px-2 py-2 text-xs"
-            >
-              リセット
-            </button>
+            <button onClick={() => void startRun()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-kassairo text-washi'}`}>開始</button>
+            <button onClick={() => void stepOne()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>1場所進む</button>
+            {!autoPlay ? <button onClick={() => void startAutoPlay()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-sumi text-washi'}`}>自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-shuiro bg-washi text-shuiro font-black px-2 py-2 text-xs">停止</button>}
+            <button onClick={() => void runToEnd()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>最後まで</button>
+            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-shuiro text-washi'}`}>{comparisonBusy ? '比較中...' : '2モデル比較'}</button>
+            <button onClick={resetRun} disabled={comparisonBusy} className="border-2 border-sumi bg-washi text-sumi font-black px-2 py-2 text-xs">リセット</button>
           </div>
-
-          <p className="text-xs font-bold text-sumi">状態: {formatPhase(phase)}</p>
-          {errorMessage && (
-            <p className="text-xs font-bold text-shuiro border border-shuiro px-2 py-1">{errorMessage}</p>
-          )}
+          {errorMessage && <p className="text-xs font-bold text-shuiro border border-shuiro px-2 py-1">{errorMessage}</p>}
         </div>
       </section>
 
-      <section className="border-2 border-sumi bg-washi p-4">
-        <p className="text-sm font-black mb-2">サマリー</p>
-        {!summary ? (
-          <p className="text-xs font-bold text-sumi">まだ実行されていません。</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs font-bold">
-            <p>モデル: {summary.simulationModelVersion}</p>
-            <p>現在番付: {formatRankName(summary.currentRank)}</p>
-            <p>最高位: {formatRankName(summary.maxRank)}</p>
-            <p>年齢: {summary.age}</p>
-            <p>場所数: {summary.bashoCount}</p>
-            <p>通算: {summary.totalWins}勝 {summary.totalLosses}敗 {summary.totalAbsent}休</p>
-            <p>三賞: {summary.sanshoTotal}（殊勲 {summary.shukunCount} / 敢闘 {summary.kantoCount} / 技能 {summary.ginoCount}）</p>
-            <p>怪我: Lv{summary.injurySummary.injuryLevel} / 有効 {summary.injurySummary.activeCount}件</p>
-            <p>会議警告: {summary.committeeWarnings}件</p>
-            <p className="md:col-span-2">停止理由: {formatStopReason(summary.stopReason)}</p>
-          </div>
-        )}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-black">
+        <div className="border-2 border-sumi bg-washi p-2">昇進: <span className="text-matcha">{stats.promotion}</span></div>
+        <div className="border-2 border-sumi bg-washi p-2">降下: <span className="text-shuiro">{stats.demotion}</span></div>
+        <div className="border-2 border-sumi bg-washi p-2">警告: {stats.warning}</div>
+        <div className="border-2 border-sumi bg-washi p-2">怪我: {stats.injury}</div>
+        <div className="border-2 border-sumi bg-washi p-2">優勝: {stats.yusho}</div>
       </section>
 
-      <section className="border-2 border-sumi bg-washi p-4">
-        <p className="text-sm font-black mb-2">モデル比較（同条件）</p>
-        {!comparison && !comparisonBusy && (
-          <p className="text-xs font-bold text-sumi">「2モデル比較」で legacy-v6 / realism-v1 を同条件で比較します。</p>
-        )}
-        {comparisonBusy && (
-          <p className="text-xs font-bold text-sumi">比較シミュレーションを実行中です...</p>
-        )}
-        {comparison && (
-          <div className="space-y-2 text-xs font-bold">
-            <p>
-              条件: preset={comparison.config.presetId} / seed={comparison.config.seed} / max={comparison.config.maxBasho}
-            </p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-sumi">
-                    <th className="text-left py-1 pr-2">指標</th>
-                    <th className="text-left py-1 pr-2">legacy-v6</th>
-                    <th className="text-left py-1 pr-2">realism-v1</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">最高位</td>
-                    <td className="py-1 pr-2">{formatRankName(comparison.legacy.maxRank)}</td>
-                    <td className="py-1 pr-2">{formatRankName(comparison.realism.maxRank)}</td>
-                  </tr>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">通算</td>
-                    <td className="py-1 pr-2">{comparison.legacy.totalWins}勝 {comparison.legacy.totalLosses}敗 {comparison.legacy.totalAbsent}休</td>
-                    <td className="py-1 pr-2">{comparison.realism.totalWins}勝 {comparison.realism.totalLosses}敗 {comparison.realism.totalAbsent}休</td>
-                  </tr>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">場所数</td>
-                    <td className="py-1 pr-2">{comparison.legacy.bashoCount}</td>
-                    <td className="py-1 pr-2">{comparison.realism.bashoCount}</td>
-                  </tr>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">関取到達</td>
-                    <td className="py-1 pr-2">{isSekitoriRank(comparison.legacy.maxRank) ? '到達' : '-'}</td>
-                    <td className="py-1 pr-2">{isSekitoriRank(comparison.realism.maxRank) ? '到達' : '-'}</td>
-                  </tr>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">幕内到達</td>
-                    <td className="py-1 pr-2">{isMakuuchiRank(comparison.legacy.maxRank) ? '到達' : '-'}</td>
-                    <td className="py-1 pr-2">{isMakuuchiRank(comparison.realism.maxRank) ? '到達' : '-'}</td>
-                  </tr>
-                  <tr className="border-b border-sumi-light/30">
-                    <td className="py-1 pr-2">三役到達</td>
-                    <td className="py-1 pr-2">{isSanyakuRank(comparison.legacy.maxRank) ? '到達' : '-'}</td>
-                    <td className="py-1 pr-2">{isSanyakuRank(comparison.realism.maxRank) ? '到達' : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1 pr-2">横綱到達</td>
-                    <td className="py-1 pr-2">{isYokozunaRank(comparison.legacy.maxRank) ? '到達' : '-'}</td>
-                    <td className="py-1 pr-2">{isYokozunaRank(comparison.realism.maxRank) ? '到達' : '-'}</td>
-                  </tr>
-                </tbody>
-              </table>
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-7 border-2 border-sumi bg-washi p-4 space-y-2">
+          <div className="flex flex-wrap gap-2 items-center justify-between">
+            <p className="text-sm font-black">場所ログ</p>
+            <div className="flex flex-wrap gap-2">
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="検索" className="border-2 border-sumi px-2 py-1 text-xs bg-washi" />
+              <button onClick={() => setDesc((v) => !v)} className="border-2 border-sumi px-2 py-1 text-xs font-black">{desc ? '新しい順' : '古い順'}</button>
             </div>
           </div>
-        )}
-      </section>
-
-      <section className="border-2 border-sumi bg-washi p-4">
-        <p className="text-sm font-black mb-2">場所ログ</p>
-        {logs.length === 0 ? (
-          <p className="text-xs font-bold text-sumi">ログはまだありません。</p>
-        ) : (
-          <div className="overflow-x-auto">
+          <div className="flex flex-wrap gap-1">
+            {LOG_FILTERS.map((item) => (
+              <button key={item.id} onClick={() => setFilter(item.id)} className={`text-xs font-black px-2 py-1 border ${filter === item.id ? 'border-sumi bg-sumi text-washi' : 'border-sumi bg-washi text-sumi'}`}>{item.label}</button>
+            ))}
+            <span className="text-xs font-black text-sumi-light px-2 py-1">表示 {filtered.length}/{logs.length}</span>
+          </div>
+          <div className="overflow-x-auto max-h-[420px] border border-sumi">
             <table className="min-w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b-2 border-sumi">
-                  <th className="text-left py-1 pr-2">Seq</th>
-                  <th className="text-left py-1 pr-2">場所</th>
-                  <th className="text-left py-1 pr-2">番付</th>
-                  <th className="text-left py-1 pr-2">成績</th>
-                  <th className="text-left py-1 pr-2">イベント</th>
-                  <th className="text-left py-1 pr-2">怪我</th>
-                  <th className="text-left py-1 pr-2">警告</th>
-                </tr>
+              <thead className="sticky top-0 bg-washi border-b-2 border-sumi">
+                <tr><th className="text-left py-1 px-2">Seq</th><th className="text-left py-1 px-2">場所</th><th className="text-left py-1 px-2">番付</th><th className="text-left py-1 px-2">成績</th><th className="text-left py-1 px-2">変動</th><th className="text-left py-1 px-2">警告</th></tr>
               </thead>
               <tbody>
-                {logs.map((row, index) => (
-                  <tr
-                    key={`${row.seq}-${row.year}-${row.month}`}
-                    onClick={() => selectLogIndex(index)}
-                    className={`border-b border-sumi-light/30 cursor-pointer ${
-                      selectedRow === row ? 'bg-washi-dark' : 'bg-washi'
-                    }`}
-                  >
-                    <td className="py-1 pr-2 font-bold">{row.seq}</td>
-                    <td className="py-1 pr-2">{row.year}/{row.month}</td>
-                    <td className="py-1 pr-2">
-                      {formatRankName(row.rankBefore)} → {formatRankName(row.rankAfter)}
-                    </td>
-                    <td className="py-1 pr-2">
-                      {formatRecord(row.record.wins, row.record.losses, row.record.absent)}
-                      {row.record.yusho ? ' (優勝)' : ''}
-                    </td>
-                    <td className="py-1 pr-2">{row.events[0] ?? '-'}</td>
-                    <td className="py-1 pr-2">{row.injurySummary.activeCount}件</td>
-                    <td className="py-1 pr-2">{row.committeeWarnings}</td>
+                {filtered.map(({ row, index }) => (
+                  <tr key={`${row.seq}-${row.year}-${row.month}`} onClick={() => selectLogIndex(index)} className={`border-b border-sumi-light/30 cursor-pointer ${selectedRow === row ? 'bg-washi-dark' : 'bg-washi'}`}>
+                    <td className="py-1 px-2 font-black">{row.seq}</td><td className="py-1 px-2">{row.year}/{row.month}</td>
+                    <td className="py-1 px-2">{formatRankName(row.rankBefore)} → {formatRankName(row.rankAfter)}</td>
+                    <td className="py-1 px-2">{formatRecord(row.record.wins, row.record.losses, row.record.absent)}{row.record.yusho ? ' (優勝)' : ''}</td>
+                    <td className={`py-1 px-2 font-black ${isPromotion(row) ? 'text-matcha' : isDemotion(row) ? 'text-shuiro' : 'text-sumi-light'}`}>{rankDeltaText(row)}</td>
+                    <td className="py-1 px-2">{row.committeeWarnings}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+        </div>
+
+        <div className="xl:col-span-5 border-2 border-sumi bg-washi p-4 space-y-2">
+          <p className="text-sm font-black">詳細</p>
+          {!selectedRow ? <p className="text-xs font-bold text-sumi">ログ行を選択してください。</p> : (
+            <div className="space-y-2 text-xs font-bold">
+              <p>{selectedRow.year}年{selectedRow.month}月</p>
+              <p>{formatRankName(selectedRow.rankBefore)} → {formatRankName(selectedRow.rankAfter)} / {rankDeltaText(selectedRow)}</p>
+              <p>成績: {formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}{selectedRow.record.yusho ? ' / 優勝' : ''}</p>
+              <p>停止理由: {formatStopReason(selectedRow.pauseReason)}</p>
+              <p>番付理由: {selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '-'}</p>
+              <p>イベント: {selectedRow.events.length ? selectedRow.events[0] : '-'}</p>
+              <p>怪我: Lv{selectedRow.injurySummary.injuryLevel} / 有効 {selectedRow.injurySummary.activeCount}件</p>
+              <p>同階級NPC: {selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : 'なし'}</p>
+            </div>
+          )}
+          {comparison && (
+            <div className="border-t border-sumi pt-2 text-xs font-bold">
+              <p className="mb-1">比較: {comparisonPresetLabel}</p>
+              <p>legacy最高位: {formatRankName(comparison.legacy.maxRank)}</p>
+              <p>realism最高位: {formatRankName(comparison.realism.maxRank)}</p>
+              <p>勝利差: {comparison.realism.totalWins - comparison.legacy.totalWins >= 0 ? '+' : ''}{comparison.realism.totalWins - comparison.legacy.totalWins}</p>
+            </div>
+          )}
+        </div>
       </section>
 
-      <section className="border-2 border-sumi bg-washi p-4">
-        <p className="text-sm font-black mb-2">詳細</p>
-        {!selectedRow ? (
-          <p className="text-xs font-bold text-sumi">ログ行を選択してください。</p>
-        ) : (
-          <div className="space-y-3 text-xs font-bold">
-            <p>
-              {selectedRow.year}年{selectedRow.month}月 / {formatRankName(selectedRow.rankBefore)} → {formatRankName(selectedRow.rankAfter)} / {resolveRankDeltaText(selectedRow)}
-            </p>
-            <p>
-              成績: {formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}
-              {selectedRow.record.yusho ? ' / 優勝' : ''}
-            </p>
-            <p>停止理由: {formatStopReason(selectedRow.pauseReason)}</p>
-            <p>会議警告: {selectedRow.committeeWarnings}件</p>
-
-            <div>
-              <p className="mb-1">イベント</p>
-              {selectedRow.events.length === 0 ? (
-                <p className="text-sumi">なし</p>
-              ) : (
-                <ul className="list-disc list-inside space-y-1">
-                  {selectedRow.events.map((event, index) => (
-                    <li key={`${event}-${index}`}>{event}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <p className="mb-1">怪我内訳</p>
-              {selectedRow.injurySummary.activeInjuries.length === 0 ? (
-                <p className="text-sumi">有効な怪我なし</p>
-              ) : (
-                <ul className="list-disc list-inside space-y-1">
-                  {selectedRow.injurySummary.activeInjuries.map((injury, index) => (
-                    <li key={`${injury.name}-${index}`}>
-                      {injury.name} / 重症度 {injury.severity} / {formatInjuryStatus(injury.status)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+      {summary && (
+        <section className="border-2 border-sumi bg-washi p-4 text-xs font-bold grid grid-cols-1 md:grid-cols-3 gap-2">
+          <p>現在番付: {formatRankName(summary.currentRank)}</p>
+          <p>最高位: {formatRankName(summary.maxRank)}</p>
+          <p>場所数: {summary.bashoCount}</p>
+          <p>年齢: {summary.age}</p>
+          <p>通算: {summary.totalWins}勝 {summary.totalLosses}敗 {summary.totalAbsent}休</p>
+          <p>停止理由: {formatStopReason(summary.stopReason)}</p>
+        </section>
+      )}
     </div>
   );
 };

@@ -6,7 +6,7 @@ const DEFAULT_SLOTS: Record<Exclude<Division, 'Maezumo'>, number> = {
   Makushita: 120,
   Sandanme: 180,
   Jonidan: 200,
-  Jonokuchi: 60,
+  Jonokuchi: 64,
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -63,4 +63,3 @@ export const clampRankToSlots = (
     side: rank.side ?? normalized.side,
   };
 };
-

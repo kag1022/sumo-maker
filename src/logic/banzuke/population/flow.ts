@@ -19,7 +19,7 @@ export const DEFAULT_DIVISION_POLICIES: BanzukeDivisionPolicy[] = [
   { division: 'Makushita', capacityMode: 'FIXED', fixedSlots: 120 },
   { division: 'Sandanme', capacityMode: 'FIXED', fixedSlots: 180 },
   { division: 'Jonidan', capacityMode: 'VARIABLE', minSlots: 120, softMaxSlots: 320 },
-  { division: 'Jonokuchi', capacityMode: 'VARIABLE', minSlots: 20, softMaxSlots: 140 },
+  { division: 'Jonokuchi', capacityMode: 'VARIABLE', minSlots: 20, softMaxSlots: 64 },
   { division: 'Maezumo', capacityMode: 'VARIABLE', minSlots: 0, softMaxSlots: Number.MAX_SAFE_INTEGER },
 ];
 
@@ -65,4 +65,3 @@ export const resolveTargetHeadcount = (
   const max = Math.max(min, policy.softMaxSlots ?? Number.MAX_SAFE_INTEGER);
   return { min, max, target: clamp(current, min, max), fixed: false };
 };
-

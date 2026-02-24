@@ -54,10 +54,17 @@ const createNpc = (
   seed: EnemySeedProfile,
   rng: RandomSource,
   nameContext: NpcUniverse['nameContext'],
+  registry: NpcUniverse['registry'],
 ): PersistentNpc => {
   const range = POWER_RANGE[division];
   const abilityDist = ABILITY_DISTRIBUTION[division];
-  const shikona = generateUniqueNpcShikona(stableId, rng, nameContext);
+  const shikona = generateUniqueNpcShikona(
+    stableId,
+    division,
+    rng,
+    nameContext,
+    registry,
+  );
   const entryAge = 15 + Math.floor(rng() * 10);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
   const basePower = clamp(seed.basePower + randomNoise(rng, seed.powerVariance), range.min, range.max);
@@ -67,6 +74,8 @@ const createNpc = (
     randomNoise(rng, abilityDist.sigma * 0.45) +
     seed.growthBias * 5.2;
   return {
+    actorId: `NPC-${serial}`,
+    actorType: 'NPC',
     id: `NPC-${serial}`,
     seedId: seed.seedId,
     shikona,
@@ -122,9 +131,11 @@ const createDivisionRoster = (
       seed,
       rng,
       nameContext,
+      registry,
     );
     serialCursor.value += 1;
     roster.push(npc);
+    registry.set(npc.id, npc);
   }
 
   const rankedRoster = roster
@@ -254,6 +265,7 @@ export const createMaezumoRecruit = (
     seed,
     rng,
     nameContext,
+    registry,
   );
   serialCursor.value += 1;
   registry.set(npc.id, npc);

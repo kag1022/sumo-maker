@@ -1,75 +1,81 @@
 import { Rank } from '../../models';
-import { getRankValue } from '../../ranking';
-import { BanzukeCommitteeCase, BanzukeDecisionVote } from '../types';
-
-const DIVISION_ORDER: Rank['division'][] = [
-  'Makuuchi',
-  'Juryo',
-  'Makushita',
-  'Sandanme',
-  'Jonidan',
-  'Jonokuchi',
-  'Maezumo',
-];
+import { LIMITS } from '../scale/rankLimits';
+import {
+  BanzukeCommitteeCase,
+  BanzukeDecisionReasonCode,
+  BanzukeDecisionVote,
+} from '../types';
 
 const toRankScore = (rank: Rank): number => {
-  const byValue = getRankValue(rank);
-  const divisionBias = DIVISION_ORDER.indexOf(rank.division);
-  const number = rank.number ?? 0;
-  return byValue * 100 + divisionBias * 10 + number;
+  const sideOffset = rank.side === 'West' ? 1 : 0;
+  if (rank.division === 'Makuuchi') {
+    if (rank.name === '横綱') return sideOffset;
+    if (rank.name === '大関') return 2 + sideOffset;
+    if (rank.name === '関脇') return 4 + sideOffset;
+    if (rank.name === '小結') return 6 + sideOffset;
+    const num = Math.max(1, Math.min(LIMITS.MAEGASHIRA_MAX, rank.number ?? 1));
+    return 8 + (num - 1) * 2 + sideOffset;
+  }
+  if (rank.division === 'Juryo') {
+    const num = Math.max(1, Math.min(LIMITS.JURYO_MAX, rank.number ?? 1));
+    return 8 + LIMITS.MAEGASHIRA_MAX * 2 + (num - 1) * 2 + sideOffset;
+  }
+  if (rank.division === 'Makushita') {
+    const num = Math.max(1, Math.min(LIMITS.MAKUSHITA_MAX, rank.number ?? 1));
+    return 8 + (LIMITS.MAEGASHIRA_MAX + LIMITS.JURYO_MAX) * 2 + (num - 1) * 2 + sideOffset;
+  }
+  if (rank.division === 'Sandanme') {
+    const num = Math.max(1, Math.min(LIMITS.SANDANME_MAX, rank.number ?? 1));
+    return (
+      8 +
+      (LIMITS.MAEGASHIRA_MAX + LIMITS.JURYO_MAX + LIMITS.MAKUSHITA_MAX) * 2 +
+      (num - 1) * 2 +
+      sideOffset
+    );
+  }
+  if (rank.division === 'Jonidan') {
+    const num = Math.max(1, Math.min(LIMITS.JONIDAN_MAX, rank.number ?? 1));
+    return (
+      8 +
+      (LIMITS.MAEGASHIRA_MAX + LIMITS.JURYO_MAX + LIMITS.MAKUSHITA_MAX + LIMITS.SANDANME_MAX) * 2 +
+      (num - 1) * 2 +
+      sideOffset
+    );
+  }
+  if (rank.division === 'Jonokuchi') {
+    const num = Math.max(1, Math.min(LIMITS.JONOKUCHI_MAX, rank.number ?? 1));
+    return (
+      8 +
+      (
+        LIMITS.MAEGASHIRA_MAX +
+        LIMITS.JURYO_MAX +
+        LIMITS.MAKUSHITA_MAX +
+        LIMITS.SANDANME_MAX +
+        LIMITS.JONIDAN_MAX
+      ) * 2 +
+      (num - 1) * 2 +
+      sideOffset
+    );
+  }
+  return 8 + (
+    LIMITS.MAEGASHIRA_MAX +
+    LIMITS.JURYO_MAX +
+    LIMITS.MAKUSHITA_MAX +
+    LIMITS.SANDANME_MAX +
+    LIMITS.JONIDAN_MAX +
+    LIMITS.JONOKUCHI_MAX
+  ) * 2;
 };
 
 const compareRank = (a: Rank, b: Rank): number => toRankScore(a) - toRankScore(b);
 
 const sameDivision = (a: Rank, b: Rank): boolean => a.division === b.division;
 
-type Judge = {
-  id: string;
-  weight: number;
-  score: (input: BanzukeCommitteeCase, candidate: Rank) => number;
-};
-
-const judges: Judge[] = [
-  {
-    id: 'ConservativeJudge',
-    weight: 0.4,
-    score: (input, candidate) => {
-      const base = -Math.abs(compareRank(candidate, input.currentRank));
-      if (input.result.wins > input.result.losses && compareRank(candidate, input.currentRank) > 0) return base - 10;
-      if (input.result.wins < input.result.losses && compareRank(candidate, input.currentRank) < 0) return base - 12;
-      return base;
-    },
-  },
-  {
-    id: 'PerformanceJudge',
-    weight: 0.4,
-    score: (input, candidate) => {
-      const diff = input.performanceOverExpected;
-      if (diff >= 0) {
-        return compareRank(candidate, input.currentRank) <= 0 ? 8 + diff : -15;
-      }
-      return compareRank(candidate, input.currentRank) >= 0 ? 8 + Math.abs(diff) : -15;
-    },
-  },
-  {
-    id: 'BalanceJudge',
-    weight: 0.2,
-    score: (input, candidate) => {
-      let score = 0;
-      if (input.flags.includes('LIGHT_MAKEKOSHI_OVER_DEMOTION') && candidate.division === 'Makushita') {
-        score += (candidate.number ?? 999) <= 10 ? 8 : -8;
-      }
-      if (input.flags.includes('MAKUSHITA_ZENSHO_UNDER_PROMOTION')) {
-        if (candidate.division === 'Makushita' && (candidate.number ?? 999) <= 15) score += 8;
-      }
-      return score;
-    },
-  },
-];
-
-const applyFlagDrivenCorrection = (input: BanzukeCommitteeCase): { rank: Rank; reasons: string[] } => {
+const applyAuditCorrection = (
+  input: BanzukeCommitteeCase,
+): { rank: Rank; reasons: BanzukeDecisionReasonCode[] } => {
   let corrected = { ...input.proposalRank };
-  const reasons: string[] = [];
+  const reasons: BanzukeDecisionReasonCode[] = [];
 
   if (
     input.flags.includes('KACHIKOSHI_DEMOTION_RISK') &&
@@ -77,6 +83,7 @@ const applyFlagDrivenCorrection = (input: BanzukeCommitteeCase): { rank: Rank; r
   ) {
     corrected = { ...input.currentRank };
     reasons.push('REVIEW_REVERT_KACHIKOSHI_DEMOTION');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -86,6 +93,7 @@ const applyFlagDrivenCorrection = (input: BanzukeCommitteeCase): { rank: Rank; r
   ) {
     corrected = { ...corrected, number: 10, side: 'East' };
     reasons.push('REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -95,6 +103,7 @@ const applyFlagDrivenCorrection = (input: BanzukeCommitteeCase): { rank: Rank; r
   ) {
     corrected = { ...corrected, number: 15, side: 'East' };
     reasons.push('REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -104,19 +113,17 @@ const applyFlagDrivenCorrection = (input: BanzukeCommitteeCase): { rank: Rank; r
     reasons.push('REVIEW_BOUNDARY_SLOT_JAM_NOTED');
   }
 
-  return { rank: corrected, reasons };
-};
+  if (!reasons.length) {
+    reasons.push('AUDIT_PASS');
+  }
 
-const scoreCandidate = (input: BanzukeCommitteeCase, candidate: Rank): BanzukeDecisionVote[] =>
-  judges.map((judge) => ({
-    judge: judge.id,
-    score: judge.score(input, candidate) * judge.weight,
-  }));
+  return { rank: corrected, reasons: [...new Set(reasons)] };
+};
 
 export interface ReviewBoardDecision {
   id: string;
   finalRank: Rank;
-  reasons: string[];
+  reasons: BanzukeDecisionReasonCode[];
   votes: BanzukeDecisionVote[];
 }
 
@@ -137,27 +144,12 @@ export const reviewBoard = (
       continue;
     }
 
-    const corrected = applyFlagDrivenCorrection(input);
-    const votes = scoreCandidate(input, corrected.rank);
-    const weighted = votes.reduce((sum, v) => sum + v.score, 0);
-    const accepted = weighted >= -2.5;
-
-    if (!accepted) {
-      decisions.push({
-        id: input.id,
-        finalRank: { ...input.currentRank },
-        reasons: [...corrected.reasons, 'REVIEW_REJECTED_RETAIN_PREV_RANK'],
-        votes,
-      });
-      warnings.push(`${input.id}:REVIEW_REJECTED`);
-      continue;
-    }
-
+    const corrected = applyAuditCorrection(input);
     decisions.push({
       id: input.id,
       finalRank: corrected.rank,
-      reasons: corrected.reasons.length ? corrected.reasons : ['REVIEW_ACCEPTED'],
-      votes,
+      reasons: corrected.reasons,
+      votes: [],
     });
   }
 

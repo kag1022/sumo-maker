@@ -1,9 +1,32 @@
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { Rank, RikishiStatus } from '../../models';
-import { REALISM_V1_BALANCE } from '../../balance/realismV1';
+import { UNIFIED_V1_BALANCE } from '../../balance/unifiedV1';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
+
+const MOMENTUM_ACTIVATION_STREAK = 2;
+const MOMENTUM_BASE_BONUS = 1.1;
+const MOMENTUM_POWER_SCALE = 0.95;
+const MOMENTUM_POWER_EXPONENT = 1.36;
+const MOMENTUM_QUADRATIC_SCALE = 0.42;
+const MOMENTUM_BONUS_CAP = 18;
+
+export const calculateMomentumBonus = (streak: number): number => {
+  const signed = Math.round(streak);
+  const abs = Math.abs(signed);
+  if (abs < MOMENTUM_ACTIVATION_STREAK) return 0;
+  if (abs === MOMENTUM_ACTIVATION_STREAK) {
+    return signed >= 0 ? MOMENTUM_BASE_BONUS : -MOMENTUM_BASE_BONUS;
+  }
+  const over = abs - MOMENTUM_ACTIVATION_STREAK;
+  const surge =
+    MOMENTUM_BASE_BONUS +
+    Math.pow(over, MOMENTUM_POWER_EXPONENT) * MOMENTUM_POWER_SCALE +
+    over * over * MOMENTUM_QUADRATIC_SCALE;
+  const bounded = clamp(surge, MOMENTUM_BASE_BONUS, MOMENTUM_BONUS_CAP);
+  return signed >= 0 ? bounded : -bounded;
+};
 
 const resolveStyleEdge = (
   mine: EnemyStyleBias | undefined,
@@ -17,9 +40,9 @@ const resolveStyleEdge = (
     (mine === 'TECHNIQUE' && other === 'GRAPPLE') ||
     (mine === 'GRAPPLE' && other === 'PUSH')
   ) {
-    return REALISM_V1_BALANCE.strength.styleEdgeBonus;
+    return UNIFIED_V1_BALANCE.strength.styleEdgeBonus;
   }
-  return -REALISM_V1_BALANCE.strength.styleEdgeBonus;
+  return -UNIFIED_V1_BALANCE.strength.styleEdgeBonus;
 };
 
 const resolveBodyScore = (heightCm: number, weightKg: number): number =>
@@ -37,7 +60,7 @@ const DIVISION_ABILITY_BANDS: Record<Rank['division'], DivisionAbilityBand> = {
   Makushita: { top: 96, bottom: 78, slots: 120 },
   Sandanme: { top: 80, bottom: 64, slots: 180 },
   Jonidan: { top: 68, bottom: 54, slots: 200 },
-  Jonokuchi: { top: 58, bottom: 46, slots: 60 },
+  Jonokuchi: { top: 58, bottom: 46, slots: 64 },
   Maezumo: { top: 44, bottom: 44, slots: 1 },
 };
 
@@ -76,19 +99,20 @@ export const resolveAbilityFromStats = (
 ): number => {
   const statsAverage = Object.values(stats).reduce((sum, value) => sum + value, 0) / 8;
   const statsDelta =
-    (statsAverage - REALISM_V1_BALANCE.strength.statsCenter) *
-    REALISM_V1_BALANCE.strength.abilityFromStatsWeight;
+    (statsAverage - UNIFIED_V1_BALANCE.strength.statsCenter) *
+    UNIFIED_V1_BALANCE.strength.abilityFromStatsWeight;
   const conditionBias =
-    (condition - 50) * REALISM_V1_BALANCE.strength.conditionWeight;
+    (condition - 50) * UNIFIED_V1_BALANCE.strength.conditionWeight;
   const bodyBias =
     resolveBodyScore(bodyMetrics.heightCm, bodyMetrics.weightKg) *
-    REALISM_V1_BALANCE.strength.bodyWeight;
+    UNIFIED_V1_BALANCE.strength.bodyWeight;
   return baselineAbility + statsDelta + conditionBias + bodyBias;
 };
 
 export const resolvePlayerAbility = (
   status: RikishiStatus,
   fallbackBody: { heightCm: number; weightKg: number },
+  bonus = 0,
 ): number => {
   const baseline = resolveRankBaselineAbility(status.rank);
   const derived = resolveAbilityFromStats(
@@ -97,16 +121,33 @@ export const resolvePlayerAbility = (
     status.bodyMetrics ?? fallbackBody,
     baseline,
   );
-  if (!status.ratingState) return derived;
-  const uncertainty = Number.isFinite(status.ratingState.uncertainty)
-    ? status.ratingState.uncertainty
-    : 1.5;
-  const blend = clamp(
-    REALISM_V1_BALANCE.strength.derivedAbilityBlend + (uncertainty - 1.4) * 0.06,
-    0.24,
-    0.44,
+  if (!status.ratingState) {
+    const cappedBonus = clamp(
+      bonus,
+      -UNIFIED_V1_BALANCE.strength.traitBonusCap,
+      UNIFIED_V1_BALANCE.strength.traitBonusCap,
+    );
+    return derived + cappedBonus * UNIFIED_V1_BALANCE.strength.traitBonusWeight;
+  }
+  const derivedOffset = clamp(
+    derived - baseline,
+    UNIFIED_V1_BALANCE.strength.derivedOffsetMin,
+    UNIFIED_V1_BALANCE.strength.derivedOffsetMax,
   );
-  return status.ratingState.ability * (1 - blend) + derived * blend + status.ratingState.form * 2.2;
+  const blended =
+    status.ratingState.ability * UNIFIED_V1_BALANCE.strength.ratingAnchorWeight +
+    (baseline + derivedOffset * UNIFIED_V1_BALANCE.strength.derivedOffsetWeight) *
+      (1 - UNIFIED_V1_BALANCE.strength.ratingAnchorWeight);
+  const cappedBonus = clamp(
+    bonus,
+    -UNIFIED_V1_BALANCE.strength.traitBonusCap,
+    UNIFIED_V1_BALANCE.strength.traitBonusCap,
+  );
+  return (
+    blended +
+    cappedBonus * UNIFIED_V1_BALANCE.strength.traitBonusWeight +
+    status.ratingState.form * UNIFIED_V1_BALANCE.strength.formWeight
+  );
 };
 
 export const resolveNpcAbility = (input: {
@@ -122,6 +163,21 @@ export const resolveNpcAbility = (input: {
   return basePower * form;
 };
 
+export const resolveUnifiedNpcStrength = (input: {
+  ability?: number;
+  power: number;
+  momentum?: number;
+  noise?: number;
+}): number => {
+  const ability = resolveNpcAbility({ ability: input.ability, basePower: input.power });
+  return (
+    ability * UNIFIED_V1_BALANCE.strength.npcAbilityWeight +
+    input.power * (1 - UNIFIED_V1_BALANCE.strength.npcAbilityWeight) +
+    (input.momentum ?? 0) +
+    (input.noise ?? 0)
+  );
+};
+
 export const resolveBoutWinProb = (input: {
   attackerAbility: number;
   defenderAbility: number;
@@ -131,12 +187,14 @@ export const resolveBoutWinProb = (input: {
   bonus?: number;
 }): number => {
   const styleEdge = resolveStyleEdge(input.attackerStyle, input.defenderStyle);
-  const injuryPenalty = (input.injuryPenalty ?? 0) * REALISM_V1_BALANCE.strength.injuryPenaltyScale;
-  const diff =
+  const injuryPenalty = (input.injuryPenalty ?? 0) * UNIFIED_V1_BALANCE.strength.injuryPenaltyScale;
+  const rawDiff =
     input.attackerAbility -
     input.defenderAbility +
     styleEdge +
     (input.bonus ?? 0) -
     injuryPenalty;
-  return clamp(1 / (1 + Math.exp(-REALISM_V1_BALANCE.strength.logisticScale * diff)), 0.03, 0.97);
+  const cap = UNIFIED_V1_BALANCE.strength.diffSoftCap;
+  const diff = Math.tanh(rawDiff / cap) * cap;
+  return clamp(1 / (1 + Math.exp(-UNIFIED_V1_BALANCE.strength.logisticScale * diff)), 0.03, 0.97);
 };

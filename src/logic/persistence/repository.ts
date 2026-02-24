@@ -20,6 +20,13 @@ import {
 
 const MAX_SAVED_CAREERS = 200;
 
+const normalizeBanzukeDecisionLog = (log: BanzukeDecisionLog): BanzukeDecisionLog => ({
+  ...log,
+  modelVersion: log.modelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
+  proposalSource: log.proposalSource ?? 'COMMITTEE_MODEL',
+  constraintHits: log.constraintHits ?? [],
+});
+
 const toYearMonth = (year: number, month: number): string =>
   `${year}-${String(month).padStart(2, '0')}`;
 
@@ -276,8 +283,8 @@ export const appendBashoChunk = async ({
         await db.banzukePopulation.put(row);
       }
       if (banzukeDecisions?.length) {
-        const rows: BanzukeDecisionRow[] = banzukeDecisions.map((log) => ({
-          ...log,
+        const rows: BanzukeDecisionRow[] = banzukeDecisions.map((rawLog) => ({
+          ...normalizeBanzukeDecisionLog(rawLog),
           careerId,
           seq,
         }));
@@ -528,7 +535,7 @@ export const appendBanzukeDecisionLogs = async (
 ): Promise<void> => {
   if (!logs.length) return;
   const db = getDb();
-  await db.banzukeDecisions.bulkPut(logs);
+  await db.banzukeDecisions.bulkPut(logs.map(normalizeBanzukeDecisionLog));
 };
 
 export const appendSimulationDiagnostics = async (
@@ -544,6 +551,16 @@ export const listBanzukeDecisions = async (
 ): Promise<BanzukeDecisionLog[]> => {
   const db = getDb();
   return db.banzukeDecisions.where('[careerId+seq]').equals([careerId, seq]).toArray();
+};
+
+export const listCareerBanzukeDecisions = async (
+  careerId: string,
+): Promise<BanzukeDecisionLog[]> => {
+  const db = getDb();
+  return db.banzukeDecisions
+    .where('careerId')
+    .equals(careerId)
+    .sortBy('seq');
 };
 
 export const listBanzukePopulation = async (

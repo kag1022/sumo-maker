@@ -1,4 +1,4 @@
-import { clamp, compareBoundaryCandidate } from '../boundary/shared';
+import { clamp, compareBoundaryCandidate, resolveAdaptiveExchangeSlots } from '../boundary/shared';
 import { BoundaryCandidate, BoundarySnapshot } from './types';
 
 const toJuryoNumber = (rankScore: number): number => clamp(Math.ceil(rankScore / 2), 1, 14);
@@ -65,6 +65,7 @@ export const buildMakushitaPromotionCandidates = (
       const number = toMakushitaNumber(result.rankScore);
       const wins = result.wins;
       const losses = result.losses;
+      if (wins <= losses) return null;
       const mandatory = (number <= 15 && wins === 7) || (number === 1 && wins >= 4);
       const bubble =
         mandatory ||
@@ -95,12 +96,14 @@ export const buildMakushitaFallbackPromotionCandidates = (
       const number = toMakushitaNumber(result.rankScore);
       const wins = result.wins;
       const losses = result.losses;
+      if (wins <= losses) return null;
       const score =
         Math.max(0, wins - 3) * 2.4 +
         Math.max(0, 20 - number) * 1.2 +
         Math.max(0, wins - losses) * 0.7;
       return { id: result.id, score, mandatory: false };
     })
+    .filter((candidate): candidate is BoundaryCandidate => Boolean(candidate))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return b.id.localeCompare(a.id);
@@ -110,36 +113,5 @@ export const resolveExchangeSlots = (
   demotionPool: BoundaryCandidate[],
   promotionPool: BoundaryCandidate[],
 ): { demotions: BoundaryCandidate[]; promotions: BoundaryCandidate[]; slots: number } => {
-  if (!demotionPool.length || !promotionPool.length) {
-    return { demotions: [], promotions: [], slots: 0 };
-  }
-
-  const mandatoryDemotions = demotionPool.filter((candidate) => candidate.mandatory).length;
-  const mandatoryPromotions = promotionPool.filter((candidate) => candidate.mandatory).length;
-  const maxSlots = Math.min(demotionPool.length, promotionPool.length);
-
-  let slots = Math.min(Math.max(mandatoryDemotions, mandatoryPromotions), maxSlots);
-  if (slots === 0 && promotionPool[0].score >= demotionPool[0].score + 5) {
-    slots = 1;
-  }
-  if (slots === 0 && maxSlots > 0) {
-    slots = 1;
-  }
-
-  while (slots < maxSlots) {
-    const nextPromotion = promotionPool[slots];
-    const nextDemotion = demotionPool[slots];
-    if (!nextPromotion || !nextDemotion) break;
-    if (nextPromotion.score >= nextDemotion.score + 2.5) {
-      slots += 1;
-      continue;
-    }
-    break;
-  }
-
-  return {
-    demotions: demotionPool.slice(0, slots),
-    promotions: promotionPool.slice(0, slots),
-    slots,
-  };
+  return resolveAdaptiveExchangeSlots(demotionPool, promotionPool);
 };

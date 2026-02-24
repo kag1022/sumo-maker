@@ -4,6 +4,7 @@ import {
   createSeededRandom,
   createSimulationEngine,
 } from '../../logic/simulation/engine';
+import { NpcBashoAggregate } from '../../logic/simulation/basho';
 import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
@@ -12,6 +13,8 @@ import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from './presets
 import {
   LogicLabBashoLogRow,
   LogicLabInjurySummary,
+  LogicLabNpcContext,
+  LogicLabNpcContextRow,
   LogicLabRunConfig,
   LogicLabRunPhase,
   LogicLabStopReason,
@@ -96,12 +99,200 @@ const buildSummary = (
   };
 };
 
-const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => ({
+const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
+  const playerDecision = step.banzukeDecisions.find(
+    (decision) => decision.rikishiId === 'PLAYER',
+  );
+  const toEntrySlot = (
+    entry: { division: string; rankName: string; rankNumber?: number; rankSide?: 'East' | 'West' },
+  ): number => {
+    const sideOffset = entry.rankSide === 'West' ? 1 : 0;
+    if (entry.division === 'Makuuchi') {
+      if (entry.rankName === '横綱') return sideOffset + 1;
+      if (entry.rankName === '大関') return sideOffset + 3;
+      if (entry.rankName === '関脇') return sideOffset + 5;
+      if (entry.rankName === '小結') return sideOffset + 7;
+      const n = Math.max(1, Math.min(17, entry.rankNumber ?? 1));
+      return 8 + (n - 1) * 2 + sideOffset;
+    }
+    const maxByDivision: Record<string, number> = {
+      Juryo: 14,
+      Makushita: 60,
+      Sandanme: 90,
+      Jonidan: 100,
+      Jonokuchi: 32,
+    };
+    const max = maxByDivision[entry.division] ?? 200;
+    const n = Math.max(1, Math.min(max, entry.rankNumber ?? 1));
+    return 1 + (n - 1) * 2 + sideOffset;
+  };
+  const toSlot = (record: NpcBashoAggregate): number => {
+    return toEntrySlot({
+      division: record.division,
+      rankName: record.rankName,
+      rankNumber: record.rankNumber,
+      rankSide: record.rankSide,
+    });
+  };
+
+  const formatRankLabel = (rankName: string, rankNumber?: number, rankSide?: 'East' | 'West'): string => {
+    const side = rankSide === 'West' ? '西' : '東';
+    if (['横綱', '大関', '関脇', '小結'].includes(rankName)) {
+      return `${side}${rankName}`;
+    }
+    return `${side}${rankName}${rankNumber ?? 1}`;
+  };
+  const formatRank = (rank: { name: string; number?: number; side?: 'East' | 'West' }): string =>
+    formatRankLabel(rank.name, rank.number, rank.side);
+
+  const buildNpcContext = (): LogicLabNpcContext | undefined => {
+    const lowerTrace = step.lowerDivisionPlacementTrace ?? [];
+    const playerTrace = lowerTrace.find((row) => row.id === 'PLAYER');
+    if (playerTrace) {
+      const playerScoreDiff = playerTrace.scoreDiff;
+      const playerBeforeSlot = playerTrace.beforeGlobalSlot;
+      const playerAfterSlot = playerTrace.afterGlobalSlot;
+      const others = lowerTrace.filter((row) => row.id !== 'PLAYER');
+      const outperformedByLowerCount = others.filter((row) =>
+        row.beforeGlobalSlot > playerBeforeSlot && row.scoreDiff > playerScoreDiff).length;
+      const underperformedByUpperCount = others.filter((row) =>
+        row.beforeGlobalSlot < playerBeforeSlot && row.scoreDiff < playerScoreDiff).length;
+
+      const rows: LogicLabNpcContextRow[] = others
+        .filter((row) =>
+          Math.abs(row.beforeGlobalSlot - playerBeforeSlot) <= 14 ||
+          Math.abs(row.afterGlobalSlot - playerAfterSlot) <= 14 ||
+          (row.beforeGlobalSlot > playerBeforeSlot && row.scoreDiff >= playerScoreDiff + 2) ||
+          (row.beforeGlobalSlot < playerBeforeSlot && row.scoreDiff <= playerScoreDiff - 2))
+        .sort((a, b) => a.beforeGlobalSlot - b.beforeGlobalSlot)
+        .slice(0, 24)
+        .map((row) => ({
+          shikona: row.shikona,
+          beforeRankLabel: formatRank(row.beforeRank),
+          afterRankLabel: formatRank(row.afterRank),
+          wins: row.wins,
+          losses: row.losses,
+          absent: row.absent,
+          scoreDiff: row.scoreDiff,
+          slotDistanceBefore: row.beforeGlobalSlot - playerBeforeSlot,
+          slotDistanceAfter: row.afterGlobalSlot - playerAfterSlot,
+          globalMove: row.beforeGlobalSlot - row.afterGlobalSlot,
+        }));
+
+      return {
+        division: playerTrace.beforeRank.division,
+        playerBeforeRankLabel: formatRank(playerTrace.beforeRank),
+        playerAfterRankLabel: formatRank(playerTrace.afterRank),
+        playerGlobalMove: playerBeforeSlot - playerAfterSlot,
+        playerScoreDiff,
+        outperformedByLowerCount,
+        underperformedByUpperCount,
+        rows,
+      };
+    }
+
+    const division = step.playerRecord.rank.division;
+    const sameDivision = step.npcBashoRecords
+      .filter((record) => record.division === division);
+    if (!sameDivision.length) return undefined;
+
+    const afterEntries = [
+      ...step.progress.makuuchi,
+      ...step.progress.juryo,
+    ];
+    const afterById = new Map(afterEntries.map((entry) => [entry.id, entry]));
+
+    const playerRank = step.playerRecord.rank;
+    const playerSlot = (() => {
+      return toEntrySlot({
+        division,
+        rankName: playerRank.name,
+        rankNumber: playerRank.number,
+        rankSide: playerRank.side,
+      });
+    })();
+    const playerAfterSlot =
+      step.statusSnapshot.rank.division === division
+        ? toEntrySlot({
+          division,
+          rankName: step.statusSnapshot.rank.name,
+          rankNumber: step.statusSnapshot.rank.number,
+          rankSide: step.statusSnapshot.rank.side,
+        })
+        : playerSlot;
+
+    const playerScoreDiff = step.playerRecord.wins - (step.playerRecord.losses + step.playerRecord.absent);
+    const withMeta = sameDivision.map((record) => {
+      const slot = toSlot(record);
+      const scoreDiff = record.wins - (record.losses + record.absent);
+      const after = afterById.get(record.entityId);
+      const afterRankName = after?.rankName ?? record.rankName;
+      const afterRankNumber = after?.rankNumber ?? record.rankNumber;
+      const afterRankSide = after?.rankSide ?? record.rankSide;
+      const afterSlot = toEntrySlot({
+        division: after?.division ?? record.division,
+        rankName: afterRankName,
+        rankNumber: afterRankNumber,
+        rankSide: afterRankSide,
+      });
+      return {
+        record,
+        slot,
+        afterSlot,
+        scoreDiff,
+        afterRankName,
+        afterRankNumber,
+        afterRankSide,
+      };
+    });
+
+    const outperformedByLowerCount = withMeta.filter((item) =>
+      item.slot > playerSlot && item.scoreDiff > playerScoreDiff).length;
+    const underperformedByUpperCount = withMeta.filter((item) =>
+      item.slot < playerSlot && item.scoreDiff < playerScoreDiff).length;
+
+    const nearbyRows: LogicLabNpcContextRow[] = withMeta
+      .filter((item) => Math.abs(item.slot - playerSlot) <= 12 || item.scoreDiff >= playerScoreDiff + 2)
+      .sort((a, b) => a.slot - b.slot)
+      .slice(0, 18)
+      .map((item) => ({
+        shikona: item.record.shikona,
+        beforeRankLabel: formatRankLabel(item.record.rankName, item.record.rankNumber, item.record.rankSide),
+        afterRankLabel: formatRankLabel(item.afterRankName, item.afterRankNumber, item.afterRankSide),
+        wins: item.record.wins,
+        losses: item.record.losses,
+        absent: item.record.absent,
+        scoreDiff: item.scoreDiff,
+        slotDistanceBefore: item.slot - playerSlot,
+        slotDistanceAfter: item.afterSlot - playerAfterSlot,
+        globalMove: item.slot - item.afterSlot,
+      }));
+
+    const playerRankLabel = formatRankLabel(
+      playerRank.name,
+      playerRank.number,
+      playerRank.side,
+    );
+
+    return {
+      division,
+      playerBeforeRankLabel: playerRankLabel,
+      playerAfterRankLabel: formatRank(step.statusSnapshot.rank),
+      playerGlobalMove: playerSlot - playerAfterSlot,
+      playerScoreDiff,
+      outperformedByLowerCount,
+      underperformedByUpperCount,
+      rows: nearbyRows,
+    };
+  };
+
+  return {
   seq: step.seq,
   year: step.year,
   month: step.month,
   rankBefore: { ...step.playerRecord.rank },
   rankAfter: { ...step.statusSnapshot.rank },
+  banzukeReasons: (playerDecision?.reasons ?? []).slice(0, 3),
   record: {
     wins: step.playerRecord.wins,
     losses: step.playerRecord.losses,
@@ -112,7 +303,9 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => ({
   injurySummary: buildInjurySummary(step.statusSnapshot),
   ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
   committeeWarnings: step.progress.lastCommitteeWarnings,
-});
+  npcContext: buildNpcContext(),
+  };
+};
 
 export const normalizeLogicLabSeed = (value: unknown): number => {
   const parsed = typeof value === 'number' ? value : Number(value);

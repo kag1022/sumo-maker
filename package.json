@@ -9,6 +9,7 @@
     "test": "node scripts/tests/run_sim_tests.cjs",
     "report:balance": "node scripts/reports/run_balance_report.cjs",
     "report:banzuke:quick": "node scripts/reports/run_quick_banzuke_checks.cjs",
+    "report:banzuke:quantile": "node scripts/reports/run_banzuke_quantile_report.cjs",
     "report:roster:integrity": "node scripts/reports/run_roster_integrity_report.cjs",
     "report:realism:mc": "node scripts/reports/run_realism_monte_carlo.cjs",
     "lint": "eslint . --max-warnings 0",

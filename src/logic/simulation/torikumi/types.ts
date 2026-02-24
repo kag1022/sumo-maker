@@ -55,6 +55,8 @@ export type TorikumiParticipant = {
   weightKg?: number;
   wins: number;
   losses: number;
+  currentWinStreak?: number;
+  currentLossStreak?: number;
   expectedWins?: number;
   opponentAbilityTotal?: number;
   boutsSimulated?: number;

@@ -7,17 +7,17 @@ import {
   randomNoise,
 } from './boundary/shared';
 import { createFacedMap, DivisionParticipant, simulateNpcBout } from './matchmaking';
-import { resolveBoundaryExchange, resolvePlayerRankScore } from './lower/exchange';
+import { resolvePlayerRankScore } from './lower/exchange';
 import { createInitialNpcUniverse } from './npc/factory';
 import { pushNpcBashoResult } from './npc/retirement';
 import { PersistentNpc } from './npc/types';
 import {
   BoundarySnapshot,
   EMPTY_EXCHANGE,
-  LOWER_BOUNDARIES,
   LowerBoundaryExchange,
   LowerBoundaryId,
   LowerDivision,
+  LowerDivisionPlacementTraceRow,
   LowerDivisionQuotaWorld,
   LowerNpc,
   PlayerLowerDivisionQuota,
@@ -26,7 +26,8 @@ import {
   POWER_RANGE,
 } from './lower/types';
 import { SimulationWorld } from './world';
-import { resolveLowerAssignedNextRank } from '../ranking/lowerCommittee';
+import { resolveLowerDivisionPlacements } from '../banzuke/providers/lowerBoundary';
+import { BanzukeEngineVersion } from '../banzuke/types';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../banzuke/population/flow';
 import {
   createLowerDivisionBoutDayMap,
@@ -39,6 +40,7 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from './modelVersion';
+import { PLAYER_ACTOR_ID } from './actors/constants';
 
 export type {
   LowerBoundaryExchange,
@@ -197,6 +199,7 @@ export const createLowerDivisionQuotaWorld = (
       Jonokuchi: 0,
     },
     lastPlayerAssignedRank: undefined,
+    lastPlacementTrace: [],
     npcRegistry,
     npcNameContext,
     nextNpcSerial,
@@ -223,10 +226,11 @@ const createDivisionParticipants = (
       const seasonalAbility =
         (Number.isFinite(npc.ability) ? (npc.ability as number) : npc.basePower * npc.form) +
         randomNoise(rng, Math.max(0.8, npc.volatility * 0.45));
+      const isPlayer = npc.id === PLAYER_ACTOR_ID;
       return {
         id: npc.id,
         shikona,
-        isPlayer: false,
+        isPlayer,
         stableId,
         rankScore: npc.rankScore,
         power: clamp(seasonalPower, range.min, range.max),
@@ -236,6 +240,8 @@ const createDivisionParticipants = (
         weightKg: npc.weightKg,
         wins: 0,
         losses: 0,
+        currentWinStreak: 0,
+        currentLossStreak: 0,
         expectedWins: 0,
         opponentAbilityTotal: 0,
         boutsSimulated: 0,
@@ -291,6 +297,8 @@ const toDivisionParticipants = (
     weightKg: participant.weightKg,
     wins: participant.wins,
     losses: participant.losses,
+    currentWinStreak: participant.currentWinStreak,
+    currentLossStreak: participant.currentLossStreak,
     expectedWins: participant.expectedWins,
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
@@ -433,10 +441,11 @@ const buildDivisionParticipantsFromSnapshot = (
   const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
   const participants: DivisionParticipant[] = world.rosters[division].map((npc) => {
     const snapshot = byId.get(npc.id);
+    const isPlayer = npc.id === PLAYER_ACTOR_ID;
     return {
       id: npc.id,
       shikona: npc.shikona,
-      isPlayer: false,
+      isPlayer,
       stableId: npc.stableId,
       rankScore: npc.rankScore,
       power: npc.basePower * npc.form,
@@ -446,14 +455,16 @@ const buildDivisionParticipantsFromSnapshot = (
       weightKg: npc.weightKg,
       wins: snapshot?.wins ?? 0,
       losses: snapshot?.losses ?? 0,
+      currentWinStreak: 0,
+      currentLossStreak: 0,
       active: npc.active !== false,
     };
   });
 
-  const playerSnapshot = snapshots.find((snapshot) => snapshot.id === 'PLAYER');
-  if (playerSnapshot) {
+  const playerSnapshot = snapshots.find((snapshot) => snapshot.id === PLAYER_ACTOR_ID);
+  if (playerSnapshot && !participants.some((participant) => participant.id === PLAYER_ACTOR_ID)) {
     participants.push({
-      id: playerSnapshot.id,
+      id: PLAYER_ACTOR_ID,
       shikona: playerSnapshot.shikona,
       isPlayer: true,
       stableId: playerSnapshot.stableId,
@@ -465,6 +476,8 @@ const buildDivisionParticipantsFromSnapshot = (
       weightKg: 130,
       wins: playerSnapshot.wins,
       losses: playerSnapshot.losses,
+      currentWinStreak: 0,
+      currentLossStreak: 0,
       active: true,
     });
   }
@@ -499,7 +512,7 @@ const mergePlayerRecord = (
     return baseResults;
   }
   const wins = playerRecord.wins;
-  const losses = playerRecord.losses + playerRecord.absent;
+  const losses = playerRecord.losses;
   const playerSnapshot: BoundarySnapshot = {
     id: 'PLAYER',
     shikona: playerRecord.shikona,
@@ -512,12 +525,205 @@ const mergePlayerRecord = (
   return baseResults.filter((result) => result.id !== 'PLAYER').concat(playerSnapshot);
 };
 
+const resolveDivisionOrderIndex = (division: LowerDivision): number =>
+  division === 'Makushita'
+    ? 0
+    : division === 'Sandanme'
+      ? 1
+      : division === 'Jonidan'
+        ? 2
+        : 3;
+
+const deriveExchangesFromPlacements = (
+  before: Record<LowerDivision, BoundarySnapshot[]>,
+  placements: ReturnType<typeof resolveLowerDivisionPlacements>['placements'],
+): Record<LowerBoundaryId, LowerBoundaryExchange> => {
+  const beforeDivisionById = new Map<string, LowerDivision>();
+  for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
+    for (const row of before[division]) {
+      beforeDivisionById.set(row.id, division);
+    }
+  }
+  const afterDivisionById = new Map(placements.map((placement) => [placement.id, placement.division]));
+
+  const resolveBoundary = (
+    upper: LowerDivision,
+    lower: LowerDivision,
+  ): LowerBoundaryExchange => {
+    const promotedToUpperIds: string[] = [];
+    const demotedToLowerIds: string[] = [];
+    for (const [id, beforeDivision] of beforeDivisionById.entries()) {
+      const afterDivision = afterDivisionById.get(id);
+      if (!afterDivision) continue;
+      if (beforeDivision === lower && afterDivision === upper) promotedToUpperIds.push(id);
+      if (beforeDivision === upper && afterDivision === lower) demotedToLowerIds.push(id);
+    }
+    const slots = Math.min(promotedToUpperIds.length, demotedToLowerIds.length);
+    return {
+      slots,
+      promotedToUpperIds,
+      demotedToLowerIds,
+      playerPromotedToUpper: promotedToUpperIds.includes(PLAYER_ACTOR_ID),
+      playerDemotedToLower: demotedToLowerIds.includes(PLAYER_ACTOR_ID),
+      reason: 'NORMAL',
+    };
+  };
+
+  return {
+    MakushitaSandanme: resolveBoundary('Makushita', 'Sandanme'),
+    SandanmeJonidan: resolveBoundary('Sandanme', 'Jonidan'),
+    JonidanJonokuchi: resolveBoundary('Jonidan', 'Jonokuchi'),
+  };
+};
+
+const buildPlacementTrace = (
+  before: Record<LowerDivision, BoundarySnapshot[]>,
+  placements: ReturnType<typeof resolveLowerDivisionPlacements>['placements'],
+): LowerDivisionPlacementTraceRow[] => {
+  const orderedDivisions: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
+  const divisionOffsets: Record<LowerDivision, number> = {
+    Makushita: 0,
+    Sandanme: 0,
+    Jonidan: 0,
+    Jonokuchi: 0,
+  };
+  let cursor = 0;
+  for (const division of orderedDivisions) {
+    divisionOffsets[division] = cursor;
+    cursor += before[division].length;
+  }
+
+  const toRankFromScore = (division: LowerDivision, rankScore: number): Rank => ({
+    division,
+    name: resolveLowerRankName(division),
+    number: Math.floor((Math.max(1, rankScore) - 1) / 2) + 1,
+    side: Math.max(1, rankScore) % 2 === 1 ? 'East' : 'West',
+  });
+
+  const beforeById = new Map<
+    string,
+    { shikona: string; division: LowerDivision; rankScore: number; wins: number; losses: number }
+  >();
+  for (const division of orderedDivisions) {
+    for (const row of before[division]) {
+      beforeById.set(row.id, {
+        shikona: row.shikona,
+        division,
+        rankScore: row.rankScore,
+        wins: row.wins,
+        losses: row.losses,
+      });
+    }
+  }
+  const afterById = new Map(placements.map((placement) => [placement.id, placement]));
+
+  const rows: LowerDivisionPlacementTraceRow[] = [];
+  for (const [id, row] of beforeById.entries()) {
+    const after = afterById.get(id);
+    const afterDivision = after?.division ?? row.division;
+    const afterRankScore = after?.rankScore ?? row.rankScore;
+    const absent = Math.max(0, 7 - (row.wins + row.losses));
+    rows.push({
+      id,
+      shikona: row.shikona,
+      wins: row.wins,
+      losses: row.losses,
+      absent,
+      scoreDiff: row.wins - row.losses,
+      beforeRank: toRankFromScore(row.division, row.rankScore),
+      afterRank: after?.rank ?? toRankFromScore(afterDivision, afterRankScore),
+      beforeGlobalSlot: divisionOffsets[row.division] + row.rankScore,
+      afterGlobalSlot: divisionOffsets[afterDivision] + afterRankScore,
+    });
+  }
+
+  return rows.sort((a, b) => a.beforeGlobalSlot - b.beforeGlobalSlot);
+};
+
+const applyLowerDivisionPlacements = (
+  world: LowerDivisionQuotaWorld,
+  placements: ReturnType<typeof resolveLowerDivisionPlacements>['placements'],
+): void => {
+  if (!placements.length) return;
+  const npcById = new Map(
+    (['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const).flatMap((division) =>
+      world.rosters[division].map((npc) => [npc.id, npc] as const)),
+  );
+  const nextRosters: Record<LowerDivision, LowerNpc[]> = {
+    Makushita: [],
+    Sandanme: [],
+    Jonidan: [],
+    Jonokuchi: [],
+  };
+  const assignedIds = new Set<string>();
+
+  for (const placement of placements.slice().sort((a, b) => {
+    const divisionCmp = resolveDivisionOrderIndex(a.division) - resolveDivisionOrderIndex(b.division);
+    if (divisionCmp !== 0) return divisionCmp;
+    if (a.rankScore !== b.rankScore) return a.rankScore - b.rankScore;
+    return a.id.localeCompare(b.id);
+  })) {
+    if (placement.id === PLAYER_ACTOR_ID) continue;
+    const npc = npcById.get(placement.id);
+    if (!npc) continue;
+    assignedIds.add(placement.id);
+    nextRosters[placement.division].push({
+      ...npc,
+      division: placement.division,
+      currentDivision: placement.division,
+      rankScore: placement.rankScore,
+    });
+  }
+
+  for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
+    for (const npc of world.rosters[division]) {
+      if (assignedIds.has(npc.id)) continue;
+      nextRosters[division].push({
+        ...npc,
+        division,
+        currentDivision: division,
+      });
+    }
+  }
+
+  for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
+    world.rosters[division] = nextRosters[division]
+      .slice()
+      .sort((a, b) => {
+        if (a.rankScore !== b.rankScore) return a.rankScore - b.rankScore;
+        return a.id.localeCompare(b.id);
+      })
+      .map((npc, index) => ({
+        ...npc,
+        rankScore: index + 1,
+        division,
+        currentDivision: division,
+      }));
+    for (const npc of world.rosters[division]) {
+      const persistent = world.npcRegistry.get(npc.id);
+      if (!persistent) continue;
+      persistent.division = division;
+      persistent.currentDivision = division;
+      persistent.rankScore = npc.rankScore;
+      persistent.basePower = npc.basePower;
+      persistent.ability = npc.ability ?? persistent.ability;
+      persistent.uncertainty = npc.uncertainty ?? persistent.uncertainty;
+      persistent.volatility = npc.volatility;
+      persistent.form = npc.form;
+      persistent.styleBias = npc.styleBias ?? persistent.styleBias;
+      persistent.heightCm = npc.heightCm ?? persistent.heightCm;
+      persistent.weightKg = npc.weightKg ?? persistent.weightKg;
+    }
+  }
+};
+
 export const runLowerDivisionQuotaStep = (
   world: LowerDivisionQuotaWorld,
   rng: RandomSource,
   playerRecord?: PlayerLowerRecord,
   precomputedLeagueResults?: LowerLeagueSnapshots,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): Record<LowerBoundaryId, LowerBoundaryExchange> => {
   promoteMaezumoToJonokuchi(world, rng);
   const lowerLeagueRaw =
@@ -532,7 +738,6 @@ export const runLowerDivisionQuotaStep = (
     Jonidan: world.rosters.Jonidan.length,
     Jonokuchi: world.rosters.Jonokuchi.length,
   };
-
   const results: Record<LowerDivision, BoundarySnapshot[]> = {
     Makushita: mergePlayerRecord(lowerLeagueRaw.Makushita, 'Makushita', playerRecord, slotsByDivision),
     Sandanme: mergePlayerRecord(lowerLeagueRaw.Sandanme, 'Sandanme', playerRecord, slotsByDivision),
@@ -547,18 +752,15 @@ export const runLowerDivisionQuotaStep = (
   };
 
   world.lastResults = results;
-  for (const spec of LOWER_BOUNDARIES) {
-    world.lastExchanges[spec.id] = resolveBoundaryExchange(
-      spec,
-      results[spec.upper],
-      results[spec.lower],
-    );
-  }
-  world.lastPlayerAssignedRank = resolveLowerAssignedNextRank(
+  const placementResolution = resolveLowerDivisionPlacements(
     results,
-    world.lastExchanges,
     playerRecord,
+    banzukeEngineVersion,
   );
+  world.lastPlacementTrace = buildPlacementTrace(results, placementResolution.placements);
+  applyLowerDivisionPlacements(world, placementResolution.placements);
+  world.lastExchanges = deriveExchangesFromPlacements(results, placementResolution.placements);
+  world.lastPlayerAssignedRank = placementResolution.playerAssignedRank;
 
   return world.lastExchanges;
 };
@@ -567,32 +769,44 @@ export const resolveLowerDivisionQuotaForPlayer = (
   world: LowerDivisionQuotaWorld,
   rank: Rank,
 ): PlayerLowerDivisionQuota | undefined => {
+  const assigned = world.lastPlayerAssignedRank;
+  const assignPromote =
+    assigned &&
+    ((rank.division === 'Sandanme' && assigned.division === 'Makushita') ||
+      (rank.division === 'Jonidan' && assigned.division === 'Sandanme') ||
+      (rank.division === 'Jonokuchi' && assigned.division === 'Jonidan'));
+  const assignDemote =
+    assigned &&
+    ((rank.division === 'Makushita' && assigned.division === 'Sandanme') ||
+      (rank.division === 'Sandanme' && assigned.division === 'Jonidan') ||
+      (rank.division === 'Jonidan' && assigned.division === 'Jonokuchi'));
+
   if (rank.division === 'Makushita') {
     return {
-      canDemoteToSandanme: world.lastExchanges.MakushitaSandanme.playerDemotedToLower,
+      canDemoteToSandanme: assignDemote || world.lastExchanges.MakushitaSandanme.playerDemotedToLower,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Makushita,
       assignedNextRank: world.lastPlayerAssignedRank,
     };
   }
   if (rank.division === 'Sandanme') {
     return {
-      canPromoteToMakushita: world.lastExchanges.MakushitaSandanme.playerPromotedToUpper,
-      canDemoteToJonidan: world.lastExchanges.SandanmeJonidan.playerDemotedToLower,
+      canPromoteToMakushita: assignPromote || world.lastExchanges.MakushitaSandanme.playerPromotedToUpper,
+      canDemoteToJonidan: assignDemote || world.lastExchanges.SandanmeJonidan.playerDemotedToLower,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Sandanme,
       assignedNextRank: world.lastPlayerAssignedRank,
     };
   }
   if (rank.division === 'Jonidan') {
     return {
-      canPromoteToSandanme: world.lastExchanges.SandanmeJonidan.playerPromotedToUpper,
-      canDemoteToJonokuchi: world.lastExchanges.JonidanJonokuchi.playerDemotedToLower,
+      canPromoteToSandanme: assignPromote || world.lastExchanges.SandanmeJonidan.playerPromotedToUpper,
+      canDemoteToJonokuchi: assignDemote || world.lastExchanges.JonidanJonokuchi.playerDemotedToLower,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Jonidan,
       assignedNextRank: world.lastPlayerAssignedRank,
     };
   }
   if (rank.division === 'Jonokuchi') {
     return {
-      canPromoteToJonidan: world.lastExchanges.JonidanJonokuchi.playerPromotedToUpper,
+      canPromoteToJonidan: assignPromote || world.lastExchanges.JonidanJonokuchi.playerPromotedToUpper,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Jonokuchi,
       assignedNextRank: world.lastPlayerAssignedRank,
     };

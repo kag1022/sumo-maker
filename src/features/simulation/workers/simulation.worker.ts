@@ -10,6 +10,7 @@ import {
   discardDraftCareer,
   markCareerCompleted,
 } from '../../../logic/persistence/repository';
+import { normalizeNewRunModelVersion } from '../../../logic/simulation/modelVersion';
 
 let engine: ReturnType<typeof createSimulationEngine> | null = null;
 let activeCareerId: string | null = null;
@@ -107,6 +108,7 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
 
   if (message.type === 'START') {
     const { careerId, initialStats, oyakata, simulationModelVersion } = message.payload;
+    const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
 
     paused = false;
     stopped = false;
@@ -116,7 +118,7 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
       oyakata,
       careerId,
       banzukeMode: 'SIMULATE',
-      simulationModelVersion,
+      simulationModelVersion: normalizedModelVersion,
     });
     void runLoop();
     return;

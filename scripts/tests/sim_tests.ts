@@ -1,13 +1,13 @@
 import { calculateBattleResult, EnemyStats, generateEnemy } from '../../src/logic/battle';
 import { applyGrowth } from '../../src/logic/growth';
-import {
-  BashoRecordSnapshot,
-  calculateNextRank,
-  generateNextBanzuke,
-  resolveLowerRangeDeltaByScore,
-  resolveSekitoriDeltaBand,
-} from '../../src/logic/ranking';
-import { LIMITS } from '../../src/logic/ranking/rankLimits';
+import { calculateNextRank } from '../../src/logic/banzuke/rules/singleRankChange';
+import { generateNextBanzuke } from '../../src/logic/banzuke/providers/topDivision';
+import { BashoRecordSnapshot } from '../../src/logic/banzuke/providers/sekitori/types';
+import { resolveLowerRangeDeltaByScore } from '../../src/logic/banzuke/rules/lowerDivision';
+import { resolveSekitoriDeltaBand } from '../../src/logic/banzuke/providers/sekitori/bands';
+import { resolveTopDirective } from '../../src/logic/banzuke/providers/sekitori/directives';
+import { scoreTopDivisionCandidate } from '../../src/logic/banzuke/providers/sekitori/scoring';
+import { LIMITS } from '../../src/logic/banzuke/scale/rankLimits';
 import { runSimulation } from '../../src/logic/simulation/runner';
 import { PlayerBoutDetail, runBasho, runBashoDetailed } from '../../src/logic/simulation/basho';
 import { resolveYushoResolution } from '../../src/logic/simulation/yusho';
@@ -15,11 +15,23 @@ import {
   BashoStepResult,
   SimulationStepResult,
   createSimulationEngine,
+  resolveBoundaryAssignedRankForCurrentDivision,
 } from '../../src/logic/simulation/engine';
 import { createInitialNpcUniverse } from '../../src/logic/simulation/npc/factory';
 import { intakeNewNpcRecruits } from '../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../src/logic/simulation/npc/leagueReconcile';
-import { countActiveByStable, NPC_STABLE_CATALOG } from '../../src/logic/simulation/npc/stableCatalog';
+import {
+  countActiveByStable,
+  NPC_STABLE_CATALOG,
+  resolveIchimonByStableId,
+} from '../../src/logic/simulation/npc/stableCatalog';
+import {
+  createNpcNameContext,
+  generateUniqueNpcShikona,
+  isSurnameShikona,
+  normalizeShikona,
+} from '../../src/logic/simulation/npc/npcShikonaGenerator';
+import { ActorRegistry, PersistentActor } from '../../src/logic/simulation/npc/types';
 import {
   createSekitoriBoundaryWorld,
   resolveSekitoriQuotaForPlayer,
@@ -45,14 +57,17 @@ import {
   EMPTY_EXCHANGE as EMPTY_LOWER_EXCHANGE,
   LOWER_BOUNDARIES,
 } from '../../src/logic/simulation/lower/types';
-import { resolveExpectedSlotBand } from '../../src/logic/ranking/expected/slotBands';
-import { resolveLowerAssignedNextRank } from '../../src/logic/ranking/lowerCommittee';
+import { resolveExpectedSlotBand } from '../../src/logic/banzuke/providers/expected/slotBands';
+import { resolveLowerAssignedNextRank } from '../../src/logic/banzuke/providers/lowerBoundary';
+import { resolveSekitoriBoundaryAssignedRank } from '../../src/logic/banzuke/providers/sekitoriBoundary';
 import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
   createSimulationWorld,
   resolveTopDivisionQuotaForPlayer,
+  syncPlayerActorInWorld,
 } from '../../src/logic/simulation/world';
+import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../src/logic/simulation/sekitori/types';
 import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
 import { BashoRecord, Rank, RikishiStatus, Trait } from '../../src/logic/models';
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb';
@@ -99,6 +114,12 @@ import {
 import {
   runLogicLabToEnd,
 } from '../../src/features/logicLab/runner';
+import {
+  calculateMomentumBonus,
+  resolvePlayerAbility,
+  resolveRankBaselineAbility,
+} from '../../src/logic/simulation/strength/model';
+import { updateAbilityAfterBasho } from '../../src/logic/simulation/strength/update';
 
 (globalThis as unknown as { indexedDB: typeof indexedDB }).indexedDB = indexedDB;
 (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
@@ -227,14 +248,20 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
   return base;
 };
 
-const createBashoRecord = (rank: Rank, wins: number, losses: number, absent = 0): BashoRecord => ({
+const createBashoRecord = (
+  rank: Rank,
+  wins: number,
+  losses: number,
+  absent = 0,
+  yusho = false,
+): BashoRecord => ({
   year: 2026,
   month: 1,
   rank,
   wins,
   losses,
   absent,
-  yusho: false,
+  yusho,
   specialPrizes: [],
 });
 
@@ -351,6 +378,53 @@ const lcg = (seed: number): (() => number) => {
   };
 };
 
+const createMockActor = (
+  id: string,
+  shikona: string,
+  division: PersistentActor['division'],
+  stableId = 'stable-001',
+): PersistentActor => ({
+  actorId: id,
+  actorType: id === 'PLAYER' ? 'PLAYER' : 'NPC',
+  id,
+  seedId: id,
+  shikona,
+  stableId,
+  division,
+  currentDivision: division,
+  rankScore: 1,
+  basePower: 70,
+  ability: 70,
+  uncertainty: 1.4,
+  form: 1,
+  volatility: 1.2,
+  styleBias: 'BALANCE',
+  heightCm: 182,
+  weightKg: 140,
+  growthBias: 0,
+  retirementBias: 0,
+  entryAge: 18,
+  age: 18,
+  careerBashoCount: 0,
+  active: true,
+  entrySeq: 0,
+  recentBashoResults: [],
+});
+
+const assertActiveShikonaUnique = (
+  registry: ActorRegistry,
+  context: string,
+): void => {
+  const active = [...registry.values()].filter((actor) => actor.active);
+  const normalized = active.map((actor) => normalizeShikona(actor.shikona));
+  const unique = new Set(normalized);
+  assert.equal(
+    unique.size,
+    normalized.length,
+  );
+  assert.ok(unique.size === normalized.length, `duplicate shikona detected in ${context}`);
+};
+
 const createTorikumiParticipant = (
   id: string,
   division: TorikumiParticipant['division'],
@@ -443,6 +517,13 @@ const createScoutDraft = (overrides: Partial<ScoutDraft> = {}): ScoutDraft => {
     traitSlots: baseSlots,
     traits: baseTraits,
     traitSlotDrafts: buildScoutTraitSlotDrafts(baseSlots, baseTraits),
+    genomeDraft: {
+      base: { powerCeiling: 55, techCeiling: 55, speedCeiling: 55, ringSense: 50, styleFit: 50 },
+      growth: { maturationAge: 26, peakLength: 5, lateCareerDecay: 1.0, adaptability: 50 },
+      durability: { baseInjuryRisk: 1.0, partVulnerability: {}, recoveryRate: 1.0, chronicResistance: 50 },
+      variance: { formVolatility: 50, clutchBias: 0, slumpRecovery: 50, streakSensitivity: 50 },
+    },
+    genomeBudget: 200,
   };
   const merged = {
     ...baseDraft,
@@ -543,39 +624,304 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'battle: legacy-v6 and realism-v1 resolve different win probabilities',
+    name: 'battle: unified win probability stays inside hard clamp',
     run: () => {
-      const rikishi = createStatus({
+      const strong = createStatus({
         stats: {
-          tsuki: 45,
-          oshi: 45,
-          kumi: 45,
-          nage: 45,
-          koshi: 45,
-          deashi: 45,
-          waza: 45,
-          power: 45,
+          tsuki: 120,
+          oshi: 120,
+          kumi: 120,
+          nage: 120,
+          koshi: 120,
+          deashi: 120,
+          waza: 120,
+          power: 120,
         },
         ratingState: {
-          ability: 145,
+          ability: 170,
           form: 0,
-          uncertainty: 1.8,
+          uncertainty: 1,
+        },
+      });
+      const weak = createStatus({
+        stats: {
+          tsuki: 20,
+          oshi: 20,
+          kumi: 20,
+          nage: 20,
+          koshi: 20,
+          deashi: 20,
+          waza: 20,
+          power: 20,
+        },
+        ratingState: {
+          ability: 45,
+          form: 0,
+          uncertainty: 1,
+        },
+      });
+
+      const weakEnemy: EnemyStats = {
+        shikona: '弱敵',
+        rankValue: 6,
+        power: 32,
+        ability: 30,
+        heightCm: 176,
+        weightKg: 108,
+      };
+      const strongEnemy: EnemyStats = {
+        shikona: '強敵',
+        rankValue: 1,
+        power: 180,
+        ability: 46,
+        heightCm: 194,
+        weightKg: 188,
+      };
+
+      const high = calculateBattleResult(strong, weakEnemy, undefined, () => 0.5);
+      const low = calculateBattleResult(weak, strongEnemy, undefined, () => 0.5);
+
+      assert.ok(high.winProbability >= 0.03 && high.winProbability <= 0.97);
+      assert.ok(low.winProbability >= 0.03 && low.winProbability <= 0.97);
+    },
+  },
+  {
+    name: 'battle: stronger stats monotonically raise unified win probability',
+    run: () => {
+      const low = createStatus({
+        stats: {
+          tsuki: 40,
+          oshi: 40,
+          kumi: 40,
+          nage: 40,
+          koshi: 40,
+          deashi: 40,
+          waza: 40,
+          power: 40,
+        },
+        ratingState: {
+          ability: 88,
+          form: 0,
+          uncertainty: 1.2,
+        },
+      });
+      const high = createStatus({
+        stats: {
+          tsuki: 70,
+          oshi: 70,
+          kumi: 70,
+          nage: 70,
+          koshi: 70,
+          deashi: 70,
+          waza: 70,
+          power: 70,
+        },
+        ratingState: {
+          ability: 118,
+          form: 0,
+          uncertainty: 1.2,
         },
       });
       const enemy: EnemyStats = {
-        shikona: '分岐敵',
-        rankValue: 6,
-        power: 112,
-        ability: 46,
-        heightCm: 186,
-        weightKg: 152,
+        shikona: '同格敵',
+        rankValue: 5,
+        power: 96,
+        ability: 96,
+        heightCm: 184,
+        weightKg: 150,
       };
-      const legacy = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'legacy-v6');
-      const realism = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'realism-v1');
-      assert.ok(
-        realism.winProbability > legacy.winProbability + 0.25,
-        `Expected realism winProbability to exceed legacy by 0.25+, got legacy=${legacy.winProbability}, realism=${realism.winProbability}`,
+
+      const lowResult = calculateBattleResult(low, enemy, undefined, () => 0.5);
+      const highResult = calculateBattleResult(high, enemy, undefined, () => 0.5);
+      assert.ok(highResult.winProbability > lowResult.winProbability);
+    },
+  },
+  {
+    name: 'battle: momentum bonus is non-linear and spikes from 3-streak',
+    run: () => {
+      const s2 = calculateMomentumBonus(2);
+      const s3 = calculateMomentumBonus(3);
+      const s4 = calculateMomentumBonus(4);
+      const s5 = calculateMomentumBonus(5);
+      const l5 = calculateMomentumBonus(-5);
+
+      assert.ok(s2 > 0);
+      assert.ok(s3 > s2);
+      assert.ok((s4 - s3) > (s3 - s2), 'Expected acceleration from 3-streak');
+      assert.ok((s5 - s4) > (s4 - s3), 'Expected further acceleration at high streak');
+      assert.ok(l5 < 0 && Math.abs(l5) > s3);
+    },
+  },
+  {
+    name: 'battle: momentum streak context widens win probability spread',
+    run: () => {
+      const status = createStatus({
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 7 },
+        stats: {
+          tsuki: 68,
+          oshi: 66,
+          kumi: 64,
+          nage: 62,
+          koshi: 67,
+          deashi: 66,
+          waza: 63,
+          power: 69,
+        },
+      });
+      const enemy: EnemyStats = {
+        shikona: '勢い検証敵',
+        rankValue: 6,
+        power: 98,
+        ability: 98,
+        heightCm: 186,
+        weightKg: 148,
+      };
+      const neutral = calculateBattleResult(
+        status,
+        enemy,
+        {
+          day: 9,
+          currentWins: 4,
+          currentLosses: 4,
+          consecutiveWins: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 0,
+          opponentWinStreak: 0,
+          opponentLossStreak: 0,
+          isLastDay: false,
+          isYushoContention: false,
+          previousResult: 'WIN',
+        },
+        () => 0.5,
       );
+      const hot = calculateBattleResult(
+        status,
+        enemy,
+        {
+          day: 9,
+          currentWins: 6,
+          currentLosses: 2,
+          consecutiveWins: 4,
+          currentWinStreak: 4,
+          currentLossStreak: 0,
+          opponentWinStreak: 0,
+          opponentLossStreak: 3,
+          isLastDay: false,
+          isYushoContention: false,
+          previousResult: 'WIN',
+        },
+        () => 0.5,
+      );
+      const cold = calculateBattleResult(
+        status,
+        enemy,
+        {
+          day: 9,
+          currentWins: 2,
+          currentLosses: 6,
+          consecutiveWins: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 4,
+          opponentWinStreak: 3,
+          opponentLossStreak: 0,
+          isLastDay: false,
+          isYushoContention: false,
+          previousResult: 'LOSS',
+        },
+        () => 0.5,
+      );
+
+      assert.ok(hot.winProbability > neutral.winProbability);
+      assert.ok(neutral.winProbability > cold.winProbability);
+      assert.ok(hot.winProbability - cold.winProbability > 0.2);
+    },
+  },
+  {
+    name: 'battle: trait bonus is capped in unified ability resolver',
+    run: () => {
+      const status = createStatus({
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
+        ratingState: {
+          ability: 120,
+          form: 0,
+          uncertainty: 1.1,
+        },
+      });
+      const fallbackBody = status.bodyMetrics ?? { heightCm: 182, weightKg: 140 };
+      const base = resolvePlayerAbility(status, fallbackBody, 0);
+      const boosted = resolvePlayerAbility(status, fallbackBody, 999);
+      const dropped = resolvePlayerAbility(status, fallbackBody, -999);
+      const capDelta = 12 * 0.85;
+
+      assert.ok(Math.abs((boosted - base) - capDelta) < 1e-6);
+      assert.ok(Math.abs((base - dropped) - capDelta) < 1e-6);
+    },
+  },
+  {
+    name: 'rating: actual wins above expected increases ability',
+    run: () => {
+      const next = updateAbilityAfterBasho({
+        current: {
+          ability: 100,
+          form: 0,
+          uncertainty: 1.1,
+        },
+        actualWins: 10,
+        expectedWins: 7,
+        age: 24,
+        careerBashoCount: 24,
+        currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
+      });
+
+      assert.ok(
+        next.ability > 100,
+        `Expected ability increase when actual > expected, got ${next.ability}`,
+      );
+    },
+  },
+  {
+    name: 'rating: actual wins below expected decreases ability',
+    run: () => {
+      const next = updateAbilityAfterBasho({
+        current: {
+          ability: 100,
+          form: 0,
+          uncertainty: 1.1,
+        },
+        actualWins: 5,
+        expectedWins: 8,
+        age: 24,
+        careerBashoCount: 24,
+        currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
+      });
+
+      assert.ok(
+        next.ability < 100,
+        `Expected ability decrease when actual < expected, got ${next.ability}`,
+      );
+    },
+  },
+  {
+    name: 'rating: mean reversion pulls ability toward rank baseline',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 40 };
+      const baseline = resolveRankBaselineAbility(rank);
+      const currentAbility = baseline + 28;
+      const next = updateAbilityAfterBasho({
+        current: {
+          ability: currentAbility,
+          form: 0,
+          uncertainty: 1.1,
+        },
+        actualWins: 4,
+        expectedWins: 4,
+        age: 25,
+        careerBashoCount: 80,
+        currentRank: rank,
+      });
+
+      assert.ok(next.ability < currentAbility);
+      assert.ok(next.ability > baseline);
     },
   },
   {
@@ -868,6 +1214,61 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: npc/player ozeki gate parity on eligible 33-win sanyaku chain',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const komusubi: Rank = { division: 'Makuuchi', name: '小結', side: 'West' };
+      const current = createBashoRecord(sekiwake, 11, 4);
+      const prev1 = createBashoRecord(sekiwake, 11, 4);
+      const prev2 = createBashoRecord(komusubi, 11, 4);
+
+      const player = calculateNextRank(current, [prev1, prev2], false, () => 0.5);
+      assert.equal(player.nextRank.name, '大関');
+
+      const npcDirective = resolveTopDirective({
+        id: 'NPC-1',
+        shikona: '検証山',
+        rank: sekiwake,
+        wins: 11,
+        losses: 4,
+        absent: 0,
+        pastRecords: [
+          { rank: sekiwake, wins: 11, losses: 4, absent: 0 },
+          { rank: komusubi, wins: 11, losses: 4, absent: 0 },
+        ],
+      });
+      assert.equal(npcDirective.preferredTopName, '大関');
+    },
+  },
+  {
+    name: 'ranking: npc/player ozeki gate parity blocks maegashira-included chain',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const komusubi: Rank = { division: 'Makuuchi', name: '小結', side: 'West' };
+      const maegashira: Rank = { division: 'Makuuchi', name: '前頭', number: 2, side: 'East' };
+      const current = createBashoRecord(sekiwake, 12, 3);
+      const prev1 = createBashoRecord(komusubi, 11, 4);
+      const prev2 = createBashoRecord(maegashira, 12, 3);
+
+      const player = calculateNextRank(current, [prev1, prev2], false, () => 0.5);
+      assert.ok(player.nextRank.name !== '大関');
+
+      const npcDirective = resolveTopDirective({
+        id: 'NPC-2',
+        shikona: '検証海',
+        rank: sekiwake,
+        wins: 12,
+        losses: 3,
+        absent: 0,
+        pastRecords: [
+          { rank: komusubi, wins: 11, losses: 4, absent: 0 },
+          { rank: maegashira, wins: 12, losses: 3, absent: 0 },
+        ],
+      });
+      assert.ok(npcDirective.preferredTopName !== '大関');
+    },
+  },
+  {
     name: 'simulation: sekitori basho record totals 15 bouts',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1107,77 +1508,110 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: lower quota can block makushita to sandanme demotion',
+    name: 'ranking: lower quota demotion flag is advisory (makushita makekoshi)',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 60 };
-      const result = calculateNextRank(
+      const baseline = calculateNextRank(
+        createBashoRecord(makushita, 0, 7),
+        [],
+        false,
+        () => 0.5,
+      );
+      const flagged = calculateNextRank(
         createBashoRecord(makushita, 0, 7),
         [],
         false,
         () => 0.5,
         { lowerDivisionQuota: { canDemoteToSandanme: false } },
       );
-      assert.equal(result.nextRank.division, 'Makushita');
-      assert.equal(result.nextRank.name, '幕下');
+      assert.equal(flagged.nextRank.division, baseline.nextRank.division);
+      assert.equal(flagged.nextRank.name, baseline.nextRank.name);
+      assert.equal(flagged.nextRank.number, baseline.nextRank.number);
+      assert.equal(flagged.nextRank.side, baseline.nextRank.side);
     },
   },
   {
-    name: 'ranking: makushita full absence follows same lower quota block as full losses',
+    name: 'ranking: lower quota demotion flag is advisory (makushita full absence)',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 60 };
-      const result = calculateNextRank(
+      const baseline = calculateNextRank(
+        createBashoRecord(makushita, 0, 0, 7),
+        [],
+        false,
+        () => 0.5,
+      );
+      const flagged = calculateNextRank(
         createBashoRecord(makushita, 0, 0, 7),
         [],
         false,
         () => 0.5,
         { lowerDivisionQuota: { canDemoteToSandanme: false } },
       );
-      assert.equal(result.nextRank.division, 'Makushita');
+      assert.equal(flagged.nextRank.division, baseline.nextRank.division);
+      assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
   {
-    name: 'ranking: lower quota can block sandanme to makushita promotion',
+    name: 'ranking: lower quota promotion flag is advisory (sandanme kachikoshi)',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 3 };
-      const result = calculateNextRank(
+      const baseline = calculateNextRank(
+        createBashoRecord(sandanme, 6, 1),
+        [],
+        false,
+        () => 0.5,
+      );
+      const flagged = calculateNextRank(
         createBashoRecord(sandanme, 6, 1),
         [],
         false,
         () => 0.5,
         { lowerDivisionQuota: { canPromoteToMakushita: false } },
       );
-      assert.equal(result.nextRank.division, 'Sandanme');
-      assert.equal(result.nextRank.name, '三段目');
+      assert.equal(flagged.nextRank.division, baseline.nextRank.division);
+      assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
   {
-    name: 'ranking: sandanme head kachikoshi is blocked when lower quota says no slot',
+    name: 'ranking: lower quota promotion flag is advisory (sandanme head kachikoshi)',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 1 };
-      const result = calculateNextRank(
+      const baseline = calculateNextRank(
+        createBashoRecord(sandanme, 4, 3),
+        [],
+        false,
+        () => 0.5,
+      );
+      const flagged = calculateNextRank(
         createBashoRecord(sandanme, 4, 3),
         [],
         false,
         () => 0.5,
         { lowerDivisionQuota: { canPromoteToMakushita: false } },
       );
-      assert.equal(result.nextRank.division, 'Sandanme');
-      assert.equal(result.nextRank.name, '三段目');
+      assert.equal(flagged.nextRank.division, baseline.nextRank.division);
+      assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
   {
-    name: 'ranking: lower quota can block jonidan to jonokuchi demotion',
+    name: 'ranking: lower quota demotion flag is advisory (jonidan makekoshi)',
     run: () => {
       const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'East', number: 100 };
-      const result = calculateNextRank(
+      const baseline = calculateNextRank(
+        createBashoRecord(jonidan, 0, 7),
+        [],
+        false,
+        () => 0.5,
+      );
+      const flagged = calculateNextRank(
         createBashoRecord(jonidan, 0, 7),
         [],
         false,
         () => 0.5,
         { lowerDivisionQuota: { canDemoteToJonokuchi: false } },
       );
-      assert.equal(result.nextRank.division, 'Jonidan');
-      assert.equal(result.nextRank.name, '序二段');
+      assert.equal(flagged.nextRank.division, baseline.nextRank.division);
+      assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
   {
@@ -1364,6 +1798,213 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'quota: sekitori boundary never promotes makekoshi player from makushita',
+    run: () => {
+      const juryoResults: SekitoriBoundarySnapshot[] = [
+        {
+          id: 'Juryo-1',
+          shikona: '十両壱',
+          isPlayer: false,
+          stableId: 'j-1',
+          rankScore: 27,
+          wins: 5,
+          losses: 10,
+        },
+      ];
+      const makushitaResults: SekitoriBoundarySnapshot[] = [
+        {
+          id: 'PLAYER',
+          shikona: '試験山',
+          isPlayer: true,
+          stableId: 'player-heya',
+          rankScore: 1,
+          wins: 3,
+          losses: 4,
+        },
+        {
+          id: 'Makushita-1',
+          shikona: '幕下壱',
+          isPlayer: false,
+          stableId: 'm-1',
+          rankScore: 2,
+          wins: 6,
+          losses: 1,
+        },
+      ];
+      const assigned = resolveSekitoriBoundaryAssignedRank(
+        juryoResults,
+        makushitaResults,
+        {
+          slots: 1,
+          promotedToJuryoIds: ['PLAYER'],
+          demotedToMakushitaIds: ['Juryo-1'],
+          playerPromotedToJuryo: true,
+          playerDemotedToMakushita: false,
+          reason: 'NORMAL',
+        },
+        false,
+      );
+      assert.ok(Boolean(assigned), 'Expected assigned rank');
+      assert.equal(assigned?.division, 'Makushita');
+      assert.equal(assigned?.name, '幕下');
+    },
+  },
+  {
+    name: 'banzuke scoring: juryo absent never increases candidate score',
+    run: () => {
+      const baseSnapshot: BashoRecordSnapshot = {
+        id: 'J-test',
+        shikona: '十両試験',
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 6 },
+        wins: 8,
+        losses: 7,
+        absent: 0,
+      };
+      const absentSnapshot: BashoRecordSnapshot = {
+        ...baseSnapshot,
+        absent: 5,
+      };
+      const baseScore = scoreTopDivisionCandidate(
+        baseSnapshot,
+        resolveTopDirective(baseSnapshot),
+      );
+      const absentScore = scoreTopDivisionCandidate(
+        absentSnapshot,
+        resolveTopDirective(absentSnapshot),
+      );
+      assert.ok(
+        absentScore <= baseScore,
+        `Expected absent score <= base score, got ${absentScore} > ${baseScore}`,
+      );
+    },
+  },
+  {
+    name: 'quota: optimizer-v1 preserves makekoshi/kachikoshi direction constraints',
+    run: () => {
+      const toBoundarySlot = (rank: Rank): number => {
+        const sideOffset = rank.side === 'West' ? 2 : 1;
+        if (rank.division === 'Juryo') {
+          const number = rank.number ?? 1;
+          return (number - 1) * 2 + sideOffset;
+        }
+        const number = rank.number ?? 1;
+        return 28 + (number - 1) * 2 + sideOffset;
+      };
+
+      const makekoshiCurrentSlot = 9;
+      const makekoshiAssigned = resolveSekitoriBoundaryAssignedRank(
+        [
+          {
+            id: 'PLAYER',
+            shikona: '試験山',
+            isPlayer: true,
+            stableId: 'player',
+            rankScore: makekoshiCurrentSlot,
+            wins: 5,
+            losses: 10,
+          },
+          {
+            id: 'Juryo-1',
+            shikona: '十両壱',
+            isPlayer: false,
+            stableId: 'j-1',
+            rankScore: 10,
+            wins: 8,
+            losses: 7,
+          },
+        ],
+        [
+          {
+            id: 'Makushita-1',
+            shikona: '幕下壱',
+            isPlayer: false,
+            stableId: 'm-1',
+            rankScore: 1,
+            wins: 6,
+            losses: 1,
+          },
+        ],
+        {
+          slots: 1,
+          promotedToJuryoIds: ['Makushita-1'],
+          demotedToMakushitaIds: ['PLAYER'],
+          playerPromotedToJuryo: false,
+          playerDemotedToMakushita: true,
+          reason: 'NORMAL',
+        },
+        false,
+        'optimizer-v1',
+      );
+      assert.ok(Boolean(makekoshiAssigned), 'Expected makekoshi assignment');
+      const makekoshiSlot = toBoundarySlot(makekoshiAssigned ?? {
+        division: 'Juryo',
+        name: '十両',
+        side: 'East',
+        number: 5,
+      });
+      assert.ok(
+        makekoshiSlot >= makekoshiCurrentSlot,
+        `Expected makekoshi slot >= current (${makekoshiCurrentSlot}), got ${makekoshiSlot}`,
+      );
+
+      const kachikoshiCurrentSlot = 34;
+      const kachikoshiAssigned = resolveSekitoriBoundaryAssignedRank(
+        [
+          {
+            id: 'Juryo-1',
+            shikona: '十両壱',
+            isPlayer: false,
+            stableId: 'j-1',
+            rankScore: 28,
+            wins: 4,
+            losses: 11,
+          },
+        ],
+        [
+          {
+            id: 'PLAYER',
+            shikona: '試験山',
+            isPlayer: true,
+            stableId: 'player',
+            rankScore: 6,
+            wins: 5,
+            losses: 2,
+          },
+          {
+            id: 'Makushita-1',
+            shikona: '幕下壱',
+            isPlayer: false,
+            stableId: 'm-1',
+            rankScore: 5,
+            wins: 3,
+            losses: 4,
+          },
+        ],
+        {
+          slots: 1,
+          promotedToJuryoIds: ['PLAYER'],
+          demotedToMakushitaIds: ['Juryo-1'],
+          playerPromotedToJuryo: true,
+          playerDemotedToMakushita: false,
+          reason: 'NORMAL',
+        },
+        false,
+        'optimizer-v1',
+      );
+      assert.ok(Boolean(kachikoshiAssigned), 'Expected kachikoshi assignment');
+      const kachikoshiSlot = toBoundarySlot(kachikoshiAssigned ?? {
+        division: 'Makushita',
+        name: '幕下',
+        side: 'East',
+        number: 3,
+      });
+      assert.ok(
+        kachikoshiSlot <= kachikoshiCurrentSlot,
+        `Expected kachikoshi slot <= current (${kachikoshiCurrentSlot}), got ${kachikoshiSlot}`,
+      );
+    },
+  },
+  {
     name: 'quota: ms1 4-3 forces juryo promotion slot by tsukidashi chain',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
@@ -1406,7 +2047,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'quota: sekitori boundary keeps at least one slot under neutral records',
+    name: 'quota: sekitori boundary resolves zero slot when makushita has no kachikoshi candidate',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
       const sekitoriWorld = createSekitoriBoundaryWorld(() => 0.5);
@@ -1439,7 +2080,7 @@ const tests: TestCase[] = [
         undefined,
         lowerWorld,
       );
-      assert.ok(exchange.slots >= 1, `Expected at least 1 slot, got ${exchange.slots}`);
+      assert.equal(exchange.slots, 0);
     },
   },
   {
@@ -2266,7 +2907,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: makekoshi ignores same-division lower boundary assignment',
+    name: 'ranking: makekoshi lower boundary assignment cannot move upward in lower divisions',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'West', number: 59 };
       const result = calculateNextRank(
@@ -2321,6 +2962,39 @@ const tests: TestCase[] = [
       } else {
         assert.equal(result.nextRank.division, 'Sandanme');
       }
+    },
+  },
+  {
+    name: 'ranking: full absence lower boundary assignment cannot move upward',
+    run: () => {
+      const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'West', number: 31 };
+      const result = calculateNextRank(
+        createBashoRecord(sandanme, 0, 0, 7),
+        [],
+        false,
+        () => 0.5,
+        {
+          boundaryAssignedNextRank: { division: 'Makushita', name: '幕下', side: 'East', number: 55 },
+        },
+      );
+      assert.ok(result.nextRank.division !== 'Makushita', 'Full absence should never be promoted');
+      if (result.nextRank.division === 'Sandanme') {
+        assert.ok((result.nextRank.number ?? 0) >= 31, 'Full absence should not move upward');
+      }
+    },
+  },
+  {
+    name: 'engine: makushita boundary resolver prioritizes sekitori promotion rank',
+    run: () => {
+      const resolved = resolveBoundaryAssignedRankForCurrentDivision(
+        { division: 'Makushita', name: '幕下', side: 'East', number: 2 },
+        { division: 'Juryo', name: '十両', side: 'East', number: 14 },
+        { division: 'Makushita', name: '幕下', side: 'West', number: 3 },
+      );
+      assert.ok(Boolean(resolved), 'Expected resolved boundary rank');
+      assert.equal(resolved?.division, 'Juryo');
+      assert.equal(resolved?.name, '十両');
+      assert.equal(resolved?.number, 14);
     },
   },
   {
@@ -2408,6 +3082,24 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: makushita kachikoshi ignores downward lower-boundary assignment',
+    run: () => {
+      const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 30 };
+      const result = calculateNextRank(
+        createBashoRecord(makushita, 7, 0),
+        [],
+        false,
+        () => 0.5,
+        {
+          boundaryAssignedNextRank: { division: 'Makushita', name: '幕下', side: 'East', number: 35 },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Makushita');
+      assert.equal(result.nextRank.name, '幕下');
+      assert.ok((result.nextRank.number ?? 99) <= 30, 'Kachikoshi should not be demoted by boundary assignment');
+    },
+  },
+  {
     name: 'ranking: juryo demotion to makushita is capped to calibrated depth',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 14 };
@@ -2456,7 +3148,50 @@ const tests: TestCase[] = [
         absent: 7,
       });
       assert.ok(Boolean(assigned), 'Expected assigned lower rank');
-      assert.equal(assigned?.division, 'Sandanme');
+      assert.ok(
+        assigned?.division === 'Sandanme' ||
+        assigned?.division === 'Jonidan' ||
+        assigned?.division === 'Jonokuchi',
+        `Expected deep demotion from Makushita, got ${assigned?.division}`,
+      );
+    },
+  },
+  {
+    name: 'quota: lower committee never promotes 0-0-7 full absence snapshot',
+    run: () => {
+      const results = {
+        Makushita: [] as LowerBoundarySnapshot[],
+        Sandanme: [
+          {
+            id: 'PLAYER',
+            shikona: '試験山',
+            isPlayer: true,
+            stableId: 'player-heya',
+            rankScore: 62, // 三段目31枚目西
+            wins: 0,
+            losses: 0,
+          } satisfies LowerBoundarySnapshot,
+        ],
+        Jonidan: [] as LowerBoundarySnapshot[],
+        Jonokuchi: [] as LowerBoundarySnapshot[],
+      };
+      const exchanges = {
+        MakushitaSandanme: { ...EMPTY_LOWER_EXCHANGE },
+        SandanmeJonidan: { ...EMPTY_LOWER_EXCHANGE },
+        JonidanJonokuchi: { ...EMPTY_LOWER_EXCHANGE },
+      };
+      const assigned = resolveLowerAssignedNextRank(results, exchanges, {
+        rank: { division: 'Sandanme', name: '三段目', side: 'West', number: 31 },
+        shikona: '試験山',
+        wins: 0,
+        losses: 0,
+        absent: 7,
+      });
+      assert.ok(Boolean(assigned), 'Expected assigned lower rank');
+      assert.ok(assigned?.division !== 'Makushita', 'Full absence should never be promoted');
+      if (assigned?.division === 'Sandanme') {
+        assert.ok((assigned.number ?? 0) >= 31, 'Full absence should not improve rank number');
+      }
     },
   },
   {
@@ -3221,6 +3956,51 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'simulation: legacy/realism model requests are normalized to unified-v1 in new runs',
+    run: async () => {
+      for (const requested of ['legacy-v6', 'realism-v1'] as const) {
+        const initial = createStatus({
+          age: 20,
+          entryAge: 20,
+          rank: { division: 'Makushita', name: '幕下', side: 'East', number: 25 },
+          history: {
+            records: [],
+            events: [],
+            maxRank: { division: 'Makushita', name: '幕下', side: 'East', number: 25 },
+            totalWins: 0,
+            totalLosses: 0,
+            totalAbsent: 0,
+            yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+            kimariteTotal: {},
+          },
+        });
+        const engine = createSimulationEngine(
+          {
+            initialStats: initial,
+            oyakata: null,
+            simulationModelVersion: requested,
+          },
+          {
+            random: lcg(1986),
+            getCurrentYear: () => 2026,
+            yieldControl: async () => {},
+          },
+        );
+
+        const step = expectBashoStep(
+          await engine.runNextBasho(),
+          `simulation model normalization (${requested})`,
+        );
+
+        assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v1');
+        assert.ok(
+          step.banzukeDecisions.every((decision) => decision.modelVersion === 'unified-v1'),
+          `Expected unified-v1 modelVersion logs for ${requested}`,
+        );
+      }
+    },
+  },
+  {
     name: 'simulation engine: completed result is sticky after retirement',
     run: async () => {
       const initial = createStatus({
@@ -3806,6 +4586,43 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'banzuke: ozeki consecutive yusho promotes to yokozuna in compose pipeline',
+    run: () => {
+      const out = composeNextBanzuke({
+        careerId: 'case',
+        seq: 2,
+        year: 2026,
+        month: 3,
+        mode: 'SIMULATE',
+        entries: [
+          {
+            id: 'PLAYER',
+            currentRank: { division: 'Makuuchi', name: '大関', side: 'East' },
+            wins: 14,
+            losses: 1,
+            absent: 0,
+            yusho: true,
+            historyWindow: [
+              createBashoRecord(
+                { division: 'Makuuchi', name: '大関', side: 'West' },
+                15,
+                0,
+                0,
+                true,
+              ),
+            ],
+          },
+        ],
+      });
+
+      assert.equal(out.allocations.length, 1);
+      const allocation = out.allocations[0];
+      assert.equal(allocation.finalRank.division, 'Makuuchi');
+      assert.equal(allocation.finalRank.name, '横綱');
+      assert.equal(allocation.finalDecision.event, 'PROMOTION_TO_YOKOZUNA');
+    },
+  },
+  {
     name: 'banzuke: lower-division 7-0 large promotion is not rejected as boundary jam',
     run: () => {
       const out = composeNextBanzuke({
@@ -3836,6 +4653,36 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'banzuke: makushita 7-0 correction is not rejected by review board',
+    run: () => {
+      const out = composeNextBanzuke({
+        careerId: 'case',
+        seq: 1,
+        year: 2026,
+        month: 1,
+        mode: 'REPLAY',
+        entries: [
+          {
+            id: 'PLAYER',
+            currentRank: { division: 'Makushita', name: '幕下', side: 'East', number: 30 },
+            wins: 7,
+            losses: 0,
+            absent: 0,
+            historyWindow: [],
+            replayNextRank: { division: 'Makushita', name: '幕下', side: 'West', number: 20 },
+          },
+        ],
+      });
+
+      assert.equal(out.allocations.length, 1);
+      const allocation = out.allocations[0];
+      assert.equal(allocation.finalRank.division, 'Makushita');
+      assert.ok((allocation.finalRank.number ?? 999) <= 15);
+      assert.ok(!allocation.finalDecision.reasons.includes('REVIEW_REJECTED_RETAIN_PREV_RANK'));
+      assert.equal(out.warnings.length, 0);
+    },
+  },
+  {
     name: 'banzuke: maezumo non-absence stays promotable to jonokuchi in committee compose',
     run: () => {
       const out = composeNextBanzuke({
@@ -3859,7 +4706,10 @@ const tests: TestCase[] = [
       assert.equal(out.allocations.length, 1);
       assert.equal(out.allocations[0].finalRank.division, 'Jonokuchi');
       assert.equal(out.allocations[0].finalRank.name, '序ノ口');
-      assert.equal(out.allocations[0].finalRank.number, 20);
+      assert.equal(
+        out.allocations[0].finalRank.number,
+        Math.round(LIMITS.JONOKUCHI_MAX * 0.67),
+      );
       assert.equal(out.warnings.length, 0);
     },
   },
@@ -4131,6 +4981,97 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'torikumi: late Juryo-Makushita reserves bubble rikishi for boundary playoffs',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        {
+          ...createTorikumiParticipant('J13E', 'Juryo', '十両', 13, 'j-a'),
+          wins: 7,
+          losses: 6,
+          boutsDone: 13,
+        },
+        {
+          ...createTorikumiParticipant('J14W', 'Juryo', '十両', 14, 'j-b'),
+          wins: 6,
+          losses: 7,
+          boutsDone: 13,
+        },
+        {
+          ...createTorikumiParticipant('MS2E', 'Makushita', '幕下', 2, 'm-a'),
+          wins: 5,
+          losses: 1,
+          boutsDone: 6,
+        },
+        {
+          ...createTorikumiParticipant('MS4W', 'Makushita', '幕下', 4, 'm-b'),
+          wins: 4,
+          losses: 2,
+          boutsDone: 6,
+        },
+      ];
+
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [14],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+
+      const dayPairs = result.days[0].pairs;
+      assert.equal(dayPairs.length, 2);
+      assert.ok(dayPairs.every((pair) => pair.boundaryId === 'JuryoMakushita'));
+      assert.ok(dayPairs.some((pair) => pair.a.id === 'J13E' || pair.b.id === 'J13E'));
+      assert.ok(dayPairs.some((pair) => pair.a.id === 'J14W' || pair.b.id === 'J14W'));
+      assert.ok(dayPairs.some((pair) => pair.a.id === 'MS2E' || pair.b.id === 'MS2E'));
+      assert.ok(dayPairs.some((pair) => pair.a.id === 'MS4W' || pair.b.id === 'MS4W'));
+    },
+  },
+  {
+    name: 'torikumi: makushita 6th/7th bout stage is treated as late for Juryo-Makushita boundary',
+    run: () => {
+      const participants: TorikumiParticipant[] = [
+        {
+          ...createTorikumiParticipant('J12E', 'Juryo', '十両', 12, 'j-a'),
+          wins: 7,
+          losses: 3,
+          boutsDone: 10,
+        },
+        {
+          ...createTorikumiParticipant('J13W', 'Juryo', '十両', 13, 'j-b'),
+          wins: 6,
+          losses: 4,
+          boutsDone: 10,
+        },
+        {
+          ...createTorikumiParticipant('MS1E', 'Makushita', '幕下', 1, 'm-a'),
+          wins: 5,
+          losses: 0,
+          boutsDone: 5,
+        },
+        {
+          ...createTorikumiParticipant('MS3W', 'Makushita', '幕下', 3, 'm-b'),
+          wins: 4,
+          losses: 1,
+          boutsDone: 5,
+        },
+      ];
+
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [11],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+
+      const boundaryPairs = result.days[0].pairs.filter(
+        (pair) => pair.boundaryId === 'JuryoMakushita',
+      );
+      assert.equal(boundaryPairs.length, 2);
+    },
+  },
+  {
     name: 'torikumi: no rematch and no same-stable constraints are preserved',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -4308,6 +5249,7 @@ const tests: TestCase[] = [
         assert.equal(world.rosters.Juryo.length, 28);
         assert.equal(activeMakuuchi, 42);
         assert.equal(activeJuryo, 28);
+        assertActiveShikonaUnique(world.npcRegistry, `simulation-loop-${i}`);
       }
     },
   },
@@ -4353,7 +5295,120 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'npc universe: initial active total is 630 and stable headcounts stay near targets',
+    name: 'npc stable catalog: each ichimon owns exactly 9 stables',
+    run: () => {
+      const distribution = NPC_STABLE_CATALOG.reduce(
+        (acc, stable) => {
+          acc[stable.ichimonId] += 1;
+          return acc;
+        },
+        {
+          'Ichimon-1': 0,
+          'Ichimon-2': 0,
+          'Ichimon-3': 0,
+          'Ichimon-4': 0,
+          'Ichimon-5': 0,
+        } as Record<'Ichimon-1' | 'Ichimon-2' | 'Ichimon-3' | 'Ichimon-4' | 'Ichimon-5', number>,
+      );
+
+      assert.equal(distribution['Ichimon-1'], 9);
+      assert.equal(distribution['Ichimon-2'], 9);
+      assert.equal(distribution['Ichimon-3'], 9);
+      assert.equal(distribution['Ichimon-4'], 9);
+      assert.equal(distribution['Ichimon-5'], 9);
+
+      for (const stable of NPC_STABLE_CATALOG) {
+        assert.equal(resolveIchimonByStableId(stable.id), stable.ichimonId);
+      }
+    },
+  },
+  {
+    name: 'npc shikona: surname style appears more in lower divisions than sekitori',
+    run: () => {
+      const topRegistry: ActorRegistry = new Map();
+      const topContext = createNpcNameContext();
+      const topRng = lcg(20260223);
+      let topSurname = 0;
+      const topTotal = 1200;
+      for (let i = 0; i < topTotal; i += 1) {
+        const division = i % 2 === 0 ? 'Makuuchi' : 'Juryo';
+        const stableId = `stable-${String((i % 45) + 1).padStart(3, '0')}`;
+        const shikona = generateUniqueNpcShikona(
+          stableId,
+          division,
+          topRng,
+          topContext,
+          topRegistry,
+        );
+        if (isSurnameShikona(shikona)) topSurname += 1;
+        const id = `TOP-${i + 1}`;
+        topRegistry.set(id, createMockActor(id, shikona, division, stableId));
+      }
+
+      const lowerRegistry: ActorRegistry = new Map();
+      const lowerContext = createNpcNameContext();
+      const lowerRng = lcg(20260224);
+      const lowerDivisions: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi' | 'Maezumo'> = [
+        'Makushita',
+        'Sandanme',
+        'Jonidan',
+        'Jonokuchi',
+        'Maezumo',
+      ];
+      let lowerSurname = 0;
+      const lowerTotal = 2200;
+      for (let i = 0; i < lowerTotal; i += 1) {
+        const division = lowerDivisions[i % lowerDivisions.length];
+        const stableId = `stable-${String((i % 45) + 1).padStart(3, '0')}`;
+        const shikona = generateUniqueNpcShikona(
+          stableId,
+          division,
+          lowerRng,
+          lowerContext,
+          lowerRegistry,
+        );
+        if (isSurnameShikona(shikona)) lowerSurname += 1;
+        const id = `LOW-${i + 1}`;
+        lowerRegistry.set(id, createMockActor(id, shikona, division, stableId));
+      }
+
+      const topRatio = topSurname / topTotal;
+      const lowerRatio = lowerSurname / lowerTotal;
+      assert.ok(topRatio >= 0.03 && topRatio <= 0.12, `Unexpected sekitori surname ratio: ${topRatio}`);
+      assert.ok(lowerRatio >= 0.22 && lowerRatio <= 0.38, `Unexpected lower surname ratio: ${lowerRatio}`);
+      assert.ok(lowerRatio > topRatio + 0.12, `Expected lower ratio > top ratio, got ${lowerRatio} vs ${topRatio}`);
+    },
+  },
+  {
+    name: 'player name collision: colliding active NPC is renamed while player name is preserved',
+    run: () => {
+      const rng = lcg(20260225);
+      const world = createSimulationWorld(rng);
+      const targetNpc = world.rosters.Makuuchi.find((row) => row.id !== 'PLAYER');
+      assert.ok(Boolean(targetNpc), 'Expected at least one active makuuchi NPC');
+      if (!targetNpc) return;
+
+      const beforeCollisionName = world.npcRegistry.get(targetNpc.id)?.shikona;
+      assert.ok(Boolean(beforeCollisionName), 'Collision source shikona is missing');
+      if (!beforeCollisionName) return;
+
+      const status = createStatus({
+        shikona: beforeCollisionName,
+        rank: { division: 'Makuuchi', name: '前頭', number: 9, side: 'East' },
+      });
+
+      syncPlayerActorInWorld(world, status, rng);
+
+      assert.equal(world.npcRegistry.get('PLAYER')?.shikona, beforeCollisionName);
+      assert.ok(
+        world.npcRegistry.get(targetNpc.id)?.shikona !== beforeCollisionName,
+        'Colliding NPC should be renamed',
+      );
+      assertActiveShikonaUnique(world.npcRegistry, 'player-collision');
+    },
+  },
+  {
+    name: 'npc universe: initial active total is 634 and stable headcounts stay near targets',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(2026));
       const counts = countActiveByStable(universe.registry);
@@ -4370,7 +5425,7 @@ const tests: TestCase[] = [
         }
       }
 
-      assert.equal(total, 630);
+      assert.equal(total, 634);
     },
   },
   {
@@ -4426,6 +5481,7 @@ const tests: TestCase[] = [
         const intake = intakeNewNpcRecruits(universe, seq + 1, month, activeCount, lcg(5000 + i));
         universe.nextNpcSerial = intake.nextNpcSerial;
         seq += 1;
+        assertActiveShikonaUnique(universe.registry, `intake-loop-${i}`);
         if (activeCount >= 900) break;
       }
 
@@ -4438,6 +5494,7 @@ const tests: TestCase[] = [
           assert.ok((counts.get(stable.id) ?? 0) <= 4);
         }
       }
+      assertActiveShikonaUnique(universe.registry, 'intake-final');
     },
   },
   {

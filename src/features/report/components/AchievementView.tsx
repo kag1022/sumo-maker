@@ -11,39 +11,35 @@ const getAchievementStyle = (rarity: Achievement["rarity"]) => {
   switch (rarity) {
     case "LEGENDARY":
       return {
-        bg: "bg-washi-dark",
-        border: "border-shuiro",
+        bg: "bg-shuiro/10",
+        border: "border-shuiro/40",
         text: "text-shuiro",
-        iconBg: "bg-washi border-sumi/60",
-        shadow: "shadow-[4px_4px_0px_0px_#2b2b2b]",
+        iconBg: "bg-shuiro/15 border-shuiro/30",
         badge: <Star className="w-4 h-4 text-shuiro fill-shuiro" />,
       };
     case "EPIC":
       return {
-        bg: "bg-washi",
-        border: "border-kuroboshi",
-        text: "text-kuroboshi",
-        iconBg: "bg-washi border-sumi/60",
-        shadow: "shadow-[4px_4px_0px_0px_#2b2b2b]",
-        badge: <Medal className="w-4 h-4 text-kuroboshi" />,
+        bg: "bg-kiniro/10",
+        border: "border-kiniro/30",
+        text: "text-kiniro",
+        iconBg: "bg-kiniro/15 border-kiniro/30",
+        badge: <Medal className="w-4 h-4 text-kiniro" />,
       };
     case "RARE":
       return {
-        bg: "bg-washi",
-        border: "border-kassairo",
-        text: "text-kassairo",
-        iconBg: "bg-washi border-sumi/60",
-        shadow: "shadow-[2px_2px_0px_0px_#2b2b2b]",
-        badge: <Award className="w-4 h-4 text-kassairo" />,
+        bg: "bg-washi-light",
+        border: "border-kiniro-muted/30",
+        text: "text-kiniro-muted",
+        iconBg: "bg-washi border-kiniro-muted/20",
+        badge: <Award className="w-4 h-4 text-kiniro-muted" />,
       };
     case "COMMON":
     default:
       return {
-        bg: "bg-washi border-sumi",
-        border: "border-sumi",
+        bg: "bg-washi/60",
+        border: "border-kiniro-muted/15",
         text: "text-sumi",
-        iconBg: "bg-washi",
-        shadow: "shadow-[2px_2px_0px_0px_#2b2b2b]",
+        iconBg: "bg-washi border-kiniro-muted/15",
         badge: null,
       };
   }
@@ -57,14 +53,13 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
 
   if (achievements.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-sumi-light bg-washi border-sumi rounded-none border border-sumi">
+      <div className="flex flex-col items-center justify-center p-12 text-sumi-light game-panel">
         <Award className="w-16 h-16 mb-4 opacity-20" />
         <p>まだ実績はありません</p>
       </div>
     );
   }
 
-  // Group by rarity for sorting (Legendary first)
   const order: Record<Achievement["rarity"], number> = {
     LEGENDARY: 0,
     EPIC: 1,
@@ -82,9 +77,9 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-washi border-sumi rounded-none p-4 border border-sumi shadow-[2px_2px_0px_0px_#2b2b2b]">
+      <div className="flex items-center justify-between game-panel p-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-washi border border-shuiro text-shuiro rounded-none">
+          <div className="p-3 bg-shuiro/15 border border-shuiro/30 text-shuiro">
             <Award className="w-6 h-6" />
           </div>
           <div>
@@ -95,7 +90,7 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
           </div>
         </div>
         {legendaryCount > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-none text-amber-700 text-sm font-bold animate-pulse">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-kiniro/10 border border-kiniro/30 text-kiniro text-sm font-bold animate-pulse-slow">
             <Sparkles className="w-4 h-4" />
             殿堂入り級の活躍！
           </div>
@@ -108,10 +103,10 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
           return (
             <div
               key={achievement.id}
-              className={`relative flex items-center p-4 rounded-none border-2 transition-none hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#2b2b2b] ${style.bg} ${style.border} ${style.shadow}`}
+              className={`relative flex items-center p-4 border transition-all hover:-translate-y-0.5 ${style.bg} ${style.border}`}
             >
               <div
-                className={`flex flex-col items-center justify-center w-14 h-14 rounded-none ${style.iconBg} border border-black/5 mr-4 shrink-0 shadow-none border border-sumi`}
+                className={`flex flex-col items-center justify-center w-14 h-14 ${style.iconBg} border mr-4 shrink-0`}
               >
                 <span className="text-2xl leading-none">
                   {achievement.icon}
@@ -126,7 +121,7 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
                     <span className="shrink-0">{style.badge}</span>
                   )}
                 </div>
-                <p className="text-sm font-medium opacity-80 leading-tight">
+                <p className="text-sm font-medium text-sumi-light leading-tight">
                   {achievement.description}
                 </p>
               </div>

@@ -2,9 +2,9 @@ import {
   MakuuchiLayout,
   decodeMakuuchiRankFromScore,
   encodeMakuuchiRankToScore,
-} from '../../ranking/banzukeLayout';
+} from '../../banzuke/scale/banzukeLayout';
 import { Rank } from '../../models';
-import { normalizeSekitoriLosses } from '../../ranking/topDivisionRules';
+import { normalizeSekitoriLosses } from '../../banzuke/rules/topDivisionRules';
 
 type TopDivision = 'Makuuchi' | 'Juryo';
 
