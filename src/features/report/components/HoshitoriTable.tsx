@@ -88,17 +88,17 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
 
   return (
     <Card className="overflow-hidden border-sumi">
-      <div className="px-5 pt-4 pb-3 border-b border-sumi/30 bg-washi">
+      <div className="px-5 pt-4 pb-3 border-b border-kiniro-muted/15">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-bold text-sumi">生涯星取表</h3>
-          <div className="flex items-center gap-1 rounded-none border border-sumi p-0.5 text-xs">
+          <h3 className="text-sm font-bold text-kiniro">生涯星取表</h3>
+          <div className="flex items-center gap-1 border border-kiniro-muted/20 p-0.5 text-xs">
             <button
               type="button"
               onClick={() => setSortOrder("desc")}
               className={`px-2 py-1 font-bold transition-all ${
                 sortOrder === "desc"
-                  ? "bg-sumi text-washi"
-                  : "bg-washi text-sumi hover:bg-washi-dark"
+                  ? "bg-kiniro/15 text-kiniro"
+                  : "text-sumi-light hover:text-kiniro"
               }`}
             >
               新しい順
@@ -108,8 +108,8 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
               onClick={() => setSortOrder("asc")}
               className={`px-2 py-1 font-bold transition-all ${
                 sortOrder === "asc"
-                  ? "bg-sumi text-washi"
-                  : "bg-washi text-sumi hover:bg-washi-dark"
+                  ? "bg-kiniro/15 text-kiniro"
+                  : "text-sumi-light hover:text-kiniro"
               }`}
             >
               古い順
@@ -140,22 +140,22 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
         <div className="overflow-x-auto bg-washi">
           <table className="w-full border-collapse text-xs min-w-[1120px]">
             <thead>
-              <tr className="bg-washi border-b-2 border-sumi">
-                <th className="border border-sumi px-2 py-2 text-left font-bold min-w-[96px]">
+              <tr className="border-b border-kiniro-muted/20">
+                <th className="border border-kiniro-muted/15 px-2 py-2 text-left font-bold min-w-[96px] text-kiniro-muted">
                   年/月
                 </th>
-                <th className="border border-sumi px-2 py-2 text-left font-bold min-w-[128px]">
+                <th className="border border-kiniro-muted/15 px-2 py-2 text-left font-bold min-w-[128px] text-kiniro-muted">
                   番付
                 </th>
                 {DAY_HEADERS.map((day) => (
                   <th
                     key={`day-${day}`}
-                    className="border border-sumi px-1 py-2 text-center font-bold min-w-[54px]"
+                    className="border border-kiniro-muted/15 px-1 py-2 text-center font-bold min-w-[54px] text-kiniro-muted"
                   >
                     {day}
                   </th>
                 ))}
-                <th className="border border-sumi px-2 py-2 text-center font-bold min-w-[92px]">
+                <th className="border border-kiniro-muted/15 px-2 py-2 text-center font-bold min-w-[92px] text-kiniro-muted">
                   成績
                 </th>
               </tr>
@@ -183,7 +183,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
                       return (
                         <td
                           key={`${rowKey}-day-${dayIndex + 1}`}
-                          className="border border-sumi p-0 min-w-[54px]"
+                          className="border border-kiniro-muted/10 p-0 min-w-[54px]"
                         >
                           <div className="relative">
                             <button
@@ -222,7 +222,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps> = ({
                               </div>
                             </button>
                             {showTooltip && (
-                              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 w-44 -translate-x-1/2 border-2 border-sumi bg-washi p-2 text-left shadow-[4px_4px_0px_0px_#2b2b2b]">
+                              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 w-44 -translate-x-1/2 border border-kiniro/30 bg-washi-light p-2 text-left shadow-game">
                                 <p className="text-[10px] font-bold text-sumi">
                                   相手: {bout?.opponentShikona || "-"}
                                 </p>

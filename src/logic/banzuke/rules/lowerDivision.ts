@@ -1,7 +1,7 @@
-import { CONSTANTS } from '../constants';
-import { BashoRecord, Rank } from '../models';
-import { RandomSource } from '../simulation/deps';
-import { RankCalculationOptions } from './options';
+import { CONSTANTS } from '../../constants';
+import { BashoRecord, Rank } from '../../models';
+import { RandomSource } from '../../simulation/deps';
+import { RankCalculationOptions } from '../types';
 import {
   LowerDivisionKey,
   resolveLowerDivisionMax,
@@ -9,57 +9,128 @@ import {
   resolveLowerDivisionOrder,
   resolveLowerDivisionTotal,
   resolveRankLimits,
-} from './rankLimits';
+} from '../scale/rankLimits';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const MAKUSHITA_RANGE_DELTA_BY_WINS: Record<number, { min: number; max: number; sign: 1 | -1 }> = {
-  7: { min: 22, max: 34, sign: 1 },
-  6: { min: 14, max: 21, sign: 1 },
-  5: { min: 10, max: 16, sign: 1 },
-  4: { min: 4, max: 7, sign: 1 },
-  3: { min: 5, max: 9, sign: -1 },
-  2: { min: 16, max: 24, sign: -1 },
-  1: { min: 28, max: 40, sign: -1 },
-  0: { min: 48, max: 66, sign: -1 },
-};
-
 const LOWER_RANGE_DELTA_BY_WINS: Record<number, { min: number; max: number; sign: 1 | -1 }> = {
-  7: { min: 30, max: 50, sign: 1 },
-  6: { min: 14, max: 24, sign: 1 },
-  5: { min: 8, max: 14, sign: 1 },
+  7: { min: 64, max: 116, sign: 1 },
+  6: { min: 42, max: 78, sign: 1 },
+  5: { min: 24, max: 44, sign: 1 },
   4: { min: 5, max: 9, sign: 1 },
-  3: { min: 8, max: 14, sign: -1 },
-  2: { min: 18, max: 30, sign: -1 },
-  1: { min: 30, max: 46, sign: -1 },
-  0: { min: 50, max: 72, sign: -1 },
+  3: { min: 14, max: 26, sign: -1 },
+  2: { min: 42, max: 82, sign: -1 },
+  1: { min: 76, max: 132, sign: -1 },
+  0: { min: 120, max: 194, sign: -1 },
 };
 
 // 三段目は中位勝ち越し/負け越しをやや強めに振る。
 const SANDANME_RANGE_DELTA_BY_WINS: Partial<Record<number, { min: number; max: number; sign: 1 | -1 }>> = {
-  6: { min: 16, max: 27, sign: 1 },
-  5: { min: 10, max: 17, sign: 1 },
-  2: { min: 22, max: 34, sign: -1 },
-  1: { min: 34, max: 52, sign: -1 },
+  6: { min: 58, max: 92, sign: 1 },
+  5: { min: 34, max: 58, sign: 1 },
+  2: { min: 54, max: 94, sign: -1 },
+  1: { min: 96, max: 152, sign: -1 },
 };
 
 const JONIDAN_RANGE_DELTA_BY_WINS: Partial<Record<number, { min: number; max: number; sign: 1 | -1 }>> = {
-  7: { min: 34, max: 54, sign: 1 },
-  6: { min: 20, max: 31, sign: 1 },
-  5: { min: 12, max: 20, sign: 1 },
-  4: { min: 6, max: 10, sign: 1 },
-  2: { min: 24, max: 38, sign: -1 },
-  1: { min: 36, max: 56, sign: -1 },
+  7: { min: 82, max: 136, sign: 1 },
+  6: { min: 56, max: 96, sign: 1 },
+  5: { min: 30, max: 52, sign: 1 },
+  4: { min: 12, max: 20, sign: 1 },
+  2: { min: 58, max: 106, sign: -1 },
+  1: { min: 104, max: 174, sign: -1 },
 };
 
 const JONOKUCHI_RANGE_DELTA_BY_WINS: Partial<Record<number, { min: number; max: number; sign: 1 | -1 }>> = {
-  7: { min: 38, max: 58, sign: 1 },
-  6: { min: 22, max: 34, sign: 1 },
-  5: { min: 14, max: 22, sign: 1 },
-  4: { min: 7, max: 11, sign: 1 },
-  2: { min: 26, max: 40, sign: -1 },
-  1: { min: 38, max: 58, sign: -1 },
+  7: { min: 96, max: 152, sign: 1 },
+  6: { min: 70, max: 116, sign: 1 },
+  5: { min: 42, max: 70, sign: 1 },
+  4: { min: 18, max: 30, sign: 1 },
+  2: { min: 70, max: 126, sign: -1 },
+  1: { min: 118, max: 194, sign: -1 },
+};
+
+const randomIntInclusive = (rng: RandomSource, min: number, max: number): number => {
+  if (max <= min) return min;
+  return min + Math.floor(rng() * (max - min + 1));
+};
+
+const MAKUSHITA_BAND_SPREAD_MULTIPLIER = 1.5;
+
+const stretchBandFromCurrent = (
+  currentNum: number,
+  band: { min: number; max: number },
+  multiplier: number,
+): { min: number; max: number } => {
+  const deltaMin = band.min - currentNum;
+  const deltaMax = band.max - currentNum;
+  const scaledMin = currentNum + Math.round(deltaMin * multiplier);
+  const scaledMax = currentNum + Math.round(deltaMax * multiplier);
+  return {
+    min: Math.min(scaledMin, scaledMax),
+    max: Math.max(scaledMin, scaledMax),
+  };
+};
+
+const resolveMakushitaTargetBand = (
+  currentNum: number,
+  wins: number,
+  totalLosses: number,
+): { min: number; max: number } => {
+  const baseBand = (() => {
+  if (wins === 7) {
+      if (currentNum <= 10) return { min: 1, max: 3 };
+      if (currentNum <= 20) return { min: 2, max: 6 };
+      if (currentNum <= 35) return { min: 3, max: 8 };
+      return { min: 5, max: 12 };
+    }
+    if (wins === 6) {
+      if (currentNum <= 12) return { min: 2, max: 6 };
+      if (currentNum <= 25) return { min: 3, max: 8 };
+      if (currentNum <= 40) return { min: 4, max: 10 };
+      return { min: 6, max: 14 };
+    }
+    if (wins === 5) {
+      if (currentNum <= 15) return { min: 6, max: 12 };
+      if (currentNum <= 30) return { min: 8, max: 16 };
+      if (currentNum <= 45) return { min: 10, max: 20 };
+      return { min: 14, max: 28 };
+    }
+    if (wins === 4) {
+      return { min: currentNum - 6, max: currentNum - 3 };
+    }
+    if (wins === 3) {
+      return { min: currentNum + 4, max: currentNum + 8 };
+    }
+    if (wins === 2) {
+      const deficitBoost = Math.max(0, totalLosses - wins);
+      return { min: currentNum + 10 + deficitBoost, max: currentNum + 18 + deficitBoost };
+    }
+    if (wins === 1) {
+      const deficitBoost = Math.max(0, totalLosses - wins);
+      return { min: currentNum + 18 + deficitBoost, max: currentNum + 30 + deficitBoost };
+    }
+    return { min: currentNum + 28, max: currentNum + 42 };
+  })();
+
+  return stretchBandFromCurrent(
+    currentNum,
+    baseBand,
+    MAKUSHITA_BAND_SPREAD_MULTIPLIER,
+  );
+};
+
+const resolveMakushitaDeltaByScore = (
+  record: BashoRecord,
+  maxNumber: number,
+  rng: RandomSource,
+): number => {
+  const currentNum = clamp(record.rank.number || maxNumber, 1, maxNumber);
+  const totalLosses = record.losses + record.absent;
+  const band = resolveMakushitaTargetBand(currentNum, record.wins, totalLosses);
+  const targetNum = clamp(randomIntInclusive(rng, band.min, band.max), 1, maxNumber);
+  return currentNum - targetNum;
 };
 
 export const resolveLowerRangeDeltaByScore = (
@@ -89,7 +160,7 @@ export const resolveLowerRangeDeltaByScore = (
   const max = maxByDivision[division] ?? limits.SANDANME_MAX;
   const number = clamp(record.rank.number || 1, 1, max);
   const progress = max <= 1 ? 0 : (number - 1) / (max - 1);
-  const intensity = spec.sign > 0 ? progress : 1 - progress;
+  const intensity = spec.sign > 0 ? progress : progress;
   const value = Math.round(spec.min + (spec.max - spec.min) * intensity);
   return value * spec.sign;
 };
@@ -148,8 +219,6 @@ export const calculateLowerDivisionRankChange = (
 ): { nextRank: Rank; event?: string } => {
   const currentRank = record.rank;
   const wins = record.wins;
-  const promotionByQuotaBlocked = options?.sekitoriQuota?.canPromoteToJuryo === false;
-  const lowerQuota = options?.lowerDivisionQuota;
   const limits = resolveRankLimits(options?.scaleSlots);
   const lowerMax = resolveLowerDivisionMax(options?.scaleSlots);
   const lowerOffset = resolveLowerDivisionOffset(options?.scaleSlots);
@@ -168,28 +237,6 @@ export const calculateLowerDivisionRankChange = (
     return { nextRank: currentRank };
   }
 
-  if (currentRank.division === 'Makushita') {
-    const num = currentRank.number || 60;
-    if (!promotionByQuotaBlocked && num <= 15 && wins === 7) {
-      return {
-        nextRank: { division: 'Juryo', name: '十両', number: 14, side: 'East' },
-        event: 'PROMOTION_TO_JURYO',
-      };
-    }
-    if (!promotionByQuotaBlocked && num === 1 && wins >= 4) {
-      return {
-        nextRank: { division: 'Juryo', name: '十両', number: 14, side: 'East' },
-        event: 'PROMOTION_TO_JURYO',
-      };
-    }
-    if (!promotionByQuotaBlocked && num <= 5 && wins >= 6) {
-      return {
-        nextRank: { division: 'Juryo', name: '十両', number: 14, side: 'East' },
-        event: 'PROMOTION_TO_JURYO',
-      };
-    }
-  }
-
   if (!['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'].includes(currentRank.division)) {
     return { nextRank: currentRank };
   }
@@ -205,7 +252,7 @@ export const calculateLowerDivisionRankChange = (
 
   const delta =
     currentDivision === 'Makushita'
-      ? resolveLowerRangeDeltaByScore(record, MAKUSHITA_RANGE_DELTA_BY_WINS, options?.scaleSlots)
+      ? resolveMakushitaDeltaByScore(record, lowerMax.Makushita, rng)
       : resolveLowerRangeDeltaByScore(record, LOWER_RANGE_DELTA_BY_WINS, options?.scaleSlots);
 
   const slotDelta = delta * 2;
@@ -213,11 +260,11 @@ export const calculateLowerDivisionRankChange = (
     toLowerDivisionLinearPosition(currentDivision, currentNum, lowerOffset, lowerMax) +
     (currentSide === 'West' ? 1 : 0);
   let nextPos = currentPos - slotDelta;
-  const nudge = clamp(Math.round(lowerQuota?.enemyHalfStepNudge ?? 0), -1, 1);
+  const nudge = clamp(Math.round(options?.lowerDivisionQuota?.enemyHalfStepNudge ?? 0), -1, 1);
   nextPos += nudge;
 
   // 7戦制下位は実際に場所ごとの「玉突き」で半枚〜1枚ぶれるため、極端成績時に小さな揺らぎを入れる。
-  if (isExtremePromotion || isExtremeDemotion) {
+  if (currentDivision !== 'Makushita' && (isExtremePromotion || isExtremeDemotion)) {
     const positionBias =
       isExtremePromotion
         ? rankProgress >= 0.75
@@ -237,29 +284,6 @@ export const calculateLowerDivisionRankChange = (
   // 序ノ口は前相撲に陥落しない。
   nextPos = clamp(nextPos, 0, lowerTotal - 1);
 
-  const currentDivisionStart = lowerOffset[currentDivision];
-  const currentDivisionEnd = currentDivisionStart + lowerMax[currentDivision] * 2 - 1;
-  const promotionBoundaryBlocked =
-    (currentDivision === 'Sandanme' && lowerQuota?.canPromoteToMakushita === false) ||
-    (currentDivision === 'Jonidan' && lowerQuota?.canPromoteToSandanme === false) ||
-    (currentDivision === 'Jonokuchi' && lowerQuota?.canPromoteToJonidan === false);
-  if (promotionBoundaryBlocked && nextPos < currentDivisionStart) {
-    nextPos = currentDivisionStart;
-  }
-
-  const demotionBoundaryBlocked =
-    (currentDivision === 'Makushita' && lowerQuota?.canDemoteToSandanme === false) ||
-      (currentDivision === 'Sandanme' && lowerQuota?.canDemoteToJonidan === false) ||
-      (currentDivision === 'Jonidan' && lowerQuota?.canDemoteToJonokuchi === false);
-  if (demotionBoundaryBlocked && nextPos > currentDivisionEnd) {
-    nextPos = currentDivisionEnd;
-  }
-
-  // 7戦制の下位番付では「負け越しで上昇」を禁止する。
-  if (totalLosses > wins && nextPos < currentPos) {
-    nextPos = currentPos;
-  }
-
   let target = fromLowerDivisionLinearPosition(
     nextPos,
     lowerOrder,
@@ -273,15 +297,6 @@ export const calculateLowerDivisionRankChange = (
       number: clamp(target.number, 1, limits.JONOKUCHI_MAX),
     };
   }
-  // 幕下中位〜下位の7戦全勝は、翌場所で関取争いに絡む上位帯まで一気に引き上げる。
-  if (currentDivision === 'Makushita' && wins === 7 && target.division === 'Makushita') {
-    target = {
-      ...target,
-      number: Math.min(target.number, 15),
-      side: 'East',
-    };
-  }
-
   const currentIndex = lowerOrder.findIndex((spec) => spec.division === currentDivision);
   const targetIndex = lowerOrder.findIndex((spec) => spec.division === target.division);
   const event =

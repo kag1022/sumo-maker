@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { Rank } from '../../../models';
 
 export interface ExpectedPlacementCandidate {
   id: string;

@@ -1,5 +1,5 @@
 import { Rank } from '../../models';
-import { clamp, compareBoundaryCandidate } from '../boundary/shared';
+import { clamp, compareBoundaryCandidate, resolveAdaptiveExchangeSlots } from '../boundary/shared';
 import {
   BoundaryCandidate,
   BoundarySnapshot,
@@ -97,44 +97,6 @@ const buildFallbackPromotionCandidates = (
     });
   };
 
-const resolveExchangeSlots = (
-  demotionPool: BoundaryCandidate[],
-  promotionPool: BoundaryCandidate[],
-): { demotions: BoundaryCandidate[]; promotions: BoundaryCandidate[]; slots: number } => {
-  if (!demotionPool.length || !promotionPool.length) {
-    return { demotions: [], promotions: [], slots: 0 };
-  }
-
-  const mandatoryDemotions = demotionPool.filter((candidate) => candidate.mandatory).length;
-  const mandatoryPromotions = promotionPool.filter((candidate) => candidate.mandatory).length;
-  const maxSlots = Math.min(demotionPool.length, promotionPool.length);
-
-  let slots = Math.min(Math.max(mandatoryDemotions, mandatoryPromotions), maxSlots);
-  if (slots === 0 && promotionPool[0].score >= demotionPool[0].score + 5) {
-    slots = 1;
-  }
-  if (slots === 0 && maxSlots > 0) {
-    slots = 1;
-  }
-
-  while (slots < maxSlots) {
-    const nextPromotion = promotionPool[slots];
-    const nextDemotion = demotionPool[slots];
-    if (!nextPromotion || !nextDemotion) break;
-    if (nextPromotion.score >= nextDemotion.score + 2.5) {
-      slots += 1;
-      continue;
-    }
-    break;
-  }
-
-  return {
-    demotions: demotionPool.slice(0, slots),
-    promotions: promotionPool.slice(0, slots),
-    slots,
-  };
-};
-
 export const resolveBoundaryExchange = (
   spec: BoundarySpec,
   upperResults: BoundarySnapshot[],
@@ -180,7 +142,7 @@ export const resolveBoundaryExchange = (
     promotionPool = promotionPool.concat(fallbackPromotions).slice(0, minimumPromotions);
   }
 
-  const resolved = resolveExchangeSlots(demotionPool, promotionPool);
+  const resolved = resolveAdaptiveExchangeSlots(demotionPool, promotionPool);
   const promotedToUpperIds = resolved.promotions.map((candidate) => candidate.id);
   const demotedToLowerIds = resolved.demotions.map((candidate) => candidate.id);
   const playerUpper = upperResults.find((result) => result.id === 'PLAYER');

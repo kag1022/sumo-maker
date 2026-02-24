@@ -1,7 +1,8 @@
 import { generateTitle } from '../naming/playerNaming';
-import { getRankValue, RankChangeResult } from '../ranking';
+import { RankChangeResult } from '../banzuke';
 import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
+import { getRankValue } from '../ranking/rankScore';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',

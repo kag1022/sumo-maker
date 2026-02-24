@@ -28,7 +28,7 @@ import {
   SekitoriBoundaryWorld,
   SekitoriExchange,
 } from './sekitori/types';
-import { resolveSekitoriBoundaryAssignedRank } from '../ranking/sekitoriExpectedCommittee';
+import { resolveSekitoriBoundaryAssignedRank } from '../banzuke/providers/sekitoriBoundary';
 
 export type {
   PlayerSekitoriQuota,
@@ -64,8 +64,18 @@ export const runSekitoriQuotaStep = (
       ? lowerWorld.lastResults.Makushita
       : simulateMakushitaBoundaryBasho(boundaryWorld, rng, simulationModelVersion);
   const makushitaResults = mergePlayerMakushitaRecord(makushitaBase, playerMakushitaRecord);
+  const playerMakushitaRow = makushitaResults.find((result) => result.id === 'PLAYER');
+  const playerMakushitaIsKachikoshi = Boolean(
+    playerMakushitaRow && playerMakushitaRow.wins > playerMakushitaRow.losses,
+  );
   const juryoRaw = topWorld.lastBashoResults.Juryo ?? [];
   const playerJuryoRow = juryoRaw.find((result) => result.id === 'PLAYER');
+  const playerJuryoIsMakekoshi = Boolean(
+    playerJuryoRow &&
+    (playerJuryoRow.wins <
+      (playerJuryoRow.losses +
+        (playerJuryoRow.absent ?? Math.max(0, 15 - (playerJuryoRow.wins + playerJuryoRow.losses))))),
+  );
   const playerJuryoFullAbsence = Boolean(
     playerJuryoRow &&
     (playerJuryoRow.absent ?? Math.max(0, 15 - (playerJuryoRow.wins + playerJuryoRow.losses))) >= 15,
@@ -118,13 +128,13 @@ export const runSekitoriQuotaStep = (
   const resolved = resolveExchangeSlots(demotionPool, promotionPool);
   const demotedToMakushitaIds = resolved.demotions.map((candidate) => candidate.id);
   const promotedToJuryoIds = resolved.promotions.map((candidate) => candidate.id);
-  const forcedDemotedIds = demotedToMakushitaIds.includes('PLAYER')
+  const forcedDemotedIdsRaw = demotedToMakushitaIds.includes('PLAYER')
     ? demotedToMakushitaIds
     : playerJuryoFullAbsence
       ? [...demotedToMakushitaIds, 'PLAYER']
       : demotedToMakushitaIds;
-  const forcedPromotedIds =
-    playerJuryoFullAbsence && forcedDemotedIds.length > promotedToJuryoIds.length
+  const forcedPromotedIdsRaw =
+    playerJuryoFullAbsence && forcedDemotedIdsRaw.length > promotedToJuryoIds.length
       ? [
         ...promotedToJuryoIds,
         (
@@ -134,10 +144,15 @@ export const runSekitoriQuotaStep = (
         ) as string,
       ].filter((id, index, arr) => Boolean(id) && arr.indexOf(id) === index)
       : promotedToJuryoIds;
+  const forcedDemotedIds = forcedDemotedIdsRaw.filter((id) =>
+    id !== 'PLAYER' || playerJuryoFullAbsence || playerJuryoIsMakekoshi);
+  const forcedPromotedIds = forcedPromotedIdsRaw.filter((id) =>
+    id !== 'PLAYER' || playerMakushitaIsKachikoshi);
   const resolvedSlots = playerJuryoFullAbsence ? Math.max(1, resolved.slots) : resolved.slots;
+  const normalizedSlots = Math.min(resolvedSlots, forcedPromotedIds.length, forcedDemotedIds.length);
 
   boundaryWorld.lastExchange = {
-    slots: resolvedSlots,
+    slots: normalizedSlots,
     promotedToJuryoIds: forcedPromotedIds,
     demotedToMakushitaIds: forcedDemotedIds,
     playerPromotedToJuryo: forcedPromotedIds.includes('PLAYER'),
@@ -162,17 +177,22 @@ export const resolveSekitoriQuotaForPlayer = (
   world: SekitoriBoundaryWorld,
   rank: Rank,
 ): PlayerSekitoriQuota | undefined => {
+  const assigned = world.lastPlayerAssignedRank;
   if (rank.division === 'Juryo') {
+    const boundaryAssigned =
+      assigned && assigned.division === 'Makushita' ? assigned : undefined;
     return {
       canDemoteToMakushita: world.lastExchange.playerDemotedToMakushita,
       enemyHalfStepNudge: world.lastPlayerJuryoHalfStepNudge,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank: boundaryAssigned,
     };
   }
   if (rank.division === 'Makushita') {
+    const boundaryAssigned =
+      assigned && assigned.division === 'Juryo' ? assigned : undefined;
     return {
       canPromoteToJuryo: world.lastExchange.playerPromotedToJuryo,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank: boundaryAssigned,
     };
   }
   return undefined;

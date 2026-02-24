@@ -1,24 +1,12 @@
-import { normalizeSekitoriLosses } from '../topDivisionRules';
+import { normalizeSekitoriLosses } from '../../rules/topDivisionRules';
 import { BashoRecordHistorySnapshot, BashoRecordSnapshot, TopDirective } from './types';
-import { evaluateYokozunaPromotion } from '../yokozuna/promotion';
-
-const isSanyakuName = (name: string): boolean => ['関脇', '小結'].includes(name);
+import { evaluateYokozunaPromotion } from '../../rules/yokozunaPromotion';
+import { canPromoteSnapshotToOzekiBy33Wins } from '../../rules/sanyakuPromotion';
 
 export const toHistoryScore = (record: BashoRecordHistorySnapshot): number => {
   const losses = normalizeSekitoriLosses(record.wins, record.losses, record.absent);
   const diff = record.wins - losses;
   return diff * 2 + record.wins * 0.45 + (record.yusho ? 5 : 0) + (record.junYusho ? 2.5 : 0);
-};
-
-const canPromoteToOzeki = (snapshot: BashoRecordSnapshot): boolean => {
-  if (!isSanyakuName(snapshot.rank.name)) return false;
-  const r2 = snapshot.pastRecords?.[0];
-  const r3 = snapshot.pastRecords?.[1];
-  if (!r2 || !r3) return false;
-  const chain = [snapshot, r2, r3];
-  if (!chain.every((record) => isSanyakuName(record.rank.name))) return false;
-  const total = chain.reduce((sum, record) => sum + record.wins, 0);
-  return total >= 33 && snapshot.wins >= 10;
 };
 
 export const resolveTopDirective = (snapshot: BashoRecordSnapshot): TopDirective => {
@@ -74,7 +62,7 @@ export const resolveTopDirective = (snapshot: BashoRecordSnapshot): TopDirective
     };
   }
 
-  if (canPromoteToOzeki(snapshot)) {
+  if (canPromoteSnapshotToOzekiBy33Wins(snapshot)) {
     return {
       preferredTopName: '大関',
       nextIsOzekiKadoban: false,

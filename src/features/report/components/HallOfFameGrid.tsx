@@ -43,14 +43,14 @@ const getRarityByRank = (rankName: string): "UR" | "SR" | "R" | "N" => {
 const getCardStyle = (rarity: "UR" | "SR" | "R" | "N") => {
   switch (rarity) {
     case "UR":
-      return "bg-washi-dark border-shuiro shadow-[4px_4px_0px_0px_#2b2b2b]";
+      return "bg-shuiro/10 border-shuiro/40 glow-red";
     case "SR":
-      return "bg-washi border-kuroboshi shadow-[4px_4px_0px_0px_#2b2b2b]";
+      return "bg-kiniro/10 border-kiniro/30 glow-gold";
     case "R":
-      return "bg-washi border-kassairo shadow-[2px_2px_0px_0px_#2b2b2b]";
+      return "bg-washi-light border-kiniro-muted/30";
     case "N":
     default:
-      return "bg-washi border-sumi-light shadow-[2px_2px_0px_0px_#2b2b2b]";
+      return "bg-washi-light border-kiniro-muted/15";
   }
 };
 
@@ -59,9 +59,9 @@ const getTitleStyle = (rarity: "UR" | "SR" | "R" | "N") => {
     case "UR":
       return "text-shuiro";
     case "SR":
-      return "text-kuroboshi";
+      return "text-kiniro";
     case "R":
-      return "text-kassairo";
+      return "text-kiniro-muted";
     case "N":
     default:
       return "text-sumi";
@@ -88,30 +88,30 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 w-full h-full flex items-center justify-center z-[100] p-4 sm:p-6 animate-in fade-in duration-200 backdrop-blur-sm">
-      <div className="bg-washi flex flex-col w-full h-full max-w-6xl rounded-none border-4 border-sumi shadow-[8px_8px_0px_0px_#2b2b2b]">
+      <div className="bg-washi flex flex-col w-full h-full max-w-6xl border border-kiniro-muted/20" style={{ boxShadow: '0 0 40px rgba(0,0,0,0.6)' }}>
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+        <div className="p-4 sm:p-5 border-b border-kiniro-muted/15 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
-            <h2 className="font-bold text-xl sm:text-2xl flex items-center text-kuroboshi tracking-tight">
+            <h2 className="font-bold text-xl sm:text-2xl flex items-center text-kiniro tracking-tight font-serif">
               <Trophy className="w-6 h-6 mr-2 sm:mr-3 text-shuiro" />
               殿堂入り力士
             </h2>
-            <div className="hidden sm:flex bg-washi p-1 py-1 rounded-none gap-1 border-2 border-sumi">
+            <div className="hidden sm:flex bg-washi-light p-1 py-1 gap-1 border border-kiniro-muted/20">
               <button
                 onClick={() => setFilter("ALL")}
-                className={`px-4 py-1.5 rounded-none text-xs font-bold transition-all ${filter === "ALL" ? "bg-white text-kuroboshi shadow-sm" : "text-slate-500 hover:text-sumi"}`}
+                className={`px-4 py-1.5 text-xs font-bold transition-all ${filter === "ALL" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"}`}
               >
                 すべて ({items.length})
               </button>
               <button
                 onClick={() => setFilter("YUSHO")}
-                className={`px-4 py-1.5 rounded-none text-xs font-bold transition-all ${filter === "YUSHO" ? "bg-white text-kuroboshi shadow-sm" : "text-slate-500 hover:text-sumi"}`}
+                className={`px-4 py-1.5 text-xs font-bold transition-all ${filter === "YUSHO" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"}`}
               >
                 幕内優勝経験者
               </button>
               <button
                 onClick={() => setFilter("YOKOZUNA")}
-                className={`px-4 py-1.5 rounded-none text-xs font-bold transition-all ${filter === "YOKOZUNA" ? "bg-white text-kuroboshi shadow-sm" : "text-slate-500 hover:text-sumi"}`}
+                className={`px-4 py-1.5 text-xs font-bold transition-all ${filter === "YOKOZUNA" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"}`}
               >
                 歴代横綱
               </button>
@@ -119,7 +119,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
+            className="p-2 text-sumi-light hover:text-sumi hover:bg-washi-light transition"
           >
             <X className="w-6 h-6" />
           </button>
@@ -130,7 +130,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
-            className="w-full p-2 bg-slate-100 rounded-none text-sm font-bold text-sumi border-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-2 bg-washi-light text-sm font-bold text-sumi border border-kiniro-muted/20 focus:ring-1 focus:ring-kiniro/50"
           >
             <option value="ALL">すべて表示 ({items.length})</option>
             <option value="YUSHO">幕内優勝経験者</option>

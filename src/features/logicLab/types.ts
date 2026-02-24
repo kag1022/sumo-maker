@@ -7,7 +7,8 @@ export type LogicLabPresetId =
   | 'J2_MONSTER'
   | 'K_BALANCED'
   | 'SD70_MIX'
-  | 'JD70_MIX';
+  | 'JD70_MIX'
+  | 'JK_MONSTER';
 
 export type LogicLabRunPhase =
   | 'idle'
@@ -33,6 +34,30 @@ export interface LogicLabBashoRecordView {
   yusho: boolean;
 }
 
+export interface LogicLabNpcContextRow {
+  shikona: string;
+  beforeRankLabel: string;
+  afterRankLabel: string;
+  wins: number;
+  losses: number;
+  absent: number;
+  scoreDiff: number;
+  slotDistanceBefore: number;
+  slotDistanceAfter: number;
+  globalMove: number;
+}
+
+export interface LogicLabNpcContext {
+  division: Rank['division'];
+  playerBeforeRankLabel: string;
+  playerAfterRankLabel: string;
+  playerGlobalMove: number;
+  playerScoreDiff: number;
+  outperformedByLowerCount: number;
+  underperformedByUpperCount: number;
+  rows: LogicLabNpcContextRow[];
+}
+
 export interface LogicLabInjuryItem {
   name: string;
   severity: number;
@@ -51,11 +76,13 @@ export interface LogicLabBashoLogRow {
   month: number;
   rankBefore: Rank;
   rankAfter: Rank;
+  banzukeReasons: string[];
   record: LogicLabBashoRecordView;
   events: string[];
   injurySummary: LogicLabInjurySummary;
   pauseReason?: LogicLabStopReason;
   committeeWarnings: number;
+  npcContext?: LogicLabNpcContext;
 }
 
 export interface LogicLabSummary {

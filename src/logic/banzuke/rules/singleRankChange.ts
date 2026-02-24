@@ -1,16 +1,17 @@
-import { BashoRecord, Rank } from '../models';
-import { RandomSource } from '../simulation/deps';
-import { getRankValue } from './rankScore';
+import { BashoRecord, Rank } from '../../models';
+import { RandomSource } from '../../simulation/deps';
+import { getRankValue } from '../../ranking/rankScore';
 import { resolveTopDivisionAssignedEvent } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
-import { RankCalculationOptions, RankChangeResult } from './options';
-import { canPromoteToYokozuna } from './yokozuna/promotion';
+import { RankCalculationOptions, RankChangeResult } from '../types';
+import { canPromoteToYokozuna } from './yokozunaPromotion';
+import { canPromoteToOzekiBy33Wins } from './sanyakuPromotion';
 import {
   LIMITS,
   RankScaleSlots,
   resolveRankLimits,
   resolveRankSlotOffset,
-} from './rankLimits';
+} from '../scale/rankLimits';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -18,22 +19,6 @@ const clamp = (value: number, min: number, max: number): number =>
 const totalLosses = (record: BashoRecord): number => record.losses + record.absent;
 
 const scoreDiff = (record: BashoRecord): number => record.wins - totalLosses(record);
-
-const isSanyakuName = (name: string): boolean => ['関脇', '小結'].includes(name);
-
-const canPromoteToOzekiBy33Wins = (
-  currentRecord: BashoRecord,
-  pastRecords: BashoRecord[],
-): boolean => {
-  if (!isSanyakuName(currentRecord.rank.name)) return false;
-  const prev1 = pastRecords[0];
-  const prev2 = pastRecords[1];
-  if (!prev1 || !prev2) return false;
-  const chain = [currentRecord, prev1, prev2];
-  if (!chain.every((record) => isSanyakuName(record.rank.name))) return false;
-  const total = chain.reduce((sum, record) => sum + record.wins, 0);
-  return total >= 33 && currentRecord.wins >= 10;
-};
 
 const hasBanzukeSide = (rank: Rank): boolean => rank.division !== 'Maezumo';
 
@@ -274,6 +259,32 @@ const shouldApplyBoundaryAssignedRank = (
     (assignedRank.number ?? undefined) !== (current.number ?? undefined) ||
     (assignedRank.side ?? undefined) !== (current.side ?? undefined)
   );
+};
+
+const isBoundaryAssignmentDirectionCompatible = (
+  currentRecord: BashoRecord,
+  assignedRank: Rank,
+  context: SlotContext,
+): boolean => {
+  if (currentRecord.rank.division === 'Maezumo') return false;
+  const wins = currentRecord.wins;
+  const losses = totalLosses(currentRecord);
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const assignedSlot = resolveRankSlot(assignedRank, context);
+
+  if (
+    wins > losses &&
+    KACHIKOSHI_STRICT_NON_DEMOTION_DIVISIONS.has(currentRecord.rank.division)
+  ) {
+    return assignedSlot < currentSlot;
+  }
+  if (wins < losses) {
+    if (MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division)) {
+      return assignedSlot > currentSlot;
+    }
+    return assignedSlot >= currentSlot;
+  }
+  return true;
 };
 
 const resolveNextRankSide = (
@@ -557,11 +568,18 @@ export const calculateNextRank = (
   const slotContext = resolveSlotContext(options?.scaleSlots);
   const finalize = (
     result: { nextRank: Rank; event?: string; isKadoban?: boolean; isOzekiReturn?: boolean },
+    settings?: { skipDirectionGuards?: boolean },
   ): RankChangeResult => ({
     ...result,
     isKadoban: result.isKadoban ?? false,
     isOzekiReturn: result.isOzekiReturn ?? false,
     ...(() => {
+      if (settings?.skipDirectionGuards) {
+        return {
+          event: result.event,
+          nextRank: resolveNextRankSide(currentRecord, result.nextRank, rng),
+        };
+      }
       const makekoshiGuarded = applyMakekoshiDirectionGuard(
         currentRecord,
         result.nextRank,
@@ -680,6 +698,14 @@ export const calculateNextRank = (
       assignedBoundaryRank.name === '大関' &&
       !canPromoteToOzekiBy33Wins(currentRecord, pastRecords);
     if (blockedBoundaryYokozuna || blockedBoundaryOzeki) {
+      return finalize(calculateStandardRankChange(currentRecord, options, rng));
+    }
+    const directionCompatible = isBoundaryAssignmentDirectionCompatible(
+      currentRecord,
+      assignedBoundaryRank,
+      slotContext,
+    );
+    if (!directionCompatible) {
       return finalize(calculateStandardRankChange(currentRecord, options, rng));
     }
     return finalize({

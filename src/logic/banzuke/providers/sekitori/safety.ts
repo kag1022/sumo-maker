@@ -1,5 +1,5 @@
-import { Rank } from '../../models';
-import { MakuuchiLayout } from '../banzukeLayout';
+import { Rank } from '../../../models';
+import { MakuuchiLayout } from '../../scale/banzukeLayout';
 import { resolveRequiredSekitoriDemotionSlots } from './bands';
 import { fromSekitoriSlot, isSekitoriDivision, SEKITORI_CAPACITY, toMakuuchiSlot, toSekitoriSlot } from './slots';
 import { BanzukeCandidate } from './types';

@@ -1,5 +1,5 @@
 import type { Rank } from '../models';
-import type { MakuuchiLayout } from '../ranking/banzukeLayout';
+import type { MakuuchiLayout } from '../banzuke/scale/banzukeLayout';
 import type { NpcBashoAggregate } from './basho';
 import type { LowerDivisionQuotaWorld } from './lowerQuota';
 import { resolveTopDivisionRank } from './topDivision/rank';

@@ -1,4 +1,4 @@
-import { MakuuchiLayout, decodeMakuuchiRankFromScore } from '../../ranking/banzukeLayout';
+import { MakuuchiLayout, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
 import { Rank } from '../../models';
 import { RandomSource } from '../deps';
 

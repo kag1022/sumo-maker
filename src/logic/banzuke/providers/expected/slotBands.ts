@@ -1,4 +1,4 @@
-import { clamp } from '../../simulation/boundary/shared';
+import { clamp } from '../../../simulation/boundary/shared';
 
 export interface ExpectedSlotRangeByWinsSpec {
   min: number;

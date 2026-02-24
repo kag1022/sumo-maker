@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { Rank } from '../../../models';
 
 export type SekitoriDivision = 'Makuuchi' | 'Juryo';
 export type TopRankName = '横綱' | '大関' | '関脇' | '小結';

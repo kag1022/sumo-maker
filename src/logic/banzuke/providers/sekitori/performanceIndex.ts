@@ -1,4 +1,4 @@
-import { getRankValue } from '../rankScore';
+import { getRankValue } from '../../../ranking/rankScore';
 import { BashoRecordSnapshot } from './types';
 
 export interface SekitoriPerformanceIndex {

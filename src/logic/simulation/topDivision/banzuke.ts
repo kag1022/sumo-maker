@@ -1,6 +1,6 @@
-import { MakuuchiLayout, buildMakuuchiLayoutFromRanks, decodeMakuuchiRankFromScore } from '../../ranking/banzukeLayout';
+import { MakuuchiLayout, buildMakuuchiLayoutFromRanks, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
 import { Rank } from '../../models';
-import { BashoRecordHistorySnapshot, BashoRecordSnapshot, BanzukeAllocation } from '../../ranking';
+import { BashoRecordHistorySnapshot, BashoRecordSnapshot, BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
 
 type TopDivision = 'Makuuchi' | 'Juryo';
 

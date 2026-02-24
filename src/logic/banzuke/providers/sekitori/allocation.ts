@@ -2,7 +2,7 @@ import {
   MakuuchiLayout,
   SANYAKU_CAP,
   SANYAKU_MIN,
-} from '../banzukeLayout';
+} from '../../scale/banzukeLayout';
 import {
   resolveBandSlotBounds,
   resolveRequiredSekitoriDemotionSlots,

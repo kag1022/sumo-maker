@@ -1,9 +1,7 @@
-import { Division } from '../models';
-import { maxNumber, resolveDivisionSlots } from '../banzuke/scale/rankScale';
+import { RankScaleSlots, RankedDivision } from '../../models';
+import { maxNumber, resolveDivisionSlots } from './rankScale';
 
-type RankedDivision = Exclude<Division, 'Maezumo'>;
-
-export type RankScaleSlots = Partial<Record<RankedDivision, number>>;
+export type { RankScaleSlots, RankedDivision } from '../../models';
 
 export type RankLimits = {
   MAEGASHIRA_MAX: number;
@@ -20,7 +18,7 @@ export const DEFAULT_SCALE_SLOTS: Record<RankedDivision, number> = {
   Makushita: 120,
   Sandanme: 180,
   Jonidan: 200,
-  Jonokuchi: 60,
+  Jonokuchi: 64,
 };
 
 const clamp = (value: number, min: number, max: number): number =>

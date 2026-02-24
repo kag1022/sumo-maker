@@ -2,14 +2,126 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: theme("colors.washi.DEFAULT");
-  color: theme("colors.sumi.DEFAULT");
-  /* Add a very subtle noise texture to the background to enhance the paper feel */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+/* === ベースレイヤー === */
+@layer base {
+  body {
+    background-color: #0f1923;
+    color: #e8dcc8;
+    background-image:
+      radial-gradient(
+        ellipse at 20% 50%,
+        rgba(197, 164, 78, 0.03) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 80% 20%,
+        rgba(196, 81, 58, 0.02) 0%,
+        transparent 50%
+      );
+  }
+
+  /* スクロールバー */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(10, 16, 24, 0.5);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(197, 164, 78, 0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(197, 164, 78, 0.5);
+  }
+
+  /* 入力要素のダークスタイル */
+  input,
+  select,
+  textarea {
+    background-color: #1a2736;
+    border-color: rgba(138, 122, 66, 0.3);
+    color: #e8dcc8;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(197, 164, 78, 0.5);
+    border-color: rgba(197, 164, 78, 0.5);
+  }
+
+  /* テーブル */
+  table {
+    border-collapse: collapse;
+  }
 }
 
-/* ウィザードUI用アニメーション - よりパキッとした動きに変更 */
+/* === コンポーネントレイヤー === */
+@layer components {
+  /* ゲームパネル - メインのカードスタイル */
+  .game-panel {
+    background-color: rgba(26, 39, 54, 0.8);
+    border: 1px solid rgba(138, 122, 66, 0.2);
+    backdrop-filter: blur(4px);
+    box-shadow:
+      0 0 15px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(197, 164, 78, 0.1);
+  }
+
+  /* セクション区切り線 */
+  .game-divider {
+    border-top: 1px solid rgba(138, 122, 66, 0.2);
+  }
+
+  /* ゲームボタン - プライマリ */
+  .game-btn {
+    position: relative;
+    overflow: hidden;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+  .game-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    );
+  }
+  .game-btn:hover::after {
+    opacity: 1;
+  }
+
+  /* ゲームバッジ */
+  .game-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid;
+  }
+
+  /* グローエフェクト */
+  .glow-gold {
+    box-shadow:
+      0 0 10px rgba(197, 164, 78, 0.2),
+      0 0 30px rgba(197, 164, 78, 0.1);
+  }
+  .glow-red {
+    box-shadow:
+      0 0 10px rgba(196, 81, 58, 0.3),
+      0 0 20px rgba(196, 81, 58, 0.1);
+  }
+}
+
+/* === アニメーション === */
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -23,4 +135,53 @@ body {
 
 .animate-in {
   animation: fadeSlideIn 0.2s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(197, 164, 78, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* レンジスライダーのゲーム風スタイル */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(197, 164, 78, 0.15);
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #c5a44e;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(197, 164, 78, 0.4);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #c5a44e;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 6px rgba(197, 164, 78, 0.4);
 }

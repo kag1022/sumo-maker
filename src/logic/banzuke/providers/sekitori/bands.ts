@@ -1,5 +1,5 @@
-import { Rank } from '../../models';
-import { normalizeSekitoriLosses } from '../topDivisionRules';
+import { Rank } from '../../../models';
+import { normalizeSekitoriLosses } from '../../rules/topDivisionRules';
 import { BanzukeCandidate, BashoRecordSnapshot, SekitoriDeltaBand, SekitoriZone } from './types';
 
 const LIMITS = {
@@ -45,40 +45,40 @@ const resolveBaseSekitoriBand = (diff: number): { minSlotDelta: number; maxSlotD
       const band = interpolateAnchors(
         up,
         { x: 5, min: 8, max: 12 },
-        { x: 9, min: 16, max: 20 },
+        { x: 9, min: 20, max: 26 },
       );
       return { minSlotDelta: band.min, maxSlotDelta: band.max };
     }
     const band = interpolateAnchors(
       up,
-      { x: 9, min: 16, max: 20 },
-      { x: 15, min: 28, max: 34 },
+      { x: 9, min: 20, max: 26 },
+      { x: 15, min: 34, max: 44 },
     );
     return { minSlotDelta: band.min, maxSlotDelta: band.max };
   }
 
   const down = clamp(Math.abs(diff), 1, 15);
-  if (down === 1) return { minSlotDelta: -4, maxSlotDelta: -3 };
+  if (down === 1) return { minSlotDelta: -6, maxSlotDelta: -4 };
   if (down <= 5) {
     const band = interpolateAnchors(
       down,
-      { x: 1, min: -4, max: -3 },
-      { x: 5, min: -16, max: -12 },
+      { x: 1, min: -6, max: -4 },
+      { x: 5, min: -22, max: -16 },
     );
     return { minSlotDelta: band.min, maxSlotDelta: band.max };
   }
   if (down <= 9) {
     const band = interpolateAnchors(
       down,
-      { x: 5, min: -16, max: -12 },
-      { x: 9, min: -28, max: -22 },
+      { x: 5, min: -22, max: -16 },
+      { x: 9, min: -38, max: -30 },
     );
     return { minSlotDelta: band.min, maxSlotDelta: band.max };
   }
   const band = interpolateAnchors(
     down,
-    { x: 9, min: -28, max: -22 },
-    { x: 15, min: -44, max: -36 },
+    { x: 9, min: -38, max: -30 },
+    { x: 15, min: -62, max: -52 },
   );
   return { minSlotDelta: band.min, maxSlotDelta: band.max };
 };

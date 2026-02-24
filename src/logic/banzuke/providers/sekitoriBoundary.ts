@@ -1,6 +1,6 @@
-import { Rank } from '../models';
-import { clamp } from '../simulation/boundary/shared';
-import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../simulation/sekitori/types';
+import { Rank } from '../../models';
+import { clamp } from '../../simulation/boundary/shared';
+import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { resolveExpectedPlacementScore } from './expected/scoring';
 import { resolveExpectedSlotBand } from './expected/slotBands';
@@ -64,10 +64,12 @@ export const resolveSekitoriBoundaryAssignedRank = (
   for (const row of juryoResults) {
     const currentSlot = toGlobalSlot('Juryo', row.rankScore);
     const currentRank = toCurrentRank('Juryo', row.rankScore);
+    const isMakekoshi = row.wins < row.losses;
+    const isKachikoshi = row.wins > row.losses;
     const absent = row.id === 'PLAYER' && playerFullAbsence ? 15 : 0;
     const mandatoryDemotion =
       row.id === 'PLAYER' &&
-      (playerFullAbsence || exchange.playerDemotedToMakushita);
+      (playerFullAbsence || (exchange.playerDemotedToMakushita && isMakekoshi));
     const band = resolveExpectedSlotBand({
       currentSlot,
       wins: row.wins,
@@ -81,8 +83,6 @@ export const resolveSekitoriBoundaryAssignedRank = (
     let minSlot = band.minSlot;
     let maxSlot = band.maxSlot;
     if (row.id === 'PLAYER') {
-      const isMakekoshi = row.wins < row.losses;
-      const isKachikoshi = row.wins > row.losses;
       if (isMakekoshi) {
         const minDemotionSlots = playerFullAbsence ? JURYO_FULL_ABSENCE_MIN_DEMOTION_SLOTS : 1;
         const demotionFloor = clamp(currentSlot + minDemotionSlots, 1, TOTAL_SLOTS);
@@ -116,7 +116,12 @@ export const resolveSekitoriBoundaryAssignedRank = (
   for (const row of makushitaResults) {
     const currentSlot = toGlobalSlot('Makushita', row.rankScore);
     const currentRank = toCurrentRank('Makushita', row.rankScore);
-    const mandatoryPromotion = row.id === 'PLAYER' && exchange.playerPromotedToJuryo;
+    const isMakekoshi = row.wins < row.losses;
+    const isKachikoshi = row.wins > row.losses;
+    const mandatoryPromotion =
+      row.id === 'PLAYER' &&
+      exchange.playerPromotedToJuryo &&
+      isKachikoshi;
     const band = resolveExpectedSlotBand({
       currentSlot,
       wins: row.wins,
@@ -130,8 +135,6 @@ export const resolveSekitoriBoundaryAssignedRank = (
     let minSlot = band.minSlot;
     let maxSlot = band.maxSlot;
     if (row.id === 'PLAYER') {
-      const isMakekoshi = row.wins < row.losses;
-      const isKachikoshi = row.wins > row.losses;
       if (isMakekoshi) {
         const demotionFloor = clamp(currentSlot + 1, 1, TOTAL_SLOTS);
         expectedSlot = Math.max(expectedSlot, demotionFloor);

@@ -1,4 +1,4 @@
-import { DEFAULT_MAKUUCHI_LAYOUT, MakuuchiLayout, decodeMakuuchiRankFromScore } from '../../ranking/banzukeLayout';
+import { DEFAULT_MAKUUCHI_LAYOUT, MakuuchiLayout, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
 
 export type TopDivisionLike = 'Makuuchi' | 'Juryo';
 

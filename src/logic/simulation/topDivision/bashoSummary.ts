@@ -1,6 +1,6 @@
-import { DEFAULT_MAKUUCHI_LAYOUT } from '../../ranking/banzukeLayout';
+import { DEFAULT_MAKUUCHI_LAYOUT } from '../../banzuke/scale/banzukeLayout';
 import { Rank } from '../../models';
-import type { MakuuchiLayout } from '../../ranking/banzukeLayout';
+import type { MakuuchiLayout } from '../../banzuke/scale/banzukeLayout';
 import type { NpcBashoAggregate, PlayerBoutDetail } from '../basho';
 import { formatKinboshiTitle } from '../titles';
 import { resolveTopDivisionRank } from './rank';

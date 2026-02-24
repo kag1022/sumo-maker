@@ -1,12 +1,17 @@
 import { Rank } from '../../models';
-import { calculateNextRank, getRankValue } from '../../ranking';
+import { getRankValue } from '../../ranking/rankScore';
+import { calculateNextRank } from '../rules/singleRankChange';
 import {
   BanzukeCommitteeCase,
   BanzukeComposeAllocation,
+  BanzukeDecisionReasonCode,
+  BanzukeProposalSource,
   ComposeNextBanzukeInput,
   ComposeNextBanzukeOutput,
 } from '../types';
+import { resolveConstraintHits } from '../rules/constraints';
 import { reviewBoard } from './reviewBoard';
+import { DEFAULT_SIMULATION_MODEL_VERSION } from '../../simulation/modelVersion';
 
 const compareRank = (a: Rank, b: Rank): number => {
   const av = getRankValue(a);
@@ -94,13 +99,31 @@ const resolveFlags = (
   return flags;
 };
 
+const resolveProposalSource = (
+  input: ComposeNextBanzukeInput,
+  entry: ComposeNextBanzukeInput['entries'][number],
+): BanzukeProposalSource => {
+  if (input.mode === 'REPLAY' && entry.replayNextRank) return 'REPLAY';
+  if (entry.currentRank.division === 'Maezumo') return 'MAEZUMO';
+  if (entry.options?.topDivisionQuota?.assignedNextRank) return 'TOP_DIVISION';
+  if (entry.options?.sekitoriQuota?.assignedNextRank) return 'SEKITORI_BOUNDARY';
+  if (entry.options?.lowerDivisionQuota?.assignedNextRank) return 'LOWER_BOUNDARY';
+  return 'COMMITTEE_MODEL';
+};
+
+const normalizeReasons = (reasons: BanzukeDecisionReasonCode[] | undefined): BanzukeDecisionReasonCode[] =>
+  reasons?.length ? reasons : ['AUTO_ACCEPTED'];
+
 export const composeNextBanzuke = (
   input: ComposeNextBanzukeInput,
 ): ComposeNextBanzukeOutput => {
   const cases: BanzukeCommitteeCase[] = [];
   const proposedById = new Map<string, BanzukeComposeAllocation['proposedChange']>();
+  const proposalSourceById = new Map<string, BanzukeProposalSource>();
 
   for (const entry of input.entries) {
+    const proposalSource = resolveProposalSource(input, entry);
+    proposalSourceById.set(entry.id, proposalSource);
     const proposedChange = calculateNextRank(
       {
         year: input.year,
@@ -109,7 +132,7 @@ export const composeNextBanzuke = (
         wins: entry.wins,
         losses: entry.losses,
         absent: entry.absent,
-        yusho: false,
+        yusho: entry.yusho ?? false,
         kinboshi: 0,
         specialPrizes: [],
       },
@@ -160,8 +183,18 @@ export const composeNextBanzuke = (
   for (const committeeCase of cases) {
     const review = reviewedById.get(committeeCase.id);
     const finalRank = review?.finalRank ?? committeeCase.proposalRank;
+    const reasons = normalizeReasons(review?.reasons);
     const proposedChange = proposedById.get(committeeCase.id);
+    const proposalSource = proposalSourceById.get(committeeCase.id) ?? 'COMMITTEE_MODEL';
     if (!proposedChange) continue;
+    const constraintHits = resolveConstraintHits({
+      currentRank: committeeCase.currentRank,
+      finalRank,
+      wins: committeeCase.result.wins,
+      losses: committeeCase.result.losses,
+      absent: committeeCase.result.absent,
+      historyWindow: committeeCase.historyWindow,
+    });
 
     allocations.push({
       id: committeeCase.id,
@@ -170,16 +203,33 @@ export const composeNextBanzuke = (
       finalRank,
       flags: committeeCase.flags,
       proposedChange,
+      finalDecision: {
+        ...proposedChange,
+        nextRank: finalRank,
+        proposalSource,
+        reasons,
+        constraintHits,
+      },
     });
 
     decisionLogs.push({
       careerId: input.careerId,
       seq: input.seq,
       rikishiId: committeeCase.id,
+      modelVersion:
+        input.entries.find((entry) => entry.id === committeeCase.id)?.options?.simulationModelVersion ??
+        DEFAULT_SIMULATION_MODEL_VERSION,
+      proposalSource,
       fromRank: committeeCase.currentRank,
       proposedRank: committeeCase.proposalRank,
       finalRank,
-      reasons: review?.reasons ?? ['AUTO_ACCEPTED'],
+      reasons,
+      constraintHits,
+      shadowDiff: {
+        rankChanged: compareRank(committeeCase.proposalRank, finalRank) !== 0,
+        eventChanged: proposedChange.nextRank.name !== finalRank.name ||
+          proposedChange.nextRank.division !== finalRank.division,
+      },
       votes: review?.votes,
     });
   }

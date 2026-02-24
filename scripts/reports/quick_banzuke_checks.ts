@@ -81,6 +81,11 @@ const createStatus = (rank: Rank, base: number): RikishiStatus => ({
   traits: [],
   durability: 85,
   currentCondition: 55,
+  ratingState: {
+    ability: base * 1.05,
+    form: 0,
+    uncertainty: 2.1,
+  },
   injuryLevel: 0,
   injuries: [],
   isOzekiKadoban: false,

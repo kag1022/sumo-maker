@@ -67,6 +67,7 @@ export const runNpcRetirementStep = (
 ): string[] => {
   const retiredIds: string[] = [];
   for (const npc of npcs) {
+    if (npc.actorType === 'PLAYER') continue;
     if (!npc.active) continue;
 
     npc.careerBashoCount += 1;

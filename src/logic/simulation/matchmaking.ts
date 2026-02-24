@@ -1,9 +1,12 @@
 import { RandomSource } from './deps';
 import { EnemyStyleBias } from '../catalog/enemyData';
-import { resolveBoutWinProb } from './strength/model';
+import {
+  calculateMomentumBonus,
+  resolveBoutWinProb,
+  resolveUnifiedNpcStrength,
+} from './strength/model';
 import {
   DEFAULT_SIMULATION_MODEL_VERSION,
-  isRealismModel,
   SimulationModelVersion,
 } from './modelVersion';
 
@@ -21,6 +24,8 @@ export type DivisionParticipant = {
   weightKg?: number;
   wins: number;
   losses: number;
+  currentWinStreak?: number;
+  currentLossStreak?: number;
   expectedWins?: number;
   opponentAbilityTotal?: number;
   boutsSimulated?: number;
@@ -275,11 +280,14 @@ export const createDailyMatchups = (
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-const resolveLegacyWinProb = (powerDiff: number): number =>
-  clamp(1 / (1 + Math.exp(-0.082 * powerDiff)), 0.03, 0.97);
+const resolveSignedStreak = (
+  winStreak?: number,
+  lossStreak?: number,
+): number => {
+  const wins = Math.max(0, winStreak ?? 0);
+  const losses = Math.max(0, lossStreak ?? 0);
+  return wins > 0 ? wins : losses > 0 ? -losses : 0;
+};
 
 const resolveStyleEdge = (
   mine: EnemyStyleBias | undefined,
@@ -302,18 +310,29 @@ const resolveNpcWinProbability = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
+  _simulationModelVersion: SimulationModelVersion,
 ): number => {
-  const aMomentum = (a.wins - a.losses) * 0.35;
-  const bMomentum = (b.wins - b.losses) * 0.35;
+  const aStreakMomentum = calculateMomentumBonus(
+    resolveSignedStreak(a.currentWinStreak, a.currentLossStreak),
+  );
+  const bStreakMomentum = calculateMomentumBonus(
+    resolveSignedStreak(b.currentWinStreak, b.currentLossStreak),
+  );
+  const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
+  const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
-  if (!isRealismModel(simulationModelVersion)) {
-    const aPower = a.power + aMomentum + styleDiff * 0.45 + randomNoise(rng, 1.4);
-    const bPower = b.power + bMomentum + randomNoise(rng, 1.4);
-    return resolveLegacyWinProb(aPower - bPower);
-  }
-  const aAbility = (a.ability ?? a.power) + aMomentum + randomNoise(rng, 1.4);
-  const bAbility = (b.ability ?? b.power) + bMomentum + randomNoise(rng, 1.4);
+  const aAbility = resolveUnifiedNpcStrength({
+    ability: a.ability,
+    power: a.power,
+    momentum: aMomentum,
+    noise: randomNoise(rng, 1.4),
+  });
+  const bAbility = resolveUnifiedNpcStrength({
+    ability: b.ability,
+    power: b.power,
+    momentum: bMomentum,
+    noise: randomNoise(rng, 1.4),
+  });
   return resolveBoutWinProb({
     attackerAbility: aAbility,
     defenderAbility: bAbility,
@@ -329,13 +348,21 @@ export const simulateNpcBout = (
   rng: RandomSource,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
+  a.currentWinStreak = Math.max(0, a.currentWinStreak ?? 0);
+  a.currentLossStreak = Math.max(0, a.currentLossStreak ?? 0);
+  b.currentWinStreak = Math.max(0, b.currentWinStreak ?? 0);
+  b.currentLossStreak = Math.max(0, b.currentLossStreak ?? 0);
   const aWinProbability = resolveNpcWinProbability(a, b, rng, simulationModelVersion);
-  const metricByModel = (participant: DivisionParticipant): number =>
-    isRealismModel(simulationModelVersion)
-      ? (participant.ability ?? participant.power)
-      : participant.power;
-  const aAbility = metricByModel(a);
-  const bAbility = metricByModel(b);
+  const aAbility = resolveUnifiedNpcStrength({
+    ability: a.ability,
+    power: a.power,
+    momentum: (a.wins - a.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(a.currentWinStreak, a.currentLossStreak)),
+  });
+  const bAbility = resolveUnifiedNpcStrength({
+    ability: b.ability,
+    power: b.power,
+    momentum: (b.wins - b.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(b.currentWinStreak, b.currentLossStreak)),
+  });
   a.expectedWins = (a.expectedWins ?? 0) + aWinProbability;
   b.expectedWins = (b.expectedWins ?? 0) + (1 - aWinProbability);
   a.opponentAbilityTotal = (a.opponentAbilityTotal ?? 0) + bAbility;
@@ -347,8 +374,16 @@ export const simulateNpcBout = (
   if (aWin) {
     a.wins += 1;
     b.losses += 1;
+    a.currentWinStreak = (a.currentWinStreak ?? 0) + 1;
+    a.currentLossStreak = 0;
+    b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
+    b.currentWinStreak = 0;
   } else {
     b.wins += 1;
     a.losses += 1;
+    b.currentWinStreak = (b.currentWinStreak ?? 0) + 1;
+    b.currentLossStreak = 0;
+    a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
+    a.currentWinStreak = 0;
   }
 };

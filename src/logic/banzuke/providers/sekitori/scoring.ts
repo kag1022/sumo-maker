@@ -1,4 +1,4 @@
-import { getRankValue } from '../rankScore';
+import { getRankValue } from '../../../ranking/rankScore';
 import { BanzukeCandidate, BashoRecordSnapshot, TopDirective } from './types';
 import { resolveSekitoriPerformanceIndex } from './performanceIndex';
 
@@ -64,12 +64,14 @@ export const scoreTopDivisionCandidate = (
       );
     }
     const m = rank.number || 17;
+    const catastrophicMakekoshiPenalty = makekoshi >= 3 ? makekoshi * makekoshi * 0.75 : 0;
     return (
       122 +
       Math.max(0, 18 - m) * 6.05 +
       kachikoshi * 2.45 -
       makekoshi * 4.2 -
       makekoshi * makekoshi * 0.9 -
+      catastrophicMakekoshiPenalty -
       snapshot.absent * 1.4 +
       sosBoost * 0.9 +
       (snapshot.yusho ? 11 : 0) +
@@ -78,14 +80,24 @@ export const scoreTopDivisionCandidate = (
   }
 
   const j = rank.number || 14;
+  const promotionBurstBonus =
+    snapshot.wins >= 13
+      ? 26 + Math.max(0, snapshot.wins - 13) * 12 + Math.max(0, j - 8) * 1.8
+      : snapshot.wins >= 11
+        ? 10 + Math.max(0, snapshot.wins - 11) * 8 + Math.max(0, j - 8) * 0.9
+        : 0;
+  const deepMakekoshiPenalty =
+    makekoshi >= 4 ? makekoshi * makekoshi * 0.9 + Math.max(0, j - 10) * 1.1 : 0;
   return (
     72 +
     Math.max(0, 15 - j) * 4.25 +
     kachikoshi * 2.85 -
     makekoshi * 3.85 -
     makekoshi * makekoshi * 0.72 -
+    deepMakekoshiPenalty +
     snapshot.absent * 1.3 +
     sosBoost * 0.85 +
+    promotionBurstBonus +
     (snapshot.yusho ? 10 : 0) +
     (snapshot.junYusho ? 4.5 : 0)
   );

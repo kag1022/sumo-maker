@@ -1,6 +1,6 @@
-import { REALISM_V1_BALANCE } from '../../balance/realismV1';
+import { UNIFIED_V1_BALANCE } from '../../balance/unifiedV1';
 import { BashoRecord } from '../../models';
-import { BashoRecordSnapshot } from '../sekitori/types';
+import { BashoRecordSnapshot } from '../providers/sekitori/types';
 
 export interface YokozunaPromotionResult {
   promote: boolean;
@@ -29,10 +29,13 @@ const evaluateCore = (
   const currentScore = toEquivalentScore(current.wins, current.yusho, current.junYusho);
   const prevScore = toEquivalentScore(prev.wins, prev.yusho, prev.junYusho);
   const score = currentScore + prevScore;
-  const minEquivalent = REALISM_V1_BALANCE.yokozuna.yushoEquivalentMinScore;
+  const minEquivalent = UNIFIED_V1_BALANCE.yokozuna.yushoEquivalentMinScore;
   const hasEquivalent = currentScore >= minEquivalent && prevScore >= minEquivalent;
-  const hasYushoPair = Boolean(current.yusho && (prev.yusho || prev.junYusho));
-  const hasRealisticTotal = score >= 28;
+  const prevYushoEquivalent = Boolean(
+    prev.yusho || prev.junYusho || prevScore >= minEquivalent,
+  );
+  const hasYushoPair = Boolean(current.yusho && prevYushoEquivalent);
+  const hasRealisticTotal = score >= UNIFIED_V1_BALANCE.yokozuna.yushoEquivalentTotalMinScore;
   const promote = hasEquivalent && hasYushoPair && hasRealisticTotal;
   if (promote) return { promote: true, bonus: 28, score };
   if (current.yusho && score >= 27) return { promote: false, bonus: 14, score };

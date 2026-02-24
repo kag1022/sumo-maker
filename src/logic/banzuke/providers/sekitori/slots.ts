@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { Rank } from '../../../models';
 import {
   DEFAULT_MAKUUCHI_LAYOUT,
   JURYO_CAPACITY,
@@ -6,7 +6,7 @@ import {
   MakuuchiLayout,
   decodeMakuuchiRankFromScore,
   encodeMakuuchiRankToScore,
-} from '../banzukeLayout';
+} from '../../scale/banzukeLayout';
 import { SekitoriDivision } from './types';
 
 const LIMITS = {

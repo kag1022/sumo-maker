@@ -67,6 +67,8 @@ const createNpc = (
     randomNoise(rng, abilityDist.sigma * 0.45) +
     seed.growthBias * 5.2;
   return {
+    actorId: `NPC-${serial}`,
+    actorType: 'NPC',
     id: `NPC-${serial}`,
     seedId: seed.seedId,
     shikona,

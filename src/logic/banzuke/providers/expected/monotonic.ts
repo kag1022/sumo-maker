@@ -1,6 +1,9 @@
 import { allocateExpectedSlots } from './allocator';
 import { ExpectedPlacementAssignment, ExpectedPlacementCandidate } from './types';
 
+const resolveEffectiveLosses = (candidate: ExpectedPlacementCandidate): number =>
+  candidate.losses + candidate.absent;
+
 const findViolations = (
   candidates: ExpectedPlacementCandidate[],
   assignedById: Map<string, number>,
@@ -15,8 +18,10 @@ const findViolations = (
   }
 
   for (const divisionCandidates of byDivision.values()) {
-    const winners = divisionCandidates.filter((candidate) => candidate.wins > candidate.losses);
-    const losers = divisionCandidates.filter((candidate) => candidate.wins < candidate.losses);
+    const winners = divisionCandidates.filter((candidate) =>
+      candidate.wins > resolveEffectiveLosses(candidate));
+    const losers = divisionCandidates.filter((candidate) =>
+      candidate.wins < resolveEffectiveLosses(candidate));
     for (const winner of winners) {
       const winnerSlot = assignedById.get(winner.id);
       if (!winnerSlot) continue;

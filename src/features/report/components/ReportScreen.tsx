@@ -1,7 +1,7 @@
 import React from "react";
 import { RankScaleSlots, RikishiStatus, Rank, Rarity } from "../../../logic/models";
 import { getRankValueForChart } from "../../../logic/ranking";
-import { LIMITS, resolveRankLimits, resolveRankSlotOffset } from "../../../logic/ranking/rankLimits";
+import { LIMITS, resolveRankLimits, resolveRankSlotOffset } from "../../../logic/banzuke/scale/rankLimits";
 import { CONSTANTS } from "../../../logic/constants";
 import { Card } from "../../../shared/ui/Card";
 import { Button } from "../../../shared/ui/Button";
@@ -21,6 +21,8 @@ import {
   Swords,
   Heart,
   Award,
+  Star,
+  Medal,
 } from "lucide-react";
 import { AchievementView } from "./AchievementView";
 import { HoshitoriCareerRecord, HoshitoriTable } from "./HoshitoriTable";
@@ -45,31 +47,31 @@ const RARITY_COLORS: Record<
   { bg: string; text: string; border: string }
 > = {
   N: {
-    bg: "bg-washi border border-sumi",
-    text: "text-sumi",
-    border: "border-sumi",
+    bg: "bg-washi-light border border-sumi-light/30",
+    text: "text-sumi-light",
+    border: "border-sumi-light/30",
   },
   R: {
-    bg: "text-kassairo border border-kassairo",
-    text: "text-kassairo",
-    border: "border-kassairo",
+    bg: "bg-kassairo/20 border border-kassairo-light/40",
+    text: "text-kiniro-muted",
+    border: "border-kassairo-light/40",
   },
   SR: {
-    bg: "text-kuroboshi border border-kuroboshi",
-    text: "text-kuroboshi",
-    border: "border-kuroboshi",
+    bg: "bg-kiniro/10 border border-kiniro/30",
+    text: "text-kiniro",
+    border: "border-kiniro/30",
   },
   UR: {
-    bg: "text-shuiro border border-shuiro",
+    bg: "bg-shuiro/15 border border-shuiro/40",
     text: "text-shuiro",
-    border: "border-shuiro",
+    border: "border-shuiro/40",
   },
 };
 const RarityBadge: React.FC<{ rarity: Rarity }> = ({ rarity }) => {
   const c = RARITY_COLORS[rarity];
   return (
     <span
-      className={`text-[10px] font-black px-1.5 py-0.5 rounded-none border border-sumi-none ${c.bg} ${c.text} border ${c.border}`}
+      className={`text-[10px] font-black px-1.5 py-0.5 rounded-none ${c.bg} ${c.text}`}
     >
       {rarity}
     </span>
@@ -86,13 +88,13 @@ const DIVISION_NAMES: Record<string, string> = {
   Maezumo: "前相撲",
 };
 const DIVISION_COLORS: Record<string, string> = {
-  Makuuchi: "#6366f1",
-  Juryo: "#8b5cf6",
-  Makushita: "#0ea5e9",
-  Sandanme: "#14b8a6",
-  Jonidan: "#22c55e",
-  Jonokuchi: "#84cc16",
-  Maezumo: "#a3a3a3",
+  Makuuchi: "#c5a44e",
+  Juryo: "#8b7a3a",
+  Makushita: "#5a8a9e",
+  Sandanme: "#5a9e7a",
+  Jonidan: "#7a9a5a",
+  Jonokuchi: "#6a8a5a",
+  Maezumo: "#555555",
 };
 
 const RANK_CHART_BANDS: Array<{
@@ -269,6 +271,24 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       absent: records.reduce((a, c) => a + c.absent, 0),
       bashoCount: records.length,
     };
+  }, [history.records]);
+
+  const awardsSummary = React.useMemo(() => {
+    let kinboshi = 0;
+    let shukun = 0;
+    let kantou = 0;
+    let ginou = 0;
+    
+    history.records.forEach(r => {
+      kinboshi += r.kinboshi || 0;
+      r.specialPrizes?.forEach(prize => {
+        if (prize === '殊勲賞') shukun++;
+        if (prize === '敢闘賞') kantou++;
+        if (prize === '技能賞') ginou++;
+      });
+    });
+
+    return { kinboshi, shukun, kantou, ginou, totalSansho: shukun + kantou + ginou };
   }, [history.records]);
 
   const divisionStats = React.useMemo(() => {
@@ -456,31 +476,46 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   const renderOverview = () => (
     <div className="space-y-6 animate-in">
       {/* 成績サマリーカード群 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard
-          label="通算勝利"
-          value={`${totalWins}`}
-          sub={`${totalBashoCount}場所`}
+          label="通算成績"
+          value={`${totalWins}勝`}
+          sub={`${totalLosses}敗 ${totalAbsent > 0 ? `${totalAbsent}休` : ''}`}
           color="indigo"
         />
         <StatCard
-          label="勝率"
-          value={`${winRate}%`}
-          sub={`${totalWins}勝${totalLosses}敗`}
-          color="emerald"
+          label="最高位"
+          value={formatRankName(maxRank, true)}
+          sub={`${totalBashoCount}場所 ${winRate}%`}
+          color="purple"
+        />
+        <StatCard
+          label="金星"
+          value={`${awardsSummary.kinboshi}`}
+          sub="個"
+          color="amber"
+          icon={<Star className="w-4 h-4 text-shuiro fill-shuiro" />}
         />
         <StatCard
           label="幕内優勝"
           value={`${yushoCount.makuuchi}`}
           sub="回"
           color="amber"
-          icon={<Trophy className="w-4 h-4 text-shuiro" />}
+          icon={<Trophy className="w-4 h-4 text-shuiro fill-shuiro" />}
         />
         <StatCard
-          label="最高位"
-          value={formatRankName(maxRank, true)}
-          sub={`${totalBashoCount}場所`}
-          color="purple"
+          label="三賞"
+          value={`${awardsSummary.totalSansho}`}
+          sub={`殊${awardsSummary.shukun} 敢${awardsSummary.kantou} 技${awardsSummary.ginou}`}
+          color="emerald"
+          icon={<Medal className="w-4 h-4 text-kuroboshi fill-kuroboshi/10" />}
+        />
+        <StatCard
+          label="十両以下優勝"
+          value={`${yushoCount.juryo + yushoCount.makushita + yushoCount.others}`}
+          sub="回"
+          color="indigo"
+          icon={<Award className="w-4 h-4 text-indigo-500" />}
         />
       </div>
 
@@ -741,6 +776,56 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           )}
         </div>
       </Card>
+
+      {/* DNA要約 */}
+      {status.genome && (
+        <Card className="overflow-hidden">
+          <div className="px-5 py-4">
+            <h3 className="text-sm font-bold text-sumi mb-3 flex items-center gap-1.5">
+              DNA要約
+            </h3>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-none border-2 border-sumi bg-washi-dark space-y-1">
+                <div className="font-bold text-sumi mb-1">初期能力</div>
+                <div className="flex justify-between"><span>筋力上限</span><span className="font-bold">{Math.round(status.genome.base.powerCeiling)}</span></div>
+                <div className="flex justify-between"><span>技術上限</span><span className="font-bold">{Math.round(status.genome.base.techCeiling)}</span></div>
+                <div className="flex justify-between"><span>速度上限</span><span className="font-bold">{Math.round(status.genome.base.speedCeiling)}</span></div>
+                <div className="flex justify-between"><span>土俵感覚</span><span className="font-bold">{Math.round(status.genome.base.ringSense)}</span></div>
+                <div className="flex justify-between"><span>戦術適性</span><span className="font-bold">{Math.round(status.genome.base.styleFit)}</span></div>
+              </div>
+              <div className="p-3 rounded-none border-2 border-sumi bg-washi-dark space-y-1">
+                <div className="font-bold text-sumi mb-1">成長曲線</div>
+                <div className="flex justify-between"><span>ピーク年齢</span><span className="font-bold">{Math.round(status.genome.growth.maturationAge)}歳</span></div>
+                <div className="flex justify-between"><span>ピーク期間</span><span className="font-bold">{Math.round(status.genome.growth.peakLength)}年</span></div>
+                <div className="flex justify-between"><span>衰退速度</span><span className="font-bold">{status.genome.growth.lateCareerDecay.toFixed(1)}x</span></div>
+                <div className="flex justify-between"><span>適応力</span><span className="font-bold">{Math.round(status.genome.growth.adaptability)}</span></div>
+              </div>
+              <div className="p-3 rounded-none border-2 border-sumi bg-washi-dark space-y-1">
+                <div className="font-bold text-sumi mb-1">耐久性</div>
+                <div className="flex justify-between"><span>怪我リスク</span><span className="font-bold">{status.genome.durability.baseInjuryRisk.toFixed(2)}x</span></div>
+                <div className="flex justify-between"><span>回復力</span><span className="font-bold">{status.genome.durability.recoveryRate.toFixed(1)}x</span></div>
+                <div className="flex justify-between"><span>慢性化耐性</span><span className="font-bold">{Math.round(status.genome.durability.chronicResistance)}</span></div>
+                {Object.entries(status.genome.durability.partVulnerability).length > 0 && (
+                  <div className="mt-1 pt-1 border-t border-sumi/20">
+                    <span className="text-[10px] text-sumi-light">弱点: </span>
+                    {Object.entries(status.genome.durability.partVulnerability)
+                      .filter(([, v]) => (v as number) > 1.2)
+                      .map(([k]) => <span key={k} className="text-[10px] text-shuiro mr-1">{k}</span>)}
+                  </div>
+                )}
+              </div>
+              <div className="p-3 rounded-none border-2 border-sumi bg-washi-dark space-y-1">
+                <div className="font-bold text-sumi mb-1">変動性</div>
+                <div className="flex justify-between"><span>調子の振れ</span><span className="font-bold">{Math.round(status.genome.variance.formVolatility)}</span></div>
+                <div className="flex justify-between"><span>勝負強さ</span><span className={"font-bold " + (status.genome.variance.clutchBias > 0 ? "text-emerald-600" : status.genome.variance.clutchBias < 0 ? "text-shuiro" : "")}>{status.genome.variance.clutchBias > 0 ? '+' : ''}{Math.round(status.genome.variance.clutchBias)}</span></div>
+                <div className="flex justify-between"><span>復帰力</span><span className="font-bold">{Math.round(status.genome.variance.slumpRecovery)}</span></div>
+                <div className="flex justify-between"><span>連勝感度</span><span className="font-bold">{Math.round(status.genome.variance.streakSensitivity)}</span></div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
     </div>
   );
 
@@ -757,7 +842,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         <div className="px-2 h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={abilityHistoryData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(197,164,78,0.1)" />
               <XAxis
                 dataKey="age"
                 tick={{ fontSize: 11 }}
@@ -771,8 +856,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               <YAxis domain={[0, 150]} tick={{ fontSize: 11 }} width={35} />
               <Tooltip
                 contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
+                  borderRadius: 0,
+                  background: '#141a24',
+                  border: '1px solid rgba(197,164,78,0.2)',
+                  color: '#e8dcc8',
                   fontSize: 12,
                 }}
               />
@@ -870,7 +957,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         <div className="px-2 h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={lineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(197,164,78,0.1)" />
               <XAxis
                 dataKey="time"
                 hide={false}
@@ -903,8 +990,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                   p: { payload?: { rankLabel: string } },
                 ) => [p.payload?.rankLabel || "", "番付"]}
                 contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
+                  borderRadius: 0,
+                  background: '#141a24',
+                  border: '1px solid rgba(197,164,78,0.2)',
+                  color: '#e8dcc8',
                   fontSize: 12,
                 }}
               />
@@ -991,7 +1080,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 layout="vertical"
                 margin={{ left: 20, right: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(197,164,78,0.1)" />
                 <XAxis type="number" tick={{ fontSize: 11 }} />
                 <YAxis
                   dataKey="name"
@@ -1002,8 +1091,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 <Tooltip
                   formatter={(value: number) => [`${value}回`, "回数"]}
                   contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
+                    borderRadius: 0,
+                    background: '#141a24',
+                    border: '1px solid rgba(197,164,78,0.2)',
+                    color: '#e8dcc8',
                     fontSize: 12,
                   }}
                 />
@@ -1036,25 +1127,25 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   return (
     <div className="space-y-0 max-w-3xl mx-auto">
       {/* ヒーローセクション */}
-      <div className="relative bg-washi border-4 border-sumi text-sumi rounded-none border border-sumi-none shadow-[8px_8px_0px_0px_#2b2b2b] overflow-hidden mb-6">
+      <div className="relative game-panel overflow-hidden mb-6">
         {/* 背景パターン */}
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
-            backgroundImage: `radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(circle at 20% 50%, rgba(197,164,78,0.5) 1px, transparent 1px), radial-gradient(circle at 80% 20%, rgba(197,164,78,0.3) 1px, transparent 1px)`,
             backgroundSize: "40px 40px",
           }}
         />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-none border border-sumi-none blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-none border border-sumi-none blur-3xl" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-kiniro/5 blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-shuiro/5 blur-3xl" />
 
         <div className="relative z-10 px-8 py-10 text-center">
           <div className="inline-block mb-3">
-            <span className="text-xs font-bold tracking-[0.3em] uppercase px-4 py-1.5 rounded-none border border-sumi-none bg-washi border-shuiro text-shuiro border border-shuiro">
+            <span className="text-xs font-bold tracking-[0.3em] uppercase px-4 py-1.5 border border-kiniro/40 text-kiniro bg-kiniro/10">
               {title || "無名の力士"}
             </span>
           </div>
-          <h1 className="text-5xl sm:text-6xl font-black mb-6 tracking-tight">
+          <h1 className="text-5xl sm:text-6xl font-black mb-6 tracking-tight font-serif text-kiniro">
             {shikona}
           </h1>
 
@@ -1083,7 +1174,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               <div className="text-[10px] uppercase tracking-widest text-sumi-light mb-1">
                 幕内優勝
               </div>
-              <div className="text-xl sm:text-2xl font-black text-shuiro">
+              <div className="text-xl sm:text-2xl font-black text-kiniro">
                 {yushoCount.makuuchi}
                 <span className="text-sm font-normal text-sumi-light">回</span>
               </div>
@@ -1101,7 +1192,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
 
       {/* タブ + アクションバー */}
       <div className="flex items-center justify-between mb-4 gap-3">
-        <div className="flex bg-washi border border-sumi p-1 rounded-none border border-sumi-none gap-0.5">
+        <div className="flex bg-washi-light border border-kiniro-muted/20 p-1 gap-0.5">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1109,10 +1200,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-none border border-sumi-none text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-washi text-slate-800 shadow-[2px_2px_0px_0px_#2b2b2b]"
-                    : "text-sumi hover:text-sumi-dark"
+                    ? "bg-kiniro/15 text-kiniro border border-kiniro/30"
+                    : "text-sumi-light hover:text-kiniro border border-transparent"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -1126,7 +1217,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
             size="sm"
             variant="outline"
             onClick={onReset}
-            className="rounded-none border border-sumi-none text-xs"
+            className="text-xs"
           >
             <ArrowLeft className="w-3.5 h-3.5 mr-1" /> もう一度
           </Button>
@@ -1134,10 +1225,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
             size="sm"
             onClick={() => void handleSave()}
             disabled={isSaved}
-            className={`rounded-none border border-sumi-none text-xs transition-all ${
+            className={`text-xs transition-all ${
               isSaved || savedFlash
-                ? "bg-matcha text-washi hover:bg-washi hover:text-matcha border-matcha text-sumi"
-                : "bg-sumi text-washi hover:bg-washi hover:text-sumi border-sumi text-sumi"
+                ? "bg-matcha text-washi hover:bg-matcha-light border-matcha"
+                : ""
             }`}
           >
             {isSaved || savedFlash ? (
@@ -1167,9 +1258,9 @@ type StatCardColor = "indigo" | "emerald" | "amber" | "purple";
 
 const STAT_CARD_VALUE_COLOR: Record<StatCardColor, string> = {
   indigo: "text-sumi",
-  emerald: "text-matcha",
-  amber: "text-shuiro",
-  purple: "text-kuroboshi",
+  emerald: "text-matcha-light",
+  amber: "text-kiniro",
+  purple: "text-sumi",
 };
 
 const StatCard: React.FC<{
@@ -1180,7 +1271,7 @@ const StatCard: React.FC<{
   icon?: React.ReactNode;
 }> = ({ label, value, sub, color, icon }) => (
   <div
-    className={`p-4 rounded-none border border-sumi-none border bg-washi shadow-[2px_2px_0px_0px_#2b2b2b]`}
+    className={`p-4 border border-kiniro-muted/15 bg-washi/60`}
   >
     <div className="flex items-center justify-between mb-1">
       <span className="text-[11px] font-medium text-sumi-light uppercase tracking-wider">

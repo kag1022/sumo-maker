@@ -22,10 +22,10 @@ import {
 import {
   createDivisionParticipants,
   evolveDivisionAfterBasho,
-  resolvePlayerRankScore,
   resolveTopDivisionFromRank,
   resolveTopDivisionRankValue,
   SimulationWorld,
+  syncPlayerActorInWorld,
   TopDivision,
 } from './world';
 import { resolveTopDivisionRank } from './topDivision/rank';
@@ -33,6 +33,7 @@ import { LowerDivisionQuotaWorld, LowerLeagueSnapshots } from './lowerQuota';
 import { BoundarySnapshot, LowerDivision } from './lower/types';
 import { resolveYushoResolution } from './yusho';
 import { rankNumberSideToSlot, resolveDivisionSlots } from '../banzuke/scale/rankScale';
+import { PLAYER_ACTOR_ID } from './actors/constants';
 import {
   createLowerDivisionBoutDayMap,
   DEFAULT_TORIKUMI_BOUNDARY_BANDS,
@@ -129,6 +130,9 @@ export const runBashoDetailed = (
   lowerWorld?: LowerDivisionQuotaWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
+  if (lowerWorld) {
+    syncPlayerToLowerDivisionRoster(status, lowerWorld);
+  }
   const topDivision = resolveTopDivisionFromRank(status.rank);
   if (topDivision && world) {
     return runTopDivisionBasho(status, year, month, topDivision, rng, world, simulationModelVersion);
@@ -178,6 +182,8 @@ const runSimplifiedBasho = (
   let losses = 0;
   let absent = 0;
   let consecutiveWins = 0;
+  let currentWinStreak = 0;
+  let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   let kinboshi = 0;
   const kimariteCount: Record<string, number> = {};
@@ -218,6 +224,8 @@ const runSimplifiedBasho = (
         break;
       }
       consecutiveWins = 0;
+      currentWinStreak = 0;
+      currentLossStreak += 1;
       previousResult = 'LOSS';
       continue;
     }
@@ -231,6 +239,8 @@ const runSimplifiedBasho = (
       currentWins: wins,
       currentLosses: losses,
       consecutiveWins,
+      currentWinStreak,
+      currentLossStreak,
       isLastDay,
       isYushoContention,
       previousResult,
@@ -250,6 +260,8 @@ const runSimplifiedBasho = (
     if (result.isWin) {
       wins += 1;
       consecutiveWins += 1;
+      currentWinStreak += 1;
+      currentLossStreak = 0;
       kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
       if (isKinboshiEligibleRank(status.rank) && enemy.rankName === '横綱') {
         kinboshi += 1;
@@ -258,6 +270,8 @@ const runSimplifiedBasho = (
     } else {
       losses += 1;
       consecutiveWins = 0;
+      currentWinStreak = 0;
+      currentLossStreak += 1;
       previousResult = 'LOSS';
     }
 
@@ -337,6 +351,60 @@ const LOWER_RANK_VALUE_MAP = {
   Jonokuchi: 10,
 } as const;
 
+const LOWER_DIVISIONS: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi'> = [
+  'Makushita',
+  'Sandanme',
+  'Jonidan',
+  'Jonokuchi',
+];
+
+const syncPlayerToLowerDivisionRoster = (
+  status: RikishiStatus,
+  lowerWorld: LowerDivisionQuotaWorld,
+): void => {
+  for (const lowerDivision of LOWER_DIVISIONS) {
+    lowerWorld.rosters[lowerDivision] = lowerWorld.rosters[lowerDivision].filter(
+      (npc) => npc.id !== PLAYER_ACTOR_ID,
+    );
+  }
+
+  if (!LOWER_DIVISIONS.includes(status.rank.division as typeof LOWER_DIVISIONS[number])) return;
+  const division = status.rank.division as typeof LOWER_DIVISIONS[number];
+  const rankScore = resolveLowerRankScore(status.rank, lowerWorld);
+  const playerActor = lowerWorld.npcRegistry.get(PLAYER_ACTOR_ID);
+  const slots = Math.max(1, lowerWorld.rosters[division].length || resolveDivisionSlots(division));
+  const merged = lowerWorld.rosters[division]
+    .slice()
+    .sort((a, b) => a.rankScore - b.rankScore);
+  if (merged.length >= slots) {
+    merged.pop();
+  }
+  merged.push({
+    id: PLAYER_ACTOR_ID,
+    seedId: PLAYER_ACTOR_ID,
+    shikona: status.shikona,
+    stableId: 'player-heya',
+    division,
+    currentDivision: division,
+    rankScore,
+    basePower: playerActor?.basePower ?? 72,
+    ability: playerActor?.ability ?? status.ratingState.ability,
+    uncertainty: playerActor?.uncertainty ?? status.ratingState.uncertainty,
+    volatility: playerActor?.volatility ?? 1.3,
+    form: playerActor?.form ?? Math.max(0.85, Math.min(1.15, 1 + status.ratingState.form * 0.03)),
+    styleBias: playerActor?.styleBias ?? 'BALANCE',
+    heightCm: playerActor?.heightCm ?? status.bodyMetrics.heightCm,
+    weightKg: playerActor?.weightKg ?? status.bodyMetrics.weightKg,
+    growthBias: playerActor?.growthBias ?? 0,
+    retirementBias: playerActor?.retirementBias ?? 0,
+    active: true,
+    recentBashoResults: playerActor?.recentBashoResults ?? [],
+  });
+  lowerWorld.rosters[division] = merged
+    .sort((a, b) => a.rankScore - b.rankScore)
+    .slice(0, slots);
+};
+
 const decodeJuryoRankFromScore = (
   rankScore: number,
 ): { number: number; side: 'East' | 'West' } => {
@@ -364,6 +432,8 @@ const toDivisionParticipants = (
     weightKg: participant.weightKg,
     wins: participant.wins,
     losses: participant.losses,
+    currentWinStreak: participant.currentWinStreak,
+    currentLossStreak: participant.currentLossStreak,
     expectedWins: participant.expectedWins,
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
@@ -394,6 +464,8 @@ const runLowerDivisionBasho = (
   let losses = 0;
   let absent = 0;
   let consecutiveWins = 0;
+  let currentWinStreak = 0;
+  let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
   let expectedWins = 0;
@@ -401,13 +473,7 @@ const runLowerDivisionBasho = (
   let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
   const playerRankScore = resolveLowerRankScore(status.rank, lowerWorld);
-  const lowerDivisions: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi'> = [
-    'Makushita',
-    'Sandanme',
-    'Jonidan',
-    'Jonokuchi',
-  ];
-  const participants: TorikumiParticipant[] = lowerDivisions.flatMap((lowerDivision) =>
+  const participants: TorikumiParticipant[] = LOWER_DIVISIONS.flatMap((lowerDivision) =>
     lowerWorld.rosters[lowerDivision]
       .filter((npc) => npc.active !== false)
       .slice()
@@ -415,7 +481,7 @@ const runLowerDivisionBasho = (
       .map((npc) => ({
         id: npc.id,
         shikona: npc.shikona,
-        isPlayer: false,
+        isPlayer: npc.id === PLAYER_ACTOR_ID,
         stableId: npc.stableId,
         division: lowerDivision,
         rankScore: npc.rankScore,
@@ -430,6 +496,8 @@ const runLowerDivisionBasho = (
         weightKg: npc.weightKg ?? 130,
         wins: 0,
         losses: 0,
+        currentWinStreak: 0,
+        currentLossStreak: 0,
         active: true,
         targetBouts: 7,
         boutsDone: 0,
@@ -467,6 +535,8 @@ const runLowerDivisionBasho = (
         weightKg: guest.weightKg ?? 152,
         wins: 0,
         losses: 0,
+        currentWinStreak: 0,
+        currentLossStreak: 0,
         active: true,
         targetBouts: 1,
         boutsDone: 0,
@@ -474,31 +544,21 @@ const runLowerDivisionBasho = (
     }
   }
 
-  let replaceIndex = -1;
-  for (let i = participants.length - 1; i >= 0; i -= 1) {
-    if (participants[i].division === division && !participants[i].isPlayer) {
-      replaceIndex = i;
-      break;
-    }
+  const player = participants.find((participant) => participant.id === PLAYER_ACTOR_ID);
+  if (!player) {
+    throw new Error('Player participant was not initialized for lower division basho');
   }
-  if (replaceIndex >= 0) participants.splice(replaceIndex, 1);
-  const player: TorikumiParticipant = {
-    id: 'PLAYER',
-    shikona: status.shikona,
-    isPlayer: true,
-    stableId: 'player-heya',
-    division,
-    rankScore: playerRankScore,
-    rankName: resolveLowerRankName(division),
-    rankNumber: status.rank.number ?? Math.floor((playerRankScore - 1) / 2) + 1,
-    power: 0,
-    wins: 0,
-    losses: 0,
-    active: true,
-    targetBouts: numBouts,
-    boutsDone: 0,
-  };
-  participants.push(player);
+  player.shikona = status.shikona;
+  player.stableId = 'player-heya';
+  player.division = division;
+  player.rankScore = playerRankScore;
+  player.rankName = resolveLowerRankName(division);
+  player.rankNumber = status.rank.number ?? Math.floor((playerRankScore - 1) / 2) + 1;
+  player.targetBouts = numBouts;
+  player.boutsDone = 0;
+  player.active = true;
+  player.currentWinStreak = 0;
+  player.currentLossStreak = 0;
   const lowerDayMap = createLowerDivisionBoutDayMap(participants, rng);
   const playerPlannedDays =
     [...(lowerDayMap.get('PLAYER') ?? new Set(Array.from({ length: numBouts }, (_, i) => resolveScheduledBoutDay(i))))].sort(
@@ -546,6 +606,10 @@ const runLowerDivisionBasho = (
         losses += 1;
         player.losses += 1;
         opponent.wins += 1;
+        player.currentWinStreak = 0;
+        player.currentLossStreak = (player.currentLossStreak ?? 0) + 1;
+        opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
+        opponent.currentLossStreak = 0;
         playerBoutDetails.push({
           day,
           result: 'LOSS',
@@ -560,6 +624,8 @@ const runLowerDivisionBasho = (
           player.active = false;
         }
         consecutiveWins = 0;
+        currentWinStreak = 0;
+        currentLossStreak += 1;
         previousResult = 'LOSS';
         return;
       }
@@ -571,6 +637,10 @@ const runLowerDivisionBasho = (
         currentWins: wins,
         currentLosses: losses,
         consecutiveWins,
+        currentWinStreak,
+        currentLossStreak,
+        opponentWinStreak: opponent.currentWinStreak ?? 0,
+        opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay: isLastBout,
         isYushoContention,
         previousResult,
@@ -603,6 +673,12 @@ const runLowerDivisionBasho = (
         player.wins += 1;
         opponent.losses += 1;
         consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = currentLossStreak;
+        opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
+        opponent.currentWinStreak = 0;
         kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
         previousResult = 'WIN';
       } else {
@@ -610,6 +686,12 @@ const runLowerDivisionBasho = (
         player.losses += 1;
         opponent.wins += 1;
         consecutiveWins = 0;
+        currentWinStreak = 0;
+        currentLossStreak += 1;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = currentLossStreak;
+        opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
+        opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
       }
 
@@ -627,6 +709,10 @@ const runLowerDivisionBasho = (
     onBye: (participant, day) => {
       if (participant.id !== 'PLAYER') return;
       absent += 1;
+      currentWinStreak = 0;
+      currentLossStreak = 0;
+      participant.currentWinStreak = 0;
+      participant.currentLossStreak = 0;
       previousResult = 'ABSENT';
       playerBoutDetails.push({ day, result: 'ABSENT' });
     },
@@ -636,6 +722,10 @@ const runLowerDivisionBasho = (
   for (const day of playerPlannedDays) {
     if (recordedDays.has(day)) continue;
     absent += 1;
+    currentWinStreak = 0;
+    currentLossStreak = 0;
+    player.currentWinStreak = 0;
+    player.currentLossStreak = 0;
     playerBoutDetails.push({ day, result: 'ABSENT' });
     previousResult = 'ABSENT';
   }
@@ -689,6 +779,8 @@ const runMaezumoBasho = (
   let wins = 0;
   let losses = 0;
   let consecutiveWins = 0;
+  let currentWinStreak = 0;
+  let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
   let expectedWins = 0;
@@ -730,6 +822,8 @@ const runMaezumoBasho = (
         currentWins: wins,
         currentLosses: losses,
         consecutiveWins,
+        currentWinStreak,
+        currentLossStreak,
         isLastDay: boutIndex === numBouts - 1,
         isYushoContention: false,
         previousResult,
@@ -744,11 +838,15 @@ const runMaezumoBasho = (
     if (result.isWin) {
       wins += 1;
       consecutiveWins += 1;
+      currentWinStreak += 1;
+      currentLossStreak = 0;
       kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
       previousResult = 'WIN';
     } else {
       losses += 1;
       consecutiveWins = 0;
+      currentWinStreak = 0;
+      currentLossStreak += 1;
       previousResult = 'LOSS';
     }
 
@@ -791,12 +889,15 @@ const runTopDivisionBasho = (
   world: SimulationWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
+  syncPlayerActorInWorld(world, status);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
   const kimariteCount: Record<string, number> = {};
   let wins = 0;
   let losses = 0;
   let absent = 0;
   let consecutiveWins = 0;
+  let currentWinStreak = 0;
+  let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const playerBoutDetails: PlayerBoutDetail[] = [];
   const kinboshiById = new Map<string, number>();
@@ -823,23 +924,11 @@ const runTopDivisionBasho = (
     world,
     'Makuuchi',
     rng,
-    division === 'Makuuchi'
-      ? {
-        shikona: status.shikona,
-        rankScore: resolvePlayerRankScore(status.rank, world.makuuchiLayout),
-      }
-      : undefined,
   ).map((participant) => toTorikumiSekitoriParticipant('Makuuchi', participant));
   const juryo = createDivisionParticipants(
     world,
     'Juryo',
     rng,
-    division === 'Juryo'
-      ? {
-        shikona: status.shikona,
-        rankScore: resolvePlayerRankScore(status.rank, world.makuuchiLayout),
-      }
-      : undefined,
   ).map((participant) => toTorikumiSekitoriParticipant('Juryo', participant));
   const participants = makuuchi.concat(juryo);
 
@@ -894,6 +983,12 @@ const runTopDivisionBasho = (
         player.losses += 1;
         opponent.wins += 1;
         consecutiveWins = 0;
+        currentWinStreak = 0;
+        currentLossStreak += 1;
+        player.currentWinStreak = 0;
+        player.currentLossStreak = currentLossStreak;
+        opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
+        opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
 
         playerBoutDetails.push({
@@ -934,6 +1029,10 @@ const runTopDivisionBasho = (
         currentWins: wins,
         currentLosses: losses,
         consecutiveWins,
+        currentWinStreak,
+        currentLossStreak,
+        opponentWinStreak: opponent.currentWinStreak ?? 0,
+        opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay,
         isYushoContention,
         previousResult,
@@ -954,6 +1053,12 @@ const runTopDivisionBasho = (
         player.wins += 1;
         opponent.losses += 1;
         consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = 0;
+        opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
+        opponent.currentWinStreak = 0;
         kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
         if (division === 'Makuuchi' && isKinboshiEligibleRank(status.rank)) {
           if (opponentRank.name === '横綱') {
@@ -966,6 +1071,12 @@ const runTopDivisionBasho = (
         player.losses += 1;
         opponent.wins += 1;
         consecutiveWins = 0;
+        currentWinStreak = 0;
+        currentLossStreak += 1;
+        player.currentWinStreak = 0;
+        player.currentLossStreak = currentLossStreak;
+        opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
+        opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
       }
 
@@ -983,6 +1094,10 @@ const runTopDivisionBasho = (
     onBye: (participant, day) => {
       if (participant.id !== 'PLAYER') return;
       absent += 1;
+      currentWinStreak = 0;
+      currentLossStreak = 0;
+      participant.currentWinStreak = 0;
+      participant.currentLossStreak = 0;
       previousResult = 'ABSENT';
       playerBoutDetails.push({ day, result: 'ABSENT' });
     },
@@ -992,6 +1107,10 @@ const runTopDivisionBasho = (
   for (let day = 1; day <= numBouts; day += 1) {
     if (existingDays.has(day)) continue;
     absent += 1;
+    currentWinStreak = 0;
+    currentLossStreak = 0;
+    player.currentWinStreak = 0;
+    player.currentLossStreak = 0;
     playerBoutDetails.push({ day, result: 'ABSENT' });
   }
   playerBoutDetails.sort((a, b) => a.day - b.day);

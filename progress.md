@@ -1,6 +1,27 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-02-23: Continued unified-v1 balance tuning (option 1 follow-up).
+  - Tuned `src/logic/balance/unifiedV1.ts` to reduce upper-division 8-7/7-8 concentration while preserving monster dominance:
+    - strength: `logisticScale=0.082`, `derivedOffsetMax=40`, `derivedOffsetWeight=0.72`, `ratingAnchorWeight=0.62`, `formWeight=1.6`, `diffSoftCap=34`
+    - rating update: `baseK=1.2`, `uncertaintyK=1.4`, `meanReversionToRankBaseline=0.012`
+    - added unified yokozuna gate constants (`yushoEquivalentMinScore=11.5`, `yushoEquivalentTotalMinScore=24.0`)
+  - Unified yokozuna promotion evaluator now references unified constants and treats previous basho `>= minEquivalent` as yusho-equivalent fallback:
+    - `src/logic/banzuke/rules/yokozunaPromotion.ts`
+  - Validation:
+    - `npm test` pass (174/174)
+    - `npm run lint` pass
+    - `npm run build` pass
+    - `npm run report:realism:mc` sampled runs:
+      - `BASE=30 / J2=30`: J2 gate PASS (`横綱率 53.33%`, `8-7/7-8 28.01%`)
+      - baseline remains unresolved in short-run sampling (`横綱率 0.00%`) due rare-event regime; requires high-N full gate run for final judgment.
+- 2026-02-23: Started `unified-v1` single-model merge (legacy-v6 + realism-v1 integration line).
+- Added `src/logic/balance/unifiedV1.ts` and switched strength/rating update constants to unified set.
+- `SimulationModelVersion` now includes `unified-v1`, default is `unified-v1`, and new-run requests are normalized to unified.
+- Removed main-flow model selection from Scout start path; app new runs now always execute/store unified model version.
+- Updated battle/matchmaking to one unified probability path (tanh soft-cap + blended ability + unified NPC strength).
+- Updated `report:realism:mc` implementation to unified acceptance gates (baseline + J2_MONSTER checks).
+- Replaced legacy-vs-realism split tests with unified invariants (probability clamp, monotonicity, trait cap, rating mean reversion, model normalization).
 - Added model-level profile/body metrics types and expanded Trait union (+12 planned skills).
 - Added Dexie v2 meta table scaffold and wallet persistence module with time-based regen.
 - Added enemy body metric bases and battle logic hooks for size-based power adjustment + new trait effects.
@@ -564,3 +585,202 @@ Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポ�
   - `npm test` passed (165/165).
   - `npm run lint` passed.
   - `npm run build` passed.
+- 2026-02-22: Integrated banzuke + actor unification pass (phase-in, non-destructive to existing APIs).
+  - Banzuke logging expanded with typed proposal source / constraint hits / shadow diff (`src/logic/banzuke/types.ts`, `composeNextBanzuke.ts`, `rules/constraints.ts`).
+  - Added constraint-evaluation layer and persisted log defaults for backward compatibility in repository writes.
+  - Introduced actor primitives (`src/logic/simulation/actors/constants.ts`, `playerBridge.ts`) and `SimulationWorld.actorRegistry` aliasing existing registry.
+  - Added PLAYER sync hook (`syncPlayerActorInWorld`) and wired engine/top-division basho path to keep PLAYER as a world actor while preserving existing player output contracts.
+  - Updated league retirement/reconcile counting to ignore PLAYER actor for NPC population logic.
+  - Upgraded DB name to `sumo-maker-v8` and banzuke decision index schema; added `listCareerBanzukeDecisions(careerId)`.
+  - Report screen now shows banzuke reason codes per basho in the rank movement table.
+  - Fixed quick banzuke report compile issue by adding missing `ratingState` in report scenario fixture.
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (3 core checks all zero)
+- TODO (next pass):
+  - Remove remaining `calculateNextRank` dependency from compose pipeline and ranking legacy exports.
+  - Replace world top-division `generateNextBanzuke` path with full banzuke allocator path.
+  - Migrate `lowerCommittee`/`sekitoriExpectedCommittee` dependency usage under `src/logic/banzuke/providers` and finalize old ranking file deletions.
+- 2026-02-22: Integrated follow-up pass for unified banzuke path + player actor continuity.
+  - Moved rank calculation contract ownership to `src/logic/banzuke/types.ts` (`RankCalculationOptions`, `RankChangeResult`) and switched engine/career usage to banzuke-side types.
+  - Removed runtime dependence on `ranking/index` exports from banzuke review/constraint/compose code paths.
+  - `advanceTopDivisionBanzuke` now runs through `composeNextBanzuke` and maps committee final decisions back into roster allocation updates.
+  - Reduced player/NPC branching in lower-division basho:
+    - added PLAYER actor-to-lower-roster sync in `runBashoDetailed`,
+    - lower participants now mark PLAYER by `PLAYER_ACTOR_ID` and use a shared participant path,
+    - lower quota snapshot reconstruction avoids duplicate PLAYER injection.
+  - Slimmed `src/logic/ranking/index.ts` by removing legacy banzuke exports (`calculateNextRank`, `generateNextBanzuke`, options/re-export bundle); tests now import concrete modules directly.
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+- Remaining TODO (for full destructive cleanup):
+  - Move `calculateNextRank` implementation from `src/logic/ranking/singleRankChange.ts` into `src/logic/banzuke/` and switch compose import.
+  - Replace `resolveLowerAssignedNextRank` / `resolveSekitoriBoundaryAssignedRank` ranking modules with banzuke providers, then delete legacy ranking committee files.
+- 2026-02-22: Legacy ranking cleanup phase progressed (destructive file removal).
+  - Moved old rank calculators into banzuke domain:
+    - `calculateNextRank` -> `src/logic/banzuke/rules/singleRankChange.ts`
+    - lower range model -> `src/logic/banzuke/rules/lowerDivision.ts`
+    - lower boundary allocator -> `src/logic/banzuke/providers/lowerBoundary.ts`
+    - sekitori boundary allocator -> `src/logic/banzuke/providers/sekitoriBoundary.ts`
+    - sekitori top allocator -> `src/logic/banzuke/providers/topDivision.ts`
+  - Switched runtime imports:
+    - `composeNextBanzuke` now uses banzuke-local `singleRankChange`.
+    - `lowerQuota` / `sekitoriQuota` now use banzuke providers.
+    - test imports moved from `logic/ranking/*` to new `logic/banzuke/*` modules.
+  - Deleted legacy files from `src/logic/ranking/`:
+    - `singleRankChange.ts`
+    - `lowerDivision.ts`
+    - `lowerCommittee.ts`
+    - `sekitoriExpectedCommittee.ts`
+    - `sekitoriCommittee.ts`
+    - `options.ts`
+  - Updated README directory map to reflect `banzuke/providers` and reduced ranking surface.
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (3 core checks=0)
+- Remaining TODO (next destructive pass):
+  - Migrate `ranking/expected/*` and `ranking/sekitori/*` helper modules under `banzuke/` to complete domain ownership.
+  - Reduce `ranking/` to score/layout pure utility package only.
+- 2026-02-22: Next cleanup phase completed (`ranking/expected` + `ranking/sekitori` migration).
+  - Migrated helper modules into banzuke provider domain:
+    - `src/logic/banzuke/providers/expected/*`
+    - `src/logic/banzuke/providers/sekitori/*`
+  - Switched dependent imports:
+    - `banzuke/providers/topDivision.ts` now uses local `./sekitori/*`.
+    - `banzuke/providers/lowerBoundary.ts` / `sekitoriBoundary.ts` now use local `./expected/*`.
+    - `simulation/world.ts` and `simulation/topDivision/banzuke.ts` type imports moved to `banzuke/providers/sekitori/types`.
+    - tests moved from `ranking/expected|sekitori` to `banzuke/providers/expected|sekitori`.
+  - Removed legacy directories/files:
+    - deleted `src/logic/ranking/expected/*`
+    - deleted `src/logic/ranking/sekitori/*`
+    - removed empty directories `src/logic/ranking/expected`, `src/logic/ranking/sekitori`
+  - Kept `ranking` surface as utility-focused (`rankScore`, `banzukeLayout`, `rankLimits`, minimal gates/helpers).
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (core checks all zero)
+- Remaining TODO (next phase candidate):
+  - Move `ranking/topDivisionRules.ts` and `ranking/yokozuna/promotion.ts` into `banzuke/rules` to finish domain ownership separation.
+- 2026-02-22: Rule-layer ownership cleanup completed (`topDivisionRules` + `yokozuna promotion` migration).
+  - Added banzuke rule modules:
+    - `src/logic/banzuke/rules/topDivisionRules.ts`
+    - `src/logic/banzuke/rules/yokozunaPromotion.ts`
+  - Switched references to banzuke rules:
+    - `banzuke/rules/singleRankChange.ts`
+    - `banzuke/providers/topDivision.ts`
+    - `banzuke/providers/sekitori/bands.ts`
+    - `banzuke/providers/sekitori/directives.ts`
+    - `simulation/topDivision/playerNormalization.ts`
+  - Deleted legacy ranking rule files:
+    - `src/logic/ranking/topDivisionRules.ts`
+    - `src/logic/ranking/yokozuna/promotion.ts`
+    - removed empty `src/logic/ranking/yokozuna/` directory.
+  - Expanded banzuke public exports to include:
+    - `normalizeSekitoriLosses`, `resolveTopDivisionAssignedEvent`
+    - `evaluateYokozunaPromotion`, `canPromoteToYokozuna`
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (core checks all zero)
+- Remaining TODO (next phase):
+  - evaluate whether `ranking/rankLimits.ts` can be mirrored under `banzuke/scale` and make `ranking/` strictly presentation-only.
+- 2026-02-22: Scale-limit ownership cleanup completed (`rankLimits` migration).
+  - Added `src/logic/banzuke/scale/rankLimits.ts` and moved all scale/range limit utilities there:
+    - `resolveRankLimits`, `resolveRankSlotOffset`, lower-division offset/size helpers, `LIMITS` and related constants.
+  - Updated imports to banzuke scale limits:
+    - `banzuke/rules/singleRankChange.ts`
+    - `banzuke/rules/lowerDivision.ts`
+    - `banzuke/types.ts`
+    - `features/report/components/ReportScreen.tsx`
+    - `scripts/tests/sim_tests.ts`
+  - Expanded banzuke public exports with rank-limit helpers via `banzuke/index.ts`.
+  - Deleted legacy file `src/logic/ranking/rankLimits.ts`.
+  - Updated README directory map to remove `ranking/rankLimits.ts`.
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (core checks all zero)
+- Remaining TODO (optional final shrink):
+  - decide whether `ranking/banzukeLayout.ts` should also move under `banzuke/scale` or remain as shared layout utility.
+- 2026-02-23: Optional final shrink completed (`banzukeLayout` compatibility layer removal).
+  - Canonical layout module finalized at:
+    - `src/logic/banzuke/scale/banzukeLayout.ts`
+  - Removed unused compatibility re-export:
+    - deleted `src/logic/ranking/banzukeLayout.ts`
+  - Updated README directory map so `ranking/` is presentation utility only (`index.ts`, `rankScore.ts`).
+- Validation:
+  - `npm test` passed (165/165)
+  - `npm run lint` passed
+  - `npm run build` passed
+  - `npm run report:banzuke:quick` passed (core checks all zero)
+
+- 2026-02-23: Logic Lab preset update for lower-boundary verification.
+  - Added new preset JK_MONSTER (序ノ口怪物) in src/features/logicLab/presets.ts and wired it into LogicLabPresetId.
+  - Localized Logic Lab preset labels to Japanese (dropdown labels now Japanese).
+  - Updated Logic Lab screen status/comparison display to show preset labels (Japanese) instead of raw preset IDs.
+  - Validation: npm test (168/168) and npm run build passed.
+- 2026-02-23: Lower-division balance tuning per feedback (Makushita rise width + Jonokuchi cap).
+  - Increased Makushita kachikoshi promotion width in both paths:
+    - `src/logic/banzuke/providers/lowerBoundary.ts` (`MAKUSHITA_SLOT_RANGE_BY_WINS` 7/6/5/4 wins widened)
+    - `src/logic/banzuke/rules/lowerDivision.ts` (`MAKUSHITA_RANGE_DELTA_BY_WINS` 7/6/5/4 wins widened)
+  - Capped Jonokuchi bottom to 32nd rank (=64 slots) and shifted volume toward Jonidan:
+    - `src/logic/simulation/npc/types.ts` (`LOWER_DIVISION_SLOTS.Jonokuchi: 60 -> 64`)
+    - `src/logic/banzuke/population/flow.ts` (`Jonokuchi` policy -> `FIXED 64`, `Jonidan` min slots `120 -> 160`)
+    - Synced scale defaults and dependent slot references:
+      - `src/logic/banzuke/scale/rankScale.ts`
+      - `src/logic/banzuke/scale/rankLimits.ts`
+      - `src/logic/simulation/strength/model.ts` (Jonokuchi ability band slots)
+      - `src/logic/battle.ts` (fallback enemy display slots)
+  - Test updates:
+    - `scripts/tests/sim_tests.ts`:
+      - initial active total assertion `630 -> 634`
+      - Maezumo->Jonokuchi expected number now tied to `Math.round(LIMITS.JONOKUCHI_MAX * 0.67)`.
+- Validation:
+  - `npm test` passed (174/174)
+  - `npm run lint` passed
+  - `npm run build` passed
+- 2026-02-23: Adjusted lower-league variability to follow incoming recruits instead of fixed Jonidan floor pressure.
+  - `src/logic/banzuke/population/flow.ts`:
+    - `Jonidan` default variable floor reverted to `minSlots: 120` (kept variable).
+  - `src/logic/simulation/npc/leagueReconcile.ts`:
+    - Added intake-driven dynamic variable policy resolver based on current `Maezumo` pool size.
+    - `Jonokuchi` and `Jonidan` variable floors now scale each reconcile pass with recruit pressure (no static maintenance target).
+- Validation:
+  - `npm test` passed (174/174)
+- 2026-02-23: LogicLab visualization update for promotion/demotion explainability.
+  - Added NPC result context to logic-lab per basho log row to explain why promotion/demotion was limited.
+  - `src/features/logicLab/types.ts`
+    - Added `LogicLabNpcContext`, `LogicLabNpcContextRow` and optional `npcContext` on `LogicLabBashoLogRow`.
+  - `src/features/logicLab/runner.ts`
+    - Extended `toLogRow` to build same-division NPC context from `step.npcBashoRecords`.
+    - Context includes: player score diff, lower-ranked outperformer count, upper-ranked underperformer count, and nearby/tough NPC rows.
+  - `src/features/logicLab/components/LogicLabScreen.tsx`
+    - Added a "競合" column in place log table (shows lower-ranked outperformer count).
+    - Added detailed "同階級NPC戦績コンテキスト" section with sortable-style table-like view of rival records.
+  - Validation:
+    - `npm run build` pass.
+  - Note:
+    - Attempted to run develop-web-game Playwright client, but command orchestration (preview server + client in one call) was blocked by execution policy in this environment.
+- 2026-02-23: Fixed regression where Makushita -> Juryo promotion could be shadowed after boundary-priority refactor.
+  - Root cause: `resolveBoundaryAssignedRankForCurrentDivision` prioritized lower-division assignment over sekitori boundary assignment for Makushita, so Juryo promotion assignment was discarded.
+  - Fix: in `src/logic/simulation/engine.ts`, Makushita now prioritizes sekitori-assigned rank when it is `Juryo`.
+  - Added regression test: `engine: makushita boundary resolver prioritizes sekitori promotion rank` in `scripts/tests/sim_tests.ts`.
+  - Validation: `npm test` pass (175/175), `npm run build` pass.
+- 2026-02-23: Root fix for "makekoshi promotion" at Makushita<->Juryo boundary.
+  - Cause: boundary fallback and mandatory promotion flags could conflict, allowing PLAYER makekoshi (e.g. 3-4 at Ms1) to be treated as promotion in assigned-rank path.
+  - Fixes:
+    - `src/logic/simulation/sekitori/candidates.ts`: promotion candidate and fallback promotion candidate now require kachikoshi (`wins > losses`).
+    - `src/logic/simulation/sekitoriQuota.ts`: PLAYER promotion/demotion ids are filtered by record direction; exchange slots normalized after filtering.
+    - `src/logic/banzuke/providers/sekitoriBoundary.ts`: PLAYER `mandatoryPromotion/mandatoryDemotion` now only enabled when direction-compatible.
+  - Regression tests:
+    - `quota: sekitori boundary never promotes makekoshi player from makushita`
+    - adjusted neutral-slot expectation to `0` when all makushita candidates are makekoshi.
+  - Validation: `npm test` pass (176/176), `npm run lint` pass, `npm run build` pass.

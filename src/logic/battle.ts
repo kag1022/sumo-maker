@@ -8,12 +8,12 @@ import {
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import {
+  calculateMomentumBonus,
   resolveBoutWinProb,
   resolvePlayerAbility,
 } from './simulation/strength/model';
 import {
   DEFAULT_SIMULATION_MODEL_VERSION,
-  isRealismModel,
   SimulationModelVersion,
 } from './simulation/modelVersion';
 
@@ -27,6 +27,10 @@ export interface BoutContext {
   currentWins: number;  // その場所の現在の勝ち数
   currentLosses: number; // その場所の現在の負け数
   consecutiveWins: number; // 連勝数
+  currentWinStreak?: number; // その場所の現在連勝数
+  currentLossStreak?: number; // その場所の現在連敗数
+  opponentWinStreak?: number; // 相手の現在連勝数
+  opponentLossStreak?: number; // 相手の現在連敗数
   isLastDay: boolean;   // 千秋楽かどうか
   isYushoContention: boolean; // 優勝がかかっているか
   previousResult?: 'WIN' | 'LOSS' | 'ABSENT';
@@ -35,8 +39,8 @@ export interface BoutContext {
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const resolveLegacyBoutWinProb = (powerDiff: number): number =>
-  clamp(1 / (1 + Math.exp(-0.082 * powerDiff)), 0.03, 0.97);
+const resolveSignedStreak = (winStreak: number, lossStreak: number): number =>
+  winStreak > 0 ? winStreak : lossStreak > 0 ? -lossStreak : 0;
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
@@ -91,10 +95,14 @@ export const calculateBattleResult = (
   enemy: EnemyStats, 
   context?: BoutContext,
   rng: RandomSource = Math.random,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  _simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): { isWin: boolean, kimarite: string; winProbability: number; opponentAbility: number } => {
   const traits = rikishi.traits || [];
   const numBouts = CONSTANTS.BOUTS_MAP[rikishi.rank.division];
+  const currentWinStreak = Math.max(0, context?.currentWinStreak ?? context?.consecutiveWins ?? 0);
+  const currentLossStreak = Math.max(0, context?.currentLossStreak ?? 0);
+  const opponentWinStreak = Math.max(0, context?.opponentWinStreak ?? 0);
+  const opponentLossStreak = Math.max(0, context?.opponentLossStreak ?? 0);
 
   // 1. 基礎能力の総合値を計算
   const myTotal = Object.values(rikishi.stats).reduce((a, b) => a + b, 0);
@@ -171,8 +179,8 @@ export const calculateBattleResult = (
   }
 
   // 【連勝街道】: 3連勝以上で連勝数*1.2（最大+8）のボーナス
-  if (traits.includes('RENSHOU_KAIDOU') && context && context.consecutiveWins >= 3) {
-      const streakBonus = Math.min(8, context.consecutiveWins * 1.2);
+  if (traits.includes('RENSHOU_KAIDOU') && currentWinStreak >= 3) {
+      const streakBonus = Math.min(8, currentWinStreak * 1.2);
       myPower += streakBonus;
   }
 
@@ -245,6 +253,42 @@ export const calculateBattleResult = (
       myPower += 4;
   }
 
+  // --- DNA CareerVariance 補正 ---
+  if (rikishi.genome) {
+    const gv = rikishi.genome.variance;
+    let dnaBonus = 0;
+
+    // clutchBias: 重要場面で勝負強さを反映
+    if (context) {
+      const isImportant = context.currentWins === 7 ||
+        (context.isLastDay && context.isYushoContention) ||
+        context.currentWins >= 10;
+      if (isImportant) {
+        dnaBonus += gv.clutchBias * 0.1; // -5 ~ +5
+      }
+    }
+
+    // formVolatility: 調子補正の振れ幅を拡大/縮小
+    const volatilityFactor = 1 + (gv.formVolatility - 50) / 200; // 0.75 ~ 1.25
+    const conditionDelta = myPower * (conditionMod - 1);
+    myPower += conditionDelta * (volatilityFactor - 1);
+
+    // streakSensitivity: 連勝/連敗ボーナスの乗数
+    if (context) {
+      const streakFactor = (gv.streakSensitivity - 50) / 100; // -0.5 ~ +0.5
+      if (currentWinStreak >= 2) {
+        dnaBonus += currentWinStreak * streakFactor * 0.5;
+      } else if (currentLossStreak >= 2) {
+        dnaBonus -= currentLossStreak * streakFactor * 0.35;
+      }
+    }
+
+    // 過剰補正防止: myPower の +/-15% まで
+    const maxDnaMod = baselinePower * 0.15;
+    dnaBonus = clamp(dnaBonus, -maxDnaMod, maxDnaMod);
+    myPower += dnaBonus;
+  }
+
   // 体格ボーナス
   if (rikishi.bodyType === 'ANKO') {
       // アンコ型: 押し相撲ボーナス
@@ -263,24 +307,19 @@ export const calculateBattleResult = (
   const bonus = myPower - baselinePower;
   const enemyAbility = enemy.ability ?? enemy.power;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
-  let winProbability: number;
-  let opponentAbility: number;
-  if (isRealismModel(simulationModelVersion)) {
-    const myAbility = resolvePlayerAbility(rikishi, baseMetrics) + bonus;
-    winProbability = resolveBoutWinProb({
-      attackerAbility: myAbility,
-      defenderAbility: enemyAbility,
-      attackerStyle: playerStyle,
-      defenderStyle: enemy.styleBias,
-      injuryPenalty,
-    });
-    opponentAbility = enemyAbility;
-  } else {
-    const legacyPower = myPower - injuryPenalty * 1.6;
-    const opponentPower = enemy.power;
-    winProbability = resolveLegacyBoutWinProb(legacyPower - opponentPower);
-    opponentAbility = opponentPower;
-  }
+  const myAbility = resolvePlayerAbility(rikishi, baseMetrics, bonus);
+  const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
+  const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
+  const momentumDelta = myMomentum - opponentMomentum;
+  const winProbability = resolveBoutWinProb({
+    attackerAbility: myAbility,
+    defenderAbility: enemyAbility,
+    attackerStyle: playerStyle,
+    defenderStyle: enemy.styleBias,
+    injuryPenalty,
+    bonus: momentumDelta,
+  });
+  const opponentAbility = enemyAbility;
   const isWin = roll < winProbability;
 
   // 【土俵際の魔術師 / 土壇場返し】: 負け判定時に低確率で逆転
@@ -371,7 +410,7 @@ export const generateEnemy = (
       Makushita: 120,
       Sandanme: 200,
       Jonidan: 200,
-      Jonokuchi: 60,
+      Jonokuchi: 64,
       Maezumo: 2,
     };
     const slot = division === 'Maezumo' ? 1 : (index % poolDisplaySize[division]) + 1;

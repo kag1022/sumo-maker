@@ -7,7 +7,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -17,15 +17,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-none border-[1.5px] font-bold transition-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center rounded-none font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-kiniro/50 disabled:pointer-events-none disabled:opacity-40",
           {
-            'border-sumi bg-sumi text-washi hover:bg-shuiro hover:border-shuiro': variant === 'primary',
-            'border-sumi bg-transparent text-sumi hover:bg-sumi hover:text-washi': variant === 'secondary',
-            'border-sumi border-dashed bg-transparent text-sumi hover:border-solid hover:bg-washi-dark': variant === 'outline',
-            'border-transparent hover:border-sumi hover:bg-washi-dark': variant === 'ghost',
-            'h-9 px-3 text-sm': size === 'sm',
-            'h-10 px-4 py-2': size === 'md',
-            'h-12 px-8 text-lg': size === 'lg',
+            'border border-kiniro/60 bg-gradient-to-b from-kiniro to-kiniro-dark text-washi hover:from-kiniro-light hover:to-kiniro shadow-game': variant === 'primary',
+            'border border-kiniro-muted/30 bg-washi-light text-sumi hover:bg-washi-light/80 hover:border-kiniro/40': variant === 'secondary',
+            'border border-dashed border-kiniro-muted/30 bg-transparent text-sumi-light hover:border-kiniro/40 hover:text-sumi': variant === 'outline',
+            'border border-transparent text-sumi-light hover:text-sumi hover:bg-washi-light/50': variant === 'ghost',
+            'border border-shuiro/60 bg-gradient-to-b from-shuiro to-shuiro-dark text-white hover:from-shuiro-light hover:to-shuiro shadow-glow-red': variant === 'danger',
+            'h-8 px-3 text-xs': size === 'sm',
+            'h-10 px-4 py-2 text-sm': size === 'md',
+            'h-12 px-8 text-base': size === 'lg',
           },
           className
         )}

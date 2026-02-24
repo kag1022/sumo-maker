@@ -25,6 +25,9 @@ const ORDER: LeagueDivision[] = [
   'Maezumo',
 ];
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
 type ReconcileMoveType = 'PROMOTE' | 'DEMOTE' | 'INTAKE';
 
 export type ReconcileMove = {
@@ -80,6 +83,7 @@ const takeWorst = (bucket: PersistentNpc[]): PersistentNpc | undefined => {
 const countActive = (world: SimulationWorld): number => {
   let total = 0;
   for (const npc of world.npcRegistry.values()) {
+    if (npc.actorType === 'PLAYER') continue;
     if (npc.active) total += 1;
   }
   return total;
@@ -94,6 +98,30 @@ const toCounts = (buckets: Record<LeagueDivision, PersistentNpc[]>): ReconcileCo
   Jonokuchi: buckets.Jonokuchi.length,
   Maezumo: buckets.Maezumo.length,
 });
+
+const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
+  const intakePressure = clamp(maezumoCount, 0, 120);
+  const jonokuchiMin = clamp(20 + Math.floor(intakePressure * 0.45), 20, 64);
+  const jonidanMin = clamp(120 + Math.floor(intakePressure * 0.9), 120, 280);
+
+  return DEFAULT_DIVISION_POLICIES.map((policy) => {
+    if (policy.division === 'Jonokuchi' && policy.capacityMode === 'VARIABLE') {
+      return {
+        ...policy,
+        minSlots: jonokuchiMin,
+        softMaxSlots: 64,
+      };
+    }
+    if (policy.division === 'Jonidan' && policy.capacityMode === 'VARIABLE') {
+      return {
+        ...policy,
+        minSlots: jonidanMin,
+        softMaxSlots: 320,
+      };
+    }
+    return policy;
+  });
+};
 
 const toTopRosterItem = (
   npc: PersistentNpc,
@@ -174,13 +202,14 @@ export const reconcileNpcLeague = (
   let recruited = 0;
 
   for (const npc of world.npcRegistry.values()) {
+    if (npc.actorType === 'PLAYER') continue;
     if (!npc.active) continue;
     const division = resolveDivision(npc);
     buckets[division].push(npc);
   }
 
   const before = toCounts(buckets);
-  const policyMap = resolveDivisionPolicyMap(DEFAULT_DIVISION_POLICIES);
+  const policyMap = resolveDivisionPolicyMap(resolveIntakeDrivenPolicies(buckets.Maezumo.length));
 
   const recruitToMaezumo = (): boolean => {
     const intake = intakeNewNpcRecruits(

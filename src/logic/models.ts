@@ -103,6 +103,49 @@ export interface Injury {
   occurredAt: { year: number; month: number };
 }
 
+// === 三層DNA型 ===
+
+/** 初期能力の天井値を決める軸群 (各 0-100) */
+export interface BaseAbilityDNA {
+  powerCeiling: number;    // 筋力系統上限
+  techCeiling: number;     // 技術系統上限
+  speedCeiling: number;    // 出足・足腰系統上限
+  ringSense: number;       // 土俵感覚（waza/koshiへの寄与）
+  styleFit: number;        // 戦術適性（tacticsボーナスの係数）
+}
+
+/** 成長カーブを決める軸 */
+export interface GrowthCurveDNA {
+  maturationAge: number;   // 18-35: ピーク到達年齢
+  peakLength: number;      // 1-12: ピーク持続期間（年）
+  lateCareerDecay: number; // 0.1-2.0: 衰退速度係数
+  adaptability: number;    // 0-100: 戦術変更時の成長ペナルティ軽減
+}
+
+/** 怪我耐性を決める軸 */
+export interface DurabilityDNA {
+  baseInjuryRisk: number;  // 0.3-2.0: 怪我発生率係数
+  partVulnerability: Partial<Record<InjuryType, number>>; // 部位別脆弱性 (0.5-3.0)
+  recoveryRate: number;    // 0.5-2.0: 回復力係数
+  chronicResistance: number; // 0-100: 慢性化耐性
+}
+
+/** キャリア中の変動を決める軸 */
+export interface CareerVarianceDNA {
+  formVolatility: number;  // 0-100: 調子の振れ幅
+  clutchBias: number;      // -50〜+50: 勝負強さ（正で強い）
+  slumpRecovery: number;   // 0-100: スランプ復帰速度
+  streakSensitivity: number; // 0-100: 連勝/連敗影響度
+}
+
+/** 三層DNA + 変動層 = ゲノム */
+export interface RikishiGenome {
+  base: BaseAbilityDNA;
+  growth: GrowthCurveDNA;
+  durability: DurabilityDNA;
+  variance: CareerVarianceDNA;
+}
+
 // 力士の現在の状態（動的に変化）
 export interface RikishiStatus {
   heyaId: string;
@@ -141,6 +184,7 @@ export interface RikishiStatus {
   injuries: Injury[];    // 詳細な怪我リスト
   isOzekiKadoban?: boolean; // 大関カド番
   isOzekiReturn?: boolean; // 大関陥落直後の特例復帰チャンス（次の1場所のみ）
+  genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
 
   history: CareerHistory;
   

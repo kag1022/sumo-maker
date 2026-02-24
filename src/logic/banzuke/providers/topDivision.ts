@@ -1,5 +1,5 @@
-import { buildMakuuchiLayoutFromRanks } from './banzukeLayout';
-import { normalizeSekitoriLosses } from './topDivisionRules';
+import { buildMakuuchiLayoutFromRanks } from '../scale/banzukeLayout';
+import { normalizeSekitoriLosses } from '../rules/topDivisionRules';
 import { allocateSekitoriSlots } from './sekitori/allocation';
 import { resolveTopDirective, toHistoryScore } from './sekitori/directives';
 import { compareByScore, compareRankKey, scoreTopDivisionCandidate } from './sekitori/scoring';

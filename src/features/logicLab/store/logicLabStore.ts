@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { SimulationModelVersion } from '../../../logic/simulation/modelVersion';
 import { LOGIC_LAB_DEFAULT_PRESET } from '../presets';
 import {
   createLogicLabRun,
@@ -24,7 +23,6 @@ type StepOutcome = 'continue' | 'paused' | 'completed' | 'stale' | 'error';
 interface LogicLabStore {
   phase: LogicLabRunPhase;
   presetId: LogicLabPresetId;
-  simulationModelVersion: SimulationModelVersion;
   seedInput: string;
   maxBashoInput: string;
   runConfig: LogicLabRunConfig | null;
@@ -37,7 +35,6 @@ interface LogicLabStore {
   runToken: number;
   errorMessage?: string;
   setPresetId: (presetId: LogicLabPresetId) => void;
-  setSimulationModelVersion: (simulationModelVersion: SimulationModelVersion) => void;
   setSeedInput: (seedInput: string) => void;
   setMaxBashoInput: (maxBashoInput: string) => void;
   startRun: () => Promise<void>;
@@ -53,10 +50,10 @@ interface LogicLabStore {
 let activeRun: LogicLabRunHandle | null = null;
 
 const parseRunConfig = (
-  store: Pick<LogicLabStore, 'presetId' | 'simulationModelVersion' | 'seedInput' | 'maxBashoInput'>,
+  store: Pick<LogicLabStore, 'presetId' | 'seedInput' | 'maxBashoInput'>,
 ): LogicLabRunConfig => ({
   presetId: store.presetId,
-  simulationModelVersion: store.simulationModelVersion,
+  simulationModelVersion: 'unified-v1',
   seed: normalizeLogicLabSeed(store.seedInput),
   maxBasho: normalizeLogicLabMaxBasho(store.maxBashoInput),
 });
@@ -106,7 +103,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
   return {
     phase: 'idle',
     presetId: LOGIC_LAB_DEFAULT_PRESET,
-    simulationModelVersion: 'legacy-v6',
     seedInput: String(LOGIC_LAB_DEFAULT_SEED),
     maxBashoInput: String(LOGIC_LAB_DEFAULT_MAX_BASHO),
     runConfig: null,
@@ -120,7 +116,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
     errorMessage: undefined,
 
     setPresetId: (presetId) => set({ presetId }),
-    setSimulationModelVersion: (simulationModelVersion) => set({ simulationModelVersion }),
     setSeedInput: (seedInput) => set({ seedInput }),
     setMaxBashoInput: (maxBashoInput) => set({ maxBashoInput }),
 
@@ -287,7 +282,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
         autoPlay: false,
         errorMessage: undefined,
         presetId: state.presetId,
-        simulationModelVersion: state.simulationModelVersion,
         seedInput: state.seedInput,
         maxBashoInput: state.maxBashoInput,
       }));

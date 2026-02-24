@@ -1,5 +1,5 @@
-import { Rank } from '../../models';
-import { getRankValue } from '../rankScore';
+import { Rank } from '../../../models';
+import { getRankValue } from '../../../ranking/rankScore';
 
 const resolveRankBase = (rank: Rank): number => 1000 - getRankValue(rank) * 6;
 
@@ -11,7 +11,8 @@ export const resolveExpectedPlacementScore = (
   mandatoryDemotion: boolean,
   mandatoryPromotion: boolean,
 ): number => {
-  const diff = wins - losses;
+  const effectiveLosses = losses + absent;
+  const diff = wins - effectiveLosses;
   const kachikoshi = Math.max(0, diff);
   const makekoshi = Math.max(0, -diff);
   const mandatoryBonus = mandatoryPromotion ? 180 : mandatoryDemotion ? -180 : 0;
@@ -19,9 +20,9 @@ export const resolveExpectedPlacementScore = (
     resolveRankBase(rank) +
     wins * 18 -
     losses * 16 -
-    absent * 14 +
+    absent * 22 +
     kachikoshi * 28 -
-    makekoshi * 24 +
+    makekoshi * 30 +
     mandatoryBonus
   );
 };
