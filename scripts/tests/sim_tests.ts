@@ -19,7 +19,18 @@ import {
 import { createInitialNpcUniverse } from '../../src/logic/simulation/npc/factory';
 import { intakeNewNpcRecruits } from '../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../src/logic/simulation/npc/leagueReconcile';
-import { countActiveByStable, NPC_STABLE_CATALOG } from '../../src/logic/simulation/npc/stableCatalog';
+import {
+  countActiveByStable,
+  NPC_STABLE_CATALOG,
+  resolveIchimonByStableId,
+} from '../../src/logic/simulation/npc/stableCatalog';
+import {
+  createNpcNameContext,
+  generateUniqueNpcShikona,
+  isSurnameShikona,
+  normalizeShikona,
+} from '../../src/logic/simulation/npc/npcShikonaGenerator';
+import { ActorRegistry, PersistentActor } from '../../src/logic/simulation/npc/types';
 import {
   createSekitoriBoundaryWorld,
   resolveSekitoriQuotaForPlayer,
@@ -53,6 +64,7 @@ import {
   countActiveNpcInWorld,
   createSimulationWorld,
   resolveTopDivisionQuotaForPlayer,
+  syncPlayerActorInWorld,
 } from '../../src/logic/simulation/world';
 import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../src/logic/simulation/sekitori/types';
 import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
@@ -363,6 +375,53 @@ const lcg = (seed: number): (() => number) => {
     state = (1664525 * state + 1013904223) % 4294967296;
     return state / 4294967296;
   };
+};
+
+const createMockActor = (
+  id: string,
+  shikona: string,
+  division: PersistentActor['division'],
+  stableId = 'stable-001',
+): PersistentActor => ({
+  actorId: id,
+  actorType: id === 'PLAYER' ? 'PLAYER' : 'NPC',
+  id,
+  seedId: id,
+  shikona,
+  stableId,
+  division,
+  currentDivision: division,
+  rankScore: 1,
+  basePower: 70,
+  ability: 70,
+  uncertainty: 1.4,
+  form: 1,
+  volatility: 1.2,
+  styleBias: 'BALANCE',
+  heightCm: 182,
+  weightKg: 140,
+  growthBias: 0,
+  retirementBias: 0,
+  entryAge: 18,
+  age: 18,
+  careerBashoCount: 0,
+  active: true,
+  entrySeq: 0,
+  recentBashoResults: [],
+});
+
+const assertActiveShikonaUnique = (
+  registry: ActorRegistry,
+  context: string,
+): void => {
+  const active = [...registry.values()].filter((actor) => actor.active);
+  const normalized = active.map((actor) => normalizeShikona(actor.shikona));
+  const unique = new Set(normalized);
+  assert.equal(
+    unique.size,
+    normalized.length,
+  );
+  assert.ok(unique.size === normalized.length, `duplicate shikona detected in ${context}`);
 };
 
 const createTorikumiParticipant = (
@@ -5034,6 +5093,7 @@ const tests: TestCase[] = [
         assert.equal(world.rosters.Juryo.length, 28);
         assert.equal(activeMakuuchi, 42);
         assert.equal(activeJuryo, 28);
+        assertActiveShikonaUnique(world.npcRegistry, `simulation-loop-${i}`);
       }
     },
   },
@@ -5076,6 +5136,119 @@ const tests: TestCase[] = [
         (stable) => stable.scale === 'SMALL' || stable.scale === 'TINY',
       ).length;
       assert.equal(count, 16);
+    },
+  },
+  {
+    name: 'npc stable catalog: each ichimon owns exactly 9 stables',
+    run: () => {
+      const distribution = NPC_STABLE_CATALOG.reduce(
+        (acc, stable) => {
+          acc[stable.ichimonId] += 1;
+          return acc;
+        },
+        {
+          'Ichimon-1': 0,
+          'Ichimon-2': 0,
+          'Ichimon-3': 0,
+          'Ichimon-4': 0,
+          'Ichimon-5': 0,
+        } as Record<'Ichimon-1' | 'Ichimon-2' | 'Ichimon-3' | 'Ichimon-4' | 'Ichimon-5', number>,
+      );
+
+      assert.equal(distribution['Ichimon-1'], 9);
+      assert.equal(distribution['Ichimon-2'], 9);
+      assert.equal(distribution['Ichimon-3'], 9);
+      assert.equal(distribution['Ichimon-4'], 9);
+      assert.equal(distribution['Ichimon-5'], 9);
+
+      for (const stable of NPC_STABLE_CATALOG) {
+        assert.equal(resolveIchimonByStableId(stable.id), stable.ichimonId);
+      }
+    },
+  },
+  {
+    name: 'npc shikona: surname style appears more in lower divisions than sekitori',
+    run: () => {
+      const topRegistry: ActorRegistry = new Map();
+      const topContext = createNpcNameContext();
+      const topRng = lcg(20260223);
+      let topSurname = 0;
+      const topTotal = 1200;
+      for (let i = 0; i < topTotal; i += 1) {
+        const division = i % 2 === 0 ? 'Makuuchi' : 'Juryo';
+        const stableId = `stable-${String((i % 45) + 1).padStart(3, '0')}`;
+        const shikona = generateUniqueNpcShikona(
+          stableId,
+          division,
+          topRng,
+          topContext,
+          topRegistry,
+        );
+        if (isSurnameShikona(shikona)) topSurname += 1;
+        const id = `TOP-${i + 1}`;
+        topRegistry.set(id, createMockActor(id, shikona, division, stableId));
+      }
+
+      const lowerRegistry: ActorRegistry = new Map();
+      const lowerContext = createNpcNameContext();
+      const lowerRng = lcg(20260224);
+      const lowerDivisions: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi' | 'Maezumo'> = [
+        'Makushita',
+        'Sandanme',
+        'Jonidan',
+        'Jonokuchi',
+        'Maezumo',
+      ];
+      let lowerSurname = 0;
+      const lowerTotal = 2200;
+      for (let i = 0; i < lowerTotal; i += 1) {
+        const division = lowerDivisions[i % lowerDivisions.length];
+        const stableId = `stable-${String((i % 45) + 1).padStart(3, '0')}`;
+        const shikona = generateUniqueNpcShikona(
+          stableId,
+          division,
+          lowerRng,
+          lowerContext,
+          lowerRegistry,
+        );
+        if (isSurnameShikona(shikona)) lowerSurname += 1;
+        const id = `LOW-${i + 1}`;
+        lowerRegistry.set(id, createMockActor(id, shikona, division, stableId));
+      }
+
+      const topRatio = topSurname / topTotal;
+      const lowerRatio = lowerSurname / lowerTotal;
+      assert.ok(topRatio >= 0.03 && topRatio <= 0.12, `Unexpected sekitori surname ratio: ${topRatio}`);
+      assert.ok(lowerRatio >= 0.22 && lowerRatio <= 0.38, `Unexpected lower surname ratio: ${lowerRatio}`);
+      assert.ok(lowerRatio > topRatio + 0.12, `Expected lower ratio > top ratio, got ${lowerRatio} vs ${topRatio}`);
+    },
+  },
+  {
+    name: 'player name collision: colliding active NPC is renamed while player name is preserved',
+    run: () => {
+      const rng = lcg(20260225);
+      const world = createSimulationWorld(rng);
+      const targetNpc = world.rosters.Makuuchi.find((row) => row.id !== 'PLAYER');
+      assert.ok(Boolean(targetNpc), 'Expected at least one active makuuchi NPC');
+      if (!targetNpc) return;
+
+      const beforeCollisionName = world.npcRegistry.get(targetNpc.id)?.shikona;
+      assert.ok(Boolean(beforeCollisionName), 'Collision source shikona is missing');
+      if (!beforeCollisionName) return;
+
+      const status = createStatus({
+        shikona: beforeCollisionName,
+        rank: { division: 'Makuuchi', name: '前頭', number: 9, side: 'East' },
+      });
+
+      syncPlayerActorInWorld(world, status, rng);
+
+      assert.equal(world.npcRegistry.get('PLAYER')?.shikona, beforeCollisionName);
+      assert.ok(
+        world.npcRegistry.get(targetNpc.id)?.shikona !== beforeCollisionName,
+        'Colliding NPC should be renamed',
+      );
+      assertActiveShikonaUnique(world.npcRegistry, 'player-collision');
     },
   },
   {
@@ -5152,6 +5325,7 @@ const tests: TestCase[] = [
         const intake = intakeNewNpcRecruits(universe, seq + 1, month, activeCount, lcg(5000 + i));
         universe.nextNpcSerial = intake.nextNpcSerial;
         seq += 1;
+        assertActiveShikonaUnique(universe.registry, `intake-loop-${i}`);
         if (activeCount >= 900) break;
       }
 
@@ -5164,6 +5338,7 @@ const tests: TestCase[] = [
           assert.ok((counts.get(stable.id) ?? 0) <= 4);
         }
       }
+      assertActiveShikonaUnique(universe.registry, 'intake-final');
     },
   },
   {
