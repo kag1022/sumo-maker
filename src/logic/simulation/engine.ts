@@ -361,7 +361,7 @@ export const createSimulationEngine = (
     params.simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
   );
   const banzukeEngineVersion: BanzukeEngineVersion =
-    params.banzukeEngineVersion ?? 'legacy-v1';
+    params.banzukeEngineVersion ?? 'optimizer-v1';
   const world = createSimulationWorld(deps.random);
   const sekitoriBoundaryWorld = createSekitoriBoundaryWorld(deps.random);
   const lowerDivisionQuotaWorld = createLowerDivisionQuotaWorld(deps.random, world);

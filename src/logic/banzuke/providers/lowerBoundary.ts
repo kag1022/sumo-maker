@@ -253,7 +253,7 @@ const resolvePlayerMandatoryFlags = (
 export const resolveLowerDivisionPlacements = (
   results: LowerResults,
   playerRecord?: PlayerLowerRecord,
-  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): LowerDivisionPlacementResolution => {
   const divisionSizes = resolveDivisionSizes(results);
   const divisionMaxNumbers = resolveDivisionMaxNumbers(divisionSizes);
@@ -442,7 +442,7 @@ export const resolveLowerAssignedNextRank = (
     JonidanJonokuchi: LowerBoundaryExchange;
   },
   playerRecord?: PlayerLowerRecord,
-  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): Rank | undefined => resolveLowerDivisionPlacements(
   results,
   playerRecord,

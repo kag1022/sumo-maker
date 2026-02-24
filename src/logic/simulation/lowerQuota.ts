@@ -723,7 +723,7 @@ export const runLowerDivisionQuotaStep = (
   playerRecord?: PlayerLowerRecord,
   precomputedLeagueResults?: LowerLeagueSnapshots,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
-  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): Record<LowerBoundaryId, LowerBoundaryExchange> => {
   promoteMaezumoToJonokuchi(world, rng);
   const lowerLeagueRaw =

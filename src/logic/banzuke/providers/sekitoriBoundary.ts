@@ -61,7 +61,7 @@ export const resolveSekitoriBoundaryAssignedRank = (
   makushitaResults: BoundarySnapshot[],
   exchange: SekitoriExchange,
   playerFullAbsence: boolean,
-  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): Rank | undefined => {
   const candidates: ExpectedPlacementCandidate[] = [];
   for (const row of juryoResults) {

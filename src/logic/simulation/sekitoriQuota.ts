@@ -53,7 +53,7 @@ export const runSekitoriQuotaStep = (
   playerMakushitaRecord?: PlayerMakushitaRecord,
   lowerWorld?: LowerDivisionQuotaWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
-  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): SekitoriExchange => {
   boundaryWorld.lastPlayerJuryoHalfStepNudge = 0;
   boundaryWorld.npcRegistry = lowerWorld?.npcRegistry ?? topWorld.npcRegistry;
