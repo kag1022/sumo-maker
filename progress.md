@@ -784,3 +784,37 @@ Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポ�
     - `quota: sekitori boundary never promotes makekoshi player from makushita`
     - adjusted neutral-slot expectation to `0` when all makushita candidates are makekoshi.
   - Validation: `npm test` pass (176/176), `npm run lint` pass, `npm run build` pass.
+- 2026-02-24: Implemented banzuke redesign foundation with optimizer flag wiring + regression updates.
+  - Added engine-version wiring:
+    - `src/logic/banzuke/types.ts`: added `BanzukeEngineVersion` (`legacy-v1` / `optimizer-v1`), plumbed through `RankCalculationOptions`, `BanzukeDecisionLog`, and new audit reason codes.
+    - `src/logic/simulation/engine.ts`: `SimulationParams` now supports `banzukeEngineVersion`; value is propagated into lower/sekitori quota steps, rank options, and diagnostics.
+    - `src/logic/simulation/diagnostics.ts`: added optional `banzukeEngineVersion`.
+    - `src/logic/banzuke/committee/composeNextBanzuke.ts`: decision logs now persist `banzukeEngineVersion`.
+  - Added optimizer module (`src/logic/banzuke/optimizer/`):
+    - `config.ts`, `types.ts`, `pressure.ts`, `quantileTargets.ts`, `objective.ts`, `orderedAssignmentDp.ts`, `index.ts`.
+    - Implements deterministic ordered DP allocation with quantile-shaped objective + pressure-aware tilt and direction hard guards.
+  - Integrated optimizer path for boundary providers:
+    - `src/logic/banzuke/providers/lowerBoundary.ts`
+    - `src/logic/banzuke/providers/sekitoriBoundary.ts`
+    - Both now accept `banzukeEngineVersion` and use optimizer only when version is `optimizer-v1` (fallback to legacy monotonic allocator on infeasible cases).
+    - `src/logic/simulation/lowerQuota.ts` / `src/logic/simulation/sekitoriQuota.ts` now pass through the engine version.
+  - Review-board role shrink (audit-oriented):
+    - `src/logic/banzuke/committee/reviewBoard.ts` now performs flag-based audit corrections and emits audit reasons, without weighted reject loops.
+  - Explicit fix for Juryo absent scoring:
+    - `src/logic/banzuke/providers/sekitori/scoring.ts`
+    - Juryo branch changed from absence bonus to absence penalty (`absent` no longer raises score).
+  - Added regression tests:
+    - `scripts/tests/sim_tests.ts`
+      - `banzuke scoring: juryo absent never increases candidate score`
+      - `quota: optimizer-v1 preserves makekoshi/kachikoshi direction constraints`
+  - Added manual quantile report flow (non-CI):
+    - `scripts/reports/banzuke_quantile_report.ts`
+    - `scripts/reports/run_banzuke_quantile_report.cjs`
+    - `tsconfig.quantilechecks.json`
+    - `package.json` script: `report:banzuke:quantile`
+  - Validation:
+    - `npm test` pass (186/186)
+    - `npm run lint` pass
+    - `npm run build` pass
+    - `npm run report:banzuke:quick` pass (`checks` all zero)
+    - `npm run report:banzuke:quantile` pass (manual quantile summary output)

@@ -29,6 +29,7 @@ import {
   SekitoriExchange,
 } from './sekitori/types';
 import { resolveSekitoriBoundaryAssignedRank } from '../banzuke/providers/sekitoriBoundary';
+import { BanzukeEngineVersion } from '../banzuke/types';
 
 export type {
   PlayerSekitoriQuota,
@@ -52,6 +53,7 @@ export const runSekitoriQuotaStep = (
   playerMakushitaRecord?: PlayerMakushitaRecord,
   lowerWorld?: LowerDivisionQuotaWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
 ): SekitoriExchange => {
   boundaryWorld.lastPlayerJuryoHalfStepNudge = 0;
   boundaryWorld.npcRegistry = lowerWorld?.npcRegistry ?? topWorld.npcRegistry;
@@ -164,6 +166,7 @@ export const runSekitoriQuotaStep = (
     makushitaResults,
     boundaryWorld.lastExchange,
     playerJuryoFullAbsence,
+    banzukeEngineVersion,
   );
 
   applyNpcExchange(topWorld, boundaryWorld, forcedPromotedIds, forcedDemotedIds);

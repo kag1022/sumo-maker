@@ -1,5 +1,6 @@
 import { Rank } from '../models';
 import { SimulationModelVersion } from './modelVersion';
+import { BanzukeEngineVersion } from '../banzuke/types';
 
 export interface SimulationDiagnostics {
   seq: number;
@@ -16,4 +17,5 @@ export interface SimulationDiagnostics {
   demoted: boolean;
   reason?: string;
   simulationModelVersion: SimulationModelVersion;
+  banzukeEngineVersion?: BanzukeEngineVersion;
 }

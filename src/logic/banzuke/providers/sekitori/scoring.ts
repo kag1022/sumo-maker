@@ -95,7 +95,7 @@ export const scoreTopDivisionCandidate = (
     makekoshi * 3.85 -
     makekoshi * makekoshi * 0.72 -
     deepMakekoshiPenalty +
-    snapshot.absent * 1.3 +
+    snapshot.absent * -1.3 +
     sosBoost * 0.85 +
     promotionBurstBonus +
     (snapshot.yusho ? 10 : 0) +

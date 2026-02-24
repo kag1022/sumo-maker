@@ -48,6 +48,7 @@ import { intakeNewNpcRecruits } from './npc/intake';
 import { runNpcRetirementStep } from './npc/retirement';
 import { reconcileNpcLeague } from './npc/leagueReconcile';
 import {
+  BanzukeEngineVersion,
   BanzukeDecisionLog,
   BanzukeMode,
   BanzukePopulationSnapshot,
@@ -70,6 +71,7 @@ export interface SimulationParams {
   careerId?: string;
   banzukeMode?: BanzukeMode;
   simulationModelVersion?: SimulationModelVersion;
+  banzukeEngineVersion?: BanzukeEngineVersion;
 }
 
 export interface BanzukeEntry {
@@ -358,6 +360,8 @@ export const createSimulationEngine = (
   const simulationModelVersion = normalizeNewRunModelVersion(
     params.simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
   );
+  const banzukeEngineVersion: BanzukeEngineVersion =
+    params.banzukeEngineVersion ?? 'legacy-v1';
   const world = createSimulationWorld(deps.random);
   const sekitoriBoundaryWorld = createSekitoriBoundaryWorld(deps.random);
   const lowerDivisionQuotaWorld = createLowerDivisionQuotaWorld(deps.random, world);
@@ -468,6 +472,7 @@ export const createSimulationEngine = (
       lowerPlayerRecord,
       bashoResult.lowerLeagueSnapshots,
       simulationModelVersion,
+      banzukeEngineVersion,
     );
     runSekitoriQuotaStep(
       world,
@@ -476,6 +481,7 @@ export const createSimulationEngine = (
       undefined,
       lowerDivisionQuotaWorld,
       simulationModelVersion,
+      banzukeEngineVersion,
     );
 
     status.history.records.push(bashoRecord);
@@ -499,6 +505,7 @@ export const createSimulationEngine = (
       ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
       scaleSlots,
       simulationModelVersion,
+      banzukeEngineVersion,
     };
 
     const committee = composeNextBanzuke({
@@ -608,6 +615,7 @@ export const createSimulationEngine = (
       demoted: rankChange.event?.includes('DEMOTION') ?? false,
       reason: rankChange.event,
       simulationModelVersion,
+      banzukeEngineVersion,
     };
 
     const sekitoriNpc = buildSekitoriNpcRecords(world, world.makuuchiLayout);

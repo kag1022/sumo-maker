@@ -143,7 +143,7 @@ const run = (): void => {
 
     advanceTopDivisionBanzuke(world);
     runLowerDivisionQuotaStep(lowerWorld, rng);
-    runSekitoriQuotaStep(world, boundaryWorld, rng, lowerWorld);
+    runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
 
     seq += 1;
     runNpcRetirementStep(world.npcRegistry.values(), seq, rng);

@@ -1,5 +1,6 @@
 export type {
   BanzukeMode,
+  BanzukeEngineVersion,
   RankCalculationOptions,
   RankChangeResult,
   BanzukeDivisionPolicy,
@@ -40,3 +41,4 @@ export { calculateLowerDivisionRankChange, resolveLowerRangeDeltaByScore } from 
 export { resolveLowerAssignedNextRank } from './providers/lowerBoundary';
 export { resolveSekitoriBoundaryAssignedRank } from './providers/sekitoriBoundary';
 export { generateNextBanzuke, resolveSekitoriDeltaBand, resolveSekitoriPreferredSlot } from './providers/topDivision';
+export { optimizeExpectedPlacements } from './optimizer';

@@ -6,6 +6,7 @@ import { BashoRecordSnapshot } from '../../src/logic/banzuke/providers/sekitori/
 import { resolveLowerRangeDeltaByScore } from '../../src/logic/banzuke/rules/lowerDivision';
 import { resolveSekitoriDeltaBand } from '../../src/logic/banzuke/providers/sekitori/bands';
 import { resolveTopDirective } from '../../src/logic/banzuke/providers/sekitori/directives';
+import { scoreTopDivisionCandidate } from '../../src/logic/banzuke/providers/sekitori/scoring';
 import { LIMITS } from '../../src/logic/banzuke/scale/rankLimits';
 import { runSimulation } from '../../src/logic/simulation/runner';
 import { PlayerBoutDetail, runBasho, runBashoDetailed } from '../../src/logic/simulation/basho';
@@ -1787,6 +1788,161 @@ const tests: TestCase[] = [
       assert.ok(Boolean(assigned), 'Expected assigned rank');
       assert.equal(assigned?.division, 'Makushita');
       assert.equal(assigned?.name, '幕下');
+    },
+  },
+  {
+    name: 'banzuke scoring: juryo absent never increases candidate score',
+    run: () => {
+      const baseSnapshot: BashoRecordSnapshot = {
+        id: 'J-test',
+        shikona: '十両試験',
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 6 },
+        wins: 8,
+        losses: 7,
+        absent: 0,
+      };
+      const absentSnapshot: BashoRecordSnapshot = {
+        ...baseSnapshot,
+        absent: 5,
+      };
+      const baseScore = scoreTopDivisionCandidate(
+        baseSnapshot,
+        resolveTopDirective(baseSnapshot),
+      );
+      const absentScore = scoreTopDivisionCandidate(
+        absentSnapshot,
+        resolveTopDirective(absentSnapshot),
+      );
+      assert.ok(
+        absentScore <= baseScore,
+        `Expected absent score <= base score, got ${absentScore} > ${baseScore}`,
+      );
+    },
+  },
+  {
+    name: 'quota: optimizer-v1 preserves makekoshi/kachikoshi direction constraints',
+    run: () => {
+      const toBoundarySlot = (rank: Rank): number => {
+        const sideOffset = rank.side === 'West' ? 2 : 1;
+        if (rank.division === 'Juryo') {
+          const number = rank.number ?? 1;
+          return (number - 1) * 2 + sideOffset;
+        }
+        const number = rank.number ?? 1;
+        return 28 + (number - 1) * 2 + sideOffset;
+      };
+
+      const makekoshiCurrentSlot = 9;
+      const makekoshiAssigned = resolveSekitoriBoundaryAssignedRank(
+        [
+          {
+            id: 'PLAYER',
+            shikona: '試験山',
+            isPlayer: true,
+            stableId: 'player',
+            rankScore: makekoshiCurrentSlot,
+            wins: 5,
+            losses: 10,
+          },
+          {
+            id: 'Juryo-1',
+            shikona: '十両壱',
+            isPlayer: false,
+            stableId: 'j-1',
+            rankScore: 10,
+            wins: 8,
+            losses: 7,
+          },
+        ],
+        [
+          {
+            id: 'Makushita-1',
+            shikona: '幕下壱',
+            isPlayer: false,
+            stableId: 'm-1',
+            rankScore: 1,
+            wins: 6,
+            losses: 1,
+          },
+        ],
+        {
+          slots: 1,
+          promotedToJuryoIds: ['Makushita-1'],
+          demotedToMakushitaIds: ['PLAYER'],
+          playerPromotedToJuryo: false,
+          playerDemotedToMakushita: true,
+          reason: 'NORMAL',
+        },
+        false,
+        'optimizer-v1',
+      );
+      assert.ok(Boolean(makekoshiAssigned), 'Expected makekoshi assignment');
+      const makekoshiSlot = toBoundarySlot(makekoshiAssigned ?? {
+        division: 'Juryo',
+        name: '十両',
+        side: 'East',
+        number: 5,
+      });
+      assert.ok(
+        makekoshiSlot >= makekoshiCurrentSlot,
+        `Expected makekoshi slot >= current (${makekoshiCurrentSlot}), got ${makekoshiSlot}`,
+      );
+
+      const kachikoshiCurrentSlot = 34;
+      const kachikoshiAssigned = resolveSekitoriBoundaryAssignedRank(
+        [
+          {
+            id: 'Juryo-1',
+            shikona: '十両壱',
+            isPlayer: false,
+            stableId: 'j-1',
+            rankScore: 28,
+            wins: 4,
+            losses: 11,
+          },
+        ],
+        [
+          {
+            id: 'PLAYER',
+            shikona: '試験山',
+            isPlayer: true,
+            stableId: 'player',
+            rankScore: 6,
+            wins: 5,
+            losses: 2,
+          },
+          {
+            id: 'Makushita-1',
+            shikona: '幕下壱',
+            isPlayer: false,
+            stableId: 'm-1',
+            rankScore: 5,
+            wins: 3,
+            losses: 4,
+          },
+        ],
+        {
+          slots: 1,
+          promotedToJuryoIds: ['PLAYER'],
+          demotedToMakushitaIds: ['Juryo-1'],
+          playerPromotedToJuryo: true,
+          playerDemotedToMakushita: false,
+          reason: 'NORMAL',
+        },
+        false,
+        'optimizer-v1',
+      );
+      assert.ok(Boolean(kachikoshiAssigned), 'Expected kachikoshi assignment');
+      const kachikoshiSlot = toBoundarySlot(kachikoshiAssigned ?? {
+        division: 'Makushita',
+        name: '幕下',
+        side: 'East',
+        number: 3,
+      });
+      assert.ok(
+        kachikoshiSlot <= kachikoshiCurrentSlot,
+        `Expected kachikoshi slot <= current (${kachikoshiCurrentSlot}), got ${kachikoshiSlot}`,
+      );
     },
   },
   {

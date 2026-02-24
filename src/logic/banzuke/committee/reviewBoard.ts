@@ -71,52 +71,7 @@ const compareRank = (a: Rank, b: Rank): number => toRankScore(a) - toRankScore(b
 
 const sameDivision = (a: Rank, b: Rank): boolean => a.division === b.division;
 
-type Judge = {
-  id: string;
-  weight: number;
-  score: (input: BanzukeCommitteeCase, candidate: Rank) => number;
-};
-
-const judges: Judge[] = [
-  {
-    id: 'ConservativeJudge',
-    weight: 0.4,
-    score: (input, candidate) => {
-      const distance = Math.abs(compareRank(candidate, input.currentRank));
-      const base = -Math.min(16, distance * 0.25);
-      if (input.result.wins > input.result.losses && compareRank(candidate, input.currentRank) > 0) return base - 10;
-      if (input.result.wins < input.result.losses && compareRank(candidate, input.currentRank) < 0) return base - 12;
-      return base;
-    },
-  },
-  {
-    id: 'PerformanceJudge',
-    weight: 0.4,
-    score: (input, candidate) => {
-      const diff = input.performanceOverExpected;
-      if (diff >= 0) {
-        return compareRank(candidate, input.currentRank) <= 0 ? 8 + diff : -15;
-      }
-      return compareRank(candidate, input.currentRank) >= 0 ? 8 + Math.abs(diff) : -15;
-    },
-  },
-  {
-    id: 'BalanceJudge',
-    weight: 0.2,
-    score: (input, candidate) => {
-      let score = 0;
-      if (input.flags.includes('LIGHT_MAKEKOSHI_OVER_DEMOTION') && candidate.division === 'Makushita') {
-        score += (candidate.number ?? 999) <= 10 ? 8 : -8;
-      }
-      if (input.flags.includes('MAKUSHITA_ZENSHO_UNDER_PROMOTION')) {
-        if (candidate.division === 'Makushita' && (candidate.number ?? 999) <= 15) score += 8;
-      }
-      return score;
-    },
-  },
-];
-
-const applyFlagDrivenCorrection = (
+const applyAuditCorrection = (
   input: BanzukeCommitteeCase,
 ): { rank: Rank; reasons: BanzukeDecisionReasonCode[] } => {
   let corrected = { ...input.proposalRank };
@@ -128,6 +83,7 @@ const applyFlagDrivenCorrection = (
   ) {
     corrected = { ...input.currentRank };
     reasons.push('REVIEW_REVERT_KACHIKOSHI_DEMOTION');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -137,6 +93,7 @@ const applyFlagDrivenCorrection = (
   ) {
     corrected = { ...corrected, number: 10, side: 'East' };
     reasons.push('REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -146,6 +103,7 @@ const applyFlagDrivenCorrection = (
   ) {
     corrected = { ...corrected, number: 15, side: 'East' };
     reasons.push('REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI');
+    reasons.push('AUDIT_CONSTRAINT_HIT');
   }
 
   if (
@@ -155,14 +113,12 @@ const applyFlagDrivenCorrection = (
     reasons.push('REVIEW_BOUNDARY_SLOT_JAM_NOTED');
   }
 
-  return { rank: corrected, reasons };
-};
+  if (!reasons.length) {
+    reasons.push('AUDIT_PASS');
+  }
 
-const scoreCandidate = (input: BanzukeCommitteeCase, candidate: Rank): BanzukeDecisionVote[] =>
-  judges.map((judge) => ({
-    judge: judge.id,
-    score: judge.score(input, candidate) * judge.weight,
-  }));
+  return { rank: corrected, reasons: [...new Set(reasons)] };
+};
 
 export interface ReviewBoardDecision {
   id: string;
@@ -188,29 +144,13 @@ export const reviewBoard = (
       continue;
     }
 
-    const corrected = applyFlagDrivenCorrection(input);
-    const votes = scoreCandidate(input, corrected.rank);
-    const weighted = votes.reduce((sum, v) => sum + v.score, 0);
-    const forceAcceptByRule = corrected.reasons.includes('REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI');
-    const accepted = forceAcceptByRule || weighted >= -2.5;
-
-    if (!accepted) {
-      decisions.push({
-        id: input.id,
-        finalRank: { ...input.currentRank },
-        reasons: [...corrected.reasons, 'REVIEW_REJECTED_RETAIN_PREV_RANK'],
-        votes,
-      });
-      warnings.push(`${input.id}:REVIEW_REJECTED`);
-      continue;
-    }
-
-      decisions.push({
-        id: input.id,
-        finalRank: corrected.rank,
-        reasons: corrected.reasons.length ? corrected.reasons : ['REVIEW_ACCEPTED'],
-        votes,
-      });
+    const corrected = applyAuditCorrection(input);
+    decisions.push({
+      id: input.id,
+      finalRank: corrected.rank,
+      reasons: corrected.reasons,
+      votes: [],
+    });
   }
 
   return { decisions, warnings };

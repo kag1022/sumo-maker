@@ -219,6 +219,9 @@ export const composeNextBanzuke = (
       modelVersion:
         input.entries.find((entry) => entry.id === committeeCase.id)?.options?.simulationModelVersion ??
         DEFAULT_SIMULATION_MODEL_VERSION,
+      banzukeEngineVersion:
+        input.entries.find((entry) => entry.id === committeeCase.id)?.options?.banzukeEngineVersion ??
+        'legacy-v1',
       proposalSource,
       fromRank: committeeCase.currentRank,
       proposedRank: committeeCase.proposalRank,

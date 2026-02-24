@@ -3,6 +3,7 @@ import { SimulationModelVersion } from '../simulation/modelVersion';
 import { RankScaleSlots } from './scale/rankLimits';
 
 export type BanzukeMode = 'SIMULATE' | 'REPLAY';
+export type BanzukeEngineVersion = 'legacy-v1' | 'optimizer-v1';
 
 export type BanzukeProposalSource =
   | 'COMMITTEE_MODEL'
@@ -26,7 +27,10 @@ export type BanzukeDecisionReasonCode =
   | 'REVIEW_REVERT_KACHIKOSHI_DEMOTION'
   | 'REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION'
   | 'REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI'
-  | 'REVIEW_BOUNDARY_SLOT_JAM_NOTED';
+  | 'REVIEW_BOUNDARY_SLOT_JAM_NOTED'
+  | 'AUDIT_PASS'
+  | 'AUDIT_CONSTRAINT_HIT'
+  | 'AUDIT_FALLBACK_LEGACY';
 
 export interface RankChangeResult {
   nextRank: Rank;
@@ -62,6 +66,7 @@ export interface RankCalculationOptions {
   isOzekiReturn?: boolean;
   scaleSlots?: RankScaleSlots;
   simulationModelVersion?: SimulationModelVersion;
+  banzukeEngineVersion?: BanzukeEngineVersion;
 }
 
 export interface BanzukeDivisionPolicy {
@@ -106,6 +111,7 @@ export interface BanzukeDecisionLog {
   seq: number;
   rikishiId: string;
   modelVersion?: SimulationModelVersion;
+  banzukeEngineVersion?: BanzukeEngineVersion;
   proposalSource?: BanzukeProposalSource;
   fromRank: Rank;
   proposedRank: Rank;

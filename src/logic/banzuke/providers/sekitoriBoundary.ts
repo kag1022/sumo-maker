@@ -1,10 +1,12 @@
 import { Rank } from '../../models';
+import { BanzukeEngineVersion } from '../types';
 import { clamp } from '../../simulation/boundary/shared';
 import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { resolveExpectedPlacementScore } from './expected/scoring';
 import { resolveExpectedSlotBand } from './expected/slotBands';
 import { ExpectedPlacementCandidate } from './expected/types';
+import { optimizeExpectedPlacements } from '../optimizer';
 
 const JURYO_OFFSET = 0;
 const MAKUSHITA_OFFSET = JURYO_SIZE;
@@ -59,6 +61,7 @@ export const resolveSekitoriBoundaryAssignedRank = (
   makushitaResults: BoundarySnapshot[],
   exchange: SekitoriExchange,
   playerFullAbsence: boolean,
+  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
 ): Rank | undefined => {
   const candidates: ExpectedPlacementCandidate[] = [];
   for (const row of juryoResults) {
@@ -166,7 +169,11 @@ export const resolveSekitoriBoundaryAssignedRank = (
   }
 
   if (!candidates.some((candidate) => candidate.id === 'PLAYER')) return undefined;
-  const assignments = reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS);
+  const assignments =
+    banzukeEngineVersion === 'optimizer-v1'
+      ? optimizeExpectedPlacements(candidates, TOTAL_SLOTS) ??
+        reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS)
+      : reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS);
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
   if (!player) return undefined;
   return toRank(player.slot);

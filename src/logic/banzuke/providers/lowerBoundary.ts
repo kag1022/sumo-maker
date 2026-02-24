@@ -1,8 +1,10 @@
 import { Rank } from '../../models';
+import { BanzukeEngineVersion } from '../types';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { resolveExpectedPlacementScore } from './expected/scoring';
 import { ExpectedSlotRangeByWinsSpec, resolveExpectedSlotBand } from './expected/slotBands';
 import { ExpectedPlacementCandidate } from './expected/types';
+import { optimizeExpectedPlacements } from '../optimizer';
 import {
   BoundarySnapshot,
   LowerBoundaryExchange,
@@ -251,6 +253,7 @@ const resolvePlayerMandatoryFlags = (
 export const resolveLowerDivisionPlacements = (
   results: LowerResults,
   playerRecord?: PlayerLowerRecord,
+  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
 ): LowerDivisionPlacementResolution => {
   const divisionSizes = resolveDivisionSizes(results);
   const divisionMaxNumbers = resolveDivisionMaxNumbers(divisionSizes);
@@ -379,7 +382,11 @@ export const resolveLowerDivisionPlacements = (
     }
   }
 
-  const assignments = reallocateWithMonotonicConstraints(candidates, totalSlots);
+  const assignments =
+    banzukeEngineVersion === 'optimizer-v1'
+      ? optimizeExpectedPlacements(candidates, totalSlots) ??
+        reallocateWithMonotonicConstraints(candidates, totalSlots)
+      : reallocateWithMonotonicConstraints(candidates, totalSlots);
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
 
   const placements: LowerDivisionResolvedPlacement[] = assignments.map((assignment) => {
@@ -435,4 +442,9 @@ export const resolveLowerAssignedNextRank = (
     JonidanJonokuchi: LowerBoundaryExchange;
   },
   playerRecord?: PlayerLowerRecord,
-): Rank | undefined => resolveLowerDivisionPlacements(results, playerRecord).playerAssignedRank;
+  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
+): Rank | undefined => resolveLowerDivisionPlacements(
+  results,
+  playerRecord,
+  banzukeEngineVersion,
+).playerAssignedRank;

@@ -27,6 +27,7 @@ import {
 } from './lower/types';
 import { SimulationWorld } from './world';
 import { resolveLowerDivisionPlacements } from '../banzuke/providers/lowerBoundary';
+import { BanzukeEngineVersion } from '../banzuke/types';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../banzuke/population/flow';
 import {
   createLowerDivisionBoutDayMap,
@@ -722,6 +723,7 @@ export const runLowerDivisionQuotaStep = (
   playerRecord?: PlayerLowerRecord,
   precomputedLeagueResults?: LowerLeagueSnapshots,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  banzukeEngineVersion: BanzukeEngineVersion = 'legacy-v1',
 ): Record<LowerBoundaryId, LowerBoundaryExchange> => {
   promoteMaezumoToJonokuchi(world, rng);
   const lowerLeagueRaw =
@@ -750,7 +752,11 @@ export const runLowerDivisionQuotaStep = (
   };
 
   world.lastResults = results;
-  const placementResolution = resolveLowerDivisionPlacements(results, playerRecord);
+  const placementResolution = resolveLowerDivisionPlacements(
+    results,
+    playerRecord,
+    banzukeEngineVersion,
+  );
   world.lastPlacementTrace = buildPlacementTrace(results, placementResolution.placements);
   applyLowerDivisionPlacements(world, placementResolution.placements);
   world.lastExchanges = deriveExchangesFromPlacements(results, placementResolution.placements);
