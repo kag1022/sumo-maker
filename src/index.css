@@ -2,126 +2,252 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === ベースレイヤー === */
+/* === ベースレイヤー: 和レトロゲームテーマ === */
 @layer base {
   body {
-    background-color: #0f1923;
-    color: #e8dcc8;
-    background-image:
-      radial-gradient(
-        ellipse at 20% 50%,
-        rgba(197, 164, 78, 0.03) 0%,
-        transparent 50%
-      ),
-      radial-gradient(
-        ellipse at 80% 20%,
-        rgba(196, 81, 58, 0.02) 0%,
-        transparent 50%
-      );
+    background-color: #0a0e1a;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* スクロールバー */
+  /* CRTスキャンライン効果 */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+  }
+
+  /* スクロールバー: レトロ風 */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: rgba(10, 16, 24, 0.5);
+    background: #060a12;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(197, 164, 78, 0.3);
-    border-radius: 3px;
+    background: #6B5010;
+    border: 1px solid #D4A017;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(197, 164, 78, 0.5);
+    background: #8B6914;
   }
 
-  /* 入力要素のダークスタイル */
+  /* 入力要素: RPG風 */
   input,
   select,
   textarea {
-    background-color: #1a2736;
-    border-color: rgba(138, 122, 66, 0.3);
-    color: #e8dcc8;
+    background-color: #0a0e1a;
+    border: 2px solid #6B5010;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
   }
   input:focus,
   select:focus,
   textarea:focus {
     outline: none;
-    box-shadow: 0 0 0 1px rgba(197, 164, 78, 0.5);
-    border-color: rgba(197, 164, 78, 0.5);
+    border-color: #D4A017;
+    box-shadow: 0 0 0 1px #D4A017, 0 0 8px rgba(212, 160, 23, 0.3);
   }
 
-  /* テーブル */
   table {
     border-collapse: collapse;
+  }
+
+  /* 選択テキスト */
+  ::selection {
+    background: rgba(212, 160, 23, 0.4);
+    color: #FFD700;
   }
 }
 
 /* === コンポーネントレイヤー === */
 @layer components {
-  /* ゲームパネル - メインのカードスタイル */
-  .game-panel {
-    background-color: rgba(26, 39, 54, 0.8);
-    border: 1px solid rgba(138, 122, 66, 0.2);
-    backdrop-filter: blur(4px);
+  /* RPGパネル -- ドラクエ/FF風の二重枠 */
+  .rpg-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
     box-shadow:
-      0 0 15px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(197, 164, 78, 0.1);
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
   }
 
-  /* セクション区切り線 */
-  .game-divider {
-    border-top: 1px solid rgba(138, 122, 66, 0.2);
+  /* 旧 game-panel をエイリアスとして維持（段階移行用） */
+  .game-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
   }
 
-  /* ゲームボタン - プライマリ */
-  .game-btn {
+  /* セクション見出し */
+  .section-header {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.875rem;
+    font-weight: 400; /* DotGothic16 は weight 無関係 */
+    color: #FFD700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* データ行 */
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.75rem;
+  }
+  .data-row .data-key {
+    color: #8a8472;
+  }
+  .data-row .data-val {
+    color: #e8e0d0;
+    font-weight: 700;
+  }
+
+  /* RPGゲージバー (HPバー風) */
+  .gauge-bar {
+    height: 8px;
+    background: #1a1a2e;
+    border: 1px solid #6B5010;
     position: relative;
     overflow: hidden;
-    font-weight: 700;
-    transition: all 0.2s;
   }
-  .game-btn::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.1) 0%,
-      transparent 50%
-    );
-  }
-  .game-btn:hover::after {
-    opacity: 1;
+  .gauge-bar .gauge-fill {
+    height: 100%;
+    transition: width 0.4s ease;
   }
 
-  /* ゲームバッジ */
+  /* 統計ブロック */
+  .stat-block {
+    padding: 0.75rem;
+    border: 2px solid #6B5010;
+    background: #0a0e1a;
+  }
+  .stat-block .stat-label {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8a8472;
+    margin-bottom: 0.25rem;
+  }
+  .stat-block .stat-value {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #e8e0d0;
+    line-height: 1.2;
+  }
+  .stat-block .stat-sub {
+    font-size: 0.75rem;
+    color: #8a8472;
+    margin-top: 0.125rem;
+  }
+
+  /* RPGバッジ */
+  .rpg-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
+  }
+
+  /* 旧 game-badge エイリアス */
   .game-badge {
     display: inline-flex;
     align-items: center;
     padding: 0.125rem 0.5rem;
-    font-size: 10px;
-    font-weight: 700;
-    border: 1px solid;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
   }
 
-  /* グローエフェクト */
+  /* RPGカーソル ▶ */
+  .rpg-cursor::before {
+    content: "▶";
+    color: #FFD700;
+    margin-right: 0.5rem;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* グロー効果 */
   .glow-gold {
     box-shadow:
-      0 0 10px rgba(197, 164, 78, 0.2),
-      0 0 30px rgba(197, 164, 78, 0.1);
+      0 0 10px rgba(212, 160, 23, 0.3),
+      0 0 24px rgba(212, 160, 23, 0.1);
   }
   .glow-red {
     box-shadow:
-      0 0 10px rgba(196, 81, 58, 0.3),
-      0 0 20px rgba(196, 81, 58, 0.1);
+      0 0 10px rgba(200, 64, 64, 0.4),
+      0 0 20px rgba(200, 64, 64, 0.15);
+  }
+
+  /* セクション区切り線 */
+  .game-divider {
+    border-top: 2px solid #6B5010;
+  }
+
+  /* RPG風ボタンベース */
+  .rpg-btn {
+    position: relative;
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .rpg-btn:hover {
+    filter: brightness(1.15);
+  }
+  .rpg-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* 旧 game-btn エイリアス */
+  .game-btn {
+    position: relative;
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .game-btn:hover {
+    filter: brightness(1.15);
   }
 }
 
 /* === アニメーション === */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -150,20 +276,41 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(197, 164, 78, 0.15) 50%,
+    rgba(212, 160, 23, 0.15) 50%,
     transparent 100%
   );
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
 }
 
-/* レンジスライダーのゲーム風スタイル */
+/* レベルアップフラッシュ */
+@keyframes levelUpFlash {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
+  }
+  20% {
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+    background-color: rgba(255, 215, 0, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
+  }
+}
+
+.level-up-flash {
+  animation: levelUpFlash 0.6s ease-out;
+}
+
+/* レンジスライダー: レトロゲーム風 */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  background: rgba(197, 164, 78, 0.15);
-  border-radius: 3px;
+  height: 8px;
+  background: #1a1a2e;
+  border: 1px solid #6B5010;
+  border-radius: 0;
   outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
@@ -171,17 +318,18 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
   height: 14px;
-  background: #c5a44e;
-  border-radius: 50%;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
   cursor: pointer;
-  box-shadow: 0 0 6px rgba(197, 164, 78, 0.4);
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
 }
 input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #c5a44e;
-  border-radius: 50%;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 0 6px rgba(197, 164, 78, 0.4);
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
 }

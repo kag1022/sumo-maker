@@ -22,6 +22,7 @@ import {
 } from '../../../logic/simulation/workerProtocol';
 
 export type SimulationPhase = 'idle' | 'running' | 'paused' | 'completed' | 'error';
+export type SimulationSpeed = 'instant' | 'yearly';
 
 interface SimulationStore {
   phase: SimulationPhase;
@@ -30,10 +31,12 @@ interface SimulationStore {
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
   isSkipToEnd: boolean;
+  simulationSpeed: SimulationSpeed;
   pauseReason?: PauseReason;
   latestEvents: string[];
   hallOfFame: CareerListItem[];
   errorMessage?: string;
+  setSimulationSpeed: (speed: SimulationSpeed) => void;
   startSimulation: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
@@ -73,10 +76,13 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   currentCareerId: null,
   isCurrentCareerSaved: false,
   isSkipToEnd: false,
+  simulationSpeed: 'yearly',
   pauseReason: undefined,
   latestEvents: [],
   hallOfFame: [],
   errorMessage: undefined,
+
+  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
 
   startSimulation: async (initialStats, oyakata, simulationModelVersion) => {
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
@@ -175,13 +181,15 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       terminateWorker();
     };
 
+    const isInstant = get().simulationSpeed === 'instant';
+
     set({
       phase: 'running',
       status: null,
       progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
-      isSkipToEnd: false,
+      isSkipToEnd: isInstant,
       pauseReason: undefined,
       latestEvents: [],
       errorMessage: undefined,

@@ -7,10 +7,12 @@ export const useSimulation = () => ({
   currentCareerId: useSimulationStore((state) => state.currentCareerId),
   isCurrentCareerSaved: useSimulationStore((state) => state.isCurrentCareerSaved),
   isSkipToEnd: useSimulationStore((state) => state.isSkipToEnd),
+  simulationSpeed: useSimulationStore((state) => state.simulationSpeed),
   pauseReason: useSimulationStore((state) => state.pauseReason),
   latestEvents: useSimulationStore((state) => state.latestEvents),
   hallOfFame: useSimulationStore((state) => state.hallOfFame),
   errorMessage: useSimulationStore((state) => state.errorMessage),
+  setSimulationSpeed: useSimulationStore((state) => state.setSimulationSpeed),
   startSimulation: useSimulationStore((state) => state.startSimulation),
   pauseSimulation: useSimulationStore((state) => state.pauseSimulation),
   resumeSimulation: useSimulationStore((state) => state.resumeSimulation),
@@ -22,3 +24,4 @@ export const useSimulation = () => ({
   deleteCareerById: useSimulationStore((state) => state.deleteCareerById),
   resetView: useSimulationStore((state) => state.resetView),
 });
+
