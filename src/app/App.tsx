@@ -79,7 +79,7 @@ function App() {
       <header className="sticky top-0 z-50 border-b-2 border-gold-muted bg-bg">
         <div className="max-w-4xl mx-auto flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
           <h1
-            className="text-lg sm:text-xl font-pixel flex items-center gap-2 cursor-pointer text-gold hover:text-gold-bright transition-colors"
+            className="text-lg sm:text-xl ui-text-label flex items-center gap-2 cursor-pointer text-gold hover:text-gold-bright transition-colors"
             onClick={() => void handleReset()}
           >
             <span className="text-xl sm:text-2xl" aria-hidden="true">
@@ -136,7 +136,7 @@ function App() {
           <div className="sm:hidden border-t-2 border-gold-muted bg-bg-panel px-3 py-3 space-y-2 animate-slide-up">
             {isDev && (
               <button
-                className="w-full text-left font-pixel text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors disabled:opacity-40"
+                className="w-full text-left ui-text-label text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors disabled:opacity-40"
                 onClick={() => {
                   if (!canToggleLogicLab) return;
                   setShowSavedData(false);
@@ -152,7 +152,7 @@ function App() {
               </button>
             )}
             <button
-              className="w-full text-left font-pixel text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors"
+              className="w-full text-left ui-text-label text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors"
               onClick={async () => {
                 await loadHallOfFame();
                 setShowSavedData(true);
@@ -195,7 +195,7 @@ function App() {
                 {/* 一括演算モード: シンプルローディング */}
                 {isInstantMode ? (
                   <div className="text-center py-8 sm:py-12">
-                    <p className="font-pixel text-gold-bright text-lg sm:text-xl mb-4 animate-pulse-soft">
+                    <p className="ui-text-label text-gold-bright text-lg sm:text-xl mb-4 animate-pulse-soft">
                       演算中...
                     </p>
                     <div className="w-48 sm:w-64 mx-auto gauge-bar">
@@ -204,7 +204,7 @@ function App() {
                         style={{ width: "100%" }}
                       />
                     </div>
-                    <p className="text-xs text-text-dim mt-4 font-pixel">
+                    <p className="text-xs text-text-dim mt-4 ui-text-label">
                       力士人生を高速演算しています
                     </p>
                   </div>
@@ -213,7 +213,7 @@ function App() {
                     {/* 実況モード: 詳細進捗 */}
                     <div className="flex items-center justify-between pb-3 border-b-2 border-gold-muted">
                       <div>
-                        <p className="font-pixel text-lg sm:text-xl text-gold leading-tight">
+                        <p className="ui-text-label text-lg sm:text-xl text-gold leading-tight">
                           力士人生を
                           <br />
                           演算中...
@@ -233,8 +233,8 @@ function App() {
                     {progress && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between p-3 border-2 border-gold-muted bg-bg">
-                          <span className="text-xs font-pixel text-text-dim">現在番付</span>
-                          <span className="font-pixel text-base sm:text-lg text-gold">
+                          <span className="text-xs ui-text-label text-text-dim">現在番付</span>
+                          <span className="ui-text-label text-base sm:text-lg text-gold">
                             {formatRankName(progress.currentRank)}
                           </span>
                         </div>
@@ -269,7 +269,7 @@ function App() {
                     {/* 最新イベント */}
                     {latestEvents.length > 0 && (
                       <div className="border-2 border-gold-muted p-3 bg-bg">
-                        <p className="text-xs font-pixel text-gold mb-2">
+                        <p className="text-xs ui-text-label text-gold mb-2">
                           最新の出来事
                         </p>
                         <ul className="text-xs sm:text-sm text-text-dim space-y-1 list-disc list-inside">
@@ -285,7 +285,7 @@ function App() {
                     {/* 一時停止通知 */}
                     {phase === "paused" && (
                       <div className="border-2 border-crimson bg-crimson-dim/10 p-4 glow-red">
-                        <p className="font-pixel text-crimson mb-3">
+                        <p className="ui-text-label text-crimson mb-3">
                           【中断】 {pauseReason}
                         </p>
                         <Button variant="danger" onClick={resumeSimulation}>
@@ -325,7 +325,7 @@ function App() {
             {/* === エラー画面 === */}
             {phase === "error" && (
               <div className="max-w-2xl mx-auto rpg-panel border-crimson p-4 sm:p-6 glow-red animate-in">
-                <p className="font-pixel text-lg sm:text-xl flex items-center gap-2 border-b-2 border-crimson/30 pb-3 mb-3 text-crimson">
+                <p className="ui-text-label text-lg sm:text-xl flex items-center gap-2 border-b-2 border-crimson/30 pb-3 mb-3 text-crimson">
                   <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
                   重大な演算エラー
                 </p>

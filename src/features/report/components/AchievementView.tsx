@@ -1,7 +1,8 @@
 import React from "react";
 import { RikishiStatus } from "../../../logic/models";
 import { Achievement, evaluateAchievements } from "../../../logic/achievements";
-import { Award, Star, Medal, Sparkles } from "lucide-react";
+import { Award, Star, Medal, Sparkles, Trophy, Swords, Activity, Sun, TrendingUp, BarChart3, Shield } from "lucide-react";
+import { BodyText, Heading, LabelText } from "../../../shared/ui/Typography";
 
 interface AchievementViewProps {
   status: RikishiStatus;
@@ -51,11 +52,40 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
     [status],
   );
 
+  const getAchievementIcon = (achievement: Achievement) => {
+    const className = `w-6 h-6 ${getAchievementStyle(achievement.rarity).text}`;
+    switch (achievement.iconKey) {
+      case "trophy":
+        return <Trophy className={className} />;
+      case "sparkles":
+        return <Sparkles className={className} />;
+      case "swords":
+        return <Swords className={className} />;
+      case "timer":
+        return <Activity className={className} />;
+      case "sun":
+        return <Sun className={className} />;
+      case "rocket":
+        return <TrendingUp className={className} />;
+      case "medal":
+        return <Medal className={className} />;
+      case "ladder":
+        return <BarChart3 className={className} />;
+      case "star":
+        return <Star className={className} />;
+      case "shield":
+        return <Shield className={className} />;
+      case "seedling":
+      default:
+        return <Award className={className} />;
+    }
+  };
+
   if (achievements.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-sumi-light game-panel">
         <Award className="w-16 h-16 mb-4 opacity-20" />
-        <p>まだ実績はありません</p>
+        <BodyText as="p">まだ実績はありません</BodyText>
       </div>
     );
   }
@@ -83,16 +113,16 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-sumi">獲得実績</h3>
-            <p className="text-sm text-sumi-light">
+            <Heading as="h3" className="text-sumi">獲得実績</Heading>
+            <BodyText as="p" className="text-sm text-sumi-light">
               全 {achievements.length} 個のアチーブメントを達成
-            </p>
+            </BodyText>
           </div>
         </div>
         {legendaryCount > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-kiniro/10 border border-kiniro/30 text-kiniro text-sm font-bold animate-pulse-slow">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-kiniro/10 border border-kiniro/30 text-kiniro text-sm animate-pulse-slow">
             <Sparkles className="w-4 h-4" />
-            殿堂入り級の活躍！
+            <LabelText>殿堂入り級の活躍！</LabelText>
           </div>
         )}
       </div>
@@ -108,22 +138,20 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
               <div
                 className={`flex flex-col items-center justify-center w-14 h-14 ${style.iconBg} border mr-4 shrink-0`}
               >
-                <span className="text-2xl leading-none">
-                  {achievement.icon}
-                </span>
+                {getAchievementIcon(achievement)}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className={`font-black text-lg ${style.text}`}>
+                  <Heading as="h4" className={`text-lg ${style.text}`}>
                     {achievement.name}
-                  </h4>
+                  </Heading>
                   {style.badge && (
                     <span className="shrink-0">{style.badge}</span>
                   )}
                 </div>
-                <p className="text-sm font-medium text-sumi-light leading-tight">
+                <BodyText as="p" className="text-sm text-sumi-light leading-tight">
                   {achievement.description}
-                </p>
+                </BodyText>
               </div>
             </div>
           );

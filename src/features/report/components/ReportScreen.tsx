@@ -4,6 +4,7 @@ import { getRankValueForChart } from "../../../logic/ranking";
 import { LIMITS, resolveRankLimits, resolveRankSlotOffset } from "../../../logic/banzuke/scale/rankLimits";
 import { CONSTANTS } from "../../../logic/constants";
 import { Button } from "../../../shared/ui/Button";
+import { DamageMap } from "../../../shared/ui/DamageMap";
 import {
   ArrowLeft,
   Trophy,
@@ -42,8 +43,8 @@ import {
 // === 共通ヘルパー ===
 
 const RARITY_COLORS: Record<Rarity, { bg: string; text: string; border: string }> = {
-  N:  { bg: "bg-bg-light border-2 border-text-dim/30", text: "text-text-dim", border: "border-text-dim/30" },
-  R:  { bg: "bg-bg/20 border-2 border-gold-muted/40", text: "text-gold-muted", border: "border-gold-muted/40" },
+  N: { bg: "bg-bg-light border-2 border-text-dim/30", text: "text-text-dim", border: "border-text-dim/30" },
+  R: { bg: "bg-bg/20 border-2 border-gold-muted/40", text: "text-gold-muted", border: "border-gold-muted/40" },
   SR: { bg: "bg-gold/10 border-2 border-gold/30", text: "text-gold", border: "border-gold/30" },
   UR: { bg: "bg-crimson/15 border-2 border-crimson/40", text: "text-crimson", border: "border-crimson/40" },
 };
@@ -51,7 +52,7 @@ const RARITY_COLORS: Record<Rarity, { bg: string; text: string; border: string }
 const RarityBadge: React.FC<{ rarity: Rarity }> = ({ rarity }) => {
   const c = RARITY_COLORS[rarity];
   return (
-    <span className={`text-xs font-pixel px-1.5 py-0.5 ${c.bg} ${c.text}`}>
+    <span className={`text-xs ui-text-label px-1.5 py-0.5 ${c.bg} ${c.text}`}>
       {rarity}
     </span>
   );
@@ -71,13 +72,13 @@ const RANK_CHART_BANDS: Array<{
   key: "Makuuchi" | "Juryo" | "Makushita" | "Sandanme" | "Jonidan" | "Jonokuchi";
   label: string; top: number; bottom: number;
 }> = [
-  { key: "Makuuchi", label: "幕内", top: 0, bottom: 57 },
-  { key: "Juryo", label: "十両", top: 60, bottom: 74 },
-  { key: "Makushita", label: "幕下", top: 80, bottom: 140 },
-  { key: "Sandanme", label: "三段目", top: 150, bottom: 250 },
-  { key: "Jonidan", label: "序二段", top: 260, bottom: 360 },
-  { key: "Jonokuchi", label: "序ノ口", top: 370, bottom: 400 },
-];
+    { key: "Makuuchi", label: "幕内", top: 0, bottom: 57 },
+    { key: "Juryo", label: "十両", top: 60, bottom: 74 },
+    { key: "Makushita", label: "幕下", top: 80, bottom: 140 },
+    { key: "Sandanme", label: "三段目", top: 150, bottom: 250 },
+    { key: "Jonidan", label: "序二段", top: 260, bottom: 360 },
+    { key: "Jonokuchi", label: "序ノ口", top: 370, bottom: 400 },
+  ];
 
 const PERSONALITY_LABELS: Record<string, string> = {
   CALM: "冷静", AGGRESSIVE: "闘争的", SERIOUS: "真面目",
@@ -341,7 +342,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xl sm:text-2xl font-pixel text-gold">
+              <span className="text-xl sm:text-2xl ui-text-label text-gold">
                 {makuuchiStats.wins + makuuchiStats.losses > 0
                   ? ((makuuchiStats.wins / (makuuchiStats.wins + makuuchiStats.losses)) * 100).toFixed(1) : "0.0"}%
               </span>
@@ -446,24 +447,32 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           <Heart className="w-4 h-4 text-crimson" /> 引退時の身体状態
         </h3>
         {status.injuries?.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {status.injuries.map((injury) => {
-              const isChronic = injury.status === "CHRONIC";
-              const isHealed = injury.status === "HEALED";
-              return (
-                <div key={injury.id} className={`p-3 border-2 ${isHealed ? "border-gold-muted bg-bg" : isChronic ? "border-crimson/30 bg-crimson/5" : "border-crimson/40 bg-crimson/5"}`}>
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className={`text-sm ${isHealed ? "text-text-dim" : ""}`}>{injury.name}</span>
-                    <span className={`text-xs px-2 py-0.5 font-pixel border-2 ${isHealed ? "border-gold-muted text-text-dim" : "border-crimson/30 text-crimson"}`}>
-                      {isHealed ? "完治" : isChronic ? "慢性" : "治療中"}
-                    </span>
+          <div className="flex flex-col sm:flex-row gap-4 items-start">
+            <DamageMap
+              injuries={status.injuries}
+              heightCm={status.bodyMetrics?.heightCm}
+              weightKg={status.bodyMetrics?.weightKg}
+              className="w-64 sm:w-72 h-auto shrink-0 mx-auto sm:mx-0"
+            />
+            <div className="grid grid-cols-1 gap-2 flex-grow w-full">
+              {status.injuries.map((injury) => {
+                const isChronic = injury.status === "CHRONIC";
+                const isHealed = injury.status === "HEALED";
+                return (
+                  <div key={injury.id} className={`p-3 border-2 ${isHealed ? "border-gold-muted bg-bg" : isChronic ? "border-crimson/30 bg-crimson/5" : "border-crimson/40 bg-crimson/5"}`}>
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className={`text-sm ${isHealed ? "text-text-dim" : ""}`}>{injury.name}</span>
+                      <span className={`text-xs px-2 py-0.5 ui-text-label border-2 ${isHealed ? "border-gold-muted text-text-dim" : "border-crimson/30 text-crimson"}`}>
+                        {isHealed ? "完治" : isChronic ? "慢性" : "治療中"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-text-dim">
+                      {isHealed ? "回復済み" : `重症度: ${injury.severity}/10`}
+                    </div>
                   </div>
-                  <div className="text-xs text-text-dim">
-                    {isHealed ? "回復済み" : `重症度: ${injury.severity}/10`}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : <p className="text-sm text-text-dim text-center py-3">深刻な怪我や古傷はありませんでした。</p>}
       </div>
@@ -585,7 +594,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           <ScrollText className="w-4 h-4" /> 番付変動表
         </h3>
         <div className="border-2 border-gold-muted overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[88px_minmax(120px,1fr)_96px_minmax(120px,1fr)_72px] bg-bg-light text-xs font-pixel text-gold px-3 py-2 border-b-2 border-gold-muted">
+          <div className="hidden sm:grid grid-cols-[88px_minmax(120px,1fr)_96px_minmax(120px,1fr)_72px] bg-bg-light text-xs ui-text-label text-gold px-3 py-2 border-b-2 border-gold-muted">
             <div>場所</div><div>番付</div><div>成績</div><div>翌場所</div><div className="text-right">変動</div>
           </div>
           <div className="max-h-[300px] overflow-y-auto divide-y divide-gold-muted/20">
@@ -646,12 +655,12 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         <div className="relative z-10 px-4 sm:px-8 py-6 sm:py-10 text-center">
           {/* 称号 */}
           <div className="inline-block mb-3">
-            <span className="text-xs font-pixel tracking-[0.2em] px-3 sm:px-4 py-1 sm:py-1.5 border-2 border-gold/40 text-gold bg-gold/10">
+            <span className="text-xs ui-text-label tracking-[0.2em] px-3 sm:px-4 py-1 sm:py-1.5 border-2 border-gold/40 text-gold bg-gold/10">
               {title || "無名の力士"}
             </span>
           </div>
           {/* 四股名 */}
-          <h1 className="text-3xl sm:text-5xl font-pixel mb-3 sm:mb-4 tracking-tight text-gold">
+          <h1 className="text-3xl sm:text-5xl ui-text-label mb-3 sm:mb-4 tracking-tight text-gold">
             {shikona}
           </h1>
           {/* プロフィール行 */}
@@ -664,25 +673,25 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           {/* メイン記録グリッド */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 max-w-lg mx-auto">
             <div>
-              <div className="text-xs font-pixel tracking-widest text-text-dim mb-1">最高位</div>
-              <div className="text-lg sm:text-xl font-pixel">{formatRankName(maxRank, true)}</div>
+              <div className="text-xs ui-text-label tracking-widest text-text-dim mb-1">最高位</div>
+              <div className="text-lg sm:text-xl ui-text-label">{formatRankName(maxRank, true)}</div>
             </div>
             <div>
-              <div className="text-xs font-pixel tracking-widest text-text-dim mb-1">通算</div>
-              <div className="text-lg sm:text-xl font-pixel">{totalWins}<span className="text-sm text-text-dim">勝</span></div>
+              <div className="text-xs ui-text-label tracking-widest text-text-dim mb-1">通算</div>
+              <div className="text-lg sm:text-xl ui-text-label">{totalWins}<span className="text-sm text-text-dim">勝</span></div>
               <div className="text-xs text-text-dim">{totalLosses}敗{totalAbsent > 0 ? ` ${totalAbsent}休` : ""}</div>
             </div>
             <div>
-              <div className="text-xs font-pixel tracking-widest text-text-dim mb-1">幕内優勝</div>
-              <div className="text-lg sm:text-xl font-pixel text-gold">{yushoCount.makuuchi}<span className="text-sm text-text-dim">回</span></div>
+              <div className="text-xs ui-text-label tracking-widest text-text-dim mb-1">幕内優勝</div>
+              <div className="text-lg sm:text-xl ui-text-label text-gold">{yushoCount.makuuchi}<span className="text-sm text-text-dim">回</span></div>
             </div>
             <div>
-              <div className="text-xs font-pixel tracking-widest text-text-dim mb-1">金星</div>
-              <div className="text-lg sm:text-xl font-pixel">{awardsSummary.kinboshi}<span className="text-sm text-text-dim">個</span></div>
+              <div className="text-xs ui-text-label tracking-widest text-text-dim mb-1">金星</div>
+              <div className="text-lg sm:text-xl ui-text-label">{awardsSummary.kinboshi}<span className="text-sm text-text-dim">個</span></div>
             </div>
             <div>
-              <div className="text-xs font-pixel tracking-widest text-text-dim mb-1">三賞</div>
-              <div className="text-lg sm:text-xl font-pixel">{awardsSummary.totalSansho}<span className="text-sm text-text-dim">回</span></div>
+              <div className="text-xs ui-text-label tracking-widest text-text-dim mb-1">三賞</div>
+              <div className="text-lg sm:text-xl ui-text-label">{awardsSummary.totalSansho}<span className="text-sm text-text-dim">回</span></div>
             </div>
           </div>
         </div>
@@ -698,11 +707,10 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-pixel transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-gold/15 text-gold border-2 border-gold/30"
-                    : "text-text-dim hover:text-gold border-2 border-transparent"
-                }`}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm ui-text-label transition-all whitespace-nowrap ${isActive
+                  ? "bg-gold/15 text-gold border-2 border-gold/30"
+                  : "text-text-dim hover:text-gold border-2 border-transparent"
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -757,7 +765,7 @@ const DnaBlock: React.FC<{
   title: string; items: Array<[string, string | number]>;
 }> = ({ title, items }) => (
   <div className="p-3 border-2 border-gold-muted bg-bg space-y-1">
-    <div className="font-pixel text-gold text-xs mb-1">{title}</div>
+    <div className="ui-text-label text-gold text-xs mb-1">{title}</div>
     {items.map(([k, v]) => (
       <div key={k} className="data-row">
         <span className="data-key">{k}</span>
@@ -804,7 +812,7 @@ const EnhancedTimeline: React.FC<{
         <div className="flex border-2 border-gold-muted p-0.5 gap-0.5 text-xs">
           {(["ALL", "IMPORTANT"] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-2 sm:px-3 py-1 font-pixel transition-all ${filter === f ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+              className={`px-2 sm:px-3 py-1 ui-text-label transition-all ${filter === f ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
             >
               {f === "ALL" ? "全て" : "主な出来事"}
             </button>
@@ -827,9 +835,9 @@ const EnhancedTimeline: React.FC<{
                 <div className="flex-1 pb-4 sm:pb-5 pt-1">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-text text-sm">{ev.year}年{ev.month}月</span>
-                    <span className="text-xs text-text-dim bg-bg-light border-2 border-gold-muted px-1.5 py-0.5 font-pixel">{ev.age}歳</span>
+                    <span className="text-xs text-text-dim bg-bg-light border-2 border-gold-muted px-1.5 py-0.5 ui-text-label">{ev.age}歳</span>
                     {ev.type === "YUSHO" && (
-                      <span className="text-xs font-pixel text-gold bg-gold/10 px-2 py-0.5 border-2 border-gold/20">優勝</span>
+                      <span className="text-xs ui-text-label text-gold bg-gold/10 px-2 py-0.5 border-2 border-gold/20">優勝</span>
                     )}
                   </div>
                   <p className={`text-xs sm:text-sm ${ev.type === "INJURY" ? "text-crimson" : "text-text-dim"}`}>

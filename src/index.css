@@ -73,6 +73,39 @@
 
 /* === コンポーネントレイヤー === */
 @layer components {
+  /* === Typography Tokens === */
+  .ui-text-body {
+    font-family: "Noto Sans JP", sans-serif;
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+  .ui-text-caption {
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+  }
+  .ui-text-heading {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+  }
+  .ui-text-label {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+  }
+  .ui-text-metric {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .ui-text-button {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+  }
+
   /* RPGパネル -- ドラクエ/FF風の二重枠 */
   .rpg-panel {
     background-color: #111b2e;
@@ -107,6 +140,7 @@
     align-items: center;
     gap: 0.5rem;
     letter-spacing: 0.08em;
+    line-height: 1.35;
   }
 
   /* データ行 */
@@ -119,10 +153,14 @@
   }
   .data-row .data-key {
     color: #8a8472;
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.04em;
   }
   .data-row .data-val {
     color: #e8e0d0;
     font-weight: 700;
+    font-family: "Noto Sans JP", sans-serif;
+    line-height: 1.45;
   }
 
   /* RPGゲージバー (HPバー風) */
@@ -154,11 +192,13 @@
   }
   .stat-block .stat-value {
     font-size: 1.5rem;
-    font-weight: 900;
+    font-family: "DotGothic16", monospace;
+    font-weight: 400;
     color: #e8e0d0;
     line-height: 1.2;
   }
   .stat-block .stat-sub {
+    font-family: "Noto Sans JP", sans-serif;
     font-size: 0.75rem;
     color: #8a8472;
     margin-top: 0.125rem;

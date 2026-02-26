@@ -573,6 +573,34 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'battle: deterministic win path (unified-v2-kimarite)',
+    run: () => {
+      const rikishi = createStatus({
+        stats: {
+          tsuki: 120,
+          oshi: 120,
+          kumi: 120,
+          nage: 120,
+          koshi: 120,
+          deashi: 120,
+          waza: 120,
+          power: 120,
+        },
+      });
+      const enemy: EnemyStats = {
+        shikona: '弱敵',
+        rankValue: 9,
+        power: 20,
+        heightCm: 176,
+        weightKg: 104,
+      };
+      const result = calculateBattleResult(rikishi, enemy, undefined, () => 0.01, 'unified-v2-kimarite');
+      assert.equal(result.isWin, true);
+      assert.equal(typeof result.kimarite, 'string');
+      assert.ok(result.kimarite.length > 0);
+    },
+  },
+  {
     name: 'battle: dohyougiwa reversal can flip a loss',
     run: () => {
       const rikishi = createStatus({
@@ -1002,6 +1030,66 @@ const tests: TestCase[] = [
         }
       }
       assert.equal(foundWinFlip, true);
+    },
+  },
+  {
+    name: 'battle: kimarite alias normalized in v2',
+    run: () => {
+      const rikishi = createStatus({
+        bodyType: 'SOPPU',
+        tactics: 'TECHNIQUE',
+        stats: {
+          tsuki: 55,
+          oshi: 40,
+          kumi: 30,
+          nage: 88,
+          koshi: 35,
+          deashi: 78,
+          waza: 96,
+          power: 42,
+        },
+      });
+      const enemy: EnemyStats = {
+        shikona: '技巧敵',
+        rankValue: 5,
+        power: 85,
+        heightCm: 188,
+        weightKg: 166,
+        styleBias: 'GRAPPLE',
+      };
+      for (let i = 0; i < 30; i += 1) {
+        const result = calculateBattleResult(rikishi, enemy, undefined, lcg(300 + i), 'unified-v2-kimarite');
+        assert.ok(result.kimarite !== 'すくい投げ');
+      }
+    },
+  },
+  {
+    name: 'battle: kimariteDelta clamp is reflected in v2 winProbability',
+    run: () => {
+      const rikishi = createStatus({
+        stats: {
+          tsuki: 99,
+          oshi: 99,
+          kumi: 99,
+          nage: 99,
+          koshi: 99,
+          deashi: 99,
+          waza: 99,
+          power: 99,
+        },
+      });
+      const enemy: EnemyStats = {
+        shikona: '均衡敵',
+        rankValue: 4,
+        power: 98,
+        ability: 98,
+        heightCm: 186,
+        weightKg: 154,
+        styleBias: 'BALANCE',
+      };
+      const v1 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v1');
+      const v2 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v2-kimarite');
+      assert.ok(Math.abs(v2.winProbability - v1.winProbability) <= 0.061);
     },
   },
   {
@@ -3956,9 +4044,9 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'simulation: legacy/realism model requests are normalized to unified-v1 in new runs',
+    name: 'simulation: model request keeps explicit model version in new runs',
     run: async () => {
-      for (const requested of ['legacy-v6', 'realism-v1'] as const) {
+      for (const requested of ['legacy-v6', 'realism-v1', 'unified-v1', 'unified-v2-kimarite'] as const) {
         const initial = createStatus({
           age: 20,
           entryAge: 20,
@@ -3992,12 +4080,36 @@ const tests: TestCase[] = [
           `simulation model normalization (${requested})`,
         );
 
-        assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v1');
+        assert.equal(step.diagnostics?.simulationModelVersion, requested);
         assert.ok(
-          step.banzukeDecisions.every((decision) => decision.modelVersion === 'unified-v1'),
-          `Expected unified-v1 modelVersion logs for ${requested}`,
+          step.banzukeDecisions.every((decision) => decision.modelVersion === requested),
+          `Expected ${requested} modelVersion logs`,
         );
       }
+    },
+  },
+  {
+    name: 'simulation: default new run model version is unified-v2-kimarite',
+    run: async () => {
+      const initial = createStatus({
+        age: 20,
+        entryAge: 20,
+        rank: { division: 'Makushita', name: '幕下', side: 'East', number: 25 },
+      });
+      const engine = createSimulationEngine(
+        {
+          initialStats: initial,
+          oyakata: null,
+        },
+        {
+          random: lcg(2027),
+          getCurrentYear: () => 2026,
+          yieldControl: async () => {},
+        },
+      );
+
+      const step = expectBashoStep(await engine.runNextBasho(), 'default model version');
+      assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v2-kimarite');
     },
   },
   {
@@ -5693,9 +5805,65 @@ const tests: TestCase[] = [
   },
 ];
 
+const nodeProcess = (globalThis as { process?: { argv?: string[]; env?: Record<string, string | undefined>; exitCode?: number } }).process;
+const cliArgs = nodeProcess?.argv?.slice(2) ?? [];
+const env = nodeProcess?.env ?? {};
+
+const readArgValue = (args: string[], index: number): string | undefined => {
+  const value = args[index + 1];
+  return value && !value.startsWith('--') ? value : undefined;
+};
+
+const parseCommaList = (value: string | undefined): string[] =>
+  (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const grepPatterns: string[] = [...parseCommaList(env.TEST_GREP)];
+const scopes: string[] = [...parseCommaList(env.TEST_SCOPE).map((scope) => scope.toLowerCase())];
+for (let i = 0; i < cliArgs.length; i += 1) {
+  const arg = cliArgs[i];
+  if (arg === '--grep') {
+    const pattern = readArgValue(cliArgs, i);
+    if (!pattern) {
+      throw new Error('Missing value for --grep');
+    }
+    grepPatterns.push(pattern);
+    i += 1;
+  } else if (arg === '--scope') {
+    const scope = readArgValue(cliArgs, i);
+    if (!scope) {
+      throw new Error('Missing value for --scope');
+    }
+    scopes.push(scope.toLowerCase());
+    i += 1;
+  }
+}
+
+const grepRegexes = grepPatterns.map((pattern) => new RegExp(pattern, 'i'));
+const selectedTests = tests.filter((test) => {
+  const scope = test.name.split(':', 1)[0]?.trim().toLowerCase() ?? '';
+  const scopeOk = scopes.length === 0 || scopes.includes(scope);
+  const grepOk = grepRegexes.length === 0 || grepRegexes.some((regex) => regex.test(test.name));
+  return scopeOk && grepOk;
+});
+
+if (selectedTests.length === 0) {
+  console.error('No tests selected. Check --scope/--grep or TEST_SCOPE/TEST_GREP values.');
+  if (nodeProcess) {
+    nodeProcess.exitCode = 1;
+  }
+  throw new Error('No tests selected');
+}
+
+if (selectedTests.length !== tests.length) {
+  console.log(`Running filtered tests: ${selectedTests.length}/${tests.length}`);
+}
+
 let passed = 0;
 const run = async () => {
-  for (const test of tests) {
+  for (const test of selectedTests) {
     try {
       await test.run();
       passed += 1;
@@ -5706,7 +5874,7 @@ const run = async () => {
     }
   }
 
-  console.log(`All tests passed (${passed}/${tests.length})`);
+  console.log(`All tests passed (${passed}/${selectedTests.length})`);
 };
 
 run().catch((error) => {

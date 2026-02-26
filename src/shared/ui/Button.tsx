@@ -18,7 +18,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           // ベーススタイル: RPGメニュー風
-          "inline-flex items-center justify-center font-pixel rounded-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50 disabled:pointer-events-none disabled:opacity-40 active:scale-[0.97]",
+          "inline-flex items-center justify-center ui-text-button rounded-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50 disabled:pointer-events-none disabled:opacity-40 active:scale-[0.97]",
           {
             // プライマリ: 金色二重枠
             'border-2 border-gold bg-bg-panel text-gold-bright hover:bg-bg-hover hover:shadow-rpg-glow': variant === 'primary',

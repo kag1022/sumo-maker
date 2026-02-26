@@ -17,6 +17,37 @@ import {
   LogicLabRunPhase,
   LogicLabSummary,
 } from '../types';
+import { DEFAULT_SIMULATION_MODEL_VERSION } from '../../../logic/simulation/modelVersion';
+
+const summarizeKimarite = (logs: LogicLabBashoLogRow[]): Record<string, number> => {
+  const total: Record<string, number> = {};
+  for (const row of logs) {
+    const count = row.kimariteCount || {};
+    for (const [name, value] of Object.entries(count)) {
+      total[name] = (total[name] || 0) + value;
+    }
+  }
+  return total;
+};
+
+const buildTopKimariteDiffs = (
+  currentLogs: LogicLabBashoLogRow[],
+  newLogs: LogicLabBashoLogRow[],
+  limit = 5,
+) => {
+  const current = summarizeKimarite(currentLogs);
+  const next = summarizeKimarite(newLogs);
+  const names = new Set<string>([...Object.keys(current), ...Object.keys(next)]);
+  return [...names]
+    .map((name) => ({
+      name,
+      current: current[name] || 0,
+      newModel: next[name] || 0,
+      delta: (next[name] || 0) - (current[name] || 0),
+    }))
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, limit);
+};
 
 type StepOutcome = 'continue' | 'paused' | 'completed' | 'stale' | 'error';
 
@@ -53,7 +84,7 @@ const parseRunConfig = (
   store: Pick<LogicLabStore, 'presetId' | 'seedInput' | 'maxBashoInput'>,
 ): LogicLabRunConfig => ({
   presetId: store.presetId,
-  simulationModelVersion: 'unified-v1',
+  simulationModelVersion: DEFAULT_SIMULATION_MODEL_VERSION,
   seed: normalizeLogicLabSeed(store.seedInput),
   maxBasho: normalizeLogicLabMaxBasho(store.maxBashoInput),
 });
@@ -227,18 +258,18 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
       });
 
       try {
-        const [legacy, realism] = await Promise.all([
+        const [current, newModel] = await Promise.all([
           runLogicLabToEnd({
             presetId: config.presetId,
             seed: config.seed,
             maxBasho: config.maxBasho,
-            simulationModelVersion: 'legacy-v6',
+            simulationModelVersion: 'unified-v1',
           }),
           runLogicLabToEnd({
             presetId: config.presetId,
             seed: config.seed,
             maxBasho: config.maxBasho,
-            simulationModelVersion: 'realism-v1',
+            simulationModelVersion: 'unified-v2-kimarite',
           }),
         ]);
 
@@ -250,8 +281,9 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
               seed: config.seed,
               maxBasho: config.maxBasho,
             },
-            legacy: legacy.summary,
-            realism: realism.summary,
+            current: current.summary,
+            newModel: newModel.summary,
+            topKimariteDiffs: buildTopKimariteDiffs(current.logs, newModel.logs),
           },
           comparisonBusy: false,
           errorMessage: undefined,

@@ -9,6 +9,7 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from '../../logic/simulation/modelVersion';
+import { normalizeKimariteName } from '../../logic/kimarite/catalog';
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from './presets';
 import {
   LogicLabBashoLogRow,
@@ -286,6 +287,13 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     };
   };
 
+  const kimariteCount = step.playerBouts.reduce<Record<string, number>>((acc, bout) => {
+    if (!bout.kimarite) return acc;
+    const normalized = normalizeKimariteName(bout.kimarite);
+    acc[normalized] = (acc[normalized] || 0) + 1;
+    return acc;
+  }, {});
+
   return {
   seq: step.seq,
   year: step.year,
@@ -304,6 +312,7 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
   ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
   committeeWarnings: step.progress.lastCommitteeWarnings,
   npcContext: buildNpcContext(),
+  kimariteCount,
   };
 };
 

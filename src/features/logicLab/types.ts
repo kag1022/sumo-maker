@@ -83,6 +83,7 @@ export interface LogicLabBashoLogRow {
   pauseReason?: LogicLabStopReason;
   committeeWarnings: number;
   npcContext?: LogicLabNpcContext;
+  kimariteCount?: Record<string, number>;
 }
 
 export interface LogicLabSummary {
@@ -109,6 +110,12 @@ export interface LogicLabComparisonResult {
     seed: number;
     maxBasho: number;
   };
-  legacy: LogicLabSummary;
-  realism: LogicLabSummary;
+  current: LogicLabSummary;
+  newModel: LogicLabSummary;
+  topKimariteDiffs: Array<{
+    name: string;
+    current: number;
+    newModel: number;
+    delta: number;
+  }>;
 }

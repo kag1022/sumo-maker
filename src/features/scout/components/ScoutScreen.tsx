@@ -43,7 +43,7 @@ const formatCountdown = (seconds: number): string => {
 const traitName = (id: string): string => CONSTANTS.TRAIT_DATA[id as keyof typeof CONSTANTS.TRAIT_DATA]?.name ?? id;
 
 // --- 共通スタイル定数 ---
-const LABEL_CLASS = "text-xs font-pixel text-gold";
+const LABEL_CLASS = "text-xs ui-text-label text-gold";
 const INPUT_CLASS = "w-full border-2 border-gold-muted bg-bg px-3 py-2.5 text-text text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all";
 const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
@@ -179,10 +179,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
       {/* === ウェルカムヒーロー（抽選前のみ） === */}
       {!editedDraft && (
         <div className="rpg-panel p-5 sm:p-8 text-center animate-in">
-          <p className="text-xs font-pixel tracking-[0.2em] text-gold mb-3">
+          <p className="text-xs ui-text-label tracking-[0.2em] text-gold mb-3">
             人生放置型・履歴書作成ゲーム
           </p>
-          <h2 className="text-2xl sm:text-4xl font-pixel text-gold-bright mb-4 tracking-tight">
+          <h2 className="text-2xl sm:text-4xl ui-text-label text-gold-bright mb-4 tracking-tight">
             新弟子の運命を<br className="sm:hidden" />デザインせよ
           </h2>
           <p className="text-xs sm:text-sm text-text-dim max-w-lg mx-auto leading-relaxed mb-6">
@@ -193,7 +193,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           {/* ウォレット */}
           <div className="inline-flex items-center gap-3 border-2 border-gold-muted bg-bg px-4 py-2.5 mb-6">
             <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
-            <span className="text-base sm:text-lg font-pixel text-gold">{wallet?.points ?? "..."}</span>
+            <span className="text-base sm:text-lg ui-text-label text-gold">{wallet?.points ?? "..."}</span>
             <span className="text-xs text-text-dim">/ {wallet?.cap ?? 500}</span>
             <span className="text-xs text-text-dim border-l-2 border-gold-muted pl-3">
               回復 {wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}
@@ -213,7 +213,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           </div>
 
           {errorMessage && (
-            <p className="mt-4 text-xs font-pixel text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10 inline-block">
+            <p className="mt-4 text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10 inline-block">
               {errorMessage}
             </p>
           )}
@@ -232,7 +232,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
               </h2>
               <div className="flex items-center gap-2 text-xs">
                 <Coins className="w-3.5 h-3.5 text-gold" />
-                <span className="font-pixel text-gold">{wallet?.points ?? "..."}</span>
+                <span className="ui-text-label text-gold">{wallet?.points ?? "..."}</span>
                 <span className="text-text-dim">/ {wallet?.cap ?? 500}</span>
               </div>
             </div>
@@ -248,7 +248,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             </Button>
 
             {errorMessage && (
-              <p className="text-xs font-pixel text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10">{errorMessage}</p>
+              <p className="text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10">{errorMessage}</p>
             )}
 
             {/* === フォーム === */}
@@ -261,7 +261,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   onChange={(e) =>
                     setEditedDraft((prev) => (prev ? { ...prev, shikona: e.target.value } : prev))
                   }
-                  className={`${INPUT_CLASS} font-pixel text-base sm:text-lg text-gold`}
+                  className={`${INPUT_CLASS} ui-text-label text-base sm:text-lg text-gold`}
                 />
               </div>
 
@@ -362,7 +362,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   <div className="space-y-2">
                     {activeTraitSlotDrafts.map((slotDraft) => (
                       <div key={slotDraft.slotIndex} className="border-2 border-gold-muted p-2 bg-bg space-y-2">
-                        <p className="text-xs font-pixel text-text-dim">
+                        <p className="text-xs ui-text-label text-text-dim">
                           枠 {slotDraft.slotIndex + 1}
                           {slotDraft.selected ? `: ${traitName(slotDraft.selected)}` : ": 未選択"}
                         </p>
@@ -402,7 +402,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                     <span className="text-xs text-text-dim">採用スキルなし</span>
                   ) : (
                     editedDraft.traits.map((trait) => (
-                      <span key={trait} className="text-xs px-2 py-1 border-2 border-gold/40 font-pixel bg-gold/10 text-gold">
+                      <span key={trait} className="text-xs px-2 py-1 border-2 border-gold/40 ui-text-label bg-gold/10 text-gold">
                         {traitName(trait)}
                       </span>
                     ))
@@ -456,7 +456,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   DNA設定（変更分コスト加算）
                 </label>
                 <details className="border-2 border-gold-muted bg-bg group">
-                  <summary className="px-3 py-2.5 text-xs font-pixel cursor-pointer text-text-dim hover:text-gold transition-colors flex items-center gap-1">
+                  <summary className="px-3 py-2.5 text-xs ui-text-label cursor-pointer text-text-dim hover:text-gold transition-colors flex items-center gap-1">
                     <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
                     DNA詳細を開く（初期能力・成長・耐久・変動）
                   </summary>
@@ -504,7 +504,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                         } : prev)}
                         className="flex-1 h-1.5"
                       />
-                      <span className="text-xs w-10 text-right font-pixel text-gold">{editedDraft.genomeDraft.growth.lateCareerDecay.toFixed(1)}x</span>
+                      <span className="text-xs w-10 text-right ui-text-label text-gold">{editedDraft.genomeDraft.growth.lateCareerDecay.toFixed(1)}x</span>
                     </div>
                     {/* 耐久性 */}
                     <DnaSliderGroup
@@ -552,7 +552,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
             {/* 四股名ヒーロー */}
             <div className="text-center py-3 border-b-2 border-gold-muted">
-              <p className="text-2xl sm:text-3xl font-pixel text-gold tracking-wider">
+              <p className="text-2xl sm:text-3xl ui-text-label text-gold tracking-wider">
                 {editedDraft.shikona}
               </p>
               <p className="text-xs text-text-dim mt-1">
@@ -581,7 +581,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
             {/* コスト内訳 */}
             <div className="border-t-2 border-gold-muted pt-3 space-y-1">
-              <p className="text-xs font-pixel text-gold mb-2">
+              <p className="text-xs ui-text-label text-gold mb-2">
                 <Zap className="w-3.5 h-3.5 inline mr-1" />
                 上書きコスト
               </p>
@@ -604,14 +604,14 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 ))}
               </div>
               <div className="pt-2 mt-2 border-t-2 border-gold-muted flex justify-between items-center">
-                <span className="text-xs font-pixel text-text-dim">合計コスト</span>
-                <span className="text-lg font-pixel text-gold">{overrideCost.total}pt</span>
+                <span className="text-xs ui-text-label text-text-dim">合計コスト</span>
+                <span className="text-lg ui-text-label text-gold">{overrideCost.total}pt</span>
               </div>
             </div>
 
             {/* 演算モード選択 */}
             <div className="border-2 border-gold-muted bg-bg p-3 space-y-2">
-              <p className="text-xs font-pixel text-gold">演算モード</p>
+              <p className="text-xs ui-text-label text-gold">演算モード</p>
               <div className="space-y-1">
                 {([
                   { value: "instant" as SimulationSpeed, label: "一括演算", desc: "結果だけ見る" },
@@ -627,7 +627,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                         : "border-gold-muted text-text-dim hover:border-gold/50"
                     }`}
                   >
-                    <span className="font-pixel">
+                    <span className="ui-text-label">
                       {simulationSpeed === mode.value ? "▶ " : "　 "}
                       {mode.label}
                     </span>
@@ -655,7 +655,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
       {/* モバイル下部固定バー（抽選後のみ, lg以下） */}
       {editedDraft && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 flex items-center justify-between gap-3 safe-area-bottom">
-          <div className="text-xs font-pixel text-gold">
+          <div className="text-xs ui-text-label text-gold">
             {overrideCost.total}pt
           </div>
           <Button
@@ -690,7 +690,7 @@ const DnaSliderGroup: React.FC<{
   max: number | ((key: string) => number);
 }> = ({ title, sliders, values, onChange, min, max }) => (
   <div className="space-y-1.5">
-    <p className="text-xs font-pixel text-gold">{title}</p>
+    <p className="text-xs ui-text-label text-gold">{title}</p>
     {sliders.map(({ key, label, scale, suffix, precision }) => {
       const s = scale ?? 1;
       const rawVal = values[key] ?? 0;
@@ -711,7 +711,7 @@ const DnaSliderGroup: React.FC<{
             onChange={(e) => onChange(key, Number(e.target.value) / s)}
             className="flex-1 h-1.5"
           />
-          <span className="text-xs w-10 text-right font-pixel text-gold">
+          <span className="text-xs w-10 text-right ui-text-label text-gold">
             {displayVal}{suffix ?? ""}
           </span>
         </div>

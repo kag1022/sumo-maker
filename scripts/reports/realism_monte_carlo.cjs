@@ -29,17 +29,18 @@ const { runLogicLabToEnd } = require(path.join(
   'runner.js',
 ));
 
-const SIMULATION_MODEL_VERSION = 'unified-v1';
+const CURRENT_MODEL_VERSION = 'unified-v1';
+const NEXT_MODEL_VERSION = 'unified-v2-kimarite';
 const BASELINE_RUNS = Number(process.env.REALISM_MC_BASE_RUNS || 500);
 const J2_MONSTER_RUNS = Number(process.env.REALISM_MC_UPSIDE_RUNS || 500);
 const FIXED_START_YEAR = 2026;
 const J2_MONSTER_PRESET = 'J2_MONSTER';
 const J2_MONSTER_MAX_BASHO = Number(process.env.REALISM_MC_J2_MAX_BASHO || 160);
 
-const REPORT_PATH = path.join('docs', 'balance', 'unified-v1-acceptance.md');
-const LEGACY_REPORT_PATH = path.join('docs', 'balance', 'realism-v1-acceptance.md');
-const JSON_PATH = path.join('.tmp', 'unified-v1-acceptance.json');
-const LEGACY_JSON_PATH = path.join('.tmp', 'realism-v1-acceptance.json');
+const REPORT_PATH = path.join('docs', 'balance', 'unified-v2-kimarite-acceptance.md');
+const LEGACY_REPORT_PATH = path.join('docs', 'balance', 'unified-v1-acceptance.md');
+const JSON_PATH = path.join('.tmp', 'unified-v2-kimarite-acceptance.json');
+const LEGACY_JSON_PATH = path.join('.tmp', 'unified-v1-acceptance.json');
 
 const BASELINE_GATE = {
   yokozunaMin: 0.003,
@@ -84,13 +85,13 @@ const createUneditedScoutInitial = (seed) => {
   });
 };
 
-const runCareerToEnd = async (initialStatus, seed) => {
+const runCareerToEnd = async (initialStatus, seed, modelVersion) => {
   const simulationRandom = createSeededRandom(seed ^ 0x3c6ef372);
   const engine = createSimulationEngine(
     {
       initialStats: JSON.parse(JSON.stringify(initialStatus)),
       oyakata: null,
-      simulationModelVersion: SIMULATION_MODEL_VERSION,
+      simulationModelVersion: modelVersion,
     },
     {
       random: simulationRandom,
@@ -107,7 +108,7 @@ const runCareerToEnd = async (initialStatus, seed) => {
   }
 };
 
-const summarizeBaseline = async (runs) => {
+const summarizeBaseline = async (runs, modelVersion) => {
   let sekitori = 0;
   let makuuchi = 0;
   let sanyaku = 0;
@@ -119,7 +120,7 @@ const summarizeBaseline = async (runs) => {
   for (let i = 0; i < runs; i += 1) {
     const seed = ((i + 1) * 2654435761 + 97) >>> 0;
     const initial = createUneditedScoutInitial(seed);
-    const result = await runCareerToEnd(initial, seed);
+    const result = await runCareerToEnd(initial, seed, modelVersion);
     const maxRank = result.history.maxRank;
 
     if (isSekitoriRank(maxRank)) sekitori += 1;
@@ -132,7 +133,7 @@ const summarizeBaseline = async (runs) => {
     totalBasho += result.history.records.length;
 
     if ((i + 1) % 50 === 0) {
-      console.log(`baseline_random_scout: ${i + 1}/${runs}`);
+      console.log(`baseline_random_scout(${modelVersion}): ${i + 1}/${runs}`);
     }
   }
 
@@ -152,7 +153,7 @@ const summarizeBaseline = async (runs) => {
   };
 };
 
-const summarizeJ2Monster = async (runs) => {
+const summarizeJ2Monster = async (runs, modelVersion) => {
   let yokozunaCount = 0;
   let makuuchiBashoCount = 0;
   let makuuchiNarrowCount = 0;
@@ -165,7 +166,7 @@ const summarizeJ2Monster = async (runs) => {
       presetId: J2_MONSTER_PRESET,
       seed,
       maxBasho: J2_MONSTER_MAX_BASHO,
-      simulationModelVersion: SIMULATION_MODEL_VERSION,
+      simulationModelVersion: modelVersion,
     });
 
     if (isYokozunaRank(result.summary.maxRank)) {
@@ -185,7 +186,7 @@ const summarizeJ2Monster = async (runs) => {
 
     totalBasho += result.summary.bashoCount;
     if ((i + 1) % 50 === 0) {
-      console.log(`J2_MONSTER: ${i + 1}/${runs}`);
+      console.log(`J2_MONSTER(${modelVersion}): ${i + 1}/${runs}`);
     }
   }
 
@@ -239,37 +240,38 @@ const evaluateAcceptance = (baseline, j2Monster) => {
   };
 };
 
-const renderReport = (baseline, j2Monster, acceptance) => {
+const renderReport = (current, next) => {
   const lines = [];
-  lines.push('# unified-v1 Monte Carlo Acceptance');
+  lines.push('# unified-v2-kimarite Monte Carlo Acceptance');
   lines.push('');
   lines.push(`- 実行日: ${new Date().toISOString()}`);
-  lines.push(`- モデル: ${SIMULATION_MODEL_VERSION}`);
-  lines.push(`- baseline 本数: ${baseline.sample}`);
-  lines.push(`- J2_MONSTER 本数: ${j2Monster.sample}`);
+  lines.push(`- current: ${CURRENT_MODEL_VERSION}`);
+  lines.push(`- next: ${NEXT_MODEL_VERSION}`);
+  lines.push(`- baseline 本数: ${current.baseline.sample}`);
+  lines.push(`- J2_MONSTER 本数: ${current.j2Monster.sample}`);
   lines.push(`- 開始年: ${FIXED_START_YEAR} 固定`);
   lines.push('');
   lines.push('## Baseline（無編集ランダムスカウト）');
   lines.push('');
-  lines.push(`- 関取率: ${toPct(baseline.sekitoriRate)} (gate >= ${toPct(BASELINE_GATE.sekitoriMin)})`);
-  lines.push(`- 幕内率: ${toPct(baseline.makuuchiRate)} (gate >= ${toPct(BASELINE_GATE.makuuchiMin)})`);
-  lines.push(`- 三役率: ${toPct(baseline.sanyakuRate)} (gate >= ${toPct(BASELINE_GATE.sanyakuMin)})`);
-  lines.push(`- 横綱率: ${toPct(baseline.yokozunaRate)} (gate ${toPct(BASELINE_GATE.yokozunaMin)}〜${toPct(BASELINE_GATE.yokozunaMax)})`);
-  lines.push(`- 平均通算: ${baseline.avgTotalWins.toFixed(1)}勝 ${baseline.avgTotalLosses.toFixed(1)}敗`);
-  lines.push(`- 平均キャリア場所数: ${baseline.avgCareerBasho.toFixed(1)}`);
+  lines.push(`- 関取率: ${toPct(current.baseline.sekitoriRate)} -> ${toPct(next.baseline.sekitoriRate)}`);
+  lines.push(`- 幕内率: ${toPct(current.baseline.makuuchiRate)} -> ${toPct(next.baseline.makuuchiRate)}`);
+  lines.push(`- 三役率: ${toPct(current.baseline.sanyakuRate)} -> ${toPct(next.baseline.sanyakuRate)}`);
+  lines.push(`- 横綱率: ${toPct(current.baseline.yokozunaRate)} -> ${toPct(next.baseline.yokozunaRate)}`);
+  lines.push(`- 平均通算: ${current.baseline.avgTotalWins.toFixed(1)}勝 ${current.baseline.avgTotalLosses.toFixed(1)}敗 -> ${next.baseline.avgTotalWins.toFixed(1)}勝 ${next.baseline.avgTotalLosses.toFixed(1)}敗`);
   lines.push('');
   lines.push('## J2_MONSTER（ロジック検証プリセット）');
   lines.push('');
-  lines.push(`- 横綱率: ${toPct(j2Monster.yokozunaRate)} (gate ${toPct(J2_MONSTER_GATE.yokozunaMin)}〜${toPct(J2_MONSTER_GATE.yokozunaMax)})`);
-  lines.push(`- 幕内 8-7/7-8 比率: ${toPct(j2Monster.makuuchiNarrowRate)} (gate ${toPct(J2_MONSTER_GATE.makuuchiNarrowMin)}〜${toPct(J2_MONSTER_GATE.makuuchiNarrowMax)})`);
-  lines.push(`- 幕内 10勝以上比率: ${toPct(j2Monster.makuuchiTenPlusRate)} (参考値)`);
-  lines.push(`- 平均キャリア場所数: ${j2Monster.avgCareerBasho.toFixed(1)}`);
+  lines.push(`- 横綱率: ${toPct(current.j2Monster.yokozunaRate)} -> ${toPct(next.j2Monster.yokozunaRate)}`);
+  lines.push(`- 幕内 8-7/7-8 比率: ${toPct(current.j2Monster.makuuchiNarrowRate)} -> ${toPct(next.j2Monster.makuuchiNarrowRate)}`);
+  lines.push(`- 幕内 10勝以上比率: ${toPct(current.j2Monster.makuuchiTenPlusRate)} -> ${toPct(next.j2Monster.makuuchiTenPlusRate)}`);
   lines.push('');
   lines.push('## Gate Result');
   lines.push('');
-  lines.push(`- Baseline gate: ${acceptance.baseline.allPass ? 'PASS' : 'FAIL'}`);
-  lines.push(`- J2_MONSTER gate: ${acceptance.j2Monster.allPass ? 'PASS' : 'FAIL'}`);
-  lines.push(`- Overall: ${acceptance.baseline.allPass && acceptance.j2Monster.allPass ? 'PASS' : 'FAIL'}`);
+  lines.push(`- current baseline gate: ${current.acceptance.baseline.allPass ? 'PASS' : 'FAIL'}`);
+  lines.push(`- current J2 gate: ${current.acceptance.j2Monster.allPass ? 'PASS' : 'FAIL'}`);
+  lines.push(`- next baseline gate: ${next.acceptance.baseline.allPass ? 'PASS' : 'FAIL'}`);
+  lines.push(`- next J2 gate: ${next.acceptance.j2Monster.allPass ? 'PASS' : 'FAIL'}`);
+  lines.push(`- next overall: ${next.acceptance.baseline.allPass && next.acceptance.j2Monster.allPass ? 'PASS' : 'FAIL'}`);
   lines.push('');
   return lines.join('\n');
 };
@@ -287,19 +289,33 @@ const main = async () => {
     throw new Error(`Invalid REALISM_MC_UPSIDE_RUNS: ${process.env.REALISM_MC_UPSIDE_RUNS}`);
   }
 
-  console.log(`running baseline scenario (${BASELINE_RUNS})...`);
-  const baseline = await summarizeBaseline(BASELINE_RUNS);
-  console.log(`running J2_MONSTER scenario (${J2_MONSTER_RUNS})...`);
-  const j2Monster = await summarizeJ2Monster(J2_MONSTER_RUNS);
+  console.log(`running baseline scenario current (${BASELINE_RUNS})...`);
+  const baselineCurrent = await summarizeBaseline(BASELINE_RUNS, CURRENT_MODEL_VERSION);
+  console.log(`running J2_MONSTER scenario current (${J2_MONSTER_RUNS})...`);
+  const j2Current = await summarizeJ2Monster(J2_MONSTER_RUNS, CURRENT_MODEL_VERSION);
+  console.log(`running baseline scenario next (${BASELINE_RUNS})...`);
+  const baselineNext = await summarizeBaseline(BASELINE_RUNS, NEXT_MODEL_VERSION);
+  console.log(`running J2_MONSTER scenario next (${J2_MONSTER_RUNS})...`);
+  const j2Next = await summarizeJ2Monster(J2_MONSTER_RUNS, NEXT_MODEL_VERSION);
 
-  const acceptance = evaluateAcceptance(baseline, j2Monster);
-  const report = renderReport(baseline, j2Monster, acceptance);
+  const current = {
+    modelVersion: CURRENT_MODEL_VERSION,
+    baseline: baselineCurrent,
+    j2Monster: j2Current,
+    acceptance: evaluateAcceptance(baselineCurrent, j2Current),
+  };
+  const next = {
+    modelVersion: NEXT_MODEL_VERSION,
+    baseline: baselineNext,
+    j2Monster: j2Next,
+    acceptance: evaluateAcceptance(baselineNext, j2Next),
+  };
+
+  const report = renderReport(current, next);
   const payload = {
     generatedAt: new Date().toISOString(),
-    modelVersion: SIMULATION_MODEL_VERSION,
-    baseline,
-    j2Monster,
-    acceptance,
+    current,
+    next,
   };
 
   writeFile(REPORT_PATH, report);

@@ -4,6 +4,7 @@ import { Rank } from '../../../logic/models';
 import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
 import { useLogicLabStore } from '../store/logicLabStore';
 import { LogicLabBashoLogRow, LogicLabStopReason } from '../types';
+import { BodyText, CaptionText, Heading, LabelText, MetricText } from '../../../shared/ui/Typography';
 
 type LogFilter = 'ALL' | 'PROMOTION' | 'DEMOTION' | 'WARNING' | 'INJURY' | 'YUSHO';
 const LOG_FILTERS: Array<{ id: LogFilter; label: string }> = [
@@ -129,8 +130,8 @@ export const LogicLabScreen: React.FC = () => {
       <section className="border-4 border-sumi bg-[linear-gradient(120deg,#203744,#2b2b2b,#5c6e46)] text-washi p-4 shadow-[6px_6px_0px_0px_#2b2b2b]">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="text-xl font-black">ロジック検証モード</p>
-            <p className="text-xs font-bold text-washi/90">番付変化・会議理由・NPC文脈を集約表示</p>
+            <Heading as="p" className="text-xl">ロジック検証モード</Heading>
+            <CaptionText as="p" className="text-washi/90">番付変化・会議理由・NPC文脈を集約表示</CaptionText>
           </div>
           <div className="text-[11px] font-black border border-washi/60 px-2 py-1 bg-kassairo/40">
             状態: {formatPhase(phase)}
@@ -140,7 +141,7 @@ export const LogicLabScreen: React.FC = () => {
 
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <div className="xl:col-span-4 border-2 border-sumi bg-washi p-4 space-y-2">
-          <p className="text-sm font-black">設定</p>
+          <LabelText as="p" className="text-sm">設定</LabelText>
           <label className="text-xs font-bold block">
             プリセット
             <select
@@ -162,29 +163,29 @@ export const LogicLabScreen: React.FC = () => {
               <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1" disabled={autoPlay || comparisonBusy} />
             </label>
           </div>
-          <p className="text-[11px] font-bold text-sumi">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</p>
+          <CaptionText as="p" className="text-[11px] text-sumi">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</CaptionText>
         </div>
 
         <div className="xl:col-span-8 border-2 border-sumi bg-washi p-4 space-y-3">
-          <p className="text-sm font-black">操作</p>
+          <LabelText as="p" className="text-sm">操作</LabelText>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             <button onClick={() => void startRun()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-kassairo text-washi'}`}>開始</button>
             <button onClick={() => void stepOne()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>1場所進む</button>
             {!autoPlay ? <button onClick={() => void startAutoPlay()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-sumi text-washi'}`}>自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-shuiro bg-washi text-shuiro font-black px-2 py-2 text-xs">停止</button>}
             <button onClick={() => void runToEnd()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>最後まで</button>
-            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-shuiro text-washi'}`}>{comparisonBusy ? '比較中...' : '2モデル比較'}</button>
+            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-shuiro text-washi'}`}>{comparisonBusy ? '比較中...' : '2モデル比較（現行/新）'}</button>
             <button onClick={resetRun} disabled={comparisonBusy} className="border-2 border-sumi bg-washi text-sumi font-black px-2 py-2 text-xs">リセット</button>
           </div>
-          {errorMessage && <p className="text-xs font-bold text-shuiro border border-shuiro px-2 py-1">{errorMessage}</p>}
+          {errorMessage && <BodyText as="p" className="text-xs text-shuiro border border-shuiro px-2 py-1">{errorMessage}</BodyText>}
         </div>
       </section>
 
       <section className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-black">
-        <div className="border-2 border-sumi bg-washi p-2">昇進: <span className="text-matcha">{stats.promotion}</span></div>
-        <div className="border-2 border-sumi bg-washi p-2">降下: <span className="text-shuiro">{stats.demotion}</span></div>
-        <div className="border-2 border-sumi bg-washi p-2">警告: {stats.warning}</div>
-        <div className="border-2 border-sumi bg-washi p-2">怪我: {stats.injury}</div>
-        <div className="border-2 border-sumi bg-washi p-2">優勝: {stats.yusho}</div>
+        <div className="border-2 border-sumi bg-washi p-2"><LabelText>昇進: </LabelText><MetricText as="span" className="text-matcha">{stats.promotion}</MetricText></div>
+        <div className="border-2 border-sumi bg-washi p-2"><LabelText>降下: </LabelText><MetricText as="span" className="text-shuiro">{stats.demotion}</MetricText></div>
+        <div className="border-2 border-sumi bg-washi p-2"><LabelText>警告: </LabelText><MetricText as="span">{stats.warning}</MetricText></div>
+        <div className="border-2 border-sumi bg-washi p-2"><LabelText>怪我: </LabelText><MetricText as="span">{stats.injury}</MetricText></div>
+        <div className="border-2 border-sumi bg-washi p-2"><LabelText>優勝: </LabelText><MetricText as="span">{stats.yusho}</MetricText></div>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -239,9 +240,19 @@ export const LogicLabScreen: React.FC = () => {
           {comparison && (
             <div className="border-t border-sumi pt-2 text-xs font-bold">
               <p className="mb-1">比較: {comparisonPresetLabel}</p>
-              <p>legacy最高位: {formatRankName(comparison.legacy.maxRank)}</p>
-              <p>realism最高位: {formatRankName(comparison.realism.maxRank)}</p>
-              <p>勝利差: {comparison.realism.totalWins - comparison.legacy.totalWins >= 0 ? '+' : ''}{comparison.realism.totalWins - comparison.legacy.totalWins}</p>
+              <p>現行最高位: {formatRankName(comparison.current.maxRank)}</p>
+              <p>新モデル最高位: {formatRankName(comparison.newModel.maxRank)}</p>
+              <p>勝利差: {comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? '+' : ''}{comparison.newModel.totalWins - comparison.current.totalWins}</p>
+              <p className="mt-2">主要決まり手差分</p>
+              {comparison.topKimariteDiffs.length === 0 ? (
+                <p>-</p>
+              ) : (
+                comparison.topKimariteDiffs.map((item) => (
+                  <p key={item.name}>
+                    {item.name}: {item.current} → {item.newModel} ({item.delta >= 0 ? '+' : ''}{item.delta})
+                  </p>
+                ))
+              )}
             </div>
           )}
         </div>

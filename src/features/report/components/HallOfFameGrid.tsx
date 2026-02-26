@@ -91,26 +91,26 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
         {/* Header */}
         <div className="p-3 sm:p-5 border-b-2 border-gold-muted flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3 sm:gap-4">
-            <h2 className="text-lg sm:text-2xl flex items-center text-gold font-pixel">
+            <h2 className="text-lg sm:text-2xl flex items-center text-gold ui-text-label">
               <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-crimson" />
               殿堂入り力士
             </h2>
             <div className="hidden sm:flex bg-bg-panel p-0.5 gap-0.5 border-2 border-gold-muted">
               <button
                 onClick={() => setFilter("ALL")}
-                className={`px-3 py-1.5 text-xs font-pixel transition-all ${filter === "ALL" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "ALL" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
               >
                 すべて ({items.length})
               </button>
               <button
                 onClick={() => setFilter("YUSHO")}
-                className={`px-3 py-1.5 text-xs font-pixel transition-all ${filter === "YUSHO" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "YUSHO" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
               >
                 幕内優勝
               </button>
               <button
                 onClick={() => setFilter("YOKOZUNA")}
-                className={`px-3 py-1.5 text-xs font-pixel transition-all ${filter === "YOKOZUNA" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "YOKOZUNA" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
               >
                 歴代横綱
               </button>
@@ -129,7 +129,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
-            className="w-full p-2 bg-bg text-sm font-pixel text-text border-2 border-gold-muted focus:ring-1 focus:ring-gold/50"
+            className="w-full p-2 bg-bg text-sm ui-text-label text-text border-2 border-gold-muted focus:ring-1 focus:ring-gold/50"
           >
             <option value="ALL">すべて表示 ({items.length})</option>
             <option value="YUSHO">幕内優勝経験者</option>
@@ -142,7 +142,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
           {filteredItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-text-dim space-y-4">
               <Trophy className="w-16 h-16 opacity-20" />
-              <p className="text-lg font-pixel">
+              <p className="text-lg ui-text-label">
                 {filter === "ALL"
                   ? "保存された力士はいません"
                   : "条件に一致する力士がいません"}
@@ -172,18 +172,18 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
                       )}
 
                       <div className="flex justify-between items-start mb-2 relative z-10">
-                        <span className="text-[10px] font-pixel px-2 py-0.5 border-2 border-gold-muted text-text-dim tracking-widest">
+                        <span className="text-[10px] ui-text-label px-2 py-0.5 border-2 border-gold-muted text-text-dim tracking-widest">
                           {rec.careerEndYearMonth ? "引退" : "現役"}
                         </span>
                         {rec.yushoCount.makuuchi > 0 && (
-                          <span className="flex items-center text-[10px] font-pixel text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-0.5">
+                          <span className="flex items-center text-[10px] ui-text-label text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-0.5">
                             <Trophy className="w-3 h-3 mr-1" /> 優勝{" "}
                             {rec.yushoCount.makuuchi}回
                           </span>
                         )}
                       </div>
                       <h3
-                        className={`text-xl sm:text-2xl font-pixel mb-1 tracking-tight ${titleStyle}`}
+                        className={`text-xl sm:text-2xl ui-text-label mb-1 tracking-tight ${titleStyle}`}
                       >
                         {rec.shikona}
                       </h3>
@@ -195,20 +195,20 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
                     {/* Card Body */}
                     <div className="p-3 sm:p-4 flex-1 flex flex-col justify-center space-y-3 bg-bg/40">
                       <div className="text-center">
-                        <p className="text-[10px] font-pixel tracking-wider text-text-dim mb-0.5">
+                        <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
                           最高位
                         </p>
-                        <p className="text-lg sm:text-xl font-pixel text-text">
+                        <p className="text-lg sm:text-xl ui-text-label text-text">
                           {formatRankName(rec.maxRank)}
                         </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-center border-t-2 border-gold-muted/20 pt-3">
                         <div>
-                          <p className="text-[10px] font-pixel tracking-wider text-text-dim mb-0.5">
+                          <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
                             通算成績
                           </p>
-                          <p className="text-base sm:text-lg font-pixel">
+                          <p className="text-base sm:text-lg ui-text-label">
                             <span className="text-text">{rec.totalWins}</span>
                             <span className="text-xs text-text-dim">勝</span>
                             <span className="text-text ml-0.5">{rec.totalLosses}</span>
@@ -216,10 +216,10 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-pixel tracking-wider text-text-dim mb-0.5">
+                          <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
                             活動期間
                           </p>
-                          <p className="text-xs sm:text-sm font-pixel text-text mt-1">
+                          <p className="text-xs sm:text-sm ui-text-label text-text mt-1">
                             {rec.careerStartYearMonth}
                             <br />
                             <span className="text-text-dim">～</span>
@@ -234,7 +234,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
                     <div className="p-2 border-t-2 border-gold-muted/20 bg-bg-panel flex gap-2 shrink-0">
                       <button
                         onClick={() => onOpen(rec.id)}
-                        className="flex-1 py-2 text-sm font-pixel bg-bg border-2 border-gold text-gold hover:bg-gold/10 transition"
+                        className="flex-1 py-2 text-sm ui-text-label bg-bg border-2 border-gold text-gold hover:bg-gold/10 transition"
                       >
                         詳細を見る
                       </button>
