@@ -635,7 +635,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   // === 年表タブ ===
   const renderTimeline = () => (
     <div className="space-y-4 animate-in">
-      <HoshitoriTable careerRecords={hoshitoriCareerRecords} isLoading={isHoshitoriLoading} errorMessage={hoshitoriErrorMessage} />
+      <HoshitoriTable careerRecords={hoshitoriCareerRecords} shikona={shikona} isLoading={isHoshitoriLoading} errorMessage={hoshitoriErrorMessage} />
       <EnhancedTimeline history={history} entryAge={entryAge} />
     </div>
   );

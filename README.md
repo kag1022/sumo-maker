@@ -250,56 +250,39 @@ src/
     App.tsx
   main.tsx
   features/
-    scout/
+    logicLab/         # 開発・解析用のロジック検証UI
+    report/           # レポート・殿堂入り画面
+      components/     # AchievementView, HallOfFameGrid, ReportScreen, などの画面要素
+      utils/          # hoshitori.ts などのユーティリティ
+    scout/            # 新弟子作成・入幕パラメータ設定
       components/
         ScoutScreen.tsx
-    report/
-      components/
-        ReportScreen.tsx
-        AchievementView.tsx
-        HallOfFameGrid.tsx
-    simulation/
+    simulation/       # シミュレーション実行連携
       hooks/
-        useSimulation.ts
       store/
-        simulationStore.ts
       workers/
-        simulation.worker.ts
   shared/
-    ui/
-      Button.tsx
-      Card.tsx
+    ui/               # 汎用UIコンポーネント (Button, Card, DamageMap 等)
   logic/
-    battle.ts / growth.ts / achievements.ts
-    models.ts / constants.ts / initialization.ts
-    catalog/
-      enemyData.ts
-    naming/
-      playerNaming.ts
-    persistence/
-      careerStorage.ts
-      db.ts
-      repository.ts
-    ranking/
-      index.ts
-      rankScore.ts
-    banzuke/
-      committee/
-      providers/
-        expected/
-        sekitori/
-      rules/
-      population/
-      scale/
-    simulation/
-      engine.ts / basho.ts / career.ts / world.ts / modelVersion.ts
-      lowerQuota.ts / sekitoriQuota.ts / npcRecords.ts
-      actors/
-      npc/
-        npcShikonaGenerator.ts
-      topDivision/
-      lower/
-      sekitori/
+    achievements.ts / battle.ts / constants.ts / growth.ts / models.ts / initialization.ts
+    balance/          # モデルのバージョンごとのパラメータ等 (realismV1.ts, unifiedV1.ts)
+    banzuke/          # 番付編成ロジック (committee, optimizer, population, providers, rules, scale)
+    catalog/          # 固定データ (enemyData.ts 等)
+    kimarite/         # 決まり手判定ロジック (catalog.ts, matchup.ts)
+    naming/           # 四股名生成
+    persistence/      # 履歴保存・データベース連携 (careerStorage.ts, db.ts, repository.ts, wallet.ts)
+    ranking/          # ランキングスコア計算
+    scout/            # スカウトや初期能力生成
+    simulation/       # シミュレーションエンジン中核機能群
+      basho.ts / career.ts / engine.ts / matchmaking.ts / runner.ts / world.ts 等
+      actors/         # アクター（力士エンティティ等）の表現
+      boundary/       # モジュール境界で共有・利用される定義
+      lower/          # 幕下以下の挙動・入替
+      npc/            # NPC生成・引退・管理 (factory, retirement, stableCatalog 等)
+      sekitori/       # 関取枠・昇降格候補の管理
+      strength/       # 力士の強さ・能力（加齢・怪我等）の更新
+      topDivision/    # 幕内・十両上位における特別ルールや三賞
+      torikumi/       # 取組編成スケジューラ (policy.ts, scheduler.ts)
 scripts/
   tests/
     sim_tests.ts
@@ -338,8 +321,8 @@ docs/
   - `PLAYER_ACTOR_ID` を含む actor registry を正本とし、player/NPC を同一経路で roster 参加させる
 - `logic/simulation/career.ts`
   - 初期化、イベント追加、通算成績更新、引退確定
-- `logic/battle.ts` / `logic/growth.ts` / `logic/banzuke/`
-  - ドメイン計算ロジック（勝敗、成長、番付委員会）
+- `logic/battle.ts` / `logic/growth.ts` / `logic/banzuke/` / `logic/simulation/torikumi/` / `logic/kimarite/`
+  - ドメイン計算ロジック（勝敗、成長、番付編成処理と最適化、取組編成、決まり手生成）
 - `logic/persistence/repository.ts`
   - `careers` / `bashoRecords` / `boutRecords` / `banzukeDecisions` への非同期保存
 
