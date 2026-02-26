@@ -116,6 +116,51 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
               </button>
             </div>
           </div>
+          <div className="flex gap-2 p-2">
+            <button
+              className="p-2 border bg-crimson/20"
+              onClick={async () => {
+                const { getDb } = await import("../../../logic/persistence/db");
+                const db = getDb();
+                const bodyTypes = ["NORMAL", "SOPPU", "ANKO", "MUSCULAR"] as any;
+                const injuriesList = ["NECK", "SHOULDER", "ELBOW", "WRIST", "RIB", "BACK", "HIP", "KNEE", "ANKLE", "HAMSTRING"] as any;
+                const allInjuries = injuriesList.flatMap((type: any) => [
+                  { id: `r-${type}`, type, name: `右${type}損傷`, severity: 10, status: 'CHRONIC', occurredAt: { year: 2026, month: 1 } },
+                  { id: `l-${type}`, type, name: `左${type}損傷`, severity: 10, status: 'CHRONIC', occurredAt: { year: 2026, month: 1 } }
+                ]);
+                const now = new Date().toISOString();
+                for (const b of bodyTypes) {
+                  const cid = `dummy-${b}-${Date.now()}`;
+                  await db.careers.put({
+                    id: cid,
+                    state: 'saved',
+                    savedAt: now,
+                    updatedAt: now,
+                    shikona: `マーカー確認用(${b})`,
+                    maxRank: { division: 'MAKUUCHI', name: '横綱', side: 'East', number: 1 },
+                    totalWins: 100, totalLosses: 0, totalAbsent: 0,
+                    yushoCount: { makuuchi: 10, juryo: 0, makushita: 0 },
+                    bashoCount: 10,
+                    careerStartYearMonth: '2026-01',
+                    careerEndYearMonth: '2026-01',
+                    simulationModelVersion: 'v1.0.0',
+                    finalStatus: {
+                      id: cid,
+                      shikona: `マーカー確認用(${b})`,
+                      bodyType: b,
+                      bodyMetrics: { heightCm: 180, weightKg: 100 },
+                      injuries: allInjuries,
+                      history: { maxRank: { division: 'MAKUUCHI', name: '横綱', side: 'East', number: 1 }, title: null, yushoCount: { makuuchi: 10 }, records: [], events: [], totalWins: 100, totalLosses: 0, totalAbsent: 0 },
+                      traits: [],
+                      baseAbilities: {}, growthCurves: {}, durability: {}, careerVariance: {}, skills: {}, state: {}, tactics: {}
+                    } as any,
+                  } as any);
+                }
+                alert("ダミー生成完了。画面をリロードしてください。");
+              }}>
+              ダミー生成
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="p-2 text-text-dim hover:text-gold transition border-2 border-transparent hover:border-gold-muted"

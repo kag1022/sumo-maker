@@ -447,14 +447,13 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           <Heart className="w-4 h-4 text-crimson" /> 引退時の身体状態
         </h3>
         {status.injuries?.length > 0 ? (
-          <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
             <DamageMap
               injuries={status.injuries}
-              heightCm={status.bodyMetrics?.heightCm}
-              weightKg={status.bodyMetrics?.weightKg}
-              className="w-64 sm:w-72 h-auto shrink-0 mx-auto sm:mx-0"
+              bodyType={status.bodyType}
+              className="w-full md:w-3/5 lg:w-2/3 shrink-0 mx-auto"
             />
-            <div className="grid grid-cols-1 gap-2 flex-grow w-full">
+            <div className="grid grid-cols-1 gap-2 w-full md:w-2/5 lg:w-1/3">
               {status.injuries.map((injury) => {
                 const isChronic = injury.status === "CHRONIC";
                 const isHealed = injury.status === "HEALED";
