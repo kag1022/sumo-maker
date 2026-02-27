@@ -46,8 +46,8 @@ const isFusenLoss = (bout: PlayerBoutDetail): boolean =>
 
 const resolveSymbol = (bout: PlayerBoutDetail | null): string => {
   if (!bout) return "や";
-  if (isFusenWin(bout)) return "□";
-  if (isFusenLoss(bout)) return "■";
+  if (isFusenWin(bout)) return "■";
+  if (isFusenLoss(bout)) return "□";
   if (bout.result === "WIN") return "●";
   if (bout.result === "LOSS") return "◯";
   return "や";
@@ -220,7 +220,10 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
 
                           {/* ツールチップ */}
                           {showTooltip && (
-                            <div className="absolute top-1/2 left-full z-20 ml-1 -translate-y-1/2 w-40 border border-kiniro/30 bg-washi p-2 shadow-game shadow-black/40 text-left pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-[6px] before:border-transparent before:border-r-kiniro/30">
+                            <div className={`absolute top-1/2 ${dayIndex >= 7
+                              ? "right-full mr-1 before:left-full before:border-l-kiniro/30"
+                              : "left-full ml-1 before:right-full before:border-r-kiniro/30"
+                              } z-20 -translate-y-1/2 w-40 border border-kiniro/30 bg-washi p-2 shadow-game shadow-black/40 text-left pointer-events-none before:content-[''] before:absolute before:top-1/2 before:-translate-y-1/2 before:border-[6px] before:border-transparent`}>
                               <div className="flex justify-between items-baseline mb-1 border-b border-kiniro-muted/30 pb-1">
                                 <span className="text-[10px] text-kiniro font-bold">{dayIndex + 1}日目</span>
                                 <span className={`text-[11px] font-bold ${resolveSymbolColor(bout)}`}>{symbol}</span>

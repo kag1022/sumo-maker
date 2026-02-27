@@ -214,9 +214,19 @@ const runSimplifiedBasho = (
   for (let day = 1; day <= numBouts; day += 1) {
     if (rng() < resolveInjuryRate(status)) {
       losses += 1;
-      playerBoutDetails.push({ day, result: 'LOSS' });
       applyGeneratedInjury(status, generateInjury(status, year, month, rng));
       const postInjury = resolveInjuryParticipation(status);
+      const enemy = generateEnemy(status.rank.division, year, rng);
+      playerBoutDetails.push({
+        day,
+        result: 'LOSS',
+        kimarite: postInjury.mustSitOut ? '不戦敗' : undefined,
+        opponentId: enemy.id,
+        opponentShikona: enemy.shikona,
+        opponentRankName: enemy.rankName,
+        opponentRankNumber: enemy.rankNumber,
+        opponentRankSide: enemy.rankSide,
+      });
       if (postInjury.mustSitOut) {
         const remaining = numBouts - day;
         absent += remaining;
@@ -581,6 +591,17 @@ const runLowerDivisionBasho = (
       return resolveLowerDivisionEligibility(participant, day, lowerDayMap);
     },
     onPair: ({ a, b }, day) => {
+      // 事前にNPCのケガ判定を実施 (1日1回)
+      const npcInjuryCheck = (participant: DivisionParticipant) => {
+        if (!participant.isPlayer && participant.active) {
+          if (rng() < CONSTANTS.PROBABILITY.INJURY_PER_BOUT * 0.5) { // NPCは体力などがないため一律簡易確率
+            participant.active = false;
+          }
+        }
+      };
+      npcInjuryCheck(a);
+      npcInjuryCheck(b);
+
       if (!a.isPlayer && !b.isPlayer) {
         simulateNpcBout(a, b, rng, simulationModelVersion);
         return;
@@ -602,6 +623,31 @@ const runLowerDivisionBasho = (
           ? 6
           : LOWER_RANK_VALUE_MAP[opponentDivision as keyof typeof LOWER_RANK_VALUE_MAP];
 
+      if (!opponent.active) {
+        wins += 1;
+        player.wins += 1;
+        opponent.losses += 1;
+        consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = 0;
+        opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
+        opponent.currentWinStreak = 0;
+        previousResult = 'WIN';
+        playerBoutDetails.push({
+          day,
+          result: 'WIN',
+          kimarite: '不戦勝',
+          opponentId: opponent.id,
+          opponentShikona: opponent.shikona,
+          opponentRankName: rankName,
+          opponentRankNumber: rankNumber,
+          opponentRankSide: rankSide,
+        });
+        return;
+      }
+
       if (rng() < resolveInjuryRate(status)) {
         losses += 1;
         player.losses += 1;
@@ -610,17 +656,19 @@ const runLowerDivisionBasho = (
         player.currentLossStreak = (player.currentLossStreak ?? 0) + 1;
         opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
         opponent.currentLossStreak = 0;
+        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const postInjury = resolveInjuryParticipation(status);
         playerBoutDetails.push({
           day,
           result: 'LOSS',
+          kimarite: postInjury.mustSitOut ? '不戦敗' : undefined,
           opponentId: opponent.id,
           opponentShikona: opponent.shikona,
           opponentRankName: rankName,
           opponentRankNumber: rankNumber,
           opponentRankSide: rankSide,
         });
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
-        if (resolveInjuryParticipation(status).mustSitOut) {
+        if (postInjury.mustSitOut) {
           player.active = false;
         }
         consecutiveWins = 0;
@@ -978,6 +1026,33 @@ const runTopDivisionBasho = (
         world.makuuchiLayout,
       );
 
+      if (!opponent.active) {
+        wins += 1;
+        player.wins += 1;
+        opponent.losses += 1;
+        consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = 0;
+        opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
+        opponent.currentWinStreak = 0;
+        previousResult = 'WIN';
+        playerBoutDetails.push({
+          day,
+          result: 'WIN',
+          kimarite: '不戦勝',
+          opponentId: opponent.id,
+          opponentShikona: opponent.shikona,
+          opponentRankName: opponentRank.name,
+          opponentRankNumber: opponentRank.number,
+          opponentRankSide: opponentRank.side,
+        });
+
+        // 取組自体は発生しない（勝たないと金星は得られない）
+        return;
+      }
+
       if (rng() < resolveInjuryRate(status)) {
         losses += 1;
         player.losses += 1;
@@ -991,9 +1066,13 @@ const runTopDivisionBasho = (
         opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
 
+        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const postInjury = resolveInjuryParticipation(status);
+
         playerBoutDetails.push({
           day,
           result: 'LOSS',
+          kimarite: postInjury.mustSitOut ? '不戦敗' : undefined,
           opponentId: opponent.id,
           opponentShikona: opponent.shikona,
           opponentRankName: opponentRank.name,
@@ -1001,8 +1080,7 @@ const runTopDivisionBasho = (
           opponentRankSide: opponentRank.side,
         });
 
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
-        if (resolveInjuryParticipation(status).mustSitOut) {
+        if (postInjury.mustSitOut) {
           player.active = false;
         }
         return;

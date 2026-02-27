@@ -348,6 +348,31 @@ export const simulateNpcBout = (
   rng: RandomSource,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
+  if (!a.active && !b.active) {
+    // 両者休場の場合は勝敗つかず
+    return;
+  }
+  if (!a.active) {
+    // aが休場 -> bの不戦勝
+    b.wins += 1;
+    a.losses += 1;
+    b.currentWinStreak = (b.currentWinStreak ?? 0) + 1;
+    b.currentLossStreak = 0;
+    a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
+    a.currentWinStreak = 0;
+    return;
+  }
+  if (!b.active) {
+    // bが休場 -> aの不戦勝
+    a.wins += 1;
+    b.losses += 1;
+    a.currentWinStreak = (a.currentWinStreak ?? 0) + 1;
+    a.currentLossStreak = 0;
+    b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
+    b.currentWinStreak = 0;
+    return;
+  }
+
   a.currentWinStreak = Math.max(0, a.currentWinStreak ?? 0);
   a.currentLossStreak = Math.max(0, a.currentLossStreak ?? 0);
   b.currentWinStreak = Math.max(0, b.currentWinStreak ?? 0);
