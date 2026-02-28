@@ -15,7 +15,7 @@ import {
 } from './types';
 
 const POWER_RANGE: Record<Division, { min: number; max: number }> = {
-  Makuuchi: { min: 95, max: 165 },
+  Makuuchi: { min: 100, max: 165 },
   Juryo: { min: 78, max: 130 },
   Makushita: { min: 68, max: 104 },
   Sandanme: { min: 56, max: 92 },

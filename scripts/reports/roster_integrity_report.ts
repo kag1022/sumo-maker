@@ -31,7 +31,9 @@ type Summary = {
 };
 
 const createStatus = (): RikishiStatus => ({
-  heyaId: 'report',
+  stableId: 'stable-001',
+  ichimonId: 'TAIJU',
+  stableArchetypeId: 'MASTER_DISCIPLE',
   shikona: '検証山',
   entryAge: 15,
   age: 24,

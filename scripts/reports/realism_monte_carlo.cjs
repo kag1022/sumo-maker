@@ -11,11 +11,14 @@ const REPORT_PATH = path.join('docs', 'balance', `${TARGET_MODEL_VERSION}-accept
 const JSON_PATH = path.join('.tmp', `${TARGET_MODEL_VERSION}-acceptance.json`);
 
 const BASELINE_GATE = {
-  yokozunaMin: 0.003,
-  yokozunaMax: 0.008,
-  sekitoriMin: 0.6,
-  makuuchiMin: 0.35,
-  sanyakuMin: 0.02,
+  yokozunaMin: 0.004,
+  yokozunaMax: 0.006,
+  sekitoriMin: 0.3,
+  sekitoriMax: 0.4,
+  makuuchiMin: 0.09,
+  makuuchiMax: 0.11,
+  sanyakuMin: 0.018,
+  sanyakuMax: 0.022,
 };
 
 const TOP_DIVISION_NAMES = new Set(['横綱', '大関', '関脇', '小結']);
@@ -61,7 +64,11 @@ if (!isMainThread) {
     const draftRandom = createSeededRandom(seed ^ 0xa5a5a5a5);
     return withPatchedMathRandom(draftRandom, () => {
       const draft = rollScoutDraft(draftRandom);
-      return buildInitialRikishiFromDraft(draft);
+      const preparedDraft = {
+        ...draft,
+        selectedStableId: draft.selectedStableId ?? 'stable-001',
+      };
+      return buildInitialRikishiFromDraft(preparedDraft);
     });
   };
 
@@ -114,9 +121,15 @@ if (!isMainThread) {
     const baselineYokozunaPass =
       baseline.yokozunaRate >= BASELINE_GATE.yokozunaMin &&
       baseline.yokozunaRate <= BASELINE_GATE.yokozunaMax;
-    const baselineSekitoriPass = baseline.sekitoriRate >= BASELINE_GATE.sekitoriMin;
-    const baselineMakuuchiPass = baseline.makuuchiRate >= BASELINE_GATE.makuuchiMin;
-    const baselineSanyakuPass = baseline.sanyakuRate >= BASELINE_GATE.sanyakuMin;
+    const baselineSekitoriPass =
+      baseline.sekitoriRate >= BASELINE_GATE.sekitoriMin &&
+      baseline.sekitoriRate <= BASELINE_GATE.sekitoriMax;
+    const baselineMakuuchiPass =
+      baseline.makuuchiRate >= BASELINE_GATE.makuuchiMin &&
+      baseline.makuuchiRate <= BASELINE_GATE.makuuchiMax;
+    const baselineSanyakuPass =
+      baseline.sanyakuRate >= BASELINE_GATE.sanyakuMin &&
+      baseline.sanyakuRate <= BASELINE_GATE.sanyakuMax;
 
     return {
       baseline: {
@@ -149,6 +162,8 @@ if (!isMainThread) {
     lines.push(`- 三役率: ${toPct(result.baseline.sanyakuRate)}`);
     lines.push(`- 横綱率: ${toPct(result.baseline.yokozunaRate)}`);
     lines.push(`- 平均通算: ${result.baseline.avgTotalWins.toFixed(1)}勝 ${result.baseline.avgTotalLosses.toFixed(1)}敗`);
+    lines.push(`- 通算勝率: ${toPct(result.baseline.careerWinRate)}`);
+    lines.push(`- 平均場所数: ${result.baseline.avgCareerBasho.toFixed(1)}`);
     lines.push('');
     lines.push('## Gate Result');
     lines.push('');
@@ -236,6 +251,7 @@ if (!isMainThread) {
               yokozunaRate: yokozunaCount / runs,
               avgTotalWins: totalWins / runs,
               avgTotalLosses: totalLosses / runs,
+              careerWinRate: totalWins / Math.max(1, totalWins + totalLosses),
               avgCareerBasho: totalBasho / runs,
             });
           } else {

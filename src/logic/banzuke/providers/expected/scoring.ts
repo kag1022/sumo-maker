@@ -1,7 +1,13 @@
 import { Rank } from '../../../models';
 import { getRankValue } from '../../../ranking/rankScore';
 
-const resolveRankBase = (rank: Rank): number => 1000 - getRankValue(rank) * 6;
+const resolveRankBase = (rank: Rank): number => {
+  const base = 1000 - getRankValue(rank) * 6;
+  if (rank.division === 'Makuuchi' || rank.division === 'Juryo') {
+    return base + 5000; // 関取の特権スコア（幕下以下とは絶対に混ざらない）
+  }
+  return base;
+};
 
 export const resolveExpectedPlacementScore = (
   rank: Rank,

@@ -459,6 +459,7 @@ export const createSimulationEngine = (
         ? {
           rank: currentRank,
           shikona: status.shikona,
+          stableId: status.stableId,
           wins: bashoRecord.wins,
           losses: bashoRecord.losses,
           absent: bashoRecord.absent,

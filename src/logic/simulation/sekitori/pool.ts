@@ -160,7 +160,7 @@ export const mergePlayerMakushitaRecord = (
     id: 'PLAYER',
     shikona: playerRecord.shikona,
     isPlayer: true,
-    stableId: 'player-heya',
+    stableId: playerRecord.stableId ?? 'stable-001',
     rankScore: resolvePlayerMakushitaRankScore(playerRecord.rank),
     wins: playerRecord.wins,
     losses: playerRecord.losses + playerRecord.absent,

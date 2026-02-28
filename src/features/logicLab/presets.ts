@@ -115,6 +115,9 @@ const createPresetStatus = (
         heightCm: 183,
         weightKg: 146,
       },
+      stableId: 'stable-001',
+      ichimonId: 'TAIJU',
+      stableArchetypeId: 'TRADITIONAL_LARGE',
     },
     rng,
   );

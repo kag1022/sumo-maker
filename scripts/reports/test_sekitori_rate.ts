@@ -5,7 +5,9 @@ const NUM_SIMULATIONS = 100;
 
 // Mock initial stats
 const createInitialStatus = (id: string, potential: number, growthType: GrowthType): RikishiStatus => ({
-    heyaId: 'test_heya',
+    stableId: 'stable-001',
+    ichimonId: 'TAIJU',
+    stableArchetypeId: 'MASTER_DISCIPLE',
     shikona: `Rikishi${id}`,
     entryAge: 15,
     age: 15,

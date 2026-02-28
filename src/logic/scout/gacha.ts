@@ -17,8 +17,10 @@ import {
   TacticsType,
   TalentArchetype,
   Trait,
+  IchimonId,
 } from '../models';
 import { generateShikona } from '../naming/playerNaming';
+import { resolveStableById } from '../simulation/heya/stableCatalog';
 
 type RandomSource = () => number;
 
@@ -84,6 +86,8 @@ export interface ScoutDraft {
   traitSlotDrafts: ScoutTraitSlotDraft[];
   genomeDraft: RikishiGenome;
   genomeBudget: number;
+  selectedIchimonId: IchimonId | null;
+  selectedStableId: string | null;
 }
 
 export interface ScoutTraitSlotDraft {
@@ -130,10 +134,10 @@ export const SCOUT_COST = {
 } as const;
 
 const HISTORY_DRAW_WEIGHTS: Array<{ value: ScoutHistory; weight: number }> = [
-  { value: 'JHS_GRAD', weight: 35 },
-  { value: 'HS_GRAD', weight: 35 },
-  { value: 'HS_YOKOZUNA', weight: 20 },
-  { value: 'UNI_YOKOZUNA', weight: 10 },
+  { value: 'JHS_GRAD', weight: 20 },
+  { value: 'HS_GRAD', weight: 70 },
+  { value: 'HS_YOKOZUNA', weight: 8 },
+  { value: 'UNI_YOKOZUNA', weight: 2 },
 ];
 
 const PICK_LIST = <T>(rng: RandomSource, values: T[]): T =>
@@ -176,9 +180,9 @@ const BODY_METRIC_RANGE: Record<BodyType, { minH: number; maxH: number; minW: nu
 };
 
 const TSUKEDASHI_WEIGHTS: Array<{ value: EntryDivision; weight: number }> = [
-  { value: 'Maezumo', weight: 45 },
-  { value: 'Makushita60', weight: 35 },
-  { value: 'Sandanme90', weight: 20 },
+  { value: 'Maezumo', weight: 40 },
+  { value: 'Sandanme90', weight: 50 },
+  { value: 'Makushita60', weight: 10 },
 ];
 
 const randomInt = (rng: RandomSource, min: number, max: number): number =>
@@ -486,6 +490,8 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     traitSlotDrafts: [],
     genomeDraft,
     genomeBudget: CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX,
+    selectedIchimonId: null,
+    selectedStableId: null,
   };
 
   return resizeTraitSlots(baseDraft, traitSlots, rng);
@@ -568,6 +574,13 @@ const resolveRankFromHistory = (history: ScoutHistory, entryDivision: EntryDivis
 
 export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus => {
   const history = SCOUT_HISTORY_OPTIONS[draft.history];
+  if (!draft.selectedStableId) {
+    throw new Error('所属部屋が未選択です');
+  }
+  const stable = resolveStableById(draft.selectedStableId);
+  if (!stable) {
+    throw new Error(`不明な所属部屋です: ${draft.selectedStableId}`);
+  }
   return createInitialRikishi({
     shikona: draft.shikona,
     age: history.age,
@@ -582,6 +595,9 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
     profile: draft.profile,
     bodyMetrics: draft.bodyMetrics,
     genome: draft.genomeDraft,
+    stableId: stable.id,
+    ichimonId: stable.ichimonId,
+    stableArchetypeId: stable.archetypeId,
   });
 };
 

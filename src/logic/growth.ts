@@ -1,6 +1,7 @@
 import { RikishiStatus, Oyakata, Injury } from './models';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
+import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
 
 /**
  * 能力成長・衰退ロジック
@@ -17,6 +18,7 @@ export const applyGrowth = (
   // ステータスのコピー
   const stats = { ...currentStatus.stats };
   const { age, growthType, tactics, potential, bodyType, traits } = currentStatus;
+  const stableTraining = STABLE_ARCHETYPE_BY_ID[currentStatus.stableArchetypeId]?.training;
   const injuries = currentStatus.injuries ? currentStatus.injuries.map(i => ({...i})) : []; // Deep copy injuries
 
   // --- 1. 怪我の回復・進行処理 ---
@@ -33,6 +35,9 @@ export const applyGrowth = (
       // DNA: 回復力係数
       if (currentStatus.genome) {
         recovery = Math.max(1, Math.round(recovery * currentStatus.genome.durability.recoveryRate));
+      }
+      if (stableTraining) {
+        recovery = Math.max(1, Math.round(recovery * stableTraining.recoveryRateMultiplier));
       }
       
       // 慢性以外は回復
@@ -56,6 +61,9 @@ export const applyGrowth = (
               // DNA: 慢性化耐性（0-100で減算）
               if (currentStatus.genome) {
                   chronicChance *= 1 - (currentStatus.genome.durability.chronicResistance / 200);
+              }
+              if (stableTraining) {
+                  chronicChance *= 1 - (stableTraining.chronicResistanceBonus / 200);
               }
               if (rng() < chronicChance) {
                   injury.status = 'CHRONIC';
@@ -189,6 +197,9 @@ export const applyGrowth = (
       // 戦術補正
       const tacticMod = CONSTANTS.TACTICAL_GROWTH_MODIFIERS[tactics][statName] || 1.0;
       if (growthRate > 0) delta *= tacticMod;
+      if (growthRate > 0 && stableTraining) {
+          delta *= stableTraining.growth8[statName] ?? 1.0;
+      }
 
       // --- 体格補正 ---
       if (growthRate > 0) {

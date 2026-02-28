@@ -45,6 +45,8 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from './modelVersion';
+import { resolveStableById } from './heya/stableCatalog';
+import { STABLE_ARCHETYPE_BY_ID } from './heya/stableArchetypeCatalog';
 
 export type BoutOutcome = 'WIN' | 'LOSS' | 'ABSENT';
 
@@ -393,7 +395,7 @@ const syncPlayerToLowerDivisionRoster = (
     id: PLAYER_ACTOR_ID,
     seedId: PLAYER_ACTOR_ID,
     shikona: status.shikona,
-    stableId: 'player-heya',
+    stableId: status.stableId,
     division,
     currentDivision: division,
     rankScore,
@@ -559,7 +561,7 @@ const runLowerDivisionBasho = (
     throw new Error('Player participant was not initialized for lower division basho');
   }
   player.shikona = status.shikona;
-  player.stableId = 'player-heya';
+  player.stableId = status.stableId;
   player.division = division;
   player.rankScore = playerRankScore;
   player.rankName = resolveLowerRankName(division);
@@ -594,7 +596,11 @@ const runLowerDivisionBasho = (
       // 事前にNPCのケガ判定を実施 (1日1回)
       const npcInjuryCheck = (participant: DivisionParticipant) => {
         if (!participant.isPlayer && participant.active) {
-          if (rng() < CONSTANTS.PROBABILITY.INJURY_PER_BOUT * 0.5) { // NPCは体力などがないため一律簡易確率
+          const stable = resolveStableById(participant.stableId);
+          const injuryRiskMultiplier = stable
+            ? STABLE_ARCHETYPE_BY_ID[stable.archetypeId]?.training.injuryRiskMultiplier ?? 1
+            : 1;
+          if (rng() < CONSTANTS.PROBABILITY.INJURY_PER_BOUT * 0.5 * injuryRiskMultiplier) { // NPCは簡易確率で処理
             participant.active = false;
           }
         }

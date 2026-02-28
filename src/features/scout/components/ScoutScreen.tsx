@@ -20,6 +20,8 @@ import { useSimulationStore } from "../../../features/simulation/store/simulatio
 import type { SimulationSpeed } from "../../../features/simulation/store/simulationStore";
 import { Button } from "../../../shared/ui/Button";
 import { RefreshCw, Trophy, Coins, ChevronDown, User, Dna, Zap } from "lucide-react";
+import { ICHIMON_BY_ID, ICHIMON_CATALOG } from "../../../logic/simulation/heya/ichimonCatalog";
+import { listStablesByIchimon } from "../../../logic/simulation/heya/stableCatalog";
 
 interface ScoutScreenProps {
   onStart: (
@@ -149,6 +151,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
   const handleRegister = async () => {
     if (!editedDraft) return;
+    if (!editedDraft.selectedStableId || !editedDraft.selectedIchimonId) {
+      setErrorMessage("一門と所属部屋を選択してください。");
+      return;
+    }
     setErrorMessage("");
     setIsRegistering(true);
     try {
@@ -168,6 +174,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   };
 
   const historyData = editedDraft ? SCOUT_HISTORY_OPTIONS[editedDraft.history] : undefined;
+  const stableOptions = useMemo(() => {
+    if (!editedDraft?.selectedIchimonId) return [];
+    return listStablesByIchimon(editedDraft.selectedIchimonId);
+  }, [editedDraft?.selectedIchimonId]);
   const activeTraitSlotDrafts = editedDraft
     ? [...editedDraft.traitSlotDrafts]
         .filter((slot) => slot.slotIndex < editedDraft.traitSlots)
@@ -332,6 +342,60 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 <p className="text-xs text-text-dim">
                   身長 {editedDraft.bodyMetrics.heightCm}cm / 体重 {editedDraft.bodyMetrics.weightKg}kg
                 </p>
+              </div>
+
+              {/* スキル枠 */}
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>一門</label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.selectedIchimonId ?? ""}
+                    onChange={(e) => {
+                      const nextIchimon = e.target.value || null;
+                      setEditedDraft((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              selectedIchimonId: nextIchimon as typeof prev.selectedIchimonId,
+                              selectedStableId: null,
+                            }
+                          : prev,
+                      );
+                    }}
+                    className={SELECT_CLASS}
+                  >
+                    <option value="">選択してください</option>
+                    {ICHIMON_CATALOG.map((ichimon) => (
+                      <option key={ichimon.id} value={ichimon.id}>
+                        {ichimon.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>所属部屋</label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.selectedStableId ?? ""}
+                    disabled={!editedDraft.selectedIchimonId}
+                    onChange={(e) =>
+                      setEditedDraft((prev) =>
+                        prev ? { ...prev, selectedStableId: e.target.value || null } : prev,
+                      )
+                    }
+                    className={SELECT_CLASS}
+                  >
+                    <option value="">選択してください</option>
+                    {stableOptions.map((stable) => (
+                      <option key={stable.id} value={stable.id}>
+                        {stable.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
               </div>
 
               {/* スキル枠 */}
@@ -566,6 +630,16 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 ["本名", editedDraft.profile.realName || "(未設定)"],
                 ["出身地", editedDraft.profile.birthplace || "(未設定)"],
                 ["性格", PERSONALITY_LABELS[editedDraft.profile.personality]],
+                [
+                  "一門",
+                  editedDraft.selectedIchimonId
+                    ? ICHIMON_BY_ID[editedDraft.selectedIchimonId].displayName
+                    : "(未設定)",
+                ],
+                [
+                  "所属部屋",
+                  stableOptions.find((s) => s.id === editedDraft.selectedStableId)?.displayName ?? "(未設定)",
+                ],
                 ["経歴", SCOUT_HISTORY_OPTIONS[editedDraft.history].label],
                 ["体格", `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)`],
                 ["戦術", editedDraft.tactics],
@@ -642,7 +716,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
               variant="danger"
               size="lg"
               onClick={handleRegister}
-              disabled={isRegistering}
+              disabled={isRegistering || !editedDraft.selectedIchimonId || !editedDraft.selectedStableId}
               className="w-full"
             >
               <Trophy className="w-5 h-5 mr-2" />
@@ -662,7 +736,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             variant="danger"
             size="md"
             onClick={handleRegister}
-            disabled={isRegistering}
+            disabled={isRegistering || !editedDraft.selectedIchimonId || !editedDraft.selectedStableId}
             className="flex-1 max-w-[240px]"
           >
             <Trophy className="w-4 h-4 mr-1" />

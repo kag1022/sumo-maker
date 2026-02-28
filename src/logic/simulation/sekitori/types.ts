@@ -62,6 +62,7 @@ export type PlayerSekitoriQuota = {
 export type PlayerMakushitaRecord = {
   rank: Rank;
   shikona: string;
+  stableId?: string;
   wins: number;
   losses: number;
   absent: number;

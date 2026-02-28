@@ -267,6 +267,7 @@ export const resolveLowerDivisionPlacements = (
       return {
         rank: toRank(division, row.rankScore, divisionSizes, divisionMaxNumbers),
         shikona: row.shikona,
+        stableId: row.stableId,
         wins: row.wins,
         losses: row.losses,
         absent: Math.max(0, 7 - (row.wins + row.losses)),

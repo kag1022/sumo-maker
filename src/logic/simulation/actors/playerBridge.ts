@@ -17,7 +17,7 @@ export const createPlayerActorFromStatus = (status: RikishiStatus): PersistentAc
     id: PLAYER_ACTOR_ID,
     seedId: 'PLAYER',
     shikona: status.shikona,
-    stableId: status.heyaId || 'player-heya',
+    stableId: status.stableId,
     division: toActorDivision(status.rank),
     currentDivision: toActorDivision(status.rank),
     rankScore: 1,
@@ -46,7 +46,7 @@ export const syncPlayerActorFromStatus = (
 ): PersistentActor => ({
   ...actor,
   shikona: status.shikona,
-  stableId: status.heyaId || actor.stableId,
+  stableId: status.stableId || actor.stableId,
   division: toActorDivision(status.rank),
   currentDivision: toActorDivision(status.rank),
   ability: status.ratingState.ability,

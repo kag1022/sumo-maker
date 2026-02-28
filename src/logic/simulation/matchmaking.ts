@@ -9,6 +9,8 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from './modelVersion';
+import { resolveStableById } from './heya/stableCatalog';
+import { STABLE_ARCHETYPE_BY_ID } from './heya/stableArchetypeCatalog';
 
 export type DivisionParticipant = {
   id: string;
@@ -306,6 +308,17 @@ const resolveStyleEdge = (
   return -1.4;
 };
 
+const resolveStablePerformanceFactor = (stableId: string): number => {
+  const stable = resolveStableById(stableId);
+  if (!stable) return 1;
+  const training = STABLE_ARCHETYPE_BY_ID[stable.archetypeId]?.training;
+  if (!training) return 1;
+  const growth = training.growth8;
+  const avg =
+    (growth.tsuki + growth.oshi + growth.kumi + growth.nage + growth.koshi + growth.deashi + growth.waza + growth.power) / 8;
+  return Math.max(0.9, Math.min(1.1, avg));
+};
+
 const resolveNpcWinProbability = (
   a: DivisionParticipant,
   b: DivisionParticipant,
@@ -326,13 +339,13 @@ const resolveNpcWinProbability = (
     power: a.power,
     momentum: aMomentum,
     noise: randomNoise(rng, 1.4),
-  });
+  }) * resolveStablePerformanceFactor(a.stableId);
   const bAbility = resolveUnifiedNpcStrength({
     ability: b.ability,
     power: b.power,
     momentum: bMomentum,
     noise: randomNoise(rng, 1.4),
-  });
+  }) * resolveStablePerformanceFactor(b.stableId);
   return resolveBoutWinProb({
     attackerAbility: aAbility,
     defenderAbility: bAbility,

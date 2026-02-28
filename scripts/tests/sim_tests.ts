@@ -182,60 +182,62 @@ const expectBashoStep = (
 
 const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => {
   const base: RikishiStatus = {
-  heyaId: 'test',
-  shikona: '試験山',
-  entryAge: 15,
-  age: 24,
-  rank: { division: 'Makuuchi', name: '前頭', number: 10, side: 'East' },
-  stats: {
-    tsuki: 50,
-    oshi: 50,
-    kumi: 50,
-    nage: 50,
-    koshi: 50,
-    deashi: 50,
-    waza: 50,
-    power: 50,
-  },
-  potential: 60,
-  growthType: 'NORMAL',
-  tactics: 'BALANCE',
-  archetype: 'HARD_WORKER',
-  signatureMoves: ['寄り切り'],
-  bodyType: 'NORMAL',
-  profile: {
-    realName: 'テスト 太郎',
-    birthplace: '東京都',
-    personality: 'CALM',
-  },
-  bodyMetrics: {
-    heightCm: 182,
-    weightKg: 140,
-  },
-  traits: [],
-  durability: 80,
-  currentCondition: 50,
-  ratingState: {
-    ability: 60,
-    form: 0,
-    uncertainty: 2.2,
-  },
-  injuryLevel: 0,
-  injuries: [],
-  isOzekiKadoban: false,
-  isOzekiReturn: false,
-  history: {
-    records: [],
-    events: [],
-    maxRank: { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 },
-    totalWins: 0,
-    totalLosses: 0,
-    totalAbsent: 0,
-    yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
-    kimariteTotal: {},
-  },
-  statHistory: [],
-  ...overrides,
+    stableId: 'stable-001',
+    ichimonId: 'TAIJU',
+    stableArchetypeId: 'MASTER_DISCIPLE',
+    shikona: '試験山',
+    entryAge: 15,
+    age: 24,
+    rank: { division: 'Makuuchi', name: '前頭', number: 10, side: 'East' },
+    stats: {
+      tsuki: 50,
+      oshi: 50,
+      kumi: 50,
+      nage: 50,
+      koshi: 50,
+      deashi: 50,
+      waza: 50,
+      power: 50,
+    },
+    potential: 60,
+    growthType: 'NORMAL',
+    tactics: 'BALANCE',
+    archetype: 'HARD_WORKER',
+    signatureMoves: ['寄り切り'],
+    bodyType: 'NORMAL',
+    profile: {
+      realName: 'テスト 太郎',
+      birthplace: '東京都',
+      personality: 'CALM',
+    },
+    bodyMetrics: {
+      heightCm: 182,
+      weightKg: 140,
+    },
+    traits: [],
+    durability: 80,
+    currentCondition: 50,
+    ratingState: {
+      ability: 60,
+      form: 0,
+      uncertainty: 2.2,
+    },
+    injuryLevel: 0,
+    injuries: [],
+    isOzekiKadoban: false,
+    isOzekiReturn: false,
+    history: {
+      records: [],
+      events: [],
+      maxRank: { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 },
+      totalWins: 0,
+      totalLosses: 0,
+      totalAbsent: 0,
+      yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+      kimariteTotal: {},
+    },
+    statHistory: [],
+    ...overrides,
   };
   if (!overrides.ratingState) {
     const avg = Object.values(base.stats).reduce((sum, value) => sum + value, 0) / 8;
@@ -524,6 +526,8 @@ const createScoutDraft = (overrides: Partial<ScoutDraft> = {}): ScoutDraft => {
       variance: { formVolatility: 50, clutchBias: 0, slumpRecovery: 50, streakSensitivity: 50 },
     },
     genomeBudget: 200,
+    selectedIchimonId: 'RAIMEI',
+    selectedStableId: 'stable-025',
   };
   const merged = {
     ...baseDraft,
@@ -1159,14 +1163,14 @@ const tests: TestCase[] = [
       assert.deepEqual(
         result.stats,
         {
-          tsuki: 52,
-          oshi: 52,
-          kumi: 52.15,
-          nage: 52,
-          koshi: 52.15,
-          deashi: 52.15,
-          waza: 52,
-          power: 52,
+          tsuki: 51.64,
+          oshi: 51.64,
+          kumi: 51.79,
+          nage: 51.64,
+          koshi: 51.79,
+          deashi: 51.79,
+          waza: 51.64,
+          power: 51.64,
         },
       );
       assert.equal(result.injuryLevel, 0);
@@ -2420,7 +2424,7 @@ const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.division, 'Makuuchi');
       assert.ok(
         allocation?.nextRank.name === '小結' ||
-          (allocation?.nextRank.name === '前頭' && (allocation?.nextRank.number || 99) <= 6),
+        (allocation?.nextRank.name === '前頭' && (allocation?.nextRank.number || 99) <= 6),
       );
     },
   },
@@ -4032,7 +4036,7 @@ const tests: TestCase[] = [
           {
             random: lcg(2026),
             getCurrentYear: () => 2020,
-            yieldControl: async () => {},
+            yieldControl: async () => { },
           },
         );
         return summarizeCareer(result);
@@ -4071,7 +4075,7 @@ const tests: TestCase[] = [
           {
             random: lcg(1986),
             getCurrentYear: () => 2026,
-            yieldControl: async () => {},
+            yieldControl: async () => { },
           },
         );
 
@@ -4104,7 +4108,7 @@ const tests: TestCase[] = [
         {
           random: lcg(2027),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
 
@@ -4125,7 +4129,7 @@ const tests: TestCase[] = [
         {
           random: lcg(2026),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
 
@@ -4361,7 +4365,7 @@ const tests: TestCase[] = [
         {
           random: lcg(1234),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
       const step = expectBashoStep(
@@ -4846,7 +4850,7 @@ const tests: TestCase[] = [
         {
           random: lcg(2026),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
       const step = expectBashoStep(
@@ -4884,7 +4888,7 @@ const tests: TestCase[] = [
         {
           random: lcg(99),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
       const step = expectBashoStep(
@@ -4922,7 +4926,7 @@ const tests: TestCase[] = [
         {
           random: lcg(1),
           getCurrentYear: () => 2026,
-          yieldControl: async () => {},
+          yieldControl: async () => { },
         },
       );
 
@@ -5407,7 +5411,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'npc stable catalog: each ichimon owns exactly 9 stables',
+    name: 'npc stable catalog: ichimon distribution matches 13/11/9/7/5',
     run: () => {
       const distribution = NPC_STABLE_CATALOG.reduce(
         (acc, stable) => {
@@ -5415,19 +5419,19 @@ const tests: TestCase[] = [
           return acc;
         },
         {
-          'Ichimon-1': 0,
-          'Ichimon-2': 0,
-          'Ichimon-3': 0,
-          'Ichimon-4': 0,
-          'Ichimon-5': 0,
-        } as Record<'Ichimon-1' | 'Ichimon-2' | 'Ichimon-3' | 'Ichimon-4' | 'Ichimon-5', number>,
+          TAIJU: 0,
+          KUROGANE: 0,
+          RAIMEI: 0,
+          HAKUTSURU: 0,
+          HAYATE: 0,
+        } as Record<'TAIJU' | 'KUROGANE' | 'RAIMEI' | 'HAKUTSURU' | 'HAYATE', number>,
       );
 
-      assert.equal(distribution['Ichimon-1'], 9);
-      assert.equal(distribution['Ichimon-2'], 9);
-      assert.equal(distribution['Ichimon-3'], 9);
-      assert.equal(distribution['Ichimon-4'], 9);
-      assert.equal(distribution['Ichimon-5'], 9);
+      assert.equal(distribution.TAIJU, 13);
+      assert.equal(distribution.KUROGANE, 11);
+      assert.equal(distribution.RAIMEI, 9);
+      assert.equal(distribution.HAKUTSURU, 7);
+      assert.equal(distribution.HAYATE, 5);
 
       for (const stable of NPC_STABLE_CATALOG) {
         assert.equal(resolveIchimonByStableId(stable.id), stable.ichimonId);
@@ -5808,6 +5812,7 @@ const tests: TestCase[] = [
 const nodeProcess = (globalThis as { process?: { argv?: string[]; env?: Record<string, string | undefined>; exitCode?: number } }).process;
 const cliArgs = nodeProcess?.argv?.slice(2) ?? [];
 const env = nodeProcess?.env ?? {};
+let listScopesOnly = false;
 
 const readArgValue = (args: string[], index: number): string | undefined => {
   const value = args[index + 1];
@@ -5838,6 +5843,8 @@ for (let i = 0; i < cliArgs.length; i += 1) {
     }
     scopes.push(scope.toLowerCase());
     i += 1;
+  } else if (arg === '--list-scopes') {
+    listScopesOnly = true;
   }
 }
 
@@ -5849,7 +5856,7 @@ const selectedTests = tests.filter((test) => {
   return scopeOk && grepOk;
 });
 
-if (selectedTests.length === 0) {
+if (selectedTests.length === 0 && !listScopesOnly) {
   console.error('No tests selected. Check --scope/--grep or TEST_SCOPE/TEST_GREP values.');
   if (nodeProcess) {
     nodeProcess.exitCode = 1;
@@ -5857,27 +5864,37 @@ if (selectedTests.length === 0) {
   throw new Error('No tests selected');
 }
 
-if (selectedTests.length !== tests.length) {
+if (!listScopesOnly && selectedTests.length !== tests.length) {
   console.log(`Running filtered tests: ${selectedTests.length}/${tests.length}`);
 }
 
-let passed = 0;
-const run = async () => {
-  for (const test of selectedTests) {
-    try {
-      await test.run();
-      passed += 1;
-      console.log(`PASS ${test.name}`);
-    } catch (error) {
-      console.error(`FAIL ${test.name}`);
-      throw error;
-    }
+if (listScopesOnly) {
+  const selectedScopes = [...new Set(selectedTests.map((test) => test.name.split(':', 1)[0]?.trim().toLowerCase() ?? ''))]
+    .filter(Boolean)
+    .sort();
+  console.log(selectedScopes.join('\n'));
+  if (nodeProcess) {
+    nodeProcess.exitCode = 0;
   }
+} else {
+  let passed = 0;
+  const run = async () => {
+    for (const test of selectedTests) {
+      try {
+        await test.run();
+        passed += 1;
+        console.log(`PASS ${test.name}`);
+      } catch (error) {
+        console.error(`FAIL ${test.name}`);
+        throw error;
+      }
+    }
 
-  console.log(`All tests passed (${passed}/${selectedTests.length})`);
-};
+    console.log(`All tests passed (${passed}/${selectedTests.length})`);
+  };
 
-run().catch((error) => {
-  console.error(error);
-  throw error;
-});
+  run().catch((error) => {
+    console.error(error);
+    throw error;
+  });
+}

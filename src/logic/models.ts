@@ -13,6 +13,14 @@ export type TacticsType = 'PUSH' | 'GRAPPLE' | 'TECHNIQUE' | 'BALANCE';
 
 // 体格タイプ
 export type BodyType = 'NORMAL' | 'SOPPU' | 'ANKO' | 'MUSCULAR';
+export type IchimonId = 'TAIJU' | 'KUROGANE' | 'RAIMEI' | 'HAKUTSURU' | 'HAYATE';
+export type StableArchetypeId =
+  | 'TRADITIONAL_LARGE'
+  | 'TSUKI_OSHI_GROUP'
+  | 'GIANT_YOTSU'
+  | 'TECHNICAL_SMALL'
+  | 'MODERN_SCIENCE'
+  | 'MASTER_DISCIPLE';
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
 
@@ -148,7 +156,9 @@ export interface RikishiGenome {
 
 // 力士の現在の状態（動的に変化）
 export interface RikishiStatus {
-  heyaId: string;
+  stableId: string;
+  ichimonId: IchimonId;
+  stableArchetypeId: StableArchetypeId;
   shikona: string; // 四股名
   entryAge: number; // 入門時年齢（表示や分析の基準）
   age: number;      // 年齢 (15歳〜)

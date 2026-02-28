@@ -238,6 +238,7 @@ UIは以下に集中する。
 
 - 新弟子作成
   - 四股名、入門経歴、戦術、体格、スキルを選択
+  - 一門（5勢力）と所属部屋（45部屋）を選択
   - 入門年齢（例: 15/18/22）を保持し、レポート表示に反映
 - キャリアシミュレーション
   - 年6場所を進行し、勝敗・怪我・成長・番付昇降・引退を計算
@@ -261,6 +262,38 @@ npm run report:realism:mc
 - `npm test`: シミュレーションの決定論テストを実行（`scripts/tests/sim_tests.ts`）
 - `npm run build`: `tsc` + `vite build`
 - `npm run report:realism:mc`: `unified-v1` の Monte Carlo 受け入れ判定（既定 500本 + 500本）
+
+### ユニットテスト高速化（2026-02-28）
+
+`npm test` は `scripts/tests/run_sim_tests.cjs` で以下の順に実行されます。
+
+1. `tsc -p tsconfig.simtests.json` でテストコードをビルド
+2. `sim_tests.ts` 内の `scope`（`name: 'scope: ...'` の先頭語）を列挙
+3. scope ごとに別 Node プロセスで並列実行
+
+主なオプション:
+
+- `--jobs N`: 並列ワーカー数を指定
+  - 例: `npm test -- --jobs 8`
+- `TEST_JOBS`: デフォルト並列数を環境変数で指定
+  - 例(PowerShell): `$env:TEST_JOBS=8; npm test`
+- `--jobs 1`: 完全直列実行（デバッグ・切り分け向け）
+
+デフォルト並列度:
+
+- `min(6, 利用可能CPU数 - 1)` を自動採用
+- `--jobs` が最優先、未指定時に `TEST_JOBS`、それも未指定なら自動値
+
+補足:
+
+- フィルタ実行（`--grep`, `--scope`）時も並列化対象を自動判定
+- 内部向けに `--list-scopes` を追加（選択中scopeの列挙専用）
+
+参考計測（開発環境の一例）:
+
+- 変更前: 約 365 秒
+- 変更後: 約 141 秒
+- 改善率: 約 61%
 
 ## ロジック検証モード（dev専用）
 
@@ -353,6 +386,12 @@ docs/
   - ドメイン計算ロジック（勝敗、成長、番付編成処理と最適化、取組編成、決まり手生成）
 - `logic/persistence/repository.ts`
   - `careers` / `bashoRecords` / `boutRecords` / `banzukeDecisions` への非同期保存
+
+## 部屋名の差し替え運用
+
+- 45部屋の表示名・フレーバー文は `src/logic/simulation/heya/stableCatalog.ts` に集約しています。
+- 将来の改名時は `displayName` と `flavor` だけを変更してください。
+- ロジック/保存キーは `stable-001` のような `id` と `code` を使用するため、表示名変更で互換性は崩れません。
 
 ### 依存注入（再現性向上）
 

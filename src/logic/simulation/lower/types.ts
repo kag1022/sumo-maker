@@ -67,6 +67,7 @@ export type BoundarySpec = {
 export type PlayerLowerRecord = {
   rank: Rank;
   shikona: string;
+  stableId?: string;
   wins: number;
   losses: number;
   absent: number;

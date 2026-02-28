@@ -1,97 +1,18 @@
+import { IchimonId } from '../../models';
+import {
+  STABLE_CATALOG,
+  StableDefinition,
+  resolveStableById,
+} from '../heya/stableCatalog';
 import { NpcRegistry } from './types';
 
-export type StableScale =
-  | 'SUPER_GIANT'
-  | 'GIANT'
-  | 'LARGE'
-  | 'MID'
-  | 'SMALL'
-  | 'TINY';
+export type { StableScale } from '../heya/stableCatalog';
+export type { StableDefinition } from '../heya/stableCatalog';
+export type { IchimonId } from '../../models';
+export { STABLE_CATALOG as NPC_STABLE_CATALOG };
 
-export type IchimonId =
-  | 'Ichimon-1'
-  | 'Ichimon-2'
-  | 'Ichimon-3'
-  | 'Ichimon-4'
-  | 'Ichimon-5';
-
-export interface StableDefinition {
-  id: string;
-  displayName: string;
-  ichimonId: IchimonId;
-  scale: StableScale;
-  targetHeadcount: number;
-  minPreferred: number;
-  maxPreferred: number;
-  hardCap?: number;
-}
-
-const SCALE_TARGET: Record<StableScale, number> = {
-  SUPER_GIANT: 41,
-  GIANT: 29,
-  LARGE: 22,
-  MID: 13,
-  SMALL: 7,
-  TINY: 4,
-};
-
-const SCALE_PREFERRED_RANGE: Record<StableScale, { min: number; max: number; hardCap?: number }> = {
-  SUPER_GIANT: { min: 30, max: 60 },
-  GIANT: { min: 25, max: 40 },
-  LARGE: { min: 18, max: 26 },
-  MID: { min: 10, max: 15 },
-  SMALL: { min: 5, max: 9, hardCap: 9 },
-  TINY: { min: 1, max: 4, hardCap: 4 },
-};
-
-const resolveScaleByOrdinal = (ordinal: number): StableScale => {
-  if (ordinal === 1) return 'SUPER_GIANT';
-  if (ordinal <= 5) return 'GIANT';
-  if (ordinal <= 14) return 'LARGE';
-  if (ordinal <= 29) return 'MID';
-  if (ordinal <= 41) return 'SMALL';
-  return 'TINY';
-};
-
-const clampIchimonBand = (band: number): number =>
-  Math.max(1, Math.min(5, band));
-
-const resolveIchimonByOrdinal = (ordinal: number): IchimonId => {
-  const band = clampIchimonBand(Math.floor((ordinal - 1) / 9) + 1);
-  if (band === 1) return 'Ichimon-1';
-  if (band === 2) return 'Ichimon-2';
-  if (band === 3) return 'Ichimon-3';
-  if (band === 4) return 'Ichimon-4';
-  return 'Ichimon-5';
-};
-
-export const resolveIchimonByStableId = (stableId: string): IchimonId => {
-  const match = stableId.match(/^stable-(\d{3})$/);
-  if (!match) return 'Ichimon-1';
-  const ordinal = Number.parseInt(match[1], 10);
-  if (!Number.isFinite(ordinal) || ordinal <= 0) return 'Ichimon-1';
-  return resolveIchimonByOrdinal(ordinal);
-};
-
-const buildStableDefinition = (ordinal: number): StableDefinition => {
-  const scale = resolveScaleByOrdinal(ordinal);
-  const range = SCALE_PREFERRED_RANGE[scale];
-  return {
-    id: `stable-${String(ordinal).padStart(3, '0')}`,
-    displayName: `仮部屋${String(ordinal).padStart(2, '0')}`,
-    ichimonId: resolveIchimonByOrdinal(ordinal),
-    scale,
-    targetHeadcount: SCALE_TARGET[scale],
-    minPreferred: range.min,
-    maxPreferred: range.max,
-    hardCap: range.hardCap,
-  };
-};
-
-export const NPC_STABLE_CATALOG: StableDefinition[] = Array.from(
-  { length: 45 },
-  (_, index) => buildStableDefinition(index + 1),
-);
+export const resolveIchimonByStableId = (stableId: string): IchimonId =>
+  resolveStableById(stableId)?.ichimonId ?? 'TAIJU';
 
 const getAssignedCount = (assigned: Map<string, number>, stableId: string): number =>
   assigned.get(stableId) ?? 0;
@@ -102,9 +23,9 @@ const compareStableId = (a: StableDefinition, b: StableDefinition): number =>
 const selectStableForInitialAssignment = (
   assigned: Map<string, number>,
 ): StableDefinition => {
-  let best = NPC_STABLE_CATALOG[0];
+  let best = STABLE_CATALOG[0];
 
-  for (const candidate of NPC_STABLE_CATALOG) {
+  for (const candidate of STABLE_CATALOG) {
     const candidateAssigned = getAssignedCount(assigned, candidate.id);
     const bestAssigned = getAssignedCount(assigned, best.id);
     const candidateRemaining = candidate.targetHeadcount - candidateAssigned;
@@ -137,7 +58,7 @@ const selectStableForInitialAssignment = (
 export const buildInitialStableAssignmentSequence = (total: number): string[] => {
   if (total <= 0) return [];
 
-  const assigned = new Map<string, number>(NPC_STABLE_CATALOG.map((stable) => [stable.id, 0]));
+  const assigned = new Map<string, number>(STABLE_CATALOG.map((stable) => [stable.id, 0]));
   const sequence: string[] = [];
 
   for (let i = 0; i < total; i += 1) {
@@ -151,7 +72,7 @@ export const buildInitialStableAssignmentSequence = (total: number): string[] =>
 };
 
 export const countActiveByStable = (registry: NpcRegistry): Map<string, number> => {
-  const counts = new Map<string, number>(NPC_STABLE_CATALOG.map((stable) => [stable.id, 0]));
+  const counts = new Map<string, number>(STABLE_CATALOG.map((stable) => [stable.id, 0]));
   for (const npc of registry.values()) {
     if (!npc.active) continue;
     const current = counts.get(npc.stableId) ?? 0;
@@ -162,11 +83,11 @@ export const countActiveByStable = (registry: NpcRegistry): Map<string, number> 
 
 export const resolveStableForRecruit = (registry: NpcRegistry): string => {
   const counts = countActiveByStable(registry);
-  const eligible = NPC_STABLE_CATALOG.filter((stable) => {
+  const eligible = STABLE_CATALOG.filter((stable) => {
     if (typeof stable.hardCap !== 'number') return true;
     return (counts.get(stable.id) ?? 0) < stable.hardCap;
   });
-  const pool = eligible.length > 0 ? eligible : NPC_STABLE_CATALOG;
+  const pool = eligible.length > 0 ? eligible : STABLE_CATALOG;
 
   let best = pool[0];
   for (const candidate of pool) {

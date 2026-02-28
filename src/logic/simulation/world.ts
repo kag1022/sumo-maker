@@ -317,7 +317,7 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       id: PLAYER_ACTOR_ID,
       seedId: 'PLAYER',
       shikona: 'PLAYER',
-      stableId: 'player-heya',
+      stableId: 'stable-001',
       division: 'Maezumo',
       currentDivision: 'Maezumo',
       rankScore: 1,

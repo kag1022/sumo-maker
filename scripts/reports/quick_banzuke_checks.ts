@@ -48,7 +48,9 @@ const toRankLabel = (rank: Rank): string => {
 };
 
 const createStatus = (rank: Rank, base: number): RikishiStatus => ({
-  heyaId: 'quick-check',
+  stableId: 'stable-001',
+  ichimonId: 'TAIJU',
+  stableArchetypeId: 'MASTER_DISCIPLE',
   shikona: '検証山',
   entryAge: 15,
   age: 24,

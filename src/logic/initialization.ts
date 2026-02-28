@@ -10,6 +10,8 @@ import {
   TacticsType,
   TalentArchetype,
   Trait,
+  IchimonId,
+  StableArchetypeId,
 } from './models';
 import { CONSTANTS } from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
@@ -29,6 +31,9 @@ export interface CreateInitialRikishiParams {
   profile?: BasicProfile;
   bodyMetrics?: BodyMetrics;
   genome?: RikishiGenome;
+  stableId: string;
+  ichimonId: IchimonId;
+  stableArchetypeId: StableArchetypeId;
 }
 
 const DEFAULT_PROFILE: BasicProfile = {
@@ -52,14 +57,14 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
 const resolveGenomeStatBonus = (genome: RikishiGenome): Record<string, number> => {
   const b = genome.base;
   return {
-    tsuki: (b.powerCeiling * 0.4 + b.speedCeiling * 0.3 + b.styleFit * 0.3) / 100 * 15,
-    oshi: (b.powerCeiling * 0.5 + b.speedCeiling * 0.3 + b.styleFit * 0.2) / 100 * 15,
-    kumi: (b.powerCeiling * 0.3 + b.techCeiling * 0.4 + b.ringSense * 0.3) / 100 * 15,
-    nage: (b.techCeiling * 0.5 + b.powerCeiling * 0.3 + b.ringSense * 0.2) / 100 * 15,
-    koshi: (b.ringSense * 0.4 + b.powerCeiling * 0.3 + b.speedCeiling * 0.3) / 100 * 15,
-    deashi: (b.speedCeiling * 0.5 + b.ringSense * 0.2 + b.styleFit * 0.3) / 100 * 15,
-    waza: (b.techCeiling * 0.4 + b.ringSense * 0.4 + b.styleFit * 0.2) / 100 * 15,
-    power: (b.powerCeiling * 0.6 + b.speedCeiling * 0.2 + b.styleFit * 0.2) / 100 * 15,
+    tsuki: (b.powerCeiling * 0.4 + b.speedCeiling * 0.3 + b.styleFit * 0.3) / 100 * 11,
+    oshi: (b.powerCeiling * 0.5 + b.speedCeiling * 0.3 + b.styleFit * 0.2) / 100 * 11,
+    kumi: (b.powerCeiling * 0.3 + b.techCeiling * 0.4 + b.ringSense * 0.3) / 100 * 11,
+    nage: (b.techCeiling * 0.5 + b.powerCeiling * 0.3 + b.ringSense * 0.2) / 100 * 11,
+    koshi: (b.ringSense * 0.4 + b.powerCeiling * 0.3 + b.speedCeiling * 0.3) / 100 * 11,
+    deashi: (b.speedCeiling * 0.5 + b.ringSense * 0.2 + b.styleFit * 0.3) / 100 * 11,
+    waza: (b.techCeiling * 0.4 + b.ringSense * 0.4 + b.styleFit * 0.2) / 100 * 11,
+    power: (b.powerCeiling * 0.6 + b.speedCeiling * 0.2 + b.styleFit * 0.2) / 100 * 11,
   };
 };
 
@@ -90,9 +95,9 @@ export const createInitialRikishi = (
   const tacticMods = CONSTANTS.TACTICAL_GROWTH_MODIFIERS[params.tactics];
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
     if (tacticMods[k] > 1.0) {
-      stats[k] += 10;
+      stats[k] += 12;
     } else if (tacticMods[k] < 1.0) {
-      stats[k] -= 5;
+      stats[k] -= 4;
     }
   });
 
@@ -131,7 +136,9 @@ export const createInitialRikishi = (
     : 80;
 
   return {
-    heyaId: 'my-heya',
+    stableId: params.stableId,
+    ichimonId: params.ichimonId,
+    stableArchetypeId: params.stableArchetypeId,
     shikona: params.shikona,
     entryAge: params.age,
     age: params.age,
