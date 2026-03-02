@@ -303,58 +303,225 @@ npm run report:realism:mc
 - 同じ `preset + seed` の組み合わせで、初期能力生成からキャリア完了まで再現可能です。
 - 検証モードの実行結果は DB 保存しません（殿堂入りやドラフト保存は行いません）。
 
-## ディレクトリ構成（主要部）
+## ディレクトリ構成（完全 / Git管理対象）
+
+以下は `git ls-files` を基準にした、プロジェクトの完全なディレクトリ構造です。
 
 ```text
-src/
-  app/
-    App.tsx
-  main.tsx
-  features/
-    logicLab/         # 開発・解析用のロジック検証UI
-    report/           # レポート・殿堂入り画面
-      components/     # AchievementView, HallOfFameGrid, ReportScreen, などの画面要素
-      utils/          # hoshitori.ts などのユーティリティ
-    scout/            # 新弟子作成・入幕パラメータ設定
-      components/
-        ScoutScreen.tsx
-    simulation/       # シミュレーション実行連携
-      hooks/
-      store/
-      workers/
-  shared/
-    ui/               # 汎用UIコンポーネント (Button, Card, DamageMap 等)
-  logic/
-    achievements.ts / battle.ts / constants.ts / growth.ts / models.ts / initialization.ts
-    balance/          # モデルのバージョンごとのパラメータ等 (realismV1.ts, unifiedV1.ts)
-    banzuke/          # 番付編成ロジック (committee, optimizer, population, providers, rules, scale)
-    catalog/          # 固定データ (enemyData.ts 等)
-    kimarite/         # 決まり手判定ロジック (catalog.ts, matchup.ts)
-    naming/           # 四股名生成
-    persistence/      # 履歴保存・データベース連携 (careerStorage.ts, db.ts, repository.ts, wallet.ts)
-    ranking/          # ランキングスコア計算
-    scout/            # スカウトや初期能力生成
-    simulation/       # シミュレーションエンジン中核機能群
-      basho.ts / career.ts / engine.ts / matchmaking.ts / runner.ts / world.ts 等
-      actors/         # アクター（力士エンティティ等）の表現
-      boundary/       # モジュール境界で共有・利用される定義
-      lower/          # 幕下以下の挙動・入替
-      npc/            # NPC生成・引退・管理 (factory, retirement, stableCatalog 等)
-      sekitori/       # 関取枠・昇降格候補の管理
-      strength/       # 力士の強さ・能力（加齢・怪我等）の更新
-      topDivision/    # 幕内・十両上位における特別ルールや三賞
-      torikumi/       # 取組編成スケジューラ (policy.ts, scheduler.ts)
-scripts/
-  tests/
-    sim_tests.ts
-    run_sim_tests.cjs
-  reports/
-    balance_report.cjs
-    run_balance_report.cjs
-docs/
-  ゲーム仕様.md
-  リザルト画面仕様.md
-  balance-report-500.md
+.
+├── public/
+│   └── assets/
+│       ├── anko_back.PNG
+│       ├── anko.PNG
+│       ├── damage-base-body.png
+│       ├── muscle_back.PNG
+│       ├── muscle.PNG
+│       ├── nomal_back.PNG
+│       ├── nomal.PNG
+│       ├── soep_back.PNG
+│       └── soep.PNG
+├── scripts/
+│   ├── reports/
+│   │   ├── balance_report.cjs
+│   │   ├── banzuke_quantile_report.ts
+│   │   ├── extract_banzuke_cases.ts
+│   │   ├── quick_banzuke_checks.ts
+│   │   ├── realism_monte_carlo.cjs
+│   │   ├── roster_integrity_report.ts
+│   │   ├── run_balance_report.cjs
+│   │   ├── run_banzuke_quantile_report.cjs
+│   │   ├── run_quick_banzuke_checks.cjs
+│   │   ├── run_realism_monte_carlo.cjs
+│   │   ├── run_roster_integrity_report.cjs
+│   │   └── test_sekitori_rate.ts
+│   └── tests/
+│       ├── run_sim_tests.cjs
+│       └── sim_tests.ts
+├── src/
+│   ├── app/
+│   │   └── App.tsx
+│   ├── features/
+│   │   ├── logicLab/
+│   │   │   ├── components/
+│   │   │   │   └── LogicLabScreen.tsx
+│   │   │   ├── store/
+│   │   │   │   └── logicLabStore.ts
+│   │   │   ├── presets.ts
+│   │   │   ├── runner.ts
+│   │   │   └── types.ts
+│   │   ├── report/
+│   │   │   ├── components/
+│   │   │   │   ├── AchievementView.tsx
+│   │   │   │   ├── HallOfFameGrid.tsx
+│   │   │   │   ├── HoshitoriTable.tsx
+│   │   │   │   └── ReportScreen.tsx
+│   │   │   └── utils/
+│   │   │       └── hoshitori.ts
+│   │   ├── scout/
+│   │   │   └── components/
+│   │   │       └── ScoutScreen.tsx
+│   │   └── simulation/
+│   │       ├── hooks/
+│   │       │   └── useSimulation.ts
+│   │       ├── store/
+│   │       │   └── simulationStore.ts
+│   │       └── workers/
+│   │           └── simulation.worker.ts
+│   ├── logic/
+│   │   ├── balance/
+│   │   │   ├── realismV1.ts
+│   │   │   └── unifiedV1.ts
+│   │   ├── banzuke/
+│   │   │   ├── committee/
+│   │   │   │   ├── composeNextBanzuke.ts
+│   │   │   │   └── reviewBoard.ts
+│   │   │   ├── optimizer/
+│   │   │   │   ├── config.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── objective.ts
+│   │   │   │   ├── orderedAssignmentDp.ts
+│   │   │   │   ├── pressure.ts
+│   │   │   │   ├── quantileTargets.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── population/
+│   │   │   │   └── flow.ts
+│   │   │   ├── providers/
+│   │   │   │   ├── expected/
+│   │   │   │   │   ├── allocator.ts
+│   │   │   │   │   ├── monotonic.ts
+│   │   │   │   │   ├── scoring.ts
+│   │   │   │   │   ├── slotBands.ts
+│   │   │   │   │   └── types.ts
+│   │   │   │   ├── sekitori/
+│   │   │   │   │   ├── allocation.ts
+│   │   │   │   │   ├── bands.ts
+│   │   │   │   │   ├── directives.ts
+│   │   │   │   │   ├── performanceIndex.ts
+│   │   │   │   │   ├── safety.ts
+│   │   │   │   │   ├── scoring.ts
+│   │   │   │   │   ├── slots.ts
+│   │   │   │   │   └── types.ts
+│   │   │   │   ├── lowerBoundary.ts
+│   │   │   │   ├── sekitoriBoundary.ts
+│   │   │   │   └── topDivision.ts
+│   │   │   ├── rules/
+│   │   │   │   ├── constraints.ts
+│   │   │   │   ├── lowerDivision.ts
+│   │   │   │   ├── sanyakuPromotion.ts
+│   │   │   │   ├── singleRankChange.ts
+│   │   │   │   ├── topDivisionRules.ts
+│   │   │   │   └── yokozunaPromotion.ts
+│   │   │   ├── scale/
+│   │   │   │   ├── banzukeLayout.ts
+│   │   │   │   ├── rankLimits.ts
+│   │   │   │   └── rankScale.ts
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   ├── catalog/
+│   │   │   └── enemyData.ts
+│   │   ├── kimarite/
+│   │   │   ├── catalog.ts
+│   │   │   └── matchup.ts
+│   │   ├── naming/
+│   │   │   └── playerNaming.ts
+│   │   ├── persistence/
+│   │   │   ├── careerStorage.ts
+│   │   │   ├── db.ts
+│   │   │   ├── repository.ts
+│   │   │   └── wallet.ts
+│   │   ├── ranking/
+│   │   │   ├── index.ts
+│   │   │   └── rankScore.ts
+│   │   ├── scout/
+│   │   │   └── gacha.ts
+│   │   ├── simulation/
+│   │   │   ├── actors/
+│   │   │   │   ├── constants.ts
+│   │   │   │   └── playerBridge.ts
+│   │   │   ├── boundary/
+│   │   │   │   └── shared.ts
+│   │   │   ├── heya/
+│   │   │   │   ├── ichimonCatalog.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── stableArchetypeCatalog.ts
+│   │   │   │   └── stableCatalog.ts
+│   │   │   ├── lower/
+│   │   │   │   ├── exchange.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── npc/
+│   │   │   │   ├── factory.ts
+│   │   │   │   ├── intake.ts
+│   │   │   │   ├── leagueReconcile.ts
+│   │   │   │   ├── npcShikonaGenerator.ts
+│   │   │   │   ├── retirement.ts
+│   │   │   │   ├── shikonaDenylist.ts
+│   │   │   │   ├── stableCatalog.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── sekitori/
+│   │   │   │   ├── candidates.ts
+│   │   │   │   ├── pool.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── strength/
+│   │   │   │   ├── model.ts
+│   │   │   │   └── update.ts
+│   │   │   ├── topDivision/
+│   │   │   │   ├── banzuke.ts
+│   │   │   │   ├── bashoSummary.ts
+│   │   │   │   ├── playerNormalization.ts
+│   │   │   │   ├── rank.ts
+│   │   │   │   └── specialPrizes.ts
+│   │   │   ├── torikumi/
+│   │   │   │   ├── policy.ts
+│   │   │   │   ├── scheduler.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── basho.ts
+│   │   │   ├── career.ts
+│   │   │   ├── deps.ts
+│   │   │   ├── diagnostics.ts
+│   │   │   ├── engine.ts
+│   │   │   ├── injury.ts
+│   │   │   ├── lowerQuota.ts
+│   │   │   ├── matchmaking.ts
+│   │   │   ├── modelVersion.ts
+│   │   │   ├── npcRecords.ts
+│   │   │   ├── runner.ts
+│   │   │   ├── sekitoriQuota.ts
+│   │   │   ├── titles.ts
+│   │   │   ├── workerProtocol.ts
+│   │   │   ├── world.ts
+│   │   │   └── yusho.ts
+│   │   ├── achievements.ts
+│   │   ├── battle.ts
+│   │   ├── constants.ts
+│   │   ├── growth.ts
+│   │   ├── initialization.ts
+│   │   └── models.ts
+│   ├── shared/
+│   │   └── ui/
+│   │       ├── Button.tsx
+│   │       ├── Card.tsx
+│   │       ├── DamageMap.tsx
+│   │       └── Typography.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── vite-env.d.ts
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── progress.md
+├── README.md
+├── tailwind.config.js
+├── ts_errors.txt
+├── tsconfig.json
+├── tsconfig.node.json
+├── tsconfig.quantilechecks.json
+├── tsconfig.quickchecks.json
+├── tsconfig.roster_integrity.json
+├── tsconfig.simtests.json
+└── vite.config.ts
 ```
 
 ## ディレクトリ運用ルール
