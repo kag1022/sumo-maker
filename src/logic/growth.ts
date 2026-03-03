@@ -2,6 +2,12 @@ import { RikishiStatus, Oyakata, Injury } from './models';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
+import {
+  computeConsecutiveAbsenceStreak,
+  computeConsecutiveMakekoshiStreak,
+  resolveRetirementChance,
+  resolveRetirementReason,
+} from './simulation/retirement/shared';
 
 /**
  * 能力成長・衰退ロジック
@@ -287,80 +293,53 @@ export const applyGrowth = (
  * 引退判定
  * @returns boolean 引退すべきか
  */
-export const checkRetirement = (status: RikishiStatus): { shouldRetire: boolean, reason?: string } => {
-    // 1. ゲーム上の寿命（定年制ではなく、気力・体力限界として扱う）
-    if (status.age >= CONSTANTS.PHYSICAL_LIMIT_RETIREMENT_AGE) {
-        return { shouldRetire: true, reason: '気力・体力の限界により引退' };
-    }
+export const checkRetirement = (
+  status: RikishiStatus,
+  rng: RandomSource = Math.random,
+): { shouldRetire: boolean, reason?: string } => {
+  if (status.age >= CONSTANTS.PHYSICAL_LIMIT_RETIREMENT_AGE) {
+    return { shouldRetire: true, reason: '気力・体力の限界により引退' };
+  }
 
-    // 1.2. 長期休場による引退（30歳以上で5場所連続休場）
-    if (status.age >= 30) {
-        const last5 = status.history.records.slice(-5);
-        if (last5.length === 5 && last5.every(r => r.absent > 0)) {
-             return { shouldRetire: true, reason: '度重なる怪我と長期休場により引退' };
-        }
-    }
-    // 1.3. 超長期休場による引退（年齢問わず10場所連続）
-    const last10 = status.history.records.slice(-10);
-    if (last10.length === 10 && last10.every(r => r.absent > 0)) {
-         return { shouldRetire: true, reason: '怪我の回復が見込めず引退（長期・連続休場）' };
-    }
+  const records = status.history.records;
+  const last10 = records.slice(-10);
+  if (last10.length === 10 && last10.every((record) => record.absent > 0)) {
+    return { shouldRetire: true, reason: '怪我の回復が見込めず引退（長期・連続休場）' };
+  }
 
-    // 1.5. 元関取の引き際（幕内・十両経験者）
-    const isFormerSekitori = ['Makuuchi', 'Juryo'].includes(status.history.maxRank.division);
-    
-    if (isFormerSekitori) {
-        // A. 幕下陥落（復帰を諦める）
-        if (!['Makuuchi', 'Juryo'].includes(status.rank.division)) {
-            if (status.age >= 35) {
-                 return { shouldRetire: true, reason: '度重なる怪我により気力・体力の限界' };
-            }
-        }
+  const totalMatches = status.history.totalWins + status.history.totalLosses;
+  const careerWinRate = totalMatches > 0 ? status.history.totalWins / totalMatches : 0.5;
+  const consecutiveAbsence = computeConsecutiveAbsenceStreak(records, 10);
+  const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(records, 10);
+  const isFormerSekitori =
+    status.history.maxRank.division === 'Makuuchi' || status.history.maxRank.division === 'Juryo';
 
-        // B. 大怪我
-        if (status.injuryLevel >= 9 && status.age >= 22) {
-             return { shouldRetire: true, reason: '怪我の回復が見込めず引退（関取）' };
-        }
-        
-        // C. 上位での限界（連続負け越し）
-        if (status.age >= 35 && ['Makuuchi', 'Juryo'].includes(status.rank.division)) {
-             const recs = status.history.records.slice(-4);
-             if (recs.length === 4 && recs.every(r => r.wins < 8)) {
-                 return { shouldRetire: true, reason: '体力の限界により引退（連続負け越し）' };
-             }
-        }
-    }
+  const chance = resolveRetirementChance({
+    age: status.age,
+    injuryLevel: status.injuryLevel,
+    currentDivision: status.rank.division,
+    isFormerSekitori,
+    consecutiveAbsence,
+    consecutiveMakekoshi,
+    profile: status.retirementProfile ?? 'STANDARD',
+    retirementBias: 1,
+    careerBashoCount: records.length,
+    careerWinRate,
+  });
 
-    // 2. 能力低下による引退
-    const totalStats = Object.values(status.stats).reduce((a, b) => a + b, 0);
+  if (chance > 0 && rng() < chance) {
+    return {
+      shouldRetire: true,
+      reason: resolveRetirementReason({
+        age: status.age,
+        consecutiveAbsence,
+        consecutiveMakekoshi,
+        injuryLevel: status.injuryLevel,
+        isFormerSekitori,
+        currentDivision: status.rank.division,
+      }),
+    };
+  }
 
-    // 横綱の引退勧告
-    if (status.rank.name === '横綱') {
-        const effectiveRecords = status.history.records
-            .filter(r => r.rank.name === '横綱')
-            .filter(r => r.absent < 15);
-        
-        if (effectiveRecords.length >= 2) {
-            const last2 = effectiveRecords.slice(-2);
-            if (last2.every(r => r.wins < 8)) {
-                return { shouldRetire: true, reason: '横綱として出場場所2連続負け越し' };
-            }
-        }
-        if (totalStats < 250 && status.age > 30) {
-             return { shouldRetire: true, reason: '体力の限界（横綱）' };
-        }
-    } else {
-        if (status.age > 30 && status.rank.division !== 'Makuuchi' && status.rank.division !== 'Juryo') {
-             if (totalStats < 200) {
-                return { shouldRetire: true, reason: '体力の限界' };
-             }
-        }
-    }
-
-    // 3. 怪我による引退
-    if (status.injuryLevel > 10) {
-         return { shouldRetire: true, reason: '怪我の回復が見込めず引退' };
-    }
-
-    return { shouldRetire: false };
+  return { shouldRetire: false };
 };

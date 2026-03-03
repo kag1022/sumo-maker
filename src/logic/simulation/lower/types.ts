@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { Rank, RetirementProfile } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { LOWER_DIVISION_SLOTS, NpcNameContext, NpcRegistry } from '../npc/types';
 
@@ -23,6 +23,7 @@ export type LowerNpc = {
   weightKg?: number;
   growthBias?: number;
   retirementBias?: number;
+  retirementProfile?: RetirementProfile;
   entryAge?: number;
   age?: number;
   careerBashoCount?: number;

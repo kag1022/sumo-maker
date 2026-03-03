@@ -30,6 +30,7 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       weightKg: 130,
       growthBias: 0,
       retirementBias: 0,
+      retirementProfile: 'STANDARD',
       entryAge: 15,
       age: 15,
       careerBashoCount: 0,

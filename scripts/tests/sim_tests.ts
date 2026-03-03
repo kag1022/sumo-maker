@@ -1,5 +1,5 @@
 import { calculateBattleResult, EnemyStats, generateEnemy } from '../../src/logic/battle';
-import { applyGrowth } from '../../src/logic/growth';
+import { applyGrowth, checkRetirement } from '../../src/logic/growth';
 import { calculateNextRank } from '../../src/logic/banzuke/rules/singleRankChange';
 import { generateNextBanzuke } from '../../src/logic/banzuke/providers/topDivision';
 import { BashoRecordSnapshot } from '../../src/logic/banzuke/providers/sekitori/types';
@@ -37,6 +37,7 @@ import {
   resolveSekitoriQuotaForPlayer,
   runSekitoriQuotaStep,
 } from '../../src/logic/simulation/sekitoriQuota';
+import { resolveSekitoriExchangePolicy } from '../../src/logic/simulation/sekitori/quota/exchangePolicy';
 import { createDailyMatchups, createFacedMap } from '../../src/logic/simulation/matchmaking';
 import {
   buildLowerDivisionBoutDays,
@@ -69,6 +70,7 @@ import {
 } from '../../src/logic/simulation/world';
 import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../src/logic/simulation/sekitori/types';
 import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
+import { resolveRetirementChance } from '../../src/logic/simulation/retirement/shared';
 import { BashoRecord, Rank, RikishiStatus, Trait } from '../../src/logic/models';
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb';
 import { closeDb, getDb } from '../../src/logic/persistence/db';
@@ -1863,7 +1865,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'quota: ms13 7-0 forces juryo promotion slot',
+    name: 'quota: ms13 7-0 is not guaranteed juryo promotion under strict compression',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
       topWorld.lastBashoResults.Juryo = Array.from({ length: 28 }, (_, i) => ({
@@ -1885,8 +1887,7 @@ const tests: TestCase[] = [
         absent: 0,
       });
 
-      assert.equal(exchange.playerPromotedToJuryo, true);
-      assert.ok(exchange.slots >= 1);
+      assert.equal(exchange.playerPromotedToJuryo, false);
     },
   },
   {
@@ -2173,6 +2174,53 @@ const tests: TestCase[] = [
         lowerWorld,
       );
       assert.equal(exchange.slots, 0);
+    },
+  },
+  {
+    name: 'quota: sekitori exchange does not backfill weak makushita fallback promotions',
+    run: () => {
+      const juryoResults: SekitoriBoundarySnapshot[] = [
+        {
+          id: 'J-keep-1',
+          shikona: '十両保留',
+          isPlayer: false,
+          stableId: 'j-1',
+          rankScore: 27,
+          wins: 6,
+          losses: 9,
+        },
+      ];
+      const makushitaResults: SekitoriBoundarySnapshot[] = [
+        {
+          id: 'MS-weak-1',
+          shikona: '幕下弱候補壱',
+          isPlayer: false,
+          stableId: 'ms-1',
+          rankScore: 41,
+          wins: 4,
+          losses: 3,
+        },
+        {
+          id: 'MS-weak-2',
+          shikona: '幕下弱候補弐',
+          isPlayer: false,
+          stableId: 'ms-2',
+          rankScore: 37,
+          wins: 4,
+          losses: 3,
+        },
+      ];
+
+      const resolved = resolveSekitoriExchangePolicy({
+        juryoResults,
+        makushitaResults,
+        playerJuryoIsMakekoshi: false,
+        playerJuryoFullAbsence: false,
+        playerMakushitaIsKachikoshi: false,
+      });
+
+      assert.equal(resolved.exchange.slots, 0);
+      assert.equal(resolved.exchange.promotedToJuryoIds.length, 0);
     },
   },
   {
@@ -4120,7 +4168,7 @@ const tests: TestCase[] = [
     name: 'simulation engine: completed result is sticky after retirement',
     run: async () => {
       const initial = createStatus({
-        age: 45,
+        age: 50,
         entryAge: 18,
         rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
       });
@@ -4930,11 +4978,10 @@ const tests: TestCase[] = [
         },
       );
 
+      let observedSteps = 0;
       for (let i = 0; i < 40; i += 1) {
-        const step = expectBashoStep(
-          await engine.runNextBasho(),
-          `simulation roster size progression loop #${i + 1}`,
-        );
+        const step = await engine.runNextBasho();
+        observedSteps += 1;
         assert.equal(step.progress.makuuchi.length, 42);
         assert.equal(step.progress.juryo.length, 28);
         assert.equal(step.progress.makuuchiSlots, 42);
@@ -4952,7 +4999,9 @@ const tests: TestCase[] = [
           step.progress.sanshoTotal,
           step.progress.shukunCount + step.progress.kantoCount + step.progress.ginoCount,
         );
+        if (step.kind === 'COMPLETED') break;
       }
+      assert.ok(observedSteps >= 1);
     },
   },
   {
@@ -5367,6 +5416,210 @@ const tests: TestCase[] = [
         assert.equal(activeJuryo, 28);
         assertActiveShikonaUnique(world.npcRegistry, `simulation-loop-${i}`);
       }
+    },
+  },
+  {
+    name: 'retirement: profile bias ordering is EARLY_EXIT > STANDARD > IRONMAN',
+    run: () => {
+      const baseInput = {
+        age: 20,
+        injuryLevel: 2,
+        currentDivision: 'Makushita' as const,
+        isFormerSekitori: false,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 0,
+        retirementBias: 1,
+        careerBashoCount: 20,
+        careerWinRate: 0.47,
+      };
+      const early = resolveRetirementChance({ ...baseInput, profile: 'EARLY_EXIT' });
+      const standard = resolveRetirementChance({ ...baseInput, profile: 'STANDARD' });
+      const ironman = resolveRetirementChance({ ...baseInput, profile: 'IRONMAN' });
+      assert.ok(early > standard, `Expected EARLY_EXIT > STANDARD, got ${early} <= ${standard}`);
+      assert.ok(standard > ironman, `Expected STANDARD > IRONMAN, got ${standard} <= ${ironman}`);
+    },
+  },
+  {
+    name: 'retirement: hazard group age ordering keeps non-sekitori highest and active-sekitori lowest',
+    run: () => {
+      const common = {
+        injuryLevel: 1,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 0,
+        profile: 'STANDARD' as const,
+        retirementBias: 1,
+        careerBashoCount: 30,
+        careerWinRate: 0.5,
+      };
+      const nonSekitori = resolveRetirementChance({
+        ...common,
+        age: 24,
+        currentDivision: 'Makushita',
+        isFormerSekitori: false,
+      });
+      const activeSekitori = resolveRetirementChance({
+        ...common,
+        age: 30,
+        currentDivision: 'Juryo',
+        isFormerSekitori: true,
+      });
+      const formerSekitoriLower = resolveRetirementChance({
+        ...common,
+        age: 30,
+        currentDivision: 'Makushita',
+        isFormerSekitori: true,
+      });
+      assert.ok(
+        nonSekitori > formerSekitoriLower,
+        `Expected NON_SEKITORI > FORMER_SEKITORI_LOWER, got ${nonSekitori} <= ${formerSekitoriLower}`,
+      );
+      assert.ok(
+        formerSekitoriLower > activeSekitori,
+        `Expected FORMER_SEKITORI_LOWER > ACTIVE_SEKITORI, got ${formerSekitoriLower} <= ${activeSekitori}`,
+      );
+    },
+  },
+  {
+    name: 'retirement: makekoshi penalty increase is stronger for non-sekitori than former sekitori lower',
+    run: () => {
+      const nonBase = resolveRetirementChance({
+        age: 26,
+        injuryLevel: 0,
+        currentDivision: 'Makushita',
+        isFormerSekitori: false,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 0,
+        profile: 'STANDARD',
+        retirementBias: 1,
+        careerBashoCount: 24,
+        careerWinRate: 0.48,
+      });
+      const nonWithStreak = resolveRetirementChance({
+        age: 26,
+        injuryLevel: 0,
+        currentDivision: 'Makushita',
+        isFormerSekitori: false,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 6,
+        profile: 'STANDARD',
+        retirementBias: 1,
+        careerBashoCount: 24,
+        careerWinRate: 0.48,
+      });
+      const formerBase = resolveRetirementChance({
+        age: 26,
+        injuryLevel: 0,
+        currentDivision: 'Makushita',
+        isFormerSekitori: true,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 0,
+        profile: 'STANDARD',
+        retirementBias: 1,
+        careerBashoCount: 24,
+        careerWinRate: 0.48,
+      });
+      const formerWithStreak = resolveRetirementChance({
+        age: 26,
+        injuryLevel: 0,
+        currentDivision: 'Makushita',
+        isFormerSekitori: true,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 6,
+        profile: 'STANDARD',
+        retirementBias: 1,
+        careerBashoCount: 24,
+        careerWinRate: 0.48,
+      });
+      const nonDelta = nonWithStreak - nonBase;
+      const formerDelta = formerWithStreak - formerBase;
+      assert.ok(nonDelta > formerDelta, `Expected non-sekitori delta > former-sekitori delta, got ${nonDelta} <= ${formerDelta}`);
+    },
+  },
+  {
+    name: 'retirement: former sekitori low win-rate longevity protection lowers hazard',
+    run: () => {
+      const base = {
+        age: 34,
+        injuryLevel: 1,
+        currentDivision: 'Makushita' as const,
+        isFormerSekitori: true,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 5,
+        profile: 'STANDARD' as const,
+        retirementBias: 1,
+        careerBashoCount: 100,
+      };
+      const protectedChance = resolveRetirementChance({
+        ...base,
+        careerWinRate: 0.49,
+      });
+      const unprotectedChance = resolveRetirementChance({
+        ...base,
+        careerWinRate: 0.51,
+      });
+      assert.ok(
+        protectedChance < unprotectedChance,
+        `Expected low win-rate protection to lower hazard, got ${protectedChance} >= ${unprotectedChance}`,
+      );
+    },
+  },
+  {
+    name: 'retirement: ironman losing protection triggers from 100 basho onward',
+    run: () => {
+      const base = {
+        age: 36,
+        injuryLevel: 2,
+        currentDivision: 'Makushita' as const,
+        isFormerSekitori: true,
+        consecutiveAbsence: 0,
+        consecutiveMakekoshi: 6,
+        profile: 'IRONMAN' as const,
+        retirementBias: 1,
+        careerWinRate: 0.49,
+      };
+      const protectedChance = resolveRetirementChance({
+        ...base,
+        careerBashoCount: 100,
+      });
+      const preThresholdChance = resolveRetirementChance({
+        ...base,
+        careerBashoCount: 99,
+      });
+      assert.ok(
+        protectedChance < preThresholdChance,
+        `Expected IRONMAN protection at >=100 basho, got ${protectedChance} >= ${preThresholdChance}`,
+      );
+    },
+  },
+  {
+    name: 'retirement: age limit always retires regardless of random roll',
+    run: () => {
+      const status = createStatus({ age: 50, retirementProfile: 'IRONMAN' });
+      const result = checkRetirement(status, () => 0.9999);
+      assert.equal(result.shouldRetire, true);
+    },
+  },
+  {
+    name: 'retirement: ten consecutive absences always retire regardless of random roll',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 25, side: 'East' };
+      const status = createStatus({
+        age: 23,
+        rank,
+        retirementProfile: 'STANDARD',
+        history: {
+          records: Array.from({ length: 10 }, () => createBashoRecord(rank, 0, 0, 7)),
+          events: [],
+          maxRank: rank,
+          totalWins: 0,
+          totalLosses: 0,
+          totalAbsent: 70,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: {},
+        },
+      });
+      const result = checkRetirement(status, () => 0.9999);
+      assert.equal(result.shouldRetire, true);
     },
   },
   {

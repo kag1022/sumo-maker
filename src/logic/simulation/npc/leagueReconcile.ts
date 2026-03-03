@@ -161,6 +161,7 @@ const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNp
   weightKg: npc.weightKg,
   growthBias: npc.growthBias,
   retirementBias: npc.retirementBias,
+  retirementProfile: npc.retirementProfile,
   entryAge: npc.entryAge,
   age: npc.age,
   careerBashoCount: npc.careerBashoCount,

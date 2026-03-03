@@ -23,6 +23,7 @@ export const pruneRetiredLowerRosters = (world: LowerDivisionQuotaWorld): void =
           weightKg: persistent.weightKg,
           growthBias: persistent.growthBias,
           retirementBias: persistent.retirementBias,
+          retirementProfile: persistent.retirementProfile,
           active: persistent.active,
           rankScore: index + 1,
           division,
