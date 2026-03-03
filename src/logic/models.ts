@@ -23,6 +23,7 @@ export type StableArchetypeId =
   | 'MASTER_DISCIPLE';
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
+export type RetirementProfile = 'EARLY_EXIT' | 'STANDARD' | 'IRONMAN';
 
 // レア度
 export type Rarity = 'N' | 'R' | 'SR' | 'UR';
@@ -194,6 +195,7 @@ export interface RikishiStatus {
   injuries: Injury[];    // 詳細な怪我リスト
   isOzekiKadoban?: boolean; // 大関カド番
   isOzekiReturn?: boolean; // 大関陥落直後の特例復帰チャンス（次の1場所のみ）
+  retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
 
   history: CareerHistory;

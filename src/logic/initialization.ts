@@ -5,6 +5,7 @@ import {
   EntryDivision,
   GrowthType,
   Rank,
+  RetirementProfile,
   RikishiGenome,
   RikishiStatus,
   TacticsType,
@@ -15,6 +16,7 @@ import {
 } from './models';
 import { CONSTANTS } from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
+import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -31,6 +33,7 @@ export interface CreateInitialRikishiParams {
   profile?: BasicProfile;
   bodyMetrics?: BodyMetrics;
   genome?: RikishiGenome;
+  retirementProfile?: RetirementProfile;
   stableId: string;
   ichimonId: IchimonId;
   stableArchetypeId: StableArchetypeId;
@@ -135,6 +138,10 @@ export const createInitialRikishi = (
     ? Math.round(80 * (1 / Math.max(0.3, params.genome.durability.baseInjuryRisk)))
     : 80;
 
+  const retirementProfile =
+    params.retirementProfile ??
+    resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
+
   return {
     stableId: params.stableId,
     ichimonId: params.ichimonId,
@@ -165,6 +172,7 @@ export const createInitialRikishi = (
     injuries: [],
     isOzekiKadoban: false,
     isOzekiReturn: false,
+    retirementProfile,
     genome: params.genome,
     history: {
       records: [],

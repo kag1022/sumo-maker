@@ -1,4 +1,4 @@
-import { Division } from '../../models';
+import { Division, RetirementProfile } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
@@ -33,6 +33,7 @@ export interface PersistentActor {
   weightKg: number;
   growthBias: number;
   retirementBias: number;
+  retirementProfile?: RetirementProfile;
   entryAge: number;
   age: number;
   careerBashoCount: number;

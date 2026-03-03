@@ -77,14 +77,14 @@ export const resolveAdaptiveExchangeSlots = <T extends BoundaryCandidate>(
     if (!promotion || !demotion) break;
 
     const gap = promotion.score - demotion.score;
-    const adaptiveThreshold = Math.max(-1.5, 2.2 - slots * 0.35);
+    const adaptiveThreshold = Math.max(-0.8, 3.2 - slots * 0.3);
     if (gap + momentum >= adaptiveThreshold) {
       slots += 1;
       momentum = clamp(momentum * 0.6 + Math.max(-0.6, gap) * 0.18, -1.2, 1.8);
       continue;
     }
 
-    if (slots < pressureTargetSlots && gap >= -2.8) {
+    if (slots < pressureTargetSlots && gap >= -1.4) {
       slots += 1;
       momentum = clamp(momentum * 0.4 + gap * 0.12, -1.2, 1.8);
       continue;

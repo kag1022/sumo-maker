@@ -5,6 +5,7 @@ import {
   resolveEnemySeedBodyMetrics,
 } from '../../catalog/enemyData';
 import { RandomSource } from '../deps';
+import { resolveRetirementProfileByRoll } from '../retirement/shared';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
@@ -73,6 +74,7 @@ const createNpc = (
     abilityDist.mean * 0.1 +
     randomNoise(rng, abilityDist.sigma * 0.45) +
     seed.growthBias * 5.2;
+  const retirementProfile = resolveRetirementProfileByRoll(rng());
   return {
     actorId: `NPC-${serial}`,
     actorType: 'NPC',
@@ -93,6 +95,7 @@ const createNpc = (
     weightKg: body.weightKg,
     growthBias: seed.growthBias,
     retirementBias: seed.retirementBias,
+    retirementProfile,
     entryAge,
     age: entryAge,
     careerBashoCount: 0,

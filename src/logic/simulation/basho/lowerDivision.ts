@@ -116,6 +116,7 @@ export const syncPlayerToLowerDivisionRoster = (
     weightKg: playerActor?.weightKg ?? status.bodyMetrics.weightKg,
     growthBias: playerActor?.growthBias ?? 0,
     retirementBias: playerActor?.retirementBias ?? 0,
+    retirementProfile: playerActor?.retirementProfile ?? status.retirementProfile ?? 'STANDARD',
     active: true,
     recentBashoResults: playerActor?.recentBashoResults ?? [],
   });

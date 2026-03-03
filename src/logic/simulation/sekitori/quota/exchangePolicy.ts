@@ -34,6 +34,7 @@ export const resolveSekitoriExchangePolicy = (
 
   let demotionPool = buildJuryoDemotionCandidates(juryoResults);
   let promotionPool = buildMakushitaPromotionCandidates(makushitaResults);
+  const mandatoryDemotions = demotionPool.filter((candidate) => candidate.mandatory).length;
   const mandatoryPromotions = promotionPool.filter((candidate) => candidate.mandatory).length;
   if (!demotionPool.length && !promotionPool.length) {
     demotionPool = buildJuryoFallbackDemotionCandidates(juryoResults, new Set<string>());
@@ -43,18 +44,18 @@ export const resolveSekitoriExchangePolicy = (
     );
   }
 
-  if (promotionPool.length && (demotionPool.length === 0 || mandatoryPromotions > demotionPool.length)) {
+  if (mandatoryPromotions > demotionPool.length) {
     const exclude = new Set(demotionPool.map((candidate) => candidate.id));
     const fallbackDemotions = buildJuryoFallbackDemotionCandidates(juryoResults, exclude);
     const minimumDemotions = Math.min(juryoResults.length, Math.max(1, mandatoryPromotions));
     demotionPool = demotionPool.concat(fallbackDemotions).slice(0, minimumDemotions);
   }
-  if (demotionPool.length && (promotionPool.length === 0 || demotionPool.length > promotionPool.length)) {
+  if (mandatoryDemotions > promotionPool.length) {
     const exclude = new Set(promotionPool.map((candidate) => candidate.id));
     const fallbackPromotions = buildMakushitaFallbackPromotionCandidates(makushitaResults, exclude);
     const minimumPromotions = Math.min(
       makushitaResults.length,
-      Math.max(1, demotionPool.length),
+      Math.max(1, mandatoryDemotions),
     );
     promotionPool = promotionPool.concat(fallbackPromotions).slice(0, minimumPromotions);
   }

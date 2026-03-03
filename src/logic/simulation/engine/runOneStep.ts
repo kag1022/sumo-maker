@@ -147,7 +147,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   const month = MONTHS[state.monthIndex];
   reconcileNpcLeague(world, lowerDivisionQuotaWorld, sekitoriBoundaryWorld, deps.random, state.seq, month);
 
-  const retirementCheck = checkRetirement(state.status);
+  const retirementCheck = checkRetirement(state.status, deps.random);
   if (retirementCheck.shouldRetire) {
     const beforeEvents = state.status.history.events.length;
     state.status = finalizeCareer(state.status, state.year, month, retirementCheck.reason);
