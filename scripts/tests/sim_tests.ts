@@ -1,5 +1,6 @@
 import { calculateBattleResult, EnemyStats, generateEnemy } from '../../src/logic/battle';
 import { applyGrowth, checkRetirement } from '../../src/logic/growth';
+import { createInitialRikishi } from '../../src/logic/initialization';
 import { calculateNextRank } from '../../src/logic/banzuke/rules/singleRankChange';
 import { generateNextBanzuke } from '../../src/logic/banzuke/providers/topDivision';
 import { BashoRecordSnapshot } from '../../src/logic/banzuke/providers/sekitori/types';
@@ -10,6 +11,7 @@ import { scoreTopDivisionCandidate } from '../../src/logic/banzuke/providers/sek
 import { LIMITS } from '../../src/logic/banzuke/scale/rankLimits';
 import { runSimulation } from '../../src/logic/simulation/runner';
 import { PlayerBoutDetail, runBasho, runBashoDetailed } from '../../src/logic/simulation/basho';
+import { normalizeNewRunModelVersion, normalizeSimulationModelVersion } from '../../src/logic/simulation/modelVersion';
 import { resolveYushoResolution } from '../../src/logic/simulation/yusho';
 import {
   BashoStepResult,
@@ -38,7 +40,7 @@ import {
   runSekitoriQuotaStep,
 } from '../../src/logic/simulation/sekitoriQuota';
 import { resolveSekitoriExchangePolicy } from '../../src/logic/simulation/sekitori/quota/exchangePolicy';
-import { createDailyMatchups, createFacedMap } from '../../src/logic/simulation/matchmaking';
+import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../../src/logic/simulation/matchmaking';
 import {
   buildLowerDivisionBoutDays,
   createLowerDivisionBoutDayMap,
@@ -46,6 +48,7 @@ import {
   resolveLowerDivisionEligibility,
 } from '../../src/logic/simulation/torikumi/policy';
 import { scheduleTorikumiBasho } from '../../src/logic/simulation/torikumi/scheduler';
+import { pairWithinDivision } from '../../src/logic/simulation/torikumi/scheduler/intraDivision';
 import { TorikumiParticipant } from '../../src/logic/simulation/torikumi/types';
 import {
   createLowerDivisionQuotaWorld,
@@ -101,12 +104,14 @@ import {
 } from '../../src/logic/persistence/wallet';
 import {
   resolveScoutOverrideCost,
+  rollScoutDraft,
   resizeTraitSlots,
   selectTraitForSlot,
   resolveTraitSlotCost,
   ScoutDraft,
   ScoutTraitSlotDraft,
 } from '../../src/logic/scout/gacha';
+import { CONSTANTS } from '../../src/logic/constants';
 import { initializeSimulationStatus } from '../../src/logic/simulation/career';
 import { buildHoshitoriGrid } from '../../src/features/report/utils/hoshitori';
 import {
@@ -122,6 +127,7 @@ import {
   resolveRankBaselineAbility,
 } from '../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../src/logic/simulation/strength/update';
+import { resolveBashoFormDelta } from '../../src/logic/simulation/variance/bashoVariance';
 
 (globalThis as unknown as { indexedDB: typeof indexedDB }).indexedDB = indexedDB;
 (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
@@ -205,6 +211,8 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
     growthType: 'NORMAL',
     tactics: 'BALANCE',
     archetype: 'HARD_WORKER',
+    aptitudeTier: 'B',
+    aptitudeFactor: 1,
     signatureMoves: ['寄り切り'],
     bodyType: 'NORMAL',
     profile: {
@@ -406,6 +414,8 @@ const createMockActor = (
   heightCm: 182,
   weightKg: 140,
   growthBias: 0,
+  aptitudeTier: 'B',
+  aptitudeFactor: 1,
   retirementBias: 0,
   entryAge: 18,
   age: 18,
@@ -514,6 +524,8 @@ const createScoutDraft = (overrides: Partial<ScoutDraft> = {}): ScoutDraft => {
     history: 'HS_GRAD',
     entryDivision: 'Maezumo',
     archetype: 'HARD_WORKER',
+    aptitudeTier: 'B',
+    aptitudeFactor: 1,
     tactics: 'BALANCE',
     signatureMove: '寄り切り',
     bodyType: 'NORMAL',
@@ -768,6 +780,224 @@ const tests: TestCase[] = [
       const lowResult = calculateBattleResult(low, enemy, undefined, () => 0.5);
       const highResult = calculateBattleResult(high, enemy, undefined, () => 0.5);
       assert.ok(highResult.winProbability > lowResult.winProbability);
+    },
+  },
+  {
+    name: 'scout: aptitude tier distribution stays near configured weights',
+    run: () => {
+      const runs = 6000;
+      const rng = lcg(20260301);
+      const counts: Record<'S' | 'A' | 'B' | 'C' | 'D', number> = {
+        S: 0,
+        A: 0,
+        B: 0,
+        C: 0,
+        D: 0,
+      };
+      for (let i = 0; i < runs; i += 1) {
+        const draft = rollScoutDraft(rng);
+        counts[draft.aptitudeTier] += 1;
+      }
+      for (const tier of ['S', 'A', 'B', 'C', 'D'] as const) {
+        const actual = counts[tier] / runs;
+        const expected = CONSTANTS.APTITUDE_TIER_DATA[tier].weight / 100;
+        assert.ok(
+          Math.abs(actual - expected) <= 0.03,
+          `Aptitude ${tier} distribution out of range: actual=${actual}, expected=${expected}`,
+        );
+      }
+    },
+  },
+  {
+    name: 'initialization: average initial stats are monotonic by aptitude tier',
+    run: () => {
+      const samples = 320;
+      const tiers: Array<'S' | 'A' | 'B' | 'C' | 'D'> = ['S', 'A', 'B', 'C', 'D'];
+      const averages: Record<'S' | 'A' | 'B' | 'C' | 'D', number> = {
+        S: 0,
+        A: 0,
+        B: 0,
+        C: 0,
+        D: 0,
+      };
+      for (const tier of tiers) {
+        let total = 0;
+        for (let i = 0; i < samples; i += 1) {
+          const seed = 20260310 + i;
+          const status = createInitialRikishi(
+            {
+              shikona: '素質検証',
+              age: 18,
+              startingRank: { division: 'Maezumo', name: '前相撲', number: 1, side: 'East' },
+              archetype: 'HARD_WORKER',
+              aptitudeTier: tier,
+              aptitudeFactor: CONSTANTS.APTITUDE_TIER_DATA[tier].factor,
+              tactics: 'BALANCE',
+              signatureMove: '寄り切り',
+              bodyType: 'NORMAL',
+              traits: [],
+              historyBonus: 0,
+              stableId: 'stable-001',
+              ichimonId: 'TAIJU',
+              stableArchetypeId: 'MASTER_DISCIPLE',
+            },
+            lcg(seed),
+          );
+          const avgStat = Object.values(status.stats).reduce((sum, value) => sum + value, 0) / 8;
+          total += avgStat;
+        }
+        averages[tier] = total / samples;
+      }
+      assert.ok(averages.S > averages.A);
+      assert.ok(averages.A > averages.B);
+      assert.ok(averages.B > averages.C);
+      assert.ok(averages.C > averages.D);
+    },
+  },
+  {
+    name: 'battle: higher player aptitudeFactor increases win rate under same stats',
+    run: () => {
+      const enemy: EnemyStats = {
+        shikona: '同格敵',
+        rankValue: 6,
+        power: 95,
+        ability: 95,
+        styleBias: 'BALANCE',
+        heightCm: 184,
+        weightKg: 145,
+      };
+      const factors = [0.68, 0.84, 1.0, 1.08, 1.16];
+      const winRates: number[] = [];
+      for (const factor of factors) {
+        const trials = 1800;
+        const rng = lcg(9100 + Math.round(factor * 100));
+        let wins = 0;
+        for (let i = 0; i < trials; i += 1) {
+          const status = createStatus({
+            aptitudeFactor: factor,
+            stats: {
+              tsuki: 62,
+              oshi: 62,
+              kumi: 62,
+              nage: 62,
+              koshi: 62,
+              deashi: 62,
+              waza: 62,
+              power: 62,
+            },
+            ratingState: {
+              ability: 96,
+              form: 0,
+              uncertainty: 1.1,
+            },
+          });
+          const result = calculateBattleResult(
+            status,
+            enemy,
+            {
+              day: 6,
+              currentWins: 2,
+              currentLosses: 3,
+              consecutiveWins: 0,
+              isLastDay: false,
+              isYushoContention: false,
+            },
+            rng,
+          );
+          if (result.isWin) wins += 1;
+        }
+        winRates.push(wins / trials);
+      }
+      for (let i = 1; i < winRates.length; i += 1) {
+        assert.ok(
+          winRates[i] > winRates[i - 1],
+          `Expected monotonic win rates, got ${winRates.join(',')}`,
+        );
+      }
+    },
+  },
+  {
+    name: 'matchmaking: higher aptitudeFactor increases npc-vs-npc win rate',
+    run: () => {
+      const factors = [0.68, 0.84, 1.0, 1.08, 1.16];
+      const winRates: number[] = [];
+      for (const factor of factors) {
+        const trials = 2200;
+        const rng = lcg(12200 + Math.round(factor * 100));
+        let wins = 0;
+        for (let i = 0; i < trials; i += 1) {
+          const a = {
+            id: 'A',
+            shikona: '甲',
+            isPlayer: false,
+            stableId: 'stable-001',
+            rankScore: 1,
+            power: 95,
+            ability: 95,
+            styleBias: 'BALANCE' as const,
+            aptitudeFactor: factor,
+            wins: 0,
+            losses: 0,
+            active: true,
+          };
+          const b = {
+            id: 'B',
+            shikona: '乙',
+            isPlayer: false,
+            stableId: 'stable-001',
+            rankScore: 2,
+            power: 95,
+            ability: 95,
+            styleBias: 'BALANCE' as const,
+            aptitudeFactor: 1.0,
+            wins: 0,
+            losses: 0,
+            active: true,
+          };
+          simulateNpcBout(a, b, rng, 'unified-v3-variance');
+          if (a.wins > 0) wins += 1;
+        }
+        winRates.push(wins / trials);
+      }
+      for (let i = 1; i < winRates.length; i += 1) {
+        assert.ok(
+          winRates[i] > winRates[i - 1],
+          `Expected monotonic npc win rates, got ${winRates.join(',')}`,
+        );
+      }
+    },
+  },
+  {
+    name: 'npc pipeline: aptitudeFactor persists through league reconcile outputs',
+    run: () => {
+      const rng = lcg(20260304);
+      const world = createSimulationWorld(rng);
+      const lower = createLowerDivisionQuotaWorld(lcg(20260305), world);
+      const boundary = createSekitoriBoundaryWorld(lcg(20260306));
+
+      const target = world.lowerRosterSeeds.Makushita[0];
+      assert.ok(Boolean(target), 'Expected Makushita seed NPC');
+      if (!target) return;
+      const persistent = world.npcRegistry.get(target.id);
+      assert.ok(Boolean(persistent), 'Expected persistent NPC');
+      if (!persistent) return;
+
+      persistent.aptitudeTier = 'D';
+      persistent.aptitudeFactor = 0.68;
+      target.aptitudeTier = 'D';
+      target.aptitudeFactor = 0.68;
+
+      reconcileNpcLeague(world, lower, boundary, lcg(20260307), 1, 1);
+
+      const worldSeed = world.lowerRosterSeeds.Makushita.find((npc) => npc.id === target.id);
+      const lowerSeed = lower.rosters.Makushita.find((npc) => npc.id === target.id);
+      const boundarySeed = boundary.makushitaPool.find((npc) => npc.id === target.id);
+      assert.equal(worldSeed?.aptitudeTier, 'D');
+      assert.equal(worldSeed?.aptitudeFactor, 0.68);
+      assert.equal(lowerSeed?.aptitudeTier, 'D');
+      assert.equal(lowerSeed?.aptitudeFactor, 0.68);
+      assert.equal(boundarySeed?.aptitudeTier, 'D');
+      assert.equal(boundarySeed?.aptitudeFactor, 0.68);
     },
   },
   {
@@ -1093,9 +1323,9 @@ const tests: TestCase[] = [
         weightKg: 154,
         styleBias: 'BALANCE',
       };
-      const v1 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v1');
       const v2 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v2-kimarite');
-      assert.ok(Math.abs(v2.winProbability - v1.winProbability) <= 0.061);
+      const v3 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v3-variance');
+      assert.ok(Math.abs(v3.winProbability - v2.winProbability) <= 0.061);
     },
   },
   {
@@ -4098,7 +4328,7 @@ const tests: TestCase[] = [
   {
     name: 'simulation: model request keeps explicit model version in new runs',
     run: async () => {
-      for (const requested of ['legacy-v6', 'realism-v1', 'unified-v1', 'unified-v2-kimarite'] as const) {
+      for (const requested of ['unified-v2-kimarite', 'unified-v3-variance'] as const) {
         const initial = createStatus({
           age: 20,
           entryAge: 20,
@@ -4141,7 +4371,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'simulation: default new run model version is unified-v2-kimarite',
+    name: 'simulation: default new run model version is unified-v3-variance',
     run: async () => {
       const initial = createStatus({
         age: 20,
@@ -4161,7 +4391,75 @@ const tests: TestCase[] = [
       );
 
       const step = expectBashoStep(await engine.runNextBasho(), 'default model version');
-      assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v2-kimarite');
+      assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v3-variance');
+    },
+  },
+  {
+    name: 'simulation: legacy model values normalize to unified-v2-kimarite on load',
+    run: () => {
+      assert.equal(normalizeSimulationModelVersion('legacy-v6'), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('realism-v1'), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('unified-v1'), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('unified-v2-kimarite'), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('unified-v3-variance'), 'unified-v3-variance');
+      assert.equal(normalizeSimulationModelVersion(undefined), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('unknown-model'), 'unified-v2-kimarite');
+    },
+  },
+  {
+    name: 'simulation: new run model normalizer defaults to unified-v3-variance',
+    run: () => {
+      assert.equal(normalizeNewRunModelVersion(undefined), 'unified-v3-variance');
+      assert.equal(normalizeNewRunModelVersion('unknown-model'), 'unified-v3-variance');
+      assert.equal(normalizeNewRunModelVersion('unified-v2-kimarite'), 'unified-v2-kimarite');
+      assert.equal(normalizeNewRunModelVersion('unified-v3-variance'), 'unified-v3-variance');
+    },
+  },
+  {
+    name: 'variance: same seed resolves identical bashoFormDelta and event',
+    run: () => {
+      const rollA = resolveBashoFormDelta({
+        uncertainty: 2.4,
+        volatility: 1.6,
+        rng: lcg(77),
+      });
+      const rollB = resolveBashoFormDelta({
+        uncertainty: 2.4,
+        volatility: 1.6,
+        rng: lcg(77),
+      });
+      const rollC = resolveBashoFormDelta({
+        uncertainty: 2.4,
+        volatility: 1.6,
+        rng: lcg(78),
+      });
+
+      assert.deepEqual(rollA, rollB);
+      assert.ok(
+        rollA.bashoFormDelta !== rollC.bashoFormDelta || rollA.event !== rollC.event,
+        'Different seeds should usually produce different variance outcomes',
+      );
+    },
+  },
+  {
+    name: 'variance: tail event thresholds trigger expected event bands',
+    run: () => {
+      const cases: Array<{ tailRoll: number; expected: string }> = [
+        { tailRoll: 0.049, expected: 'MAJOR_SLUMP' },
+        { tailRoll: 0.05, expected: 'MAJOR_SURGE' },
+        { tailRoll: 0.09, expected: 'MILD_SLUMP' },
+        { tailRoll: 0.19, expected: 'MILD_SURGE' },
+        { tailRoll: 0.28, expected: 'NONE' },
+      ];
+
+      for (const testCase of cases) {
+        const roll = resolveBashoFormDelta({
+          uncertainty: 0,
+          volatility: 0,
+          rng: sequenceRng([1, 0.5, testCase.tailRoll, 0]),
+        });
+        assert.equal(roll.event, testCase.expected);
+      }
     },
   },
   {
@@ -5143,6 +5441,32 @@ const tests: TestCase[] = [
       });
       assert.equal(result.days[0].pairs.length, 2);
       assert.ok(result.days[0].pairs.every((pair) => !pair.boundaryId));
+    },
+  },
+  {
+    name: 'torikumi: v3 intra-division pairing selects from top3 by weighted roll',
+    run: () => {
+      const pool: TorikumiParticipant[] = [
+        createTorikumiParticipant('MS1', 'Makushita', '幕下', 1, 's1'),
+        createTorikumiParticipant('MS2', 'Makushita', '幕下', 2, 's2'),
+        createTorikumiParticipant('MS3', 'Makushita', '幕下', 3, 's3'),
+        createTorikumiParticipant('MS4', 'Makushita', '幕下', 4, 's4'),
+      ];
+      const faced = createFacedMap(pool);
+      const chosenByBucket = (
+        roll: number,
+      ): string | undefined => pairWithinDivision(
+        pool,
+        faced,
+        8,
+        11,
+        'unified-v3-variance',
+        sequenceRng([roll]),
+      ).pairs[0]?.b.id;
+
+      assert.equal(chosenByBucket(0.69), 'MS2');
+      assert.equal(chosenByBucket(0.75), 'MS3');
+      assert.equal(chosenByBucket(0.95), 'MS4');
     },
   },
   {

@@ -110,7 +110,7 @@ class SumoMakerDatabase extends Dexie {
   simulationDiagnostics!: Table<SimulationDiagnosticsRow, [string, number]>;
 
   constructor() {
-    super('sumo-maker-v10');
+    super('sumo-maker-v11');
 
     this.version(1).stores({
       careers:

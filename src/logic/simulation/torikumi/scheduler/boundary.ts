@@ -1,4 +1,6 @@
 import { boundaryNeedWeight } from '../policy';
+import { RandomSource } from '../../deps';
+import { SimulationModelVersion } from '../../modelVersion';
 import {
   BoundaryActivationReason,
   BoundaryBandSpec,
@@ -125,6 +127,8 @@ export const pairAcrossBoundary = (
   upperCandidates: TorikumiParticipant[],
   lowerCandidates: TorikumiParticipant[],
   reasons: BoundaryActivationReason[],
+  simulationModelVersion: SimulationModelVersion,
+  rng?: RandomSource,
 ): TorikumiPair[] => {
   const pairs: TorikumiPair[] = [];
   const usedUpper = new Set<string>();
@@ -141,6 +145,7 @@ export const pairAcrossBoundary = (
     if (usedUpper.has(upper.id)) continue;
     let bestLower: TorikumiParticipant | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
+    const scoredCandidates: Array<{ lower: TorikumiParticipant; score: number }> = [];
     for (const lower of lowerCandidates) {
       if (usedLower.has(lower.id)) continue;
       if (!isValidPair(faced, upper, lower)) continue;
@@ -148,10 +153,31 @@ export const pairAcrossBoundary = (
         boundaryNeed: needWeight,
         boundaryId: spec.id,
         phase: resolvePairEvalPhase(day, lateEvalStartDay, upper, lower),
+        simulationModelVersion,
       });
+      scoredCandidates.push({ lower, score });
       if (score < bestScore) {
         bestScore = score;
         bestLower = lower;
+      }
+    }
+    if (
+      simulationModelVersion === 'unified-v3-variance' &&
+      rng &&
+      scoredCandidates.length > 1
+    ) {
+      scoredCandidates.sort((a, b) => a.score - b.score);
+      const top = scoredCandidates.slice(0, 3);
+      const rawWeights = [0.7, 0.2, 0.1].slice(0, top.length);
+      const weightSum = rawWeights.reduce((sum, weight) => sum + weight, 0);
+      const roll = rng();
+      let acc = 0;
+      for (let idx = 0; idx < top.length; idx += 1) {
+        acc += rawWeights[idx] / weightSum;
+        if (roll <= acc) {
+          bestLower = top[idx].lower;
+          break;
+        }
       }
     }
     if (!bestLower) continue;

@@ -8,6 +8,7 @@ export interface EnemyStats {
   rankValue: number;
   power: number;
   ability?: number;
+  aptitudeFactor?: number;
   heightCm: number;
   weightKg: number;
   styleBias?: EnemyStyleBias;

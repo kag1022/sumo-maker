@@ -141,6 +141,8 @@ const toTopRosterItem = (
   styleBias: npc.styleBias,
   heightCm: npc.heightCm,
   weightKg: npc.weightKg,
+  aptitudeTier: npc.aptitudeTier,
+  aptitudeFactor: npc.aptitudeFactor,
 });
 
 const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNpc => ({
@@ -159,6 +161,8 @@ const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNp
   styleBias: npc.styleBias,
   heightCm: npc.heightCm,
   weightKg: npc.weightKg,
+  aptitudeTier: npc.aptitudeTier,
+  aptitudeFactor: npc.aptitudeFactor,
   growthBias: npc.growthBias,
   retirementBias: npc.retirementBias,
   retirementProfile: npc.retirementProfile,
@@ -187,6 +191,8 @@ const toMakushitaPoolNpc = (
   styleBias: npc.styleBias,
   heightCm: npc.heightCm,
   weightKg: npc.weightKg,
+  aptitudeTier: npc.aptitudeTier,
+  aptitudeFactor: npc.aptitudeFactor,
   growthBias: npc.growthBias,
 });
 

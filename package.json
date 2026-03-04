@@ -13,6 +13,7 @@
     "report:sekitori:retire": "node scripts/reports/sekitori_retirement_probe.cjs",
     "report:roster:integrity": "node scripts/reports/run_roster_integrity_report.cjs",
     "report:realism:mc": "node scripts/reports/run_realism_monte_carlo.cjs",
+    "report:realism:mc:v3": "node scripts/reports/run_realism_monte_carlo.cjs --v3-only",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview"
   },

@@ -75,6 +75,8 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
       registryNpc.styleBias = rikishi.styleBias;
       registryNpc.heightCm = rikishi.heightCm;
       registryNpc.weightKg = rikishi.weightKg;
+      registryNpc.aptitudeTier = rikishi.aptitudeTier;
+      registryNpc.aptitudeFactor = rikishi.aptitudeFactor;
       rikishi.shikona = registryNpc.shikona;
     }
   }

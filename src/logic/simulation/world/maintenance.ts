@@ -27,6 +27,8 @@ export const pruneRetiredTopDivisionRosters = (world: SimulationWorld): void => 
         styleBias: registryNpc.styleBias,
         heightCm: registryNpc.heightCm,
         weightKg: registryNpc.weightKg,
+        aptitudeTier: registryNpc.aptitudeTier,
+        aptitudeFactor: registryNpc.aptitudeFactor,
       };
     });
   }

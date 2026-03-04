@@ -158,6 +158,8 @@ export const applyLowerDivisionPlacements = (
       persistent.styleBias = npc.styleBias ?? persistent.styleBias;
       persistent.heightCm = npc.heightCm ?? persistent.heightCm;
       persistent.weightKg = npc.weightKg ?? persistent.weightKg;
+      persistent.aptitudeTier = npc.aptitudeTier ?? persistent.aptitudeTier;
+      persistent.aptitudeFactor = npc.aptitudeFactor ?? persistent.aptitudeFactor;
     }
   }
 };

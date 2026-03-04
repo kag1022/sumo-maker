@@ -856,3 +856,37 @@ Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポ�
       - sekitoriCareerRetireAgeP50: 29
       - avgCareerBasho: 38.61
     - Acceptance remains partially unmet (sekitori rate, win/loss distribution, long-career tail).
+- 2026-03-04: Implemented `unified-v3-variance` root update (variance-first model) and legacy model cleanup.
+  - Model/version cleanup:
+    - `SimulationModelVersion` reduced to `unified-v2-kimarite | unified-v3-variance`.
+    - Default new-run model switched to `unified-v3-variance`.
+    - Legacy load normalization now maps `legacy-v6 / realism-v1 / unified-v1` to `unified-v2-kimarite`.
+    - Updated Logic Lab two-model comparison to `v2 vs v3`.
+  - Added place-level variance module:
+    - New `src/logic/simulation/variance/bashoVariance.ts` with mixed distribution (normal + tail events) and deterministic seed behavior.
+    - Added `updateConditionForV3` and v3-only post-growth condition override in engine (`applyGrowth` reset is overwritten).
+  - Applied variance to player/NPC battle and evolution paths:
+    - Added `bashoFormDelta` to division participants.
+    - Injected v3 variance into top/lower basho flows, NPC pool simulation, offscreen sim, world/lower evolution.
+    - Reduced v3 per-bout random noise amplitude (v3-only) while using basho-level shock as primary variance driver.
+  - Torikumi anti-averaging (v3-only):
+    - Scheduler params now accept `simulationModelVersion` and `rng`.
+    - Candidate selection changed from strict best-pick to top-3 weighted pick (`70/20/10`) in intra-division and boundary pairing.
+    - Day-phase score/rank weights relaxed in v3 to reduce same-score fixation.
+  - Compatibility/docs/reports:
+    - Updated README model description and Logic Lab wording to v2/v3.
+    - Reworked `scripts/reports/realism_monte_carlo.cjs` to run baseline/candidate comparison (`v2` vs `v3`) and report relative deltas.
+  - Test updates:
+    - Added tests for legacy/new model normalization.
+    - Added deterministic + tail-threshold tests for `bashoVariance`.
+    - Added deterministic test for v3 torikumi top-3 weighted candidate selection.
+  - Validation:
+    - `npm test` PASS (206/206)
+    - `npm run build` PASS
+    - `npm run report:banzuke:quantile` PASS
+      - `Makushita:6-1-0`: `p10=7.6`, `p50=26`
+    - `npm run report:realism:mc`:
+      - default 500-run execution timed out in this environment.
+      - sampled check with `REALISM_MC_BASE_RUNS=200` completed:
+        - relative diff (v3 vs v2): `Sekitori +7.69%`, `Makuuchi +27.59%`, `Sanyaku +10.00%`, `Yokozuna +0.00%`.
+        - relative gate failed on Makuuchi only.

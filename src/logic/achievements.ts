@@ -310,14 +310,14 @@ const RULES: AchievementRule[] = [
     isUnlocked: (c) => c.kinboshiTotal >= 5,
   },
   {
-    id: 'KIMARITE_10',
+    id: 'KIMARITE_20',
     name: '技の博覧会',
-    description: '通算10種類以上の決まり手で勝利',
+    description: '通算20種類以上の決まり手で勝利',
     rarity: 'EPIC',
     iconKey: 'sparkles',
     category: 'KIMARITE_VARIETY',
     tier: 1,
-    isUnlocked: (c) => c.kimariteVarietyCount >= 10,
+    isUnlocked: (c) => c.kimariteVarietyCount >= 20,
   },
 ];
 

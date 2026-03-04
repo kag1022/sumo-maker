@@ -1,5 +1,6 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { DEFAULT_MAKUUCHI_LAYOUT } from '../../banzuke/scale/banzukeLayout';
+import { DEFAULT_APTITUDE_FACTOR, DEFAULT_APTITUDE_TIER } from '../../constants';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { createInitialNpcUniverse } from '../npc/factory';
@@ -29,6 +30,8 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       heightCm: 180,
       weightKg: 130,
       growthBias: 0,
+      aptitudeTier: DEFAULT_APTITUDE_TIER,
+      aptitudeFactor: DEFAULT_APTITUDE_FACTOR,
       retirementBias: 0,
       retirementProfile: 'STANDARD',
       entryAge: 15,
@@ -56,6 +59,8 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
     styleBias: npc.styleBias,
     heightCm: npc.heightCm,
     weightKg: npc.weightKg,
+    aptitudeTier: npc.aptitudeTier,
+    aptitudeFactor: npc.aptitudeFactor,
   });
 
   return {

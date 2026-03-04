@@ -52,6 +52,8 @@ export const applyNpcExchange = (
         styleBias: rikishi.styleBias ?? 'BALANCE',
         heightCm: rikishi.heightCm ?? 184,
         weightKg: rikishi.weightKg ?? 140,
+        aptitudeTier: rikishi.aptitudeTier,
+        aptitudeFactor: rikishi.aptitudeFactor,
       };
       return promotedRikishi;
     })
@@ -74,6 +76,8 @@ export const applyNpcExchange = (
         styleBias: rikishi.styleBias,
         heightCm: rikishi.heightCm,
         weightKg: rikishi.weightKg,
+        aptitudeTier: rikishi.aptitudeTier,
+        aptitudeFactor: rikishi.aptitudeFactor,
         growthBias: rikishi.growthBias,
       };
     })
@@ -118,6 +122,8 @@ export const applyNpcExchange = (
     npc.styleBias = rikishi.styleBias;
     npc.heightCm = rikishi.heightCm;
     npc.weightKg = rikishi.weightKg;
+    npc.aptitudeTier = rikishi.aptitudeTier;
+    npc.aptitudeFactor = rikishi.aptitudeFactor;
   }
   for (const rikishi of boundaryWorld.makushitaPool) {
     const npc = registry.get(rikishi.id);
@@ -134,5 +140,7 @@ export const applyNpcExchange = (
     npc.styleBias = rikishi.styleBias ?? npc.styleBias;
     npc.heightCm = rikishi.heightCm ?? npc.heightCm;
     npc.weightKg = rikishi.weightKg ?? npc.weightKg;
+    npc.aptitudeTier = rikishi.aptitudeTier ?? npc.aptitudeTier;
+    npc.aptitudeFactor = rikishi.aptitudeFactor ?? npc.aptitudeFactor;
   }
 };

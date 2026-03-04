@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Oyakata, RikishiStatus, BodyType, EntryDivision, PersonalityType, Trait } from "../../../logic/models";
-import { CONSTANTS } from "../../../logic/constants";
+import { CONSTANTS, resolveAptitudeTierLabel } from "../../../logic/constants";
 import {
   buildInitialRikishiFromDraft,
   PERSONALITY_LABELS,
@@ -492,7 +492,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
                 {historyData?.canTsukedashi && (
                   <div className="space-y-1">
-                    <label className={LABEL_CLASS}>付出指定（差分 +30/+60pt）</label>
+                    <label className={LABEL_CLASS}>付出指定（差分 +60/+30pt）</label>
                     <div className="relative">
                       <select
                         value={editedDraft.entryDivision}
@@ -504,8 +504,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                         className={SELECT_CLASS}
                       >
                         <option value="Maezumo">前相撲</option>
-                        <option value="Makushita60">幕下最下位格 (+30pt)</option>
-                        <option value="Sandanme90">三段目最下位格 (+60pt)</option>
+                        <option value="Makushita60">幕下最下位格 (+60pt)</option>
+                        <option value="Sandanme90">三段目最下位格 (+30pt)</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
                     </div>
@@ -620,7 +620,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 {editedDraft.shikona}
               </p>
               <p className="text-xs text-text-dim mt-1">
-                {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
+                素質ランク {resolveAptitudeTierLabel(editedDraft.aptitudeTier)}
               </p>
             </div>
 
@@ -635,6 +635,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   editedDraft.selectedIchimonId
                     ? ICHIMON_BY_ID[editedDraft.selectedIchimonId].displayName
                     : "(未設定)",
+                ],
+                [
+                  "素質ランク",
+                  `${resolveAptitudeTierLabel(editedDraft.aptitudeTier)}（内部補正）`,
                 ],
                 [
                   "所属部屋",

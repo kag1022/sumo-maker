@@ -29,6 +29,8 @@ export const createSekitoriMakushitaPool = (rng: RandomSource): MakushitaNpc[] =
       styleBias: npc.styleBias,
       heightCm: npc.heightCm,
       weightKg: npc.weightKg,
+      aptitudeTier: npc.aptitudeTier,
+      aptitudeFactor: npc.aptitudeFactor,
       growthBias: npc.growthBias,
     }));
 };

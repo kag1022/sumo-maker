@@ -23,13 +23,23 @@ export const runBashoDetailed = (
   world?: SimulationWorld,
   lowerWorld?: LowerDivisionQuotaWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  playerBashoFormDelta?: number,
 ): BashoSimulationResult => {
   if (lowerWorld) {
     syncPlayerToLowerDivisionRoster(status, lowerWorld);
   }
   const topDivision = resolveTopDivisionFromRank(status.rank);
   if (topDivision && world) {
-    return runTopDivisionBasho(status, year, month, topDivision, rng, world, simulationModelVersion);
+    return runTopDivisionBasho(
+      status,
+      year,
+      month,
+      topDivision,
+      rng,
+      world,
+      simulationModelVersion,
+      playerBashoFormDelta,
+    );
   }
   if (status.rank.division === 'Maezumo' && lowerWorld) {
     return runMaezumoBasho(status, year, month, rng, lowerWorld, simulationModelVersion);
@@ -41,7 +51,16 @@ export const runBashoDetailed = (
       status.rank.division === 'Jonokuchi') &&
     lowerWorld
   ) {
-    return runLowerDivisionBasho(status, year, month, rng, lowerWorld, world, simulationModelVersion);
+    return runLowerDivisionBasho(
+      status,
+      year,
+      month,
+      rng,
+      lowerWorld,
+      world,
+      simulationModelVersion,
+      playerBashoFormDelta,
+    );
   }
   return runSimplifiedBasho(status, year, month, rng, simulationModelVersion);
 };

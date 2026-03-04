@@ -20,6 +20,7 @@ import {
 } from '../matchmaking';
 import { LowerDivisionQuotaWorld } from '../lowerQuota';
 import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
+import { resolveBashoFormDelta } from '../variance/bashoVariance';
 import {
   createLowerDivisionBoutDayMap,
   DEFAULT_TORIKUMI_BOUNDARY_BANDS,
@@ -114,6 +115,8 @@ export const syncPlayerToLowerDivisionRoster = (
     styleBias: playerActor?.styleBias ?? 'BALANCE',
     heightCm: playerActor?.heightCm ?? status.bodyMetrics.heightCm,
     weightKg: playerActor?.weightKg ?? status.bodyMetrics.weightKg,
+    aptitudeTier: playerActor?.aptitudeTier ?? status.aptitudeTier,
+    aptitudeFactor: playerActor?.aptitudeFactor ?? status.aptitudeFactor,
     growthBias: playerActor?.growthBias ?? 0,
     retirementBias: playerActor?.retirementBias ?? 0,
     retirementProfile: playerActor?.retirementProfile ?? status.retirementProfile ?? 'STANDARD',
@@ -143,6 +146,7 @@ export const runLowerDivisionBasho = (
   lowerWorld: LowerDivisionQuotaWorld,
   topWorld?: SimulationWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  forcedPlayerBashoFormDelta?: number,
 ): BashoSimulationResult => {
   const division = status.rank.division;
   if (
@@ -173,30 +177,42 @@ export const runLowerDivisionBasho = (
       .filter((npc) => npc.active !== false)
       .slice()
       .sort((a, b) => a.rankScore - b.rankScore)
-      .map((npc) => ({
-        id: npc.id,
-        shikona: lowerWorld.npcRegistry.get(npc.id)?.shikona ?? npc.shikona,
-        isPlayer: npc.id === PLAYER_ACTOR_ID,
-        stableId: npc.stableId,
-        division: lowerDivision,
-        rankScore: npc.rankScore,
-        rankName: resolveLowerRankName(lowerDivision),
-        rankNumber: Math.floor((npc.rankScore - 1) / 2) + 1,
-        power: Math.round(
-          npc.basePower * npc.form + (rng() * 2 - 1) * Math.max(1.2, npc.volatility),
-        ),
-        ability: Number.isFinite(npc.ability) ? npc.ability : npc.basePower * npc.form,
-        styleBias: npc.styleBias ?? 'BALANCE',
-        heightCm: npc.heightCm ?? 180,
-        weightKg: npc.weightKg ?? 130,
-        wins: 0,
-        losses: 0,
-        currentWinStreak: 0,
-        currentLossStreak: 0,
-        active: true,
-        targetBouts: 7,
-        boutsDone: 0,
-      })),
+      .map((npc) => {
+        const bashoFormDelta = simulationModelVersion === 'unified-v3-variance'
+          ? resolveBashoFormDelta({
+            uncertainty: npc.uncertainty,
+            volatility: npc.volatility,
+            rng,
+          }).bashoFormDelta
+          : 0;
+        return {
+          id: npc.id,
+          shikona: lowerWorld.npcRegistry.get(npc.id)?.shikona ?? npc.shikona,
+          isPlayer: npc.id === PLAYER_ACTOR_ID,
+          stableId: npc.stableId,
+          division: lowerDivision,
+          rankScore: npc.rankScore,
+          rankName: resolveLowerRankName(lowerDivision),
+          rankNumber: Math.floor((npc.rankScore - 1) / 2) + 1,
+          power: Math.round(
+            npc.basePower * npc.form + (rng() * 2 - 1) * Math.max(1.2, npc.volatility),
+          ),
+          ability: Number.isFinite(npc.ability) ? npc.ability : npc.basePower * npc.form,
+          bashoFormDelta,
+          styleBias: npc.styleBias ?? 'BALANCE',
+          heightCm: npc.heightCm ?? 180,
+          weightKg: npc.weightKg ?? 130,
+          aptitudeTier: npc.aptitudeTier,
+          aptitudeFactor: npc.aptitudeFactor,
+          wins: 0,
+          losses: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 0,
+          active: true,
+          targetBouts: 7,
+          boutsDone: 0,
+        };
+      }),
   );
   const juryoGuestRankById = new Map<string, { number: number; side: 'East' | 'West' }>();
 
@@ -214,6 +230,13 @@ export const runLowerDivisionBasho = (
       const guestId = `JURYO_GUEST_${guest.id}`;
       const rank = decodeJuryoRankFromScore(guest.rankScore);
       juryoGuestRankById.set(guestId, rank);
+      const guestBashoFormDelta = simulationModelVersion === 'unified-v3-variance'
+        ? resolveBashoFormDelta({
+          uncertainty: guest.uncertainty,
+          volatility: guest.volatility,
+          rng,
+        }).bashoFormDelta
+        : 0;
       participants.push({
         id: guestId,
         shikona: topWorld.npcRegistry.get(guest.id)?.shikona ?? guest.shikona,
@@ -225,9 +248,12 @@ export const runLowerDivisionBasho = (
         rankNumber: rank.number,
         power: Math.round(guest.basePower * guest.form + (rng() * 2 - 1) * 1.6),
         ability: Number.isFinite(guest.ability) ? guest.ability : guest.basePower * guest.form,
+        bashoFormDelta: guestBashoFormDelta,
         styleBias: guest.styleBias ?? 'BALANCE',
         heightCm: guest.heightCm ?? 186,
         weightKg: guest.weightKg ?? 152,
+        aptitudeTier: guest.aptitudeTier,
+        aptitudeFactor: guest.aptitudeFactor,
         wins: 0,
         losses: 0,
         currentWinStreak: 0,
@@ -243,6 +269,19 @@ export const runLowerDivisionBasho = (
   if (!player) {
     throw new Error('Player participant was not initialized for lower division basho');
   }
+  const playerBashoFormDelta =
+    simulationModelVersion === 'unified-v3-variance'
+      ? (
+        Number.isFinite(forcedPlayerBashoFormDelta)
+          ? (forcedPlayerBashoFormDelta as number)
+          : resolveBashoFormDelta({
+            uncertainty: status.ratingState.uncertainty,
+            volatility: 1.2,
+            rng,
+          }).bashoFormDelta
+      )
+      : 0;
+  player.bashoFormDelta = playerBashoFormDelta;
   player.shikona = status.shikona;
   player.stableId = status.stableId;
   player.division = division;
@@ -270,6 +309,8 @@ export const runLowerDivisionBasho = (
       band.id === 'MakushitaSandanme' ||
       band.id === 'SandanmeJonidan' ||
       band.id === 'JonidanJonokuchi'),
+    simulationModelVersion,
+    rng,
     facedMap: createFacedMap(participants),
     dayEligibility: (participant, day) => {
       if (participant.id.startsWith('JURYO_GUEST_')) return day >= 1 && day <= 15;
@@ -381,7 +422,9 @@ export const runLowerDivisionBasho = (
         isLastDay: isLastBout,
         isYushoContention,
         previousResult,
+        bashoFormDelta: playerBashoFormDelta,
       };
+      const enemyPowerNoise = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
       const enemy = {
         id: opponent.id,
         shikona: opponent.shikona,
@@ -389,11 +432,12 @@ export const runLowerDivisionBasho = (
         rankName,
         rankNumber,
         rankSide,
-        power: Math.round(opponent.power + (rng() * 2 - 1) * 1.4),
-        ability: opponent.ability ?? opponent.power,
+        power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
+        ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 180,
         weightKg: opponent.weightKg ?? 130,
+        aptitudeFactor: opponent.aptitudeFactor,
       };
       const result = calculateBattleResult(
         withInjuryBattlePenalty(status),

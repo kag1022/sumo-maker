@@ -261,7 +261,7 @@ npm run report:realism:mc
 
 - `npm test`: シミュレーションの決定論テストを実行（`scripts/tests/sim_tests.ts`）
 - `npm run build`: `tsc` + `vite build`
-- `npm run report:realism:mc`: `unified-v1` の Monte Carlo 受け入れ判定（既定 500本 + 500本）
+- `npm run report:realism:mc`: `unified-v2-kimarite` / `unified-v3-variance` の Monte Carlo 受け入れ判定（既定 500本）
 
 ### ユニットテスト高速化（2026-02-28）
 
@@ -298,10 +298,30 @@ npm run report:realism:mc
 ## ロジック検証モード（dev専用）
 
 - `npm run dev` でのみ、ヘッダーに `ロジック検証` ボタンが表示されます。
-- 検証モードでは `preset + seed` を指定してフルキャリアを GUI で追跡できます（通常実行モデルは `unified-v1` 固定）。
-- `2モデル比較` ボタンは旧モデル（`legacy-v6` / `realism-v1`）の参照比較専用です。
+- 検証モードでは `preset + seed` を指定してフルキャリアを GUI で追跡できます（通常実行モデルは `unified-v3-variance` 既定）。
+- `2モデル比較` ボタンは `unified-v2-kimarite` と `unified-v3-variance` の比較専用です。
 - 同じ `preset + seed` の組み合わせで、初期能力生成からキャリア完了まで再現可能です。
 - 検証モードの実行結果は DB 保存しません（殿堂入りやドラフト保存は行いません）。
+
+## 最新更新（2026-03-04）
+
+- `unified-v3-variance` を追加し、新規実行の既定モデルを `unified-v3-variance` に変更。
+- `SimulationModelVersion` は `unified-v2-kimarite` / `unified-v3-variance` の2値化。
+- 旧モデル値（`legacy-v6` / `realism-v1` / `unified-v1`）はロード時に `unified-v2-kimarite` へ正規化。
+- 場所単位の分散モジュールを追加:
+  - `src/logic/simulation/variance/bashoVariance.ts`
+  - 通常ノイズ + テールイベント混合分布で `bashoFormDelta` を決定（seed再現）。
+  - v3では `applyGrowth` 後に調子を再計算し、場所間での調子リセット挙動を抑制。
+- v3限定で取組平均化を緩和:
+  - 候補上位3件から `70% / 20% / 10%` で対戦相手を確率選択。
+  - day6-10 / day11-15 の同星偏重スコア重みを緩和し、番付距離重みを相対的に強化。
+- Logic Lab の2モデル比較は `unified-v2-kimarite` vs `unified-v3-variance` に更新。
+- `report:realism:mc` を v2/v3 比較レポートに更新（相対差を併記）。
+- 検証結果（この環境での直近実行）:
+  - `npm test`: PASS (206/206)
+  - `npm run build`: PASS
+  - `npm run report:banzuke:quantile`: PASS（`Makushita:6-1-0` は `p10=7.6`, `p50=26`）
+  - `npm run report:realism:mc`: 既定500本はこの環境でタイムアウト。`REALISM_MC_BASE_RUNS=200` では完走。
 
 ## ディレクトリ構成（完全 / Git管理対象）
 

@@ -54,6 +54,7 @@ export const runMaezumoBasho = (
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 176,
         weightKg: opponent.weightKg ?? 100,
+        aptitudeFactor: opponent.aptitudeFactor,
       }
       : generateEnemy('Maezumo', year, rng);
 

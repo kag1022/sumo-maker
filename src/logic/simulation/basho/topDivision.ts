@@ -15,6 +15,7 @@ import {
   simulateNpcBout,
 } from '../matchmaking';
 import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
+import { resolveBashoFormDelta } from '../variance/bashoVariance';
 import {
   isKinboshiEligibleRank,
   toNpcAggregateFromTopDivision,
@@ -48,9 +49,12 @@ const toDivisionParticipants = (
     rankScore: participant.rankScore,
     power: participant.power,
     ability: participant.ability,
+    bashoFormDelta: participant.bashoFormDelta,
     styleBias: participant.styleBias,
     heightCm: participant.heightCm,
     weightKg: participant.weightKg,
+    aptitudeTier: participant.aptitudeTier,
+    aptitudeFactor: participant.aptitudeFactor,
     wins: participant.wins,
     losses: participant.losses,
     currentWinStreak: participant.currentWinStreak,
@@ -69,6 +73,7 @@ export const runTopDivisionBasho = (
   rng: RandomSource,
   world: SimulationWorld,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  forcedPlayerBashoFormDelta?: number,
 ): BashoSimulationResult => {
   syncPlayerActorInWorld(world, status, rng);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
@@ -105,11 +110,13 @@ export const runTopDivisionBasho = (
     world,
     'Makuuchi',
     rng,
+    simulationModelVersion,
   ).map((participant) => toTorikumiSekitoriParticipant('Makuuchi', participant));
   const juryo = createDivisionParticipants(
     world,
     'Juryo',
     rng,
+    simulationModelVersion,
   ).map((participant) => toTorikumiSekitoriParticipant('Juryo', participant));
   const participants = makuuchi.concat(juryo);
 
@@ -117,6 +124,19 @@ export const runTopDivisionBasho = (
   if (!player) {
     throw new Error('Player participant was not initialized for top division basho');
   }
+  const playerBashoFormDelta =
+    simulationModelVersion === 'unified-v3-variance'
+      ? (
+        Number.isFinite(forcedPlayerBashoFormDelta)
+          ? (forcedPlayerBashoFormDelta as number)
+          : resolveBashoFormDelta({
+            uncertainty: status.ratingState.uncertainty,
+            volatility: 1.2,
+            rng,
+          }).bashoFormDelta
+      )
+      : 0;
+  player.bashoFormDelta = playerBashoFormDelta;
   if (resolveInjuryParticipation(status).mustSitOut) {
     player.active = false;
   }
@@ -129,6 +149,8 @@ export const runTopDivisionBasho = (
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    simulationModelVersion,
+    rng,
     facedMap: createFacedMap(participants),
     dayEligibility: () => true,
     onPair: ({ a, b }, day) => {
@@ -219,6 +241,7 @@ export const runTopDivisionBasho = (
         return;
       }
 
+      const enemyPowerNoise = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.5;
       const enemy = {
         shikona: opponent.shikona,
         rankValue: resolveTopDivisionRankValue(
@@ -226,11 +249,12 @@ export const runTopDivisionBasho = (
           opponent.rankScore,
           world.makuuchiLayout,
         ),
-        power: Math.round(opponent.power + (rng() * 2 - 1) * 1.5),
-        ability: opponent.ability ?? opponent.power,
+        power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
+        ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? (opponentDivision === 'Makuuchi' ? 188 : 186),
         weightKg: opponent.weightKg ?? (opponentDivision === 'Makuuchi' ? 160 : 152),
+        aptitudeFactor: opponent.aptitudeFactor,
       };
 
       const isLastDay = day === numBouts;
@@ -247,6 +271,7 @@ export const runTopDivisionBasho = (
         isLastDay,
         isYushoContention,
         previousResult,
+        bashoFormDelta: playerBashoFormDelta,
       };
 
       const result = calculateBattleResult(
@@ -332,8 +357,8 @@ export const runTopDivisionBasho = (
   const juryoParticipants = toDivisionParticipants(
     participants.filter((participant) => participant.division === 'Juryo'),
   );
-  evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng);
-  evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng);
+  evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng, simulationModelVersion);
+  evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng, simulationModelVersion);
 
   const divisionParticipants = division === 'Makuuchi' ? makuuchiParticipants : juryoParticipants;
   const divisionResults = world.lastBashoResults[division] ?? [];

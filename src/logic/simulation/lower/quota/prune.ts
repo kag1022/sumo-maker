@@ -21,6 +21,8 @@ export const pruneRetiredLowerRosters = (world: LowerDivisionQuotaWorld): void =
           styleBias: persistent.styleBias,
           heightCm: persistent.heightCm,
           weightKg: persistent.weightKg,
+          aptitudeTier: persistent.aptitudeTier,
+          aptitudeFactor: persistent.aptitudeFactor,
           growthBias: persistent.growthBias,
           retirementBias: persistent.retirementBias,
           retirementProfile: persistent.retirementProfile,

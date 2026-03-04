@@ -19,6 +19,7 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from '../../modelVersion';
+import { resolveBashoFormDelta } from '../../variance/bashoVariance';
 import { evolveDivisionRoster } from './rosterEvolution';
 
 export type LowerLeagueSnapshots = Record<LowerDivision, BoundarySnapshot[]>;
@@ -27,6 +28,7 @@ const createDivisionParticipants = (
   world: LowerDivisionQuotaWorld,
   division: LowerDivision,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion,
 ): DivisionParticipant[] => {
   const range = POWER_RANGE[division];
   return world.rosters[division]
@@ -37,6 +39,14 @@ const createDivisionParticipants = (
       const registryNpc = world.npcRegistry.get(npc.id);
       const shikona = registryNpc?.shikona ?? npc.shikona;
       const stableId = registryNpc?.stableId ?? npc.stableId;
+      const variance = simulationModelVersion === 'unified-v3-variance'
+        ? resolveBashoFormDelta({
+          uncertainty: npc.uncertainty,
+          volatility: npc.volatility,
+          rng,
+        })
+        : undefined;
+      const bashoFormDelta = variance?.bashoFormDelta ?? 0;
       const seasonalPower =
         npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 0.9);
       const seasonalAbility =
@@ -51,9 +61,12 @@ const createDivisionParticipants = (
         rankScore: npc.rankScore,
         power: clamp(seasonalPower, range.min, range.max),
         ability: seasonalAbility,
+        bashoFormDelta,
         styleBias: npc.styleBias,
         heightCm: npc.heightCm,
         weightKg: npc.weightKg,
+        aptitudeTier: npc.aptitudeTier,
+        aptitudeFactor: npc.aptitudeFactor,
         wins: 0,
         losses: 0,
         currentWinStreak: 0,
@@ -108,9 +121,12 @@ const toDivisionParticipants = (
     rankScore: participant.rankScore,
     power: participant.power,
     ability: participant.ability,
+    bashoFormDelta: participant.bashoFormDelta,
     styleBias: participant.styleBias,
     heightCm: participant.heightCm,
     weightKg: participant.weightKg,
+    aptitudeTier: participant.aptitudeTier,
+    aptitudeFactor: participant.aptitudeFactor,
     wins: participant.wins,
     losses: participant.losses,
     currentWinStreak: participant.currentWinStreak,
@@ -128,7 +144,7 @@ export const simulateLowerLeagueBasho = (
 ): LowerLeagueSnapshots => {
   const divisions: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
   const participants = divisions.flatMap((division) =>
-    createDivisionParticipants(world, division, rng).map((participant) =>
+    createDivisionParticipants(world, division, rng, simulationModelVersion).map((participant) =>
       toTorikumiLowerParticipant(division, participant),
     ),
   );
@@ -142,6 +158,8 @@ export const simulateLowerLeagueBasho = (
       band.id === 'MakushitaSandanme' ||
       band.id === 'SandanmeJonidan' ||
       band.id === 'JonidanJonokuchi'),
+    simulationModelVersion,
+    rng,
     facedMap,
     dayEligibility: (participant, day) => resolveLowerDivisionEligibility(participant, day, dayMap),
     onPair: ({ a, b }) => {
@@ -181,6 +199,7 @@ export const simulateLowerLeagueBasho = (
         participants.filter((participant) => participant.division === division),
       ),
       rng,
+      simulationModelVersion,
     );
   }
 
