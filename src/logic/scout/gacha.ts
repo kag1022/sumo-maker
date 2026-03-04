@@ -1,6 +1,11 @@
-import { CONSTANTS } from '../constants';
+import {
+  CONSTANTS,
+  resolveAptitudeFactor,
+  rollAptitudeTier,
+} from '../constants';
 import { createInitialRikishi } from '../initialization';
 import {
+  AptitudeTier,
   BaseAbilityDNA,
   BasicProfile,
   BodyMetrics,
@@ -77,6 +82,8 @@ export interface ScoutDraft {
   history: ScoutHistory;
   entryDivision: EntryDivision;
   archetype: TalentArchetype;
+  aptitudeTier: AptitudeTier;
+  aptitudeFactor: number;
   tactics: TacticsType;
   signatureMove: string;
   bodyType: BodyType;
@@ -473,6 +480,8 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const bodyType = rollBodyType(rng);
   const traitSlots = rollTraitCount(rng);
   const archetype = PICK_LIST(rng, Object.keys(CONSTANTS.TALENT_ARCHETYPES) as TalentArchetype[]);
+  const aptitudeTier = rollAptitudeTier(rng);
+  const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
   const growthType = PICK_LIST(rng, Object.keys(CONSTANTS.GROWTH_PARAMS) as string[]);
   const genomeDraft = rollGenomeDraft(archetype, growthType, rng);
   const baseDraft: ScoutDraft = {
@@ -481,6 +490,8 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     history,
     entryDivision,
     archetype,
+    aptitudeTier,
+    aptitudeFactor,
     tactics: PICK_LIST(rng, Object.keys(CONSTANTS.TACTICAL_GROWTH_MODIFIERS) as TacticsType[]),
     signatureMove: PICK_LIST(rng, Object.keys(CONSTANTS.SIGNATURE_MOVE_DATA)),
     bodyType,
@@ -586,6 +597,8 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
     age: history.age,
     startingRank: resolveRankFromHistory(draft.history, draft.entryDivision),
     archetype: draft.archetype,
+    aptitudeTier: draft.aptitudeTier,
+    aptitudeFactor: draft.aptitudeFactor,
     tactics: draft.tactics,
     signatureMove: draft.signatureMove,
     bodyType: draft.bodyType,

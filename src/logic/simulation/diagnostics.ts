@@ -18,4 +18,9 @@ export interface SimulationDiagnostics {
   reason?: string;
   simulationModelVersion: SimulationModelVersion;
   banzukeEngineVersion?: BanzukeEngineVersion;
+  bashoVariance?: {
+    playerBashoFormDelta: number;
+    conditionBefore: number;
+    conditionAfter: number;
+  };
 }

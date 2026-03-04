@@ -35,6 +35,7 @@ import {
   SekitoriBoundaryWorld,
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
+import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
 import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
@@ -184,6 +185,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   if (!playerTopDivision) {
     simulateOffscreenSekitoriBasho(world, deps.random, simulationModelVersion);
   }
+  const conditionBeforeBasho = state.status.currentCondition;
+  const playerBashoFormDelta =
+    simulationModelVersion === 'unified-v3-variance'
+      ? resolveBashoFormDelta({
+        uncertainty: state.status.ratingState.uncertainty,
+        volatility: 1.2,
+        rng: deps.random,
+      }).bashoFormDelta
+      : 0;
 
   const bashoResult: BashoSimulationResult = runBashoDetailed(
     state.status,
@@ -193,6 +203,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     world,
     lowerDivisionQuotaWorld,
     simulationModelVersion,
+    playerBashoFormDelta,
   );
   const bashoRecord = bashoResult.playerRecord;
   const lowerPlayerRecord: PlayerLowerRecord | undefined =
@@ -313,6 +324,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
   state.status = applyGrowth(state.status, params.oyakata, isNewInjury, deps.random);
+  if (simulationModelVersion === 'unified-v3-variance') {
+    state.status.currentCondition = updateConditionForV3({
+      previousCondition: conditionBeforeBasho,
+      actualWins: bashoRecord.wins,
+      expectedWins: bashoRecord.expectedWins ?? bashoRecord.wins,
+      bashoFormDelta: playerBashoFormDelta,
+      rng: deps.random,
+    });
+  }
   syncPlayerActorInWorld(world, state.status, deps.random);
 
   state.seq += 1;
@@ -361,6 +381,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     reason: rankChange.event,
     simulationModelVersion,
     banzukeEngineVersion,
+    ...(simulationModelVersion === 'unified-v3-variance'
+      ? {
+        bashoVariance: {
+          playerBashoFormDelta,
+          conditionBefore: conditionBeforeBasho,
+          conditionAfter: state.status.currentCondition,
+        },
+      }
+      : {}),
   };
 
   const sekitoriNpc = buildSekitoriNpcRecords(world, world.makuuchiLayout);

@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { AptitudeTier, Rank } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { NpcRegistry } from '../npc/types';
 
@@ -15,6 +15,8 @@ export type MakushitaNpc = {
   styleBias?: EnemyStyleBias;
   heightCm?: number;
   weightKg?: number;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   growthBias?: number;
 };
 

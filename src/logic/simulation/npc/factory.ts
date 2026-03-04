@@ -1,4 +1,5 @@
 import { Division } from '../../models';
+import { resolveAptitudeFactor, rollAptitudeTier } from '../../constants';
 import {
   ENEMY_SEED_POOL,
   EnemySeedProfile,
@@ -74,6 +75,8 @@ const createNpc = (
     abilityDist.mean * 0.1 +
     randomNoise(rng, abilityDist.sigma * 0.45) +
     seed.growthBias * 5.2;
+  const aptitudeTier = rollAptitudeTier(rng);
+  const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
   const retirementProfile = resolveRetirementProfileByRoll(rng());
   return {
     actorId: `NPC-${serial}`,
@@ -94,6 +97,8 @@ const createNpc = (
     heightCm: body.heightCm,
     weightKg: body.weightKg,
     growthBias: seed.growthBias,
+    aptitudeTier,
+    aptitudeFactor,
     retirementBias: seed.retirementBias,
     retirementProfile,
     entryAge,

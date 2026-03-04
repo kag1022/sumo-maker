@@ -1,4 +1,5 @@
 import {
+  AptitudeTier,
   BasicProfile,
   BodyMetrics,
   BodyType,
@@ -14,7 +15,12 @@ import {
   IchimonId,
   StableArchetypeId,
 } from './models';
-import { CONSTANTS } from './constants';
+import {
+  CONSTANTS,
+  DEFAULT_APTITUDE_FACTOR,
+  DEFAULT_APTITUDE_TIER,
+  resolveAptitudeFactor,
+} from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
 import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 
@@ -23,6 +29,8 @@ export interface CreateInitialRikishiParams {
   age: number;
   startingRank: Rank;
   archetype: TalentArchetype;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   tactics: TacticsType;
   signatureMove: string;
   bodyType: BodyType;
@@ -52,6 +60,9 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
   MUSCULAR: { heightCm: 184, weightKg: 152 },
 };
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
 /**
  * DNA の BaseAbilityDNA ceiling 値から stat ごとのボーナスを算出する。
  * ceiling が高いほどその系統の初期値が高くなる。
@@ -77,7 +88,16 @@ export const createInitialRikishi = (
 ): RikishiStatus => {
   const archData = CONSTANTS.TALENT_ARCHETYPES[params.archetype];
   const [minPot, maxPot] = archData.potentialRange;
-  const potential = minPot + Math.floor(random() * (maxPot - minPot + 1));
+  const potentialBase = minPot + Math.floor(random() * (maxPot - minPot + 1));
+  const aptitudeTier = params.aptitudeTier ?? DEFAULT_APTITUDE_TIER;
+  const aptitudeFactor = Number.isFinite(params.aptitudeFactor)
+    ? Math.max(0.3, params.aptitudeFactor as number)
+    : resolveAptitudeFactor(aptitudeTier, DEFAULT_APTITUDE_FACTOR);
+  const potential = clamp(
+    Math.round(50 + (potentialBase - 50) * aptitudeFactor),
+    1,
+    100,
+  );
 
   const stats: RikishiStatus['stats'] = {
     tsuki: 20,
@@ -113,8 +133,10 @@ export const createInitialRikishi = (
   }
 
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
-    stats[k] += Math.floor(random() * 11) - 5;
+    stats[k] += Math.floor(random() * 19) - 9;
     stats[k] = Math.max(1, stats[k]);
+    const scaledBase = Math.max(20, stats[k]);
+    stats[k] = Math.max(1, Math.round(20 + (scaledBase - 20) * aptitudeFactor));
   });
 
   const entryDivision =
@@ -154,6 +176,8 @@ export const createInitialRikishi = (
     potential,
     growthType: params.growthType ?? 'NORMAL',
     archetype: params.archetype,
+    aptitudeTier,
+    aptitudeFactor,
     entryDivision,
     tactics: params.tactics,
     signatureMoves: [params.signatureMove],

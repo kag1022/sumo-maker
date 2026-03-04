@@ -57,7 +57,7 @@ export const runLowerDivisionQuotaStep = (
     precomputedLeagueResults ??
     simulateLowerLeagueBasho(world, rng, simulationModelVersion);
   if (precomputedLeagueResults) {
-    evolveLowerLeagueFromSnapshots(world, lowerLeagueRaw, rng);
+    evolveLowerLeagueFromSnapshots(world, lowerLeagueRaw, rng, simulationModelVersion);
   }
   const slotsByDivision: Record<LowerDivision, number> = {
     Makushita: world.rosters.Makushita.length,

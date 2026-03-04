@@ -26,6 +26,8 @@ const toWorldRikishiFromActor = (
   styleBias: actor.styleBias,
   heightCm: actor.heightCm,
   weightKg: actor.weightKg,
+  aptitudeTier: actor.aptitudeTier,
+  aptitudeFactor: actor.aptitudeFactor,
 });
 
 const parseActorNumericId = (id: string): number => {
@@ -78,6 +80,8 @@ const syncTopRosterNamesFromRegistry = (world: SimulationWorld): void => {
         ...rikishi,
         shikona: actor.shikona,
         stableId: actor.stableId,
+        aptitudeTier: actor.aptitudeTier,
+        aptitudeFactor: actor.aptitudeFactor,
       };
     });
   }
@@ -92,6 +96,8 @@ const syncLowerSeedsFromRegistry = (world: SimulationWorld): void => {
         ...npc,
         shikona: actor.shikona,
         stableId: actor.stableId,
+        aptitudeTier: actor.aptitudeTier,
+        aptitudeFactor: actor.aptitudeFactor,
       };
     });
   }
@@ -103,6 +109,8 @@ const syncLowerSeedsFromRegistry = (world: SimulationWorld): void => {
       ...npc,
       shikona: actor.shikona,
       stableId: actor.stableId,
+      aptitudeTier: actor.aptitudeTier,
+      aptitudeFactor: actor.aptitudeFactor,
     };
   });
 };

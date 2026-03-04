@@ -1,6 +1,7 @@
 import { RandomSource } from '../../deps';
 import { clamp, randomNoise } from '../../boundary/shared';
 import { DivisionParticipant } from '../../matchmaking';
+import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../../modelVersion';
 import { pushNpcBashoResult } from '../../npc/retirement';
 import {
   BoundarySnapshot,
@@ -16,6 +17,7 @@ export const evolveDivisionRoster = (
   division: LowerDivision,
   participants: DivisionParticipant[],
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
   const byId = new Map(participants.filter((p) => !p.isPlayer).map((p) => [p.id, p]));
   const range = POWER_RANGE[division];
@@ -35,7 +37,12 @@ export const evolveDivisionRoster = (
         : npc.basePower * npc.form;
       const updatedNpc = {
         ...npc,
-        ability: baseAbility + performanceOverExpected * 1.0 + diff * 0.25 + randomNoise(rng, 0.5),
+        ability:
+          baseAbility +
+          performanceOverExpected * 1.0 +
+          diff * 0.25 +
+          (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.45 : 0) +
+          randomNoise(rng, 0.5),
         uncertainty: clamp(
           (Number.isFinite(npc.uncertainty) ? (npc.uncertainty as number) : 2.1) * 0.975 +
           Math.min(0.14, Math.abs(performanceOverExpected) * 0.012),
@@ -48,9 +55,15 @@ export const evolveDivisionRoster = (
           range.max,
         ),
         form: clamp(
-          npc.form * 0.67 + (1 + diff * 0.01 + randomNoise(rng, 0.045)) * 0.33,
-          0.86,
-          1.14,
+          npc.form * 0.67 +
+          (
+            1 +
+            diff * 0.01 +
+            (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.008 : 0) +
+            randomNoise(rng, 0.045)
+          ) * 0.33,
+          simulationModelVersion === 'unified-v3-variance' ? 0.8 : 0.86,
+          simulationModelVersion === 'unified-v3-variance' ? 1.2 : 1.14,
         ),
         rankScore: clamp(npc.rankScore - diff * 0.55 + randomNoise(rng, 0.24), 1, 999),
       };
@@ -93,6 +106,8 @@ const buildDivisionParticipantsFromSnapshot = (
       styleBias: npc.styleBias,
       heightCm: npc.heightCm,
       weightKg: npc.weightKg,
+      aptitudeTier: npc.aptitudeTier,
+      aptitudeFactor: npc.aptitudeFactor,
       wins: snapshot?.wins ?? 0,
       losses: snapshot?.losses ?? 0,
       currentWinStreak: 0,
@@ -114,6 +129,8 @@ const buildDivisionParticipantsFromSnapshot = (
       styleBias: 'BALANCE',
       heightCm: 180,
       weightKg: 130,
+      aptitudeTier: 'B',
+      aptitudeFactor: 1,
       wins: playerSnapshot.wins,
       losses: playerSnapshot.losses,
       currentWinStreak: 0,
@@ -129,6 +146,7 @@ export const evolveLowerLeagueFromSnapshots = (
   world: LowerDivisionQuotaWorld,
   snapshotsByDivision: LowerLeagueSnapshots,
   rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
   for (const division of ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'] as const) {
     const snapshots = snapshotsByDivision[division] ?? [];
@@ -138,6 +156,7 @@ export const evolveLowerLeagueFromSnapshots = (
       division,
       buildDivisionParticipantsFromSnapshot(world, division, snapshots),
       rng,
+      simulationModelVersion,
     );
   }
 };

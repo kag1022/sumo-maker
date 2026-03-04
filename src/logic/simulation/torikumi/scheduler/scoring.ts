@@ -10,6 +10,7 @@ import {
 } from '../policy';
 import { BoundaryId, TorikumiParticipant } from '../types';
 import { REALISM_V1_BALANCE } from '../../../balance/realismV1';
+import { SimulationModelVersion } from '../../modelVersion';
 
 export const resolveRankNumber = (participant: TorikumiParticipant): number =>
   participant.rankNumber ?? Math.floor((participant.rankScore - 1) / 2) + 1;
@@ -62,15 +63,26 @@ export const resolvePairScore = (
     boundaryNeed?: number;
     phase?: PairEvalPhase;
     boundaryId?: BoundaryId;
+    simulationModelVersion?: SimulationModelVersion;
   },
 ): number => {
   const boundaryNeed = options?.boundaryNeed ?? 0;
   const phase = options?.phase ?? (day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY ? 'LATE' : 'MID');
-  const scoreWeight = Math.min(
+  const simulationModelVersion = options?.simulationModelVersion ?? 'unified-v2-kimarite';
+  let scoreWeight = Math.min(
     REALISM_V1_BALANCE.torikumi.sameScoreWeightCap,
     scoreDistanceWeight(day),
   );
-  const rankWeight = rankDistanceWeight(day);
+  let rankWeight = rankDistanceWeight(day);
+  if (simulationModelVersion === 'unified-v3-variance') {
+    if (day >= 6 && day <= 10) {
+      scoreWeight *= 0.7;
+      rankWeight *= 1.15;
+    } else if (day >= 11) {
+      scoreWeight *= 0.8;
+      rankWeight *= 1.1;
+    }
+  }
   const lossWeight = Math.max(4, Math.round(scoreWeight * 0.1));
   let score =
     Math.abs(a.wins - b.wins) * scoreWeight +

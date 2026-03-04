@@ -1,3 +1,4 @@
+import { AptitudeTier } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 
 export type DivisionParticipant = {
@@ -9,9 +10,12 @@ export type DivisionParticipant = {
   rankScore: number;
   power: number;
   ability?: number;
+  bashoFormDelta?: number;
   styleBias?: EnemyStyleBias;
   heightCm?: number;
   weightKg?: number;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   wins: number;
   losses: number;
   currentWinStreak?: number;

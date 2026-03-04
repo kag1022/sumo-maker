@@ -16,6 +16,11 @@ import { DivisionParticipant } from './types';
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
 
+const resolveAptitudeFactor = (value?: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.3, value as number);
+};
+
 const resolveSignedStreak = (
   winStreak?: number,
   lossStreak?: number,
@@ -57,7 +62,7 @@ const resolveNpcWinProbability = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
-  _simulationModelVersion: SimulationModelVersion,
+  simulationModelVersion: SimulationModelVersion,
 ): number => {
   const aStreakMomentum = calculateMomentumBonus(
     resolveSignedStreak(a.currentWinStreak, a.currentLossStreak),
@@ -67,19 +72,24 @@ const resolveNpcWinProbability = (
   );
   const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
   const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
+  const boutNoiseAmplitude = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
+  const aAptitudeFactor = resolveAptitudeFactor(a.aptitudeFactor);
+  const bAptitudeFactor = resolveAptitudeFactor(b.aptitudeFactor);
+  const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
+  const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
   const aAbility = resolveUnifiedNpcStrength({
-    ability: a.ability,
+    ability: aAbilityWithShock,
     power: a.power,
     momentum: aMomentum,
-    noise: randomNoise(rng, 1.4),
-  }) * resolveStablePerformanceFactor(a.stableId);
+    noise: randomNoise(rng, boutNoiseAmplitude),
+  }) * resolveStablePerformanceFactor(a.stableId) * aAptitudeFactor;
   const bAbility = resolveUnifiedNpcStrength({
-    ability: b.ability,
+    ability: bAbilityWithShock,
     power: b.power,
     momentum: bMomentum,
-    noise: randomNoise(rng, 1.4),
-  }) * resolveStablePerformanceFactor(b.stableId);
+    noise: randomNoise(rng, boutNoiseAmplitude),
+  }) * resolveStablePerformanceFactor(b.stableId) * bAptitudeFactor;
   return resolveBoutWinProb({
     attackerAbility: aAbility,
     defenderAbility: bAbility,
@@ -126,15 +136,15 @@ export const simulateNpcBout = (
   b.currentLossStreak = Math.max(0, b.currentLossStreak ?? 0);
   const aWinProbability = resolveNpcWinProbability(a, b, rng, simulationModelVersion);
   const aAbility = resolveUnifiedNpcStrength({
-    ability: a.ability,
+    ability: (a.ability ?? a.power) + (a.bashoFormDelta ?? 0),
     power: a.power,
     momentum: (a.wins - a.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(a.currentWinStreak, a.currentLossStreak)),
-  });
+  }) * resolveAptitudeFactor(a.aptitudeFactor);
   const bAbility = resolveUnifiedNpcStrength({
-    ability: b.ability,
+    ability: (b.ability ?? b.power) + (b.bashoFormDelta ?? 0),
     power: b.power,
     momentum: (b.wins - b.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(b.currentWinStreak, b.currentLossStreak)),
-  });
+  }) * resolveAptitudeFactor(b.aptitudeFactor);
   a.expectedWins = (a.expectedWins ?? 0) + aWinProbability;
   b.expectedWins = (b.expectedWins ?? 0) + (1 - aWinProbability);
   a.opponentAbilityTotal = (a.opponentAbilityTotal ?? 0) + bAbility;

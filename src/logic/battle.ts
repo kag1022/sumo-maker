@@ -44,6 +44,7 @@ export interface BoutContext {
   isLastDay: boolean;   // 千秋楽かどうか
   isYushoContention: boolean; // 優勝がかかっているか
   previousResult?: 'WIN' | 'LOSS' | 'ABSENT';
+  bashoFormDelta?: number;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -51,6 +52,11 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const resolveSignedStreak = (winStreak: number, lossStreak: number): number =>
   winStreak > 0 ? winStreak : lossStreak > 0 ? -lossStreak : 0;
+
+const resolveAptitudeBattleFactor = (value?: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.3, value as number);
+};
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
@@ -315,9 +321,16 @@ const resolveBattleResultV1 = (
         rikishi.tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
           'BALANCE';
   const bonus = myPower - baselinePower;
-  const enemyAbility = enemy.ability ?? enemy.power;
+  const playerAptitudeFactor = resolveAptitudeBattleFactor(rikishi.aptitudeFactor);
+  const enemyAptitudeFactor = resolveAptitudeBattleFactor(enemy.aptitudeFactor);
+  const enemyAbilityRaw =
+    (enemy.ability ?? enemy.power) +
+    ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
+  const enemyAbility = enemyAbilityRaw * enemyAptitudeFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
-  const myAbility = resolvePlayerAbility(rikishi, baseMetrics, bonus);
+  const myAbilityBase =
+    resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
+  const myAbility = myAbilityBase * playerAptitudeFactor;
   const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
   const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
   const momentumDelta = myMomentum - opponentMomentum;
@@ -527,9 +540,16 @@ const resolveBattleResultV2 = (
   const kimariteDelta = clamp(kimariteDeltaRaw * 0.08, -0.06, 0.06);
 
   const bonus = myPower - baselinePower;
-  const enemyAbility = enemy.ability ?? enemy.power;
+  const playerAptitudeFactor = resolveAptitudeBattleFactor(rikishi.aptitudeFactor);
+  const enemyAptitudeFactor = resolveAptitudeBattleFactor(enemy.aptitudeFactor);
+  const enemyAbilityRaw =
+    (enemy.ability ?? enemy.power) +
+    ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
+  const enemyAbility = enemyAbilityRaw * enemyAptitudeFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
-  const myAbility = resolvePlayerAbility(rikishi, baseMetrics, bonus);
+  const myAbilityBase =
+    resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
+  const myAbility = myAbilityBase * playerAptitudeFactor;
   const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
   const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
   const momentumDelta = myMomentum - opponentMomentum;
@@ -577,7 +597,10 @@ export const calculateBattleResult = (
   rng: RandomSource = Math.random,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): { isWin: boolean; kimarite: string; winProbability: number; opponentAbility: number } => {
-  if (simulationModelVersion === 'unified-v2-kimarite') {
+  if (
+    simulationModelVersion === 'unified-v2-kimarite' ||
+    simulationModelVersion === 'unified-v3-variance'
+  ) {
     return resolveBattleResultV2(rikishi, enemy, context, rng);
   }
   return resolveBattleResultV1(rikishi, enemy, context, rng, simulationModelVersion);

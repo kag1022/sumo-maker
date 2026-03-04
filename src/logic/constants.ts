@@ -1,4 +1,4 @@
-import { BodyType, Division, InjuryType, Rarity, TalentArchetype, Trait } from './models';
+import { AptitudeTier, BodyType, Division, InjuryType, Rarity, TalentArchetype, Trait } from './models';
 
 export const CONSTANTS = {
   // 力士設定
@@ -45,6 +45,15 @@ export const CONSTANTS = {
     'HIGH_SCHOOL_CHAMP': { name: '高校横綱', description: '高校相撲界の覇者。将来性は抜群。', potentialRange: [60, 90], initialStatBonus: 15 },
     'STREET_FIGHTER': { name: '喧嘩屋', description: '荒削りだが、強烈な闘争心を持つ。', potentialRange: [50, 90], initialStatBonus: 20 }
   } as Record<TalentArchetype, { name: string, description: string, potentialRange: [number, number], initialStatBonus: number, canTsukedashi?: boolean }>,
+
+  // 素質ランク定義（5段階 + 隠し係数）
+  APTITUDE_TIER_DATA: {
+    S: { label: 'S', name: '逸材', weight: 1, factor: 1.2 },
+    A: { label: 'A', name: '秀才', weight: 7, factor: 1.08 },
+    B: { label: 'B', name: '標準', weight: 42, factor: 1.0 },
+    C: { label: 'C', name: '晩成', weight: 30, factor: 0.50 },
+    D: { label: 'D', name: '未完', weight: 20, factor: 0.25 },
+  } as Record<AptitudeTier, { label: string; name: string; weight: number; factor: number }>,
 
   // 得意技データ
   SIGNATURE_MOVE_DATA: {
@@ -367,4 +376,36 @@ export const CONSTANTS = {
     // 予算コスト上限
     DNA_OVERRIDE_COST_MAX: 500,
   },
+};
+
+export const DEFAULT_APTITUDE_TIER: AptitudeTier = 'B';
+export const DEFAULT_APTITUDE_FACTOR = 1.0;
+
+export const APTITUDE_TIERS: AptitudeTier[] = ['S', 'A', 'B', 'C', 'D'];
+
+export const resolveAptitudeFactor = (
+  tier?: AptitudeTier,
+  fallback: number = DEFAULT_APTITUDE_FACTOR,
+): number => {
+  const factor = tier ? CONSTANTS.APTITUDE_TIER_DATA[tier]?.factor : undefined;
+  if (!Number.isFinite(factor)) return fallback;
+  return Math.max(0.3, factor as number);
+};
+
+export const resolveAptitudeTierLabel = (tier?: AptitudeTier): string => {
+  if (!tier) return DEFAULT_APTITUDE_TIER;
+  return CONSTANTS.APTITUDE_TIER_DATA[tier]?.label ?? tier;
+};
+
+export const rollAptitudeTier = (rng: () => number = Math.random): AptitudeTier => {
+  const totalWeight = APTITUDE_TIERS.reduce(
+    (sum, tier) => sum + CONSTANTS.APTITUDE_TIER_DATA[tier].weight,
+    0,
+  );
+  let point = rng() * totalWeight;
+  for (const tier of APTITUDE_TIERS) {
+    point -= CONSTANTS.APTITUDE_TIER_DATA[tier].weight;
+    if (point <= 0) return tier;
+  }
+  return DEFAULT_APTITUDE_TIER;
 };

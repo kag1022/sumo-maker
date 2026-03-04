@@ -53,6 +53,8 @@ export const scheduleTorikumiBasho = (
   const days = params.days.slice().sort((a, b) => a - b);
   const lateEvalStartDay = params.lateEvalStartDay ?? DEFAULT_TORIKUMI_LATE_EVAL_START_DAY;
   const vacancyByDivision = params.vacancyByDivision ?? {};
+  const simulationModelVersion = params.simulationModelVersion ?? 'unified-v2-kimarite';
+  const rng = params.rng;
   const canFightOnDay =
     params.dayEligibility ??
     ((_participant: TorikumiParticipant, day: number): boolean => day >= 1 && day <= 15);
@@ -93,7 +95,14 @@ export const scheduleTorikumiBasho = (
         reservedIds.size > 0
           ? pool.filter((participant) => !reservedIds.has(participant.id))
           : pool;
-      const within = pairWithinDivision(poolForWithin, faced, day, lateEvalStartDay);
+      const within = pairWithinDivision(
+        poolForWithin,
+        faced,
+        day,
+        lateEvalStartDay,
+        simulationModelVersion,
+        rng,
+      );
       dayPairs.push(...within.pairs);
       leftoversByDivision.set(
         division,
@@ -151,6 +160,8 @@ export const scheduleTorikumiBasho = (
         effectiveUpper,
         effectiveLower,
         reasons,
+        simulationModelVersion,
+        rng,
       );
       if (!boundaryPairs.length) continue;
 
@@ -169,7 +180,14 @@ export const scheduleTorikumiBasho = (
 
     for (const [division, leftovers] of leftoversByDivision.entries()) {
       if (leftovers.length < 2) continue;
-      const retry = pairWithinDivision(leftovers, faced, day, lateEvalStartDay);
+      const retry = pairWithinDivision(
+        leftovers,
+        faced,
+        day,
+        lateEvalStartDay,
+        simulationModelVersion,
+        rng,
+      );
       dayPairs.push(...retry.pairs);
       leftoversByDivision.set(division, retry.leftovers);
     }

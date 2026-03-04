@@ -14,7 +14,7 @@ export const simulateOffscreenTopDivisionBasho = (
   rng: RandomSource,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
-  const participants = createDivisionParticipants(world, division, rng);
+  const participants = createDivisionParticipants(world, division, rng, simulationModelVersion);
   const facedMap = createFacedMap(participants);
 
   for (let day = 1; day <= 15; day += 1) {
@@ -25,7 +25,7 @@ export const simulateOffscreenTopDivisionBasho = (
     }
   }
 
-  evolveDivisionAfterBasho(world, division, participants, rng);
+  evolveDivisionAfterBasho(world, division, participants, rng, simulationModelVersion);
 };
 
 export const simulateOffscreenSekitoriBasho = (
@@ -33,10 +33,10 @@ export const simulateOffscreenSekitoriBasho = (
   rng: RandomSource,
   simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
-  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng).map((participant) =>
+  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng, simulationModelVersion).map((participant) =>
     toTorikumiParticipant('Makuuchi', participant, world),
   );
-  const juryo = createDivisionParticipants(world, 'Juryo', rng).map((participant) =>
+  const juryo = createDivisionParticipants(world, 'Juryo', rng, simulationModelVersion).map((participant) =>
     toTorikumiParticipant('Juryo', participant, world),
   );
   const participants = makuuchi.concat(juryo);
@@ -45,6 +45,8 @@ export const simulateOffscreenSekitoriBasho = (
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    simulationModelVersion,
+    rng,
     facedMap: createFacedMap(participants),
     onPair: ({ a, b }) => {
       simulateNpcBout(a, b, rng, simulationModelVersion);
@@ -56,11 +58,13 @@ export const simulateOffscreenSekitoriBasho = (
     'Makuuchi',
     toDivisionParticipants(participants.filter((participant) => participant.division === 'Makuuchi')),
     rng,
+    simulationModelVersion,
   );
   evolveDivisionAfterBasho(
     world,
     'Juryo',
     toDivisionParticipants(participants.filter((participant) => participant.division === 'Juryo')),
     rng,
+    simulationModelVersion,
   );
 };

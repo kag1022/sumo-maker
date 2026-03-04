@@ -1,6 +1,7 @@
 // 力士の素質タイプ (アーキタイプ)
 export type TalentArchetype = 'MONSTER' | 'GENIUS' | 'HARD_WORKER' | 'AVG_JOE' | 
                               'UNIVERSITY_YOKOZUNA' | 'HIGH_SCHOOL_CHAMP' | 'STREET_FIGHTER';
+export type AptitudeTier = 'S' | 'A' | 'B' | 'C' | 'D';
 
 // 入門区分
 export type EntryDivision = 'Maezumo' | 'Makushita60' | 'Sandanme90';
@@ -182,6 +183,8 @@ export interface RikishiStatus {
   growthType: GrowthType;
   tactics: TacticsType;    // 戦術タイプ
   archetype?: TalentArchetype; // 素質タイプ
+  aptitudeTier: AptitudeTier; // 素質ランク
+  aptitudeFactor: number; // 隠し素質係数
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   bodyType: BodyType;          // 体格タイプ

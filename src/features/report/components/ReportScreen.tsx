@@ -2,7 +2,7 @@ import React from "react";
 import { RankScaleSlots, RikishiStatus, Rank, Rarity } from "../../../logic/models";
 import { getRankValueForChart } from "../../../logic/ranking";
 import { LIMITS, resolveRankLimits, resolveRankSlotOffset } from "../../../logic/banzuke/scale/rankLimits";
-import { CONSTANTS } from "../../../logic/constants";
+import { CONSTANTS, resolveAptitudeTierLabel } from "../../../logic/constants";
 import { Button } from "../../../shared/ui/Button";
 import { DamageMap } from "../../../shared/ui/DamageMap";
 import {
@@ -406,6 +406,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               ["性格", PERSONALITY_LABELS[status.profile?.personality || "CALM"] || "冷静"],
               ["体格", `${Math.round(status.bodyMetrics?.heightCm || 0)}cm / ${Math.round(status.bodyMetrics?.weightKg || 0)}kg`],
               ["体型", status.bodyType && CONSTANTS.BODY_TYPE_DATA[status.bodyType] ? CONSTANTS.BODY_TYPE_DATA[status.bodyType].name : "不明"],
+              ["素質ランク", resolveAptitudeTierLabel(status.aptitudeTier)],
             ].map(([k, v]) => (
               <div key={k} className="data-row">
                 <span className="data-key">{k}</span>

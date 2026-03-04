@@ -1,4 +1,7 @@
 import { EnemyStyleBias } from '../../catalog/enemyData';
+import { AptitudeTier } from '../../models';
+import { RandomSource } from '../deps';
+import { SimulationModelVersion } from '../modelVersion';
 
 export type TorikumiDivision =
   | 'Makuuchi'
@@ -50,9 +53,12 @@ export type TorikumiParticipant = {
   forbiddenOpponentIds?: string[];
   power: number;
   ability?: number;
+  bashoFormDelta?: number;
   styleBias?: EnemyStyleBias;
   heightCm?: number;
   weightKg?: number;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   wins: number;
   losses: number;
   currentWinStreak?: number;
@@ -98,6 +104,8 @@ export type ScheduleTorikumiBashoParams = {
   participants: TorikumiParticipant[];
   days: number[];
   boundaryBands: BoundaryBandSpec[];
+  simulationModelVersion?: SimulationModelVersion;
+  rng?: RandomSource;
   facedMap?: Map<string, Set<string>>;
   lateEvalStartDay?: number;
   vacancyByDivision?: Partial<Record<TorikumiDivision, number>>;
