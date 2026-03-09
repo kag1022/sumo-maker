@@ -15,7 +15,9 @@ const toHalfStep = (rank: Rank): number => {
 };
 
 const createStatus = (rank: Rank, base: number): RikishiStatus => ({
-  heyaId: 'quantile-check',
+  stableId: 'stable-001',
+  ichimonId: 'TAIJU',
+  stableArchetypeId: 'MASTER_DISCIPLE',
   shikona: '分析山',
   entryAge: 15,
   age: 23,

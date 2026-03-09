@@ -14,15 +14,15 @@ export const buildJuryoDemotionCandidates = (
       const wins = result.wins;
       const losses = result.losses;
       const mandatory =
-        (number >= 14 && wins <= 7) ||
-        (number >= 13 && wins <= 6) ||
-        (number >= 12 && wins <= 5) ||
-        (number >= 10 && wins <= 3);
+        (number >= 14 && wins <= 6) ||
+        (number >= 13 && wins <= 5) ||
+        (number >= 12 && wins <= 4) ||
+        (number >= 10 && wins <= 2);
       const bubble =
         mandatory ||
-        (number >= 13 && wins === 7) ||
-        (number >= 11 && wins === 6) ||
-        (number >= 9 && wins === 5);
+        (number >= 14 && wins === 7) ||
+        (number >= 12 && wins === 6) ||
+        (number >= 10 && wins === 5);
       if (!bubble) return null;
 
       let score =
@@ -66,18 +66,17 @@ export const buildMakushitaPromotionCandidates = (
       const wins = result.wins;
       const losses = result.losses;
       if (wins <= losses) return null;
-      const mandatory = (number <= 15 && wins === 7) || (number === 1 && wins >= 4);
+      const mandatory = (number <= 5 && wins === 7) || (number === 1 && wins >= 4);
       const bubble =
         mandatory ||
         (number <= 3 && wins >= 5) ||
-        (number <= 5 && wins >= 6) ||
-        (number <= 10 && wins === 7) ||
-        (number <= 15 && wins >= 6);
+        (number <= 6 && wins >= 6) ||
+        (number <= 15 && wins === 7);
       if (!bubble) return null;
 
       let score =
         Math.max(0, wins - 3) * 2.9 +
-        Math.max(0, 16 - number) * 1.65 +
+        Math.max(0, 12 - number) * 1.35 +
         Math.max(0, wins - losses) * 1.0;
       if (mandatory) score += 8;
 
@@ -97,6 +96,7 @@ export const buildMakushitaFallbackPromotionCandidates = (
       const wins = result.wins;
       const losses = result.losses;
       if (wins <= losses) return null;
+      if (wins < 5 || number > 20) return null;
       const score =
         Math.max(0, wins - 3) * 2.4 +
         Math.max(0, 20 - number) * 1.2 +

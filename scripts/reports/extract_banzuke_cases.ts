@@ -65,7 +65,9 @@ const createStatus = (
   statsBase: number,
   injuryLevel = 0,
 ): RikishiStatus => ({
-  heyaId: 'analysis',
+  stableId: 'stable-001',
+  ichimonId: 'TAIJU',
+  stableArchetypeId: 'MASTER_DISCIPLE',
   shikona: '検証山',
   entryAge: 15,
   age: 24,

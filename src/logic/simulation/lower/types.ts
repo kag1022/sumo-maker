@@ -1,4 +1,4 @@
-import { Rank } from '../../models';
+import { AptitudeTier, Rank, RetirementProfile } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { LOWER_DIVISION_SLOTS, NpcNameContext, NpcRegistry } from '../npc/types';
 
@@ -22,7 +22,10 @@ export type LowerNpc = {
   heightCm?: number;
   weightKg?: number;
   growthBias?: number;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   retirementBias?: number;
+  retirementProfile?: RetirementProfile;
   entryAge?: number;
   age?: number;
   careerBashoCount?: number;
@@ -67,6 +70,7 @@ export type BoundarySpec = {
 export type PlayerLowerRecord = {
   rank: Rank;
   shikona: string;
+  stableId?: string;
   wins: number;
   losses: number;
   absent: number;

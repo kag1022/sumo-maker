@@ -1,10 +1,12 @@
 import { Division } from '../../models';
+import { resolveAptitudeFactor, rollAptitudeTier } from '../../constants';
 import {
   ENEMY_SEED_POOL,
   EnemySeedProfile,
   resolveEnemySeedBodyMetrics,
 } from '../../catalog/enemyData';
 import { RandomSource } from '../deps';
+import { resolveRetirementProfileByRoll } from '../retirement/shared';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
@@ -15,7 +17,7 @@ import {
 } from './types';
 
 const POWER_RANGE: Record<Division, { min: number; max: number }> = {
-  Makuuchi: { min: 95, max: 165 },
+  Makuuchi: { min: 100, max: 165 },
   Juryo: { min: 78, max: 130 },
   Makushita: { min: 68, max: 104 },
   Sandanme: { min: 56, max: 92 },
@@ -73,6 +75,9 @@ const createNpc = (
     abilityDist.mean * 0.1 +
     randomNoise(rng, abilityDist.sigma * 0.45) +
     seed.growthBias * 5.2;
+  const aptitudeTier = rollAptitudeTier(rng);
+  const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
+  const retirementProfile = resolveRetirementProfileByRoll(rng());
   return {
     actorId: `NPC-${serial}`,
     actorType: 'NPC',
@@ -92,7 +97,10 @@ const createNpc = (
     heightCm: body.heightCm,
     weightKg: body.weightKg,
     growthBias: seed.growthBias,
+    aptitudeTier,
+    aptitudeFactor,
     retirementBias: seed.retirementBias,
+    retirementProfile,
     entryAge,
     age: entryAge,
     careerBashoCount: 0,

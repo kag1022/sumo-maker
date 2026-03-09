@@ -1,9 +1,9 @@
-import { BodyType, Division, InjuryType, Rarity, TalentArchetype, Trait } from './models';
+import { AptitudeTier, BodyType, Division, InjuryType, Rarity, TalentArchetype, Trait } from './models';
 
 export const CONSTANTS = {
   // 力士設定
   MIN_AGE: 15,
-  PHYSICAL_LIMIT_RETIREMENT_AGE: 45, // ゲーム上の寿命上限（定年ではなく体力限界）
+  PHYSICAL_LIMIT_RETIREMENT_AGE: 50, // ゲーム上の寿命上限（定年ではなく体力限界）
   
   // 場所設定
   BASHO_PER_YEAR: 6,
@@ -37,14 +37,23 @@ export const CONSTANTS = {
 
   // 才能タイプ定義
   TALENT_ARCHETYPES: {
-    'MONSTER': { name: '怪物（横綱級）', description: '100年に1人の逸材。規格外のパワーを持つ。', potentialRange: [85, 98], initialStatBonus: 14 },
-    'GENIUS': { name: '天才（三役級）', description: '天性の相撲センスを持つ若武者。', potentialRange: [72, 92], initialStatBonus: 8 },
-    'HARD_WORKER': { name: '叩き上げ（幕下〜関取）', description: '地道な稽古で強くなる、標準的な入門者。', potentialRange: [45, 82], initialStatBonus: 0 },
-    'AVG_JOE': { name: '一般（序二段〜三段目）', description: '体格には恵まれていないが、相撲への熱意はある。', potentialRange: [30, 60], initialStatBonus: -10 },
+    'MONSTER': { name: '怪物', description: '100年に1人の逸材。規格外のパワーを持つ。', potentialRange: [85, 100], initialStatBonus: 14 },
+    'GENIUS': { name: '天才', description: '天性の相撲センスを持つ若武者。', potentialRange: [72, 92], initialStatBonus: 8 },
+    'HARD_WORKER': { name: '叩き上げ', description: '地道な稽古で強くなる、標準的な入門者。', potentialRange: [45, 82], initialStatBonus: 0 },
+    'AVG_JOE': { name: '一般', description: '体格には恵まれていないが、相撲への熱意はある。', potentialRange: [30, 70], initialStatBonus: -10 },
     'UNIVERSITY_YOKOZUNA': { name: '学生横綱', description: '大学相撲の頂点。即戦力として期待される。', potentialRange: [70, 95], initialStatBonus: 30, canTsukedashi: true },
     'HIGH_SCHOOL_CHAMP': { name: '高校横綱', description: '高校相撲界の覇者。将来性は抜群。', potentialRange: [60, 90], initialStatBonus: 15 },
     'STREET_FIGHTER': { name: '喧嘩屋', description: '荒削りだが、強烈な闘争心を持つ。', potentialRange: [50, 90], initialStatBonus: 20 }
   } as Record<TalentArchetype, { name: string, description: string, potentialRange: [number, number], initialStatBonus: number, canTsukedashi?: boolean }>,
+
+  // 素質ランク定義（5段階 + 隠し係数）
+  APTITUDE_TIER_DATA: {
+    S: { label: 'S', name: '逸材', weight: 1, factor: 1.2 },
+    A: { label: 'A', name: '秀才', weight: 7, factor: 1.08 },
+    B: { label: 'B', name: '標準', weight: 42, factor: 1.0 },
+    C: { label: 'C', name: '晩成', weight: 30, factor: 0.50 },
+    D: { label: 'D', name: '未完', weight: 20, factor: 0.25 },
+  } as Record<AptitudeTier, { label: string; name: string; weight: number; factor: number }>,
 
   // 得意技データ
   SIGNATURE_MOVE_DATA: {
@@ -59,10 +68,10 @@ export const CONSTANTS = {
 
   // 成長タイプごとの補正
   GROWTH_PARAMS: {
-    'EARLY': { peakStart: 20, peakEnd: 25, decayStart: 26, growthRate: 1.5 },
-    'NORMAL': { peakStart: 24, peakEnd: 29, decayStart: 30, growthRate: 1.0 },
-    'LATE': { peakStart: 28, peakEnd: 33, decayStart: 34, growthRate: 0.8 }, // 長く伸びる
-    'GENIUS': { peakStart: 22, peakEnd: 30, decayStart: 32, growthRate: 1.2 }
+    'EARLY': { peakStart: 20, peakEnd: 25, decayStart: 26, growthRate: 1.2 },
+    'NORMAL': { peakStart: 24, peakEnd: 29, decayStart: 30, growthRate: 0.82 },
+    'LATE': { peakStart: 28, peakEnd: 33, decayStart: 34, growthRate: 0.68 }, // 長く伸びる
+    'GENIUS': { peakStart: 22, peakEnd: 30, decayStart: 32, growthRate: 1.0 }
   },
 
   // 戦術タイプごとの成長補正 (1.0 = 標準, >1.0 = 成長しやすい)
@@ -75,8 +84,8 @@ export const CONSTANTS = {
 
   // 確率・イベント系
   PROBABILITY: {
-    INJURY_PER_BOUT: 0.005, // 0.5%
-    AWAKENING_GROWTH: 0.05, // 5%
+    INJURY_PER_BOUT: 0.008, // 0.8%
+    AWAKENING_GROWTH: 0.02, // 2%
     CHRONIC_CONVERSION: 0.1, // 10%
     // 優勝判定 (勝利数に応じた確率)
     YUSHO: {
@@ -285,13 +294,13 @@ export const CONSTANTS = {
   TRAIT_GACHA: {
     // スキル個数の確率
     COUNT_WEIGHTS: [
-      { count: 0, weight: 30 },
+      { count: 0, weight: 45 },
       { count: 1, weight: 35 },
-      { count: 2, weight: 25 },
-      { count: 3, weight: 10 },
+      { count: 2, weight: 15 },
+      { count: 3, weight: 5 },
     ],
     // デメリットスキルの追加確率
-    NEGATIVE_CHANCE: 0.20,
+    NEGATIVE_CHANCE: 0.15,
     // レア度抽選ウェイト
     RARITY_WEIGHTS: {
       'N': 60,
@@ -365,6 +374,38 @@ export const CONSTANTS = {
     // 予算コスト: DNA軸1ポイント上書きあたりのコスト
     DNA_OVERRIDE_COST_PER_POINT: 2,
     // 予算コスト上限
-    DNA_OVERRIDE_COST_MAX: 200,
+    DNA_OVERRIDE_COST_MAX: 500,
   },
+};
+
+export const DEFAULT_APTITUDE_TIER: AptitudeTier = 'B';
+export const DEFAULT_APTITUDE_FACTOR = 1.0;
+
+export const APTITUDE_TIERS: AptitudeTier[] = ['S', 'A', 'B', 'C', 'D'];
+
+export const resolveAptitudeFactor = (
+  tier?: AptitudeTier,
+  fallback: number = DEFAULT_APTITUDE_FACTOR,
+): number => {
+  const factor = tier ? CONSTANTS.APTITUDE_TIER_DATA[tier]?.factor : undefined;
+  if (!Number.isFinite(factor)) return fallback;
+  return Math.max(0.3, factor as number);
+};
+
+export const resolveAptitudeTierLabel = (tier?: AptitudeTier): string => {
+  if (!tier) return DEFAULT_APTITUDE_TIER;
+  return CONSTANTS.APTITUDE_TIER_DATA[tier]?.label ?? tier;
+};
+
+export const rollAptitudeTier = (rng: () => number = Math.random): AptitudeTier => {
+  const totalWeight = APTITUDE_TIERS.reduce(
+    (sum, tier) => sum + CONSTANTS.APTITUDE_TIER_DATA[tier].weight,
+    0,
+  );
+  let point = rng() * totalWeight;
+  for (const tier of APTITUDE_TIERS) {
+    point -= CONSTANTS.APTITUDE_TIER_DATA[tier].weight;
+    if (point <= 0) return tier;
+  }
+  return DEFAULT_APTITUDE_TIER;
 };

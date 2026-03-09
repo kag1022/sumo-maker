@@ -263,13 +263,13 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
             presetId: config.presetId,
             seed: config.seed,
             maxBasho: config.maxBasho,
-            simulationModelVersion: 'unified-v1',
+            simulationModelVersion: 'unified-v2-kimarite',
           }),
           runLogicLabToEnd({
             presetId: config.presetId,
             seed: config.seed,
             maxBasho: config.maxBasho,
-            simulationModelVersion: 'unified-v2-kimarite',
+            simulationModelVersion: 'unified-v3-variance',
           }),
         ]);
 

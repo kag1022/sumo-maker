@@ -1,6 +1,7 @@
 // 力士の素質タイプ (アーキタイプ)
 export type TalentArchetype = 'MONSTER' | 'GENIUS' | 'HARD_WORKER' | 'AVG_JOE' | 
                               'UNIVERSITY_YOKOZUNA' | 'HIGH_SCHOOL_CHAMP' | 'STREET_FIGHTER';
+export type AptitudeTier = 'S' | 'A' | 'B' | 'C' | 'D';
 
 // 入門区分
 export type EntryDivision = 'Maezumo' | 'Makushita60' | 'Sandanme90';
@@ -13,8 +14,17 @@ export type TacticsType = 'PUSH' | 'GRAPPLE' | 'TECHNIQUE' | 'BALANCE';
 
 // 体格タイプ
 export type BodyType = 'NORMAL' | 'SOPPU' | 'ANKO' | 'MUSCULAR';
+export type IchimonId = 'TAIJU' | 'KUROGANE' | 'RAIMEI' | 'HAKUTSURU' | 'HAYATE';
+export type StableArchetypeId =
+  | 'TRADITIONAL_LARGE'
+  | 'TSUKI_OSHI_GROUP'
+  | 'GIANT_YOTSU'
+  | 'TECHNICAL_SMALL'
+  | 'MODERN_SCIENCE'
+  | 'MASTER_DISCIPLE';
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
+export type RetirementProfile = 'EARLY_EXIT' | 'STANDARD' | 'IRONMAN';
 
 // レア度
 export type Rarity = 'N' | 'R' | 'SR' | 'UR';
@@ -148,7 +158,9 @@ export interface RikishiGenome {
 
 // 力士の現在の状態（動的に変化）
 export interface RikishiStatus {
-  heyaId: string;
+  stableId: string;
+  ichimonId: IchimonId;
+  stableArchetypeId: StableArchetypeId;
   shikona: string; // 四股名
   entryAge: number; // 入門時年齢（表示や分析の基準）
   age: number;      // 年齢 (15歳〜)
@@ -171,6 +183,8 @@ export interface RikishiStatus {
   growthType: GrowthType;
   tactics: TacticsType;    // 戦術タイプ
   archetype?: TalentArchetype; // 素質タイプ
+  aptitudeTier: AptitudeTier; // 素質ランク
+  aptitudeFactor: number; // 隠し素質係数
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   bodyType: BodyType;          // 体格タイプ
@@ -184,6 +198,7 @@ export interface RikishiStatus {
   injuries: Injury[];    // 詳細な怪我リスト
   isOzekiKadoban?: boolean; // 大関カド番
   isOzekiReturn?: boolean; // 大関陥落直後の特例復帰チャンス（次の1場所のみ）
+  retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
 
   history: CareerHistory;

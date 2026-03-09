@@ -1,49 +1,9 @@
 import { RandomSource } from '../deps';
 import { PersistentNpc } from './types';
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-const computeRecentMakekoshiStreak = (npc: PersistentNpc): number => {
-  const recent = npc.recentBashoResults.slice(-6);
-  let streak = 0;
-  for (let i = recent.length - 1; i >= 0; i -= 1) {
-    const record = recent[i];
-    if (record.wins >= record.losses) break;
-    streak += 1;
-  }
-  return streak;
-};
-
-const resolveRetirementChance = (npc: PersistentNpc): number => {
-  if (npc.age >= 50) return 1;
-
-  let chance = 0;
-  if (npc.age >= 42) {
-    chance += (npc.age - 41) * 0.015;
-  }
-
-  const effectivePower = npc.basePower * npc.form;
-  if (effectivePower < 65) {
-    chance += (65 - effectivePower) * 0.004;
-  }
-
-  const streak = computeRecentMakekoshiStreak(npc);
-  if (streak >= 3) {
-    chance += 0.08 + (streak - 3) * 0.03;
-  }
-
-  if (
-    (npc.currentDivision === 'Jonokuchi' && npc.rankScore >= 46) ||
-    (npc.currentDivision === 'Jonidan' && npc.rankScore >= 160) ||
-    (npc.currentDivision === 'Sandanme' && npc.rankScore >= 160) ||
-    (npc.currentDivision === 'Makushita' && npc.rankScore >= 96)
-  ) {
-    chance += 0.04;
-  }
-
-  return clamp(chance * npc.retirementBias, 0, 0.92);
-};
+import {
+  computeConsecutiveMakekoshiStreak,
+  resolveRetirementChance,
+} from '../retirement/shared';
 
 export const pushNpcBashoResult = (
   npc: PersistentNpc,
@@ -73,7 +33,24 @@ export const runNpcRetirementStep = (
     npc.careerBashoCount += 1;
     npc.age = npc.entryAge + Math.floor(npc.careerBashoCount / 6);
 
-    const chance = resolveRetirementChance(npc);
+    const recentWins = npc.recentBashoResults.reduce((sum, row) => sum + row.wins, 0);
+    const recentLosses = npc.recentBashoResults.reduce((sum, row) => sum + row.losses, 0);
+    const careerWinRate = recentWins + recentLosses > 0
+      ? recentWins / (recentWins + recentLosses)
+      : 0.5;
+    const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(npc.recentBashoResults, 10);
+    const chance = resolveRetirementChance({
+      age: npc.age,
+      injuryLevel: Math.max(0, Math.round((72 - npc.basePower * npc.form) / 8)),
+      currentDivision: npc.currentDivision,
+      isFormerSekitori: npc.division === 'Makuuchi' || npc.division === 'Juryo',
+      consecutiveAbsence: 0,
+      consecutiveMakekoshi,
+      profile: npc.retirementProfile ?? 'STANDARD',
+      retirementBias: npc.retirementBias,
+      careerBashoCount: npc.careerBashoCount,
+      careerWinRate,
+    });
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
       npc.retiredAtSeq = seq;

@@ -8,6 +8,7 @@ export interface EnemyStats {
   rankValue: number;
   power: number;
   ability?: number;
+  aptitudeFactor?: number;
   heightCm: number;
   weightKg: number;
   styleBias?: EnemyStyleBias;
@@ -51,7 +52,7 @@ const createDivisionSeedProfiles = (
       powerVariance: 1.8 + deterministicSeed(index + 100) * 2.4,
       growthBias: -0.08 + deterministicSeed(index + 200) * 0.16,
       volatilityBase: 0.9 + deterministicSeed(index + 300) * 1.9,
-      retirementBias: 0.86 + deterministicSeed(index + 400) * 0.4,
+      retirementBias: 0.9 + deterministicSeed(index + 400) * 0.2,
       styleBias: STYLE_TABLE[index % STYLE_TABLE.length],
     };
   });
