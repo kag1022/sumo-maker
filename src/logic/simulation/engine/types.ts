@@ -1,5 +1,5 @@
 import { BanzukeDecisionLog, BanzukePopulationSnapshot, BanzukeMode, BanzukeEngineVersion } from '../../banzuke';
-import { BashoRecord, Division, Oyakata, Rank, RikishiStatus, TimelineEvent } from '../../models';
+import { BashoRecord, Division, Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../../models';
 import { NpcBashoAggregate, PlayerBoutDetail } from '../basho';
 import { SimulationDiagnostics } from '../diagnostics';
 import { LowerDivisionPlacementTraceRow } from '../lower/types';
@@ -9,6 +9,7 @@ import { TopDivision } from '../world';
 export interface SimulationParams {
   initialStats: RikishiStatus;
   oyakata: Oyakata | null;
+  runOptions?: SimulationRunOptions;
   careerId?: string;
   banzukeMode?: BanzukeMode;
   simulationModelVersion?: SimulationModelVersion;

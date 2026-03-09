@@ -1,10 +1,19 @@
 import Dexie, { Table } from 'dexie';
-import { Rank, RikishiStatus } from '../models';
+import {
+  BuildIntent,
+  CareerPrizeBreakdown,
+  CollectionEntry,
+  OyakataProfile,
+  Rank,
+  RikishiStatus,
+  WalletTransaction,
+} from '../models';
 import type { BanzukeDecisionLog, BanzukePopulationSnapshot } from '../banzuke/types';
 import { SimulationDiagnostics } from '../simulation/diagnostics';
 import { SimulationModelVersion } from '../simulation/modelVersion';
+import { ensureKataProfile } from '../style/kata';
 
-export type CareerState = 'draft' | 'saved';
+export type CareerState = 'in_progress' | 'unshelved' | 'shelved';
 
 export interface CareerYushoSummary {
   makuuchi: number;
@@ -32,6 +41,20 @@ export interface CareerRow {
   simulationModelVersion: SimulationModelVersion;
   finalStatus?: RikishiStatus;
   genomeSummary?: string;
+  lifetimePrizeYen?: number;
+  prizeBreakdown?: CareerPrizeBreakdown;
+  earnedPointsFromPrize?: number;
+  pointConversionRuleId?: string;
+  rewardGrantedAt?: string;
+  oyakataProfile?: OyakataProfile;
+  buildIntent?: BuildIntent;
+  lineageId?: string;
+  selectedOyakataId?: string | null;
+  parentCareerId?: string;
+  generation?: number;
+  collectionDeltaCount?: number;
+  careerIndex?: number;
+  previewSeed?: number;
 }
 
 export type BashoEntityType = 'PLAYER' | 'NPC';
@@ -82,6 +105,27 @@ export interface WalletRow {
   updatedAt: string;
 }
 
+export type WalletTransactionRow = WalletTransaction;
+
+export interface CareerRewardLedgerRow {
+  careerId: string;
+  lifetimePrizeYen: number;
+  pointsAwarded: number;
+  conversionRuleId: string;
+  grantedAt: string;
+  updatedAt: string;
+}
+
+export type CollectionEntryRow = CollectionEntry;
+
+export interface AdRewardLedgerRow {
+  id: string;
+  day: string;
+  slot: string;
+  type: 'INTERSTITIAL' | 'REWARDED';
+  createdAt: string;
+}
+
 export type MetaRow = WalletRow;
 
 export interface BanzukePopulationRow extends BanzukePopulationSnapshot {
@@ -109,8 +153,18 @@ class SumoMakerDatabase extends Dexie {
 
   simulationDiagnostics!: Table<SimulationDiagnosticsRow, [string, number]>;
 
+  walletTransactions!: Table<WalletTransactionRow, string>;
+
+  careerRewardLedger!: Table<CareerRewardLedgerRow, string>;
+
+  collectionEntries!: Table<CollectionEntryRow, string>;
+
+  adRewardLedger!: Table<AdRewardLedgerRow, string>;
+
+  oyakataProfiles!: Table<OyakataProfile, string>;
+
   constructor() {
-    super('sumo-maker-v11');
+    super('sumo-maker-v12');
 
     this.version(1).stores({
       careers:
@@ -188,6 +242,161 @@ class SumoMakerDatabase extends Dexie {
         '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
       simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
     });
+
+    // v7: prize reward, wallet ledger, collection, oyakata profile
+    this.version(7).stores({
+      careers:
+        '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+      walletTransactions: '&id, createdAt, reason, careerId',
+      careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+      collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId',
+    });
+
+    // v8: build lineage metadata + ad reward ledger + collection progress fields
+    this.version(8)
+      .stores({
+        careers:
+          '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, careerIndex',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const careers = await tx.table<CareerRow, string>('careers').toArray();
+        let nextIndex = 1;
+        for (const row of careers.sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+          await tx.table<CareerRow, string>('careers').update(row.id, {
+            buildIntent: row.buildIntent ?? 'BALANCE',
+            careerIndex: row.careerIndex ?? nextIndex,
+          });
+          nextIndex += 1;
+        }
+
+        const collectionRows = await tx.table<CollectionEntryRow, string>('collectionEntries').toArray();
+        for (const row of collectionRows) {
+          const progress = row.progress ?? (row.type === 'KIMARITE' ? 1 : undefined);
+          const tier = row.tier ?? (row.type === 'KIMARITE' ? 'BRONZE' : undefined);
+          const target = row.target ?? (row.type === 'KIMARITE' ? 10 : undefined);
+          await tx.table<CollectionEntryRow, string>('collectionEntries').update(row.id, {
+            progress,
+            tier,
+            target,
+            isNew: row.isNew ?? false,
+          });
+        }
+      });
+
+    this.version(9)
+      .stores({
+        careers:
+          '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<CareerRow, string>('careers');
+        const rows = await table.toArray();
+        const existingIds = new Set(rows.map((row) => row.id));
+        const parentMap = new Map<string, string | undefined>();
+
+        for (const row of rows) {
+          let parentCareerId = row.parentCareerId;
+          if (!parentCareerId && row.selectedOyakataId) {
+            if (row.selectedOyakataId.startsWith('oyakata:')) {
+              const candidate = row.selectedOyakataId.slice('oyakata:'.length);
+              if (existingIds.has(candidate)) {
+                parentCareerId = candidate;
+              }
+            } else if (existingIds.has(row.selectedOyakataId)) {
+              parentCareerId = row.selectedOyakataId;
+            }
+          }
+          parentMap.set(row.id, parentCareerId);
+        }
+
+        const generationCache = new Map<string, number>();
+        const visiting = new Set<string>();
+        const resolveGeneration = (careerId: string): number => {
+          const cached = generationCache.get(careerId);
+          if (cached) return cached;
+          if (visiting.has(careerId)) return 1;
+          visiting.add(careerId);
+          const parentCareerId = parentMap.get(careerId);
+          const next =
+            parentCareerId && existingIds.has(parentCareerId)
+              ? Math.min(99, resolveGeneration(parentCareerId) + 1)
+              : 1;
+          visiting.delete(careerId);
+          generationCache.set(careerId, next);
+          return next;
+        };
+
+        for (const row of rows) {
+          await table.update(row.id, {
+            parentCareerId: parentMap.get(row.id),
+            generation: resolveGeneration(row.id),
+          });
+        }
+      });
+
+    this.version(10)
+      .stores({
+        careers:
+          '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<CareerRow, string>('careers');
+        const rows = await table.toArray();
+        for (const row of rows) {
+          if (!row.finalStatus) continue;
+          if (row.finalStatus.kataProfile) continue;
+          await table.update(row.id, {
+            finalStatus: ensureKataProfile(row.finalStatus),
+          });
+        }
+      });
   }
 }
 

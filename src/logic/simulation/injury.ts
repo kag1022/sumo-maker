@@ -139,6 +139,27 @@ export const applyGeneratedInjury = (
   status.injuryLevel += appliedInjury.severity;
 };
 
+export const appendInjuryHistoryEvent = (
+  status: RikishiStatus,
+  year: number,
+  month: number,
+  injury: Injury,
+  mustSitOut: boolean,
+): void => {
+  const current = status.injuries?.find(
+    (existing) => existing.type === injury.type && existing.status !== 'HEALED',
+  );
+  const resolved = current ?? injury;
+  const sitOutSuffix = mustSitOut ? ' / この場所は休場へ向かった' : '';
+
+  status.history.events.push({
+    year,
+    month,
+    type: 'INJURY',
+    description: `${resolved.name}を負う (重症度 ${resolved.severity})${sitOutSuffix}`,
+  });
+};
+
 export const resolveInjuryParticipation = (
   status: RikishiStatus,
 ): InjuryParticipation => {

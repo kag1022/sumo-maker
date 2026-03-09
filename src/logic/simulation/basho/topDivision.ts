@@ -4,6 +4,7 @@ import { RikishiStatus } from '../../models';
 import { RandomSource } from '../deps';
 import {
   applyGeneratedInjury,
+  appendInjuryHistoryEvent,
   generateInjury,
   resolveInjuryParticipation,
   resolveInjuryRate,
@@ -221,8 +222,10 @@ export const runTopDivisionBasho = (
         opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
 
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const injury = generateInjury(status, year, month, rng);
+        applyGeneratedInjury(status, injury);
         const postInjury = resolveInjuryParticipation(status);
+        appendInjuryHistoryEvent(status, year, month, injury, postInjury.mustSitOut);
 
         playerBoutDetails.push({
           day,

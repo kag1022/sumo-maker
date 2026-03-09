@@ -10,8 +10,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("rounded-none border border-kiniro-muted/20 bg-washi-light/80 text-sumi backdrop-blur-sm", className)}
-      style={{ boxShadow: '0 0 15px rgba(0,0,0,0.3), inset 0 1px 0 rgba(197,164,78,0.08)' }}
+      className={cn("rpg-panel bg-bg-panel text-text", className)}
       {...props}
     />
   )
@@ -22,7 +21,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex flex-col space-y-1.5 p-5 border-b border-kiniro-muted/15", className)}
+      className={cn("flex flex-col space-y-1.5 p-5 border-b border-[rgba(68,50,35,0.12)]", className)}
       {...props}
     />
   )
@@ -33,7 +32,7 @@ export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttrib
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn("text-lg font-bold leading-none tracking-tight text-sumi", className)}
+      className={cn("ui-text-heading text-xl text-text", className)}
       {...props}
     />
   )
@@ -44,7 +43,7 @@ export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTML
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn("text-sm text-sumi-light", className)}
+      className={cn("text-sm ui-text-body text-text-dim", className)}
       {...props}
     />
   )

@@ -25,6 +25,8 @@ export type StableArchetypeId =
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
 export type RetirementProfile = 'EARLY_EXIT' | 'STANDARD' | 'IRONMAN';
+export type CollectionType = 'RIKISHI' | 'OYAKATA' | 'KIMARITE' | 'ACHIEVEMENT';
+export type CollectionTier = 'BRONZE' | 'SILVER' | 'GOLD';
 
 // レア度
 export type Rarity = 'N' | 'R' | 'SR' | 'UR';
@@ -200,6 +202,7 @@ export interface RikishiStatus {
   isOzekiReturn?: boolean; // 大関陥落直後の特例復帰チャンス（次の1場所のみ）
   retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
+  kataProfile?: KataProfile;
 
   history: CareerHistory;
   
@@ -232,6 +235,157 @@ export interface Oyakata {
   injuryMod: number; // 怪我しやすさ
 }
 
+export interface OyakataProfile {
+  id: string;
+  sourceCareerId: string;
+  shikona: string;
+  displayName: string;
+  trait: string;
+  growthMod: Oyakata['growthMod'];
+  injuryMod: number;
+  maxRank: Rank;
+  legacyStars: 1 | 2 | 3 | 4 | 5;
+  cooldownUntilCareerIndex?: number;
+}
+
+export interface PrizeBreakdownEntry {
+  key:
+    | 'MAKUUCHI_YUSHO'
+    | 'JURYO_YUSHO'
+    | 'MAKUSHITA_YUSHO'
+    | 'SANDANME_YUSHO'
+    | 'JONIDAN_YUSHO'
+    | 'JONOKUCHI_YUSHO'
+    | 'SHUKUN'
+    | 'KANTO'
+    | 'GINO';
+  label: string;
+  unitYen: number;
+  count: number;
+  subtotalYen: number;
+}
+
+export interface CareerPrizeBreakdown {
+  asOf: string;
+  totalYen: number;
+  entries: PrizeBreakdownEntry[];
+  conversion: PointConversionBreakdown;
+}
+
+export interface PointConversionBreakdown {
+  tier1Yen: number;
+  tier1Pt: number;
+  tier2Yen: number;
+  tier2Pt: number;
+  tier3Yen: number;
+  tier3Pt: number;
+  rawPoints: number;
+  cappedPt: number;
+}
+
+export interface CareerRewardSummary {
+  conversionRuleId: string;
+  rawPoints: number;
+  awardedPoints: number;
+  convertedPoints: number; // deprecated: alias of awardedPoints
+  granted: boolean;
+  grantedAt?: string;
+}
+
+export type WalletTransactionReason =
+  | 'BUILD_REGISTRATION'
+  | 'SCOUT_DRAW'
+  | 'SCOUT_OVERRIDE'
+  | 'CAREER_PRIZE_REWARD'
+  | 'MANUAL_TOP_UP'
+  | 'AD_REWARD'
+  | 'AD_REWARD_TOKEN'
+  | 'OTHER';
+
+export interface WalletTransaction {
+  id: string;
+  kind: 'SPEND' | 'EARN';
+  amount: number;
+  balanceAfter: number;
+  reason: WalletTransactionReason;
+  careerId?: string;
+  createdAt: string;
+}
+
+export interface CollectionEntry {
+  id: string;
+  type: CollectionType;
+  key: string;
+  sourceCareerId?: string;
+  unlockedAt: string;
+  tier?: CollectionTier;
+  progress?: number;
+  target?: number;
+  isNew?: boolean;
+}
+
+export type BuildAxisWinStyle = 'STABILITY' | 'BURST' | 'COMEBACK';
+export type BuildAxisPeakDesign = 'EARLY' | 'BALANCED' | 'LATE';
+export type BuildAxisVolatility = 'LOW' | 'MID' | 'HIGH';
+export type BuildAxisDurability = 'IRON' | 'BALANCED' | 'GAMBLE';
+export type BuildAxisClutch = 'BIG_MATCH' | 'BALANCED' | 'DEVELOPMENT';
+export type BuildIntent = 'YUSHO' | 'LONGEVITY' | 'COLLECTOR' | 'BALANCE';
+
+export interface AptitudePlan {
+  reveal: boolean;
+  tuneStep: -2 | -1 | 0 | 1 | 2;
+}
+
+export type KataArchetype =
+  | 'TSUKI_OSHI'
+  | 'HIDARI_YOTSU_YORI'
+  | 'MIGI_YOTSU_YORI'
+  | 'YOTSU_NAGE'
+  | 'BATTLECRAFT';
+
+export interface KataProfile {
+  settled: boolean;
+  confidence: number;
+  archetype?: KataArchetype;
+  displayName?: string;
+  dominantMove?: string;
+  settledAtBashoSeq?: number;
+  // 内部状態（表示・公開用途では未使用）
+  pendingArchetype?: KataArchetype;
+  pendingCount?: number;
+}
+
+export interface BuildSpecV4 {
+  shikona: string;
+  profile: BasicProfile;
+  history: 'JHS_GRAD' | 'HS_GRAD' | 'HS_YOKOZUNA' | 'UNI_YOKOZUNA';
+  entryDivision: EntryDivision;
+  bodyType: BodyType;
+  bodyMetrics: BodyMetrics;
+  traitSlots: number;
+  selectedTraits: Trait[];
+  genome: RikishiGenome;
+  aptitudeBaseTier: AptitudeTier;
+  aptitudePlan: AptitudePlan;
+  selectedIchimonId: IchimonId | null;
+  selectedStableId: string | null;
+  selectedOyakataId: string | null;
+  abstractAxes: {
+    winStyle: BuildAxisWinStyle;
+    peakDesign: BuildAxisPeakDesign;
+    volatility: BuildAxisVolatility;
+    durability: BuildAxisDurability;
+    clutch: BuildAxisClutch;
+  };
+}
+
+export type BuildSpecV3 = BuildSpecV4;
+export type BuildSpecV2 = BuildSpecV4;
+
+export interface SimulationRunOptions {
+  selectedOyakataId?: string | null;
+}
+
 // キャリア履歴
 export interface CareerHistory {
   records: BashoRecord[];
@@ -248,6 +402,8 @@ export interface CareerHistory {
   };
   kimariteTotal: Record<string, number>; // 通算決まり手カウント
   title?: string; // 二つ名
+  prizeBreakdown?: CareerPrizeBreakdown;
+  rewardSummary?: CareerRewardSummary;
 }
 
 // 1場所ごとの記録

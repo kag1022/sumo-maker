@@ -85,9 +85,12 @@ import {
   commitCareer,
   createDraftCareer,
   getCareerHeadToHead,
+  isCareerSaved,
   listBanzukeDecisions,
   listBanzukePopulation,
+  listCollectionSummary,
   listCommittedCareers,
+  listUnlockedCollectionEntries,
   markCareerCompleted,
 } from '../../src/logic/persistence/repository';
 import {
@@ -99,9 +102,11 @@ import {
 } from '../../src/logic/banzuke';
 import {
   getWalletState,
+  WALLET_INITIAL_POINTS,
   spendWalletPoints,
   WALLET_MAX_POINTS,
 } from '../../src/logic/persistence/wallet';
+import { KIMARITE_CATALOG } from '../../src/logic/kimarite/catalog';
 import {
   resolveScoutOverrideCost,
   rollScoutDraft,
@@ -112,8 +117,20 @@ import {
   ScoutTraitSlotDraft,
 } from '../../src/logic/scout/gacha';
 import { CONSTANTS } from '../../src/logic/constants';
-import { initializeSimulationStatus } from '../../src/logic/simulation/career';
+import { appendBashoEvents, initializeSimulationStatus } from '../../src/logic/simulation/career';
+import {
+  BUILD_COST,
+  calculateBuildCost,
+  createDefaultBuildSpec,
+  resolveDisplayedAptitudeTier,
+} from '../../src/logic/build/buildLab';
+import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../src/logic/style/kata';
 import { buildHoshitoriGrid } from '../../src/features/report/utils/hoshitori';
+import {
+  buildHoshitoriCareerRecords,
+  buildRankChartData,
+  buildTimelineEventGroups,
+} from '../../src/features/report/utils/reportCareer';
 import {
   createLogicLabInitialStatus,
   LOGIC_LAB_DEFAULT_PRESET,
@@ -4686,6 +4703,91 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'storage: commitCareer still saves when legacy unofficial kimarite rows exist',
+    run: async () => {
+      await resetDb();
+      const db = getDb();
+      await db.collectionEntries.put({
+        id: 'KIMARITE:もろ差し',
+        type: 'KIMARITE',
+        key: 'もろ差し',
+        unlockedAt: '2026-01-01T00:00:00.000Z',
+        isNew: true,
+      });
+
+      const status = createStatus({
+        history: {
+          records: [],
+          events: [
+            {
+              year: 2032,
+              month: 5,
+              type: 'RETIREMENT',
+              description: '引退',
+            },
+          ],
+          maxRank: { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 10 },
+          totalWins: 12,
+          totalLosses: 3,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 3, もろ差し: 2 },
+        },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: status,
+        careerStartYearMonth: '2026-01',
+      });
+
+      await markCareerCompleted(careerId, status);
+      await commitCareer(careerId);
+
+      assert.equal(await isCareerSaved(careerId), true);
+      const saved = await db.careers.get(careerId);
+      assert.equal(saved?.state, 'shelved');
+    },
+  },
+  {
+    name: 'storage: commitCareer grants prize reward and still saves',
+    run: async () => {
+      await resetDb();
+      const db = getDb();
+      const status = createStatus({
+        history: {
+          records: [],
+          events: [
+            {
+              year: 2035,
+              month: 1,
+              type: 'RETIREMENT',
+              description: '引退',
+            },
+          ],
+          maxRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          totalWins: 120,
+          totalLosses: 45,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 1, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 20 },
+        },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: status,
+        careerStartYearMonth: '2026-01',
+      });
+
+      await markCareerCompleted(careerId, status);
+      await commitCareer(careerId);
+
+      assert.equal(await isCareerSaved(careerId), true);
+      const reward = await db.careerRewardLedger.get(careerId);
+      assert.ok(Boolean(reward), 'Expected reward ledger to be written');
+      assert.ok((reward?.pointsAwarded ?? 0) > 0, 'Expected positive wallet reward');
+      const wallet = await getWalletState();
+      assert.ok(wallet.points >= WALLET_INITIAL_POINTS, 'Expected wallet to remain readable after save');
+    },
+  },
+  {
     name: 'storage: appendBashoChunk stores only player bout details',
     run: async () => {
       await resetDb();
@@ -6251,6 +6353,169 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: 'hoshitori: maezumo is unsupported for display grid',
+    run: () => {
+      const bouts: PlayerBoutDetail[] = [
+        { day: 1, result: 'WIN', kimarite: '押し出し' },
+      ];
+      const grid = buildHoshitoriGrid(bouts, 'Maezumo');
+      assert.equal(grid.length, 0);
+    },
+  },
+  {
+    name: 'report: hoshitori records keep stored basho sequence after maezumo',
+    run: () => {
+      const records: BashoRecord[] = [
+        {
+          ...createBashoRecord({ division: 'Maezumo', name: '前相撲', side: 'East', number: 1 }, 3, 0),
+          month: 1,
+        },
+        {
+          ...createBashoRecord({ division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 12 }, 5, 2),
+          month: 3,
+        },
+        {
+          ...createBashoRecord({ division: 'Jonidan', name: '序二段', side: 'West', number: 87 }, 4, 3),
+          month: 5,
+        },
+      ];
+      const joined = buildHoshitoriCareerRecords(records, [
+        { bashoSeq: 1, bouts: [{ day: 1, result: 'WIN', kimarite: '押し出し' }] },
+        { bashoSeq: 2, bouts: [{ day: 3, result: 'LOSS', kimarite: '寄り切り' }] },
+        { bashoSeq: 3, bouts: [{ day: 5, result: 'WIN', kimarite: '送り出し' }] },
+      ]);
+
+      assert.equal(joined.length, 2);
+      assert.equal(joined[0]?.bashoSeq, 2);
+      assert.equal(joined[0]?.displaySlot, 1);
+      assert.equal(joined[0]?.bouts[0]?.kimarite, '寄り切り');
+      assert.equal(joined[1]?.bashoSeq, 3);
+      assert.equal(joined[1]?.displaySlot, 2);
+      assert.equal(joined[1]?.bouts[0]?.kimarite, '送り出し');
+    },
+  },
+  {
+    name: 'report: rank chart uses positive compressed basho slots only',
+    run: () => {
+      const records: BashoRecord[] = [
+        {
+          ...createBashoRecord({ division: 'Maezumo', name: '前相撲', side: 'East', number: 1 }, 3, 0),
+          month: 1,
+        },
+        {
+          ...createBashoRecord({ division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 15 }, 6, 1),
+          month: 3,
+        },
+        {
+          ...createBashoRecord({ division: 'Makushita', name: '幕下', side: 'West', number: 22 }, 5, 2),
+          month: 7,
+        },
+      ];
+
+      const chart = buildRankChartData(records);
+      assert.equal(chart.length, 2);
+      assert.deepEqual(chart.map((point) => point.slot), [1, 2]);
+      assert.ok(chart.every((point) => point.rankValue >= 0), 'Expected non-negative rank values');
+      assert.equal(chart[0]?.bashoLabel, '2026年3月');
+      assert.equal(chart[1]?.bashoLabel, '2026年7月');
+    },
+  },
+  {
+    name: 'report: timeline groups same basho events in priority order',
+    run: () => {
+      const groups = buildTimelineEventGroups([
+        { year: 2026, month: 5, type: 'PROMOTION', description: '西十両2枚目へ昇進 (12勝3敗)' },
+        { year: 2026, month: 5, type: 'YUSHO', description: '幕下優勝 (西幕下3枚目 / 7勝)' },
+        { year: 2026, month: 5, type: 'OTHER', description: '技能賞を受賞' },
+        { year: 2026, month: 3, type: 'ENTRY', description: '新弟子として入門。' },
+      ]);
+
+      assert.equal(groups.length, 2);
+      assert.equal(groups[0]?.month, 5);
+      assert.equal(groups[0]?.tagLabel, '優勝');
+      assert.deepEqual(groups[0]?.descriptions, [
+        '幕下優勝 (西幕下3枚目 / 7勝)',
+        '西十両2枚目へ昇進 (12勝3敗)',
+        '技能賞を受賞',
+      ]);
+    },
+  },
+  {
+    name: 'kimarite: catalog excludes unofficial names and includes official additions',
+    run: () => {
+      const names = new Set(KIMARITE_CATALOG.map((entry) => entry.name));
+      assert.equal(names.has('電車道'), false);
+      assert.equal(names.has('もろ差し'), false);
+      assert.ok(names.has('浴びせ倒し'));
+      assert.ok(names.has('送り倒し'));
+      assert.ok(names.has('極め出し'));
+      assert.ok(names.has('下手出し投げ'));
+      assert.ok(names.has('引っ掛け'));
+    },
+  },
+  {
+    name: 'collection: unofficial kimarite entries are filtered and aliases collapse to official names',
+    run: async () => {
+      await resetDb();
+      const db = getDb();
+      await db.collectionEntries.bulkPut([
+        {
+          id: 'KIMARITE:もろ差し',
+          type: 'KIMARITE',
+          key: 'もろ差し',
+          unlockedAt: '2026-03-07T00:00:00.000Z',
+          isNew: true,
+        },
+        {
+          id: 'KIMARITE:すくい投げ',
+          type: 'KIMARITE',
+          key: 'すくい投げ',
+          unlockedAt: '2026-03-08T00:00:00.000Z',
+          isNew: true,
+        },
+        {
+          id: 'KIMARITE:掬い投げ',
+          type: 'KIMARITE',
+          key: '掬い投げ',
+          unlockedAt: '2026-03-06T00:00:00.000Z',
+          isNew: false,
+        },
+      ]);
+
+      const summary = await listCollectionSummary();
+      const details = await listUnlockedCollectionEntries();
+      const kimariteSummary = summary.find((row: { type: string }) => row.type === 'KIMARITE');
+
+      assert.equal(kimariteSummary?.count, 1);
+      assert.equal(kimariteSummary?.newCount, 1);
+      assert.equal(details.some((entry: { label: string }) => entry.label.includes('もろ差し')), false);
+      assert.equal(details.filter((entry: { label: string }) => entry.label === '決まり手：掬い投げ').length, 1);
+    },
+  },
+  {
+    name: 'career: basho event descriptions use full rank labels',
+    run: () => {
+      const status = createStatus({
+        rank: { division: 'Makushita', name: '幕下', side: 'East', number: 3 },
+      });
+      const bashoRecord = createBashoRecord(status.rank, 7, 0, 0, true);
+      appendBashoEvents(
+        status,
+        2026,
+        5,
+        bashoRecord,
+        {
+          nextRank: { division: 'Juryo', name: '十両', side: 'West', number: 13 },
+          event: 'PROMOTION_TO_JURYO',
+        },
+        status.rank,
+      );
+
+      assert.equal(status.history.events[0]?.description, '西十両13枚目へ昇進 (7勝0敗)');
+      assert.equal(status.history.events[1]?.description, '幕下優勝 (東幕下3枚目 / 7勝)');
+    },
+  },
+  {
     name: 'logic-lab: top-division presets initialize with competitive ability state',
     run: () => {
       const m8 = createLogicLabInitialStatus('M8_BALANCED', () => 0.5);
@@ -6382,6 +6647,109 @@ const tests: TestCase[] = [
           assert.equal(nextRank.number, undefined);
         }
       }
+    },
+  },
+  {
+    name: 'build-lab: aptitude reveal and tune costs are applied only when revealed',
+    run: () => {
+      const spec = createDefaultBuildSpec();
+      const hidden = calculateBuildCost(spec);
+      assert.equal(resolveDisplayedAptitudeTier(spec), undefined);
+      assert.equal(hidden.breakdown.aptitudeReveal, 0);
+      assert.equal(hidden.breakdown.aptitudeTune, 0);
+
+      const revealed = {
+        ...spec,
+        aptitudePlan: {
+          reveal: true as const,
+          tuneStep: 2 as const,
+        },
+      };
+      const opened = calculateBuildCost(revealed);
+      assert.equal(resolveDisplayedAptitudeTier(revealed), revealed.aptitudeBaseTier);
+      assert.equal(opened.breakdown.aptitudeReveal, BUILD_COST.APTITUDE_REVEAL);
+      assert.equal(opened.breakdown.aptitudeTune, BUILD_COST.APTITUDE_TUNE_STEP * 2);
+    },
+  },
+  {
+    name: 'kata: unresolved profile is displayed as none',
+    run: () => {
+      const status = createStatus();
+      const display = resolveKataDisplay(status.kataProfile);
+      assert.equal(display.styleLabel, 'なし');
+      assert.equal(display.dominantMoveLabel, '');
+    },
+  },
+  {
+    name: 'kata: settles only after sustained confidence conditions',
+    run: () => {
+      let status = createStatus({
+        tactics: 'BALANCE',
+        signatureMoves: [],
+        stats: {
+          tsuki: 128,
+          oshi: 126,
+          kumi: 78,
+          nage: 70,
+          koshi: 82,
+          deashi: 120,
+          waza: 72,
+          power: 118,
+        },
+      });
+      for (let seq = 1; seq <= 14; seq += 1) {
+        const record: BashoRecord = {
+          ...createBashoRecord(status.rank, 14, 1, 0),
+          kimariteCount: { 押し出し: 10, 突き出し: 3, 突き落とし: 1 },
+        };
+        status.history.records.push(record);
+        status = updateKataProfileAfterBasho(status, record, seq);
+      }
+      assert.equal(status.kataProfile?.settled, true);
+      assert.ok(Boolean(status.kataProfile?.displayName));
+      assert.ok((status.signatureMoves?.length ?? 0) > 0);
+    },
+  },
+  {
+    name: 'kata: heavy absence path can remain unsettled',
+    run: () => {
+      let status = createStatus({
+        tactics: 'BALANCE',
+        signatureMoves: [],
+        stats: {
+          tsuki: 92,
+          oshi: 93,
+          kumi: 94,
+          nage: 95,
+          koshi: 92,
+          deashi: 93,
+          waza: 94,
+          power: 95,
+        },
+      });
+      for (let seq = 1; seq <= 14; seq += 1) {
+        const record: BashoRecord = {
+          ...createBashoRecord(status.rank, 3, 2, 10),
+          kimariteCount: { 押し出し: 1, 寄り切り: 1, 叩き込み: 1 },
+        };
+        status.history.records.push(record);
+        status = updateKataProfileAfterBasho(status, record, seq);
+      }
+      assert.ok(status.kataProfile?.settled !== true);
+      assert.equal(resolveKataDisplay(status.kataProfile).styleLabel, 'なし');
+    },
+  },
+  {
+    name: 'kata: legacy status can be backfilled without crash',
+    run: () => {
+      const legacy = createStatus({
+        tactics: 'GRAPPLE',
+        signatureMoves: ['寄り切り'],
+      });
+      const normalized = ensureKataProfile({ ...legacy, kataProfile: undefined });
+      assert.ok(Boolean(normalized.kataProfile));
+      assert.equal(normalized.kataProfile?.settled, true);
+      assert.equal(resolveKataDisplay(normalized.kataProfile).styleLabel.includes('寄り'), true);
     },
   },
 ];
