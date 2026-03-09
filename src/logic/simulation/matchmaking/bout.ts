@@ -1,0 +1,171 @@
+import { EnemyStyleBias } from '../../catalog/enemyData';
+import { RandomSource } from '../deps';
+import {
+  calculateMomentumBonus,
+  resolveBoutWinProb,
+  resolveUnifiedNpcStrength,
+} from '../strength/model';
+import {
+  DEFAULT_SIMULATION_MODEL_VERSION,
+  SimulationModelVersion,
+} from '../modelVersion';
+import { resolveStableById } from '../heya/stableCatalog';
+import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
+import { DivisionParticipant } from './types';
+
+const randomNoise = (rng: RandomSource, amplitude: number): number =>
+  (rng() * 2 - 1) * amplitude;
+
+const resolveAptitudeFactor = (value?: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.3, value as number);
+};
+
+const resolveSignedStreak = (
+  winStreak?: number,
+  lossStreak?: number,
+): number => {
+  const wins = Math.max(0, winStreak ?? 0);
+  const losses = Math.max(0, lossStreak ?? 0);
+  return wins > 0 ? wins : losses > 0 ? -losses : 0;
+};
+
+const resolveStyleEdge = (
+  mine: EnemyStyleBias | undefined,
+  other: EnemyStyleBias | undefined,
+): number => {
+  if (!mine || !other || mine === 'BALANCE' || other === 'BALANCE' || mine === other) {
+    return 0;
+  }
+  if (
+    (mine === 'PUSH' && other === 'TECHNIQUE') ||
+    (mine === 'TECHNIQUE' && other === 'GRAPPLE') ||
+    (mine === 'GRAPPLE' && other === 'PUSH')
+  ) {
+    return 1.4;
+  }
+  return -1.4;
+};
+
+const resolveStablePerformanceFactor = (stableId: string): number => {
+  const stable = resolveStableById(stableId);
+  if (!stable) return 1;
+  const training = STABLE_ARCHETYPE_BY_ID[stable.archetypeId]?.training;
+  if (!training) return 1;
+  const growth = training.growth8;
+  const avg =
+    (growth.tsuki + growth.oshi + growth.kumi + growth.nage + growth.koshi + growth.deashi + growth.waza + growth.power) / 8;
+  return Math.max(0.9, Math.min(1.1, avg));
+};
+
+const resolveNpcWinProbability = (
+  a: DivisionParticipant,
+  b: DivisionParticipant,
+  rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion,
+): number => {
+  const aStreakMomentum = calculateMomentumBonus(
+    resolveSignedStreak(a.currentWinStreak, a.currentLossStreak),
+  );
+  const bStreakMomentum = calculateMomentumBonus(
+    resolveSignedStreak(b.currentWinStreak, b.currentLossStreak),
+  );
+  const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
+  const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
+  const boutNoiseAmplitude = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
+  const aAptitudeFactor = resolveAptitudeFactor(a.aptitudeFactor);
+  const bAptitudeFactor = resolveAptitudeFactor(b.aptitudeFactor);
+  const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
+  const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
+  const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
+  const aAbility = resolveUnifiedNpcStrength({
+    ability: aAbilityWithShock,
+    power: a.power,
+    momentum: aMomentum,
+    noise: randomNoise(rng, boutNoiseAmplitude),
+  }) * resolveStablePerformanceFactor(a.stableId) * aAptitudeFactor;
+  const bAbility = resolveUnifiedNpcStrength({
+    ability: bAbilityWithShock,
+    power: b.power,
+    momentum: bMomentum,
+    noise: randomNoise(rng, boutNoiseAmplitude),
+  }) * resolveStablePerformanceFactor(b.stableId) * bAptitudeFactor;
+  return resolveBoutWinProb({
+    attackerAbility: aAbility,
+    defenderAbility: bAbility,
+    attackerStyle: a.styleBias,
+    defenderStyle: b.styleBias,
+    bonus: styleDiff,
+  });
+};
+
+export const simulateNpcBout = (
+  a: DivisionParticipant,
+  b: DivisionParticipant,
+  rng: RandomSource,
+  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+): void => {
+  if (!a.active && !b.active) {
+    // 両者休場の場合は勝敗つかず
+    return;
+  }
+  if (!a.active) {
+    // aが休場 -> bの不戦勝
+    b.wins += 1;
+    a.losses += 1;
+    b.currentWinStreak = (b.currentWinStreak ?? 0) + 1;
+    b.currentLossStreak = 0;
+    a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
+    a.currentWinStreak = 0;
+    return;
+  }
+  if (!b.active) {
+    // bが休場 -> aの不戦勝
+    a.wins += 1;
+    b.losses += 1;
+    a.currentWinStreak = (a.currentWinStreak ?? 0) + 1;
+    a.currentLossStreak = 0;
+    b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
+    b.currentWinStreak = 0;
+    return;
+  }
+
+  a.currentWinStreak = Math.max(0, a.currentWinStreak ?? 0);
+  a.currentLossStreak = Math.max(0, a.currentLossStreak ?? 0);
+  b.currentWinStreak = Math.max(0, b.currentWinStreak ?? 0);
+  b.currentLossStreak = Math.max(0, b.currentLossStreak ?? 0);
+  const aWinProbability = resolveNpcWinProbability(a, b, rng, simulationModelVersion);
+  const aAbility = resolveUnifiedNpcStrength({
+    ability: (a.ability ?? a.power) + (a.bashoFormDelta ?? 0),
+    power: a.power,
+    momentum: (a.wins - a.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(a.currentWinStreak, a.currentLossStreak)),
+  }) * resolveAptitudeFactor(a.aptitudeFactor);
+  const bAbility = resolveUnifiedNpcStrength({
+    ability: (b.ability ?? b.power) + (b.bashoFormDelta ?? 0),
+    power: b.power,
+    momentum: (b.wins - b.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(b.currentWinStreak, b.currentLossStreak)),
+  }) * resolveAptitudeFactor(b.aptitudeFactor);
+  a.expectedWins = (a.expectedWins ?? 0) + aWinProbability;
+  b.expectedWins = (b.expectedWins ?? 0) + (1 - aWinProbability);
+  a.opponentAbilityTotal = (a.opponentAbilityTotal ?? 0) + bAbility;
+  b.opponentAbilityTotal = (b.opponentAbilityTotal ?? 0) + aAbility;
+  a.boutsSimulated = (a.boutsSimulated ?? 0) + 1;
+  b.boutsSimulated = (b.boutsSimulated ?? 0) + 1;
+
+  const aWin = rng() < aWinProbability;
+  if (aWin) {
+    a.wins += 1;
+    b.losses += 1;
+    a.currentWinStreak = (a.currentWinStreak ?? 0) + 1;
+    a.currentLossStreak = 0;
+    b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
+    b.currentWinStreak = 0;
+  } else {
+    b.wins += 1;
+    a.losses += 1;
+    b.currentWinStreak = (b.currentWinStreak ?? 0) + 1;
+    b.currentLossStreak = 0;
+    a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
+    a.currentWinStreak = 0;
+  }
+};

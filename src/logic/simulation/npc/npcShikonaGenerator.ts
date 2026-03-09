@@ -81,31 +81,31 @@ type IchimonNamingProfile = {
 };
 
 const ICHIMON_NAMING_PROFILES: Record<IchimonId, IchimonNamingProfile> = {
-  'Ichimon-1': {
+  TAIJU: {
     crownPrefixes: ['朝', '東', '若', '北', '隆', '翔'],
     schoolMix: [
-      { value: 'HAYATE', weight: 50 },
-      { value: 'TRADITION', weight: 30 },
+      { value: 'TRADITION', weight: 50 },
+      { value: 'GORIKI', weight: 30 },
       { value: 'KAREI', weight: 20 },
     ],
   },
-  'Ichimon-2': {
+  KUROGANE: {
     crownPrefixes: ['武', '豪', '剛', '皇', '鋼', '魁'],
     schoolMix: [
       { value: 'GORIKI', weight: 55 },
-      { value: 'TRADITION', weight: 30 },
-      { value: 'HAYATE', weight: 15 },
+      { value: 'TRADITION', weight: 20 },
+      { value: 'HAYATE', weight: 25 },
     ],
   },
-  'Ichimon-3': {
-    crownPrefixes: ['海', '山', '川', '嶺', '浜', '富'],
+  RAIMEI: {
+    crownPrefixes: ['雷', '轟', '烈', '猛', '嵐', '迅'],
     schoolMix: [
-      { value: 'TRADITION', weight: 45 },
-      { value: 'GORIKI', weight: 30 },
-      { value: 'KAREI', weight: 25 },
+      { value: 'GORIKI', weight: 50 },
+      { value: 'HAYATE', weight: 35 },
+      { value: 'TRADITION', weight: 15 },
     ],
   },
-  'Ichimon-4': {
+  HAKUTSURU: {
     crownPrefixes: ['錦', '雅', '桜', '鶴', '旭', '光'],
     schoolMix: [
       { value: 'KAREI', weight: 55 },
@@ -113,11 +113,11 @@ const ICHIMON_NAMING_PROFILES: Record<IchimonId, IchimonNamingProfile> = {
       { value: 'HAYATE', weight: 15 },
     ],
   },
-  'Ichimon-5': {
-    crownPrefixes: ['雷', '龍', '鷹', '栃', '琴', '千'],
+  HAYATE: {
+    crownPrefixes: ['疾', '風', '飛', '蒼', '翔', '雲'],
     schoolMix: [
-      { value: 'GORIKI', weight: 40 },
-      { value: 'HAYATE', weight: 35 },
+      { value: 'HAYATE', weight: 50 },
+      { value: 'GORIKI', weight: 25 },
       { value: 'TRADITION', weight: 25 },
     ],
   },

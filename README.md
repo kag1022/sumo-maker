@@ -205,11 +205,40 @@ UIは以下に集中する。
 
 > 本作は、現実準拠の制度下で生成された力士の生涯統計を観賞し、プレイヤーが自由に妄想するための相撲人生シミュレーターである。
 
+---
+
+## 11. 取組（勝敗判定）ロジックの詳細 (v2準拠)
+
+本作の勝敗判定は、単純なステータスの大小だけでなく、状態や相性、スキル（特性）が複雑に絡み合う確率（ロジスティック関数）ベースで計算されます。
+
+### ① 基礎戦闘力の算出
+- **基本能力値**: 8つのステータスの平均値がベースとなります。
+- **調子・体格補正**: その場所の調子で基本値が変動し、身長・体重から算出される「体格スコア」の差分が戦闘力に加味されます（アンコ型などの体格タイプ補正も存在）。
+- **戦術相性**: 自分の戦術（押し・四ツ・技能）と相手の傾向によって相性補正（有利・不利）がかかります。
+- **得意技ボーナス**: 得意技に関連するステータスが十分に高い場合、固定ボーナスが加算されます。
+
+### ② スキル（特性）とDNAによる状況補正
+力士の持つスキルや遺伝的要素（DNA）により、取組の文脈に応じた大幅な補正がかかります。
+- **プレッシャー・大一番**: 「強心臓」「ノミの心臓」「大舞台の鬼」などにより、勝ち越しのかかった一番や優勝争い、横綱・大関戦での戦闘力が上下します。
+- **連勝・連敗状態**: 「連勝街道」やDNAの連勝/連敗への敏感さによって、勢いが戦闘力に反映されます。
+- **序盤/終盤特性**: 「スロースターター」や「スタートダッシュ」など、場所のタイミングで強さが変化します。
+- **体格・番付差**: 「巨人殺し」「小兵キラー」など、相手との能力差や体格差でステータスが強化されます。
+
+### ③ 勝率の算出と勝敗判定
+- 最終的な戦闘力と、相手の能力値を比較します。
+- そこに双方の勝敗連数に応じた**モメンタム（勢い）ボーナス**、怪我によるペナルティを反映し、最終的な能力差を割り出します。
+- この能力差をソフトキャップ（上限）に通し、ロジスティック関数を用いて **勝率（3% ～ 97%の間）** を算出、乱数により勝敗を決定します。
+
+### ④ 土壇場の逆転と決まり手
+- **逆転現象**: 敗北判定となった場合でも、「土俵際の魔術師」や「土壇場返し」を持っていれば、低確率で逆転勝利（うっちゃり等）が発生します。
+- **決まり手の抽選**: 勝敗決定後、双方のプレイスタイル、体格、ステータス特性、所持スキル（「荒技師」など）、設定された得意技を加味した重み付け抽選により、適切な決まり手が選ばれます。
+
 
 ## 現在の機能
 
 - 新弟子作成
   - 四股名、入門経歴、戦術、体格、スキルを選択
+  - 一門（5勢力）と所属部屋（45部屋）を選択
   - 入門年齢（例: 15/18/22）を保持し、レポート表示に反映
 - キャリアシミュレーション
   - 年6場所を進行し、勝敗・怪我・成長・番付昇降・引退を計算
@@ -232,68 +261,287 @@ npm run report:realism:mc
 
 - `npm test`: シミュレーションの決定論テストを実行（`scripts/tests/sim_tests.ts`）
 - `npm run build`: `tsc` + `vite build`
-- `npm run report:realism:mc`: `unified-v1` の Monte Carlo 受け入れ判定（既定 500本 + 500本）
+- `npm run report:realism:mc`: `unified-v2-kimarite` / `unified-v3-variance` の Monte Carlo 受け入れ判定（既定 500本）
+
+### ユニットテスト高速化（2026-02-28）
+
+`npm test` は `scripts/tests/run_sim_tests.cjs` で以下の順に実行されます。
+
+1. `tsc -p tsconfig.simtests.json` でテストコードをビルド
+2. `sim_tests.ts` 内の `scope`（`name: 'scope: ...'` の先頭語）を列挙
+3. scope ごとに別 Node プロセスで並列実行
+
+主なオプション:
+
+- `--jobs N`: 並列ワーカー数を指定
+  - 例: `npm test -- --jobs 8`
+- `TEST_JOBS`: デフォルト並列数を環境変数で指定
+  - 例(PowerShell): `$env:TEST_JOBS=8; npm test`
+- `--jobs 1`: 完全直列実行（デバッグ・切り分け向け）
+
+デフォルト並列度:
+
+- `min(6, 利用可能CPU数 - 1)` を自動採用
+- `--jobs` が最優先、未指定時に `TEST_JOBS`、それも未指定なら自動値
+
+補足:
+
+- フィルタ実行（`--grep`, `--scope`）時も並列化対象を自動判定
+- 内部向けに `--list-scopes` を追加（選択中scopeの列挙専用）
+
+参考計測（開発環境の一例）:
+
+- 変更前: 約 365 秒
+- 変更後: 約 141 秒
+- 改善率: 約 61%
 
 ## ロジック検証モード（dev専用）
 
 - `npm run dev` でのみ、ヘッダーに `ロジック検証` ボタンが表示されます。
-- 検証モードでは `preset + seed` を指定してフルキャリアを GUI で追跡できます（通常実行モデルは `unified-v1` 固定）。
-- `2モデル比較` ボタンは旧モデル（`legacy-v6` / `realism-v1`）の参照比較専用です。
+- 検証モードでは `preset + seed` を指定してフルキャリアを GUI で追跡できます（通常実行モデルは `unified-v3-variance` 既定）。
+- `2モデル比較` ボタンは `unified-v2-kimarite` と `unified-v3-variance` の比較専用です。
 - 同じ `preset + seed` の組み合わせで、初期能力生成からキャリア完了まで再現可能です。
 - 検証モードの実行結果は DB 保存しません（殿堂入りやドラフト保存は行いません）。
 
-## ディレクトリ構成（主要部）
+## 最新更新（2026-03-04）
+
+- `unified-v3-variance` を追加し、新規実行の既定モデルを `unified-v3-variance` に変更。
+- `SimulationModelVersion` は `unified-v2-kimarite` / `unified-v3-variance` の2値化。
+- 旧モデル値（`legacy-v6` / `realism-v1` / `unified-v1`）はロード時に `unified-v2-kimarite` へ正規化。
+- 場所単位の分散モジュールを追加:
+  - `src/logic/simulation/variance/bashoVariance.ts`
+  - 通常ノイズ + テールイベント混合分布で `bashoFormDelta` を決定（seed再現）。
+  - v3では `applyGrowth` 後に調子を再計算し、場所間での調子リセット挙動を抑制。
+- v3限定で取組平均化を緩和:
+  - 候補上位3件から `70% / 20% / 10%` で対戦相手を確率選択。
+  - day6-10 / day11-15 の同星偏重スコア重みを緩和し、番付距離重みを相対的に強化。
+- Logic Lab の2モデル比較は `unified-v2-kimarite` vs `unified-v3-variance` に更新。
+- `report:realism:mc` を v2/v3 比較レポートに更新（相対差を併記）。
+- 検証結果（この環境での直近実行）:
+  - `npm test`: PASS (206/206)
+  - `npm run build`: PASS
+  - `npm run report:banzuke:quantile`: PASS（`Makushita:6-1-0` は `p10=7.6`, `p50=26`）
+  - `npm run report:realism:mc`: 既定500本はこの環境でタイムアウト。`REALISM_MC_BASE_RUNS=200` では完走。
+
+## ディレクトリ構成（完全 / Git管理対象）
+
+以下は `git ls-files` を基準にした、プロジェクトの完全なディレクトリ構造です。
 
 ```text
-src/
-  app/
-    App.tsx
-  main.tsx
-  features/
-    logicLab/         # 開発・解析用のロジック検証UI
-    report/           # レポート・殿堂入り画面
-      components/     # AchievementView, HallOfFameGrid, ReportScreen, などの画面要素
-      utils/          # hoshitori.ts などのユーティリティ
-    scout/            # 新弟子作成・入幕パラメータ設定
-      components/
-        ScoutScreen.tsx
-    simulation/       # シミュレーション実行連携
-      hooks/
-      store/
-      workers/
-  shared/
-    ui/               # 汎用UIコンポーネント (Button, Card, DamageMap 等)
-  logic/
-    achievements.ts / battle.ts / constants.ts / growth.ts / models.ts / initialization.ts
-    balance/          # モデルのバージョンごとのパラメータ等 (realismV1.ts, unifiedV1.ts)
-    banzuke/          # 番付編成ロジック (committee, optimizer, population, providers, rules, scale)
-    catalog/          # 固定データ (enemyData.ts 等)
-    kimarite/         # 決まり手判定ロジック (catalog.ts, matchup.ts)
-    naming/           # 四股名生成
-    persistence/      # 履歴保存・データベース連携 (careerStorage.ts, db.ts, repository.ts, wallet.ts)
-    ranking/          # ランキングスコア計算
-    scout/            # スカウトや初期能力生成
-    simulation/       # シミュレーションエンジン中核機能群
-      basho.ts / career.ts / engine.ts / matchmaking.ts / runner.ts / world.ts 等
-      actors/         # アクター（力士エンティティ等）の表現
-      boundary/       # モジュール境界で共有・利用される定義
-      lower/          # 幕下以下の挙動・入替
-      npc/            # NPC生成・引退・管理 (factory, retirement, stableCatalog 等)
-      sekitori/       # 関取枠・昇降格候補の管理
-      strength/       # 力士の強さ・能力（加齢・怪我等）の更新
-      topDivision/    # 幕内・十両上位における特別ルールや三賞
-      torikumi/       # 取組編成スケジューラ (policy.ts, scheduler.ts)
-scripts/
-  tests/
-    sim_tests.ts
-    run_sim_tests.cjs
-  reports/
-    balance_report.cjs
-    run_balance_report.cjs
-docs/
-  ゲーム仕様.md
-  リザルト画面仕様.md
-  balance-report-500.md
+.
+├── public/
+│   └── assets/
+│       ├── anko_back.PNG
+│       ├── anko.PNG
+│       ├── damage-base-body.png
+│       ├── muscle_back.PNG
+│       ├── muscle.PNG
+│       ├── nomal_back.PNG
+│       ├── nomal.PNG
+│       ├── soep_back.PNG
+│       └── soep.PNG
+├── scripts/
+│   ├── reports/
+│   │   ├── balance_report.cjs
+│   │   ├── banzuke_quantile_report.ts
+│   │   ├── extract_banzuke_cases.ts
+│   │   ├── quick_banzuke_checks.ts
+│   │   ├── realism_monte_carlo.cjs
+│   │   ├── roster_integrity_report.ts
+│   │   ├── run_balance_report.cjs
+│   │   ├── run_banzuke_quantile_report.cjs
+│   │   ├── run_quick_banzuke_checks.cjs
+│   │   ├── run_realism_monte_carlo.cjs
+│   │   ├── run_roster_integrity_report.cjs
+│   │   └── test_sekitori_rate.ts
+│   └── tests/
+│       ├── run_sim_tests.cjs
+│       └── sim_tests.ts
+├── src/
+│   ├── app/
+│   │   └── App.tsx
+│   ├── features/
+│   │   ├── logicLab/
+│   │   │   ├── components/
+│   │   │   │   └── LogicLabScreen.tsx
+│   │   │   ├── store/
+│   │   │   │   └── logicLabStore.ts
+│   │   │   ├── presets.ts
+│   │   │   ├── runner.ts
+│   │   │   └── types.ts
+│   │   ├── report/
+│   │   │   ├── components/
+│   │   │   │   ├── AchievementView.tsx
+│   │   │   │   ├── HallOfFameGrid.tsx
+│   │   │   │   ├── HoshitoriTable.tsx
+│   │   │   │   └── ReportScreen.tsx
+│   │   │   └── utils/
+│   │   │       └── hoshitori.ts
+│   │   ├── scout/
+│   │   │   └── components/
+│   │   │       └── ScoutScreen.tsx
+│   │   └── simulation/
+│   │       ├── hooks/
+│   │       │   └── useSimulation.ts
+│   │       ├── store/
+│   │       │   └── simulationStore.ts
+│   │       └── workers/
+│   │           └── simulation.worker.ts
+│   ├── logic/
+│   │   ├── balance/
+│   │   │   ├── realismV1.ts
+│   │   │   └── unifiedV1.ts
+│   │   ├── banzuke/
+│   │   │   ├── committee/
+│   │   │   │   ├── composeNextBanzuke.ts
+│   │   │   │   └── reviewBoard.ts
+│   │   │   ├── optimizer/
+│   │   │   │   ├── config.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── objective.ts
+│   │   │   │   ├── orderedAssignmentDp.ts
+│   │   │   │   ├── pressure.ts
+│   │   │   │   ├── quantileTargets.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── population/
+│   │   │   │   └── flow.ts
+│   │   │   ├── providers/
+│   │   │   │   ├── expected/
+│   │   │   │   │   ├── allocator.ts
+│   │   │   │   │   ├── monotonic.ts
+│   │   │   │   │   ├── scoring.ts
+│   │   │   │   │   ├── slotBands.ts
+│   │   │   │   │   └── types.ts
+│   │   │   │   ├── sekitori/
+│   │   │   │   │   ├── allocation.ts
+│   │   │   │   │   ├── bands.ts
+│   │   │   │   │   ├── directives.ts
+│   │   │   │   │   ├── performanceIndex.ts
+│   │   │   │   │   ├── safety.ts
+│   │   │   │   │   ├── scoring.ts
+│   │   │   │   │   ├── slots.ts
+│   │   │   │   │   └── types.ts
+│   │   │   │   ├── lowerBoundary.ts
+│   │   │   │   ├── sekitoriBoundary.ts
+│   │   │   │   └── topDivision.ts
+│   │   │   ├── rules/
+│   │   │   │   ├── constraints.ts
+│   │   │   │   ├── lowerDivision.ts
+│   │   │   │   ├── sanyakuPromotion.ts
+│   │   │   │   ├── singleRankChange.ts
+│   │   │   │   ├── topDivisionRules.ts
+│   │   │   │   └── yokozunaPromotion.ts
+│   │   │   ├── scale/
+│   │   │   │   ├── banzukeLayout.ts
+│   │   │   │   ├── rankLimits.ts
+│   │   │   │   └── rankScale.ts
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   ├── catalog/
+│   │   │   └── enemyData.ts
+│   │   ├── kimarite/
+│   │   │   ├── catalog.ts
+│   │   │   └── matchup.ts
+│   │   ├── naming/
+│   │   │   └── playerNaming.ts
+│   │   ├── persistence/
+│   │   │   ├── careerStorage.ts
+│   │   │   ├── db.ts
+│   │   │   ├── repository.ts
+│   │   │   └── wallet.ts
+│   │   ├── ranking/
+│   │   │   ├── index.ts
+│   │   │   └── rankScore.ts
+│   │   ├── scout/
+│   │   │   └── gacha.ts
+│   │   ├── simulation/
+│   │   │   ├── actors/
+│   │   │   │   ├── constants.ts
+│   │   │   │   └── playerBridge.ts
+│   │   │   ├── boundary/
+│   │   │   │   └── shared.ts
+│   │   │   ├── heya/
+│   │   │   │   ├── ichimonCatalog.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── stableArchetypeCatalog.ts
+│   │   │   │   └── stableCatalog.ts
+│   │   │   ├── lower/
+│   │   │   │   ├── exchange.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── npc/
+│   │   │   │   ├── factory.ts
+│   │   │   │   ├── intake.ts
+│   │   │   │   ├── leagueReconcile.ts
+│   │   │   │   ├── npcShikonaGenerator.ts
+│   │   │   │   ├── retirement.ts
+│   │   │   │   ├── shikonaDenylist.ts
+│   │   │   │   ├── stableCatalog.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── sekitori/
+│   │   │   │   ├── candidates.ts
+│   │   │   │   ├── pool.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── strength/
+│   │   │   │   ├── model.ts
+│   │   │   │   └── update.ts
+│   │   │   ├── topDivision/
+│   │   │   │   ├── banzuke.ts
+│   │   │   │   ├── bashoSummary.ts
+│   │   │   │   ├── playerNormalization.ts
+│   │   │   │   ├── rank.ts
+│   │   │   │   └── specialPrizes.ts
+│   │   │   ├── torikumi/
+│   │   │   │   ├── policy.ts
+│   │   │   │   ├── scheduler.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── basho.ts
+│   │   │   ├── career.ts
+│   │   │   ├── deps.ts
+│   │   │   ├── diagnostics.ts
+│   │   │   ├── engine.ts
+│   │   │   ├── injury.ts
+│   │   │   ├── lowerQuota.ts
+│   │   │   ├── matchmaking.ts
+│   │   │   ├── modelVersion.ts
+│   │   │   ├── npcRecords.ts
+│   │   │   ├── runner.ts
+│   │   │   ├── sekitoriQuota.ts
+│   │   │   ├── titles.ts
+│   │   │   ├── workerProtocol.ts
+│   │   │   ├── world.ts
+│   │   │   └── yusho.ts
+│   │   ├── achievements.ts
+│   │   ├── battle.ts
+│   │   ├── constants.ts
+│   │   ├── growth.ts
+│   │   ├── initialization.ts
+│   │   └── models.ts
+│   ├── shared/
+│   │   └── ui/
+│   │       ├── Button.tsx
+│   │       ├── Card.tsx
+│   │       ├── DamageMap.tsx
+│   │       └── Typography.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── vite-env.d.ts
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── progress.md
+├── README.md
+├── tailwind.config.js
+├── ts_errors.txt
+├── tsconfig.json
+├── tsconfig.node.json
+├── tsconfig.quantilechecks.json
+├── tsconfig.quickchecks.json
+├── tsconfig.roster_integrity.json
+├── tsconfig.simtests.json
+└── vite.config.ts
 ```
 
 ## ディレクトリ運用ルール
@@ -325,6 +573,12 @@ docs/
   - ドメイン計算ロジック（勝敗、成長、番付編成処理と最適化、取組編成、決まり手生成）
 - `logic/persistence/repository.ts`
   - `careers` / `bashoRecords` / `boutRecords` / `banzukeDecisions` への非同期保存
+
+## 部屋名の差し替え運用
+
+- 45部屋の表示名・フレーバー文は `src/logic/simulation/heya/stableCatalog.ts` に集約しています。
+- 将来の改名時は `displayName` と `flavor` だけを変更してください。
+- ロジック/保存キーは `stable-001` のような `id` と `code` を使用するため、表示名変更で互換性は崩れません。
 
 ### 依存注入（再現性向上）
 

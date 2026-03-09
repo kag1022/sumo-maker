@@ -73,6 +73,7 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (typeof status.entryAge !== 'number') status.entryAge = status.age;
   if (typeof status.isOzekiKadoban !== 'boolean') status.isOzekiKadoban = false;
   if (typeof status.isOzekiReturn !== 'boolean') status.isOzekiReturn = false;
+  if (!status.retirementProfile) status.retirementProfile = 'STANDARD';
   return status;
 };
 

@@ -117,6 +117,9 @@ export const resolveSekitoriBoundaryAssignedRank = (
     });
   }
   for (const row of makushitaResults) {
+    if (row.rankScore > 30) {
+      continue;
+    }
     const currentSlot = toGlobalSlot('Makushita', row.rankScore);
     const currentRank = toCurrentRank('Makushita', row.rankScore);
     const isMakekoshi = row.wins < row.losses;

@@ -1,24 +1,36 @@
 import {
+  AptitudeTier,
   BasicProfile,
   BodyMetrics,
   BodyType,
   EntryDivision,
   GrowthType,
   Rank,
+  RetirementProfile,
   RikishiGenome,
   RikishiStatus,
   TacticsType,
   TalentArchetype,
   Trait,
+  IchimonId,
+  StableArchetypeId,
 } from './models';
-import { CONSTANTS } from './constants';
+import {
+  CONSTANTS,
+  DEFAULT_APTITUDE_FACTOR,
+  DEFAULT_APTITUDE_TIER,
+  resolveAptitudeFactor,
+} from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
+import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
   age: number;
   startingRank: Rank;
   archetype: TalentArchetype;
+  aptitudeTier?: AptitudeTier;
+  aptitudeFactor?: number;
   tactics: TacticsType;
   signatureMove: string;
   bodyType: BodyType;
@@ -29,6 +41,10 @@ export interface CreateInitialRikishiParams {
   profile?: BasicProfile;
   bodyMetrics?: BodyMetrics;
   genome?: RikishiGenome;
+  retirementProfile?: RetirementProfile;
+  stableId: string;
+  ichimonId: IchimonId;
+  stableArchetypeId: StableArchetypeId;
 }
 
 const DEFAULT_PROFILE: BasicProfile = {
@@ -44,6 +60,9 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
   MUSCULAR: { heightCm: 184, weightKg: 152 },
 };
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
 /**
  * DNA の BaseAbilityDNA ceiling 値から stat ごとのボーナスを算出する。
  * ceiling が高いほどその系統の初期値が高くなる。
@@ -52,14 +71,14 @@ const DEFAULT_BODY_METRICS: Record<BodyType, BodyMetrics> = {
 const resolveGenomeStatBonus = (genome: RikishiGenome): Record<string, number> => {
   const b = genome.base;
   return {
-    tsuki: (b.powerCeiling * 0.4 + b.speedCeiling * 0.3 + b.styleFit * 0.3) / 100 * 15,
-    oshi: (b.powerCeiling * 0.5 + b.speedCeiling * 0.3 + b.styleFit * 0.2) / 100 * 15,
-    kumi: (b.powerCeiling * 0.3 + b.techCeiling * 0.4 + b.ringSense * 0.3) / 100 * 15,
-    nage: (b.techCeiling * 0.5 + b.powerCeiling * 0.3 + b.ringSense * 0.2) / 100 * 15,
-    koshi: (b.ringSense * 0.4 + b.powerCeiling * 0.3 + b.speedCeiling * 0.3) / 100 * 15,
-    deashi: (b.speedCeiling * 0.5 + b.ringSense * 0.2 + b.styleFit * 0.3) / 100 * 15,
-    waza: (b.techCeiling * 0.4 + b.ringSense * 0.4 + b.styleFit * 0.2) / 100 * 15,
-    power: (b.powerCeiling * 0.6 + b.speedCeiling * 0.2 + b.styleFit * 0.2) / 100 * 15,
+    tsuki: (b.powerCeiling * 0.4 + b.speedCeiling * 0.3 + b.styleFit * 0.3) / 100 * 11,
+    oshi: (b.powerCeiling * 0.5 + b.speedCeiling * 0.3 + b.styleFit * 0.2) / 100 * 11,
+    kumi: (b.powerCeiling * 0.3 + b.techCeiling * 0.4 + b.ringSense * 0.3) / 100 * 11,
+    nage: (b.techCeiling * 0.5 + b.powerCeiling * 0.3 + b.ringSense * 0.2) / 100 * 11,
+    koshi: (b.ringSense * 0.4 + b.powerCeiling * 0.3 + b.speedCeiling * 0.3) / 100 * 11,
+    deashi: (b.speedCeiling * 0.5 + b.ringSense * 0.2 + b.styleFit * 0.3) / 100 * 11,
+    waza: (b.techCeiling * 0.4 + b.ringSense * 0.4 + b.styleFit * 0.2) / 100 * 11,
+    power: (b.powerCeiling * 0.6 + b.speedCeiling * 0.2 + b.styleFit * 0.2) / 100 * 11,
   };
 };
 
@@ -69,7 +88,16 @@ export const createInitialRikishi = (
 ): RikishiStatus => {
   const archData = CONSTANTS.TALENT_ARCHETYPES[params.archetype];
   const [minPot, maxPot] = archData.potentialRange;
-  const potential = minPot + Math.floor(random() * (maxPot - minPot + 1));
+  const potentialBase = minPot + Math.floor(random() * (maxPot - minPot + 1));
+  const aptitudeTier = params.aptitudeTier ?? DEFAULT_APTITUDE_TIER;
+  const aptitudeFactor = Number.isFinite(params.aptitudeFactor)
+    ? Math.max(0.3, params.aptitudeFactor as number)
+    : resolveAptitudeFactor(aptitudeTier, DEFAULT_APTITUDE_FACTOR);
+  const potential = clamp(
+    Math.round(50 + (potentialBase - 50) * aptitudeFactor),
+    1,
+    100,
+  );
 
   const stats: RikishiStatus['stats'] = {
     tsuki: 20,
@@ -90,9 +118,9 @@ export const createInitialRikishi = (
   const tacticMods = CONSTANTS.TACTICAL_GROWTH_MODIFIERS[params.tactics];
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
     if (tacticMods[k] > 1.0) {
-      stats[k] += 10;
+      stats[k] += 12;
     } else if (tacticMods[k] < 1.0) {
-      stats[k] -= 5;
+      stats[k] -= 4;
     }
   });
 
@@ -105,8 +133,10 @@ export const createInitialRikishi = (
   }
 
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
-    stats[k] += Math.floor(random() * 11) - 5;
+    stats[k] += Math.floor(random() * 19) - 9;
     stats[k] = Math.max(1, stats[k]);
+    const scaledBase = Math.max(20, stats[k]);
+    stats[k] = Math.max(1, Math.round(20 + (scaledBase - 20) * aptitudeFactor));
   });
 
   const entryDivision =
@@ -130,8 +160,14 @@ export const createInitialRikishi = (
     ? Math.round(80 * (1 / Math.max(0.3, params.genome.durability.baseInjuryRisk)))
     : 80;
 
+  const retirementProfile =
+    params.retirementProfile ??
+    resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
+
   return {
-    heyaId: 'my-heya',
+    stableId: params.stableId,
+    ichimonId: params.ichimonId,
+    stableArchetypeId: params.stableArchetypeId,
     shikona: params.shikona,
     entryAge: params.age,
     age: params.age,
@@ -140,6 +176,8 @@ export const createInitialRikishi = (
     potential,
     growthType: params.growthType ?? 'NORMAL',
     archetype: params.archetype,
+    aptitudeTier,
+    aptitudeFactor,
     entryDivision,
     tactics: params.tactics,
     signatureMoves: [params.signatureMove],
@@ -158,6 +196,7 @@ export const createInitialRikishi = (
     injuries: [],
     isOzekiKadoban: false,
     isOzekiReturn: false,
+    retirementProfile,
     genome: params.genome,
     history: {
       records: [],

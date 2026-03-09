@@ -1,6 +1,7 @@
 import { CONSTANTS } from '../constants';
 import { Injury, InjuryType, RikishiStatus } from '../models';
 import { RandomSource } from './deps';
+import { STABLE_ARCHETYPE_BY_ID } from './heya/stableArchetypeCatalog';
 
 export interface InjuryParticipation {
   maxAcuteSeverity: number;
@@ -50,6 +51,10 @@ export const resolveInjuryRate = (status: RikishiStatus): number => {
   // DNA: 基礎怪我リスク係数
   if (status.genome) {
     injuryRate *= status.genome.durability.baseInjuryRisk;
+  }
+  const stableTraining = STABLE_ARCHETYPE_BY_ID[status.stableArchetypeId]?.training;
+  if (stableTraining) {
+    injuryRate *= stableTraining.injuryRiskMultiplier;
   }
   return injuryRate;
 };
