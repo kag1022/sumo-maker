@@ -4,6 +4,7 @@ import { RikishiStatus } from '../../models';
 import { RandomSource } from '../deps';
 import {
   applyGeneratedInjury,
+  appendInjuryHistoryEvent,
   generateInjury,
   resolveInjuryParticipation,
   resolveInjuryRate,
@@ -61,8 +62,10 @@ export const runSimplifiedBasho = (
   for (let day = 1; day <= numBouts; day += 1) {
     if (rng() < resolveInjuryRate(status)) {
       losses += 1;
-      applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+      const injury = generateInjury(status, year, month, rng);
+      applyGeneratedInjury(status, injury);
       const postInjury = resolveInjuryParticipation(status);
+      appendInjuryHistoryEvent(status, year, month, injury, postInjury.mustSitOut);
       const enemy = generateEnemy(status.rank.division, year, rng);
       playerBoutDetails.push({
         day,

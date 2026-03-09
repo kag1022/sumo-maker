@@ -180,7 +180,7 @@ export const createInitialRikishi = (
     aptitudeFactor,
     entryDivision,
     tactics: params.tactics,
-    signatureMoves: [params.signatureMove],
+    signatureMoves: params.signatureMove ? [params.signatureMove] : [],
     bodyType: params.bodyType,
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
@@ -198,6 +198,10 @@ export const createInitialRikishi = (
     isOzekiReturn: false,
     retirementProfile,
     genome: params.genome,
+    kataProfile: {
+      settled: false,
+      confidence: 0,
+    },
     history: {
       records: [],
       events: [],

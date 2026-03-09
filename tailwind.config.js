@@ -4,72 +4,66 @@ export default {
   theme: {
     extend: {
       colors: {
-        // === 背景系（藍色ベース） ===
+        // === 背景系（和紙ベース） ===
         bg: {
-          DEFAULT: "#0a0e1a",   // メイン背景
-          panel: "#111b2e",     // パネル内側
-          hover: "#1a2844",     // ホバー/アクティブ
-          light: "#1e3050",     // 明るめパネル
+          DEFAULT: "#efe7db",
+          panel: "#f8f2e8",
+          hover: "#f1e6d8",
+          light: "#fcfaf5",
         },
-        // === テキスト系 ===
         text: {
-          DEFAULT: "#e8e0d0",   // メインテキスト
-          dim: "#8a8472",       // サブテキスト
-          bright: "#ffffff",    // 強調
+          DEFAULT: "#241b16",
+          dim: "#6f6257",
+          bright: "#17120e",
         },
-        // === アクセント: ゴールド（RPG風） ===
         gold: {
-          DEFAULT: "#D4A017",
-          dim: "#8B6914",
-          bright: "#FFD700",
-          muted: "#6B5010",
+          DEFAULT: "#9f7a34",
+          dim: "#8f6a22",
+          bright: "#b88a33",
+          muted: "#cdbfa8",
         },
-        // === アクセント: 朱色 ===
         crimson: {
-          DEFAULT: "#C84040",
-          dim: "#8B2020",
-          bright: "#FF5555",
+          DEFAULT: "#9a4335",
+          dim: "#7d2f26",
+          bright: "#b25748",
         },
-        // === ステータスカラー ===
-        hp: "#44AA44",
-        mp: "#4488DD",
-        // === 旧名互換エイリアス（段階的に除去） ===
+        hp: "#486d44",
+        mp: "#4f6f84",
         washi: {
-          DEFAULT: "#0a0e1a",
-          dark: "#060a12",
-          light: "#111b2e",
+          DEFAULT: "#efe7db",
+          dark: "#2a211c",
+          light: "#f8f2e8",
         },
         sumi: {
-          DEFAULT: "#e8e0d0",
-          light: "#8a8472",
-          dark: "#ffffff",
+          DEFAULT: "#241b16",
+          light: "#6f6257",
+          dark: "#17120e",
         },
         kiniro: {
-          DEFAULT: "#D4A017",
-          light: "#FFD700",
-          dark: "#8B6914",
-          muted: "#6B5010",
+          DEFAULT: "#9f7a34",
+          light: "#b88a33",
+          dark: "#8f6a22",
+          muted: "#cdbfa8",
         },
         shuiro: {
-          DEFAULT: "#C84040",
-          light: "#FF5555",
-          dark: "#8B2020",
+          DEFAULT: "#9a4335",
+          light: "#b25748",
+          dark: "#7d2f26",
         },
         matcha: {
-          DEFAULT: "#44AA44",
-          light: "#55CC55",
+          DEFAULT: "#486d44",
+          light: "#678864",
         },
         kassairo: {
-          DEFAULT: "#0a0e1a",
-          light: "#111b2e",
+          DEFAULT: "#efe7db",
+          light: "#f8f2e8",
         },
-        kuroboshi: "#0a0a0a",
+        kuroboshi: "#17120e",
       },
       fontFamily: {
-        pixel: ['"DotGothic16"', 'monospace'],
-        sans: ['"Noto Sans JP"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic"', 'sans-serif'],
-        // serif はピクセルフォントに置き換え
-        serif: ['"DotGothic16"', 'monospace'],
+        pixel: ['"DotGothic16"', '"IBM Plex Sans JP"', '"Yu Gothic"', 'sans-serif'],
+        sans: ['"DotGothic16"', '"IBM Plex Sans JP"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic"', 'sans-serif'],
+        serif: ['"DotGothic16"', '"Shippori Mincho"', '"Hiragino Mincho ProN"', 'serif'],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],
@@ -83,17 +77,17 @@ export default {
         '5xl': ['3rem', { lineHeight: '1' }],
       },
       boxShadow: {
-        'rpg': 'inset 0 0 0 1px rgba(212,160,23,0.3), 0 4px 16px rgba(0,0,0,0.6)',
-        'rpg-glow': '0 0 12px rgba(212,160,23,0.3), 0 0 24px rgba(212,160,23,0.1)',
-        'rpg-red': '0 0 12px rgba(200,64,64,0.4), 0 0 24px rgba(200,64,64,0.15)',
-        'inner-rpg': 'inset 0 2px 8px rgba(0,0,0,0.4)',
+        'rpg': '0 18px 40px rgba(68,50,35,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
+        'rpg-glow': '0 18px 40px rgba(159,122,52,0.12)',
+        'rpg-red': '0 18px 40px rgba(154,67,53,0.14)',
+        'inner-rpg': 'inset 0 1px 0 rgba(255,255,255,0.6)',
       },
       animation: {
         'blink': 'blink 1s step-end infinite',
-        'flash': 'flash 0.3s ease-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'text-reveal': 'textReveal 0.6s ease-out forwards',
-        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        'flash': 'flash 0.3s steps(3, end)',
+        'slide-up': 'slideUp 0.3s steps(4, end)',
+        'text-reveal': 'textReveal 0.6s steps(5, end) forwards',
+        'pulse-soft': 'pulseSoft 2s steps(4, end) infinite',
       },
       keyframes: {
         blink: {
@@ -105,11 +99,11 @@ export default {
           '100%': { backgroundColor: 'transparent' },
         },
         slideUp: {
-          '0%': { opacity: 0, transform: 'translateY(10px)' },
+          '0%': { opacity: 0, transform: 'translateY(12px)' },
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
         textReveal: {
-          '0%': { opacity: 0, transform: 'translateY(6px)' },
+          '0%': { opacity: 0, transform: 'translateY(8px)' },
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
         pulseSoft: {

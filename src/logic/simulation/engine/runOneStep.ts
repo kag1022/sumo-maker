@@ -36,6 +36,7 @@ import {
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
 import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
+import { updateKataProfileAfterBasho } from '../../style/kata';
 import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
@@ -242,6 +243,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   state.status.history.records.push(bashoRecord);
   updateCareerStats(state.status, bashoRecord);
+  state.status = updateKataProfileAfterBasho(state.status, bashoRecord, state.seq + 1);
 
   const pastRecords = resolvePastRecords(state.status.history.records);
   const topDivisionQuota = resolveTopDivisionQuotaForPlayer(world, state.status.rank);
@@ -421,6 +423,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     state.lastCommitteeWarnings,
     state.lastDiagnostics,
   );
+  const eventPauseReason = resolvePauseReason(newEvents);
 
   return {
     kind: 'BASHO',
@@ -439,7 +442,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       afterRank: { ...row.afterRank },
     })),
     events: newEvents,
-    pauseReason: resolvePauseReason(newEvents),
+    pauseReason: eventPauseReason,
     statusSnapshot: cloneStatus(state.status),
     progress,
   };

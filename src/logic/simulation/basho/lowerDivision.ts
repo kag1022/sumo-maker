@@ -8,6 +8,7 @@ import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import {
   applyGeneratedInjury,
+  appendInjuryHistoryEvent,
   generateInjury,
   resolveInjuryParticipation,
   resolveInjuryRate,
@@ -386,8 +387,10 @@ export const runLowerDivisionBasho = (
         player.currentLossStreak = (player.currentLossStreak ?? 0) + 1;
         opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
         opponent.currentLossStreak = 0;
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const injury = generateInjury(status, year, month, rng);
+        applyGeneratedInjury(status, injury);
         const postInjury = resolveInjuryParticipation(status);
+        appendInjuryHistoryEvent(status, year, month, injury, postInjury.mustSitOut);
         playerBoutDetails.push({
           day,
           result: 'LOSS',

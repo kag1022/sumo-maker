@@ -2,6 +2,7 @@
 
 import { createSimulationEngine } from '../../../logic/simulation/engine';
 import {
+  SimulationObservationEntry,
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
@@ -14,12 +15,94 @@ import { normalizeNewRunModelVersion } from '../../../logic/simulation/modelVers
 
 let engine: ReturnType<typeof createSimulationEngine> | null = null;
 let activeCareerId: string | null = null;
-let paused = false;
 let stopped = false;
 let loopRunning = false;
+let pacing: 'observe' | 'skip_to_end' = 'observe';
 
 const post = (message: SimulationWorkerResponse): void => {
   self.postMessage(message);
+};
+
+const formatRankName = (rank: import('../../../logic/models').Rank): string => {
+  if (rank.name === '前相撲') return rank.name;
+  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
+  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) {
+    return `${side}${rank.name}`;
+  }
+  return `${side}${rank.name}${rank.number || 1}枚目`;
+};
+
+const buildObservation = (
+  step: Extract<Awaited<ReturnType<ReturnType<typeof createSimulationEngine>['runNextBasho']>>, { kind: 'BASHO' | 'COMPLETED' }>,
+): SimulationObservationEntry => {
+  if (step.kind === 'COMPLETED') {
+    const finalRank = formatRankName(step.statusSnapshot.history.maxRank);
+    return {
+      seq: step.progress.bashoCount,
+      year: step.progress.year,
+      month: step.progress.month,
+      kind: 'closing',
+      headline: '生涯が閉じました',
+      detail: `最高位 ${finalRank} / 通算 ${step.statusSnapshot.history.totalWins}勝${step.statusSnapshot.history.totalLosses}敗`,
+    };
+  }
+
+  const event = step.events.find((row) => row.type === 'RETIREMENT')
+    ?? step.events.find((row) => row.type === 'YUSHO')
+    ?? step.events.find((row) => row.type === 'PROMOTION')
+    ?? step.events.find((row) => row.type === 'INJURY');
+  const recordText = `${step.playerRecord.wins}勝${step.playerRecord.losses}敗${step.playerRecord.absent > 0 ? ` ${step.playerRecord.absent}休` : ''}`;
+  const rankLabel = formatRankName(step.playerRecord.rank);
+
+  if (event?.type === 'YUSHO') {
+    return {
+      seq: step.seq,
+      year: step.year,
+      month: step.month,
+      kind: 'milestone',
+      headline: `${step.year}年${step.month}月場所で頂点に触れる`,
+      detail: `${rankLabel}で ${recordText}。${event.description}`,
+    };
+  }
+  if (event?.type === 'PROMOTION') {
+    return {
+      seq: step.seq,
+      year: step.year,
+      month: step.month,
+      kind: 'milestone',
+      headline: `${step.year}年${step.month}月場所で景色が変わる`,
+      detail: event.description,
+    };
+  }
+  if (event?.type === 'INJURY') {
+    return {
+      seq: step.seq,
+      year: step.year,
+      month: step.month,
+      kind: 'danger',
+      headline: `${step.year}年${step.month}月場所で影が差す`,
+      detail: event.description,
+    };
+  }
+  if (event?.type === 'RETIREMENT') {
+    return {
+      seq: step.seq,
+      year: step.year,
+      month: step.month,
+      kind: 'closing',
+      headline: `${step.year}年${step.month}月場所で土俵を去る`,
+      detail: event.description,
+    };
+  }
+
+  return {
+    seq: step.seq,
+    year: step.year,
+    month: step.month,
+    kind: 'result',
+    headline: `${step.year}年${step.month}月場所を見届けた`,
+    detail: `${rankLabel}で ${recordText}`,
+  };
 };
 
 const runLoop = async (): Promise<void> => {
@@ -27,7 +110,7 @@ const runLoop = async (): Promise<void> => {
   loopRunning = true;
 
   try {
-    while (engine && !paused && !stopped) {
+    while (engine && !stopped) {
       const step = await engine.runNextBasho();
       const careerId = activeCareerId;
       if (!careerId) break;
@@ -45,30 +128,20 @@ const runLoop = async (): Promise<void> => {
           diagnostics: step.diagnostics,
         });
 
-        post({
-          type: 'BASHO_PROGRESS',
-          payload: {
-            careerId,
-            seq: step.seq,
-            year: step.year,
-            month: step.month,
-            playerRecord: step.playerRecord,
-            status: step.statusSnapshot,
-            events: step.events,
-            progress: step.progress,
-          },
-        });
-
-        if (step.pauseReason) {
-          paused = true;
+        if (pacing === 'observe') {
+          const observation = buildObservation(step);
           post({
-            type: 'PAUSED',
+            type: 'BASHO_PROGRESS',
             payload: {
               careerId,
-              reason: step.pauseReason,
+              seq: step.seq,
+              year: step.year,
+              month: step.month,
+              playerRecord: step.playerRecord,
               status: step.statusSnapshot,
               events: step.events,
               progress: step.progress,
+              observation,
             },
           });
         }
@@ -77,6 +150,7 @@ const runLoop = async (): Promise<void> => {
       }
 
       await markCareerCompleted(careerId, step.statusSnapshot);
+      const observation = buildObservation(step);
       post({
         type: 'COMPLETED',
         payload: {
@@ -84,6 +158,8 @@ const runLoop = async (): Promise<void> => {
           status: step.statusSnapshot,
           events: step.events,
           progress: step.progress,
+          observation,
+          pauseReason: step.pauseReason,
         },
       });
       engine = null;
@@ -107,15 +183,16 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
   const message = event.data;
 
   if (message.type === 'START') {
-    const { careerId, initialStats, oyakata, simulationModelVersion } = message.payload;
+    const { careerId, initialStats, oyakata, runOptions, simulationModelVersion } = message.payload;
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
 
-    paused = false;
     stopped = false;
+    pacing = 'observe';
     activeCareerId = careerId;
     engine = createSimulationEngine({
       initialStats,
       oyakata,
+      runOptions,
       careerId,
       banzukeMode: 'SIMULATE',
       simulationModelVersion: normalizedModelVersion,
@@ -124,27 +201,19 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
     return;
   }
 
-  if (message.type === 'PAUSE') {
-    paused = true;
-    return;
-  }
-
-  if (message.type === 'RESUME') {
-    if (!engine || stopped) return;
-    paused = false;
-    void runLoop();
-    return;
-  }
-
   if (message.type === 'STOP') {
     const careerId = activeCareerId;
     stopped = true;
-    paused = false;
     engine = null;
     activeCareerId = null;
     if (careerId) {
       void discardDraftCareer(careerId);
     }
+    return;
+  }
+
+  if (message.type === 'SET_PACING') {
+    pacing = message.payload.pacing;
   }
 };
 

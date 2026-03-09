@@ -10,13 +10,17 @@ const MAX_DAYS_BY_DIVISION: Record<Division, number> = {
   Sandanme: 15,
   Jonidan: 15,
   Jonokuchi: 15,
-  Maezumo: 15,
+  Maezumo: 0,
 };
 
 export const buildHoshitoriGrid = (
   bouts: BoutDetail[],
   division: Division,
 ): (BoutDetail | null)[] => {
+  if (division === 'Maezumo') {
+    return [];
+  }
+
   const maxDays = MAX_DAYS_BY_DIVISION[division];
   const grid: (BoutDetail | null)[] = Array.from({ length: 15 }, () => null);
 

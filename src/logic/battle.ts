@@ -99,6 +99,13 @@ const resolveEnemyStyleMatchupModifier = (
   return 1;
 };
 
+const resolveKataBattleModifier = (status: RikishiStatus): number => {
+  const kata = status.kataProfile;
+  if (!kata) return 1;
+  if (kata.settled) return 1.03;
+  return kata.confidence < 0.35 ? 0.985 : 1.0;
+};
+
 /**
  * 勝敗判定ロジック
  * @param rikishi 自分の力士
@@ -139,6 +146,7 @@ const resolveBattleResultV1 = (
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
+  myPower *= resolveKataBattleModifier(rikishi);
   const baselinePower = myPower;
 
   // 得意技ボーナス
@@ -446,6 +454,7 @@ const resolveBattleResultV2 = (
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
+  myPower *= resolveKataBattleModifier(rikishi);
   const baselinePower = myPower;
 
   let usedSignatureMove: string | null = null;
