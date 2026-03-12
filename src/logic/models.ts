@@ -80,6 +80,7 @@ export interface BasicProfile {
 export interface BodyMetrics {
   heightCm: number;
   weightKg: number;
+  reachDeltaCm?: number;
 }
 
 export interface RatingState {
@@ -203,6 +204,11 @@ export interface RikishiStatus {
   retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
   kataProfile?: KataProfile;
+  designedStyleProfile?: StyleProfile;
+  realizedStyleProfile?: StyleProfile | null;
+  buildSummary?: BuildSummary;
+  mentorId?: string;
+  spirit: number;
 
   history: CareerHistory;
   
@@ -228,11 +234,17 @@ export interface Oyakata {
   id: string;
   name: string;
   trait: string; // 特性名
+  secretStyle?: StyleArchetype;
   // 補正係数 (1.0 = 標準)
   growthMod: {
     [key: string]: number; // 'tsuki': 1.2 など
   };
   injuryMod: number; // 怪我しやすさ
+  spiritMods?: {
+    injuryPenalty?: number;
+    slumpPenalty?: number;
+    promotionBonus?: number;
+  };
 }
 
 export interface OyakataProfile {
@@ -241,11 +253,94 @@ export interface OyakataProfile {
   shikona: string;
   displayName: string;
   trait: string;
+  secretStyle?: StyleArchetype;
   growthMod: Oyakata['growthMod'];
   injuryMod: number;
   maxRank: Rank;
   legacyStars: 1 | 2 | 3 | 4 | 5;
   cooldownUntilCareerIndex?: number;
+}
+
+export type StyleArchetype =
+  | 'YOTSU'
+  | 'TSUKI_OSHI'
+  | 'MOROZASHI'
+  | 'DOHYOUGIWA'
+  | 'NAGE_TECH'
+  | 'POWER_PRESSURE';
+
+export type StyleCompatibility = 'EXCELLENT' | 'GOOD' | 'NEUTRAL' | 'POOR';
+
+export type BodyConstitution =
+  | 'BALANCED_FRAME'
+  | 'HEAVY_BULK'
+  | 'LONG_REACH'
+  | 'SPRING_LEGS';
+
+export type AmateurBackground =
+  | 'MIDDLE_SCHOOL'
+  | 'HIGH_SCHOOL'
+  | 'STUDENT_ELITE'
+  | 'COLLEGE_YOKOZUNA';
+
+export type MentalTraitType =
+  | 'CALM_ENGINE'
+  | 'BIG_STAGE'
+  | 'VOLATILE_FIRE'
+  | 'STONEWALL';
+
+export type InjuryResistanceType =
+  | 'FRAGILE'
+  | 'STANDARD'
+  | 'IRON_BODY';
+
+export type DebtCardId = 'OLD_KNEE' | 'PRESSURE_LINEAGE' | 'LATE_START';
+
+export interface StyleProfile {
+  primary: StyleArchetype;
+  secondary: StyleArchetype;
+  secret?: StyleArchetype;
+  dominant: StyleArchetype;
+  compatibility: StyleCompatibility;
+  label: string;
+  confidence: number;
+  source: 'DESIGNED' | 'REALIZED';
+  locked?: boolean;
+}
+
+export interface BuildSummary {
+  oyakataName: string;
+  amateurBackground: AmateurBackground;
+  bodyConstitution: BodyConstitution;
+  heightPotentialCm: number;
+  weightPotentialKg: number;
+  reachDeltaCm: number;
+  spentPoints: number;
+  remainingPoints: number;
+  debtCount: number;
+  debtCards?: DebtCardId[];
+  secretStyle?: StyleArchetype;
+  careerBandLabel: string;
+}
+
+export interface OyakataUnlockRule {
+  type: 'STARTER' | 'CAREER';
+  summary: string;
+}
+
+export interface OyakataBlueprint {
+  id: string;
+  name: string;
+  ichimonId: IchimonId;
+  advantage: string;
+  drawback: string;
+  secretStyle: StyleArchetype;
+  growthMods: Oyakata['growthMod'];
+  spiritMods: NonNullable<Oyakata['spiritMods']>;
+  injuryMod: number;
+  unlockRule: OyakataUnlockRule;
+  sourceCareerId?: string;
+  maxRank?: Rank;
 }
 
 export interface PrizeBreakdownEntry {
@@ -382,6 +477,20 @@ export interface BuildSpecV4 {
 export type BuildSpecV3 = BuildSpecV4;
 export type BuildSpecV2 = BuildSpecV4;
 
+export interface BuildSpecVNext {
+  oyakataId: string;
+  heightPotentialCm: number;
+  weightPotentialKg: number;
+  reachDeltaCm: number;
+  bodyConstitution: BodyConstitution;
+  amateurBackground: AmateurBackground;
+  primaryStyle: StyleArchetype;
+  secondaryStyle: StyleArchetype;
+  mentalTrait: MentalTraitType;
+  injuryResistance: InjuryResistanceType;
+  debtCards: DebtCardId[];
+}
+
 export interface SimulationRunOptions {
   selectedOyakataId?: string | null;
 }
@@ -404,6 +513,9 @@ export interface CareerHistory {
   title?: string; // 二つ名
   prizeBreakdown?: CareerPrizeBreakdown;
   rewardSummary?: CareerRewardSummary;
+  bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
+  highlightEvents?: HighlightEvent[];
+  careerTurningPoint?: CareerTurningPoint;
 }
 
 // 1場所ごとの記録
@@ -422,6 +534,32 @@ export interface BashoRecord {
   kinboshi?: number; // 金星獲得数（平幕が横綱を破った回数）
   kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
   scaleSlots?: RankScaleSlots; // その場所時点の番付スロット構成（相対スケール）
+  bodyWeightKg?: number;
+}
+
+export type HighlightEventTag =
+  | 'MAJOR_INJURY'
+  | 'KINBOSHI'
+  | 'YUSHO'
+  | 'PROMOTION'
+  | 'RETIREMENT'
+  | 'FIRST_SEKITORI'
+  | 'JURYO_DROP';
+
+export interface HighlightEvent {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  tag: HighlightEventTag;
+  label: string;
+}
+
+export interface CareerTurningPoint {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  reason: string;
+  severity: number;
 }
 
 // タイムラインイベント

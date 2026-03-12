@@ -1,4 +1,5 @@
-import { Oyakata, OyakataProfile, RikishiStatus, Trait } from '../models';
+import { Oyakata, OyakataProfile, RikishiStatus, StyleArchetype, Trait } from '../models';
+import { STYLE_LABELS } from '../phaseA';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -36,6 +37,28 @@ const resolveLegacyStars = (status: RikishiStatus): 1 | 2 | 3 | 4 | 5 => {
   return 1;
 };
 
+const resolveSekitoriExperience = (status: RikishiStatus): boolean =>
+  status.history.records.some((record) => record.rank.division === 'Makuuchi' || record.rank.division === 'Juryo')
+  || status.history.maxRank.division === 'Makuuchi'
+  || status.history.maxRank.division === 'Juryo';
+
+const resolveOyakataEligibility = (status: RikishiStatus): boolean => {
+  if (!resolveSekitoriExperience(status)) return false;
+  const makuuchiBasho = status.history.records.filter((record) => record.rank.division === 'Makuuchi').length;
+  const sansho = status.history.records.reduce((sum, record) => sum + (record.specialPrizes?.length ?? 0), 0);
+  const sekitoriBasho = status.history.records.filter((record) =>
+    record.rank.division === 'Makuuchi' || record.rank.division === 'Juryo').length;
+  const totalYusho =
+    status.history.yushoCount.makuuchi +
+    status.history.yushoCount.juryo +
+    status.history.yushoCount.makushita +
+    status.history.yushoCount.others;
+  return makuuchiBasho >= 6 || totalYusho >= 1 || sansho >= 1 || sekitoriBasho >= 30;
+};
+
+const resolveSecretStyle = (status: RikishiStatus): StyleArchetype | undefined =>
+  status.realizedStyleProfile?.dominant ?? status.designedStyleProfile?.dominant;
+
 const normalizeGrowthModBudget = (
   growthMod: Oyakata['growthMod'],
   budget: number,
@@ -55,7 +78,8 @@ const normalizeGrowthModBudget = (
 export const deriveOyakataProfile = (
   sourceCareerId: string,
   status: RikishiStatus,
-): OyakataProfile => {
+): OyakataProfile | undefined => {
+  if (!resolveOyakataEligibility(status)) return undefined;
   const topStats = pickTopStats(status);
   const legacyStars = resolveLegacyStars(status);
   const primaryBoost = clamp(1.05 + legacyStars * 0.015, 1.05, 1.12);
@@ -78,7 +102,8 @@ export const deriveOyakataProfile = (
     sourceCareerId,
     shikona: status.shikona,
     displayName: `${status.shikona}親方`,
-    trait: buildTraitLabel(status),
+    trait: `${buildTraitLabel(status)}${resolveSecretStyle(status) ? ` / ${STYLE_LABELS[resolveSecretStyle(status)!]}` : ''}`,
+    secretStyle: resolveSecretStyle(status),
     growthMod: normalizedGrowthMod,
     injuryMod,
     maxRank: status.history.maxRank,
@@ -90,6 +115,12 @@ export const toOyakata = (profile: OyakataProfile): Oyakata => ({
   id: profile.id,
   name: profile.displayName,
   trait: profile.trait,
+  secretStyle: profile.secretStyle,
   growthMod: normalizeGrowthModBudget(profile.growthMod, 0.3),
   injuryMod: clamp(profile.injuryMod, 0.9, 1.05),
+  spiritMods: {
+    injuryPenalty: 1,
+    slumpPenalty: 1,
+    promotionBonus: 1 + profile.legacyStars * 0.01,
+  },
 });

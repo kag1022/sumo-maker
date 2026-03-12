@@ -35,10 +35,10 @@ const parseHistoricInjury = (desc: string): Injury | null => {
 type MarkerPoint = { x: string; y: string; side: 'front' | 'back' };
 
 const STATUS_STYLE: Record<InjuryStatusType, { fill: string; stroke: string; label: string }> = {
-  ACUTE: { fill: 'rgba(154,67,53,0.5)', stroke: '#9a4335', label: '治療中' },
-  SUBACUTE: { fill: 'rgba(196,114,64,0.5)', stroke: '#c47240', label: '回復中' },
-  CHRONIC: { fill: 'rgba(110,93,164,0.5)', stroke: '#6e5da4', label: '慢性' },
-  HEALED: { fill: 'rgba(88,114,136,0.3)', stroke: '#587288', label: '完治痕' },
+  ACUTE: { fill: 'rgba(199,58,44,0.62)', stroke: '#c73a2c', label: '治療中' },
+  SUBACUTE: { fill: 'rgba(214,162,61,0.56)', stroke: '#d6a23d', label: '回復中' },
+  CHRONIC: { fill: 'rgba(91,122,165,0.52)', stroke: '#5b7aa5', label: '慢性' },
+  HEALED: { fill: 'rgba(110,166,109,0.28)', stroke: '#6ea66d', label: '完治痕' },
 };
 
 // ひとまず大まかなパーセンテージでプロットし、適宜調整します。
@@ -167,19 +167,19 @@ export const DamageMap: React.FC<DamageMapProps> = ({
     <div className={`space-y-3 ${className}`}>
       <div className="grid grid-cols-2 gap-4">
         <div className="scoreboard-panel p-3">
-          <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#8ea9cb]">前面</div>
-          <div className="relative aspect-[3/4] border-[2px] border-[rgba(122,148,171,0.24)] bg-[rgba(9,11,14,0.75)]">
+          <div className="mb-2 text-xs font-bold tracking-[0.14em] text-text-dim">前面</div>
+          <div className="relative aspect-[3/4] border-[2px] border-[rgba(91,122,165,0.24)] bg-[rgba(9,11,14,0.75)]">
             <BodyImageOverlay side="front" injuries={allInjuries} bodyType={bodyType} />
           </div>
         </div>
         <div className="scoreboard-panel p-3">
-          <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#8ea9cb]">背面</div>
-          <div className="relative aspect-[3/4] border-[2px] border-[rgba(122,148,171,0.24)] bg-[rgba(9,11,14,0.75)]">
+          <div className="mb-2 text-xs font-bold tracking-[0.14em] text-text-dim">背面</div>
+          <div className="relative aspect-[3/4] border-[2px] border-[rgba(91,122,165,0.24)] bg-[rgba(9,11,14,0.75)]">
             <BodyImageOverlay side="back" injuries={allInjuries} bodyType={bodyType} />
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 border-t-[2px] border-[rgba(255,224,176,0.12)] pt-2">
+      <div className="flex flex-wrap gap-4 border-t-[2px] border-[rgba(214,162,61,0.12)] pt-2">
         <LegendSwatch status="ACUTE" />
         <LegendSwatch status="SUBACUTE" />
         <LegendSwatch status="CHRONIC" />

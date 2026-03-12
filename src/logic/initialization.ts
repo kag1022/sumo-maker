@@ -7,8 +7,10 @@ import {
   GrowthType,
   Rank,
   RetirementProfile,
+  BuildSummary,
   RikishiGenome,
   RikishiStatus,
+  StyleProfile,
   TacticsType,
   TalentArchetype,
   Trait,
@@ -42,6 +44,10 @@ export interface CreateInitialRikishiParams {
   bodyMetrics?: BodyMetrics;
   genome?: RikishiGenome;
   retirementProfile?: RetirementProfile;
+  designedStyleProfile?: StyleProfile;
+  buildSummary?: BuildSummary;
+  mentorId?: string;
+  spirit?: number;
   stableId: string;
   ichimonId: IchimonId;
   stableArchetypeId: StableArchetypeId;
@@ -202,6 +208,11 @@ export const createInitialRikishi = (
       settled: false,
       confidence: 0,
     },
+    designedStyleProfile: params.designedStyleProfile,
+    realizedStyleProfile: null,
+    buildSummary: params.buildSummary,
+    mentorId: params.mentorId,
+    spirit: Number.isFinite(params.spirit) ? Math.round(params.spirit as number) : 70,
     history: {
       records: [],
       events: [],
@@ -211,6 +222,8 @@ export const createInitialRikishi = (
       totalAbsent: 0,
       yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
       kimariteTotal: {},
+      bodyTimeline: [],
+      highlightEvents: [],
     },
     statHistory: [],
   };

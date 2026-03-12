@@ -397,6 +397,37 @@ class SumoMakerDatabase extends Dexie {
           });
         }
       });
+
+    this.version(11)
+      .stores({
+        careers:
+          '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const meta = tx.table<WalletRow, string>('meta');
+        const wallet = await meta.get('wallet');
+        if (wallet) {
+          await meta.put({
+            ...wallet,
+            points: Math.max(0, Math.min(150, wallet.points)),
+            lastRegenAt: wallet.lastRegenAt ?? Date.now(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      });
   }
 }
 

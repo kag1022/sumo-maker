@@ -1,38 +1,42 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Shield, Sparkles, Swords, UserRound } from 'lucide-react';
-import {
-  BuildAxisDurability,
-  BuildAxisPeakDesign,
-  BuildAxisWinStyle,
-  BuildSpecV4,
-  Oyakata,
-  OyakataProfile,
-  RikishiStatus,
-  SimulationRunOptions,
-  Trait,
-} from '../../../logic/models';
+import { AlertTriangle, Shield, Swords, UserRound, Wallet } from 'lucide-react';
+import { Oyakata, OyakataBlueprint, RikishiStatus, SimulationRunOptions, StyleArchetype } from '../../../logic/models';
 import { Button } from '../../../shared/ui/Button';
 import { RikishiPortrait } from '../../../shared/ui/RikishiPortrait';
 import {
-  BUILD_COST,
-  buildPreviewSummary,
-  buildRikishiFromBuildSpec,
-  calculateBuildCost,
-  createDefaultBuildSpec,
+  buildInitialRikishiFromSpec,
+  buildPreviewSummaryVNext,
+  calculateBodyMassIndex,
+  calculateBuildCostVNext,
+  createDefaultBuildSpecVNext,
+  getStarterOyakataBlueprints,
+  isBuildSpecVNextBmiValid,
+  PHASE_A_BUILD_OPTIONS,
 } from '../../../logic/build/buildLab';
 import {
-  BODY_TYPE_CHOICES,
-  HISTORY_CHOICES,
-  PEAK_CHOICES,
-  WIN_STYLE_CHOICES,
-  traitFlavorLabel,
-} from '../../../logic/build/narrativeChoices';
+  blueprintToOyakata,
+  DEBT_CARD_LABELS,
+  DEBT_CARD_POINT_BONUS,
+  getStyleLabel,
+  STARTER_OYAKATA_BLUEPRINTS,
+} from '../../../logic/phaseA';
 import { getWalletState, spendWalletPoints, WalletState } from '../../../logic/persistence/wallet';
-import { listAvailableOyakataProfiles, listCommittedCareers } from '../../../logic/persistence/repository';
-import { ICHIMON_CATALOG } from '../../../logic/simulation/heya/ichimonCatalog';
-import { listStablesByIchimon } from '../../../logic/simulation/heya/stableCatalog';
-import { CONSTANTS } from '../../../logic/constants';
-import { toOyakata } from '../../../logic/oyakata/profile';
+import { listAvailableOyakataBlueprints } from '../../../logic/persistence/repository';
+import {
+  BODY_CONSTITUTION_COPY,
+  DEBT_CARD_COPY,
+  getBackgroundLabel,
+  getBodyConstitutionLabel,
+  getMentalTraitLabel,
+  getStyleLabelJa,
+  INJURY_RESISTANCE_COPY,
+  INJURY_RESISTANCE_LABELS,
+  MENTAL_TRAIT_COPY,
+  OYAKATA_COPY,
+  SCOUT_SECTION_LABELS,
+  ScoutSectionId,
+  STYLE_COPY,
+} from '../../../shared/ui/displayLabels';
 
 interface ScoutScreenProps {
   onStart: (
@@ -42,194 +46,120 @@ interface ScoutScreenProps {
   ) => void | Promise<void>;
 }
 
-type StepId = 'identity' | 'origin' | 'body' | 'style' | 'affiliation';
-type RequiredField =
-  | 'shikona'
-  | 'history'
-  | 'bodyType'
-  | 'winStyle'
-  | 'peakDesign'
-  | 'durability'
-  | 'stable';
-
-const STEPS: Array<{ id: StepId; label: string; short: string }> = [
-  { id: 'identity', label: '名跡', short: 'Name' },
-  { id: 'origin', label: '出自', short: 'Origin' },
-  { id: 'body', label: '体格', short: 'Body' },
-  { id: 'style', label: '相撲像', short: 'Style' },
-  { id: 'affiliation', label: '所属', short: 'Stable' },
-];
-
-const FIELD_LABELS: Record<RequiredField, string> = {
-  shikona: '四股名',
-  history: '入門経路',
-  bodyType: '体格',
-  winStyle: '相撲タイプ',
-  peakDesign: '成長傾向',
-  durability: '怪我耐性',
-  stable: '所属部屋',
-};
-
-const traitCandidates = (Object.keys(CONSTANTS.TRAIT_DATA) as Trait[])
-  .filter((trait) => !CONSTANTS.TRAIT_DATA[trait].isNegative)
-  .sort((a, b) => traitFlavorLabel(a).localeCompare(traitFlavorLabel(b), 'ja'))
-  .slice(0, 8);
-
-const chooseByValue = <T extends string>(
-  choices: Array<{ value: T; label: string; blurb: string }>,
-  value: T,
-) => choices.find((choice) => choice.value === value);
+const SECTION_ORDER: ScoutSectionId[] = ['oyakata', 'body', 'style', 'risk'];
 
 const ChoiceCard = ({
   label,
   blurb,
   selected,
   onClick,
-  eyebrow,
-  art,
+  aside,
+  tone = 'default',
 }: {
   label: string;
   blurb: string;
   selected: boolean;
   onClick: () => void;
-  eyebrow?: string;
-  art?: React.ReactNode;
+  aside?: React.ReactNode;
+  tone?: 'default' | 'danger';
 }) => (
   <button type="button" onClick={onClick} data-selected={selected} className="museum-choice">
-    <div className="space-y-3">
-      {art}
-      <div className="space-y-1">
-        {eyebrow && <div className="text-[0.68rem] uppercase tracking-[0.14em] text-[#d9a441]">{eyebrow}</div>}
-        <span className="museum-choice-title">{label}</span>
-        <span className="museum-choice-copy">{blurb}</span>
+    <div className="flex items-start justify-between gap-3">
+      <div className="space-y-2">
+        <div className={`museum-choice-title ${tone === 'danger' ? 'text-[#ffd2cd]' : ''}`}>{label}</div>
+        <div className="museum-choice-copy">{blurb}</div>
       </div>
+      {aside}
     </div>
   </button>
 );
 
-const SummaryRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="data-row">
-    <span className="data-key">{label}</span>
-    <span className="data-val text-left sm:text-right">{value}</span>
-  </div>
+const SliderField = ({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  suffix: string;
+}) => (
+  <label className="block space-y-3">
+    <div className="flex items-center justify-between text-sm text-text-dim">
+      <span>{label}</span>
+      <span className="museum-chip">{value}{suffix}</span>
+    </div>
+    <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full" />
+  </label>
 );
 
-const isOyakataOnCooldown = (profile: OyakataProfile, nextCareerIndex: number): boolean =>
-  typeof profile.cooldownUntilCareerIndex === 'number' &&
-  nextCareerIndex <= profile.cooldownUntilCareerIndex;
+const getCompatibilityTone = (label: string): string =>
+  label.includes('抜群') ? 'text-[var(--accent-green)]' : label.includes('難') ? 'text-[var(--accent-danger)]' : 'text-text';
+
+const styleOptions: StyleArchetype[] = ['YOTSU', 'TSUKI_OSHI', 'MOROZASHI', 'DOHYOUGIWA'];
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const [wallet, setWallet] = React.useState<WalletState | null>(null);
-  const [spec, setSpec] = React.useState<BuildSpecV4>(() => {
-    const defaultSpec = createDefaultBuildSpec();
-    return {
-      ...defaultSpec,
-      shikona: '',
-      profile: { ...defaultSpec.profile, realName: '', birthplace: '' },
-      traitSlots: 2,
-    };
-  });
-  const [stepIndex, setStepIndex] = React.useState(0);
-  const [oyakataProfiles, setOyakataProfiles] = React.useState<OyakataProfile[]>([]);
-  const [latestCareerIndex, setLatestCareerIndex] = React.useState(0);
+  const [availableOyakata, setAvailableOyakata] = React.useState<OyakataBlueprint[]>(STARTER_OYAKATA_BLUEPRINTS);
+  const [spec, setSpec] = React.useState(() => createDefaultBuildSpecVNext(getStarterOyakataBlueprints()[0].id));
   const [isRegistering, setIsRegistering] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
   React.useEffect(() => {
     let alive = true;
     void (async () => {
-      const [walletState, oyakata, careers] = await Promise.all([
+      const [walletState, oyakata] = await Promise.all([
         getWalletState(),
-        listAvailableOyakataProfiles(),
-        listCommittedCareers(),
+        listAvailableOyakataBlueprints(),
       ]);
       if (!alive) return;
       setWallet(walletState);
-      setOyakataProfiles(oyakata);
-      setLatestCareerIndex(careers[0]?.careerIndex ?? 0);
+      setAvailableOyakata(oyakata);
+      if (!oyakata.some((row) => row.id === spec.oyakataId)) {
+        setSpec(createDefaultBuildSpecVNext(oyakata[0]?.id ?? getStarterOyakataBlueprints()[0].id));
+      }
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [spec.oyakataId]);
 
-  React.useEffect(() => {
-    if (!wallet || wallet.points >= wallet.cap) return;
-    const interval = setInterval(() => {
-      setWallet((prev) => {
-        if (!prev || prev.points >= prev.cap) return prev;
-        if (prev.nextRegenInSec <= 1) {
-          getWalletState().then((newState) => setWallet(newState)).catch(() => {});
-          return prev;
-        }
-        return { ...prev, nextRegenInSec: prev.nextRegenInSec - 1 };
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [wallet]);
+  const selectedOyakata =
+    availableOyakata.find((oyakata) => oyakata.id === spec.oyakataId) ??
+    availableOyakata[0] ??
+    STARTER_OYAKATA_BLUEPRINTS[0];
+  const cost = calculateBuildCostVNext(spec, selectedOyakata);
+  const preview = buildPreviewSummaryVNext(spec, selectedOyakata);
+  const remainingPoints = (wallet?.points ?? 0) - cost.total;
+  const initialBmi = calculateBodyMassIndex(preview.initialHeightCm, preview.initialWeightKg);
+  const isBmiValid = isBuildSpecVNextBmiValid(spec);
+  const canStart = !isRegistering && isBmiValid && remainingPoints >= 0 && spec.debtCards.length <= 3;
 
-  const stableOptions = React.useMemo(
-    () => (spec.selectedIchimonId ? listStablesByIchimon(spec.selectedIchimonId) : []),
-    [spec.selectedIchimonId],
-  );
-  const selectedStable = stableOptions.find((stable) => stable.id === spec.selectedStableId) ?? null;
-  const nextCareerIndex = latestCareerIndex + 1;
-  const selectedOyakata = oyakataProfiles.find((item) => item.id === spec.selectedOyakataId) ?? null;
-  const buildCost = calculateBuildCost(spec, { oyakataLegacyStars: selectedOyakata?.legacyStars });
-  const preview = buildPreviewSummary(spec);
-  const remainingPoints = (wallet?.points ?? 0) - buildCost.total;
+  const warnings = [
+    !isBmiValid ? '初期BMIが低すぎます。身長か体重を見直してください。' : null,
+    remainingPoints < 0 ? `必要ptが ${Math.abs(remainingPoints)} 足りません。` : null,
+    spec.debtCards.length > 2 ? '負債が重い設計です。序盤の事故率が上がります。' : null,
+  ].filter((value): value is string => Boolean(value));
 
-  const pendingFields: RequiredField[] = [];
-  if (!spec.shikona.trim()) pendingFields.push('shikona');
-  if (!spec.history) pendingFields.push('history');
-  if (!spec.bodyType) pendingFields.push('bodyType');
-  if (!spec.abstractAxes.winStyle) pendingFields.push('winStyle');
-  if (!spec.abstractAxes.peakDesign) pendingFields.push('peakDesign');
-  if (!spec.abstractAxes.durability) pendingFields.push('durability');
-  if (!spec.selectedStableId) pendingFields.push('stable');
-
-  const canRegister =
-    pendingFields.length === 0 &&
-    (wallet?.points ?? 0) >= buildCost.total &&
-    !isRegistering &&
-    (!selectedOyakata || !isOyakataOnCooldown(selectedOyakata, nextCareerIndex));
-
-  const handleBodyTypeChange = (bodyType: BuildSpecV4['bodyType']) => {
-    const baseline = BUILD_COST.BODY_METRIC_BASELINE[bodyType];
-    setSpec((prev) => ({ ...prev, bodyType, bodyMetrics: { ...baseline } }));
-  };
-
-  const toggleTrait = (trait: Trait) => {
-    setSpec((prev) => {
-      if (prev.selectedTraits.includes(trait)) {
-        return { ...prev, selectedTraits: prev.selectedTraits.filter((item) => item !== trait) };
-      }
-      if (prev.selectedTraits.length >= 2) return prev;
-      return { ...prev, selectedTraits: [...prev.selectedTraits, trait] };
-    });
-  };
-
-  const handleRegister = async () => {
-    if (!canRegister) return;
-    setIsRegistering(true);
+  const handleStart = async () => {
+    if (!canStart) return;
     setErrorMessage('');
+    setIsRegistering(true);
     try {
-      const spent = await spendWalletPoints(buildCost.total, 'BUILD_REGISTRATION');
+      const spent = await spendWalletPoints(cost.total, 'BUILD_REGISTRATION');
       setWallet(spent.state);
       if (!spent.ok) {
-        setErrorMessage(`ポイントが足りません（必要 ${buildCost.total}pt）`);
+        setErrorMessage(`ポイントが足りません（必要 ${cost.total}pt）`);
         return;
       }
-      const status = buildRikishiFromBuildSpec({
-        ...spec,
-        profile: {
-          ...spec.profile,
-          realName: spec.profile.realName || spec.shikona,
-          birthplace: spec.profile.birthplace || '未設定',
-        },
-      });
-      await onStart(status, selectedOyakata ? toOyakata(selectedOyakata) : null, {
-        selectedOyakataId: spec.selectedOyakataId,
+      const status = buildInitialRikishiFromSpec(spec, selectedOyakata);
+      await onStart(status, blueprintToOyakata(selectedOyakata), {
+        selectedOyakataId: selectedOyakata.id,
       });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '送り出しに失敗しました。');
@@ -238,452 +168,343 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     }
   };
 
-  const currentStep = STEPS[stepIndex];
-  const selectedHistory = chooseByValue(HISTORY_CHOICES, spec.history);
-  const selectedBody = chooseByValue(BODY_TYPE_CHOICES, spec.bodyType);
-  const isStepDone = (stepId: StepId) => {
-    if (stepId === 'identity') return spec.shikona.trim().length > 0;
-    if (stepId === 'origin') return !pendingFields.includes('history');
-    if (stepId === 'body') return !pendingFields.includes('bodyType');
-    if (stepId === 'style') {
-      return !pendingFields.includes('winStyle')
-        && !pendingFields.includes('peakDesign')
-        && !pendingFields.includes('durability');
-    }
-    return !pendingFields.includes('stable');
-  };
-
-  const renderStepPanel = () => {
-    if (currentStep.id === 'identity') {
-      return (
-        <article className="rpg-panel space-y-5 p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="pixel-icon-badge"><UserRound size={16} /></span>
-            <div>
-              <div className="museum-kicker">Name Plate</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">呼び名を決める</h3>
-            </div>
-          </div>
-          <label className="block space-y-2 text-sm text-[#d7c0a0]">
-            <span>四股名</span>
-            <input
-              className="w-full px-4 py-3"
-              value={spec.shikona}
-              placeholder="例: 北海岳"
-              onChange={(e) => setSpec((prev) => ({ ...prev, shikona: e.target.value }))}
-            />
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2 text-sm text-[#d7c0a0]">
-              <span>本名（任意）</span>
-              <input
-                className="w-full px-4 py-3"
-                value={spec.profile.realName}
-                placeholder="未入力なら四股名を使用"
-                onChange={(e) =>
-                  setSpec((prev) => ({ ...prev, profile: { ...prev.profile, realName: e.target.value } }))
-                }
-              />
-            </label>
-            <label className="block space-y-2 text-sm text-[#d7c0a0]">
-              <span>出身地（任意）</span>
-              <input
-                className="w-full px-4 py-3"
-                value={spec.profile.birthplace}
-                placeholder="未設定"
-                onChange={(e) =>
-                  setSpec((prev) => ({ ...prev, profile: { ...prev.profile, birthplace: e.target.value } }))
-                }
-              />
-            </label>
-          </div>
-        </article>
-      );
-    }
-
-    if (currentStep.id === 'origin') {
-      return (
-        <article className="rpg-panel space-y-5 p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="pixel-icon-badge"><Sparkles size={16} /></span>
-            <div>
-              <div className="museum-kicker">Origin Route</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">どこから入ってくるか</h3>
-            </div>
-          </div>
-          <div className="grid gap-3">
-            {HISTORY_CHOICES.map((choice, index) => (
-              <ChoiceCard
-                key={choice.value}
-                label={choice.label}
-                blurb={choice.blurb}
-                eyebrow={`ROUTE 0${index + 1}`}
-                selected={spec.history === choice.value}
-                onClick={() =>
-                  setSpec((prev) => ({
-                    ...prev,
-                    history: choice.value,
-                    entryDivision: choice.value === 'UNI_YOKOZUNA' ? prev.entryDivision : 'Maezumo',
-                  }))
-                }
-              />
-            ))}
-          </div>
-        </article>
-      );
-    }
-
-    if (currentStep.id === 'body') {
-      return (
-        <article className="rpg-panel space-y-5 p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="pixel-icon-badge"><Shield size={16} /></span>
-            <div>
-              <div className="museum-kicker">Body Draft</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">土俵に置く体を選ぶ</h3>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {BODY_TYPE_CHOICES.map((choice) => (
-              <ChoiceCard
-                key={choice.value}
-                label={choice.label}
-                blurb={choice.blurb}
-                eyebrow={`${BUILD_COST.BODY_METRIC_BASELINE[choice.value].heightCm}cm / ${BUILD_COST.BODY_METRIC_BASELINE[choice.value].weightKg}kg`}
-                selected={spec.bodyType === choice.value}
-                onClick={() => handleBodyTypeChange(choice.value)}
-                art={<RikishiPortrait bodyType={choice.value} showLabel className="h-[156px]" />}
-              />
-            ))}
-          </div>
-        </article>
-      );
-    }
-
-    if (currentStep.id === 'style') {
-      return (
-        <article className="rpg-panel space-y-6 p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="pixel-icon-badge"><Swords size={16} /></span>
-            <div>
-              <div className="museum-kicker">Fight Pattern</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">伸び方と取り口を決める</h3>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="text-sm text-[#d7c0a0]">相撲タイプ</div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {WIN_STYLE_CHOICES.map((choice, index) => (
-                <ChoiceCard
-                  key={choice.value}
-                  label={choice.label}
-                  blurb={choice.blurb}
-                  eyebrow={`STYLE 0${index + 1}`}
-                  selected={spec.abstractAxes.winStyle === choice.value}
-                  onClick={() =>
-                    setSpec((prev) => ({
-                      ...prev,
-                      abstractAxes: { ...prev.abstractAxes, winStyle: choice.value as BuildAxisWinStyle },
-                    }))
-                  }
-                />
-              ))}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="text-sm text-[#d7c0a0]">成長傾向</div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {PEAK_CHOICES.map((choice, index) => (
-                <ChoiceCard
-                  key={choice.value}
-                  label={choice.label}
-                  blurb={choice.blurb}
-                  eyebrow={`GROWTH 0${index + 1}`}
-                  selected={spec.abstractAxes.peakDesign === choice.value}
-                  onClick={() =>
-                    setSpec((prev) => ({
-                      ...prev,
-                      abstractAxes: { ...prev.abstractAxes, peakDesign: choice.value as BuildAxisPeakDesign },
-                    }))
-                  }
-                />
-              ))}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="text-sm text-[#d7c0a0]">怪我耐性</div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {[
-                { value: 'IRON', label: '怪我に強い', blurb: '休場しにくく、長く相撲を取りやすい。' },
-                { value: 'BALANCED', label: '標準的', blurb: '怪我も成長も平均的に推移する。' },
-                { value: 'GAMBLE', label: '怪我の波が大きい', blurb: '爆発力はあるが、離脱のリスクも抱える。' },
-              ].map((choice, index) => (
-                <ChoiceCard
-                  key={choice.value}
-                  label={choice.label}
-                  blurb={choice.blurb}
-                  eyebrow={`RISK 0${index + 1}`}
-                  selected={spec.abstractAxes.durability === choice.value}
-                  onClick={() =>
-                    setSpec((prev) => ({
-                      ...prev,
-                      abstractAxes: { ...prev.abstractAxes, durability: choice.value as BuildAxisDurability },
-                    }))
-                  }
-                />
-              ))}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-sm text-[#d7c0a0]">特徴（最大2つ）</div>
-              <div className="museum-chip bg-[rgba(15,18,22,0.84)] text-[#eef4ff]">{spec.selectedTraits.length}/2</div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {traitCandidates.map((trait) => (
-                <button
-                  key={trait}
-                  type="button"
-                  className="museum-chip"
-                  data-active={spec.selectedTraits.includes(trait)}
-                  onClick={() => toggleTrait(trait)}
-                >
-                  {traitFlavorLabel(trait)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    return (
-      <article className="rpg-panel space-y-5 p-5 sm:p-6">
-        <div className="flex items-center gap-3">
-          <span className="pixel-icon-badge"><UserRound size={16} /></span>
-          <div>
-            <div className="museum-kicker">Stable Route</div>
-            <h3 className="ui-text-heading text-2xl text-[#fff1d8]">どの部屋に入るか</h3>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2 text-sm text-[#d7c0a0]">
-            <span>一門</span>
-            <select
-              className="w-full px-4 py-3"
-              value={spec.selectedIchimonId ?? ''}
-              onChange={(e) =>
-                setSpec((prev) => ({
-                  ...prev,
-                  selectedIchimonId: (e.target.value || null) as BuildSpecV4['selectedIchimonId'],
-                  selectedStableId: null,
-                }))
-              }
-            >
-              <option value="">選んでください</option>
-              {ICHIMON_CATALOG.map((row) => (
-                <option key={row.id} value={row.id}>{row.displayName}</option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2 text-sm text-[#d7c0a0]">
-            <span>所属部屋</span>
-            <select
-              className="w-full px-4 py-3"
-              value={spec.selectedStableId ?? ''}
-              disabled={!spec.selectedIchimonId}
-              onChange={(e) => setSpec((prev) => ({ ...prev, selectedStableId: e.target.value || null }))}
-            >
-              <option value="">選んでください</option>
-              {stableOptions.map((row) => (
-                <option key={row.id} value={row.id}>{row.displayName}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label className="space-y-2 text-sm text-[#d7c0a0]">
-          <span>継承親方（任意）</span>
-          <select
-            className="w-full px-4 py-3"
-            value={spec.selectedOyakataId ?? ''}
-            onChange={(e) => setSpec((prev) => ({ ...prev, selectedOyakataId: e.target.value || null }))}
-          >
-            <option value="">選ばない</option>
-            {oyakataProfiles.map((profile) => {
-              const locked = isOyakataOnCooldown(profile, nextCareerIndex);
-              return (
-                <option key={profile.id} value={profile.id} disabled={locked}>
-                  {profile.displayName}（★{profile.legacyStars}{locked ? ' / 連続使用不可' : ''}）
-                </option>
-              );
-            })}
-          </select>
-        </label>
-      </article>
-    );
-  };
-
   return (
-    <div className="mx-auto max-w-7xl space-y-6 animate-in pb-32">
-      <section className="arcade-hero overflow-hidden px-6 py-7 sm:px-8 sm:py-8">
-        <div className="relative z-10 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <div className="space-y-4">
-            <div className="museum-kicker">Draft Board</div>
-            <h2 className="ui-text-heading text-4xl text-[#fff1d8] sm:text-5xl">5段階で輪郭を決める</h2>
-            <p className="max-w-2xl text-sm leading-7 text-[#d7c0a0] sm:text-base">
-              左で選び、右で力士カードを固める。モバイルでも同じ順路でドラフトできる。
-            </p>
-          </div>
-          <div className="scoreboard-panel p-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="pixel-card-dark p-3">
-                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Wallet</div>
-                <div className="mt-2 text-2xl text-[#f3f7ff]">{wallet?.points ?? '--'}pt</div>
-              </div>
-              <div className="pixel-card-dark p-3">
-                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Cost</div>
-                <div className="mt-2 text-2xl text-[#f3f7ff]">{buildCost.total}pt</div>
-              </div>
-              <div className="pixel-card-dark p-3">
-                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Ready</div>
-                <div className="mt-2 text-2xl text-[#f3f7ff]">{STEPS.filter((step) => isStepDone(step.id)).length}/5</div>
-              </div>
-            </div>
-          </div>
+    <div className="mx-auto max-w-7xl space-y-6 animate-in pb-28">
+      <section className="command-bar sticky-top-strip">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <span className="flow-chip">
+            <Wallet size={14} />
+            所持 {wallet?.points ?? '--'}pt
+          </span>
+          <span className="flow-chip">必要 {cost.total}pt</span>
+          <span className={`flow-chip ${remainingPoints < 0 ? 'is-danger' : 'is-good'}`}>
+            残 {remainingPoints}pt
+          </span>
         </div>
-      </section>
-
-      <section className="command-bar">
-        <div className="step-rail pixel-scrollbar w-full">
-          {STEPS.map((step, index) => (
-            <button
-              key={step.id}
-              type="button"
-              className="step-node"
-              data-active={currentStep.id === step.id}
-              data-complete={isStepDone(step.id)}
-              onClick={() => setStepIndex(index)}
-            >
-              <div className="step-index">0{index + 1} / {step.short}</div>
-              <div className="step-title">{step.label}</div>
-              <div className="text-[0.7rem] text-current/70">
-                {isStepDone(step.id) ? 'LOCKED IN' : currentStep.id === step.id ? 'NOW EDITING' : 'PENDING'}
-              </div>
-            </button>
+        <div className="step-rail">
+          {SECTION_ORDER.map((sectionId, index) => (
+            <div key={sectionId} className="step-node" data-active={true} data-complete={index < 3}>
+              <div className="step-index">手順 {index + 1}</div>
+              <div className="step-title">{SCOUT_SECTION_LABELS[sectionId]}</div>
+            </div>
           ))}
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.04fr_0.96fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
         <section className="space-y-5">
-          {renderStepPanel()}
-          <div className="command-bar">
-            <div className="text-sm text-[#b8cbe6]">STEP {stepIndex + 1} / {STEPS.length}: {currentStep.label}</div>
+          <article className="rpg-panel space-y-5 p-5 sm:p-6">
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setStepIndex((prev) => Math.max(0, prev - 1))} disabled={stepIndex === 0}>
-                <ChevronLeft size={16} className="mr-2" />
-                戻る
-              </Button>
-              <Button variant="secondary" onClick={() => setStepIndex((prev) => Math.min(STEPS.length - 1, prev + 1))} disabled={stepIndex === STEPS.length - 1}>
-                次へ
-                <ChevronRight size={16} className="ml-2" />
-              </Button>
+              <span className="pixel-icon-badge"><UserRound size={16} /></span>
+              <div>
+                <div className="museum-kicker">親方</div>
+                <h2 className="ui-text-heading text-2xl text-text">誰の門下に入るか決める</h2>
+              </div>
             </div>
-          </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {availableOyakata.map((oyakata) => (
+                <ChoiceCard
+                  key={oyakata.id}
+                  label={oyakata.name}
+                  blurb={`${OYAKATA_COPY(oyakata)} / 秘伝: ${getStyleLabelJa(oyakata.secretStyle)}`}
+                  selected={spec.oyakataId === oyakata.id}
+                  onClick={() => setSpec((prev) => ({ ...prev, oyakataId: oyakata.id }))}
+                  aside={<span className="museum-chip">{getStyleLabel(oyakata.secretStyle)}</span>}
+                />
+              ))}
+            </div>
+          </article>
+
+          <article className="rpg-panel space-y-5 p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="pixel-icon-badge"><Shield size={16} /></span>
+              <div>
+                <div className="museum-kicker">体格</div>
+                <h2 className="ui-text-heading text-2xl text-text">どんな身体を目指すか決める</h2>
+              </div>
+            </div>
+
+            <div className="grid gap-5">
+              <SliderField
+                label="身長ポテンシャル"
+                value={spec.heightPotentialCm}
+                min={172}
+                max={204}
+                suffix="cm"
+                onChange={(value) => setSpec((prev) => ({ ...prev, heightPotentialCm: value }))}
+              />
+              <SliderField
+                label="体重ポテンシャル"
+                value={spec.weightPotentialKg}
+                min={110}
+                max={240}
+                suffix="kg"
+                onChange={(value) => setSpec((prev) => ({ ...prev, weightPotentialKg: value }))}
+              />
+              <SliderField
+                label="リーチ補正"
+                value={spec.reachDeltaCm}
+                min={-8}
+                max={8}
+                suffix="cm"
+                onChange={(value) => setSpec((prev) => ({ ...prev, reachDeltaCm: value }))}
+              />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {(Object.keys(PHASE_A_BUILD_OPTIONS.constitutionCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.constitutionCost>).map((value) => (
+                <ChoiceCard
+                  key={value}
+                  label={`${getBodyConstitutionLabel(value)} (${PHASE_A_BUILD_OPTIONS.constitutionCost[value]}pt)`}
+                  blurb={BODY_CONSTITUTION_COPY[value]}
+                  selected={spec.bodyConstitution === value}
+                  onClick={() => setSpec((prev) => ({ ...prev, bodyConstitution: value }))}
+                />
+              ))}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {(Object.keys(PHASE_A_BUILD_OPTIONS.backgroundCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.backgroundCost>).map((value) => (
+                <ChoiceCard
+                  key={value}
+                  label={`${getBackgroundLabel(value)} (${PHASE_A_BUILD_OPTIONS.backgroundCost[value]}pt)`}
+                  blurb={
+                    value === 'MIDDLE_SCHOOL'
+                      ? '若く入り、長い時間を成長に使う。'
+                      : value === 'HIGH_SCHOOL'
+                        ? '標準的な入口で扱いやすい。'
+                        : value === 'STUDENT_ELITE'
+                          ? '序盤を短縮して関取圏へ寄せる。'
+                          : '即戦力だが設計コストは最も重い。'
+                  }
+                  selected={spec.amateurBackground === value}
+                  onClick={() => setSpec((prev) => ({ ...prev, amateurBackground: value }))}
+                />
+              ))}
+            </div>
+          </article>
+
+          <article className="rpg-panel space-y-5 p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="pixel-icon-badge"><Swords size={16} /></span>
+              <div>
+                <div className="museum-kicker">型</div>
+                <h2 className="ui-text-heading text-2xl text-text">主戦型と副戦型を組む</h2>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {styleOptions.map((style) => (
+                <div key={style} className="ledger-card">
+                  <div className="space-y-2">
+                    <div className="museum-choice-title">{getStyleLabelJa(style)}</div>
+                    <div className="museum-choice-copy">{STYLE_COPY[style]}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="museum-chip"
+                      data-active={spec.primaryStyle === style}
+                      onClick={() => setSpec((prev) => ({ ...prev, primaryStyle: style }))}
+                    >
+                      主戦にする
+                    </button>
+                    <button
+                      type="button"
+                      className="museum-chip"
+                      data-active={spec.secondaryStyle === style}
+                      onClick={() => setSpec((prev) => ({ ...prev, secondaryStyle: style }))}
+                    >
+                      副戦にする
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rpg-panel space-y-5 p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="pixel-icon-badge"><AlertTriangle size={16} /></span>
+              <div>
+                <div className="museum-kicker">リスク</div>
+                <h2 className="ui-text-heading text-2xl text-text">メンタルと怪我の揺れを決める</h2>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {(Object.keys(PHASE_A_BUILD_OPTIONS.mentalCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.mentalCost>).map((value) => (
+                <ChoiceCard
+                  key={value}
+                  label={`${getMentalTraitLabel(value)} (${PHASE_A_BUILD_OPTIONS.mentalCost[value]}pt)`}
+                  blurb={MENTAL_TRAIT_COPY[value]}
+                  selected={spec.mentalTrait === value}
+                  onClick={() => setSpec((prev) => ({ ...prev, mentalTrait: value }))}
+                />
+              ))}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {(Object.keys(PHASE_A_BUILD_OPTIONS.injuryResistanceCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.injuryResistanceCost>).map((value) => (
+                <ChoiceCard
+                  key={value}
+                  label={`${INJURY_RESISTANCE_LABELS[value]} (${PHASE_A_BUILD_OPTIONS.injuryResistanceCost[value]}pt)`}
+                  blurb={INJURY_RESISTANCE_COPY[value]}
+                  selected={spec.injuryResistance === value}
+                  onClick={() => setSpec((prev) => ({ ...prev, injuryResistance: value }))}
+                />
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm text-text-dim">負債カード（最大3枚）</div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {(['OLD_KNEE', 'PRESSURE_LINEAGE', 'LATE_START'] as const).map((debt) => {
+                  const selected = spec.debtCards.includes(debt);
+                  const canAdd = selected || spec.debtCards.length < 3;
+                  return (
+                    <ChoiceCard
+                      key={debt}
+                      tone="danger"
+                      label={`${DEBT_CARD_LABELS[debt]} (+${DEBT_CARD_POINT_BONUS[debt]}pt)`}
+                      blurb={DEBT_CARD_COPY[debt]}
+                      selected={selected}
+                      onClick={() => {
+                        if (!selected && !canAdd) return;
+                        setSpec((prev) => ({
+                          ...prev,
+                          debtCards: selected
+                            ? prev.debtCards.filter((card) => card !== debt)
+                            : [...prev.debtCards, debt],
+                        }));
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </article>
         </section>
+
         <aside className="space-y-4 xl:sticky xl:top-28 xl:self-start">
           <section className="scoreboard-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <RikishiPortrait bodyType={spec.bodyType} showLabel className="h-[220px] w-full sm:w-[220px]" />
-              <div className="flex-1 space-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.14em] text-[#8ea9cb]">Live Preview</div>
-                  <div className="mt-2 ui-text-heading text-3xl text-[#f3f7ff]">{spec.shikona || '未命名'}</div>
-                  <div className="mt-2 text-sm text-[#b8cbe6]">
-                    {(spec.profile.realName || '本名未設定')} / {(spec.profile.birthplace || '出身地未設定')}
+            <div className="preview-stage">
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <RikishiPortrait
+                  bodyType={
+                    spec.bodyConstitution === 'HEAVY_BULK'
+                      ? 'ANKO'
+                      : spec.bodyConstitution === 'LONG_REACH'
+                        ? 'SOPPU'
+                        : spec.bodyConstitution === 'SPRING_LEGS'
+                          ? 'MUSCULAR'
+                          : 'NORMAL'
+                  }
+                  showLabel
+                  className="h-[220px] w-full sm:w-[220px]"
+                />
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <div className="museum-kicker">力士プレビュー</div>
+                    <div className="mt-2 ui-text-heading text-3xl text-text">{selectedOyakata.name}門下</div>
+                    <div className="mt-2 text-sm text-text-dim">{OYAKATA_COPY(selectedOyakata)}</div>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">{preview.startRankLabel}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">{selectedBody?.label ?? '体格未設定'}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">
-                    {Math.round(spec.bodyMetrics.heightCm)}cm / {Math.round(spec.bodyMetrics.weightKg)}kg
-                  </span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="pixel-card-dark p-3">
-                    <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Growth</div>
-                    <div className="mt-2 text-sm text-[#f3f7ff]">{preview.growthLabel}</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="pixel-card-dark p-3">
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">入口</div>
+                      <div className="mt-2 text-sm text-text">{preview.entryAge}歳 / {preview.startRankLabel}</div>
+                    </div>
+                    <div className="pixel-card-dark p-3">
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">想定帯</div>
+                      <div className="mt-2 text-sm text-text">{preview.careerBandLabel}</div>
+                    </div>
+                    <div className="pixel-card-dark p-3">
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">初期体格</div>
+                      <div className="mt-2 text-sm text-text">{preview.initialHeightCm.toFixed(1)}cm / {preview.initialWeightKg.toFixed(1)}kg</div>
+                    </div>
+                    <div className="pixel-card-dark p-3">
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">到達予測</div>
+                      <div className="mt-2 text-sm text-text">{preview.potentialHeightCm}cm / {preview.potentialWeightKg}kg</div>
+                    </div>
                   </div>
-                  <div className="pixel-card-dark p-3">
-                    <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Style</div>
-                    <div className="mt-2 text-sm text-[#f3f7ff]">{preview.styleLabel}</div>
-                  </div>
-                  <div className="pixel-card-dark p-3">
-                    <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Durability</div>
-                    <div className="mt-2 text-sm text-[#f3f7ff]">{preview.durabilityLabel}</div>
+                  <div className={`text-sm ${getCompatibilityTone(preview.compatibilityLabel)}`}>
+                    主副相性: {preview.compatibilityLabel} / 秘伝 {getStyleLabelJa(selectedOyakata.secretStyle)}
                   </div>
                 </div>
               </div>
             </div>
           </section>
+
           <section className="rpg-panel p-5 sm:p-6">
-            <div className="museum-kicker">Draft Summary</div>
-            <h3 className="ui-text-heading mt-2 text-2xl text-[#fff1d8]">送り出し条件</h3>
+            <div className="museum-kicker">確認盤</div>
+            <h3 className="ui-text-heading mt-2 text-2xl text-text">主要決定</h3>
             <div className="mt-4 space-y-1">
-              <SummaryRow label="入門年齢" value={`${preview.entryAge}歳`} />
-              <SummaryRow label="出自" value={selectedHistory?.label ?? '未設定'} />
-              <SummaryRow label="所属" value={selectedStable?.displayName ?? '未設定'} />
-              <SummaryRow label="継承親方" value={selectedOyakata?.displayName ?? 'なし'} />
+              <div className="data-row"><span className="data-key">親方</span><span className="data-val">{selectedOyakata.name}</span></div>
+              <div className="data-row"><span className="data-key">体格</span><span className="data-val">{getBodyConstitutionLabel(spec.bodyConstitution)}</span></div>
+              <div className="data-row"><span className="data-key">経歴</span><span className="data-val">{getBackgroundLabel(spec.amateurBackground)}</span></div>
+              <div className="data-row"><span className="data-key">主戦型</span><span className="data-val">{getStyleLabelJa(spec.primaryStyle)}</span></div>
+              <div className="data-row"><span className="data-key">副戦型</span><span className="data-val">{getStyleLabelJa(spec.secondaryStyle)}</span></div>
+              <div className="data-row"><span className="data-key">メンタル</span><span className="data-val">{getMentalTraitLabel(spec.mentalTrait)}</span></div>
+              <div className="data-row"><span className="data-key">怪我耐性</span><span className="data-val">{INJURY_RESISTANCE_LABELS[spec.injuryResistance]}</span></div>
+              <div className="data-row"><span className="data-key">残pt</span><span className="data-val">{remainingPoints}</span></div>
+              <div className="data-row"><span className="data-key">初期BMI</span><span className="data-val">{initialBmi.toFixed(1)}</span></div>
             </div>
+
             <div className="mt-5">
-              <div className="text-xs uppercase tracking-[0.14em] text-[#d9a441]">Selected Traits</div>
+              <div className="text-xs tracking-[0.14em] text-[var(--accent-gold)]">負債カード</div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {spec.selectedTraits.length === 0 ? (
-                  <span className="museum-chip">特性なし</span>
+                {spec.debtCards.length === 0 ? (
+                  <span className="museum-chip">なし</span>
                 ) : (
-                  spec.selectedTraits.map((trait) => (
-                    <span key={trait} className="museum-chip" data-active="true">{traitFlavorLabel(trait)}</span>
+                  spec.debtCards.map((debt) => (
+                    <span key={debt} className="museum-chip" data-active="true">{DEBT_CARD_LABELS[debt]}</span>
                   ))
                 )}
               </div>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="pixel-card p-3">
-                <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#6e513d]">Need</div>
-                <div className="mt-2 text-2xl text-[#24160f]">{buildCost.total}pt</div>
-              </div>
-              <div className="pixel-card p-3">
-                <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#6e513d]">Remain</div>
-                <div className={`mt-2 text-2xl ${remainingPoints < 0 ? 'text-[#9a4335]' : 'text-[#24160f]'}`}>{remainingPoints}</div>
-              </div>
+          </section>
+
+          <section className="scoreboard-panel p-5 sm:p-6">
+            <div className="museum-kicker">注意点</div>
+            <div className="mt-4 ticker-log">
+              {warnings.length === 0 && !errorMessage ? (
+                <div className="ticker-entry">
+                  <span className="text-[var(--accent-gold)]">安定</span>
+                  <span>予算と初期体格の条件は満たしています。</span>
+                </div>
+              ) : (
+                <>
+                  {warnings.map((warning) => (
+                    <div key={warning} className="ticker-entry">
+                      <span className="text-[var(--accent-danger)]">注意</span>
+                      <span>{warning}</span>
+                    </div>
+                  ))}
+                  {errorMessage && (
+                    <div className="ticker-entry">
+                      <span className="text-[var(--accent-danger)]">失敗</span>
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-            <div className="mt-5">
-              <div className="text-xs uppercase tracking-[0.14em] text-[#d9a441]">Pending</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {pendingFields.length === 0 ? (
-                  <span className="museum-chip" data-active="true">準備完了</span>
-                ) : (
-                  pendingFields.map((field) => <span key={field} className="museum-chip">{FIELD_LABELS[field]}</span>)
-                )}
-              </div>
-            </div>
-            {errorMessage && <div className="mt-4 text-sm text-[#ffb39f]">{errorMessage}</div>}
           </section>
         </aside>
       </div>
-      <div className="fixed bottom-3 left-1/2 z-40 w-[min(calc(100%-1rem),1040px)] -translate-x-1/2">
+
+      <div className="sticky-action-bar">
         <div className="command-bar px-4 py-4 sm:px-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <div className="text-sm text-[#eef4ff]">
-                {pendingFields.length === 0
-                  ? 'この内容で土俵へ送れます。'
-                  : `未決定: ${pendingFields.map((field) => FIELD_LABELS[field]).join(' / ')}`}
+              <div className="text-sm text-text">
+                {canStart ? 'この内容で土俵人生を始めます。' : '予算、体格、または負債の重さを見直してください。'}
               </div>
-              <div className="text-xs text-[#8ea9cb]">必要 {buildCost.total}pt / 所持 {wallet?.points ?? '--'}pt</div>
+              <div className="text-xs text-text-dim">
+                必要 {cost.total}pt / 所持 {wallet?.points ?? '--'}pt / 秘伝 {getStyleLabelJa(selectedOyakata.secretStyle)}
+              </div>
             </div>
-            <Button variant="danger" size="lg" onClick={handleRegister} disabled={!canRegister} className="w-full px-8 lg:w-auto">
+            <Button variant="danger" size="lg" onClick={handleStart} disabled={!canStart} className="w-full px-8 lg:w-auto">
               {isRegistering ? '送り出しています...' : 'この力士を土俵へ送る'}
             </Button>
           </div>

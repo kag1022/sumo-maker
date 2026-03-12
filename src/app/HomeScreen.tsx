@@ -10,6 +10,7 @@ import {
   listUnlockedCollectionEntries,
 } from '../logic/persistence/repository';
 import { CollectionType, Rank } from '../logic/models';
+import { HomeActionCard, HomeProgressSummary } from '../shared/ui/displayLabels';
 
 interface HomeScreenProps {
   unshelvedCareers: CareerListItem[];
@@ -42,12 +43,23 @@ const buildLifeTag = (career: CareerListItem): string => {
   return '下位を歩んだ';
 };
 
-const formatTimer = (wallet: WalletState | null) => {
-  if (!wallet || wallet.points >= wallet.cap) return 'MAX';
-  return `${Math.floor(wallet.nextRegenInSec / 60)}:${String(wallet.nextRegenInSec % 60).padStart(2, '0')}`;
-};
-
-const DESIGN_STEPS = ['四股名', '出自', '体格', '入門口', '所属'];
+const startGuide: HomeActionCard[] = [
+  {
+    id: 'start',
+    title: 'はじめる',
+    body: '新しい力士を設計し、土俵人生を走らせる。',
+  },
+  {
+    id: 'resume',
+    title: 'つづきから',
+    body: '完走後の未整理キャリアを開き、収蔵するか決める。',
+  },
+  {
+    id: 'archive',
+    title: '収蔵の進み具合',
+    body: '保存した記録と解放要素を見返す。',
+  },
+];
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   unshelvedCareers,
@@ -78,154 +90,159 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!wallet || wallet.points >= wallet.cap) return;
-    const interval = setInterval(() => {
-      setWallet((prev) => {
-        if (!prev || prev.points >= prev.cap) return prev;
-        if (prev.nextRegenInSec <= 1) {
-          getWalletState().then((newState) => setWallet(newState)).catch(() => {});
-          return prev;
-        }
-        return { ...prev, nextRegenInSec: prev.nextRegenInSec - 1 };
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [wallet]);
-
   const totalCollection = collectionSummary.reduce((sum, row) => sum + row.count, 0);
+  const latestUnlock = collectionDetails[0];
+  const progressSummary: HomeProgressSummary = {
+    walletPoints: wallet?.points ?? null,
+    walletCap: wallet?.cap ?? null,
+    archiveCount: recentShelvedCareers.length,
+    collectionCount: totalCollection,
+    unshelvedCount: unshelvedCareers.length,
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 animate-in">
-      <section className="arcade-hero overflow-hidden px-6 py-7 sm:px-8 sm:py-8">
-        <div className="relative z-10 grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-center">
-          <div className="space-y-5">
-            <div className="museum-kicker">Dohyo Start</div>
-            <div className="space-y-3">
-              <h2 className="ui-text-heading text-4xl text-[#fff1d8] sm:text-6xl">
-                力士を組み上げて
+      <section className="arcade-hero hero-stage">
+        <div className="hero-grid xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
+          <div className="hero-copy">
+            <div className="museum-kicker">入口</div>
+            <div className="space-y-4">
+              <h2 className="ui-text-heading text-4xl text-text sm:text-6xl">
+                力士をつくり
                 <br />
-                一生を走らせる
+                人生を読み切る
               </h2>
-              <p className="max-w-2xl text-sm leading-7 text-[#d7c0a0] sm:text-base">
-                最初に四股名、出自、体格、入門口、所属先を決める。
-                そこから土俵へ送り出し、結果ボードで人生の軌跡を読む。
+              <p className="max-w-2xl text-sm leading-8 text-text-dim sm:text-base">
+                設計で入口条件を定め、土俵人生の節目を追い、最後に記録として残します。
+                最初に押すのはひとつだけ。まずは新しい力士を送り出します。
               </p>
             </div>
+
             <div className="flex flex-wrap gap-3">
               <Button size="lg" onClick={onStartDesign} className="px-8">
-                新しく設計する
+                新しくはじめる
               </Button>
               <Button size="lg" variant="secondary" onClick={onOpenCollection} className="px-8">
-                収蔵庫を開く
+                収蔵庫を見る
               </Button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {startGuide.map((item) => (
+                <article key={item.id} className="ledger-card">
+                  <div className="museum-kicker">{item.title}</div>
+                  <div className="text-sm leading-7 text-text-dim">{item.body}</div>
+                </article>
+              ))}
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <div className="scoreboard-panel px-4 py-4 sm:px-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="hero-side">
+            <section className="scoreboard-panel p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.14em] text-[#8ea9cb]">Start Design</div>
-                  <div className="mt-2 ui-text-heading text-2xl text-[#f3f7ff]">ここで決めること</div>
+                  <div className="museum-kicker">道場状況</div>
+                  <h3 className="ui-text-heading mt-2 text-2xl text-text">いま確認すること</h3>
                 </div>
-                <div className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">
+                <span className="museum-chip">
                   <Wallet size={14} />
-                  {wallet?.points ?? '--'}pt
-                </div>
+                  {progressSummary.walletPoints ?? '--'}pt
+                </span>
               </div>
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
-                <div className="space-y-3">
-                  <p className="text-sm leading-7 text-[#c6d8f2]">
-                    設計画面では力士の入口条件を順番に固めます。能力育成ではなく、人生の初期条件を組み立てる画面です。
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-5">
-                    {DESIGN_STEPS.map((step, index) => (
-                      <div key={step} className="pixel-card-dark p-3">
-                        <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Step {index + 1}</div>
-                        <div className="mt-2 text-sm text-[#f3f7ff]">{step}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex min-w-[92px] flex-row gap-3 lg:flex-col">
-                  <div className="pixel-card-dark p-3">
-                    <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Regen</div>
-                    <div className="mt-2 text-xl text-[#f3f7ff]">{formatTimer(wallet)}</div>
-                  </div>
-                  <div className="pixel-card-dark p-3">
-                    <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#8ea9cb]">Shelf</div>
-                    <div className="mt-2 text-xl text-[#f3f7ff]">{recentShelvedCareers.length}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="stat-block">
-                <div className="flex items-center justify-between gap-2 text-xs text-text-dim">
-                  <span className="flex items-center gap-2">
-                    <Wallet size={15} />
-                    所持ポイント
-                  </span>
-                  <span>{wallet && wallet.points < wallet.cap ? `+1 ${formatTimer(wallet)}` : '満タン'}</span>
+              <div className="mt-4 summary-grid">
+                <div className="metric-tile">
+                  <div className="metric-label">所持ポイント</div>
+                  <div className="metric-value">
+                    {progressSummary.walletPoints ?? '--'}
+                    <span className="ml-1 text-sm text-text-dim">/ {progressSummary.walletCap ?? '--'}pt</span>
+                  </div>
+                  <div className="metric-note">時間回復はありません。</div>
                 </div>
-                <div className="stat-value mt-3">{wallet?.points ?? '--'} <span className="text-sm text-text-dim">/ {wallet?.cap ?? '--'}</span></div>
-              </div>
-              <div className="stat-block">
-                <div className="flex items-center gap-2 text-xs text-text-dim">
-                  <Archive size={15} />
-                  収蔵済み
+                <div className="metric-tile">
+                  <div className="metric-label">未整理の人生</div>
+                  <div className="metric-value">{progressSummary.unshelvedCount}</div>
+                  <div className="metric-note">完走後に収蔵待ちの記録です。</div>
                 </div>
-                <div className="stat-value mt-3">{recentShelvedCareers.length}</div>
-                <div className="stat-sub">最近の記録</div>
-              </div>
-              <div className="stat-block">
-                <div className="flex items-center gap-2 text-xs text-text-dim">
-                  <Landmark size={15} />
-                  図鑑進行
+                <div className="metric-tile">
+                  <div className="metric-label">収蔵の進み具合</div>
+                  <div className="metric-value">{progressSummary.collectionCount}</div>
+                  <div className="metric-note">解放済みの項目数です。</div>
                 </div>
-                <div className="stat-value mt-3">{totalCollection}</div>
-                <div className="stat-sub">解放済み項目</div>
               </div>
-            </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="pixel-card-dark p-4">
+                  <div className="text-xs tracking-[0.14em] text-text-dim">設計の流れ</div>
+                  <div className="mt-2 text-sm leading-7 text-text">
+                    親方 → 体格 → 型 → リスク → 確認
+                  </div>
+                </div>
+                <div className="pixel-card-dark p-4">
+                  <div className="text-xs tracking-[0.14em] text-text-dim">最近の収蔵</div>
+                  <div className="mt-2 text-sm leading-7 text-text">
+                    {recentShelvedCareers[0]?.shikona ?? 'まだありません'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="rpg-panel p-5 sm:p-6">
+              <div className="museum-kicker">収蔵の進み具合</div>
+              <div className="mt-4 grid gap-3 grid-cols-2">
+                {collectionSummary.map((row) => (
+                  <div key={row.type} className="pixel-card p-3">
+                    <div className="text-xs tracking-[0.12em] text-text-dim">{collectionTypeLabel[row.type]}</div>
+                    <div className="mt-2 text-2xl text-text">{row.count}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 ticker-log">
+                <div className="ticker-entry">
+                  <span className="text-[var(--accent-gold)]">最新</span>
+                  <span>{latestUnlock ? latestUnlock.label : 'まだ解放記録はありません。'}</span>
+                  <span className="museum-chip">{latestUnlock?.isNew ? '新規' : '記録'}</span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
         <article className="rpg-panel p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-3">
             <span className="pixel-icon-badge"><FolderClock size={16} /></span>
             <div>
-              <div className="museum-kicker">Resume Booth</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">未収蔵の人生</h3>
+              <div className="museum-kicker">つづきから</div>
+              <h3 className="ui-text-heading text-2xl text-text">未整理の人生</h3>
             </div>
           </div>
 
           {unshelvedCareers.length === 0 ? (
-            <div className="scoreboard-panel p-5 text-sm text-[#c6d8f2]">
-              完走した未収蔵キャリアはありません。土俵を見届けた後に残すか破棄するかを選べます。
+            <div className="scoreboard-panel p-5 text-sm text-text-dim">
+              まだ未整理のキャリアはありません。新しい力士を送り出すと、ここから続きを読めます。
             </div>
           ) : (
             <div className="grid gap-3">
               {unshelvedCareers.slice(0, 3).map((career) => (
-                <div key={career.id} className="scoreboard-panel p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <article key={career.id} className="ledger-card">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-2">
-                      <div className="ui-text-heading text-2xl text-[#f3f7ff]">{career.shikona}</div>
-                      <div className="flex flex-wrap gap-2 text-xs text-[#b8cbe6]">
-                        <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">{buildLifeTag(career)}</span>
-                        <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">
-                          最高位 {formatRankName(career.maxRank)}
-                        </span>
+                      <div className="ui-text-heading text-2xl text-text">{career.shikona}</div>
+                      <div className="flex flex-wrap gap-2 text-xs text-text-dim">
+                        <span className="museum-chip">{buildLifeTag(career)}</span>
+                        <span className="museum-chip">最高位 {formatRankName(career.maxRank)}</span>
+                      </div>
+                      <div className="text-sm text-text-dim">
+                        通算 {career.totalWins}勝 {career.totalLosses}敗
                       </div>
                     </div>
                     <Button variant="secondary" onClick={() => void onResumeCareer(career.id)}>
-                      続きを見る
+                      続きを読む
                     </Button>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
@@ -235,40 +252,54 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="mb-4 flex items-center gap-3">
             <span className="pixel-icon-badge"><BookOpen size={16} /></span>
             <div>
-              <div className="museum-kicker">Unlock Feed</div>
-              <h3 className="ui-text-heading text-2xl text-[#fff1d8]">収蔵と解放ログ</h3>
+              <div className="museum-kicker">収蔵の進み具合</div>
+              <h3 className="ui-text-heading text-2xl text-text">最近の解放</h3>
             </div>
           </div>
 
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            {collectionSummary.map((row) => (
-              <div key={row.type} className="pixel-card p-3">
-                <div className="text-xs uppercase tracking-[0.14em] text-[#6e513d]">{collectionTypeLabel[row.type]}</div>
-                <div className="mt-2 text-2xl text-[#24160f]">{row.count}</div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="stat-block">
+              <div className="flex items-center gap-2 text-xs text-text-dim">
+                <Wallet size={15} />
+                所持ポイント
               </div>
-            ))}
+              <div className="stat-value mt-3">{progressSummary.walletPoints ?? '--'}</div>
+              <div className="stat-sub">上限 {progressSummary.walletCap ?? '--'}pt</div>
+            </div>
+            <div className="stat-block">
+              <div className="flex items-center gap-2 text-xs text-text-dim">
+                <Archive size={15} />
+                収蔵済み
+              </div>
+              <div className="stat-value mt-3">{progressSummary.archiveCount}</div>
+              <div className="stat-sub">保存した力士の数</div>
+            </div>
+            <div className="stat-block">
+              <div className="flex items-center gap-2 text-xs text-text-dim">
+                <Landmark size={15} />
+                解放済み
+              </div>
+              <div className="stat-value mt-3">{progressSummary.collectionCount}</div>
+              <div className="stat-sub">図録に載った項目数</div>
+            </div>
           </div>
 
           <div className="mt-5 ticker-log">
             {recentShelvedCareers.length > 0 && (
               <div className="ticker-entry">
-                <span className="text-[#d9a441]">LOG</span>
-                <span>最近の収蔵: {recentShelvedCareers[0].shikona}</span>
-                <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">
-                  {buildLifeTag(recentShelvedCareers[0])}
-                </span>
+                <span className="text-[var(--accent-gold)]">収蔵</span>
+                <span>{recentShelvedCareers[0].shikona}</span>
+                <span className="museum-chip">{buildLifeTag(recentShelvedCareers[0])}</span>
               </div>
             )}
             {collectionDetails.length === 0 ? (
-              <div className="scoreboard-panel p-5 text-sm text-[#c6d8f2]">まだ解放ログはありません。</div>
+              <div className="scoreboard-panel p-5 text-sm text-text-dim">まだ解放ログはありません。</div>
             ) : (
-              collectionDetails.slice(0, 8).map((entry) => (
+              collectionDetails.slice(0, 6).map((entry) => (
                 <div key={entry.id} className="ticker-entry">
-                  <span className="text-[#d9a441]">NEW</span>
+                  <span className="text-[var(--accent-gold)]">{entry.isNew ? '新規' : '記録'}</span>
                   <span>{entry.label}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">
-                    {entry.isNew ? 'NEW' : 'OPEN'}
-                  </span>
+                  <span className="museum-chip">{entry.isNew ? '開放' : '既出'}</span>
                 </div>
               ))
             )}

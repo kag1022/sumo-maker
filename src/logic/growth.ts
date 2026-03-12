@@ -2,6 +2,7 @@ import { RikishiStatus, Oyakata, Injury } from './models';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
+import { getRetirementSpiritReason } from './phaseA';
 import {
     computeConsecutiveAbsenceStreak,
     computeConsecutiveMakekoshiStreak,
@@ -279,13 +280,26 @@ export const applyGrowth = (
     let durability = currentStatus.durability;
     if (age > 30) durability -= 1;
 
+    const bodyMetrics = { ...currentStatus.bodyMetrics };
+    const targetHeight = currentStatus.buildSummary?.heightPotentialCm ?? bodyMetrics.heightCm;
+    const targetWeight = currentStatus.buildSummary?.weightPotentialKg ?? bodyMetrics.weightKg;
+    if (age <= 23 && bodyMetrics.heightCm < targetHeight) {
+        bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + 0.2 + Math.max(0, (23 - age) * 0.04));
+    }
+    if (bodyMetrics.weightKg < targetWeight) {
+        bodyMetrics.weightKg = Math.min(targetWeight, bodyMetrics.weightKg + 1.2 + Math.max(0, growthRate) * 0.2);
+    } else if (bodyMetrics.weightKg > targetWeight + 6) {
+        bodyMetrics.weightKg = Math.max(targetWeight, bodyMetrics.weightKg - 0.8);
+    }
+
     return {
         ...currentStatus,
         stats,
         injuryLevel,
         durability,
         injuries: activeInjuries,
-        currentCondition: 50
+        currentCondition: 50,
+        bodyMetrics,
     };
 };
 
@@ -297,6 +311,12 @@ export const checkRetirement = (
     status: RikishiStatus,
     rng: RandomSource = Math.random,
 ): { shouldRetire: boolean, reason?: string } => {
+    if (status.spirit <= 0) {
+        return { shouldRetire: true, reason: getRetirementSpiritReason(status) };
+    }
+    if (status.age >= 31 && status.spirit <= 15) {
+        return { shouldRetire: true, reason: getRetirementSpiritReason(status) };
+    }
     if (status.age >= CONSTANTS.PHYSICAL_LIMIT_RETIREMENT_AGE) {
         return { shouldRetire: true, reason: '気力・体力の限界により引退' };
     }

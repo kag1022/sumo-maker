@@ -1,8 +1,8 @@
 import { getDb, WalletRow, WalletTransactionRow } from './db';
 
-export const WALLET_INITIAL_POINTS = 300;
-export const WALLET_MAX_POINTS = 500;
-export const WALLET_REGEN_INTERVAL_MS = 60_000;
+export const WALLET_INITIAL_POINTS = 50;
+export const WALLET_MAX_POINTS = 150;
+export const WALLET_REGEN_INTERVAL_MS = 0;
 
 export interface WalletState {
   points: number;
@@ -53,51 +53,18 @@ const createWalletTransaction = (
   careerId: params.careerId,
 });
 
-const applyRegen = (row: WalletRow, nowMs: number): WalletRow => {
-  const normalizedNow = Math.max(nowMs, row.lastRegenAt);
-  if (row.points >= WALLET_MAX_POINTS) {
-    return {
-      ...row,
-      points: WALLET_MAX_POINTS,
-      lastRegenAt: normalizedNow,
-      updatedAt: new Date(normalizedNow).toISOString(),
-    };
-  }
+const applyRegen = (row: WalletRow, nowMs: number): WalletRow => ({
+  ...row,
+  points: clamp(row.points, 0, WALLET_MAX_POINTS),
+  lastRegenAt: Math.max(nowMs, row.lastRegenAt),
+  updatedAt: new Date(Math.max(nowMs, row.lastRegenAt)).toISOString(),
+});
 
-  const elapsed = normalizedNow - row.lastRegenAt;
-  const ticks = Math.floor(elapsed / WALLET_REGEN_INTERVAL_MS);
-  if (ticks <= 0) return row;
-
-  const gained = Math.min(WALLET_MAX_POINTS - row.points, ticks);
-  const nextPoints = clamp(row.points + gained, 0, WALLET_MAX_POINTS);
-  const reachedCap = nextPoints >= WALLET_MAX_POINTS;
+const toWalletState = (row: WalletRow, _nowMs: number): WalletState => {
   return {
-    ...row,
-    points: nextPoints,
-    lastRegenAt: reachedCap
-      ? normalizedNow
-      : row.lastRegenAt + ticks * WALLET_REGEN_INTERVAL_MS,
-    updatedAt: new Date(normalizedNow).toISOString(),
-  };
-};
-
-const toWalletState = (row: WalletRow, nowMs: number): WalletState => {
-  const normalizedNow = Math.max(nowMs, row.lastRegenAt);
-  if (row.points >= WALLET_MAX_POINTS) {
-    return {
-      points: WALLET_MAX_POINTS,
-      cap: WALLET_MAX_POINTS,
-      nextRegenInSec: 0,
-      lastRegenAt: row.lastRegenAt,
-    };
-  }
-  const elapsed = normalizedNow - row.lastRegenAt;
-  const mod = elapsed % WALLET_REGEN_INTERVAL_MS;
-  const remainingMs = mod === 0 ? WALLET_REGEN_INTERVAL_MS : WALLET_REGEN_INTERVAL_MS - mod;
-  return {
-    points: row.points,
+    points: clamp(row.points, 0, WALLET_MAX_POINTS),
     cap: WALLET_MAX_POINTS,
-    nextRegenInSec: Math.ceil(remainingMs / 1000),
+    nextRegenInSec: 0,
     lastRegenAt: row.lastRegenAt,
   };
 };

@@ -74,7 +74,7 @@ import {
 import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../src/logic/simulation/sekitori/types';
 import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
 import { resolveRetirementChance } from '../../src/logic/simulation/retirement/shared';
-import { BashoRecord, Rank, RikishiStatus, Trait } from '../../src/logic/models';
+import { BashoRecord, BuildSpecVNext, Rank, RikishiStatus, Trait } from '../../src/logic/models';
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb';
 import { closeDb, getDb } from '../../src/logic/persistence/db';
 import {
@@ -120,8 +120,13 @@ import { CONSTANTS } from '../../src/logic/constants';
 import { appendBashoEvents, initializeSimulationStatus } from '../../src/logic/simulation/career';
 import {
   BUILD_COST,
+  buildInitialRikishiFromSpec,
   calculateBuildCost,
+  calculateBuildCostVNext,
   createDefaultBuildSpec,
+  createDefaultBuildSpecVNext,
+  getStarterOyakataBlueprints,
+  isBuildSpecVNextBmiValid,
   resolveDisplayedAptitudeTier,
 } from '../../src/logic/build/buildLab';
 import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../src/logic/style/kata';
@@ -253,6 +258,7 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
     injuries: [],
     isOzekiKadoban: false,
     isOzekiReturn: false,
+    spirit: 70,
     history: {
       records: [],
       events: [],
@@ -262,6 +268,8 @@ const createStatus = (overrides: Partial<RikishiStatus> = {}): RikishiStatus => 
       totalAbsent: 0,
       yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
       kimariteTotal: {},
+      bodyTimeline: [],
+      highlightEvents: [],
     },
     statHistory: [],
     ...overrides,
@@ -4518,34 +4526,79 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: 'wallet: initial balance and regen timing',
+    name: 'wallet: phase A starts at fixed 50pt with no time regen',
     run: async () => {
       await resetDb();
       const atStart = await getWalletState(0);
-      assert.equal(atStart.points, 300);
+      assert.equal(atStart.points, 50);
       const at59Sec = await getWalletState(59_000);
-      assert.equal(at59Sec.points, 300);
+      assert.equal(at59Sec.points, 50);
       const at60Sec = await getWalletState(60_000);
-      assert.equal(at60Sec.points, 301);
+      assert.equal(at60Sec.points, 50);
+      assert.equal(at60Sec.nextRegenInSec, 0);
     },
   },
   {
-    name: 'wallet: offline regen is capped at max points',
+    name: 'wallet: phase A cap is fixed with no offline regen',
     run: async () => {
       await resetDb();
       await getWalletState(0);
       const longAfter = await getWalletState(60_000 * 600);
-      assert.equal(longAfter.points, WALLET_MAX_POINTS);
+      assert.equal(longAfter.points, WALLET_INITIAL_POINTS);
+      assert.equal(longAfter.cap, WALLET_MAX_POINTS);
     },
   },
   {
     name: 'wallet: spend fails when points are insufficient',
     run: async () => {
       await resetDb();
-      const spent = await spendWalletPoints(280, 0);
+      const spent = await spendWalletPoints(40, 0);
       assert.equal(spent.ok, true);
-      const denied = await spendWalletPoints(30, 0);
+      const denied = await spendWalletPoints(20, 0);
       assert.equal(denied.ok, false);
+    },
+  },
+  {
+    name: 'build vnext: cost curve is nonlinear and BMI floor is enforced',
+    run: () => {
+      const starter = getStarterOyakataBlueprints()[0];
+      const base = createDefaultBuildSpecVNext(starter.id);
+      const extreme = {
+        ...base,
+        heightPotentialCm: 204,
+        weightPotentialKg: 240,
+        reachDeltaCm: 8,
+      };
+      const baseCost = calculateBuildCostVNext(base, starter).total;
+      const extremeCost = calculateBuildCostVNext(extreme, starter).total;
+      assert.ok(extremeCost > baseCost + 20, 'Expected extreme body plan to cost much more');
+
+      const bmiInvalid = {
+        ...base,
+        heightPotentialCm: 204,
+        weightPotentialKg: 110,
+        amateurBackground: 'MIDDLE_SCHOOL' as const,
+      };
+      assert.equal(isBuildSpecVNextBmiValid(bmiInvalid), false);
+    },
+  },
+  {
+    name: 'build vnext: generated rikishi reflects selected oyakata and style design',
+    run: () => {
+      const starter = getStarterOyakataBlueprints()[1];
+      const spec: BuildSpecVNext = {
+        ...createDefaultBuildSpecVNext(starter.id),
+        primaryStyle: 'TSUKI_OSHI' as const,
+        secondaryStyle: 'DOHYOUGIWA' as const,
+        debtCards: ['LATE_START'],
+      };
+      const status = buildInitialRikishiFromSpec(spec, starter);
+      assert.equal(status.mentorId, starter.id);
+      assert.equal(status.ichimonId, starter.ichimonId);
+      assert.ok(Boolean(status.designedStyleProfile), 'Expected designed style profile');
+      assert.equal(status.designedStyleProfile?.dominant, starter.secretStyle);
+      assert.equal(status.buildSummary?.debtCount, 1);
+      assert.equal(status.spirit > 0, true);
     },
   },
   {
