@@ -35,19 +35,19 @@ export const RikishiPortrait: React.FC<RikishiPortraitProps> = ({
   <div className={cn('relative overflow-hidden', className)}>
     <div
       className={cn(
-        'relative flex h-full items-end justify-center border-2 border-[rgba(255,228,178,0.16)] bg-[linear-gradient(180deg,rgba(23,28,32,0.96),rgba(11,13,16,1))] p-3 shadow-[inset_0_0_0_2px_rgba(122,148,171,0.08)]',
+        'relative flex h-full items-end justify-center border-2 border-[rgba(214,162,61,0.16)] bg-[linear-gradient(180deg,rgba(23,28,32,0.96),rgba(11,13,16,1))] p-3 shadow-[inset_0_0_0_2px_rgba(91,122,165,0.08)]',
         innerClassName,
       )}
     >
       <div className="absolute inset-0 arcade-grid opacity-20" />
-      <div className="absolute inset-x-3 bottom-0 h-5 border-t-2 border-[rgba(255,221,160,0.16)] bg-[rgba(96,60,36,0.55)]" />
+      <div className="absolute inset-x-3 bottom-0 h-5 border-t-2 border-[rgba(214,162,61,0.18)] bg-[rgba(91,122,165,0.28)]" />
       <img
         src={getImagePath(bodyType, facing)}
         alt={`${BODY_LABELS[bodyType]}体型の力士`}
         className="pixelated relative z-10 h-full max-h-[190px] w-auto object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.35)]"
       />
       {showLabel && (
-        <div className="absolute left-3 top-3 museum-chip bg-[rgba(15,18,22,0.88)] text-[0.7rem] text-[#eef4ff]">
+        <div className="absolute left-3 top-3 museum-chip bg-[rgba(15,18,22,0.88)] text-[0.7rem] text-text">
           {BODY_LABELS[bodyType]}
         </div>
       )}

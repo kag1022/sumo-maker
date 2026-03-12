@@ -2,6 +2,7 @@ import {
   BashoRecord,
   CollectionTier,
   CollectionType,
+  OyakataBlueprint,
   OyakataProfile,
   RikishiStatus,
 } from '../models';
@@ -30,6 +31,12 @@ import { evaluateAchievementProgress } from '../achievements';
 import { KIMARITE_CATALOG, normalizeKimariteName } from '../kimarite/catalog';
 import { deriveOyakataProfile } from '../oyakata/profile';
 import { ensureKataProfile, resolveKataDisplay } from '../style/kata';
+import {
+  createUnlockedOyakataBlueprint,
+  ensurePhaseAStatus,
+  resolvePhaseARewardPoints,
+  STARTER_OYAKATA_BLUEPRINTS,
+} from '../phaseA';
 
 const MAX_SHELVED_CAREERS = 200;
 const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT'];
@@ -63,7 +70,7 @@ const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => ({
   totalAbsent: status.history.totalAbsent,
   yushoCount: status.history.yushoCount,
   bashoCount: status.history.records.length,
-  finalStatus: status,
+  finalStatus: ensurePhaseAStatus(status),
 });
 
 const toCollectionEntryId = (type: CollectionType, key: string): string => `${type}:${key}`;
@@ -476,16 +483,17 @@ export const markCareerCompleted = async (
 ): Promise<void> => {
   const db = getDb();
   const now = new Date().toISOString();
-  const breakdown = calculateCareerPrizeBreakdown(finalStatus);
+  const normalizedStatus = ensurePhaseAStatus(finalStatus);
+  const breakdown = calculateCareerPrizeBreakdown(normalizedStatus);
   const rewardSummary = buildCareerRewardSummary(breakdown);
-  finalStatus.history.prizeBreakdown = breakdown;
-  finalStatus.history.rewardSummary = rewardSummary;
+  normalizedStatus.history.prizeBreakdown = breakdown;
+  normalizedStatus.history.rewardSummary = rewardSummary;
 
   await db.careers.update(careerId, {
-    ...toSummaryPatch(finalStatus),
+    ...toSummaryPatch(normalizedStatus),
     state: 'unshelved',
     updatedAt: now,
-    careerEndYearMonth: resolveRetirementYearMonth(finalStatus),
+    careerEndYearMonth: resolveRetirementYearMonth(normalizedStatus),
     lifetimePrizeYen: breakdown.totalYen,
     prizeBreakdown: breakdown,
     earnedPointsFromPrize: 0,
@@ -522,13 +530,14 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
     if (finalStatus?.history.prizeBreakdown) {
       const rewardSummary = buildCareerRewardSummary(finalStatus.history.prizeBreakdown);
       const existingReward = await db.careerRewardLedger.get(careerId);
-      if (!existingReward && rewardSummary.awardedPoints > 0) {
+      const grantedPoints = resolvePhaseARewardPoints(rewardSummary.awardedPoints);
+      if (!existingReward && grantedPoints > 0) {
         const grantedAt = new Date().toISOString();
-        await addWalletPoints(rewardSummary.awardedPoints, 'CAREER_PRIZE_REWARD', careerId);
+        await addWalletPoints(grantedPoints, 'CAREER_PRIZE_REWARD', careerId);
         await db.careerRewardLedger.put({
           careerId,
           lifetimePrizeYen: finalStatus.history.prizeBreakdown.totalYen,
-          pointsAwarded: rewardSummary.awardedPoints,
+          pointsAwarded: grantedPoints,
           conversionRuleId: rewardSummary.conversionRuleId,
           grantedAt,
           updatedAt: grantedAt,
@@ -542,7 +551,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
               granted: true,
               grantedAt,
               awardedPoints: rewardSummary.awardedPoints,
-              convertedPoints: rewardSummary.awardedPoints,
+              convertedPoints: grantedPoints,
             },
           },
         };
@@ -555,7 +564,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
               ...rewardSummary,
               granted: true,
               grantedAt: existingReward.grantedAt,
-              awardedPoints: existingReward.pointsAwarded,
+              awardedPoints: rewardSummary.awardedPoints,
               convertedPoints: existingReward.pointsAwarded,
             },
           },
@@ -569,9 +578,9 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       careerEndYearMonth:
         career.careerEndYearMonth ?? resolveRetirementYearMonth(finalStatus),
       oyakataProfile,
-      finalStatus,
+      finalStatus: finalStatus ? ensurePhaseAStatus(finalStatus) : finalStatus,
       lifetimePrizeYen: finalStatus?.history.prizeBreakdown?.totalYen ?? career.lifetimePrizeYen,
-      earnedPointsFromPrize: finalStatus?.history.rewardSummary?.awardedPoints ?? career.earnedPointsFromPrize,
+      earnedPointsFromPrize: finalStatus?.history.rewardSummary?.convertedPoints ?? career.earnedPointsFromPrize,
       rewardGrantedAt: finalStatus?.history.rewardSummary?.grantedAt,
     });
 
@@ -731,7 +740,7 @@ export const loadCareerStatus = async (careerId: string): Promise<RikishiStatus 
   const db = getDb();
   const row = await db.careers.get(careerId);
   if (!row) return null;
-  return row.finalStatus ? ensureKataProfile(row.finalStatus) : null;
+  return row.finalStatus ? ensurePhaseAStatus(ensureKataProfile(row.finalStatus)) : null;
 };
 
 export const deleteCareer = async (careerId: string): Promise<void> => {
@@ -1055,6 +1064,13 @@ export const listAvailableOyakataProfiles = async (): Promise<OyakataProfile[]> 
     if (rankCmp !== 0) return rankCmp;
     return a.displayName.localeCompare(b.displayName);
   });
+};
+
+export const listAvailableOyakataBlueprints = async (): Promise<OyakataBlueprint[]> => {
+  const unlockedProfiles = await listAvailableOyakataProfiles();
+  const starter = STARTER_OYAKATA_BLUEPRINTS.map((blueprint) => ({ ...blueprint }));
+  const unlocked = unlockedProfiles.map((profile) => createUnlockedOyakataBlueprint(profile));
+  return [...starter, ...unlocked];
 };
 
 const toDayKey = (nowMs: number): string => {

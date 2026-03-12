@@ -1,6 +1,72 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-12: Implemented UI全面改修計画 v3 (漆黒×朱×金 + 日本語UI統一).
+  - Added `src/app/AppShell.tsx` and `src/shared/ui/displayLabels.ts` to centralize app framing and UI-facing Japanese labels without changing domain/public simulation interfaces.
+  - Rebuilt `src/index.css` around the new palette (`漆黒 / 墨 / 朱 / 金 / 灰青`) and removed brown-based UI surfaces, borders, and button treatments from the main shell.
+  - Reworked `src/app/App.tsx` and `src/app/HomeScreen.tsx`:
+    - unified app shell/navigation
+    - home now prioritizes `新しくはじめる`, `つづきから`, `収蔵の進み具合`
+    - English-facing UI copy removed from visible screens except `pt`
+  - Rebuilt `src/features/scout/components/ScoutScreen.tsx` into a 2-column workshop:
+    - top sticky budget/step strip
+    - left four decision blocks (`親方 / 体格 / 型 / リスク`)
+    - right persistent preview / decision board / warnings
+    - visible enum-style labels replaced with Japanese mappings (`高校出`, `均整型`, `頑丈` など)
+  - Reworked `src/features/report/components/ReportScreen.tsx` and `src/features/report/utils/reportCareer.ts`:
+    - default report tab changed to timeline-first reading flow
+    - added readable timeline item builder and career headline helper
+    - analysis and archive actions are still available but de-emphasized
+  - Reworked `src/features/report/components/HallOfFameGrid.tsx` into clearer `台帳 / 系譜` modes with Japanese headings throughout.
+  - Updated shared UI pieces to the new palette:
+    - `src/shared/ui/Button.tsx`
+    - `src/shared/ui/Card.tsx`
+    - `src/shared/ui/RikishiPortrait.tsx`
+    - `src/shared/ui/DamageMap.tsx`
+    - `tailwind.config.js`
+  - Validation:
+    - `npm test` PASS (filtered runner completed successfully)
+    - `npm run build` PASS
+    - targeted `npx eslint` on changed UI files PASS
+    - `npm run lint` still fails because of pre-existing violations in `scripts/remove_bg.cjs` and `scripts/remove_bg.js`; unchanged in this task
+    - Playwright smoke PASS for redesigned Home and Scout on desktop/mobile (`home-redesign-desktop.png`, `home-redesign-mobile.png`, `scout-redesign-desktop.png`, `scout-redesign-mobile.png`)
+- 2026-03-09: Implemented Phase A full-cycle build dashboard replacement.
+  - Added `BuildSpecVNext`, style/debt/oyakata/phase-A metadata types in `src/logic/models.ts`.
+  - Added `src/logic/phaseA.ts` for starter oyakata blueprints, style compatibility, highlight event synthesis, spirit handling, fantasy hooks, and reward compression.
+  - Extended initialization / runtime status with designed-vs-realized style profiles, build summary, mentor linkage, spirit, body timeline, highlight events, and turning points.
+  - Added VNext build generation and nonlinear cost engine in `src/logic/build/buildLab.ts`:
+    - body sliders: height/weight/reach exact cost functions
+    - BMI floor validation
+    - background-driven entry age and initial body reverse-calculation
+    - fixed debt cards and starter oyakata support
+  - Replaced `src/features/scout/components/ScoutScreen.tsx` with a single-screen dashboard:
+    - top fixed budget bar
+    - left input dashboard
+    - right live preview with initial/final body, style compatibility, oyakata traits, remaining points, and debt summary
+  - Replaced `src/features/report/components/ReportScreen.tsx` with graph-first report:
+    - default graph tab
+    - overlaid rank/weight chart
+    - graph event badges
+    - fantasy hooks and injury counterfactual
+    - collapsible detail sections for hoshitori / kimarite / injury history
+  - Wallet switched to Phase A fixed bank:
+    - initial 50pt
+    - cap 150pt
+    - no time regen
+    - reward grant compressed to `min(40, floor(awardedPoints * 0.25))`
+  - Dexie bumped to version 11 for wallet migration compatibility.
+  - Repository now lazy-normalizes old saves through Phase A fallback metadata and exposes available oyakata blueprints.
+  - Oyakata unlock gate changed to `sekitori experience + one achievement rule`; ineligible careers no longer derive unlockable oyakata.
+  - Simulation runtime now:
+    - updates spirit from injury/promotion/slump/juryo-drop events
+    - records body timeline per basho
+    - emits major highlight events
+    - tracks realized style profile during career
+  - Validation:
+    - `npm test -- --jobs 1` pass (227/227)
+    - `npm run build` pass
+  - Residual issue:
+    - `npm run lint` still fails because of pre-existing violations in `scripts/remove_bg.cjs` and `scripts/remove_bg.js`; not touched in this change.
 - 2026-02-23: Continued unified-v1 balance tuning (option 1 follow-up).
   - Tuned `src/logic/balance/unifiedV1.ts` to reduce upper-division 8-7/7-8 concentration while preserving monster dominance:
     - strength: `logisticScale=0.082`, `derivedOffsetMax=40`, `derivedOffsetWeight=0.72`, `ratingAnchorWeight=0.62`, `formWeight=1.6`, `diffSoftCap=34`

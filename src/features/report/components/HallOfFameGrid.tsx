@@ -3,6 +3,7 @@ import { BookCopy, GitBranch, Search, Trash2 } from 'lucide-react';
 import { Rank } from '../../../logic/models';
 import { buildGenealogyTree, CareerListItem, GenealogyNode } from '../../../logic/persistence/repository';
 import { Button } from '../../../shared/ui/Button';
+import { ArchiveViewMode } from '../../../shared/ui/displayLabels';
 
 interface HallOfFameGridProps {
   items: CareerListItem[];
@@ -10,8 +11,6 @@ interface HallOfFameGridProps {
   onDelete: (id: string) => void;
   onClose: () => void;
 }
-
-type TabId = 'ledger' | 'lineage';
 
 const formatRankName = (rank: Rank): string => {
   const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
@@ -24,7 +23,7 @@ const buildTag = (item: CareerListItem): string => {
   if (item.maxRank.name === '横綱') return '横綱到達';
   if (item.maxRank.division === 'Makuuchi') return '幕内到達';
   if (item.maxRank.division === 'Juryo') return '十両到達';
-  return '下位を歩んだ';
+  return '下位から積み上げた';
 };
 
 type GenealogyViewNode = {
@@ -46,12 +45,12 @@ const toViewNode = (node: GenealogyNode): GenealogyViewNode => ({
 const LineageColumn = ({ node }: { node: GenealogyViewNode }) => (
   <div className="space-y-3">
     <div className="scoreboard-panel p-4">
-      <div className="text-xs uppercase tracking-[0.14em] text-[#8ea9cb]">Generation {node.generation}</div>
-      <div className="mt-2 ui-text-heading text-2xl text-[#f3f7ff]">{node.label}</div>
-      <div className="mt-1 text-sm text-[#b8cbe6]">{node.rankLabel}</div>
+      <div className="text-xs tracking-[0.14em] text-text-dim">第 {node.generation} 世代</div>
+      <div className="mt-2 ui-text-heading text-2xl text-text">{node.label}</div>
+      <div className="mt-1 text-sm text-text-dim">{node.rankLabel}</div>
     </div>
     {node.children.length > 0 && (
-      <div className="grid gap-3 border-l-2 border-[rgba(217,164,65,0.24)] pl-4">
+      <div className="grid gap-3 border-l-2 border-[rgba(214,162,61,0.24)] pl-4">
         {node.children.map((child) => (
           <LineageColumn key={child.id} node={child} />
         ))}
@@ -66,7 +65,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
   onDelete,
   onClose,
 }) => {
-  const [tab, setTab] = React.useState<TabId>('ledger');
+  const [tab, setTab] = React.useState<ArchiveViewMode>('ledger');
   const [query, setQuery] = React.useState('');
   const [roots, setRoots] = React.useState<GenealogyViewNode[]>([]);
 
@@ -95,18 +94,24 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
 
   return (
     <div className="space-y-6 animate-in">
-      <section className="arcade-hero overflow-hidden px-6 py-7 sm:px-8">
-        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <div className="museum-kicker">Archive Booth</div>
-            <h2 className="ui-text-heading text-4xl text-[#fff1d8] sm:text-5xl">殿堂録</h2>
-            <p className="max-w-2xl text-sm leading-7 text-[#d7c0a0]">
-              保存した力士をカード台帳で読み返し、系譜として追える収蔵面。
+      <section className="arcade-hero hero-stage">
+        <div className="hero-grid lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <div className="space-y-3">
+            <div className="museum-kicker">収蔵庫</div>
+            <h2 className="ui-text-heading text-4xl text-text sm:text-5xl">殿堂録</h2>
+            <p className="max-w-2xl text-sm leading-7 text-text-dim">
+              保存した力士を台帳として読み返し、系譜として追える場所です。読む目的に合わせて一覧と系譜を切り替えます。
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <div className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">収蔵 {items.length}</div>
-            <Button variant="secondary" onClick={onClose}>入口へ戻る</Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="metric-tile">
+              <div className="metric-label">収蔵数</div>
+              <div className="metric-value">{items.length}</div>
+              <div className="metric-note">保存済みの力士記録です。</div>
+            </div>
+            <div className="flex items-end justify-start sm:justify-end">
+              <Button variant="secondary" onClick={onClose}>入口へ戻る</Button>
+            </div>
           </div>
         </div>
       </section>
@@ -115,7 +120,7 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
         <div className="flex flex-wrap gap-2">
           <button type="button" className="museum-chip" data-active={tab === 'ledger'} onClick={() => setTab('ledger')}>
             <BookCopy size={15} />
-            一覧
+            台帳
           </button>
           <button type="button" className="museum-chip" data-active={tab === 'lineage'} onClick={() => setTab('lineage')}>
             <GitBranch size={15} />
@@ -123,11 +128,11 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
           </button>
         </div>
         {tab === 'ledger' && (
-          <label className="flex items-center gap-2 border-[2px] border-[rgba(255,224,176,0.18)] bg-[rgba(17,13,11,0.84)] px-3 py-2 text-sm text-[#d7c0a0]">
+          <label className="flex items-center gap-2 border-[2px] border-[rgba(214,162,61,0.18)] bg-[rgba(17,20,26,0.88)] px-3 py-2 text-sm text-text-dim">
             <Search size={15} />
             <input
-              className="w-52 border-0 bg-transparent p-0 text-[#fff1d8] shadow-none"
-              placeholder="四股名で探す"
+              className="w-52 border-0 bg-transparent p-0 text-text shadow-none"
+              placeholder="四股名や最高位で探す"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -138,34 +143,36 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
       {tab === 'ledger' ? (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.length === 0 ? (
-            <div className="scoreboard-panel p-6 text-sm text-[#c6d8f2]">一致する記録がありません。</div>
+            <div className="scoreboard-panel p-6 text-sm text-text-dim">一致する記録がありません。</div>
           ) : (
             filteredItems.map((item) => (
-              <article key={item.id} className="rpg-panel p-5">
+              <article key={item.id} className="ledger-card">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="ui-text-heading text-2xl text-[#fff1d8]">{item.shikona}</div>
-                    {item.title && <div className="mt-1 text-sm text-[#d7c0a0]">{item.title}</div>}
+                    <div className="ui-text-heading text-2xl text-text">{item.shikona}</div>
+                    {item.title && <div className="mt-1 text-sm text-text-dim">{item.title}</div>}
                   </div>
                   <span className="museum-chip">{buildTag(item)}</span>
                 </div>
-                <div className="mt-4 grid gap-3">
-                  <div className="scoreboard-panel p-4">
-                    <div className="text-xs uppercase tracking-[0.14em] text-[#8ea9cb]">最高位</div>
-                    <div className="mt-2 text-xl text-[#f3f7ff]">{formatRankName(item.maxRank)}</div>
+
+                <div className="grid gap-3">
+                  <div className="pixel-card-dark p-4">
+                    <div className="text-xs tracking-[0.14em] text-text-dim">最高位</div>
+                    <div className="mt-2 text-xl text-text">{formatRankName(item.maxRank)}</div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="pixel-card p-3">
-                      <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#6e513d]">通算</div>
-                      <div className="mt-2 text-xl text-[#24160f]">{item.totalWins}勝 {item.totalLosses}敗</div>
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">通算成績</div>
+                      <div className="mt-2 text-sm text-text">{item.totalWins}勝 {item.totalLosses}敗</div>
                     </div>
                     <div className="pixel-card p-3">
-                      <div className="text-[0.65rem] uppercase tracking-[0.14em] text-[#6e513d]">期間</div>
-                      <div className="mt-2 text-sm text-[#24160f]">{item.careerStartYearMonth} - {item.careerEndYearMonth || '未記録'}</div>
+                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">在籍期間</div>
+                      <div className="mt-2 text-sm text-text">{item.careerStartYearMonth} - {item.careerEndYearMonth || '未記録'}</div>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => onOpen(item.id)}>開く</Button>
                   <Button size="sm" variant="outline" onClick={() => onDelete(item.id)}>
                     <Trash2 size={14} className="mr-1" />
@@ -178,8 +185,12 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
         </section>
       ) : (
         <section className="rpg-panel p-5 sm:p-6">
+          <div className="mb-4">
+            <div className="museum-kicker">系譜</div>
+            <div className="mt-2 text-sm text-text-dim">親方系統ごとに、どの力士が次の世代へつながったかを追います。</div>
+          </div>
           {roots.length === 0 ? (
-            <div className="scoreboard-panel p-5 text-sm text-[#c6d8f2]">系譜はまだありません。</div>
+            <div className="scoreboard-panel p-5 text-sm text-text-dim">系譜はまだありません。</div>
           ) : (
             <div className="grid gap-4">
               {roots.map((root) => (

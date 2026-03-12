@@ -4,6 +4,7 @@ import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
+import { ensurePhaseAStatus } from '../phaseA';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -92,7 +93,8 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (typeof status.isOzekiKadoban !== 'boolean') status.isOzekiKadoban = false;
   if (typeof status.isOzekiReturn !== 'boolean') status.isOzekiReturn = false;
   if (!status.retirementProfile) status.retirementProfile = 'STANDARD';
-  return ensureKataProfile(status);
+  if (!Number.isFinite(status.spirit)) status.spirit = 70;
+  return ensurePhaseAStatus(ensureKataProfile(status));
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {

@@ -26,6 +26,7 @@ import {
   resolveTopKimariteScore,
   selectWeightedKimarite,
 } from './kimarite/matchup';
+import { getCompatibilityWeight, styleToTactics } from './phaseA';
 
 export { type EnemyStats };
 
@@ -106,6 +107,14 @@ const resolveKataBattleModifier = (status: RikishiStatus): number => {
   return kata.confidence < 0.35 ? 0.985 : 1.0;
 };
 
+const resolveDesignedStyleBattleModifier = (status: RikishiStatus): number => {
+  const profile = status.designedStyleProfile;
+  if (!profile) return 1;
+  const compatibilityBonus = getCompatibilityWeight(profile.compatibility) / 100;
+  const secretTacticsMatch = profile.secret && styleToTactics(profile.secret) === status.tactics;
+  return 1 + compatibilityBonus + (secretTacticsMatch ? 0.03 : 0);
+};
+
 /**
  * 勝敗判定ロジック
  * @param rikishi 自分の力士
@@ -147,6 +156,7 @@ const resolveBattleResultV1 = (
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
   myPower *= resolveKataBattleModifier(rikishi);
+  myPower *= resolveDesignedStyleBattleModifier(rikishi);
   const baselinePower = myPower;
 
   // 得意技ボーナス
@@ -455,6 +465,7 @@ const resolveBattleResultV2 = (
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
   myPower *= resolveKataBattleModifier(rikishi);
+  myPower *= resolveDesignedStyleBattleModifier(rikishi);
   const baselinePower = myPower;
 
   let usedSignatureMove: string | null = null;

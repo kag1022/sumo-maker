@@ -38,6 +38,13 @@ import { updateAbilityAfterBasho } from '../strength/update';
 import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
 import { updateKataProfileAfterBasho } from '../../style/kata';
 import {
+  applySpiritChangeAfterBasho,
+  pushBodyTimelinePoint,
+  pushHighlightEvent,
+  resolveRealizedStyleProfile,
+  setCareerTurningPoint,
+} from '../../phaseA';
+import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
   resolveTopDivisionFromRank,
@@ -312,6 +319,97 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   appendBashoEvents(state.status, state.year, month, bashoRecord, rankChange, currentRank);
   const newEvents = state.status.history.events.slice(beforeEvents);
 
+  const spiritDelta = applySpiritChangeAfterBasho({
+    status: state.status,
+    record: bashoRecord,
+    previousRank: currentRank,
+    nextRank: rankChange.nextRank,
+    newEvents,
+  });
+  const spiritPromotionMod = params.oyakata?.spiritMods?.promotionBonus ?? 1;
+  const spiritInjuryMod = params.oyakata?.spiritMods?.injuryPenalty ?? 1;
+  const spiritSlumpMod = params.oyakata?.spiritMods?.slumpPenalty ?? 1;
+  let adjustedSpiritDelta = spiritDelta;
+  if (adjustedSpiritDelta > 0) adjustedSpiritDelta = Math.round(adjustedSpiritDelta * spiritPromotionMod);
+  if (adjustedSpiritDelta < 0 && newEvents.some((event) => event.type === 'INJURY')) {
+    adjustedSpiritDelta = Math.round(adjustedSpiritDelta * spiritInjuryMod);
+  }
+  if (adjustedSpiritDelta < 0 && !newEvents.some((event) => event.type === 'INJURY')) {
+    adjustedSpiritDelta = Math.round(adjustedSpiritDelta * spiritSlumpMod);
+  }
+  state.status.spirit = Math.max(-20, Math.min(100, state.status.spirit + adjustedSpiritDelta));
+
+  const bashoSeq = state.seq + 1;
+  if (bashoRecord.yusho) {
+    pushHighlightEvent(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      tag: 'YUSHO',
+      label: '優勝',
+    });
+  }
+  if ((bashoRecord.kinboshi ?? 0) > 0) {
+    pushHighlightEvent(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      tag: 'KINBOSHI',
+      label: '金星',
+    });
+  }
+  if (newEvents.some((event) => event.type === 'PROMOTION')) {
+    pushHighlightEvent(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      tag: 'PROMOTION',
+      label: '昇進',
+    });
+  }
+  if (
+    (currentRank.division === 'Makushita' || currentRank.division === 'Sandanme' || currentRank.division === 'Jonidan' || currentRank.division === 'Jonokuchi') &&
+    (rankChange.nextRank.division === 'Juryo' || rankChange.nextRank.division === 'Makuuchi')
+  ) {
+    pushHighlightEvent(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      tag: 'FIRST_SEKITORI',
+      label: '初関取',
+    });
+  }
+  if (currentRank.division === 'Juryo' && rankChange.nextRank.division === 'Makushita') {
+    pushHighlightEvent(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      tag: 'JURYO_DROP',
+      label: '十両陥落',
+    });
+  }
+  const majorInjuryEvent = newEvents.find((event) => event.type === 'INJURY' && /重症度 (\d+)/.test(event.description));
+  if (majorInjuryEvent) {
+    const severityMatch = majorInjuryEvent.description.match(/重症度 (\d+)/);
+    const severity = severityMatch ? Number(severityMatch[1]) : 0;
+    if (severity >= 7) {
+      pushHighlightEvent(state.status.history, {
+        bashoSeq,
+        year: bashoRecord.year,
+        month: bashoRecord.month,
+        tag: 'MAJOR_INJURY',
+        label: '大怪我',
+      });
+      setCareerTurningPoint(state.status.history, {
+        bashoSeq,
+        year: bashoRecord.year,
+        month: bashoRecord.month,
+        reason: majorInjuryEvent.description,
+        severity,
+      });
+    }
+  }
+
   state.status.rank = rankChange.nextRank;
   state.status.isOzekiKadoban = rankChange.isKadoban;
   state.status.isOzekiReturn = rankChange.isOzekiReturn;
@@ -326,6 +424,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
   state.status = applyGrowth(state.status, params.oyakata, isNewInjury, deps.random);
+  bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
+  pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
+  state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
   if (simulationModelVersion === 'unified-v3-variance') {
     state.status.currentCondition = updateConditionForV3({
       previousCondition: conditionBeforeBasho,

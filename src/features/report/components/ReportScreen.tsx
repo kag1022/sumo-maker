@@ -2,41 +2,43 @@ import React from 'react';
 import {
   Activity,
   BookMarked,
+  ChevronDown,
   LineChart as LineChartIcon,
-  ScrollText,
   ShieldAlert,
   Swords,
-  Trophy,
 } from 'lucide-react';
 import {
-  ResponsiveContainer,
-  LineChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
   Line,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  BarChart,
-  Bar,
 } from 'recharts';
 import { RikishiStatus } from '../../../logic/models';
 import { calculateCareerPrizeBreakdown } from '../../../logic/economy/prizeMoney';
 import { listCareerPlayerBoutsByBasho } from '../../../logic/persistence/repository';
-import { resolveKataDisplay } from '../../../logic/style/kata';
 import { DamageMap } from '../../../shared/ui/DamageMap';
 import { Button } from '../../../shared/ui/Button';
 import { RikishiPortrait } from '../../../shared/ui/RikishiPortrait';
+import { getBackgroundLabel, getStyleLabelJa, ReportMetricBlock } from '../../../shared/ui/displayLabels';
 import { HoshitoriCareerRecord, HoshitoriTable } from './HoshitoriTable';
 import {
+  buildCareerHeadline,
+  buildDesignedVsRealizedLabel,
+  buildFantasyHooksForReport,
   buildHoshitoriCareerRecords,
-  buildRankChartData,
-  buildReportCareerRecords,
-  buildTimelineEventGroups,
+  buildInjuryWhatIfText,
+  buildRankChartDataFromStatus,
+  buildReportTimelineItems,
   formatBashoLabel,
   formatRankDisplayName,
 } from '../utils/reportCareer';
 
-type ReportTab = 'overview' | 'rank' | 'timeline' | 'skills' | 'shelve';
+type ReportTab = 'timeline' | 'analysis' | 'archive';
 
 interface ReportScreenProps {
   status: RikishiStatus;
@@ -47,32 +49,10 @@ interface ReportScreenProps {
   careerId?: string | null;
 }
 
-interface CareerOverviewSummary {
-  highestPoint: string;
-  recordLine: string;
-  activeYears: string;
-  insight: string;
-}
-
-interface CareerInjuryRecord {
-  key: string;
-  year: number;
-  month: number;
-  description: string;
-}
-
-const TABS: Array<{ id: ReportTab; label: string; icon: React.ReactNode }> = [
-  { id: 'overview', label: '総覧', icon: <Activity size={15} /> },
-  { id: 'rank', label: '番付推移', icon: <LineChartIcon size={15} /> },
-  { id: 'timeline', label: '星取・年表', icon: <ScrollText size={15} /> },
-  { id: 'skills', label: '決まり手・怪我', icon: <Swords size={15} /> },
-  { id: 'shelve', label: '収蔵', icon: <BookMarked size={15} /> },
-];
-
 const TOOLTIP_STYLE = {
   borderRadius: 0,
   background: '#11161b',
-  border: '2px solid rgba(122,148,171,0.34)',
+  border: '2px solid rgba(91,122,165,0.34)',
   color: '#eef4ff',
   fontSize: 12,
 };
@@ -88,79 +68,42 @@ const RANK_AXIS_LABELS = [
   { value: 151, label: '三段目' },
   { value: 261, label: '序二段' },
   { value: 371, label: '序ノ口' },
-];
+] as const;
+
+const EVENT_BADGE: Record<string, string> = {
+  MAJOR_INJURY: '怪',
+  KINBOSHI: '金',
+  YUSHO: '優',
+  PROMOTION: '昇',
+  RETIREMENT: '終',
+  FIRST_SEKITORI: '関',
+  JURYO_DROP: '落',
+};
 
 const formatRankAxisTick = (value: number): string =>
   RANK_AXIS_LABELS.find((tick) => tick.value === value)?.label ?? '';
 
-const buildOverviewSummary = (status: RikishiStatus): CareerOverviewSummary => {
-  const { history } = status;
-  const entryYear = history.records[0]?.year ?? new Date().getFullYear();
-  const endYear = history.records[history.records.length - 1]?.year ?? entryYear;
-  const allYusho = history.yushoCount.makuuchi + history.yushoCount.juryo + history.yushoCount.makushita + history.yushoCount.others;
-  const topReach = formatRankDisplayName(history.maxRank);
-  const insight =
-    history.maxRank.name === '横綱'
-      ? '頂点まで到達した'
-      : history.maxRank.division === 'Makuuchi'
-        ? '幕内まで伸びた'
-        : history.maxRank.division === 'Juryo'
-          ? '関取まで届いた'
-          : allYusho > 0
-            ? '下位で勝ち切る場所があった'
-            : '下位で浮き沈みを重ねた';
-
-  return {
-    highestPoint: topReach,
-    recordLine: `${history.totalWins}勝 ${history.totalLosses}敗${history.totalAbsent > 0 ? ` ${history.totalAbsent}休` : ''}`,
-    activeYears: `${entryYear} - ${endYear}`,
-    insight,
-  };
+const EventDot = (props: {
+  cx?: number;
+  cy?: number;
+  payload?: { eventTags?: string[] };
+}) => {
+  if (!props.payload?.eventTags?.length || props.cx === undefined || props.cy === undefined) return null;
+  const label = EVENT_BADGE[props.payload.eventTags[0]] ?? '節';
+  return (
+    <g>
+      <rect x={props.cx - 7} y={props.cy - 22} width={14} height={14} fill="#d6a23d" stroke="#0b0b0f" strokeWidth={2} />
+      <text x={props.cx} y={props.cy - 11} textAnchor="middle" fontSize="9" fill="#0b0b0f">
+        {label}
+      </text>
+      <circle cx={props.cx} cy={props.cy} r={2.8} fill="#f3e9d2" stroke="#d6a23d" strokeWidth={1} />
+    </g>
+  );
 };
 
-const buildTimelinePoints = (status: RikishiStatus): string[] => {
-  const events = status.history.events;
-  const firstPromotion = events.find((event) => event.type === 'PROMOTION');
-  const firstYusho = status.history.records.find((record) => record.yusho);
-  const majorInjury = events.find((event) => event.type === 'INJURY');
-  const retirement = events.find((event) => event.type === 'RETIREMENT');
-
-  return [
-    firstPromotion?.description,
-    firstYusho ? `${firstYusho.year}年${firstYusho.month}月に優勝` : undefined,
-    majorInjury?.description,
-    retirement?.description,
-  ].filter((value): value is string => Boolean(value));
-};
-
-const buildCareerInjuryHistory = (status: RikishiStatus): CareerInjuryRecord[] => {
-  const eventRecords = status.history.events
-    .filter((event) => event.type === 'INJURY')
-    .map((event, index) => ({
-      key: `event-${event.year}-${event.month}-${index}`,
-      year: event.year,
-      month: event.month,
-      description: event.description,
-    }));
-
-  const fallbackRecords = (status.injuries ?? [])
-    .filter((injury) => !eventRecords.some((event) =>
-      event.year === injury.occurredAt.year
-      && event.month === injury.occurredAt.month
-      && event.description.includes(injury.name),
-    ))
-    .map((injury) => ({
-      key: `injury-${injury.id}`,
-      year: injury.occurredAt.year,
-      month: injury.occurredAt.month,
-      description: `${injury.name} (重症度 ${injury.severity} / ${injury.status})`,
-    }));
-
-  return [...eventRecords, ...fallbackRecords].sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
-  });
-};
+const SummaryChip = ({ children }: { children: React.ReactNode }) => (
+  <span className="museum-chip">{children}</span>
+);
 
 export const ReportScreen: React.FC<ReportScreenProps> = ({
   status,
@@ -170,23 +113,21 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   isSaved = false,
   careerId = null,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<ReportTab>('overview');
+  const [activeTab, setActiveTab] = React.useState<ReportTab>('timeline');
   const [hoshitoriCareerRecords, setHoshitoriCareerRecords] = React.useState<HoshitoriCareerRecord[]>([]);
   const [isHoshitoriLoading, setIsHoshitoriLoading] = React.useState(false);
   const [hoshitoriErrorMessage, setHoshitoriErrorMessage] = React.useState<string | undefined>(undefined);
+  const [detailsOpen, setDetailsOpen] = React.useState({
+    hoshitori: false,
+    kimarite: false,
+    injuries: false,
+  });
 
-  const summary = React.useMemo(() => buildOverviewSummary(status), [status]);
-  const timelinePoints = React.useMemo(() => buildTimelinePoints(status), [status]);
-  const careerInjuryHistory = React.useMemo(() => buildCareerInjuryHistory(status), [status]);
-  const displayCareerRecords = React.useMemo(() => buildReportCareerRecords(status.history.records), [status.history.records]);
-  const rankChartData = React.useMemo(() => buildRankChartData(status.history.records), [status.history.records]);
-  const rankAxisTicks = React.useMemo(() => {
-    if (rankChartData.length === 0) return [];
-    const maxValue = Math.max(...rankChartData.map((point) => point.rankValue));
-    return RANK_AXIS_LABELS.filter((tick) => tick.value <= maxValue + 10).map((tick) => tick.value);
-  }, [rankChartData]);
-  const timelineGroups = React.useMemo(() => buildTimelineEventGroups(status.history.events), [status.history.events]);
-  const kataLabel = React.useMemo(() => resolveKataDisplay(status.kataProfile).styleLabel, [status.kataProfile]);
+  const rankChartData = React.useMemo(() => buildRankChartDataFromStatus(status), [status]);
+  const timelineItems = React.useMemo(() => buildReportTimelineItems(status), [status]);
+  const designedVsRealized = React.useMemo(() => buildDesignedVsRealizedLabel(status), [status]);
+  const fantasyHooks = React.useMemo(() => buildFantasyHooksForReport(status), [status]);
+  const injuryWhatIf = React.useMemo(() => buildInjuryWhatIfText(status), [status]);
   const prizeBreakdown = React.useMemo(
     () => status.history.prizeBreakdown ?? calculateCareerPrizeBreakdown(status),
     [status],
@@ -229,68 +170,117 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
     [status.history.kimariteTotal],
   );
 
-  const awardsSummary = React.useMemo(() => {
-    let sansho = 0;
-    let kinboshi = 0;
-    status.history.records.forEach((record) => {
-      sansho += record.specialPrizes?.length ?? 0;
-      kinboshi += record.kinboshi ?? 0;
-    });
-    return { sansho, kinboshi };
-  }, [status.history.records]);
+  const rankAxisTicks = React.useMemo(() => {
+    if (rankChartData.length === 0) return [];
+    const maxValue = Math.max(...rankChartData.map((point) => point.rankValue));
+    return RANK_AXIS_LABELS.filter((tick) => tick.value <= maxValue + 10).map((tick) => tick.value);
+  }, [rankChartData]);
+
+  const maxWeight = Math.max(160, ...rankChartData.map((point) => point.weightKg ?? 0));
+  const minWeight = Math.min(100, ...rankChartData.map((point) => point.weightKg ?? 999));
+
+  const headline = buildCareerHeadline(status);
+  const metrics: ReportMetricBlock[] = [
+    {
+      label: '最高位',
+      value: formatRankDisplayName(status.history.maxRank),
+      note: headline,
+    },
+    {
+      label: '通算成績',
+      value: `${status.history.totalWins}勝 ${status.history.totalLosses}敗`,
+      note: `${status.history.totalAbsent}休を含む`,
+    },
+    {
+      label: '活動場所数',
+      value: `${status.history.records.length}`,
+      note: `${status.entryAge}歳入門`,
+    },
+    {
+      label: '生涯賞金',
+      value: `${new Intl.NumberFormat('ja-JP').format(prizeBreakdown.totalYen)}円`,
+      note: status.buildSummary?.careerBandLabel ?? '設計帯未設定',
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 animate-in">
-      <section className="arcade-hero overflow-hidden px-6 py-7 sm:px-8 sm:py-8">
-        <div className="relative z-10 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="flex flex-col gap-5">
+      <section className="arcade-hero hero-stage">
+        <div className="hero-grid xl:grid-cols-[1.08fr_0.92fr] xl:items-start">
+          <div className="hero-copy">
             <div className="flex flex-col gap-4 sm:flex-row">
               <RikishiPortrait bodyType={status.bodyType} showLabel className="h-[220px] w-full sm:w-[220px]" />
               <div className="space-y-3">
-                <div className="museum-kicker">Final Board</div>
-                <h1 className="ui-text-heading text-4xl text-[#fff1d8] sm:text-6xl">{status.shikona}</h1>
-                <div className="flex flex-wrap gap-2 text-sm text-[#d7c0a0]">
-                  <span>{status.profile.realName || '本名未設定'}</span>
-                  <span>{status.profile.birthplace || '出身地未設定'}</span>
-                  <span>{Math.round(status.bodyMetrics.heightCm)}cm / {Math.round(status.bodyMetrics.weightKg)}kg</span>
-                  <span>{kataLabel === 'なし' ? '型未確立' : kataLabel}</span>
+                <div className="museum-kicker">結果</div>
+                <h1 className="ui-text-heading text-4xl text-text sm:text-6xl">{status.shikona}</h1>
+                <div className="text-sm text-text-dim">
+                  {Math.round(status.bodyMetrics.heightCm)}cm / {Math.round(status.bodyMetrics.weightKg)}kg / {designedVsRealized}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">最高位 {summary.highestPoint}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">通算 {summary.recordLine}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">現役 {summary.activeYears}</span>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">{summary.insight}</span>
+                  <SummaryChip>最高位 {formatRankDisplayName(status.history.maxRank)}</SummaryChip>
+                  <SummaryChip>気力 {status.spirit}</SummaryChip>
+                  <SummaryChip>{headline}</SummaryChip>
                 </div>
               </div>
             </div>
+
+            <div className="summary-grid">
+              {metrics.map((metric) => (
+                <div key={metric.label} className="metric-tile">
+                  <div className="metric-label">{metric.label}</div>
+                  <div className="metric-value">{metric.value}</div>
+                  {metric.note && <div className="metric-note">{metric.note}</div>}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="stat-block">
-              <div className="stat-label">最高位</div>
-              <div className="stat-value">{summary.highestPoint}</div>
-            </div>
-            <div className="stat-block">
-              <div className="stat-label">通算成績</div>
-              <div className="stat-value">{status.history.totalWins}勝</div>
-              <div className="stat-sub">{status.history.totalLosses}敗 {status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ''}</div>
-            </div>
-            <div className="stat-block">
-              <div className="stat-label">幕内優勝</div>
-              <div className="stat-value">{status.history.yushoCount.makuuchi}回</div>
-            </div>
-            <div className="stat-block">
-              <div className="stat-label">金星 / 三賞</div>
-              <div className="stat-value">{awardsSummary.kinboshi} / {awardsSummary.sansho}</div>
-            </div>
+          <div className="hero-side">
+            <section className="scoreboard-panel p-5 sm:p-6">
+              <div className="museum-kicker">読みどころ</div>
+              <div className="mt-4 ticker-log">
+                {fantasyHooks.slice(0, 4).map((hook) => (
+                  <div key={hook} className="ticker-entry">
+                    <span className="text-[var(--accent-gold)]">節目</span>
+                    <span>{hook}</span>
+                  </div>
+                ))}
+                {injuryWhatIf && (
+                  <div className="ticker-entry">
+                    <span className="text-[var(--accent-danger)]">もしも</span>
+                    <span>{injuryWhatIf}</span>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rpg-panel p-5 sm:p-6">
+              <div className="museum-kicker">設計と実戦</div>
+              <div className="mt-4 space-y-3">
+                <div className="pixel-card-dark p-4">
+                  <div className="text-xs tracking-[0.14em] text-text-dim">設計型</div>
+                  <div className="mt-2 text-lg text-text">{status.designedStyleProfile?.label ?? '未設定'}</div>
+                </div>
+                <div className="pixel-card-dark p-4">
+                  <div className="text-xs tracking-[0.14em] text-text-dim">実戦型</div>
+                  <div className="mt-2 text-lg text-text">
+                    {status.realizedStyleProfile?.label ?? 'まだ固まっていません'}
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
 
       <section className="command-bar">
         <div className="flex flex-wrap gap-2">
-          {TABS.map((tab) => (
-            <button key={tab.id} type="button" className="museum-chip" data-active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+          {[
+            { id: 'timeline', label: '人生年表', icon: <BookMarked size={15} /> },
+            { id: 'analysis', label: '分析', icon: <LineChartIcon size={15} /> },
+            { id: 'archive', label: '収蔵', icon: <Activity size={15} /> },
+          ].map((tab) => (
+            <button key={tab.id} type="button" className="museum-chip" data-active={activeTab === tab.id} onClick={() => setActiveTab(tab.id as ReportTab)}>
               {tab.icon}
               {tab.label}
             </button>
@@ -303,182 +293,193 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         </div>
       </section>
 
-      {activeTab === 'overview' && (
-        <div className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
+      {activeTab === 'timeline' && (
+        <div className="grid gap-6 xl:grid-cols-[1.04fr_0.96fr]">
           <section className="rpg-panel p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-3">
-              <span className="pixel-icon-badge"><Trophy size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#fff1d8]">最高到達の要点</h2>
+              <span className="pixel-icon-badge"><BookMarked size={16} /></span>
+              <div>
+                <div className="museum-kicker">人生年表</div>
+                <h2 className="ui-text-heading text-2xl text-text">節目を読み返す</h2>
+              </div>
             </div>
-            <div className="ticker-log">
-              {timelinePoints.length === 0 ? (
-                <div className="scoreboard-panel p-5 text-sm text-[#c6d8f2]">大きな節目は記録されていません。</div>
+
+            <div className="report-timeline">
+              {timelineItems.length === 0 ? (
+                <div className="scoreboard-panel p-5 text-sm text-text-dim">節目年表はまだありません。</div>
               ) : (
-                timelinePoints.map((point) => (
-                  <div key={point} className="ticker-entry">
-                    <span className="text-[#d9a441]">LOG</span>
-                    <span>{point}</span>
-                    <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">節目</span>
-                  </div>
+                timelineItems.map((item) => (
+                  <article key={item.key} className="timeline-node">
+                    <span className={`timeline-dot ${item.tone === 'danger' ? 'is-danger' : item.tone === 'neutral' ? 'is-neutral' : ''}`} />
+                    <div className="text-xs text-[var(--accent-gold)]">{item.dateLabel}</div>
+                    <div className="mt-2 ui-text-heading text-xl text-text">{item.title}</div>
+                    <div className="mt-2 text-sm leading-7 text-text-dim">{item.summary}</div>
+                  </article>
                 ))
               )}
             </div>
           </section>
 
-          <section className="rpg-panel p-5 sm:p-6">
+          <section className="scoreboard-panel p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-3">
               <span className="pixel-icon-badge"><Activity size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#fff1d8]">主要指標</h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="stat-block">
-                <div className="stat-label">活動場所数</div>
-                <div className="stat-value">{displayCareerRecords.length}</div>
+              <div>
+                <div className="museum-kicker">概況</div>
+                <h2 className="ui-text-heading text-2xl text-text">キャリア要約</h2>
               </div>
-              <div className="stat-block">
-                <div className="stat-label">勝率</div>
-                <div className="stat-value">
-                  {status.history.totalWins + status.history.totalLosses > 0
-                    ? ((status.history.totalWins / (status.history.totalWins + status.history.totalLosses)) * 100).toFixed(1)
-                    : '0.0'}%
+            </div>
+            <div className="metric-board">
+              <div className="metric-tile">
+                <div className="metric-label">親方</div>
+                <div className="metric-value">{status.buildSummary?.oyakataName ?? '不明'}</div>
+                <div className="metric-note">
+                  秘伝 {status.buildSummary?.secretStyle ? getStyleLabelJa(status.buildSummary.secretStyle) : '-'}
                 </div>
               </div>
-              <div className="stat-block">
-                <div className="stat-label">下位優勝</div>
-                <div className="stat-value">{status.history.yushoCount.juryo + status.history.yushoCount.makushita + status.history.yushoCount.others}回</div>
+              <div className="metric-tile">
+                <div className="metric-label">経歴</div>
+                <div className="metric-value">
+                  {status.buildSummary?.amateurBackground ? getBackgroundLabel(status.buildSummary.amateurBackground) : '不明'}
+                </div>
+                <div className="metric-note">{status.buildSummary?.careerBandLabel ?? '-'}</div>
               </div>
-              <div className="stat-block">
-                <div className="stat-label">生涯賞金</div>
-                <div className="stat-value">{new Intl.NumberFormat('ja-JP').format(prizeBreakdown.totalYen)}円</div>
+              <div className="metric-tile">
+                <div className="metric-label">設計コスト</div>
+                <div className="metric-value">{status.buildSummary?.spentPoints ?? 0}pt</div>
+                <div className="metric-note">負債 {status.buildSummary?.debtCount ?? 0}枚</div>
               </div>
             </div>
           </section>
         </div>
       )}
 
-      {activeTab === 'rank' && (
-        <section className="scoreboard-panel p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="pixel-icon-badge"><LineChartIcon size={16} /></span>
-            <h2 className="ui-text-heading text-2xl text-[#f3f7ff]">番付推移</h2>
-          </div>
-          <div className="h-[360px] border-[2px] border-[rgba(122,148,171,0.28)] bg-[rgba(10,12,15,0.65)] p-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rankChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(122,148,171,0.16)" />
-                <XAxis
-                  dataKey="slot"
-                  tick={{ fontSize: 11, fill: '#a9bfdc' }}
-                  tickFormatter={(_value: number, index: number) => rankChartData[index]?.axisLabel ?? ''}
-                  interval={0}
-                  minTickGap={20}
-                />
-                <YAxis
-                  type="number"
-                  reversed
-                  tick={{ fontSize: 11, fill: '#a9bfdc' }}
-                  width={60}
-                  ticks={rankAxisTicks}
-                  tickFormatter={formatRankAxisTick}
-                  domain={[0, (dataMax: number) => Math.max(dataMax + 8, 42)]}
-                />
-                <Tooltip
-                  contentStyle={TOOLTIP_STYLE}
-                  labelFormatter={(_label: string, payload: Array<{ payload?: { bashoLabel: string } }>) => payload?.[0]?.payload?.bashoLabel ?? ''}
-                  formatter={(_v: number, _n: string, entry: { payload?: { rankLabel: string } }) => entry.payload?.rankLabel ?? ''}
-                />
-                <Line type="linear" dataKey="rankValue" stroke="#d9a441" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'timeline' && (
+      {activeTab === 'analysis' && (
         <div className="space-y-6">
-          <section className="rpg-panel p-5 sm:p-6">
+          <section className="scoreboard-panel p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-3">
-              <span className="pixel-icon-badge"><ScrollText size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#fff1d8]">星取</h2>
+              <span className="pixel-icon-badge"><LineChartIcon size={16} /></span>
+              <div>
+                <div className="museum-kicker">分析</div>
+                <h2 className="ui-text-heading text-2xl text-text">番付と体重の推移</h2>
+              </div>
             </div>
-            <HoshitoriTable
-              careerRecords={hoshitoriCareerRecords}
-              shikona={status.shikona}
-              isLoading={isHoshitoriLoading}
-              errorMessage={hoshitoriErrorMessage}
-            />
-          </section>
-
-          <section className="rpg-panel p-5 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="pixel-icon-badge"><ScrollText size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#fff1d8]">年表</h2>
+            <div className="h-[380px] border-[2px] border-[rgba(91,122,165,0.28)] bg-[rgba(10,12,15,0.65)] p-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={rankChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(91,122,165,0.16)" />
+                  <XAxis
+                    dataKey="slot"
+                    tick={{ fontSize: 11, fill: '#9da7b3' }}
+                    tickFormatter={(_value: number, index: number) => rankChartData[index]?.axisLabel ?? ''}
+                    interval={0}
+                    minTickGap={20}
+                  />
+                  <YAxis
+                    yAxisId="rank"
+                    type="number"
+                    reversed
+                    tick={{ fontSize: 11, fill: '#9da7b3' }}
+                    width={60}
+                    ticks={rankAxisTicks}
+                    tickFormatter={formatRankAxisTick}
+                    domain={[0, (dataMax: number) => Math.max(dataMax + 8, 42)]}
+                  />
+                  <YAxis
+                    yAxisId="weight"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: '#d6a23d' }}
+                    width={54}
+                    domain={[Math.max(90, Math.floor(minWeight - 6)), Math.ceil(maxWeight + 6)]}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    labelFormatter={(_label: string, payload: Array<{ payload?: { bashoLabel: string } }>) => payload?.[0]?.payload?.bashoLabel ?? ''}
+                  />
+                  <Line yAxisId="rank" type="linear" dataKey="rankValue" stroke="#d6a23d" strokeWidth={2.5} dot={<EventDot />} activeDot={{ r: 4 }} />
+                  <Line yAxisId="weight" type="monotone" dataKey="weightKg" stroke="#6ea66d" strokeWidth={2.2} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
-            <div className="ticker-log">
-              {timelineGroups.map((group) => (
-                <div key={group.key} className="ticker-entry">
-                  <span className="text-[#d9a441]">{String(group.month).padStart(2, '0')}</span>
-                  <div className="grid gap-1 text-sm text-[#eef4ff]">
-                    <div>{formatBashoLabel(group.year, group.month)}</div>
-                    <div className="grid gap-1 text-xs text-[#c6d8f2]">
-                      {group.descriptions.map((description, index) => (
-                        <span key={`${group.key}-${index}`}>{description}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <span className="museum-chip bg-[rgba(15,18,22,0.88)] text-[#eef4ff]">{group.tagLabel}</span>
-                </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-text-dim">
+              {Object.entries(EVENT_BADGE).map(([key, label]) => (
+                <span key={key} className="museum-chip">{label} {key}</span>
               ))}
             </div>
           </section>
-        </div>
-      )}
 
-      {activeTab === 'skills' && (
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="rpg-panel p-5 sm:p-6">
+            <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setDetailsOpen((prev) => ({ ...prev, hoshitori: !prev.hoshitori }))}>
+              <div className="flex items-center gap-3">
+                <span className="pixel-icon-badge"><Activity size={16} /></span>
+                <h2 className="ui-text-heading text-2xl text-text">星取表</h2>
+              </div>
+              <ChevronDown size={18} className={detailsOpen.hoshitori ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            {detailsOpen.hoshitori && (
+              <div className="mt-4">
+                <HoshitoriTable
+                  careerRecords={hoshitoriCareerRecords}
+                  shikona={status.shikona}
+                  isLoading={isHoshitoriLoading}
+                  errorMessage={hoshitoriErrorMessage}
+                />
+              </div>
+            )}
+          </section>
+
           <section className="scoreboard-panel p-5 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="pixel-icon-badge"><Swords size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#f3f7ff]">決まり手</h2>
-            </div>
-            {kimariteData.length === 0 ? (
-              <div className="text-sm text-[#c6d8f2]">決まり手データはありません。</div>
-            ) : (
-              <div className="h-[320px] border-[2px] border-[rgba(122,148,171,0.28)] bg-[rgba(10,12,15,0.65)] p-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={kimariteData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(122,148,171,0.16)" />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#a9bfdc' }} />
-                    <YAxis dataKey="name" type="category" width={88} tick={{ fontSize: 11, fill: '#eef4ff' }} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="count" fill="#d9a441" radius={[0, 0, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setDetailsOpen((prev) => ({ ...prev, kimarite: !prev.kimarite }))}>
+              <div className="flex items-center gap-3">
+                <span className="pixel-icon-badge"><Swords size={16} /></span>
+                <h2 className="ui-text-heading text-2xl text-text">決まり手の傾向</h2>
+              </div>
+              <ChevronDown size={18} className={detailsOpen.kimarite ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            {detailsOpen.kimarite && (
+              <div className="mt-4 h-[320px] border-[2px] border-[rgba(91,122,165,0.28)] bg-[rgba(10,12,15,0.65)] p-3">
+                {kimariteData.length === 0 ? (
+                  <div className="text-sm text-text-dim">決まり手データはありません。</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={kimariteData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(91,122,165,0.16)" />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: '#9da7b3' }} />
+                      <YAxis dataKey="name" type="category" width={88} tick={{ fontSize: 11, fill: '#f3e9d2' }} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Bar dataKey="count" fill="#d6a23d" radius={[0, 0, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             )}
           </section>
 
           <section className="rpg-panel p-5 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="pixel-icon-badge"><ShieldAlert size={16} /></span>
-              <h2 className="ui-text-heading text-2xl text-[#fff1d8]">怪我</h2>
-            </div>
-            {careerInjuryHistory.length === 0 ? (
-              <p className="text-sm text-[#d7c0a0]">生涯を通して記録された怪我はありませんでした。</p>
-            ) : (
-              <div className="space-y-4">
+            <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setDetailsOpen((prev) => ({ ...prev, injuries: !prev.injuries }))}>
+              <div className="flex items-center gap-3">
+                <span className="pixel-icon-badge"><ShieldAlert size={16} /></span>
+                <h2 className="ui-text-heading text-2xl text-text">怪我履歴</h2>
+              </div>
+              <ChevronDown size={18} className={detailsOpen.injuries ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            {detailsOpen.injuries && (
+              <div className="mt-4 space-y-4">
                 <DamageMap
                   injuries={status.injuries}
-                  historicRecords={careerInjuryHistory.map((record) => record.description)}
+                  historicRecords={status.injuries.map((injury) => injury.name)}
                   bodyType={status.bodyType}
                 />
                 <div className="grid gap-2">
-                  {careerInjuryHistory.map((injury) => (
-                    <div key={injury.key} className="scoreboard-panel p-3">
-                      <div className="text-sm text-[#f3f7ff]">{injury.description}</div>
-                      <div className="text-xs text-[#8ea9cb]">{injury.year}年{injury.month}月</div>
-                    </div>
-                  ))}
+                  {status.injuries.length === 0 ? (
+                    <div className="text-sm text-text-dim">記録された怪我はありません。</div>
+                  ) : (
+                    status.injuries.map((injury) => (
+                      <div key={injury.id} className="scoreboard-panel p-3">
+                        <div className="text-sm text-text">{injury.name}</div>
+                        <div className="text-xs text-text-dim">{formatBashoLabel(injury.occurredAt.year, injury.occurredAt.month)} / 重症度 {injury.severity}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -486,16 +487,29 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         </div>
       )}
 
-      {activeTab === 'shelve' && (
+      {activeTab === 'archive' && (
         <section className="rpg-panel p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-3">
             <span className="pixel-icon-badge"><BookMarked size={16} /></span>
-            <h2 className="ui-text-heading text-2xl text-[#fff1d8]">収蔵</h2>
+            <div>
+              <div className="museum-kicker">収蔵</div>
+              <h2 className="ui-text-heading text-2xl text-text">この人生を残す</h2>
+            </div>
           </div>
           <div className="space-y-4">
-            <p className="text-sm text-[#d7c0a0]">
-              この人生を資料館に残すと、収蔵庫からいつでも読み返せます。破棄すると記録は残りません。
+            <p className="text-sm leading-7 text-text-dim">
+              ここで収蔵すると、次の周回に親方や図録の解放として引き継がれます。
             </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="metric-tile">
+                <div className="metric-label">保存すると増えるもの</div>
+                <div className="metric-note">親方候補、図録進行、周回用ポイント</div>
+              </div>
+              <div className="metric-tile">
+                <div className="metric-label">今回の結果</div>
+                <div className="metric-note">{headline}</div>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               {onSave && <Button onClick={() => void onSave()} disabled={isSaved}>{isSaved ? '収蔵済み' : '資料館に収蔵する'}</Button>}
               {onDiscard && !isSaved && <Button variant="outline" onClick={() => void onDiscard()}>破棄する</Button>}
