@@ -1,8 +1,8 @@
 import { getDb, WalletRow, WalletTransactionRow } from './db';
 
 export const WALLET_INITIAL_POINTS = 50;
-export const WALLET_MAX_POINTS = 150;
-export const WALLET_REGEN_INTERVAL_MS = 0;
+export const WALLET_MAX_POINTS = 100;
+export const WALLET_REGEN_INTERVAL_MS = 60_000;
 
 export interface WalletState {
   points: number;
@@ -53,18 +53,65 @@ const createWalletTransaction = (
   careerId: params.careerId,
 });
 
-const applyRegen = (row: WalletRow, nowMs: number): WalletRow => ({
-  ...row,
-  points: clamp(row.points, 0, WALLET_MAX_POINTS),
-  lastRegenAt: Math.max(nowMs, row.lastRegenAt),
-  updatedAt: new Date(Math.max(nowMs, row.lastRegenAt)).toISOString(),
-});
+const applyRegen = (row: WalletRow, nowMs: number): WalletRow => {
+  const safeNowMs = Math.max(nowMs, row.lastRegenAt);
+  const basePoints = clamp(row.points, 0, WALLET_MAX_POINTS);
 
-const toWalletState = (row: WalletRow, _nowMs: number): WalletState => {
+  if (WALLET_REGEN_INTERVAL_MS <= 0) {
+    return {
+      ...row,
+      points: basePoints,
+      lastRegenAt: safeNowMs,
+      updatedAt: new Date(safeNowMs).toISOString(),
+    };
+  }
+
+  if (basePoints >= WALLET_MAX_POINTS) {
+    return {
+      ...row,
+      points: WALLET_MAX_POINTS,
+      lastRegenAt: safeNowMs,
+      updatedAt: new Date(safeNowMs).toISOString(),
+    };
+  }
+
+  const elapsedMs = safeNowMs - row.lastRegenAt;
+  const regeneratedPoints = Math.floor(elapsedMs / WALLET_REGEN_INTERVAL_MS);
+  if (regeneratedPoints <= 0) {
+    return {
+      ...row,
+      points: basePoints,
+      lastRegenAt: row.lastRegenAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  const nextPoints = clamp(basePoints + regeneratedPoints, 0, WALLET_MAX_POINTS);
+  const reachedCap = nextPoints >= WALLET_MAX_POINTS;
+  const lastRegenAt = reachedCap
+    ? safeNowMs
+    : row.lastRegenAt + regeneratedPoints * WALLET_REGEN_INTERVAL_MS;
+
   return {
-    points: clamp(row.points, 0, WALLET_MAX_POINTS),
+    ...row,
+    points: nextPoints,
+    lastRegenAt,
+    updatedAt: new Date(lastRegenAt).toISOString(),
+  };
+};
+
+const toWalletState = (row: WalletRow, nowMs: number): WalletState => {
+  const points = clamp(row.points, 0, WALLET_MAX_POINTS);
+  const safeNowMs = Math.max(nowMs, row.lastRegenAt);
+  const elapsedMs = safeNowMs - row.lastRegenAt;
+  const remainingMs =
+    points >= WALLET_MAX_POINTS || WALLET_REGEN_INTERVAL_MS <= 0
+      ? 0
+      : Math.max(0, WALLET_REGEN_INTERVAL_MS - elapsedMs);
+  return {
+    points,
     cap: WALLET_MAX_POINTS,
-    nextRegenInSec: 0,
+    nextRegenInSec: remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 0,
     lastRegenAt: row.lastRegenAt,
   };
 };

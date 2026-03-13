@@ -188,6 +188,9 @@ export const pairAcrossBoundary = (
       b: bestLower,
       boundaryId: spec.id,
       activationReasons: reasons,
+      matchReason: 'BOUNDARY_CROSSOVER',
+      relaxationStage: 3,
+      crossDivision: true,
     });
   }
 

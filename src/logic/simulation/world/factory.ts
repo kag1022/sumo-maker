@@ -1,6 +1,6 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { DEFAULT_MAKUUCHI_LAYOUT } from '../../banzuke/scale/banzukeLayout';
-import { DEFAULT_APTITUDE_FACTOR, DEFAULT_APTITUDE_TIER } from '../../constants';
+import { DEFAULT_APTITUDE_FACTOR, DEFAULT_APTITUDE_TIER, DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../../constants';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { createInitialNpcUniverse } from '../npc/factory';
@@ -32,6 +32,8 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       growthBias: 0,
       aptitudeTier: DEFAULT_APTITUDE_TIER,
       aptitudeFactor: DEFAULT_APTITUDE_FACTOR,
+      aptitudeProfile: resolveAptitudeProfile(DEFAULT_APTITUDE_TIER),
+      careerBand: DEFAULT_CAREER_BAND,
       retirementBias: 0,
       retirementProfile: 'STANDARD',
       entryAge: 15,
@@ -39,6 +41,13 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
       careerBashoCount: 0,
       active: true,
       entrySeq: 0,
+      stagnation: {
+        pressure: 0,
+        makekoshiStreak: 0,
+        lowWinRateStreak: 0,
+        stuckBasho: 0,
+        reboundBoost: 0,
+      },
       recentBashoResults: [],
     });
   }
@@ -61,6 +70,9 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
     weightKg: npc.weightKg,
     aptitudeTier: npc.aptitudeTier,
     aptitudeFactor: npc.aptitudeFactor,
+    aptitudeProfile: npc.aptitudeProfile,
+    careerBand: npc.careerBand,
+    stagnation: npc.stagnation,
   });
 
   return {

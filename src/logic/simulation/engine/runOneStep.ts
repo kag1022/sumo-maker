@@ -44,6 +44,7 @@ import {
   resolveRealizedStyleProfile,
   setCareerTurningPoint,
 } from '../../phaseA';
+import { buildCareerRealismSnapshot, updateStagnationState } from '../realism';
 import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
@@ -413,6 +414,16 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   state.status.rank = rankChange.nextRank;
   state.status.isOzekiKadoban = rankChange.isKadoban;
   state.status.isOzekiReturn = rankChange.isOzekiReturn;
+  state.status.stagnation = updateStagnationState(state.status.stagnation, {
+    wins: bashoRecord.wins,
+    losses: bashoRecord.losses,
+    absent: bashoRecord.absent,
+    division: currentRank.division,
+    promotedToSekitori:
+      (currentRank.division !== 'Juryo' && currentRank.division !== 'Makuuchi') &&
+      (rankChange.nextRank.division === 'Juryo' || rankChange.nextRank.division === 'Makuuchi'),
+    careerBand: state.status.careerBand,
+  });
   state.status.ratingState = updateAbilityAfterBasho({
     current: state.status.ratingState,
     actualWins: bashoRecord.wins,
@@ -420,6 +431,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     age: state.status.age,
     careerBashoCount: state.status.history.records.length,
     currentRank: state.status.rank,
+    careerBand: state.status.careerBand,
+    stagnationPressure: state.status.stagnation?.pressure ?? 0,
   });
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
@@ -427,6 +440,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
   state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
+  state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
   if (simulationModelVersion === 'unified-v3-variance') {
     state.status.currentCondition = updateConditionForV3({
       previousCondition: conditionBeforeBasho,
@@ -484,6 +498,11 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     reason: rankChange.event,
     simulationModelVersion,
     banzukeEngineVersion,
+    torikumiRelaxationHistogram: bashoResult.torikumiDiagnostics?.torikumiRelaxationHistogram,
+    crossDivisionBoutCount: bashoResult.torikumiDiagnostics?.crossDivisionBoutCount,
+    lateCrossDivisionBoutCount: bashoResult.torikumiDiagnostics?.lateCrossDivisionBoutCount,
+    sameStableViolationCount: bashoResult.torikumiDiagnostics?.sameStableViolationCount,
+    sameCardViolationCount: bashoResult.torikumiDiagnostics?.sameCardViolationCount,
     ...(simulationModelVersion === 'unified-v3-variance'
       ? {
         bashoVariance: {

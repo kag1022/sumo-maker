@@ -65,12 +65,15 @@ const createMakushitaParticipants = (
       weightKg: npc.weightKg,
       aptitudeTier: npc.aptitudeTier,
       aptitudeFactor: npc.aptitudeFactor,
+      aptitudeProfile: npc.aptitudeProfile,
+      careerBand: npc.careerBand,
       wins: 0,
       losses: 0,
       expectedWins: 0,
       opponentAbilityTotal: 0,
       boutsSimulated: 0,
       active: true,
+      stagnation: npc.stagnation,
     };
   });
 };
@@ -125,6 +128,9 @@ const evolveMakushitaPool = (
         persistent.form = updated.form;
         persistent.rankScore = updated.rankScore;
         persistent.growthBias = updated.growthBias ?? persistent.growthBias;
+        persistent.aptitudeProfile = updated.aptitudeProfile;
+        persistent.careerBand = updated.careerBand;
+        persistent.stagnation = updated.stagnation;
         persistent.division = 'Makushita';
         persistent.currentDivision = 'Makushita';
         pushNpcBashoResult(persistent, result.wins, result.losses);

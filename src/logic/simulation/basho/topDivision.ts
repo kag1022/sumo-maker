@@ -146,7 +146,7 @@ export const runTopDivisionBasho = (
     kinboshiById.set(id, (kinboshiById.get(id) ?? 0) + 1);
   };
 
-  scheduleTorikumiBasho({
+  const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
@@ -396,5 +396,6 @@ export const runTopDivisionBasho = (
     },
     playerBoutDetails,
     sameDivisionNpcRecords,
+    torikumiDiagnostics: torikumiResult.diagnostics,
   };
 };

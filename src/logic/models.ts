@@ -2,6 +2,7 @@
 export type TalentArchetype = 'MONSTER' | 'GENIUS' | 'HARD_WORKER' | 'AVG_JOE' | 
                               'UNIVERSITY_YOKOZUNA' | 'HIGH_SCHOOL_CHAMP' | 'STREET_FIGHTER';
 export type AptitudeTier = 'S' | 'A' | 'B' | 'C' | 'D';
+export type CareerBand = 'ELITE' | 'STRONG' | 'STANDARD' | 'GRINDER' | 'WASHOUT';
 
 // 入門区分
 export type EntryDivision = 'Maezumo' | 'Makushita60' | 'Sandanme90';
@@ -88,6 +89,22 @@ export interface RatingState {
   form: number;
   uncertainty: number;
   lastBashoExpectedWins?: number;
+}
+
+export interface AptitudeProfile {
+  initialFactor: number;
+  growthFactor: number;
+  boutFactor: number;
+  longevityFactor: number;
+}
+
+export interface StagnationState {
+  pressure: number;
+  makekoshiStreak: number;
+  lowWinRateStreak: number;
+  stuckBasho: number;
+  reboundBoost: number;
+  lastTrigger?: 'MAKEKOSHI' | 'LOW_WIN_RATE' | 'BOUNDARY_MISS';
 }
 
 // 怪我の種類
@@ -188,6 +205,8 @@ export interface RikishiStatus {
   archetype?: TalentArchetype; // 素質タイプ
   aptitudeTier: AptitudeTier; // 素質ランク
   aptitudeFactor: number; // 隠し素質係数
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   bodyType: BodyType;          // 体格タイプ
@@ -209,6 +228,7 @@ export interface RikishiStatus {
   buildSummary?: BuildSummary;
   mentorId?: string;
   spirit: number;
+  stagnation?: StagnationState;
 
   history: CareerHistory;
   
@@ -516,6 +536,7 @@ export interface CareerHistory {
   bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
   highlightEvents?: HighlightEvent[];
   careerTurningPoint?: CareerTurningPoint;
+  realismKpi?: RealismKpiSnapshot;
 }
 
 // 1場所ごとの記録
@@ -560,6 +581,43 @@ export interface CareerTurningPoint {
   month: number;
   reason: string;
   severity: number;
+}
+
+export interface RealismKpiSnapshot {
+  careerWinRate: number;
+  nonSekitoriCareerWinRate?: number;
+  losingCareerRate?: number;
+  careerWinRateLe35Rate?: number;
+  careerWinRateLe30Rate?: number;
+  allCareerRetireAgeP50?: number;
+  nonSekitoriMedianBasho?: number;
+  stagnationPressure?: number;
+}
+
+export type RealismProbeRunKind =
+  | 'quick'
+  | 'retire'
+  | 'aptitude'
+  | 'acceptance';
+
+export interface RealismProbeMetrics extends RealismKpiSnapshot {
+  sekitoriRate?: number;
+  makuuchiRate?: number;
+  sanyakuRate?: number;
+  yokozunaRate?: number;
+  lowTierRate?: number;
+  tierCareerWinRate?: Partial<Record<AptitudeTier, number>>;
+}
+
+export interface RealismProbeResult {
+  runKind: RealismProbeRunKind;
+  scenarioId: string;
+  sample: number;
+  modelVersion: string;
+  compiledAt?: string;
+  generatedAt: string;
+  metrics: RealismProbeMetrics;
+  gateResult: Record<string, boolean>;
 }
 
 // タイムラインイベント

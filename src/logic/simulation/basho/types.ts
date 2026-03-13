@@ -1,5 +1,6 @@
 import { BashoRecord, Rank } from '../../models';
 import { LowerLeagueSnapshots } from '../lowerQuota';
+import { TorikumiDiagnostics } from '../torikumi/types';
 
 export type BoutOutcome = 'WIN' | 'LOSS' | 'ABSENT';
 
@@ -32,4 +33,5 @@ export interface BashoSimulationResult {
   playerBoutDetails: PlayerBoutDetail[];
   sameDivisionNpcRecords: NpcBashoAggregate[];
   lowerLeagueSnapshots?: LowerLeagueSnapshots;
+  torikumiDiagnostics?: TorikumiDiagnostics;
 }

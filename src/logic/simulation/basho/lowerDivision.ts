@@ -118,10 +118,13 @@ export const syncPlayerToLowerDivisionRoster = (
     weightKg: playerActor?.weightKg ?? status.bodyMetrics.weightKg,
     aptitudeTier: playerActor?.aptitudeTier ?? status.aptitudeTier,
     aptitudeFactor: playerActor?.aptitudeFactor ?? status.aptitudeFactor,
+    aptitudeProfile: playerActor?.aptitudeProfile ?? status.aptitudeProfile,
+    careerBand: playerActor?.careerBand ?? status.careerBand,
     growthBias: playerActor?.growthBias ?? 0,
     retirementBias: playerActor?.retirementBias ?? 0,
     retirementProfile: playerActor?.retirementProfile ?? status.retirementProfile ?? 'STANDARD',
     active: true,
+    stagnation: playerActor?.stagnation ?? status.stagnation,
     recentBashoResults: playerActor?.recentBashoResults ?? [],
   });
   lowerWorld.rosters[division] = merged
@@ -205,11 +208,14 @@ export const runLowerDivisionBasho = (
           weightKg: npc.weightKg ?? 130,
           aptitudeTier: npc.aptitudeTier,
           aptitudeFactor: npc.aptitudeFactor,
+          aptitudeProfile: npc.aptitudeProfile,
+          careerBand: npc.careerBand,
           wins: 0,
           losses: 0,
           currentWinStreak: 0,
           currentLossStreak: 0,
           active: true,
+          stagnation: npc.stagnation,
           targetBouts: 7,
           boutsDone: 0,
         };
@@ -255,11 +261,14 @@ export const runLowerDivisionBasho = (
         weightKg: guest.weightKg ?? 152,
         aptitudeTier: guest.aptitudeTier,
         aptitudeFactor: guest.aptitudeFactor,
+        aptitudeProfile: guest.aptitudeProfile,
+        careerBand: guest.careerBand,
         wins: 0,
         losses: 0,
         currentWinStreak: 0,
         currentLossStreak: 0,
         active: true,
+        stagnation: guest.stagnation,
         targetBouts: 1,
         boutsDone: 0,
       });
@@ -292,6 +301,9 @@ export const runLowerDivisionBasho = (
   player.targetBouts = numBouts;
   player.boutsDone = 0;
   player.active = true;
+  player.aptitudeProfile = status.aptitudeProfile;
+  player.careerBand = status.careerBand;
+  player.stagnation = status.stagnation;
   player.currentWinStreak = 0;
   player.currentLossStreak = 0;
   const lowerDayMap = createLowerDivisionBoutDayMap(participants, rng);
@@ -302,7 +314,7 @@ export const runLowerDivisionBasho = (
   if (resolveInjuryParticipation(status).mustSitOut) {
     player.active = false;
   }
-  scheduleTorikumiBasho({
+  const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) =>
@@ -548,6 +560,7 @@ export const runLowerDivisionBasho = (
     lowerLeagueSnapshots: toBoundarySnapshotsByDivision(
       participants.filter((participant) => !participant.id.startsWith('JURYO_GUEST_')),
     ),
+    torikumiDiagnostics: torikumiResult.diagnostics,
   };
 };
 

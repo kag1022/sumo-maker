@@ -1,515 +1,687 @@
-import React from 'react';
-import { AlertTriangle, Shield, Swords, UserRound, Wallet } from 'lucide-react';
-import { Oyakata, OyakataBlueprint, RikishiStatus, SimulationRunOptions, StyleArchetype } from '../../../logic/models';
-import { Button } from '../../../shared/ui/Button';
-import { RikishiPortrait } from '../../../shared/ui/RikishiPortrait';
+import React, { useEffect, useMemo, useState } from "react";
+import { Oyakata, RikishiStatus, BodyType, EntryDivision, PersonalityType, Trait } from "../../../logic/models";
+import { CONSTANTS } from "../../../logic/constants";
 import {
-  buildInitialRikishiFromSpec,
-  buildPreviewSummaryVNext,
-  calculateBodyMassIndex,
-  calculateBuildCostVNext,
-  createDefaultBuildSpecVNext,
-  getStarterOyakataBlueprints,
-  isBuildSpecVNextBmiValid,
-  PHASE_A_BUILD_OPTIONS,
-} from '../../../logic/build/buildLab';
-import {
-  blueprintToOyakata,
-  DEBT_CARD_LABELS,
-  DEBT_CARD_POINT_BONUS,
-  getStyleLabel,
-  STARTER_OYAKATA_BLUEPRINTS,
-} from '../../../logic/phaseA';
-import { getWalletState, spendWalletPoints, WalletState } from '../../../logic/persistence/wallet';
-import { listAvailableOyakataBlueprints } from '../../../logic/persistence/repository';
-import {
-  BODY_CONSTITUTION_COPY,
-  DEBT_CARD_COPY,
-  getBackgroundLabel,
-  getBodyConstitutionLabel,
-  getMentalTraitLabel,
-  getStyleLabelJa,
-  INJURY_RESISTANCE_COPY,
-  INJURY_RESISTANCE_LABELS,
-  MENTAL_TRAIT_COPY,
-  OYAKATA_COPY,
-  SCOUT_SECTION_LABELS,
-  ScoutSectionId,
-  STYLE_COPY,
-} from '../../../shared/ui/displayLabels';
+  buildInitialRikishiFromDraft,
+  PERSONALITY_LABELS,
+  resizeTraitSlots,
+  selectTraitForSlot,
+  resolveTraitSlotCost,
+  rollBodyMetricsForBodyType,
+  rollScoutDraft,
+  SCOUT_COST,
+  SCOUT_HISTORY_OPTIONS,
+  ScoutDraft,
+  ScoutHistory,
+  resolveScoutOverrideCost,
+} from "../../../logic/scout/gacha";
+import { getWalletState, spendWalletPoints, WalletState } from "../../../logic/persistence/wallet";
+import { Button } from "../../../shared/ui/Button";
+import { RefreshCw, Trophy, Coins, ChevronDown, User, Dna, Zap } from "lucide-react";
 
 interface ScoutScreenProps {
   onStart: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
-    runOptions?: SimulationRunOptions,
   ) => void | Promise<void>;
 }
 
-const SECTION_ORDER: ScoutSectionId[] = ['oyakata', 'body', 'style', 'risk'];
+// Manual testing mode: wallet points are not consumed in scout flow.
+const SCOUT_FREE_SPEND_FOR_MANUAL_TEST = true;
 
-const ChoiceCard = ({
-  label,
-  blurb,
-  selected,
-  onClick,
-  aside,
-  tone = 'default',
-}: {
-  label: string;
-  blurb: string;
-  selected: boolean;
-  onClick: () => void;
-  aside?: React.ReactNode;
-  tone?: 'default' | 'danger';
-}) => (
-  <button type="button" onClick={onClick} data-selected={selected} className="museum-choice">
-    <div className="flex items-start justify-between gap-3">
-      <div className="space-y-2">
-        <div className={`museum-choice-title ${tone === 'danger' ? 'text-[#ffd2cd]' : ''}`}>{label}</div>
-        <div className="museum-choice-copy">{blurb}</div>
-      </div>
-      {aside}
-    </div>
-  </button>
-);
+const formatCountdown = (seconds: number): string => {
+  const safe = Math.max(0, seconds);
+  const m = Math.floor(safe / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (safe % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+};
 
-const SliderField = ({
-  label,
-  value,
-  min,
-  max,
-  onChange,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (value: number) => void;
-  suffix: string;
-}) => (
-  <label className="block space-y-3">
-    <div className="flex items-center justify-between text-sm text-text-dim">
-      <span>{label}</span>
-      <span className="museum-chip">{value}{suffix}</span>
-    </div>
-    <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full" />
-  </label>
-);
+const traitName = (id: string): string => CONSTANTS.TRAIT_DATA[id as keyof typeof CONSTANTS.TRAIT_DATA]?.name ?? id;
 
-const getCompatibilityTone = (label: string): string =>
-  label.includes('抜群') ? 'text-[var(--accent-green)]' : label.includes('難') ? 'text-[var(--accent-danger)]' : 'text-text';
-
-const styleOptions: StyleArchetype[] = ['YOTSU', 'TSUKI_OSHI', 'MOROZASHI', 'DOHYOUGIWA'];
+// --- 共通スタイル定数 ---
+const LABEL_CLASS = "text-xs ui-text-label text-gold";
+const INPUT_CLASS = "w-full border-2 border-gold-muted bg-bg px-3 py-2.5 text-text text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all";
+const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
-  const [wallet, setWallet] = React.useState<WalletState | null>(null);
-  const [availableOyakata, setAvailableOyakata] = React.useState<OyakataBlueprint[]>(STARTER_OYAKATA_BLUEPRINTS);
-  const [spec, setSpec] = React.useState(() => createDefaultBuildSpecVNext(getStarterOyakataBlueprints()[0].id));
-  const [isRegistering, setIsRegistering] = React.useState(false);
-  const [errorMessage, setErrorMessage] = React.useState('');
+  const [wallet, setWallet] = useState<WalletState | null>(null);
+  const [baseDraft, setBaseDraft] = useState<ScoutDraft | null>(null);
+  const [editedDraft, setEditedDraft] = useState<ScoutDraft | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  React.useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const [walletState, oyakata] = await Promise.all([
-        getWalletState(),
-        listAvailableOyakataBlueprints(),
-      ]);
-      if (!alive) return;
-      setWallet(walletState);
-      setAvailableOyakata(oyakata);
-      if (!oyakata.some((row) => row.id === spec.oyakataId)) {
-        setSpec(createDefaultBuildSpecVNext(oyakata[0]?.id ?? getStarterOyakataBlueprints()[0].id));
-      }
-    })();
-    return () => {
-      alive = false;
+  useEffect(() => {
+    let active = true;
+    const refreshWallet = async () => {
+      const next = await getWalletState();
+      if (active) setWallet(next);
     };
-  }, [spec.oyakataId]);
 
-  const selectedOyakata =
-    availableOyakata.find((oyakata) => oyakata.id === spec.oyakataId) ??
-    availableOyakata[0] ??
-    STARTER_OYAKATA_BLUEPRINTS[0];
-  const cost = calculateBuildCostVNext(spec, selectedOyakata);
-  const preview = buildPreviewSummaryVNext(spec, selectedOyakata);
-  const remainingPoints = (wallet?.points ?? 0) - cost.total;
-  const initialBmi = calculateBodyMassIndex(preview.initialHeightCm, preview.initialWeightKg);
-  const isBmiValid = isBuildSpecVNextBmiValid(spec);
-  const canStart = !isRegistering && isBmiValid && remainingPoints >= 0 && spec.debtCards.length <= 3;
+    void refreshWallet();
+    const timerId = setInterval(() => {
+      void refreshWallet();
+    }, 1000);
 
-  const warnings = [
-    !isBmiValid ? '初期BMIが低すぎます。身長か体重を見直してください。' : null,
-    remainingPoints < 0 ? `必要ptが ${Math.abs(remainingPoints)} 足りません。` : null,
-    spec.debtCards.length > 2 ? '負債が重い設計です。序盤の事故率が上がります。' : null,
-  ].filter((value): value is string => Boolean(value));
+    return () => {
+      active = false;
+      clearInterval(timerId);
+    };
+  }, []);
 
-  const handleStart = async () => {
-    if (!canStart) return;
-    setErrorMessage('');
-    setIsRegistering(true);
+  const overrideCost = useMemo(() => {
+    if (!baseDraft || !editedDraft) {
+      return {
+        total: 0,
+        breakdown: {
+          shikona: 0, realName: 0, birthplace: 0, personality: 0,
+          bodyType: 0, traitSlots: 0, history: 0, tsukedashi: 0, genome: 0,
+        },
+      };
+    }
+    return resolveScoutOverrideCost(baseDraft, editedDraft);
+  }, [baseDraft, editedDraft]);
+
+  const canDraw = Boolean(
+    wallet &&
+      (SCOUT_FREE_SPEND_FOR_MANUAL_TEST || wallet.points >= SCOUT_COST.DRAW) &&
+      !isDrawing &&
+      !isRegistering,
+  );
+
+  const handleDraw = async () => {
+    setErrorMessage("");
+    setIsDrawing(true);
     try {
-      const spent = await spendWalletPoints(cost.total, 'BUILD_REGISTRATION');
+      const spent = await spendWalletPoints(
+        SCOUT_FREE_SPEND_FOR_MANUAL_TEST ? 0 : SCOUT_COST.DRAW,
+      );
       setWallet(spent.state);
       if (!spent.ok) {
-        setErrorMessage(`ポイントが足りません（必要 ${cost.total}pt）`);
+        setErrorMessage(`ポイント不足です（必要: ${SCOUT_COST.DRAW}pt）`);
         return;
       }
-      const status = buildInitialRikishiFromSpec(spec, selectedOyakata);
-      await onStart(status, blueprintToOyakata(selectedOyakata), {
-        selectedOyakataId: selectedOyakata.id,
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '送り出しに失敗しました。');
+      const draft = rollScoutDraft();
+      setBaseDraft(draft);
+      setEditedDraft(draft);
+    } finally {
+      setIsDrawing(false);
+    }
+  };
+
+  const handleHistoryChange = (history: ScoutHistory) => {
+    setEditedDraft((prev) => {
+      if (!prev) return prev;
+      const historyData = SCOUT_HISTORY_OPTIONS[history];
+      const nextEntryDivision: EntryDivision = historyData.canTsukedashi ? prev.entryDivision : "Maezumo";
+      return { ...prev, history, entryDivision: nextEntryDivision };
+    });
+  };
+
+  const handleBodyTypeChange = (bodyType: BodyType) => {
+    setEditedDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, bodyType, bodyMetrics: rollBodyMetricsForBodyType(bodyType) };
+    });
+  };
+
+  const handleTraitSlotsChange = (slots: number) => {
+    setEditedDraft((prev) => {
+      if (!prev) return prev;
+      return resizeTraitSlots(prev, slots);
+    });
+  };
+
+  const handleTraitSelection = (slotIndex: number, trait: Trait) => {
+    setEditedDraft((prev) => {
+      if (!prev) return prev;
+      return selectTraitForSlot(prev, slotIndex, trait);
+    });
+  };
+
+  const handleRegister = async () => {
+    if (!editedDraft) return;
+    setErrorMessage("");
+    setIsRegistering(true);
+    try {
+      const spent = await spendWalletPoints(
+        SCOUT_FREE_SPEND_FOR_MANUAL_TEST ? 0 : overrideCost.total,
+      );
+      setWallet(spent.state);
+      if (!spent.ok) {
+        setErrorMessage(`ポイント不足です（必要: ${overrideCost.total}pt）`);
+        return;
+      }
+      const initialStats = buildInitialRikishiFromDraft(editedDraft);
+      await onStart(initialStats, null);
     } finally {
       setIsRegistering(false);
     }
   };
 
+  const historyData = editedDraft ? SCOUT_HISTORY_OPTIONS[editedDraft.history] : undefined;
+  const activeTraitSlotDrafts = editedDraft
+    ? [...editedDraft.traitSlotDrafts]
+        .filter((slot) => slot.slotIndex < editedDraft.traitSlots)
+        .sort((a, b) => a.slotIndex - b.slotIndex)
+    : [];
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 animate-in pb-28">
-      <section className="command-bar sticky-top-strip">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          <span className="flow-chip">
-            <Wallet size={14} />
-            所持 {wallet?.points ?? '--'}pt
-          </span>
-          <span className="flow-chip">必要 {cost.total}pt</span>
-          <span className={`flow-chip ${remainingPoints < 0 ? 'is-danger' : 'is-good'}`}>
-            残 {remainingPoints}pt
-          </span>
-        </div>
-        <div className="step-rail">
-          {SECTION_ORDER.map((sectionId, index) => (
-            <div key={sectionId} className="step-node" data-active={true} data-complete={index < 3}>
-              <div className="step-index">手順 {index + 1}</div>
-              <div className="step-title">{SCOUT_SECTION_LABELS[sectionId]}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* === ウェルカムヒーロー（抽選前のみ） === */}
+      {!editedDraft && (
+        <div className="rpg-panel p-5 sm:p-8 text-center animate-in">
+          <p className="text-xs ui-text-label tracking-[0.2em] text-gold mb-3">
+            人生放置型・履歴書作成ゲーム
+          </p>
+          <h2 className="text-2xl sm:text-4xl ui-text-label text-gold-bright mb-4 tracking-tight">
+            新弟子の運命を<br className="sm:hidden" />デザインせよ
+          </h2>
+          <p className="text-xs sm:text-sm text-text-dim max-w-lg mx-auto leading-relaxed mb-6">
+            あなたは相撲部屋の親方。新弟子の才能をデザインし、ボタン一つで入門から引退までの
+            力士人生をシミュレーション。生涯成績やドラマを「力士履歴書」としてコレクションしよう。
+          </p>
 
-      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <section className="space-y-5">
-          <article className="rpg-panel space-y-5 p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="pixel-icon-badge"><UserRound size={16} /></span>
-              <div>
-                <div className="museum-kicker">親方</div>
-                <h2 className="ui-text-heading text-2xl text-text">誰の門下に入るか決める</h2>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {availableOyakata.map((oyakata) => (
-                <ChoiceCard
-                  key={oyakata.id}
-                  label={oyakata.name}
-                  blurb={`${OYAKATA_COPY(oyakata)} / 秘伝: ${getStyleLabelJa(oyakata.secretStyle)}`}
-                  selected={spec.oyakataId === oyakata.id}
-                  onClick={() => setSpec((prev) => ({ ...prev, oyakataId: oyakata.id }))}
-                  aside={<span className="museum-chip">{getStyleLabel(oyakata.secretStyle)}</span>}
-                />
-              ))}
-            </div>
-          </article>
+          {/* ウォレット */}
+          <div className="inline-flex items-center gap-3 border-2 border-gold-muted bg-bg px-4 py-2.5 mb-6">
+            <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
+            <span className="text-base sm:text-lg ui-text-label text-gold">{wallet?.points ?? "..."}</span>
+            <span className="text-xs text-text-dim">/ {wallet?.cap ?? 500}</span>
+            <span className="text-xs text-text-dim border-l-2 border-gold-muted pl-3">
+              回復 {wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}
+            </span>
+          </div>
 
-          <article className="rpg-panel space-y-5 p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="pixel-icon-badge"><Shield size={16} /></span>
-              <div>
-                <div className="museum-kicker">体格</div>
-                <h2 className="ui-text-heading text-2xl text-text">どんな身体を目指すか決める</h2>
-              </div>
-            </div>
-
-            <div className="grid gap-5">
-              <SliderField
-                label="身長ポテンシャル"
-                value={spec.heightPotentialCm}
-                min={172}
-                max={204}
-                suffix="cm"
-                onChange={(value) => setSpec((prev) => ({ ...prev, heightPotentialCm: value }))}
-              />
-              <SliderField
-                label="体重ポテンシャル"
-                value={spec.weightPotentialKg}
-                min={110}
-                max={240}
-                suffix="kg"
-                onChange={(value) => setSpec((prev) => ({ ...prev, weightPotentialKg: value }))}
-              />
-              <SliderField
-                label="リーチ補正"
-                value={spec.reachDeltaCm}
-                min={-8}
-                max={8}
-                suffix="cm"
-                onChange={(value) => setSpec((prev) => ({ ...prev, reachDeltaCm: value }))}
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(Object.keys(PHASE_A_BUILD_OPTIONS.constitutionCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.constitutionCost>).map((value) => (
-                <ChoiceCard
-                  key={value}
-                  label={`${getBodyConstitutionLabel(value)} (${PHASE_A_BUILD_OPTIONS.constitutionCost[value]}pt)`}
-                  blurb={BODY_CONSTITUTION_COPY[value]}
-                  selected={spec.bodyConstitution === value}
-                  onClick={() => setSpec((prev) => ({ ...prev, bodyConstitution: value }))}
-                />
-              ))}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(Object.keys(PHASE_A_BUILD_OPTIONS.backgroundCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.backgroundCost>).map((value) => (
-                <ChoiceCard
-                  key={value}
-                  label={`${getBackgroundLabel(value)} (${PHASE_A_BUILD_OPTIONS.backgroundCost[value]}pt)`}
-                  blurb={
-                    value === 'MIDDLE_SCHOOL'
-                      ? '若く入り、長い時間を成長に使う。'
-                      : value === 'HIGH_SCHOOL'
-                        ? '標準的な入口で扱いやすい。'
-                        : value === 'STUDENT_ELITE'
-                          ? '序盤を短縮して関取圏へ寄せる。'
-                          : '即戦力だが設計コストは最も重い。'
-                  }
-                  selected={spec.amateurBackground === value}
-                  onClick={() => setSpec((prev) => ({ ...prev, amateurBackground: value }))}
-                />
-              ))}
-            </div>
-          </article>
-
-          <article className="rpg-panel space-y-5 p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="pixel-icon-badge"><Swords size={16} /></span>
-              <div>
-                <div className="museum-kicker">型</div>
-                <h2 className="ui-text-heading text-2xl text-text">主戦型と副戦型を組む</h2>
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {styleOptions.map((style) => (
-                <div key={style} className="ledger-card">
-                  <div className="space-y-2">
-                    <div className="museum-choice-title">{getStyleLabelJa(style)}</div>
-                    <div className="museum-choice-copy">{STYLE_COPY[style]}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="museum-chip"
-                      data-active={spec.primaryStyle === style}
-                      onClick={() => setSpec((prev) => ({ ...prev, primaryStyle: style }))}
-                    >
-                      主戦にする
-                    </button>
-                    <button
-                      type="button"
-                      className="museum-chip"
-                      data-active={spec.secondaryStyle === style}
-                      onClick={() => setSpec((prev) => ({ ...prev, secondaryStyle: style }))}
-                    >
-                      副戦にする
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="rpg-panel space-y-5 p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="pixel-icon-badge"><AlertTriangle size={16} /></span>
-              <div>
-                <div className="museum-kicker">リスク</div>
-                <h2 className="ui-text-heading text-2xl text-text">メンタルと怪我の揺れを決める</h2>
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(Object.keys(PHASE_A_BUILD_OPTIONS.mentalCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.mentalCost>).map((value) => (
-                <ChoiceCard
-                  key={value}
-                  label={`${getMentalTraitLabel(value)} (${PHASE_A_BUILD_OPTIONS.mentalCost[value]}pt)`}
-                  blurb={MENTAL_TRAIT_COPY[value]}
-                  selected={spec.mentalTrait === value}
-                  onClick={() => setSpec((prev) => ({ ...prev, mentalTrait: value }))}
-                />
-              ))}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              {(Object.keys(PHASE_A_BUILD_OPTIONS.injuryResistanceCost) as Array<keyof typeof PHASE_A_BUILD_OPTIONS.injuryResistanceCost>).map((value) => (
-                <ChoiceCard
-                  key={value}
-                  label={`${INJURY_RESISTANCE_LABELS[value]} (${PHASE_A_BUILD_OPTIONS.injuryResistanceCost[value]}pt)`}
-                  blurb={INJURY_RESISTANCE_COPY[value]}
-                  selected={spec.injuryResistance === value}
-                  onClick={() => setSpec((prev) => ({ ...prev, injuryResistance: value }))}
-                />
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm text-text-dim">負債カード（最大3枚）</div>
-              <div className="grid gap-3 md:grid-cols-3">
-                {(['OLD_KNEE', 'PRESSURE_LINEAGE', 'LATE_START'] as const).map((debt) => {
-                  const selected = spec.debtCards.includes(debt);
-                  const canAdd = selected || spec.debtCards.length < 3;
-                  return (
-                    <ChoiceCard
-                      key={debt}
-                      tone="danger"
-                      label={`${DEBT_CARD_LABELS[debt]} (+${DEBT_CARD_POINT_BONUS[debt]}pt)`}
-                      blurb={DEBT_CARD_COPY[debt]}
-                      selected={selected}
-                      onClick={() => {
-                        if (!selected && !canAdd) return;
-                        setSpec((prev) => ({
-                          ...prev,
-                          debtCards: selected
-                            ? prev.debtCards.filter((card) => card !== debt)
-                            : [...prev.debtCards, debt],
-                        }));
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <aside className="space-y-4 xl:sticky xl:top-28 xl:self-start">
-          <section className="scoreboard-panel p-5 sm:p-6">
-            <div className="preview-stage">
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <RikishiPortrait
-                  bodyType={
-                    spec.bodyConstitution === 'HEAVY_BULK'
-                      ? 'ANKO'
-                      : spec.bodyConstitution === 'LONG_REACH'
-                        ? 'SOPPU'
-                        : spec.bodyConstitution === 'SPRING_LEGS'
-                          ? 'MUSCULAR'
-                          : 'NORMAL'
-                  }
-                  showLabel
-                  className="h-[220px] w-full sm:w-[220px]"
-                />
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <div className="museum-kicker">力士プレビュー</div>
-                    <div className="mt-2 ui-text-heading text-3xl text-text">{selectedOyakata.name}門下</div>
-                    <div className="mt-2 text-sm text-text-dim">{OYAKATA_COPY(selectedOyakata)}</div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="pixel-card-dark p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">入口</div>
-                      <div className="mt-2 text-sm text-text">{preview.entryAge}歳 / {preview.startRankLabel}</div>
-                    </div>
-                    <div className="pixel-card-dark p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">想定帯</div>
-                      <div className="mt-2 text-sm text-text">{preview.careerBandLabel}</div>
-                    </div>
-                    <div className="pixel-card-dark p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">初期体格</div>
-                      <div className="mt-2 text-sm text-text">{preview.initialHeightCm.toFixed(1)}cm / {preview.initialWeightKg.toFixed(1)}kg</div>
-                    </div>
-                    <div className="pixel-card-dark p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">到達予測</div>
-                      <div className="mt-2 text-sm text-text">{preview.potentialHeightCm}cm / {preview.potentialWeightKg}kg</div>
-                    </div>
-                  </div>
-                  <div className={`text-sm ${getCompatibilityTone(preview.compatibilityLabel)}`}>
-                    主副相性: {preview.compatibilityLabel} / 秘伝 {getStyleLabelJa(selectedOyakata.secretStyle)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rpg-panel p-5 sm:p-6">
-            <div className="museum-kicker">確認盤</div>
-            <h3 className="ui-text-heading mt-2 text-2xl text-text">主要決定</h3>
-            <div className="mt-4 space-y-1">
-              <div className="data-row"><span className="data-key">親方</span><span className="data-val">{selectedOyakata.name}</span></div>
-              <div className="data-row"><span className="data-key">体格</span><span className="data-val">{getBodyConstitutionLabel(spec.bodyConstitution)}</span></div>
-              <div className="data-row"><span className="data-key">経歴</span><span className="data-val">{getBackgroundLabel(spec.amateurBackground)}</span></div>
-              <div className="data-row"><span className="data-key">主戦型</span><span className="data-val">{getStyleLabelJa(spec.primaryStyle)}</span></div>
-              <div className="data-row"><span className="data-key">副戦型</span><span className="data-val">{getStyleLabelJa(spec.secondaryStyle)}</span></div>
-              <div className="data-row"><span className="data-key">メンタル</span><span className="data-val">{getMentalTraitLabel(spec.mentalTrait)}</span></div>
-              <div className="data-row"><span className="data-key">怪我耐性</span><span className="data-val">{INJURY_RESISTANCE_LABELS[spec.injuryResistance]}</span></div>
-              <div className="data-row"><span className="data-key">残pt</span><span className="data-val">{remainingPoints}</span></div>
-              <div className="data-row"><span className="data-key">初期BMI</span><span className="data-val">{initialBmi.toFixed(1)}</span></div>
-            </div>
-
-            <div className="mt-5">
-              <div className="text-xs tracking-[0.14em] text-[var(--accent-gold)]">負債カード</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {spec.debtCards.length === 0 ? (
-                  <span className="museum-chip">なし</span>
-                ) : (
-                  spec.debtCards.map((debt) => (
-                    <span key={debt} className="museum-chip" data-active="true">{DEBT_CARD_LABELS[debt]}</span>
-                  ))
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="scoreboard-panel p-5 sm:p-6">
-            <div className="museum-kicker">注意点</div>
-            <div className="mt-4 ticker-log">
-              {warnings.length === 0 && !errorMessage ? (
-                <div className="ticker-entry">
-                  <span className="text-[var(--accent-gold)]">安定</span>
-                  <span>予算と初期体格の条件は満たしています。</span>
-                </div>
-              ) : (
-                <>
-                  {warnings.map((warning) => (
-                    <div key={warning} className="ticker-entry">
-                      <span className="text-[var(--accent-danger)]">注意</span>
-                      <span>{warning}</span>
-                    </div>
-                  ))}
-                  {errorMessage && (
-                    <div className="ticker-entry">
-                      <span className="text-[var(--accent-danger)]">失敗</span>
-                      <span>{errorMessage}</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-        </aside>
-      </div>
-
-      <div className="sticky-action-bar">
-        <div className="command-bar px-4 py-4 sm:px-5">
-          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <div className="text-sm text-text">
-                {canStart ? 'この内容で土俵人生を始めます。' : '予算、体格、または負債の重さを見直してください。'}
-              </div>
-              <div className="text-xs text-text-dim">
-                必要 {cost.total}pt / 所持 {wallet?.points ?? '--'}pt / 秘伝 {getStyleLabelJa(selectedOyakata.secretStyle)}
-              </div>
-            </div>
-            <Button variant="danger" size="lg" onClick={handleStart} disabled={!canStart} className="w-full px-8 lg:w-auto">
-              {isRegistering ? '送り出しています...' : 'この力士を土俵へ送る'}
+          <div>
+            <Button
+              size="lg"
+              onClick={handleDraw}
+              disabled={!canDraw}
+              className="w-full sm:w-auto sm:min-w-[280px]"
+            >
+              <RefreshCw className={`w-5 h-5 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
+              {isDrawing ? "抽選中..." : `新弟子を抽選 (-${SCOUT_COST.DRAW}pt)`}
             </Button>
           </div>
+
+          {errorMessage && (
+            <p className="mt-4 text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10 inline-block">
+              {errorMessage}
+            </p>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* === 抽選後: レイアウト === */}
+      {editedDraft && (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-4 animate-in">
+          {/* 左パネル: スカウト管理局 */}
+          <section className="rpg-panel p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="section-header">
+                <span className="w-1 h-4 bg-gold inline-block" />
+                スカウト管理局
+              </h2>
+              <div className="flex items-center gap-2 text-xs">
+                <Coins className="w-3.5 h-3.5 text-gold" />
+                <span className="ui-text-label text-gold">{wallet?.points ?? "..."}</span>
+                <span className="text-text-dim">/ {wallet?.cap ?? 500}</span>
+              </div>
+            </div>
+
+            {/* 再抽選ボタン */}
+            <Button
+              onClick={handleDraw}
+              disabled={!canDraw}
+              className="w-full py-3"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
+              {isDrawing ? "抽選中..." : `新弟子を再抽選 (-${SCOUT_COST.DRAW}pt)`}
+            </Button>
+
+            {errorMessage && (
+              <p className="text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10">{errorMessage}</p>
+            )}
+
+            {/* === フォーム === */}
+            <div className="space-y-3">
+              {/* 四股名 */}
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>四股名（変更 +{SCOUT_COST.SHIKONA}pt）</label>
+                <input
+                  value={editedDraft.shikona}
+                  onChange={(e) =>
+                    setEditedDraft((prev) => (prev ? { ...prev, shikona: e.target.value } : prev))
+                  }
+                  className={`${INPUT_CLASS} ui-text-label text-base sm:text-lg text-gold`}
+                />
+              </div>
+
+              {/* 本名・出身地 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className={LABEL_CLASS}>本名（+{SCOUT_COST.REAL_NAME}pt）</label>
+                  <input
+                    value={editedDraft.profile.realName}
+                    onChange={(e) =>
+                      setEditedDraft((prev) =>
+                        prev ? { ...prev, profile: { ...prev.profile, realName: e.target.value } } : prev,
+                      )
+                    }
+                    className={INPUT_CLASS}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={LABEL_CLASS}>出身地（+{SCOUT_COST.BIRTHPLACE}pt）</label>
+                  <input
+                    value={editedDraft.profile.birthplace}
+                    onChange={(e) =>
+                      setEditedDraft((prev) =>
+                        prev ? { ...prev, profile: { ...prev.profile, birthplace: e.target.value } } : prev,
+                      )
+                    }
+                    className={INPUT_CLASS}
+                  />
+                </div>
+              </div>
+
+              {/* 性格 */}
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>性格（+{SCOUT_COST.PERSONALITY}pt）</label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.profile.personality}
+                    onChange={(e) =>
+                      setEditedDraft((prev) =>
+                        prev ? { ...prev, profile: { ...prev.profile, personality: e.target.value as PersonalityType } } : prev,
+                      )
+                    }
+                    className={SELECT_CLASS}
+                  >
+                    {(Object.keys(PERSONALITY_LABELS) as PersonalityType[]).map((p) => (
+                      <option key={p} value={p}>{PERSONALITY_LABELS[p]}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 体格 */}
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>体格（+{SCOUT_COST.BODY_TYPE}pt）</label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.bodyType}
+                    onChange={(e) => handleBodyTypeChange(e.target.value as BodyType)}
+                    className={SELECT_CLASS}
+                  >
+                    {(Object.keys(CONSTANTS.BODY_TYPE_DATA) as BodyType[]).map((bt) => (
+                      <option key={bt} value={bt}>{CONSTANTS.BODY_TYPE_DATA[bt].name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
+                <p className="text-xs text-text-dim">
+                  身長 {editedDraft.bodyMetrics.heightCm}cm / 体重 {editedDraft.bodyMetrics.weightKg}kg
+                </p>
+              </div>
+
+              {/* スキル枠 */}
+              <div className="space-y-2">
+                <label className={LABEL_CLASS}>
+                  スキル枠（+{resolveTraitSlotCost(editedDraft.traitSlots)}pt）
+                </label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.traitSlots}
+                    onChange={(e) => handleTraitSlotsChange(Number(e.target.value))}
+                    className={SELECT_CLASS}
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot} 枠 (+{resolveTraitSlotCost(slot)}pt)
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
+
+                {editedDraft.traitSlots === 0 ? (
+                  <p className="text-xs text-text-dim border-2 border-dashed border-gold-muted p-2 bg-bg">
+                    スキルは非表示中です。枠を戻すと候補と選択は復元されます。
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {activeTraitSlotDrafts.map((slotDraft) => (
+                      <div key={slotDraft.slotIndex} className="border-2 border-gold-muted p-2 bg-bg space-y-2">
+                        <p className="text-xs ui-text-label text-text-dim">
+                          枠 {slotDraft.slotIndex + 1}
+                          {slotDraft.selected ? `: ${traitName(slotDraft.selected)}` : ": 未選択"}
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {slotDraft.options.map((option) => {
+                            const selectedElsewhere = activeTraitSlotDrafts.some(
+                              (other) => other.slotIndex !== slotDraft.slotIndex && other.selected === option,
+                            );
+                            const isSelected = slotDraft.selected === option;
+                            return (
+                              <button
+                                key={`${slotDraft.slotIndex}-${option}`}
+                                type="button"
+                                onClick={() => handleTraitSelection(slotDraft.slotIndex, option)}
+                                disabled={selectedElsewhere && !isSelected}
+                                className={`text-xs px-2 py-2 border-2 text-left transition-colors ${
+                                  isSelected
+                                    ? "border-gold text-gold bg-gold/10"
+                                    : selectedElsewhere
+                                      ? "border-bg-light text-text-dim/40 bg-bg"
+                                      : "border-gold-muted bg-bg text-text-dim hover:border-gold/50 hover:text-gold"
+                                }`}
+                              >
+                                {isSelected && <span className="text-gold mr-1">▶</span>}
+                                {traitName(option)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-1.5 border-2 border-gold-muted p-2 bg-bg min-h-10">
+                  {editedDraft.traits.length === 0 ? (
+                    <span className="text-xs text-text-dim">採用スキルなし</span>
+                  ) : (
+                    editedDraft.traits.map((trait) => (
+                      <span key={trait} className="text-xs px-2 py-1 border-2 border-gold/40 ui-text-label bg-gold/10 text-gold">
+                        {traitName(trait)}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 経歴 */}
+              <div className="space-y-1.5">
+                <label className={LABEL_CLASS}>経歴（+{SCOUT_COST.HISTORY}pt）</label>
+                <div className="relative">
+                  <select
+                    value={editedDraft.history}
+                    onChange={(e) => handleHistoryChange(e.target.value as ScoutHistory)}
+                    className={SELECT_CLASS}
+                  >
+                    {(Object.keys(SCOUT_HISTORY_OPTIONS) as ScoutHistory[]).map((h) => (
+                      <option key={h} value={h}>{SCOUT_HISTORY_OPTIONS[h].label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                </div>
+
+                {historyData?.canTsukedashi && (
+                  <div className="space-y-1">
+                    <label className={LABEL_CLASS}>付出指定（差分 +30/+60pt）</label>
+                    <div className="relative">
+                      <select
+                        value={editedDraft.entryDivision}
+                        onChange={(e) =>
+                          setEditedDraft((prev) =>
+                            prev ? { ...prev, entryDivision: e.target.value as EntryDivision } : prev,
+                          )
+                        }
+                        className={SELECT_CLASS}
+                      >
+                        <option value="Maezumo">前相撲</option>
+                        <option value="Makushita60">幕下最下位格 (+30pt)</option>
+                        <option value="Sandanme90">三段目最下位格 (+60pt)</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* DNA設定 */}
+              <div className="space-y-2">
+                <label className={LABEL_CLASS}>
+                  <Dna className="w-3.5 h-3.5 inline mr-1" />
+                  DNA設定（変更分コスト加算）
+                </label>
+                <details className="border-2 border-gold-muted bg-bg group">
+                  <summary className="px-3 py-2.5 text-xs ui-text-label cursor-pointer text-text-dim hover:text-gold transition-colors flex items-center gap-1">
+                    <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
+                    DNA詳細を開く（初期能力・成長・耐久・変動）
+                  </summary>
+                  <div className="px-3 py-3 space-y-4 border-t-2 border-gold-muted">
+                    {/* 初期能力 */}
+                    <DnaSliderGroup
+                      title="初期能力上限"
+                      sliders={[
+                        { key: 'powerCeiling', label: '筋力' },
+                        { key: 'techCeiling', label: '技術' },
+                        { key: 'speedCeiling', label: '速度' },
+                        { key: 'ringSense', label: '土俵感覚' },
+                        { key: 'styleFit', label: '戦術適性' },
+                      ]}
+                      values={editedDraft.genomeDraft.base as unknown as Record<string, number>}
+                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
+                        ...prev,
+                        genomeDraft: { ...prev.genomeDraft, base: { ...prev.genomeDraft.base, [key]: v } },
+                      } : prev)}
+                      min={0} max={100}
+                    />
+                    {/* 成長曲線 */}
+                    <DnaSliderGroup
+                      title="成長曲線"
+                      sliders={[
+                        { key: 'maturationAge', label: 'ピーク年齢', suffix: '歳' },
+                        { key: 'peakLength', label: 'ピーク期間', suffix: '年' },
+                      ]}
+                      values={editedDraft.genomeDraft.growth as unknown as Record<string, number>}
+                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
+                        ...prev,
+                        genomeDraft: { ...prev.genomeDraft, growth: { ...prev.genomeDraft.growth, [key]: v } },
+                      } : prev)}
+                      min={key => key === 'maturationAge' ? 18 : 1}
+                      max={key => key === 'maturationAge' ? 35 : 12}
+                    />
+                    {/* 衰退速度 */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs w-20 shrink-0 text-text-dim">衰退速度</span>
+                      <input type="range" min={1} max={20} step={1}
+                        value={Math.round(editedDraft.genomeDraft.growth.lateCareerDecay * 10)}
+                        onChange={(e) => setEditedDraft((prev) => prev ? {
+                          ...prev,
+                          genomeDraft: { ...prev.genomeDraft, growth: { ...prev.genomeDraft.growth, lateCareerDecay: Number(e.target.value) / 10 } },
+                        } : prev)}
+                        className="flex-1 h-1.5"
+                      />
+                      <span className="text-xs w-10 text-right ui-text-label text-gold">{editedDraft.genomeDraft.growth.lateCareerDecay.toFixed(1)}x</span>
+                    </div>
+                    {/* 耐久性 */}
+                    <DnaSliderGroup
+                      title="耐久性"
+                      sliders={[
+                        { key: 'baseInjuryRisk', label: '怪我リスク', scale: 10, suffix: 'x', precision: 1 },
+                        { key: 'recoveryRate', label: '回復力', scale: 10, suffix: 'x', precision: 1 },
+                        { key: 'chronicResistance', label: '慢性化耐性' },
+                      ]}
+                      values={editedDraft.genomeDraft.durability as unknown as Record<string, number>}
+                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
+                        ...prev,
+                        genomeDraft: { ...prev.genomeDraft, durability: { ...prev.genomeDraft.durability, [key]: v } },
+                      } : prev)}
+                      min={key => key === 'baseInjuryRisk' ? 3 : key === 'recoveryRate' ? 5 : 0}
+                      max={key => key === 'chronicResistance' ? 100 : 20}
+                    />
+                    {/* 変動性 */}
+                    <DnaSliderGroup
+                      title="変動性"
+                      sliders={[
+                        { key: 'clutchBias', label: '勝負強さ' },
+                        { key: 'formVolatility', label: '調子の振れ' },
+                      ]}
+                      values={editedDraft.genomeDraft.variance as unknown as Record<string, number>}
+                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
+                        ...prev,
+                        genomeDraft: { ...prev.genomeDraft, variance: { ...prev.genomeDraft.variance, [key]: v } },
+                      } : prev)}
+                      min={key => key === 'clutchBias' ? -50 : 0}
+                      max={key => key === 'clutchBias' ? 50 : 100}
+                    />
+                  </div>
+                </details>
+              </div>
+            </div>
+          </section>
+
+          {/* 右パネル: 候補サマリー */}
+          <section className="rpg-panel p-4 sm:p-5 space-y-4 lg:sticky lg:top-16 lg:self-start">
+            <h2 className="section-header">
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
+              候補プロフィール
+            </h2>
+
+            {/* 四股名ヒーロー */}
+            <div className="text-center py-3 border-b-2 border-gold-muted">
+              <p className="text-2xl sm:text-3xl ui-text-label text-gold tracking-wider">
+                {editedDraft.shikona}
+              </p>
+              <p className="text-xs text-text-dim mt-1">
+                {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
+              </p>
+            </div>
+
+            {/* 基本情報 */}
+            <div className="space-y-1 text-xs">
+              {[
+                ["本名", editedDraft.profile.realName || "(未設定)"],
+                ["出身地", editedDraft.profile.birthplace || "(未設定)"],
+                ["性格", PERSONALITY_LABELS[editedDraft.profile.personality]],
+                ["経歴", SCOUT_HISTORY_OPTIONS[editedDraft.history].label],
+                ["体格", `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)`],
+                ["戦術", editedDraft.tactics],
+                ["得意技", editedDraft.signatureMove],
+                ["ピーク", `${Math.round(editedDraft.genomeDraft.growth.maturationAge)}歳 (${Math.round(editedDraft.genomeDraft.growth.peakLength)}年間)`],
+              ].map(([key, val]) => (
+                <div key={key} className="data-row">
+                  <span className="data-key">{key}</span>
+                  <span className="data-val">{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* コスト内訳 */}
+            <div className="border-t-2 border-gold-muted pt-3 space-y-1">
+              <p className="text-xs ui-text-label text-gold mb-2">
+                <Zap className="w-3.5 h-3.5 inline mr-1" />
+                上書きコスト
+              </p>
+              <div className="space-y-0.5 text-xs">
+                {[
+                  ["四股名", overrideCost.breakdown.shikona],
+                  ["本名", overrideCost.breakdown.realName],
+                  ["出身地", overrideCost.breakdown.birthplace],
+                  ["性格", overrideCost.breakdown.personality],
+                  ["体格", overrideCost.breakdown.bodyType],
+                  ["スキル枠", overrideCost.breakdown.traitSlots],
+                  ["経歴", overrideCost.breakdown.history],
+                  ["付出", overrideCost.breakdown.tsukedashi],
+                  ["DNA変更", overrideCost.breakdown.genome],
+                ].filter(([, v]) => (v as number) > 0).map(([key, val]) => (
+                  <div key={key as string} className="data-row">
+                    <span className="data-key">{key}</span>
+                    <span className="data-val">{val}pt</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 mt-2 border-t-2 border-gold-muted flex justify-between items-center">
+                <span className="text-xs ui-text-label text-text-dim">合計コスト</span>
+                <span className="text-lg ui-text-label text-gold">{overrideCost.total}pt</span>
+              </div>
+            </div>
+
+            {/* 登録ボタン */}
+            <Button
+              variant="danger"
+              size="lg"
+              onClick={handleRegister}
+              disabled={isRegistering}
+              className="w-full"
+            >
+              <Trophy className="w-5 h-5 mr-2" />
+              {isRegistering ? "登録中..." : `力士登録（追加 ${overrideCost.total}pt）`}
+            </Button>
+          </section>
+        </div>
+      )}
+
+      {/* モバイル下部固定バー（抽選後のみ, lg以下） */}
+      {editedDraft && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 flex items-center justify-between gap-3 safe-area-bottom">
+          <div className="text-xs ui-text-label text-gold">
+            {overrideCost.total}pt
+          </div>
+          <Button
+            variant="danger"
+            size="md"
+            onClick={handleRegister}
+            disabled={isRegistering}
+            className="flex-1 max-w-[240px]"
+          >
+            <Trophy className="w-4 h-4 mr-1" />
+            {isRegistering ? "登録中..." : "力士登録"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
+
+// --- DNAスライダーグループ(内部コンポーネント) ---
+const DnaSliderGroup: React.FC<{
+  title: string;
+  sliders: Array<{
+    key: string;
+    label: string;
+    scale?: number;
+    suffix?: string;
+    precision?: number;
+  }>;
+  values: Record<string, number>;
+  onChange: (key: string, value: number) => void;
+  min: number | ((key: string) => number);
+  max: number | ((key: string) => number);
+}> = ({ title, sliders, values, onChange, min, max }) => (
+  <div className="space-y-1.5">
+    <p className="text-xs ui-text-label text-gold">{title}</p>
+    {sliders.map(({ key, label, scale, suffix, precision }) => {
+      const s = scale ?? 1;
+      const rawVal = values[key] ?? 0;
+      const sliderVal = Math.round(rawVal * s);
+      const displayVal = precision != null ? (rawVal).toFixed(precision) : String(Math.round(rawVal));
+      const minVal = typeof min === "function" ? min(key) : min;
+      const maxVal = typeof max === "function" ? max(key) : max;
+
+      return (
+        <div key={key} className="flex items-center gap-2">
+          <span className="text-xs w-20 shrink-0 text-text-dim">{label}</span>
+          <input
+            type="range"
+            min={minVal}
+            max={maxVal}
+            step={1}
+            value={sliderVal}
+            onChange={(e) => onChange(key, Number(e.target.value) / s)}
+            className="flex-1 h-1.5"
+          />
+          <span className="text-xs w-10 text-right ui-text-label text-gold">
+            {displayVal}{suffix ?? ""}
+          </span>
+        </div>
+      );
+    })}
+  </div>
+);

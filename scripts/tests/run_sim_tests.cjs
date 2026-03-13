@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const { execFileSync, spawn } = require('child_process');
+const { ensureSimTestsBuild } = require('../shared/ensure_simtests_build.cjs');
 const rawArgs = process.argv.slice(2);
 
 const readArgValue = (args, index) => {
@@ -35,13 +36,10 @@ const extractRunnerArgs = (args) => {
 
 const { jobsArg, listScopesOnly, passthroughArgs } = extractRunnerArgs(rawArgs);
 
-execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.simtests.json'], {
-  stdio: 'inherit',
-});
-
+const build = ensureSimTestsBuild();
 fs.mkdirSync('.tmp/sim-tests', { recursive: true });
 fs.writeFileSync('.tmp/sim-tests/package.json', JSON.stringify({ type: 'commonjs' }));
-const testEntry = '.tmp/sim-tests/scripts/tests/sim_tests.js';
+const testEntry = build.entryPath;
 
 const cpuCount = typeof os.availableParallelism === 'function' ? os.availableParallelism() : (os.cpus()?.length ?? 1);
 const autoJobs = Math.max(1, Math.min(6, cpuCount - 1));
@@ -50,7 +48,7 @@ const requestedJobs = Number.isFinite(jobsArg) ? jobsArg : (Number.isFinite(envJ
 const jobs = Math.max(1, Math.floor(requestedJobs));
 
 const runSingle = () => {
-  execFileSync(process.execPath, [testEntry, ...passthroughArgs], { stdio: 'inherit' });
+  execFileSync(process.execPath, [testEntry, '--cli', ...passthroughArgs], { stdio: 'inherit' });
 };
 
 if (jobs === 1) {
@@ -65,7 +63,7 @@ if (listScopesOnly) {
 
 let scopes = [];
 try {
-  const scopeOutput = execFileSync(process.execPath, [testEntry, ...passthroughArgs, '--list-scopes'], {
+  const scopeOutput = execFileSync(process.execPath, [testEntry, '--cli', ...passthroughArgs, '--list-scopes'], {
     stdio: ['ignore', 'pipe', 'inherit'],
     encoding: 'utf8',
   });
@@ -84,7 +82,7 @@ if (scopes.length <= 1) {
 
 const runScope = (scope) =>
   new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [testEntry, ...passthroughArgs, '--scope', scope], {
+    const child = spawn(process.execPath, [testEntry, '--cli', ...passthroughArgs, '--scope', scope], {
       stdio: 'inherit',
     });
     child.on('error', reject);

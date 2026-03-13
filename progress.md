@@ -1,6 +1,151 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-13: Fixed rikishi generation after resetting UI to `main`.
+  - Root cause: restored `main` scout UI no longer chooses a stable, but current runtime still required `selectedStableId` during `buildInitialRikishiFromDraft`, causing registration to fail with `所属部屋が未選択です`.
+  - `src/logic/scout/gacha.ts`:
+    - default rolled scout drafts now start with `stable-001` / `TAIJU`
+    - `buildInitialRikishiFromDraft` now falls back to a default stable (or first stable in a chosen ichimon) when stable selection is absent
+  - Added regression coverage in `scripts/tests/legacy/allCases.ts` for:
+    - default stable assignment on draft roll
+    - successful build fallback when stable selection is missing
+  - Recreated `src/features/report/utils/reportCareer.ts` because sim tests still import it after the `main` UI reset.
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` PASS
+    - Browser smoke PASS on `http://127.0.0.1:4173`
+      - `新弟子を抽選` -> `力士登録` -> `力士人生を演算中...` まで遷移確認
+      - browser console errors: 0
+- 2026-03-13: Reset UI layer to `main` branch baseline at user request.
+  - Restored `main`-style UI files:
+    - `src/app/App.tsx`
+    - `src/features/scout/components/ScoutScreen.tsx`
+    - `src/features/report/components/AchievementView.tsx`
+    - `src/features/report/components/HallOfFameGrid.tsx`
+    - `src/features/report/components/HoshitoriTable.tsx`
+    - `src/features/report/components/ReportScreen.tsx`
+    - `src/shared/ui/Button.tsx`
+    - `src/shared/ui/Card.tsx`
+    - `src/shared/ui/DamageMap.tsx`
+    - `src/shared/ui/Typography.tsx`
+    - `src/index.css`
+    - `tailwind.config.js`
+  - Removed UI-only files that do not exist on `main` and were no longer referenced:
+    - `src/app/AppShell.tsx`
+    - `src/app/HomeScreen.tsx`
+    - `src/shared/ui/displayLabels.ts`
+    - `src/features/report/utils/reportCareer.ts`
+  - Adapted restored `main` UI to current simulation API:
+    - `App.tsx`: swapped old paused/speed fields for current `simulationPacing` / `latestPauseReason`
+    - `ScoutScreen.tsx`: removed old simulation-speed selector tied to deleted store API
+  - Validation:
+    - `npm run build` PASS
+- 2026-03-13: Follow-up readability pass after UI v5 feedback.
+  - `src/index.css`: switched font smoothing back on (`antialiased` / `optimizeLegibility`) for text, raised the minimum size of kicker/label/note/chip/support text blocks, and brightened secondary text.
+  - `tailwind.config.js`: lifted `text.dim` to the brighter secondary tone so `text-text-dim` usage no longer sinks into the background.
+  - Validation:
+    - `npm run build` PASS
+    - Browser refresh on local preview confirmed clearer label/support text on the Home hero and status strip.
+- 2026-03-13: Implemented UI全面改修プラン v5 (`AIっぽさの少ない、主役が立つ土俵ボードUI`) pass.
+  - Reworked shared theme toward a higher-contrast board style:
+    - `src/index.css`: removed brown body text usage, introduced cooler text tokens, stronger focus ring, simpler board background, reduced decorative glow, quieter chips, and sharper board/panel/card styling
+    - added reduced-motion fallback for transitions/animations
+    - `tailwind.config.js`: aligned semantic palette with the board-style token set
+    - `src/shared/ui/Button.tsx`: normalized primary/secondary/destructive/quiet button contrast and focus visibility
+  - Tightened UI semantics and copy:
+    - `src/shared/ui/displayLabels.ts`: wallet status copy now reads as common-bank messaging rather than recovery-first wording
+  - Reworked primary screens around a single focal element:
+    - `src/app/HomeScreen.tsx`: removed meta "look/compare/act" tiles, de-emphasized tags, left the next action as the only strong hero action
+    - `src/features/scout/components/ScoutScreen.tsx`: quieter sticky bar, accordion semantics (`aria-expanded`/`aria-controls`), subdued support labels, validation panel promoted to live status, style toggles moved off chips
+    - `src/app/App.tsx`: running screen de-emphasized mode badge and exposed observation log as an ARIA log region
+    - `src/features/report/components/ReportScreen.tsx`: moved the rank/weight chart into the top hero as the true first-read element, pushed portrait/quick facts beneath it, and added proper tab semantics
+    - `src/features/report/components/HallOfFameGrid.tsx`: added explicit search labeling/counts, reduced decorative tags in ledger cards, and added tab semantics
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` PASS
+    - Browser smoke PASS on local preview (`http://127.0.0.1:4173`)
+      - Home: primary next-action block is the first strong element, support metrics remain secondary
+      - Build: active section remains obvious and validation panel stays readable without chip clutter
+      - Running: observation log is visually dominant and readable as a live region
+      - Report: graph-first hero confirmed, with reading hooks and design-vs-realized moved to the side
+      - Hall: search-first header and empty state confirmed
+    - Browser console errors: 0 (React DevTools info only)
+- 2026-03-13: Started UI/UX hierarchy refresh pass.
+  - Added semantic UI DTOs in `src/shared/ui/displayLabels.ts` for home primary action, scout validation, and report detail groups.
+  - Reworked shared button semantics in `src/shared/ui/Button.tsx` toward `primary / secondary / destructive / quiet` while keeping old variants compatible.
+  - Added meaning-based UI tokens and new layout primitives in `src/index.css` (`page-hero`, `section-panel`, `data-card`, `action-bar`, `status-strip`, validation states).
+  - Rebuilt main product screens around clearer primary focus:
+    - `src/app/HomeScreen.tsx`: one primary next action, right-side status strip, reduced duplicate wallet/archive metrics
+    - `src/app/App.tsx`: running screen now centers observation log and pushes current status/actions to the side
+    - `src/features/scout/components/ScoutScreen.tsx`: active-section-first build flow with collapsible summaries and unified validation panel
+    - `src/features/report/components/ReportScreen.tsx`: graph-first report, details moved behind lower tabs/sections
+    - `src/features/report/components/HallOfFameGrid.tsx`: search-first archive, quieter genealogy mode
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` PASS
+    - Playwright/browser smoke PASS on local preview:
+      - Home: primary next-action block is first visible target
+      - Build: active section left + validation/preview right confirmed
+      - Running: observation log centered, controls secondary
+      - Report: graph-first report confirmed after a full auto-run
+      - Hall: search-first empty state confirmed
+    - Browser console errors: 0 (React DevTools info only)
+- 2026-03-13: Implemented Phase A weight fluctuation pass.
+  - Reworked `src/logic/growth.ts` weight update from hard-cap convergence to baseline drift with basho-state penalties.
+  - `weightPotentialKg` now behaves as baseline fighting weight; age, severe injury, basho absence, consecutive absences, and 3-basho makekoshi slump can pull the effective weight downward.
+  - Healthy recovery is gradual and age-scaled; active injuries cap regain speed.
+  - Added growth regression coverage for:
+    - healthy recovery toward baseline,
+    - slower regain for veterans,
+    - severe injury + near-full absence sharp loss,
+    - compounded loss from consecutive absences.
+  - Validation:
+    - `node scripts/tests/run_sim_tests.cjs --grep "growth:"` PASS
+    - `npm test` PASS
+    - `npm run build` PASS
+  - Browser smoke:
+    - Playwright client run against `file:///.../dist/index.html` completed, but screenshot was blank due expected `file://` CORS blocking of built assets.
+    - Preview server background launch was blocked by command policy in this environment, so no stronger browser verification was possible in this pass.
+- 2026-03-12: Implemented 厳密寄りリアリズム是正プラン v1 (phase 1 structural pass).
+  - Added realism domain structures:
+    - `AptitudeProfile`, `CareerBand`, `StagnationState`, `RealismKpiSnapshot`
+    - wired onto `RikishiStatus`, NPC persistent actors, lower/sekitori pools, torikumi participants
+  - Added `src/logic/simulation/realism.ts`:
+    - aptitude profile resolution helpers
+    - career band bias helpers
+    - stagnation state update / penalty helpers
+    - career realism KPI snapshot builder
+  - Reworked initialization + persistence baseline:
+    - `createInitialRikishi` now seeds `aptitudeProfile`, `careerBand`, `stagnation`, `history.realismKpi`
+    - DB name bumped to `sumo-maker-v13` to intentionally separate from old save data
+  - Reworked NPC population generation:
+    - initial NPCs now roll `careerBand`
+    - ability/base power distribution now includes lower-tail bias for `GRINDER` / `WASHOUT`
+    - NPC/player bridge + world/lower/sekitori transfer paths now preserve realism fields
+  - Reworked simulation pressure model:
+    - player/NPC bout resolution now uses `aptitudeProfile.boutFactor` instead of relying only on legacy `aptitudeFactor`
+    - stagnation pressure now penalizes bout edge / growth and is updated after each basho
+    - retirement chance now receives stagnation pressure + career band context
+  - Reworked torikumi strictness:
+    - `Juryo↔Makushita` bubble definition narrowed
+    - v3 pair scoring now emphasizes rank proximity more strongly, especially outside true boundary cases
+  - Rebuilt Logic Lab presets around realism verification:
+    - `RANDOM_BASELINE`
+    - `LOW_TALENT_CD`
+    - `STANDARD_B_GRINDER`
+    - `HIGH_TALENT_AS`
+    - summary now exposes `realismKpi`
+  - Reworked realism Monte Carlo report script:
+    - added KPI output for losing-career share / retire-age median / non-sekitori median basho
+    - added realism KPI gates alongside existing absolute/relative gates
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` PASS
+  - Residual follow-up:
+    - sampled Monte Carlo runs now complete in this environment, but acceptance is still failing
+    - latest sampled `report:realism:mc:v3` remained too clean/short-lived (`careerWinRate` about `54-56%`, `losingCareerRate` about `20%`, `retireAgeP50` about `21-23`)
+    - next pass needs focused tuning on rating-update feedback and non-sekitori retirement/stagnation loops, not more structural plumbing
+    - realism constants likely still need another balance pass after first KPI report is generated from the new model
 - 2026-03-12: Implemented UI全面改修計画 v3 (漆黒×朱×金 + 日本語UI統一).
   - Added `src/app/AppShell.tsx` and `src/shared/ui/displayLabels.ts` to centralize app framing and UI-facing Japanese labels without changing domain/public simulation interfaces.
   - Rebuilt `src/index.css` around the new palette (`漆黒 / 墨 / 朱 / 金 / 灰青`) and removed brown-based UI surfaces, borders, and button treatments from the main shell.
@@ -1332,3 +1477,27 @@ Notes:
     - `npm test` PASS (225/225)
     - `npm run build` PASS
     - targeted `npx eslint src/logic/persistence/repository.ts scripts/tests/sim_tests.ts` PASS
+- 2026-03-12: realism torikumi + banzuke instrumentation pass.
+  - Replaced `src/logic/simulation/torikumi/scheduler/core.ts` with a sequential honbasho-style scheduler:
+    - upper ranks are assigned first,
+    - only same-stable and same-card remain hard constraints,
+    - cross-division bouts are triggered through late boundary heuristics instead of global matching.
+  - Expanded `src/logic/simulation/torikumi/types.ts` / `policy.ts` with `torikumiTier`, yusho/survival metadata, pair `matchReason` + `relaxationStage`, and diagnostics for relaxation histogram / cross-division counts / hard-constraint violation counts.
+  - Wired basho diagnostics through `src/logic/simulation/basho/*`, `src/logic/simulation/engine/runOneStep.ts`, and `src/logic/simulation/diagnostics.ts`.
+  - Expanded `src/logic/banzuke/types.ts` and `src/logic/banzuke/committee/composeNextBanzuke.ts` so decision logs now emit `ruleBucket`, `usedBoundaryPressure`, and `usedDiscretion`.
+  - Added regressions in `scripts/tests/legacy/allCases.ts` for:
+    - late Juryo-Makushita boundary diagnostics,
+    - early Ozeki opponent selection avoiding deep maegashira when upper-rank options exist,
+    - banzuke decision log realism fields.
+  - Updated report scripts:
+    - `scripts/reports/quick_banzuke_checks.ts` now aggregates constraint hits by rule bucket.
+    - `scripts/reports/realism_monte_carlo.cjs` now collects `sameStable`, `sameCard`, late cross-division distribution, and upper-rank early opponent profile from per-basho diagnostics.
+  - Validation:
+    - `node scripts/tests/run_sim_tests.cjs --scope torikumi` PASS
+    - `node scripts/tests/run_sim_tests.cjs --grep "torikumi:|banzuke: decision logs expose realism rule bucket fields"` PASS
+    - `npm test` PASS (230/230)
+    - `npm run build` PASS
+    - `REALISM_MC_BASE_RUNS=20 npm run report:realism:quick` PASS (report emitted; KPI gate itself still FAIL, which is expected tuning work)
+    - Playwright/browser smoke: local static serve opened successfully at `http://127.0.0.1:4174`, home screen rendered, console errors = 0
+  - Follow-up:
+    - `npm run report:banzuke:quick` did not finish within the current session timeout and still needs a long-run pass.

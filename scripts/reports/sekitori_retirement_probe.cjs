@@ -1,14 +1,20 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
 const RUNS = Number(process.env.PROBE_RUNS || 400);
-const MODEL = process.env.PROBE_MODEL || 'unified-v2-kimarite';
+const MODEL = process.env.PROBE_MODEL || 'unified-v3-variance';
 const START_YEAR = Number(process.env.PROBE_START_YEAR || 2026);
+const COMPILED_AT = process.env.SIMTESTS_COMPILED_AT;
 const JSON_PATH = path.join('docs', 'balance', 'sekitori-retirement-probe.json');
 const REPORT_PATH = path.join('docs', 'balance', 'sekitori-retirement-probe.md');
+const RETIREMENT_PROBE_GATE = {
+  losingCareerRateMin: 0.25,
+  losingCareerRateMax: 0.35,
+  allCareerRetireAgeP50Min: 24,
+  avgCareerBashoMin: 40,
+};
 
 const toPct = (value) => `${(value * 100).toFixed(2)}%`;
 
@@ -113,12 +119,6 @@ if (!isMainThread) {
     process.exit(1);
   });
 } else {
-  execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.simtests.json'], {
-    stdio: 'inherit',
-  });
-  fs.mkdirSync('.tmp/sim-tests', { recursive: true });
-  fs.writeFileSync('.tmp/sim-tests/package.json', JSON.stringify({ type: 'commonjs' }));
-
   const maxWorkers = Math.max(1, Math.min((os.cpus()?.length || 2) - 1, 12));
   let nextTask = 0;
   let completed = 0;
@@ -205,31 +205,37 @@ if (!isMainThread) {
     }
   };
 
-  const renderReport = (summary) => {
+  const renderReport = (payload) => {
+    const { summary, gateResult, generatedAt } = payload;
     const lines = [];
     lines.push('# sekitori + retirement probe');
     lines.push('');
-    lines.push(`- generatedAt: ${new Date().toISOString()}`);
+    lines.push(`- generatedAt: ${generatedAt}`);
+    lines.push(`- compiledAt: ${COMPILED_AT ?? 'n/a'}`);
+    lines.push('- runKind: retire');
+    lines.push('- scenarioId: retirement-probe');
     lines.push(`- model: ${MODEL}`);
     lines.push(`- runs: ${RUNS}`);
     lines.push('');
     lines.push('## Metrics');
     lines.push('');
-    lines.push(`- sekitoriRate: ${toPct(summary.sekitoriRate)}`);
-    lines.push(`- makuuchiRate: ${toPct(summary.makuuchiRate)}`);
-    lines.push(`- juryoOnlyOneBashoShareWithinJuryoOnly: ${toPct(summary.juryoOnlyOneBashoShareWithinJuryoOnly)}`);
-    lines.push(`- careerWinRate: ${toPct(summary.careerWinRate)}`);
-    lines.push(`- losingCareerRate: ${toPct(summary.losingCareerRate)}`);
-    lines.push(`- ironmanLosingRate: ${toPct(summary.ironmanLosingRate)}`);
-    lines.push(`- allCareerRetireAgeP50: ${summary.allCareerRetireAgeP50.toFixed(2)}`);
-    lines.push(`- sekitoriCareerRetireAgeP50: ${summary.sekitoriCareerRetireAgeP50.toFixed(2)}`);
-    lines.push(`- avgCareerBasho: ${summary.avgCareerBasho.toFixed(2)}`);
+    lines.push(`- 負け越しキャリア率: target ${toPct(RETIREMENT_PROBE_GATE.losingCareerRateMin)}-${toPct(RETIREMENT_PROBE_GATE.losingCareerRateMax)} / actual ${toPct(summary.losingCareerRate)} / ${gateResult.losingCareerRatePass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- 引退年齢中央値: target >= ${RETIREMENT_PROBE_GATE.allCareerRetireAgeP50Min.toFixed(1)} / actual ${summary.allCareerRetireAgeP50.toFixed(2)} / ${gateResult.allCareerRetireAgeP50Pass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- 平均場所数: target >= ${RETIREMENT_PROBE_GATE.avgCareerBashoMin.toFixed(1)} / actual ${summary.avgCareerBasho.toFixed(2)} / ${gateResult.avgCareerBashoPass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- 関取率: ${toPct(summary.sekitoriRate)}`);
+    lines.push(`- 幕内率: ${toPct(summary.makuuchiRate)}`);
+    lines.push(`- 十両のみ1場所率(十両止まり内): ${toPct(summary.juryoOnlyOneBashoShareWithinJuryoOnly)}`);
+    lines.push(`- 通算勝率: ${toPct(summary.careerWinRate)}`);
+    lines.push(`- 負け越し長寿率: ${toPct(summary.ironmanLosingRate)}`);
+    lines.push(`- 関取引退年齢中央値: ${summary.sekitoriCareerRetireAgeP50.toFixed(2)}`);
     lines.push('');
     lines.push('## Profile mix');
     lines.push('');
     lines.push(`- EARLY_EXIT: ${summary.profileCounts.EARLY_EXIT}`);
     lines.push(`- STANDARD: ${summary.profileCounts.STANDARD}`);
     lines.push(`- IRONMAN: ${summary.profileCounts.IRONMAN}`);
+    lines.push('');
+    lines.push(`- overall gate: ${gateResult.allPass ? 'PASS' : 'FAIL'}`);
     lines.push('');
     return lines.join('\n');
   };
@@ -259,11 +265,37 @@ if (!isMainThread) {
       profileCounts,
     };
 
-    fs.mkdirSync(path.dirname(JSON_PATH), { recursive: true });
-    fs.writeFileSync(JSON_PATH, JSON.stringify(summary, null, 2));
-    fs.writeFileSync(REPORT_PATH, renderReport(summary));
+    const gateResult = {
+      losingCareerRatePass:
+        summary.losingCareerRate >= RETIREMENT_PROBE_GATE.losingCareerRateMin &&
+        summary.losingCareerRate <= RETIREMENT_PROBE_GATE.losingCareerRateMax,
+      allCareerRetireAgeP50Pass:
+        summary.allCareerRetireAgeP50 >= RETIREMENT_PROBE_GATE.allCareerRetireAgeP50Min,
+      avgCareerBashoPass: summary.avgCareerBasho >= RETIREMENT_PROBE_GATE.avgCareerBashoMin,
+    };
+    gateResult.allPass =
+      gateResult.losingCareerRatePass &&
+      gateResult.allCareerRetireAgeP50Pass &&
+      gateResult.avgCareerBashoPass;
 
-    console.log(JSON.stringify(summary, null, 2));
+    const generatedAt = new Date().toISOString();
+    const payload = {
+      runKind: 'retire',
+      scenarioId: 'retirement-probe',
+      sample: RUNS,
+      modelVersion: MODEL,
+      compiledAt: COMPILED_AT,
+      generatedAt,
+      metrics: summary,
+      gateResult,
+      summary,
+    };
+
+    fs.mkdirSync(path.dirname(JSON_PATH), { recursive: true });
+    fs.writeFileSync(JSON_PATH, JSON.stringify(payload, null, 2));
+    fs.writeFileSync(REPORT_PATH, renderReport(payload));
+
+    console.log(JSON.stringify(payload, null, 2));
     console.log(`report written: ${REPORT_PATH}`);
     console.log(`json written: ${JSON_PATH}`);
   };

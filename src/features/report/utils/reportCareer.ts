@@ -1,33 +1,7 @@
-import { BashoRecord, HighlightEvent, Rank, RikishiStatus, TimelineEvent } from '../../../logic/models';
-import type { CareerPlayerBoutsByBasho } from '../../../logic/persistence/repository';
 import { getRankValueForChart } from '../../../logic/ranking';
 import { buildCounterfactualInjuryText, buildFantasyHooks, getStyleLabel } from '../../../logic/phaseA';
-import { ReportTimelineItem } from '../../../shared/ui/displayLabels';
-
-export interface ReportCareerRecord extends BashoRecord {
-  bashoSeq: number;
-  displaySlot: number;
-}
-
-export interface RankChartPoint {
-  slot: number;
-  axisLabel: string;
-  bashoLabel: string;
-  rankValue: number;
-  rankLabel: string;
-  weightKg?: number;
-  eventTags?: HighlightEvent['tag'][];
-  eventLabel?: string;
-}
-
-export interface TimelineEventGroup {
-  key: string;
-  year: number;
-  month: number;
-  primaryType: TimelineEvent['type'];
-  tagLabel: string;
-  descriptions: string[];
-}
+import { BashoRecord, HighlightEventTag, Rank, RikishiStatus, TimelineEvent } from '../../../logic/models';
+import { PlayerBoutDetail } from '../../../logic/simulation/basho';
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
@@ -56,10 +30,9 @@ export const formatRankDisplayName = (rank: Rank): string => {
   return `${side}${rank.name}${rank.number || 1}枚目`;
 };
 
-export const formatBashoLabel = (year: number, month: number): string =>
-  `${year}年${month}月`;
+export const formatBashoLabel = (year: number, month: number): string => `${year}年${month}月`;
 
-export const buildReportCareerRecords = (records: BashoRecord[]): ReportCareerRecord[] =>
+export const buildReportCareerRecords = (records: BashoRecord[]) =>
   records
     .map((record, index) => ({
       ...record,
@@ -71,7 +44,7 @@ export const buildReportCareerRecords = (records: BashoRecord[]): ReportCareerRe
       displaySlot: index + 1,
     }));
 
-export const buildRankChartData = (records: BashoRecord[]): RankChartPoint[] => {
+export const buildRankChartData = (records: BashoRecord[]) => {
   const displayRecords = buildReportCareerRecords(records);
   const stride =
     displayRecords.length <= 6
@@ -85,9 +58,7 @@ export const buildRankChartData = (records: BashoRecord[]): RankChartPoint[] => 
   return displayRecords.map((record, index) => ({
     slot: record.displaySlot,
     axisLabel:
-      index === 0
-      || index === displayRecords.length - 1
-      || index % stride === 0
+      index === 0 || index === displayRecords.length - 1 || index % stride === 0
         ? `${record.year}.${String(record.month).padStart(2, '0')}`
         : '',
     bashoLabel: formatBashoLabel(record.year, record.month),
@@ -97,19 +68,22 @@ export const buildRankChartData = (records: BashoRecord[]): RankChartPoint[] => 
   }));
 };
 
-export const buildRankChartDataFromStatus = (status: RikishiStatus): RankChartPoint[] => {
+export const buildRankChartDataFromStatus = (status: RikishiStatus) => {
   const base = buildRankChartData(status.history.records);
-  const highlightBySeq = new Map<number, HighlightEvent[]>();
+  const highlightBySeq = new Map<number, Array<{ tag: HighlightEventTag; label: string }>>();
   (status.history.highlightEvents ?? []).forEach((event) => {
     const current = highlightBySeq.get(event.bashoSeq) ?? [];
     current.push(event);
     highlightBySeq.set(event.bashoSeq, current);
   });
+
   return base.map((point, index) => {
     const events = highlightBySeq.get(index + 1) ?? [];
     return {
       ...point,
-      weightKg: point.weightKg ?? status.history.bodyTimeline?.find((row) => row.bashoSeq === index + 1)?.weightKg,
+      weightKg:
+        point.weightKg ??
+        status.history.bodyTimeline?.find((row) => row.bashoSeq === index + 1)?.weightKg,
       eventTags: events.map((event) => event.tag),
       eventLabel: events.map((event) => event.label).join(' / '),
     };
@@ -118,19 +92,16 @@ export const buildRankChartDataFromStatus = (status: RikishiStatus): RankChartPo
 
 export const buildHoshitoriCareerRecords = (
   records: BashoRecord[],
-  boutsByBasho: CareerPlayerBoutsByBasho[],
-): Array<ReportCareerRecord & { bouts: CareerPlayerBoutsByBasho['bouts'] }> => {
-  const boutsMap = new Map<number, CareerPlayerBoutsByBasho['bouts']>(
-    boutsByBasho.map((row) => [row.bashoSeq, row.bouts]),
-  );
-
+  boutsByBasho: Array<{ bashoSeq: number; bouts: PlayerBoutDetail[] }>,
+) => {
+  const boutsMap = new Map(boutsByBasho.map((row) => [row.bashoSeq, row.bouts]));
   return buildReportCareerRecords(records).map((record) => ({
     ...record,
     bouts: boutsMap.get(record.bashoSeq) ?? [],
   }));
 };
 
-export const buildTimelineEventGroups = (events: TimelineEvent[]): TimelineEventGroup[] => {
+export const buildTimelineEventGroups = (events: TimelineEvent[]) => {
   const grouped = new Map<string, TimelineEvent[]>();
 
   for (const event of events) {
@@ -161,7 +132,7 @@ export const buildTimelineEventGroups = (events: TimelineEvent[]): TimelineEvent
     });
 };
 
-export const buildReportTimelineItems = (status: RikishiStatus): ReportTimelineItem[] => {
+export const buildReportTimelineItems = (status: RikishiStatus) => {
   const groups = buildTimelineEventGroups(status.history.events);
   return groups.slice(0, 10).map((group) => ({
     key: group.key,
@@ -205,8 +176,7 @@ export const buildDesignedVsRealizedLabel = (status: RikishiStatus): string => {
   return `設計型 ${getStyleLabel(designed.dominant)} -> 実戦型 ${getStyleLabel(realized.dominant)}`;
 };
 
-export const buildFantasyHooksForReport = (status: RikishiStatus): string[] =>
-  buildFantasyHooks(status);
+export const buildFantasyHooksForReport = (status: RikishiStatus): string[] => buildFantasyHooks(status);
 
 export const buildInjuryWhatIfText = (status: RikishiStatus): string | null =>
   buildCounterfactualInjuryText(status);

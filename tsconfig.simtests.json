@@ -12,7 +12,7 @@
     "lib": ["ES2020", "DOM"]
   },
   "include": [
-    "scripts/tests/sim_tests.ts",
+    "scripts/tests/**/*.ts",
     "src/logic/**/*.ts",
     "src/features/logicLab/**/*.ts"
   ]

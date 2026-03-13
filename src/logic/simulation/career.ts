@@ -1,10 +1,12 @@
 import { generateTitle } from '../naming/playerNaming';
 import { RankChangeResult } from '../banzuke';
 import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
+import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
 import { ensurePhaseAStatus } from '../phaseA';
+import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -90,10 +92,19 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
     }
   }
   if (typeof status.entryAge !== 'number') status.entryAge = status.age;
+  if (!status.aptitudeProfile) {
+    status.aptitudeProfile = resolveAptitudeProfile(status.aptitudeTier);
+  }
+  if (!Number.isFinite(status.aptitudeFactor)) {
+    status.aptitudeFactor = resolveLegacyAptitudeFactor(status.aptitudeProfile, status.aptitudeTier);
+  }
+  if (!status.careerBand) status.careerBand = DEFAULT_CAREER_BAND;
   if (typeof status.isOzekiKadoban !== 'boolean') status.isOzekiKadoban = false;
   if (typeof status.isOzekiReturn !== 'boolean') status.isOzekiReturn = false;
   if (!status.retirementProfile) status.retirementProfile = 'STANDARD';
   if (!Number.isFinite(status.spirit)) status.spirit = 70;
+  if (!status.stagnation) status.stagnation = createDefaultStagnationState();
+  status.history.realismKpi = buildCareerRealismSnapshot(status);
   return ensurePhaseAStatus(ensureKataProfile(status));
 };
 
@@ -226,6 +237,7 @@ export const finalizeCareer = (
     description: `引退 (${reason || '理由不明'})`,
   });
   status.history.title = generateTitle(status.history);
+  status.history.realismKpi = buildCareerRealismSnapshot(status);
   return status;
 };
 

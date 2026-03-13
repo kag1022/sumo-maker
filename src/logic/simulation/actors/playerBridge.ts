@@ -32,6 +32,8 @@ export const createPlayerActorFromStatus = (status: RikishiStatus): PersistentAc
     growthBias: 0,
     aptitudeTier: status.aptitudeTier,
     aptitudeFactor: status.aptitudeFactor,
+    aptitudeProfile: status.aptitudeProfile,
+    careerBand: status.careerBand,
     retirementBias: 0,
     retirementProfile: status.retirementProfile ?? 'STANDARD',
     entryAge: status.entryAge,
@@ -39,6 +41,7 @@ export const createPlayerActorFromStatus = (status: RikishiStatus): PersistentAc
     careerBashoCount: status.history.records.length,
     active: true,
     entrySeq: 0,
+    stagnation: status.stagnation,
     recentBashoResults: [],
   };
 };
@@ -56,10 +59,13 @@ export const syncPlayerActorFromStatus = (
   uncertainty: status.ratingState.uncertainty,
   aptitudeTier: status.aptitudeTier,
   aptitudeFactor: status.aptitudeFactor,
+  aptitudeProfile: status.aptitudeProfile,
+  careerBand: status.careerBand,
   retirementProfile: status.retirementProfile ?? actor.retirementProfile ?? 'STANDARD',
   age: status.age,
   careerBashoCount: status.history.records.length,
   heightCm: status.bodyMetrics.heightCm,
   weightKg: status.bodyMetrics.weightKg,
+  stagnation: status.stagnation,
   active: true,
 });

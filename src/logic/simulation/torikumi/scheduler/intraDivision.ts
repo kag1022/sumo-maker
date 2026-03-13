@@ -100,6 +100,9 @@ export const pairWithinDivision = (
       a: current,
       b: bestCandidate,
       activationReasons: [],
+      matchReason: Math.abs(current.wins - bestCandidate.wins) <= 1 ? 'RECORD_NEARBY' : 'RANK_NEARBY',
+      relaxationStage: 0,
+      crossDivision: false,
     });
   }
 

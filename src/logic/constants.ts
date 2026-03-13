@@ -1,4 +1,14 @@
-import { AptitudeTier, BodyType, Division, InjuryType, Rarity, TalentArchetype, Trait } from './models';
+import {
+  AptitudeProfile,
+  AptitudeTier,
+  BodyType,
+  CareerBand,
+  Division,
+  InjuryType,
+  Rarity,
+  TalentArchetype,
+  Trait,
+} from './models';
 
 export const CONSTANTS = {
   // 力士設定
@@ -49,11 +59,30 @@ export const CONSTANTS = {
   // 素質ランク定義（5段階 + 隠し係数）
   APTITUDE_TIER_DATA: {
     S: { label: 'S', name: '逸材', weight: 1, factor: 1.2 },
-    A: { label: 'A', name: '秀才', weight: 7, factor: 1.08 },
-    B: { label: 'B', name: '標準', weight: 42, factor: 1.0 },
-    C: { label: 'C', name: '晩成', weight: 30, factor: 0.50 },
-    D: { label: 'D', name: '未完', weight: 20, factor: 0.25 },
+    A: { label: 'A', name: '秀才', weight: 12, factor: 1.08 },
+    B: { label: 'B', name: '標準', weight: 67, factor: 1.0 },
+    C: { label: 'C', name: '晩成', weight: 14, factor: 0.50 },
+    D: { label: 'D', name: '未完', weight: 6, factor: 0.25 },
   } as Record<AptitudeTier, { label: string; name: string; weight: number; factor: number }>,
+
+  APTITUDE_PROFILE_DATA: {
+    S: { initialFactor: 1.18, growthFactor: 1.12, boutFactor: 1.1, longevityFactor: 1.08 },
+    A: { initialFactor: 1.08, growthFactor: 1.05, boutFactor: 1.04, longevityFactor: 1.03 },
+    B: { initialFactor: 1.0, growthFactor: 1.0, boutFactor: 1.0, longevityFactor: 1.0 },
+    C: { initialFactor: 0.72, growthFactor: 0.82, boutFactor: 0.74, longevityFactor: 1.08 },
+    D: { initialFactor: 0.52, growthFactor: 0.68, boutFactor: 0.58, longevityFactor: 1.15 },
+  } as Record<AptitudeTier, AptitudeProfile>,
+
+  CAREER_BAND_DATA: {
+    ELITE: { weight: 4, abilityBias: 12, growthBias: 0.18, retentionBias: 0.82, stagnationBias: 0.7 },
+    STRONG: { weight: 14, abilityBias: 5, growthBias: 0.08, retentionBias: 0.92, stagnationBias: 0.82 },
+    STANDARD: { weight: 42, abilityBias: 0, growthBias: 0.0, retentionBias: 1.0, stagnationBias: 1.0 },
+    GRINDER: { weight: 28, abilityBias: -8, growthBias: -0.12, retentionBias: 0.78, stagnationBias: 1.22 },
+    WASHOUT: { weight: 12, abilityBias: -15, growthBias: -0.22, retentionBias: 0.88, stagnationBias: 1.35 },
+  } as Record<
+    CareerBand,
+    { weight: number; abilityBias: number; growthBias: number; retentionBias: number; stagnationBias: number }
+  >,
 
   // 得意技データ
   SIGNATURE_MOVE_DATA: {
@@ -380,17 +409,23 @@ export const CONSTANTS = {
 
 export const DEFAULT_APTITUDE_TIER: AptitudeTier = 'B';
 export const DEFAULT_APTITUDE_FACTOR = 1.0;
+export const DEFAULT_CAREER_BAND: CareerBand = 'STANDARD';
 
 export const APTITUDE_TIERS: AptitudeTier[] = ['S', 'A', 'B', 'C', 'D'];
+export const CAREER_BANDS: CareerBand[] = ['ELITE', 'STRONG', 'STANDARD', 'GRINDER', 'WASHOUT'];
 
 export const resolveAptitudeFactor = (
   tier?: AptitudeTier,
   fallback: number = DEFAULT_APTITUDE_FACTOR,
 ): number => {
-  const factor = tier ? CONSTANTS.APTITUDE_TIER_DATA[tier]?.factor : undefined;
+  const factor = tier ? CONSTANTS.APTITUDE_PROFILE_DATA[tier]?.boutFactor : undefined;
   if (!Number.isFinite(factor)) return fallback;
   return Math.max(0.3, factor as number);
 };
+
+export const resolveAptitudeProfile = (
+  tier?: AptitudeTier,
+): AptitudeProfile => ({ ...(CONSTANTS.APTITUDE_PROFILE_DATA[tier ?? DEFAULT_APTITUDE_TIER] ?? CONSTANTS.APTITUDE_PROFILE_DATA[DEFAULT_APTITUDE_TIER]) });
 
 export const resolveAptitudeTierLabel = (tier?: AptitudeTier): string => {
   if (!tier) return DEFAULT_APTITUDE_TIER;
@@ -408,4 +443,29 @@ export const rollAptitudeTier = (rng: () => number = Math.random): AptitudeTier 
     if (point <= 0) return tier;
   }
   return DEFAULT_APTITUDE_TIER;
+};
+
+export const rollCareerBand = (rng: () => number = Math.random): CareerBand => {
+  const totalWeight = CAREER_BANDS.reduce(
+    (sum, band) => sum + CONSTANTS.CAREER_BAND_DATA[band].weight,
+    0,
+  );
+  let point = rng() * totalWeight;
+  for (const band of CAREER_BANDS) {
+    point -= CONSTANTS.CAREER_BAND_DATA[band].weight;
+    if (point <= 0) return band;
+  }
+  return DEFAULT_CAREER_BAND;
+};
+
+export const rollCareerBandForAptitude = (
+  tier: AptitudeTier,
+  rng: () => number = Math.random,
+): CareerBand => {
+  const point = rng();
+  if (tier === 'S') return point < 0.85 ? 'ELITE' : 'STRONG';
+  if (tier === 'A') return point < 0.18 ? 'ELITE' : point < 0.78 ? 'STRONG' : 'STANDARD';
+  if (tier === 'B') return point < 0.1 ? 'STRONG' : point < 0.68 ? 'STANDARD' : point < 0.93 ? 'GRINDER' : 'WASHOUT';
+  if (tier === 'C') return point < 0.12 ? 'STANDARD' : point < 0.72 ? 'GRINDER' : 'WASHOUT';
+  return point < 0.28 ? 'GRINDER' : 'WASHOUT';
 };

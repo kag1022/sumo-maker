@@ -21,7 +21,7 @@ import {
 } from './models';
 
 export const PHASE_A_STARTING_POINTS = 50;
-export const PHASE_A_WALLET_CAP = 150;
+export const PHASE_A_WALLET_CAP = 100;
 export const PHASE_A_REWARD_CAP = 40;
 
 export const STYLE_LABELS: Record<StyleArchetype, string> = {
