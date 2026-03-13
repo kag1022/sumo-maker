@@ -12,14 +12,10 @@ import {
 import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import { DivisionParticipant } from './types';
+import { resolveCompetitiveFactor } from '../realism';
 
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
-
-const resolveAptitudeFactor = (value?: number): number => {
-  if (!Number.isFinite(value)) return 1;
-  return Math.max(0.3, value as number);
-};
 
 const resolveSignedStreak = (
   winStreak?: number,
@@ -73,8 +69,6 @@ const resolveNpcWinProbability = (
   const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
   const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
   const boutNoiseAmplitude = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
-  const aAptitudeFactor = resolveAptitudeFactor(a.aptitudeFactor);
-  const bAptitudeFactor = resolveAptitudeFactor(b.aptitudeFactor);
   const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
   const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
@@ -83,13 +77,17 @@ const resolveNpcWinProbability = (
     power: a.power,
     momentum: aMomentum,
     noise: randomNoise(rng, boutNoiseAmplitude),
-  }) * resolveStablePerformanceFactor(a.stableId) * aAptitudeFactor;
+  }) *
+    resolveStablePerformanceFactor(a.stableId) *
+    resolveCompetitiveFactor(a);
   const bAbility = resolveUnifiedNpcStrength({
     ability: bAbilityWithShock,
     power: b.power,
     momentum: bMomentum,
     noise: randomNoise(rng, boutNoiseAmplitude),
-  }) * resolveStablePerformanceFactor(b.stableId) * bAptitudeFactor;
+  }) *
+    resolveStablePerformanceFactor(b.stableId) *
+    resolveCompetitiveFactor(b);
   return resolveBoutWinProb({
     attackerAbility: aAbility,
     defenderAbility: bAbility,
@@ -139,12 +137,12 @@ export const simulateNpcBout = (
     ability: (a.ability ?? a.power) + (a.bashoFormDelta ?? 0),
     power: a.power,
     momentum: (a.wins - a.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(a.currentWinStreak, a.currentLossStreak)),
-  }) * resolveAptitudeFactor(a.aptitudeFactor);
+  }) * resolveCompetitiveFactor(a);
   const bAbility = resolveUnifiedNpcStrength({
     ability: (b.ability ?? b.power) + (b.bashoFormDelta ?? 0),
     power: b.power,
     momentum: (b.wins - b.losses) * 0.18 + calculateMomentumBonus(resolveSignedStreak(b.currentWinStreak, b.currentLossStreak)),
-  }) * resolveAptitudeFactor(b.aptitudeFactor);
+  }) * resolveCompetitiveFactor(b);
   a.expectedWins = (a.expectedWins ?? 0) + aWinProbability;
   b.expectedWins = (b.expectedWins ?? 0) + (1 - aWinProbability);
   a.opponentAbilityTotal = (a.opponentAbilityTotal ?? 0) + bAbility;

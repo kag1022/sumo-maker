@@ -164,7 +164,7 @@ class SumoMakerDatabase extends Dexie {
   oyakataProfiles!: Table<OyakataProfile, string>;
 
   constructor() {
-    super('sumo-maker-v12');
+    super('sumo-maker-v13');
 
     this.version(1).stores({
       careers:

@@ -1,63 +1,71 @@
-import React from 'react';
-import { BookCopy, GitBranch, Search, Trash2 } from 'lucide-react';
-import { Rank } from '../../../logic/models';
-import { buildGenealogyTree, CareerListItem, GenealogyNode } from '../../../logic/persistence/repository';
-import { Button } from '../../../shared/ui/Button';
-import { ArchiveViewMode } from '../../../shared/ui/displayLabels';
+import React from "react";
+import { Trophy, Trash2, X, Star } from "lucide-react";
+import { Rank, CareerHistory } from "../../../logic/models";
+
+interface HallOfFameItem {
+  id: string;
+  shikona: string;
+  title: string | null;
+  maxRank: Rank;
+  careerStartYearMonth: string;
+  careerEndYearMonth: string | undefined;
+  totalWins: number;
+  totalLosses: number;
+  totalAbsent: number;
+  yushoCount: CareerHistory["yushoCount"];
+  savedAt: number;
+}
 
 interface HallOfFameGridProps {
-  items: CareerListItem[];
+  items: HallOfFameItem[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
 
 const formatRankName = (rank: Rank): string => {
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return rank.division === 'Maezumo' ? '前相撲' : `${side}${rank.name}${rank.number || 1}枚目`;
+  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
+  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) {
+    return `${side}${rank.name}`;
+  }
+  const number = rank.number || 1;
+  return `${side}${rank.name}${number}枚目`;
 };
 
-const buildTag = (item: CareerListItem): string => {
-  if (item.yushoCount.makuuchi > 0) return `幕内優勝 ${item.yushoCount.makuuchi}回`;
-  if (item.maxRank.name === '横綱') return '横綱到達';
-  if (item.maxRank.division === 'Makuuchi') return '幕内到達';
-  if (item.maxRank.division === 'Juryo') return '十両到達';
-  return '下位から積み上げた';
+const getRarityByRank = (rankName: string): "UR" | "SR" | "R" | "N" => {
+  if (rankName === "横綱") return "UR";
+  if (rankName === "大関") return "SR";
+  if (["関脇", "小結"].includes(rankName)) return "R";
+  return "N";
 };
 
-type GenealogyViewNode = {
-  id: string;
-  label: string;
-  rankLabel: string;
-  generation: number;
-  children: GenealogyViewNode[];
+const getCardStyle = (rarity: "UR" | "SR" | "R" | "N") => {
+  switch (rarity) {
+    case "UR":
+      return "border-crimson/60 bg-crimson/10 glow-red";
+    case "SR":
+      return "border-gold/50 bg-gold/10 glow-gold";
+    case "R":
+      return "border-gold-muted/40 bg-bg-light";
+    case "N":
+    default:
+      return "border-gold-muted/20 bg-bg-light";
+  }
 };
 
-const toViewNode = (node: GenealogyNode): GenealogyViewNode => ({
-  id: node.careerId,
-  label: node.shikona,
-  rankLabel: formatRankName(node.maxRank),
-  generation: node.generation,
-  children: node.children.map(toViewNode),
-});
-
-const LineageColumn = ({ node }: { node: GenealogyViewNode }) => (
-  <div className="space-y-3">
-    <div className="scoreboard-panel p-4">
-      <div className="text-xs tracking-[0.14em] text-text-dim">第 {node.generation} 世代</div>
-      <div className="mt-2 ui-text-heading text-2xl text-text">{node.label}</div>
-      <div className="mt-1 text-sm text-text-dim">{node.rankLabel}</div>
-    </div>
-    {node.children.length > 0 && (
-      <div className="grid gap-3 border-l-2 border-[rgba(214,162,61,0.24)] pl-4">
-        {node.children.map((child) => (
-          <LineageColumn key={child.id} node={child} />
-        ))}
-      </div>
-    )}
-  </div>
-);
+const getTitleStyle = (rarity: "UR" | "SR" | "R" | "N") => {
+  switch (rarity) {
+    case "UR":
+      return "text-crimson";
+    case "SR":
+      return "text-gold";
+    case "R":
+      return "text-gold-dim";
+    case "N":
+    default:
+      return "text-text";
+  }
+};
 
 export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
   items,
@@ -65,141 +73,235 @@ export const HallOfFameGrid: React.FC<HallOfFameGridProps> = ({
   onDelete,
   onClose,
 }) => {
-  const [tab, setTab] = React.useState<ArchiveViewMode>('ledger');
-  const [query, setQuery] = React.useState('');
-  const [roots, setRoots] = React.useState<GenealogyViewNode[]>([]);
-
-  React.useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const tree = await buildGenealogyTree();
-      if (!alive) return;
-      setRoots(tree.roots.map(toViewNode));
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [items]);
+  const [filter, setFilter] = React.useState<"ALL" | "YOKOZUNA" | "YUSHO">(
+    "ALL",
+  );
 
   const filteredItems = React.useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return items;
-    return items.filter((item) =>
-      [item.shikona, item.title ?? '', item.kataLabel ?? '', buildTag(item), formatRankName(item.maxRank)]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalized),
-    );
-  }, [items, query]);
+    if (filter === "YOKOZUNA")
+      return items.filter((i) => i.maxRank.name === "横綱");
+    if (filter === "YUSHO")
+      return items.filter((i) => i.yushoCount.makuuchi > 0);
+    return items;
+  }, [items, filter]);
 
   return (
-    <div className="space-y-6 animate-in">
-      <section className="arcade-hero hero-stage">
-        <div className="hero-grid lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-          <div className="space-y-3">
-            <div className="museum-kicker">収蔵庫</div>
-            <h2 className="ui-text-heading text-4xl text-text sm:text-5xl">殿堂録</h2>
-            <p className="max-w-2xl text-sm leading-7 text-text-dim">
-              保存した力士を台帳として読み返し、系譜として追える場所です。読む目的に合わせて一覧と系譜を切り替えます。
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="metric-tile">
-              <div className="metric-label">収蔵数</div>
-              <div className="metric-value">{items.length}</div>
-              <div className="metric-note">保存済みの力士記録です。</div>
+    <div className="fixed inset-0 bg-black/80 w-full h-full flex items-center justify-center z-[100] p-3 sm:p-6 animate-in backdrop-blur-sm">
+      <div className="bg-bg flex flex-col w-full h-full max-w-5xl border-2 border-gold shadow-rpg">
+        {/* Header */}
+        <div className="p-3 sm:p-5 border-b-2 border-gold-muted flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <h2 className="text-lg sm:text-2xl flex items-center text-gold ui-text-label">
+              <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-crimson" />
+              殿堂入り力士
+            </h2>
+            <div className="hidden sm:flex bg-bg-panel p-0.5 gap-0.5 border-2 border-gold-muted">
+              <button
+                onClick={() => setFilter("ALL")}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "ALL" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+              >
+                すべて ({items.length})
+              </button>
+              <button
+                onClick={() => setFilter("YUSHO")}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "YUSHO" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+              >
+                幕内優勝
+              </button>
+              <button
+                onClick={() => setFilter("YOKOZUNA")}
+                className={`px-3 py-1.5 text-xs ui-text-label transition-all ${filter === "YOKOZUNA" ? "bg-gold/15 text-gold" : "text-text-dim hover:text-gold"}`}
+              >
+                歴代横綱
+              </button>
             </div>
-            <div className="flex items-end justify-start sm:justify-end">
-              <Button variant="secondary" onClick={onClose}>入口へ戻る</Button>
-            </div>
           </div>
-        </div>
-      </section>
-
-      <section className="command-bar">
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="museum-chip" data-active={tab === 'ledger'} onClick={() => setTab('ledger')}>
-            <BookCopy size={15} />
-            台帳
+          <div className="flex gap-2 p-2">
+            <button
+              className="p-2 border bg-crimson/20"
+              onClick={async () => {
+                const { getDb } = await import("../../../logic/persistence/db");
+                const db = getDb();
+                const bodyTypes = ["NORMAL", "SOPPU", "ANKO", "MUSCULAR"] as any;
+                const injuriesList = ["NECK", "SHOULDER", "ELBOW", "WRIST", "RIB", "BACK", "HIP", "KNEE", "ANKLE", "HAMSTRING"] as any;
+                const allInjuries = injuriesList.flatMap((type: any) => [
+                  { id: `r-${type}`, type, name: `右${type}損傷`, severity: 10, status: 'CHRONIC', occurredAt: { year: 2026, month: 1 } },
+                  { id: `l-${type}`, type, name: `左${type}損傷`, severity: 10, status: 'CHRONIC', occurredAt: { year: 2026, month: 1 } }
+                ]);
+                const now = new Date().toISOString();
+                for (const b of bodyTypes) {
+                  const cid = `dummy-${b}-${Date.now()}`;
+                  await db.careers.put({
+                    id: cid,
+                    state: 'saved',
+                    savedAt: now,
+                    updatedAt: now,
+                    shikona: `マーカー確認用(${b})`,
+                    maxRank: { division: 'MAKUUCHI', name: '横綱', side: 'East', number: 1 },
+                    totalWins: 100, totalLosses: 0, totalAbsent: 0,
+                    yushoCount: { makuuchi: 10, juryo: 0, makushita: 0 },
+                    bashoCount: 10,
+                    careerStartYearMonth: '2026-01',
+                    careerEndYearMonth: '2026-01',
+                    simulationModelVersion: 'v1.0.0',
+                    finalStatus: {
+                      id: cid,
+                      shikona: `マーカー確認用(${b})`,
+                      bodyType: b,
+                      bodyMetrics: { heightCm: 180, weightKg: 100 },
+                      injuries: allInjuries,
+                      history: { maxRank: { division: 'MAKUUCHI', name: '横綱', side: 'East', number: 1 }, title: null, yushoCount: { makuuchi: 10 }, records: [], events: [], totalWins: 100, totalLosses: 0, totalAbsent: 0 },
+                      traits: [],
+                      baseAbilities: {}, growthCurves: {}, durability: {}, careerVariance: {}, skills: {}, state: {}, tactics: {}
+                    } as any,
+                  } as any);
+                }
+                alert("ダミー生成完了。画面をリロードしてください。");
+              }}>
+              ダミー生成
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-text-dim hover:text-gold transition border-2 border-transparent hover:border-gold-muted"
+          >
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
-          <button type="button" className="museum-chip" data-active={tab === 'lineage'} onClick={() => setTab('lineage')}>
-            <GitBranch size={15} />
-            系譜
-          </button>
         </div>
-        {tab === 'ledger' && (
-          <label className="flex items-center gap-2 border-[2px] border-[rgba(214,162,61,0.18)] bg-[rgba(17,20,26,0.88)] px-3 py-2 text-sm text-text-dim">
-            <Search size={15} />
-            <input
-              className="w-52 border-0 bg-transparent p-0 text-text shadow-none"
-              placeholder="四股名や最高位で探す"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-        )}
-      </section>
 
-      {tab === 'ledger' ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {/* Mobile Filter */}
+        <div className="sm:hidden p-3 bg-bg-panel border-b-2 border-gold-muted shrink-0">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="w-full p-2 bg-bg text-sm ui-text-label text-text border-2 border-gold-muted focus:ring-1 focus:ring-gold/50"
+          >
+            <option value="ALL">すべて表示 ({items.length})</option>
+            <option value="YUSHO">幕内優勝経験者</option>
+            <option value="YOKOZUNA">歴代横綱</option>
+          </select>
+        </div>
+
+        {/* Grid Content */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-bg">
           {filteredItems.length === 0 ? (
-            <div className="scoreboard-panel p-6 text-sm text-text-dim">一致する記録がありません。</div>
+            <div className="h-full flex flex-col items-center justify-center text-text-dim space-y-4">
+              <Trophy className="w-16 h-16 opacity-20" />
+              <p className="text-lg ui-text-label">
+                {filter === "ALL"
+                  ? "保存された力士はいません"
+                  : "条件に一致する力士がいません"}
+              </p>
+            </div>
           ) : (
-            filteredItems.map((item) => (
-              <article key={item.id} className="ledger-card">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="ui-text-heading text-2xl text-text">{item.shikona}</div>
-                    {item.title && <div className="mt-1 text-sm text-text-dim">{item.title}</div>}
-                  </div>
-                  <span className="museum-chip">{buildTag(item)}</span>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 auto-rows-max">
+              {filteredItems.map((rec) => {
+                const rarity = getRarityByRank(rec.maxRank.name);
+                const cardStyle = getCardStyle(rarity);
+                const titleStyle = getTitleStyle(rarity);
 
-                <div className="grid gap-3">
-                  <div className="pixel-card-dark p-4">
-                    <div className="text-xs tracking-[0.14em] text-text-dim">最高位</div>
-                    <div className="mt-2 text-xl text-text">{formatRankName(item.maxRank)}</div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="pixel-card p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">通算成績</div>
-                      <div className="mt-2 text-sm text-text">{item.totalWins}勝 {item.totalLosses}敗</div>
-                    </div>
-                    <div className="pixel-card p-3">
-                      <div className="text-[0.65rem] tracking-[0.14em] text-text-dim">在籍期間</div>
-                      <div className="mt-2 text-sm text-text">{item.careerStartYearMonth} - {item.careerEndYearMonth || '未記録'}</div>
-                    </div>
-                  </div>
-                </div>
+                return (
+                  <div
+                    key={rec.id}
+                    className={`relative group flex flex-col border-2 transition-transform duration-200 hover:-translate-y-0.5 ${cardStyle}`}
+                  >
+                    {/* UR Shine Effect */}
+                    {rarity === "UR" && (
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-gold/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    )}
 
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => onOpen(item.id)}>開く</Button>
-                  <Button size="sm" variant="outline" onClick={() => onDelete(item.id)}>
-                    <Trash2 size={14} className="mr-1" />
-                    削除
-                  </Button>
-                </div>
-              </article>
-            ))
-          )}
-        </section>
-      ) : (
-        <section className="rpg-panel p-5 sm:p-6">
-          <div className="mb-4">
-            <div className="museum-kicker">系譜</div>
-            <div className="mt-2 text-sm text-text-dim">親方系統ごとに、どの力士が次の世代へつながったかを追います。</div>
-          </div>
-          {roots.length === 0 ? (
-            <div className="scoreboard-panel p-5 text-sm text-text-dim">系譜はまだありません。</div>
-          ) : (
-            <div className="grid gap-4">
-              {roots.map((root) => (
-                <LineageColumn key={root.id} node={root} />
-              ))}
+                    {/* Card Header */}
+                    <div className="p-3 sm:p-4 pb-2 border-b-2 border-gold-muted/20 relative overflow-hidden shrink-0">
+                      {rarity === "UR" && (
+                        <Star className="absolute -top-3 -right-3 w-14 h-14 text-gold/10 fill-gold/10 rotate-12" />
+                      )}
+
+                      <div className="flex justify-between items-start mb-2 relative z-10">
+                        <span className="text-[10px] ui-text-label px-2 py-0.5 border-2 border-gold-muted text-text-dim tracking-widest">
+                          {rec.careerEndYearMonth ? "引退" : "現役"}
+                        </span>
+                        {rec.yushoCount.makuuchi > 0 && (
+                          <span className="flex items-center text-[10px] ui-text-label text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-0.5">
+                            <Trophy className="w-3 h-3 mr-1" /> 優勝{" "}
+                            {rec.yushoCount.makuuchi}回
+                          </span>
+                        )}
+                      </div>
+                      <h3
+                        className={`text-xl sm:text-2xl ui-text-label mb-1 tracking-tight ${titleStyle}`}
+                      >
+                        {rec.shikona}
+                      </h3>
+                      <div className="text-xs text-text-dim">
+                        {rec.title ? `「${rec.title}」` : "無冠"}
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-center space-y-3 bg-bg/40">
+                      <div className="text-center">
+                        <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
+                          最高位
+                        </p>
+                        <p className="text-lg sm:text-xl ui-text-label text-text">
+                          {formatRankName(rec.maxRank)}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-center border-t-2 border-gold-muted/20 pt-3">
+                        <div>
+                          <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
+                            通算成績
+                          </p>
+                          <p className="text-base sm:text-lg ui-text-label">
+                            <span className="text-text">{rec.totalWins}</span>
+                            <span className="text-xs text-text-dim">勝</span>
+                            <span className="text-text ml-0.5">{rec.totalLosses}</span>
+                            <span className="text-xs text-text-dim">敗</span>
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] ui-text-label tracking-wider text-text-dim mb-0.5">
+                            活動期間
+                          </p>
+                          <p className="text-xs sm:text-sm ui-text-label text-text mt-1">
+                            {rec.careerStartYearMonth}
+                            <br />
+                            <span className="text-text-dim">～</span>
+                            <br />
+                            {rec.careerEndYearMonth || "現在"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="p-2 border-t-2 border-gold-muted/20 bg-bg-panel flex gap-2 shrink-0">
+                      <button
+                        onClick={() => onOpen(rec.id)}
+                        className="flex-1 py-2 text-sm ui-text-label bg-bg border-2 border-gold text-gold hover:bg-gold/10 transition"
+                      >
+                        詳細を見る
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`${rec.shikona}の記録を削除しますか？`)) {
+                            onDelete(rec.id);
+                          }
+                        }}
+                        className="p-2 text-crimson/60 hover:text-crimson hover:bg-crimson/10 transition border-2 border-transparent hover:border-crimson/30"
+                        title="削除"
+                      >
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </section>
-      )}
+        </div>
+      </div>
     </div>
   );
 };

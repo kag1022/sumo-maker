@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Rank, RikishiStatus } from '../../src/logic/models';
 import { createSeededRandom, createSimulationEngine } from '../../src/logic/simulation/engine';
 import { createSimulationWorld, resolveTopDivisionQuotaForPlayer } from '../../src/logic/simulation/world';
@@ -10,14 +12,20 @@ type Scenario = {
 };
 
 type QuickSummary = {
+  generatedAt: string;
   meta: {
     transitions: number;
     scenarios: number;
+  };
+  verdict: {
+    overall: 'PASS' | 'WARN';
+    headline: string;
   };
   checks: {
     topMaegashira87ToSanyaku: number;
     juryoTop14PlusToSanyaku: number;
     komusubi9PlusStayedKomusubi: number;
+    constraintHitsByBucket: Record<string, number>;
   };
   signals: {
     maegashira8_87CaseCount: number;
@@ -35,9 +43,11 @@ type QuickSummary = {
 };
 
 const TOP_NAMES = new Set(['横綱', '大関', '関脇', '小結']);
+const REPORT_PATH = path.join('docs', 'balance', 'banzuke-quick-checks.md');
+const JSON_PATH = path.join('.tmp', 'banzuke-quick-checks.json');
 
 const toRankLabel = (rank: Rank): string => {
-  const side = rank.side === 'West' ? 'W' : 'E';
+  const side = rank.side === 'West' ? '西' : '東';
   if (rank.division === 'Makuuchi' && TOP_NAMES.has(rank.name)) {
     return `${rank.name}${side}`;
   }
@@ -69,6 +79,8 @@ const createStatus = (rank: Rank, base: number): RikishiStatus => ({
   growthType: 'NORMAL',
   tactics: 'BALANCE',
   archetype: 'HARD_WORKER',
+  aptitudeTier: 'B',
+  aptitudeFactor: 1,
   signatureMoves: ['寄り切り'],
   bodyType: 'NORMAL',
   profile: {
@@ -92,6 +104,7 @@ const createStatus = (rank: Rank, base: number): RikishiStatus => ({
   injuries: [],
   isOzekiKadoban: false,
   isOzekiReturn: false,
+  spirit: 70,
   history: {
     records: [],
     events: [],
@@ -138,6 +151,106 @@ const scenarios: Scenario[] = [
   },
 ];
 
+const writeFile = (filePath: string, text: string): void => {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, text, 'utf8');
+};
+
+const formatRankList = (items: string[]): string => (items.length ? items.join(' / ') : 'なし');
+
+const sumConstraintHits = (constraintHitsByBucket: Record<string, number>): number =>
+  Object.values(constraintHitsByBucket).reduce((sum, value) => sum + value, 0);
+
+const buildVerdict = (
+  topMaegashira87ToSanyaku: number,
+  juryoTop14PlusToSanyaku: number,
+  komusubi9PlusStayedKomusubi: number,
+): QuickSummary['verdict'] => {
+  const hardFailures =
+    topMaegashira87ToSanyaku +
+    juryoTop14PlusToSanyaku +
+    komusubi9PlusStayedKomusubi;
+  if (hardFailures === 0) {
+    return {
+      overall: 'PASS',
+      headline: '重大な番付回帰は検出されませんでした。',
+    };
+  }
+  return {
+    overall: 'WARN',
+    headline: '禁止したい番付回帰が検出されました。詳細を確認してください。',
+  };
+};
+
+const renderJudgeLine = (
+  label: string,
+  count: number,
+  passWhenZero = true,
+): string => `- ${label}: ${count}件 ${passWhenZero && count === 0 ? 'PASS' : count === 0 ? 'INFO' : 'WARN'}`;
+
+const renderConstraintHits = (constraintHitsByBucket: Record<string, number>): string[] => {
+  const bucketLabels: Record<string, string> = {
+    YOKOZUNA: '横綱',
+    OZEKI: '大関',
+    SANYAKU: '三役',
+    MAEGASHIRA: '前頭',
+    JURYO: '十両',
+    LOWER: '幕下以下',
+  };
+  return Object.entries(constraintHitsByBucket).map(([bucket, count]) =>
+    `- ${bucketLabels[bucket] ?? bucket}: ${count}件`);
+};
+
+const renderReport = (summary: QuickSummary): string => {
+  const constraintHitTotal = sumConstraintHits(summary.checks.constraintHitsByBucket);
+  const lines = [
+    '# 番付 Quick Check',
+    '',
+    `- 実行日: ${summary.generatedAt}`,
+    `- 総合判定: ${summary.verdict.overall}`,
+    `- 所見: ${summary.verdict.headline}`,
+    `- 対象シナリオ数: ${summary.meta.scenarios}`,
+    `- 観測した遷移数: ${summary.meta.transitions}`,
+    '',
+    '## 重大回帰チェック',
+    '',
+    renderJudgeLine('前頭上位 8-7 が三役へ飛ぶ', summary.checks.topMaegashira87ToSanyaku),
+    renderJudgeLine('十両上位 14勝以上が三役へ飛ぶ', summary.checks.juryoTop14PlusToSanyaku),
+    renderJudgeLine('小結 9勝以上が小結据え置き', summary.checks.komusubi9PlusStayedKomusubi),
+    '',
+    '## 制約ヒット回数',
+    '',
+    `- 合計: ${constraintHitTotal}件`,
+    '- 注記: これは「危険バグ件数」ではなく、番付制約ロジックが効いた回数です。',
+    ...renderConstraintHits(summary.checks.constraintHitsByBucket),
+    '',
+    '## 観測シグナル',
+    '',
+    `- 前頭8の 8-7 ケース数: ${summary.signals.maegashira8_87CaseCount}件`,
+    `- 前頭8の 8-7 着地: ${formatRankList(summary.signals.maegashira8_87AfterRanks)}`,
+    `- 十両上位 14勝以上 の着地: ${formatRankList(summary.signals.juryoTop14PlusAfterRanks)}`,
+    `- 幕下以下 7-0 の着地バリエーション数: ${summary.signals.lower70AfterRankCount}`,
+    `- 幕下以下 7-0 の着地サンプル: ${formatRankList(summary.signals.lower70AfterRanksSample)}`,
+    `- 幕下以下 大負け・全休 の着地バリエーション数: ${summary.signals.lowerBadAfterRankCount}`,
+    `- 幕下以下 大負け・全休 の着地サンプル: ${formatRankList(summary.signals.lowerBadAfterRanksSample)}`,
+    '',
+    '## 圧力差の人工ケース',
+    '',
+    `- 前頭8 8-7 高圧時: ${summary.signals.syntheticMaegashira8_87HighPressure ?? 'なし'}`,
+    `- 前頭8 8-7 低圧時: ${summary.signals.syntheticMaegashira8_87LowPressure ?? 'なし'}`,
+    `- 十両2 15-0 高圧時: ${summary.signals.syntheticJuryo15_0HighPressure ?? 'なし'}`,
+    `- 十両2 15-0 低圧時: ${summary.signals.syntheticJuryo15_0LowPressure ?? 'なし'}`,
+    '',
+    '## 読み方',
+    '',
+    '- 重大回帰チェックがすべて 0件なら、既知の危険回帰は再発していません。',
+    '- 制約ヒット回数は多くても即バグではありません。大関帯は出やすい項目です。',
+    '- 観測シグナルでは、着地が完全固定になっていないかと、圧力差で着地が変わるかを見ます。',
+    '',
+  ];
+  return lines.join('\n');
+};
+
 const run = async (): Promise<void> => {
   let transitions = 0;
   let topMaegashira87ToSanyaku = 0;
@@ -148,6 +261,14 @@ const run = async (): Promise<void> => {
   const juryoTopAfter = new Set<string>();
   const lower70After = new Set<string>();
   const lowerBadAfter = new Set<string>();
+  const constraintHitsByBucket: Record<string, number> = {
+    YOKOZUNA: 0,
+    OZEKI: 0,
+    SANYAKU: 0,
+    MAEGASHIRA: 0,
+    JURYO: 0,
+    LOWER: 0,
+  };
 
   for (const scenario of scenarios) {
     for (let seed = 1; seed <= scenario.seeds; seed += 1) {
@@ -173,6 +294,11 @@ const run = async (): Promise<void> => {
         const wins = step.playerRecord.wins;
         const losses = step.playerRecord.losses;
         const absent = step.playerRecord.absent;
+        const playerDecision = step.banzukeDecisions.find((decision) => decision.rikishiId === 'PLAYER');
+        if (playerDecision?.constraintHits?.length) {
+          const bucket = playerDecision.ruleBucket ?? 'LOWER';
+          constraintHitsByBucket[bucket] = (constraintHitsByBucket[bucket] ?? 0) + 1;
+        }
 
         if (
           before.division === 'Makuuchi' &&
@@ -248,14 +374,21 @@ const run = async (): Promise<void> => {
   }
 
   const summary: QuickSummary = {
+    generatedAt: new Date().toISOString(),
     meta: {
       transitions,
       scenarios: scenarios.length,
     },
+    verdict: buildVerdict(
+      topMaegashira87ToSanyaku,
+      juryoTop14PlusToSanyaku,
+      komusubi9PlusStayedKomusubi,
+    ),
     checks: {
       topMaegashira87ToSanyaku,
       juryoTop14PlusToSanyaku,
       komusubi9PlusStayedKomusubi,
+      constraintHitsByBucket,
     },
     signals: {
       maegashira8_87CaseCount,
@@ -386,7 +519,13 @@ const run = async (): Promise<void> => {
   summary.signals.syntheticJuryo15_0LowPressure =
     juryoLowQuota?.assignedNextRank ? toRankLabel(juryoLowQuota.assignedNextRank) : undefined;
 
-  console.log(JSON.stringify(summary, null, 2));
+  const report = renderReport(summary);
+  writeFile(REPORT_PATH, report);
+  writeFile(JSON_PATH, JSON.stringify(summary, null, 2));
+
+  console.log(report);
+  console.log(`report written: ${REPORT_PATH}`);
+  console.log(`json written: ${JSON_PATH}`);
 };
 
 run();

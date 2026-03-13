@@ -78,6 +78,9 @@ export const evolveDivisionRoster = (
         registryNpc.division = division;
         registryNpc.currentDivision = division;
         registryNpc.active = npc.active !== false;
+        registryNpc.aptitudeProfile = updatedNpc.aptitudeProfile;
+        registryNpc.careerBand = updatedNpc.careerBand;
+        registryNpc.stagnation = updatedNpc.stagnation;
         pushNpcBashoResult(registryNpc, result.wins, result.losses);
       }
       return updatedNpc;
@@ -108,11 +111,14 @@ const buildDivisionParticipantsFromSnapshot = (
       weightKg: npc.weightKg,
       aptitudeTier: npc.aptitudeTier,
       aptitudeFactor: npc.aptitudeFactor,
+      aptitudeProfile: npc.aptitudeProfile,
+      careerBand: npc.careerBand,
       wins: snapshot?.wins ?? 0,
       losses: snapshot?.losses ?? 0,
       currentWinStreak: 0,
       currentLossStreak: 0,
       active: npc.active !== false,
+      stagnation: npc.stagnation,
     };
   });
 
@@ -131,11 +137,14 @@ const buildDivisionParticipantsFromSnapshot = (
       weightKg: 130,
       aptitudeTier: 'B',
       aptitudeFactor: 1,
+      aptitudeProfile: undefined,
+      careerBand: 'STANDARD',
       wins: playerSnapshot.wins,
       losses: playerSnapshot.losses,
       currentWinStreak: 0,
       currentLossStreak: 0,
       active: true,
+      stagnation: undefined,
     });
   }
 

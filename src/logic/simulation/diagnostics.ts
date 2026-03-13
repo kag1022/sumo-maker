@@ -18,6 +18,11 @@ export interface SimulationDiagnostics {
   reason?: string;
   simulationModelVersion: SimulationModelVersion;
   banzukeEngineVersion?: BanzukeEngineVersion;
+  torikumiRelaxationHistogram?: Record<string, number>;
+  crossDivisionBoutCount?: number;
+  lateCrossDivisionBoutCount?: number;
+  sameStableViolationCount?: number;
+  sameCardViolationCount?: number;
   bashoVariance?: {
     playerBashoFormDelta: number;
     conditionBefore: number;

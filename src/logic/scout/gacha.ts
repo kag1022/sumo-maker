@@ -2,6 +2,7 @@ import {
   CONSTANTS,
   resolveAptitudeFactor,
   rollAptitudeTier,
+  rollCareerBandForAptitude,
 } from '../constants';
 import { createInitialRikishi } from '../initialization';
 import {
@@ -10,6 +11,7 @@ import {
   BasicProfile,
   BodyMetrics,
   BodyType,
+  CareerBand,
   CareerVarianceDNA,
   DurabilityDNA,
   EntryDivision,
@@ -25,7 +27,7 @@ import {
   IchimonId,
 } from '../models';
 import { generateShikona } from '../naming/playerNaming';
-import { resolveStableById } from '../simulation/heya/stableCatalog';
+import { listStablesByIchimon, resolveStableById, STABLE_CATALOG } from '../simulation/heya/stableCatalog';
 
 type RandomSource = () => number;
 
@@ -50,19 +52,19 @@ export const SCOUT_HISTORY_OPTIONS: Record<ScoutHistory, ScoutHistoryOption> = {
     label: '高校卒業',
     desc: '高校で鍛えた体で前相撲から。',
     age: 18,
-    bonus: 3,
+    bonus: 1,
   },
   HS_YOKOZUNA: {
     label: '高校横綱',
     desc: '高校相撲界の頂点。即戦力候補。',
     age: 18,
-    bonus: 8,
+    bonus: 4,
   },
   UNI_YOKOZUNA: {
     label: '学生横綱',
     desc: '大学相撲の覇者。幕下付出の権利あり。',
     age: 22,
-    bonus: 12,
+    bonus: 6,
     canTsukedashi: true,
   },
 };
@@ -84,6 +86,7 @@ export interface ScoutDraft {
   archetype: TalentArchetype;
   aptitudeTier: AptitudeTier;
   aptitudeFactor: number;
+  careerBand: CareerBand;
   tactics: TacticsType;
   signatureMove: string;
   bodyType: BodyType;
@@ -141,10 +144,27 @@ export const SCOUT_COST = {
 } as const;
 
 const HISTORY_DRAW_WEIGHTS: Array<{ value: ScoutHistory; weight: number }> = [
-  { value: 'JHS_GRAD', weight: 20 },
-  { value: 'HS_GRAD', weight: 70 },
-  { value: 'HS_YOKOZUNA', weight: 8 },
-  { value: 'UNI_YOKOZUNA', weight: 2 },
+  { value: 'JHS_GRAD', weight: 35 },
+  { value: 'HS_GRAD', weight: 58 },
+  { value: 'HS_YOKOZUNA', weight: 6 },
+  { value: 'UNI_YOKOZUNA', weight: 1 },
+];
+
+const SCOUT_ARCHETYPE_WEIGHTS: Array<{ value: TalentArchetype; weight: number }> = [
+  { value: 'HARD_WORKER', weight: 33 },
+  { value: 'AVG_JOE', weight: 29 },
+  { value: 'STREET_FIGHTER', weight: 14 },
+  { value: 'HIGH_SCHOOL_CHAMP', weight: 10 },
+  { value: 'GENIUS', weight: 7 },
+  { value: 'UNIVERSITY_YOKOZUNA', weight: 4 },
+  { value: 'MONSTER', weight: 3 },
+];
+
+const GENOME_GROWTH_HINT_WEIGHTS: Array<{ value: string; weight: number }> = [
+  { value: 'EARLY', weight: 20 },
+  { value: 'NORMAL', weight: 55 },
+  { value: 'LATE', weight: 22 },
+  { value: 'GENIUS', weight: 3 },
 ];
 
 const PICK_LIST = <T>(rng: RandomSource, values: T[]): T =>
@@ -197,8 +217,23 @@ const randomInt = (rng: RandomSource, min: number, max: number): number =>
 
 const TRAIT_SLOT_MAX = 5;
 const TRAIT_OPTIONS_PER_SLOT = 5;
+const DEFAULT_SCOUT_STABLE_ID = 'stable-001';
 
 const clampTraitSlots = (slots: number): number => Math.max(0, Math.min(TRAIT_SLOT_MAX, Math.floor(slots)));
+
+const resolveAssignedStable = (draft: Pick<ScoutDraft, 'selectedStableId' | 'selectedIchimonId'>) => {
+  if (draft.selectedStableId) {
+    const explicitStable = resolveStableById(draft.selectedStableId);
+    if (explicitStable) return explicitStable;
+  }
+
+  if (draft.selectedIchimonId) {
+    const ichimonStable = listStablesByIchimon(draft.selectedIchimonId)[0];
+    if (ichimonStable) return ichimonStable;
+  }
+
+  return resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
+};
 
 export const rollBodyMetricsForBodyType = (bodyType: BodyType, rng: RandomSource = Math.random): BodyMetrics => {
   const range = BODY_METRIC_RANGE[bodyType];
@@ -360,6 +395,37 @@ const rollProfile = (rng: RandomSource): BasicProfile => ({
   personality: PICK_LIST(rng, Object.keys(PERSONALITY_LABELS) as PersonalityType[]),
 });
 
+const CAREER_BAND_ORDER: CareerBand[] = ['WASHOUT', 'GRINDER', 'STANDARD', 'STRONG', 'ELITE'];
+
+const shiftCareerBand = (band: CareerBand, shift: number): CareerBand => {
+  const index = CAREER_BAND_ORDER.indexOf(band);
+  const nextIndex = Math.max(0, Math.min(CAREER_BAND_ORDER.length - 1, index + shift));
+  return CAREER_BAND_ORDER[nextIndex];
+};
+
+const resolveScoutCareerBand = (
+  aptitudeTier: AptitudeTier,
+  archetype: TalentArchetype,
+  history: ScoutHistory,
+  rng: RandomSource,
+): CareerBand => {
+  let shift = 0;
+  if (archetype === 'MONSTER' || archetype === 'UNIVERSITY_YOKOZUNA') shift += 2;
+  else if (archetype === 'GENIUS' || archetype === 'HIGH_SCHOOL_CHAMP') shift += 1;
+  else if (archetype === 'AVG_JOE') shift -= 1;
+
+  if (history === 'UNI_YOKOZUNA' || history === 'HS_YOKOZUNA') shift += 1;
+  let band = shiftCareerBand(rollCareerBandForAptitude(aptitudeTier, rng), shift);
+  if (band === 'WASHOUT' && aptitudeTier !== 'D') {
+    band = 'GRINDER';
+  }
+  if (band === 'ELITE' && archetype === 'AVG_JOE' && aptitudeTier !== 'S') {
+    band = 'STRONG';
+  }
+
+  return band;
+};
+
 // === 三層DNA 生成 ===
 
 /** Box-Muller変換による正規分布乱数 */
@@ -479,11 +545,13 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const entryDivision = rollEntryDivision(history, rng);
   const bodyType = rollBodyType(rng);
   const traitSlots = rollTraitCount(rng);
-  const archetype = PICK_LIST(rng, Object.keys(CONSTANTS.TALENT_ARCHETYPES) as TalentArchetype[]);
+  const archetype = WEIGHTED_PICK(rng, SCOUT_ARCHETYPE_WEIGHTS);
   const aptitudeTier = rollAptitudeTier(rng);
   const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
-  const growthType = PICK_LIST(rng, Object.keys(CONSTANTS.GROWTH_PARAMS) as string[]);
+  const growthType = WEIGHTED_PICK(rng, GENOME_GROWTH_HINT_WEIGHTS);
   const genomeDraft = rollGenomeDraft(archetype, growthType, rng);
+  const careerBand = resolveScoutCareerBand(aptitudeTier, archetype, history, rng);
+  const defaultStable = resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
   const baseDraft: ScoutDraft = {
     shikona: generateShikona(),
     profile: rollProfile(rng),
@@ -492,6 +560,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     archetype,
     aptitudeTier,
     aptitudeFactor,
+    careerBand,
     tactics: PICK_LIST(rng, Object.keys(CONSTANTS.TACTICAL_GROWTH_MODIFIERS) as TacticsType[]),
     signatureMove: PICK_LIST(rng, Object.keys(CONSTANTS.SIGNATURE_MOVE_DATA)),
     bodyType,
@@ -501,8 +570,8 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     traitSlotDrafts: [],
     genomeDraft,
     genomeBudget: CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX,
-    selectedIchimonId: null,
-    selectedStableId: null,
+    selectedIchimonId: defaultStable?.ichimonId ?? null,
+    selectedStableId: defaultStable?.id ?? null,
   };
 
   return resizeTraitSlots(baseDraft, traitSlots, rng);
@@ -585,12 +654,9 @@ const resolveRankFromHistory = (history: ScoutHistory, entryDivision: EntryDivis
 
 export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus => {
   const history = SCOUT_HISTORY_OPTIONS[draft.history];
-  if (!draft.selectedStableId) {
-    throw new Error('所属部屋が未選択です');
-  }
-  const stable = resolveStableById(draft.selectedStableId);
+  const stable = resolveAssignedStable(draft);
   if (!stable) {
-    throw new Error(`不明な所属部屋です: ${draft.selectedStableId}`);
+    throw new Error(`不明な所属部屋です: ${draft.selectedStableId ?? DEFAULT_SCOUT_STABLE_ID}`);
   }
   return createInitialRikishi({
     shikona: draft.shikona,
@@ -599,6 +665,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
     archetype: draft.archetype,
     aptitudeTier: draft.aptitudeTier,
     aptitudeFactor: draft.aptitudeFactor,
+    careerBand: draft.careerBand,
     tactics: draft.tactics,
     signatureMove: draft.signatureMove,
     bodyType: draft.bodyType,

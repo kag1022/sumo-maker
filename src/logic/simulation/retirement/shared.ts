@@ -1,4 +1,4 @@
-import { BashoRecord, Division, RetirementProfile } from '../../models';
+import { BashoRecord, CareerBand, Division, RetirementProfile } from '../../models';
 
 const TOP_DIVISIONS: Division[] = ['Makuuchi', 'Juryo'];
 type RetirementHazardGroup =
@@ -24,24 +24,24 @@ const RETIREMENT_HAZARD = {
   baseChance: 0.002,
   chanceMax: 0.92,
   earlyCareerGuard: {
-    minCareerBasho: 18,
+    minCareerBasho: 36,
     maxAgeExclusive: 30,
   },
   ageByGroup: {
     NON_SEKITORI: [
-      { startAge: 19, slope: 0.0125 },
-      { startAge: 24, slope: 0.021 },
-      { startAge: 28, slope: 0.031 },
+      { startAge: 23, slope: 0.003 },
+      { startAge: 29, slope: 0.0075 },
+      { startAge: 34, slope: 0.014 },
     ] as AgeHazardTier[],
     ACTIVE_SEKITORI: [
-      { startAge: 28, slope: 0.003 },
-      { startAge: 33, slope: 0.0075 },
-      { startAge: 38, slope: 0.013 },
+      { startAge: 29, slope: 0.002 },
+      { startAge: 34, slope: 0.006 },
+      { startAge: 39, slope: 0.011 },
     ] as AgeHazardTier[],
     FORMER_SEKITORI_LOWER: [
-      { startAge: 27, slope: 0.0045 },
-      { startAge: 32, slope: 0.0095 },
-      { startAge: 37, slope: 0.016 },
+      { startAge: 30, slope: 0.0035 },
+      { startAge: 35, slope: 0.007 },
+      { startAge: 39, slope: 0.0125 },
     ] as AgeHazardTier[],
   },
   injury: {
@@ -60,17 +60,17 @@ const RETIREMENT_HAZARD = {
     FORMER_SEKITORI_LOWER: { start: 6, base: 0.008, perAdditional: 0.006 } as StreakHazard,
   },
   formerSekitoriDrop: {
-    base: 0.006,
-    ageStart: 34,
-    ageScale: 0.0035,
+    base: 0.003,
+    ageStart: 35,
+    ageScale: 0.0025,
   },
   nonSekitoriLowerDivisionPenalty: {
-    makushita: 0.01,
-    lower: 0.02,
+    makushita: 0.001,
+    lower: 0.003,
   },
   nonSekitoriLongCareer: [
-    { minCareerBasho: 80, bonus: 0.012 },
-    { minCareerBasho: 120, bonus: 0.018 },
+    { minCareerBasho: 120, bonus: 0.005 },
+    { minCareerBasho: 180, bonus: 0.011 },
   ],
   formerSekitoriLosingProtection: {
     minCareerBasho: 100,
@@ -115,8 +115,8 @@ const deterministicHash = (text: string): number => {
 
 export const resolveRetirementProfileByRoll = (roll: number): RetirementProfile => {
   const bounded = clamp(roll, 0, 0.999999);
-  if (bounded < 0.22) return 'EARLY_EXIT';
-  if (bounded < 0.98) return 'STANDARD';
+  if (bounded < 0.08) return 'EARLY_EXIT';
+  if (bounded < 0.97) return 'STANDARD';
   return 'IRONMAN';
 };
 
@@ -124,13 +124,13 @@ export const resolveRetirementProfileFromText = (seedText: string): RetirementPr
   resolveRetirementProfileByRoll(deterministicHash(seedText));
 
 export const resolveRetirementProfileBias = (profile?: RetirementProfile): number => {
-  if (profile === 'EARLY_EXIT') return 1.3;
-  if (profile === 'IRONMAN') return 0.55;
+  if (profile === 'EARLY_EXIT') return 1.08;
+  if (profile === 'IRONMAN') return 0.65;
   return 1;
 };
 
 export const clampRetirementBias = (retirementBias?: number): number =>
-  clamp(retirementBias ?? 1, 0.85, 1.15);
+  clamp(retirementBias ?? 1, 0.72, 1.08);
 
 export const computeConsecutiveAbsenceStreak = (
   records: BashoRecord[],
@@ -174,6 +174,8 @@ export interface RetirementChanceInput {
   retirementBias?: number;
   careerBashoCount: number;
   careerWinRate: number;
+  stagnationPressure?: number;
+  careerBand?: CareerBand;
 }
 
 export const resolveRetirementChance = (input: RetirementChanceInput): number => {
@@ -188,6 +190,8 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
     retirementBias,
     careerBashoCount,
     careerWinRate,
+    stagnationPressure,
+    careerBand,
   } = input;
 
   if (age >= 50) return 1;
@@ -195,7 +199,7 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
     careerBashoCount < RETIREMENT_HAZARD.earlyCareerGuard.minCareerBasho &&
     age < RETIREMENT_HAZARD.earlyCareerGuard.maxAgeExclusive
   ) {
-    return 0;
+    if ((stagnationPressure ?? 0) < 1.8) return 0;
   }
 
   const hazardGroup = resolveRetirementHazardGroup({ isFormerSekitori, currentDivision });
@@ -228,6 +232,15 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
       currentDivision === 'Makushita'
         ? RETIREMENT_HAZARD.nonSekitoriLowerDivisionPenalty.makushita
         : RETIREMENT_HAZARD.nonSekitoriLowerDivisionPenalty.lower;
+  }
+
+  if (!isCurrentSekitori) {
+    chance += Math.max(0, (stagnationPressure ?? 0) - 1.8) * 0.02;
+    if (careerBand === 'GRINDER') {
+      chance *= 0.6;
+    } else if (careerBand === 'WASHOUT') {
+      chance *= careerBashoCount < 90 ? 0.52 : 0.78;
+    }
   }
 
   if (hazardGroup === 'NON_SEKITORI') {

@@ -1,4 +1,4 @@
-import { AptitudeTier, Division, RetirementProfile } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, Division, RetirementProfile, StagnationState } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
@@ -36,6 +36,8 @@ export interface PersistentActor {
   retirementProfile?: RetirementProfile;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
   entryAge: number;
   age: number;
   careerBashoCount: number;
@@ -43,6 +45,7 @@ export interface PersistentActor {
   entrySeq: number;
   retiredAtSeq?: number;
   riseBand?: 1 | 2 | 3;
+  stagnation?: StagnationState;
   recentBashoResults: NpcBashoResult[];
 }
 

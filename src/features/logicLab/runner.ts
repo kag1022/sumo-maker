@@ -21,6 +21,7 @@ import {
   LogicLabStopReason,
   LogicLabSummary,
 } from './types';
+import { buildCareerRealismSnapshot } from '../../logic/simulation/realism';
 
 export const LOGIC_LAB_DEFAULT_SEED = 7331;
 export const LOGIC_LAB_DEFAULT_MAX_BASHO = 240;
@@ -96,6 +97,7 @@ const buildSummary = (
     ginoCount: sansho.gino,
     injurySummary: buildInjurySummary(status),
     committeeWarnings,
+    realismKpi: status.history.realismKpi ?? buildCareerRealismSnapshot(status),
     ...(stopReason ? { stopReason } : {}),
   };
 };

@@ -1,4 +1,4 @@
-import { AptitudeTier, Rank } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, Rank, StagnationState } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { NpcRegistry } from '../npc/types';
 
@@ -17,7 +17,10 @@ export type MakushitaNpc = {
   weightKg?: number;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
   growthBias?: number;
+  stagnation?: StagnationState;
 };
 
 export type BoundarySnapshot = {

@@ -1,5 +1,5 @@
 import { EnemyStyleBias } from '../../catalog/enemyData';
-import { AptitudeTier } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, StagnationState } from '../../models';
 import { RandomSource } from '../deps';
 import { SimulationModelVersion } from '../modelVersion';
 
@@ -24,6 +24,28 @@ export type BoundaryActivationReason =
   | 'SCORE_ALIGNMENT'
   | 'LATE_EVAL'
   | 'RUNAWAY_CHECK';
+
+export type TorikumiTier =
+  | 'Yokozuna'
+  | 'Ozeki'
+  | 'Sanyaku'
+  | 'Upper'
+  | 'Lower'
+  | 'Boundary';
+
+export type YushoRaceTier =
+  | 'Leader'
+  | 'Contender'
+  | 'Outside';
+
+export type TorikumiMatchReason =
+  | 'TOP_RANK_DUTY'
+  | 'RANK_NEARBY'
+  | 'RECORD_NEARBY'
+  | 'YUSHO_RACE'
+  | 'SURVIVAL_BUBBLE'
+  | 'BOUNDARY_CROSSOVER'
+  | 'FALLBACK';
 
 export type BoundaryBandSpec = {
   id: BoundaryId;
@@ -59,6 +81,9 @@ export type TorikumiParticipant = {
   weightKg?: number;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
+  stagnation?: StagnationState;
   wins: number;
   losses: number;
   currentWinStreak?: number;
@@ -69,6 +94,12 @@ export type TorikumiParticipant = {
   active: boolean;
   targetBouts: number;
   boutsDone: number;
+  kyujo?: boolean;
+  lastBoutDay?: number;
+  facedIdsThisBasho?: string[];
+  torikumiTier?: TorikumiTier;
+  yushoRaceTier?: YushoRaceTier;
+  survivalBubble?: boolean;
 };
 
 export type TorikumiPair = {
@@ -76,6 +107,9 @@ export type TorikumiPair = {
   b: TorikumiParticipant;
   boundaryId?: BoundaryId;
   activationReasons: BoundaryActivationReason[];
+  matchReason: TorikumiMatchReason;
+  relaxationStage: number;
+  crossDivision: boolean;
 };
 
 export type TorikumiDayResult = {
@@ -93,6 +127,11 @@ export type TorikumiDiagnostics = {
   }>;
   remainingTargetById: Record<string, number>;
   unscheduledById: Record<string, number>;
+  torikumiRelaxationHistogram: Record<string, number>;
+  crossDivisionBoutCount: number;
+  lateCrossDivisionBoutCount: number;
+  sameStableViolationCount: number;
+  sameCardViolationCount: number;
 };
 
 export type TorikumiBashoResult = {

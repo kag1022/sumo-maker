@@ -1,7 +1,7 @@
 import { MakuuchiLayout } from '../../banzuke/scale/banzukeLayout';
 import { BashoRecordHistorySnapshot, BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
 import { EnemyStyleBias } from '../../catalog/enemyData';
-import { AptitudeTier, Rank } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, Rank, StagnationState } from '../../models';
 import { SpecialPrizeCode } from '../topDivision/specialPrizes';
 import { ActorRegistry, NpcNameContext, NpcRegistry, PersistentNpc } from '../npc/types';
 
@@ -25,6 +25,9 @@ export type WorldRikishi = {
   weightKg: number;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
+  stagnation?: StagnationState;
 };
 
 export type DivisionBashoSnapshot = {

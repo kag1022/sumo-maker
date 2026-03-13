@@ -17,16 +17,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center ui-text-button rounded-none border-[2px] transition-[transform,box-shadow,background-color,color,border-color] duration-150 ease-out focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40",
+          // ベーススタイル: RPGメニュー風
+          "inline-flex items-center justify-center ui-text-button rounded-none transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/50 disabled:pointer-events-none disabled:opacity-40 active:scale-[0.97]",
           {
-            'border-[rgba(214,162,61,0.18)] bg-[linear-gradient(180deg,rgba(221,70,55,0.98),rgba(150,29,22,1))] text-[#fff8ef] shadow-[0_6px_0_rgba(50,8,8,0.5)] hover:-translate-y-[2px] hover:bg-[linear-gradient(180deg,rgba(235,84,70,0.98),rgba(166,34,26,1))] hover:shadow-[0_8px_0_rgba(50,8,8,0.5)] active:translate-y-[2px] active:shadow-[0_4px_0_rgba(50,8,8,0.5)]': variant === 'primary',
-            'border-[rgba(91,122,165,0.28)] bg-[linear-gradient(180deg,rgba(55,79,113,0.98),rgba(30,44,69,1))] text-[#eef2fb] shadow-[0_6px_0_rgba(6,11,17,0.52)] hover:-translate-y-[2px] hover:shadow-[0_8px_0_rgba(6,11,17,0.52)] active:translate-y-[2px] active:shadow-[0_4px_0_rgba(6,11,17,0.52)]': variant === 'secondary',
-            'border-[rgba(214,162,61,0.18)] bg-[rgba(19,22,29,0.92)] text-[#d6a23d] shadow-[0_6px_0_rgba(0,0,0,0.28)] hover:-translate-y-[2px] hover:border-[rgba(214,162,61,0.42)] hover:text-[#f3e9d2] hover:shadow-[0_8px_0_rgba(0,0,0,0.28)] active:translate-y-[2px] active:shadow-[0_4px_0_rgba(0,0,0,0.28)]': variant === 'outline',
-            'border-transparent bg-transparent text-[#9da7b3] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#f3e9d2]': variant === 'ghost',
-            'border-[rgba(240,109,98,0.26)] bg-[linear-gradient(180deg,rgba(199,58,44,0.98),rgba(129,22,17,1))] text-[#fff8ef] shadow-[0_6px_0_rgba(55,10,9,0.5)] hover:-translate-y-[2px] hover:shadow-[0_8px_0_rgba(55,10,9,0.5)] active:translate-y-[2px] active:shadow-[0_4px_0_rgba(55,10,9,0.5)]': variant === 'danger',
-            'min-h-[38px] px-3 text-xs': size === 'sm',
+            // プライマリ: 金色二重枠
+            'border-2 border-gold bg-bg-panel text-gold-bright hover:bg-bg-hover hover:shadow-rpg-glow': variant === 'primary',
+            // セカンダリ
+            'border-2 border-gold-muted bg-bg-panel text-text hover:border-gold/60 hover:bg-bg-hover': variant === 'secondary',
+            // アウトライン
+            'border-2 border-dashed border-gold-muted bg-transparent text-text-dim hover:border-gold/50 hover:text-text': variant === 'outline',
+            // ゴースト
+            'border-2 border-transparent text-text-dim hover:text-text hover:bg-bg-hover': variant === 'ghost',
+            // デンジャー: 朱色
+            'border-2 border-crimson bg-bg-panel text-crimson-bright hover:bg-crimson-dim/20 hover:shadow-rpg-red': variant === 'danger',
+            // サイズ: モバイルタップ対応 (最小44px)
+            'min-h-[36px] sm:min-h-[32px] px-3 text-xs': size === 'sm',
             'min-h-[44px] px-4 py-2 text-sm': size === 'md',
-            'min-h-[52px] px-6 text-base': size === 'lg',
+            'min-h-[48px] px-6 text-base': size === 'lg',
           },
           className
         )}

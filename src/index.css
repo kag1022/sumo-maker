@@ -2,906 +2,374 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === ベースレイヤー: 和レトロゲームテーマ === */
 @layer base {
-  :root {
-    color-scheme: dark;
-    --ink-950: #0b0b0f;
-    --ink-900: #14161b;
-    --ink-850: #1a1f27;
-    --ink-800: #202630;
-    --ink-700: #2a3340;
-    --line-soft: rgba(214, 162, 61, 0.14);
-    --line-strong: rgba(214, 162, 61, 0.36);
-    --surface: rgba(26, 31, 39, 0.92);
-    --surface-strong: rgba(19, 22, 29, 0.96);
-    --surface-quiet: rgba(31, 37, 46, 0.74);
-    --text-main: #f3e9d2;
-    --text-dim: #9da7b3;
-    --text-muted: #75808d;
-    --accent-red: #c73a2c;
-    --accent-red-strong: #dd4637;
-    --accent-gold: #d6a23d;
-    --accent-green: #6ea66d;
-    --accent-blue: #5b7aa5;
-    --accent-danger: #f06d62;
-    --shadow-deep: rgba(0, 0, 0, 0.42);
-  }
-
-  html {
-    background:
-      radial-gradient(circle at top, rgba(199, 58, 44, 0.15), transparent 28%),
-      radial-gradient(circle at 80% 15%, rgba(214, 162, 61, 0.1), transparent 26%),
-      linear-gradient(180deg, #101116 0%, #09090d 100%);
-  }
-
   body {
-    margin: 0;
-    min-height: 100vh;
-    color: var(--text-main);
-    font-family: "DotGothic16", "IBM Plex Sans JP", sans-serif;
-    background:
-      radial-gradient(circle at 50% 0%, rgba(199, 58, 44, 0.12), transparent 24%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
-      linear-gradient(180deg, #111318 0%, #09090d 100%);
-    -webkit-font-smoothing: none;
-    text-rendering: geometricPrecision;
+    background-color: #0a0e1a;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
-  body::before,
+  /* CRTスキャンライン効果 */
   body::after {
     content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 0;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
   }
 
-  body::before {
-    background:
-      linear-gradient(rgba(243, 233, 210, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(243, 233, 210, 0.02) 1px, transparent 1px);
-    background-size: 8px 8px;
-    opacity: 0.5;
+  /* スクロールバー: レトロ風 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #060a12;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #6B5010;
+    border: 1px solid #D4A017;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8B6914;
   }
 
-  body::after {
-    background:
-      radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.52) 100%),
-      linear-gradient(180deg, rgba(0, 0, 0, 0.12), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.24));
-  }
-
-  #root {
-    position: relative;
-    z-index: 1;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  input,
-  select,
-  textarea,
-  button {
-    font: inherit;
-  }
-
+  /* 入力要素: RPG風 */
   input,
   select,
   textarea {
-    border: 2px solid rgba(157, 167, 179, 0.28);
-    background:
-      linear-gradient(180deg, rgba(31, 37, 46, 0.92), rgba(20, 24, 31, 0.98));
-    color: var(--text-main);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 6px 0 rgba(0, 0, 0, 0.24);
+    background-color: #0a0e1a;
+    border: 2px solid #6B5010;
+    color: #e8e0d0;
+    font-family: "Noto Sans JP", sans-serif;
   }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: rgba(157, 167, 179, 0.74);
-  }
-
   input:focus,
   select:focus,
   textarea:focus {
     outline: none;
-    border-color: rgba(214, 162, 61, 0.56);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.06),
-      0 0 0 3px rgba(214, 162, 61, 0.16),
-      0 6px 0 rgba(0, 0, 0, 0.24);
-  }
-
-  button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(214, 162, 61, 0.18);
-  }
-
-  a {
-    color: inherit;
+    border-color: #D4A017;
+    box-shadow: 0 0 0 1px #D4A017, 0 0 8px rgba(212, 160, 23, 0.3);
   }
 
   table {
     border-collapse: collapse;
   }
 
-  img.pixelated {
-    image-rendering: pixelated;
-  }
-
+  /* 選択テキスト */
   ::selection {
-    background: rgba(214, 162, 61, 0.24);
-    color: var(--text-main);
+    background: rgba(212, 160, 23, 0.4);
+    color: #FFD700;
   }
 }
 
+/* === コンポーネントレイヤー === */
 @layer components {
-  .app-shell {
-    min-height: 100vh;
-    color: var(--text-main);
-  }
-
-  .app-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    border-bottom: 3px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(17, 19, 24, 0.94), rgba(10, 10, 14, 0.98));
-    backdrop-filter: blur(12px);
-  }
-
-  .app-brand {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.9rem;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-  }
-
-  .app-main {
-    margin: 0 auto;
-    max-width: 88rem;
-    padding: 1.25rem 1rem 3.5rem;
-  }
-
-  .shell-kicker,
-  .museum-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.72rem;
-    color: var(--accent-gold);
-    letter-spacing: 0.14em;
-  }
-
-  .shell-kicker::before,
-  .museum-kicker::before {
-    content: "";
-    width: 10px;
-    height: 10px;
-    border: 2px solid rgba(214, 162, 61, 0.72);
-    background:
-      linear-gradient(180deg, rgba(214, 162, 61, 0.95), rgba(199, 58, 44, 0.95));
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.24);
-  }
-
-  .shell-nav-button {
-    display: inline-flex;
-    min-width: 98px;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 0.9rem;
-    border: 2px solid rgba(214, 162, 61, 0.16);
-    background:
-      linear-gradient(180deg, rgba(28, 33, 41, 0.96), rgba(14, 17, 22, 0.98));
-    color: var(--text-dim);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 5px 0 rgba(0, 0, 0, 0.26);
-    transition:
-      transform 0.16s steps(4, end),
-      border-color 0.16s steps(4, end),
-      color 0.16s steps(4, end),
-      box-shadow 0.16s steps(4, end);
-  }
-
-  .shell-nav-button:hover,
-  .shell-nav-button.is-active {
-    transform: translateY(-2px);
-    border-color: rgba(214, 162, 61, 0.38);
-    color: var(--text-main);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.06),
-      0 7px 0 rgba(0, 0, 0, 0.26);
-  }
-
+  /* === Typography Tokens === */
   .ui-text-body {
-    font-family: "DotGothic16", "IBM Plex Sans JP", sans-serif;
-    line-height: 1.8;
-    letter-spacing: 0.01em;
+    font-family: "Noto Sans JP", sans-serif;
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+  .ui-text-caption {
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+  }
+  .ui-text-heading {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+  }
+  .ui-text-label {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+  }
+  .ui-text-metric {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .ui-text-button {
+    font-family: "DotGothic16", monospace;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
   }
 
-  .ui-text-caption {
-    font-family: "DotGothic16", "IBM Plex Sans JP", sans-serif;
-    line-height: 1.55;
+  /* RPGパネル -- ドラクエ/FF風の二重枠 */
+  .rpg-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+
+  /* 旧 game-panel をエイリアスとして維持（段階移行用） */
+  .game-panel {
+    background-color: #111b2e;
+    border: 3px solid #D4A017;
+    outline: 2px solid #0a0e1a;
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+
+  /* セクション見出し */
+  .section-header {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.875rem;
+    font-weight: 400; /* DotGothic16 は weight 無関係 */
+    color: #FFD700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.08em;
+    line-height: 1.35;
+  }
+
+  /* データ行 */
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.75rem;
+  }
+  .data-row .data-key {
+    color: #8a8472;
+    font-family: "DotGothic16", monospace;
     letter-spacing: 0.04em;
   }
-
-  .ui-text-heading {
-    font-family: "DotGothic16", "Shippori Mincho", serif;
-    line-height: 1.18;
-    letter-spacing: 0.03em;
-  }
-
-  .ui-text-label {
-    font-family: "DotGothic16", "IBM Plex Sans JP", sans-serif;
-    line-height: 1.45;
-    letter-spacing: 0.05em;
-  }
-
-  .ui-text-metric {
-    font-family: "DotGothic16", "Shippori Mincho", serif;
-    line-height: 1;
-    letter-spacing: 0.02em;
-  }
-
-  .ui-text-button {
-    font-family: "DotGothic16", "IBM Plex Sans JP", sans-serif;
-    line-height: 1.2;
-    letter-spacing: 0.08em;
+  .data-row .data-val {
+    color: #e8e0d0;
     font-weight: 700;
+    font-family: "Noto Sans JP", sans-serif;
+    line-height: 1.45;
   }
 
-  .arcade-shell,
-  .rpg-panel,
-  .game-panel,
-  .arcade-hero,
-  .scoreboard-panel {
+  /* RPGゲージバー (HPバー風) */
+  .gauge-bar {
+    height: 8px;
+    background: #1a1a2e;
+    border: 1px solid #6B5010;
     position: relative;
     overflow: hidden;
   }
-
-  .arcade-shell,
-  .rpg-panel,
-  .game-panel {
-    border: 3px solid rgba(214, 162, 61, 0.14);
-    background:
-      linear-gradient(180deg, rgba(29, 34, 42, 0.96), rgba(15, 18, 24, 0.98));
-    box-shadow:
-      0 20px 42px var(--shadow-deep),
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04);
-  }
-
-  .arcade-shell::before,
-  .rpg-panel::before,
-  .game-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(214, 162, 61, 0.08), transparent 22%),
-      linear-gradient(90deg, transparent, rgba(243, 233, 210, 0.03), transparent);
-  }
-
-  .scoreboard-panel {
-    border: 3px solid rgba(91, 122, 165, 0.3);
-    background:
-      linear-gradient(180deg, rgba(12, 15, 20, 0.98), rgba(17, 20, 26, 0.98));
-    box-shadow:
-      0 18px 40px rgba(0, 0, 0, 0.34),
-      inset 0 0 0 2px rgba(91, 122, 165, 0.08);
-  }
-
-  .scoreboard-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 18%),
-      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 8px;
-  }
-
-  .arcade-hero {
-    border: 4px solid rgba(214, 162, 61, 0.16);
-    background:
-      radial-gradient(circle at 14% 20%, rgba(199, 58, 44, 0.22), transparent 24%),
-      radial-gradient(circle at 86% 18%, rgba(214, 162, 61, 0.14), transparent 20%),
-      linear-gradient(180deg, rgba(20, 23, 29, 0.98), rgba(10, 10, 14, 1));
-    box-shadow:
-      0 26px 70px rgba(0, 0, 0, 0.4),
-      inset 0 0 0 2px rgba(243, 233, 210, 0.05);
-  }
-
-  .arcade-hero::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%),
-      linear-gradient(90deg, transparent, rgba(199, 58, 44, 0.05), transparent);
-  }
-
-  .section-header {
-    font-family: "DotGothic16", "Shippori Mincho", serif;
-    font-size: 1rem;
-    color: var(--text-main);
-    line-height: 1.3;
-    letter-spacing: 0.05em;
-  }
-
-  .data-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.9rem;
-    align-items: start;
-    padding: 0.35rem 0;
-  }
-
-  .data-row .data-key {
-    color: var(--text-dim);
-    font-size: 0.78rem;
-    line-height: 1.45;
-  }
-
-  .data-row .data-val {
-    color: var(--text-main);
-    font-size: 0.88rem;
-    line-height: 1.45;
-    font-weight: 700;
-    text-align: right;
-  }
-
-  .gauge-bar {
-    height: 12px;
-    border: 2px solid rgba(214, 162, 61, 0.18);
-    background: rgba(12, 15, 20, 0.84);
-    overflow: hidden;
-  }
-
   .gauge-bar .gauge-fill {
     height: 100%;
-    transition: width 0.2s steps(8, end);
+    transition: width 0.4s ease;
   }
 
+  /* 統計ブロック */
   .stat-block {
-    position: relative;
-    padding: 1rem;
-    border: 2px solid rgba(214, 162, 61, 0.14);
-    background:
-      linear-gradient(180deg, rgba(27, 32, 40, 0.96), rgba(18, 22, 28, 0.98));
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 8px 0 rgba(0, 0, 0, 0.26);
-    color: var(--text-main);
+    padding: 0.75rem;
+    border: 2px solid #6B5010;
+    background: #0a0e1a;
   }
-
   .stat-block .stat-label {
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    color: var(--text-dim);
-    margin-bottom: 0.45rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #8a8472;
+    margin-bottom: 0.25rem;
   }
-
   .stat-block .stat-value {
-    font-family: "DotGothic16", "Shippori Mincho", serif;
-    font-size: 1.55rem;
-    line-height: 1.02;
-    color: var(--text-main);
+    font-size: 1.5rem;
+    font-family: "DotGothic16", monospace;
+    font-weight: 400;
+    color: #e8e0d0;
+    line-height: 1.2;
   }
-
   .stat-block .stat-sub {
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    margin-top: 0.4rem;
-    line-height: 1.45;
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 0.75rem;
+    color: #8a8472;
+    margin-top: 0.125rem;
   }
 
-  .rpg-badge,
-  .game-badge,
-  .museum-chip {
+  /* RPGバッジ */
+  .rpg-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.38rem 0.76rem;
-    border: 2px solid rgba(214, 162, 61, 0.16);
-    background:
-      linear-gradient(180deg, rgba(28, 33, 41, 0.96), rgba(13, 17, 22, 0.98));
-    color: var(--text-main);
-    font-size: 0.78rem;
-    line-height: 1.3;
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 4px 0 rgba(0, 0, 0, 0.22);
+    padding: 0.125rem 0.5rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
   }
 
-  .museum-chip[data-active="true"] {
-    border-color: rgba(214, 162, 61, 0.44);
-    background:
-      linear-gradient(180deg, rgba(199, 58, 44, 0.92), rgba(140, 27, 20, 0.98));
-    color: #fff8ef;
+  /* 旧 game-badge エイリアス */
+  .game-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    border: 2px solid;
   }
 
+  /* RPGカーソル ▶ */
+  .rpg-cursor::before {
+    content: "▶";
+    color: #FFD700;
+    margin-right: 0.5rem;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* グロー効果 */
   .glow-gold {
     box-shadow:
-      0 0 0 2px rgba(214, 162, 61, 0.12),
-      0 22px 52px rgba(214, 162, 61, 0.14);
+      0 0 10px rgba(212, 160, 23, 0.3),
+      0 0 24px rgba(212, 160, 23, 0.1);
   }
-
   .glow-red {
     box-shadow:
-      0 0 0 2px rgba(199, 58, 44, 0.18),
-      0 22px 52px rgba(199, 58, 44, 0.16);
+      0 0 10px rgba(200, 64, 64, 0.4),
+      0 0 20px rgba(200, 64, 64, 0.15);
   }
 
+  /* セクション区切り線 */
   .game-divider {
-    border-top: 2px solid rgba(214, 162, 61, 0.12);
+    border-top: 2px solid #6B5010;
   }
 
-  .museum-choice {
-    width: 100%;
-    text-align: left;
-    padding: 1rem;
-    border: 2px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(30, 36, 44, 0.96), rgba(18, 21, 27, 0.98));
-    color: var(--text-main);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03),
-      0 6px 0 rgba(0, 0, 0, 0.22);
-    transition:
-      transform 0.16s steps(3, end),
-      border-color 0.16s steps(3, end),
-      box-shadow 0.16s steps(3, end);
-  }
-
-  .museum-choice:hover {
-    transform: translateY(-2px);
-    border-color: rgba(214, 162, 61, 0.28);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 8px 0 rgba(0, 0, 0, 0.22);
-  }
-
-  .museum-choice[data-selected="true"] {
-    border-color: rgba(199, 58, 44, 0.42);
-    background:
-      linear-gradient(180deg, rgba(55, 20, 24, 0.94), rgba(22, 13, 18, 0.98));
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 0 0 2px rgba(199, 58, 44, 0.1),
-      0 8px 0 rgba(0, 0, 0, 0.22);
-  }
-
-  .museum-choice-title {
-    display: block;
-    font-family: "DotGothic16", "Shippori Mincho", serif;
-    font-size: 1rem;
-    line-height: 1.35;
-    margin-bottom: 0.32rem;
-    color: var(--text-main);
-  }
-
-  .museum-choice-copy {
-    display: block;
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    line-height: 1.6;
-  }
-
-  .command-bar {
+  /* RPG風ボタンベース */
+  .rpg-btn {
     position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.15rem;
-    border: 3px solid rgba(91, 122, 165, 0.24);
-    background:
-      linear-gradient(180deg, rgba(21, 25, 32, 0.96), rgba(13, 16, 22, 0.98));
-    box-shadow:
-      0 14px 34px rgba(0, 0, 0, 0.3),
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03);
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .rpg-btn:hover {
+    filter: brightness(1.15);
+  }
+  .rpg-btn:active {
+    transform: scale(0.97);
   }
 
-  .command-bar::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(243, 233, 210, 0.03), transparent);
-  }
-
-  .step-rail {
-    display: flex;
-    gap: 0.75rem;
-    overflow-x: auto;
-    padding-bottom: 0.3rem;
-  }
-
-  .step-node {
-    min-width: 132px;
-    display: grid;
-    gap: 0.3rem;
-    padding: 0.85rem 0.9rem;
-    border: 2px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(27, 32, 40, 0.96), rgba(18, 22, 28, 0.98));
-    color: var(--text-dim);
-    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
-    text-align: left;
-  }
-
-  .step-node[data-active="true"] {
-    border-color: rgba(214, 162, 61, 0.42);
-    background:
-      linear-gradient(180deg, rgba(199, 58, 44, 0.12), rgba(91, 122, 165, 0.08)),
-      linear-gradient(180deg, rgba(36, 42, 52, 0.98), rgba(18, 21, 29, 1));
-    color: var(--text-main);
-  }
-
-  .step-node[data-complete="true"] {
-    border-color: rgba(110, 166, 109, 0.34);
-  }
-
-  .step-node .step-index {
-    color: var(--accent-gold);
-    font-size: 0.74rem;
-  }
-
-  .step-node .step-title {
-    color: inherit;
-    font-size: 0.88rem;
-  }
-
-  .pixel-card,
-  .pixel-card-dark {
+  /* 旧 game-btn エイリアス */
+  .game-btn {
     position: relative;
-    border: 2px solid rgba(214, 162, 61, 0.14);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03),
-      0 8px 0 rgba(0, 0, 0, 0.24);
+    overflow: hidden;
+    font-family: "DotGothic16", monospace;
+    transition: all 0.15s;
+    cursor: pointer;
   }
-
-  .pixel-card {
-    background:
-      linear-gradient(180deg, rgba(31, 37, 46, 0.96), rgba(18, 22, 28, 0.98));
-    color: var(--text-main);
-  }
-
-  .pixel-card-dark {
-    border-color: rgba(91, 122, 165, 0.22);
-    background:
-      linear-gradient(180deg, rgba(10, 13, 18, 0.98), rgba(16, 18, 24, 1));
-    color: var(--text-main);
-  }
-
-  .ticker-log {
-    display: grid;
-    gap: 0.65rem;
-    min-width: 0;
-  }
-
-  .ticker-entry {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    align-items: center;
-    padding: 0.8rem 0.9rem;
-    border: 2px solid rgba(214, 162, 61, 0.1);
-    background:
-      linear-gradient(180deg, rgba(19, 24, 31, 0.98), rgba(12, 15, 20, 1));
-    color: var(--text-main);
-  }
-
-  .ticker-entry::before {
-    content: ">";
-    color: var(--accent-gold);
-  }
-
-  .ticker-entry > * {
-    min-width: 0;
-  }
-
-  .ticker-entry > :nth-child(2) {
-    flex: 1 1 220px;
-  }
-
-  .ticker-entry > :last-child {
-    margin-left: auto;
-  }
-
-  .pixel-icon-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border: 2px solid rgba(214, 162, 61, 0.18);
-    background:
-      linear-gradient(180deg, rgba(31, 37, 46, 0.98), rgba(17, 20, 26, 1));
-    color: var(--accent-gold);
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.04),
-      0 6px 0 rgba(0, 0, 0, 0.24);
-  }
-
-  .hero-stage {
-    position: relative;
-    padding: 1.5rem;
-  }
-
-  .hero-grid {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    gap: 1.25rem;
-  }
-
-  .hero-copy {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .hero-side {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .section-shell {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .section-shell-dark {
-    border: 3px solid rgba(91, 122, 165, 0.24);
-    background:
-      linear-gradient(180deg, rgba(12, 15, 20, 0.96), rgba(17, 20, 26, 0.98));
-    box-shadow:
-      0 16px 36px rgba(0, 0, 0, 0.32),
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03);
-  }
-
-  .section-shell-soft {
-    border: 3px solid rgba(214, 162, 61, 0.14);
-    background:
-      linear-gradient(180deg, rgba(27, 32, 40, 0.94), rgba(17, 20, 26, 0.98));
-    box-shadow:
-      0 16px 36px rgba(0, 0, 0, 0.28),
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03);
-  }
-
-  .summary-grid {
-    display: grid;
-    gap: 0.9rem;
-  }
-
-  .metric-board {
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  .metric-tile {
-    padding: 0.9rem;
-    border: 2px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(30, 35, 43, 0.98), rgba(16, 20, 26, 1));
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03),
-      0 6px 0 rgba(0, 0, 0, 0.2);
-  }
-
-  .metric-label {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
-  }
-
-  .metric-value {
-    margin-top: 0.35rem;
-    font-size: 1.1rem;
-    color: var(--text-main);
-  }
-
-  .metric-note {
-    margin-top: 0.28rem;
-    font-size: 0.74rem;
-    color: var(--text-dim);
-    line-height: 1.55;
-  }
-
-  .sticky-action-bar {
-    position: sticky;
-    bottom: 0.75rem;
-    z-index: 30;
-  }
-
-  .sticky-top-strip {
-    position: sticky;
-    top: 84px;
-    z-index: 30;
-  }
-
-  .flow-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.72rem;
-    border: 2px solid rgba(214, 162, 61, 0.14);
-    background:
-      linear-gradient(180deg, rgba(17, 20, 26, 0.98), rgba(10, 13, 18, 1));
-    color: var(--text-main);
-    box-shadow: 0 5px 0 rgba(0, 0, 0, 0.18);
-  }
-
-  .flow-chip.is-danger {
-    border-color: rgba(240, 109, 98, 0.26);
-    color: #ffd9d5;
-  }
-
-  .flow-chip.is-good {
-    border-color: rgba(110, 166, 109, 0.28);
-    color: #dff5df;
-  }
-
-  .preview-stage {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .ledger-card {
-    position: relative;
-    display: grid;
-    gap: 0.9rem;
-    padding: 1rem;
-    border: 2px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(27, 32, 40, 0.96), rgba(16, 20, 26, 0.98));
-    box-shadow:
-      inset 0 0 0 1px rgba(243, 233, 210, 0.03),
-      0 8px 0 rgba(0, 0, 0, 0.22);
-  }
-
-  .report-timeline {
-    display: grid;
-    gap: 0.9rem;
-  }
-
-  .timeline-node {
-    position: relative;
-    padding: 1rem 1rem 1rem 1.4rem;
-    border: 2px solid rgba(214, 162, 61, 0.12);
-    background:
-      linear-gradient(180deg, rgba(19, 24, 31, 0.98), rgba(12, 15, 20, 1));
-  }
-
-  .timeline-node::before {
-    content: "";
-    position: absolute;
-    left: 0.62rem;
-    top: 1.1rem;
-    bottom: -1rem;
-    width: 2px;
-    background: linear-gradient(180deg, rgba(214, 162, 61, 0.45), transparent);
-  }
-
-  .timeline-node:last-child::before {
-    display: none;
-  }
-
-  .timeline-dot {
-    position: absolute;
-    left: 0.3rem;
-    top: 1rem;
-    width: 10px;
-    height: 10px;
-    border: 2px solid var(--ink-950);
-    background: var(--accent-gold);
-    box-shadow: 0 0 0 2px rgba(214, 162, 61, 0.18);
-  }
-
-  .timeline-dot.is-danger {
-    background: var(--accent-danger);
-    box-shadow: 0 0 0 2px rgba(240, 109, 98, 0.18);
-  }
-
-  .timeline-dot.is-neutral {
-    background: var(--accent-blue);
-    box-shadow: 0 0 0 2px rgba(91, 122, 165, 0.18);
+  .game-btn:hover {
+    filter: brightness(1.15);
   }
 }
 
-@layer utilities {
-  .paper-texture {
-    position: relative;
+/* === アニメーション === */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
   }
-
-  .paper-texture::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 16% 18%, rgba(214, 162, 61, 0.08), transparent 18%),
-      radial-gradient(circle at 80% 16%, rgba(199, 58, 44, 0.08), transparent 18%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 22%);
-    opacity: 0.75;
-  }
-
-  .arcade-grid {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 12px 12px;
-  }
-
-  .pixel-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(214, 162, 61, 0.55) rgba(0, 0, 0, 0.18);
-  }
-
-  .pixel-scrollbar::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
-  }
-
-  .pixel-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(214, 162, 61, 0.55);
-  }
-
-  .pixel-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.18);
-  }
-
-  .animate-in {
-    animation: fadeSlideIn 0.28s steps(6, end) forwards;
+  50% {
+    opacity: 0;
   }
 }
 
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@media (min-width: 768px) {
-  .app-main {
-    padding: 1.75rem 1.5rem 4rem;
-  }
+.animate-in {
+  animation: fadeSlideIn 0.2s ease-out forwards;
+}
 
-  .hero-stage {
-    padding: 1.9rem;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
   }
-
-  .summary-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  100% {
+    background-position: 200% 0;
   }
 }
 
-@media (max-width: 767px) {
-  .sticky-top-strip {
-    top: 76px;
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 160, 23, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* レベルアップフラッシュ */
+@keyframes levelUpFlash {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
+  }
+  20% {
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+    background-color: rgba(255, 215, 0, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+    background-color: transparent;
   }
 }
 
-@media (max-width: 639px) {
-  .ticker-entry > :last-child {
-    margin-left: 0;
-  }
+.level-up-flash {
+  animation: levelUpFlash 0.6s ease-out;
+}
+
+/* レンジスライダー: レトロゲーム風 */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  background: #1a1a2e;
+  border: 1px solid #6B5010;
+  border-radius: 0;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #D4A017;
+  border: 2px solid #FFD700;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(212, 160, 23, 0.5);
 }

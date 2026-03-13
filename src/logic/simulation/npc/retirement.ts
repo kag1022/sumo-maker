@@ -4,6 +4,7 @@ import {
   computeConsecutiveMakekoshiStreak,
   resolveRetirementChance,
 } from '../retirement/shared';
+import { updateStagnationState } from '../realism';
 
 export const pushNpcBashoResult = (
   npc: PersistentNpc,
@@ -18,6 +19,14 @@ export const pushNpcBashoResult = (
   if (npc.recentBashoResults.length > 12) {
     npc.recentBashoResults = npc.recentBashoResults.slice(-12);
   }
+  npc.stagnation = updateStagnationState(npc.stagnation, {
+    wins,
+    losses,
+    absent: 0,
+    division: npc.currentDivision,
+    promotedToSekitori: npc.currentDivision === 'Juryo' || npc.currentDivision === 'Makuuchi',
+    careerBand: npc.careerBand,
+  });
 };
 
 export const runNpcRetirementStep = (
@@ -50,6 +59,8 @@ export const runNpcRetirementStep = (
       retirementBias: npc.retirementBias,
       careerBashoCount: npc.careerBashoCount,
       careerWinRate,
+      stagnationPressure: npc.stagnation?.pressure ?? 0,
+      careerBand: npc.careerBand,
     });
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
