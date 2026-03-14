@@ -2,11 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --ui-brand-ink: #081223;
+  --ui-brand-panel: #101d33;
+  --ui-brand-raised: #162542;
+  --ui-brand-line: #c49a4d;
+  --ui-brand-line-soft: #4c5d79;
+  --ui-action: #4c7bff;
+  --ui-state: #49b97b;
+  --ui-warning: #d26b52;
+  --ui-text-main: #efe6cf;
+  --ui-text-sub: #9dacbf;
+  --ui-text-faint: #6d7a92;
+}
+
 /* === ベースレイヤー: 和レトロゲームテーマ === */
 @layer base {
   body {
-    background-color: #0a0e1a;
-    color: #e8e0d0;
+    background:
+      radial-gradient(circle at top, rgba(196, 154, 77, 0.08), transparent 24%),
+      linear-gradient(180deg, #081223 0%, #091120 36%, #050b16 100%);
+    color: var(--ui-text-main);
     font-family: "Noto Sans JP", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
@@ -22,8 +38,8 @@
       to bottom,
       transparent 0px,
       transparent 2px,
-      rgba(0, 0, 0, 0.03) 2px,
-      rgba(0, 0, 0, 0.03) 4px
+      rgba(0, 0, 0, 0.014) 2px,
+      rgba(0, 0, 0, 0.014) 4px
     );
   }
 
@@ -36,28 +52,28 @@
     background: #060a12;
   }
   ::-webkit-scrollbar-thumb {
-    background: #6B5010;
-    border: 1px solid #D4A017;
+    background: #34445e;
+    border: 1px solid var(--ui-brand-line);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #8B6914;
+    background: #425574;
   }
 
   /* 入力要素: RPG風 */
   input,
   select,
   textarea {
-    background-color: #0a0e1a;
-    border: 2px solid #6B5010;
-    color: #e8e0d0;
+    background-color: #081223;
+    border: 2px solid #34445e;
+    color: var(--ui-text-main);
     font-family: "Noto Sans JP", sans-serif;
   }
   input:focus,
   select:focus,
   textarea:focus {
     outline: none;
-    border-color: #D4A017;
-    box-shadow: 0 0 0 1px #D4A017, 0 0 8px rgba(212, 160, 23, 0.3);
+    border-color: var(--ui-action);
+    box-shadow: 0 0 0 1px var(--ui-action), 0 0 10px rgba(76, 123, 255, 0.22);
   }
 
   table {
@@ -66,8 +82,8 @@
 
   /* 選択テキスト */
   ::selection {
-    background: rgba(212, 160, 23, 0.4);
-    color: #FFD700;
+    background: rgba(76, 123, 255, 0.3);
+    color: #ffffff;
   }
 }
 
@@ -108,25 +124,25 @@
 
   /* RPGパネル -- ドラクエ/FF風の二重枠 */
   .rpg-panel {
-    background-color: #111b2e;
-    border: 3px solid #D4A017;
-    outline: 2px solid #0a0e1a;
-    outline-offset: -6px;
+    background-color: rgba(16, 29, 51, 0.92);
+    border: 2px solid rgba(76, 93, 121, 0.9);
+    outline: 1px solid rgba(196, 154, 77, 0.1);
+    outline-offset: -4px;
     box-shadow:
-      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
-      0 4px 16px rgba(0, 0, 0, 0.6);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 12px 32px rgba(0, 0, 0, 0.32);
     position: relative;
   }
 
   /* 旧 game-panel をエイリアスとして維持（段階移行用） */
   .game-panel {
-    background-color: #111b2e;
-    border: 3px solid #D4A017;
-    outline: 2px solid #0a0e1a;
-    outline-offset: -6px;
+    background-color: rgba(16, 29, 51, 0.92);
+    border: 2px solid rgba(76, 93, 121, 0.9);
+    outline: 1px solid rgba(196, 154, 77, 0.1);
+    outline-offset: -4px;
     box-shadow:
-      inset 0 0 0 1px rgba(212, 160, 23, 0.25),
-      0 4px 16px rgba(0, 0, 0, 0.6);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 12px 32px rgba(0, 0, 0, 0.32);
     position: relative;
   }
 
@@ -135,7 +151,7 @@
     font-family: "DotGothic16", monospace;
     font-size: 0.875rem;
     font-weight: 400; /* DotGothic16 は weight 無関係 */
-    color: #FFD700;
+    color: #e2ba6e;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -152,12 +168,12 @@
     font-size: 0.75rem;
   }
   .data-row .data-key {
-    color: #8a8472;
+    color: var(--ui-text-sub);
     font-family: "DotGothic16", monospace;
     letter-spacing: 0.04em;
   }
   .data-row .data-val {
-    color: #e8e0d0;
+    color: var(--ui-text-main);
     font-weight: 700;
     font-family: "Noto Sans JP", sans-serif;
     line-height: 1.45;
@@ -166,8 +182,8 @@
   /* RPGゲージバー (HPバー風) */
   .gauge-bar {
     height: 8px;
-    background: #1a1a2e;
-    border: 1px solid #6B5010;
+    background: #0b1324;
+    border: 1px solid rgba(76, 93, 121, 0.9);
     position: relative;
     overflow: hidden;
   }
@@ -179,28 +195,28 @@
   /* 統計ブロック */
   .stat-block {
     padding: 0.75rem;
-    border: 2px solid #6B5010;
-    background: #0a0e1a;
+    border: 1px solid rgba(76, 93, 121, 0.9);
+    background: rgba(8, 18, 35, 0.86);
   }
   .stat-block .stat-label {
     font-family: "DotGothic16", monospace;
     font-size: 0.625rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: #8a8472;
+    color: var(--ui-text-sub);
     margin-bottom: 0.25rem;
   }
   .stat-block .stat-value {
     font-size: 1.5rem;
     font-family: "DotGothic16", monospace;
     font-weight: 400;
-    color: #e8e0d0;
+    color: var(--ui-text-main);
     line-height: 1.2;
   }
   .stat-block .stat-sub {
     font-family: "Noto Sans JP", sans-serif;
     font-size: 0.75rem;
-    color: #8a8472;
+    color: var(--ui-text-sub);
     margin-top: 0.125rem;
   }
 
@@ -246,7 +262,7 @@
 
   /* セクション区切り線 */
   .game-divider {
-    border-top: 2px solid #6B5010;
+    border-top: 1px solid rgba(76, 93, 121, 0.9);
   }
 
   /* RPG風ボタンベース */
@@ -274,6 +290,128 @@
   }
   .game-btn:hover {
     filter: brightness(1.15);
+  }
+
+  .report-hero-panel {
+    background:
+      linear-gradient(135deg, rgba(196, 154, 77, 0.12), transparent 30%),
+      linear-gradient(180deg, rgba(16, 29, 51, 0.98), rgba(8, 18, 35, 0.98));
+    border: 2px solid rgba(196, 154, 77, 0.8);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 16px 44px rgba(0, 0, 0, 0.36);
+  }
+
+  .report-chart-panel {
+    background:
+      linear-gradient(180deg, rgba(20, 37, 66, 0.98), rgba(8, 18, 35, 0.96));
+    border: 1px solid rgba(76, 93, 121, 0.95);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .report-detail-card {
+    background: rgba(11, 19, 36, 0.94);
+    border: 1px solid rgba(76, 93, 121, 0.9);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .report-summary-card {
+    background: rgba(11, 19, 36, 0.94);
+    border: 1px solid rgba(76, 93, 121, 0.85);
+    padding: 0.9rem 1rem;
+    min-height: 7rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .report-summary-card[data-tone="brand"] {
+    border-color: rgba(196, 154, 77, 0.65);
+    background: linear-gradient(180deg, rgba(196, 154, 77, 0.08), rgba(11, 19, 36, 0.96));
+  }
+
+  .report-summary-card[data-tone="action"] {
+    border-color: rgba(76, 123, 255, 0.58);
+    background: linear-gradient(180deg, rgba(76, 123, 255, 0.12), rgba(11, 19, 36, 0.96));
+  }
+
+  .report-summary-card[data-tone="state"] {
+    border-color: rgba(73, 185, 123, 0.58);
+    background: linear-gradient(180deg, rgba(73, 185, 123, 0.12), rgba(11, 19, 36, 0.96));
+  }
+
+  .report-summary-card[data-tone="warning"] {
+    border-color: rgba(210, 107, 82, 0.64);
+    background: linear-gradient(180deg, rgba(210, 107, 82, 0.12), rgba(11, 19, 36, 0.96));
+  }
+
+  .report-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid rgba(76, 93, 121, 0.9);
+    background: rgba(11, 19, 36, 0.82);
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    color: var(--ui-text-sub);
+    white-space: nowrap;
+  }
+
+  .report-pill[data-tone="brand"] {
+    border-color: rgba(196, 154, 77, 0.5);
+    color: #efd9a7;
+  }
+
+  .report-pill[data-tone="state"] {
+    border-color: rgba(73, 185, 123, 0.46);
+    color: #dbffea;
+  }
+
+  .report-pill[data-tone="warning"] {
+    border-color: rgba(210, 107, 82, 0.52);
+    color: #ffe2d8;
+  }
+
+  .report-pill[data-tone="neutral"] {
+    color: var(--ui-text-sub);
+  }
+
+  .report-tab-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ui-text-sub);
+    padding: 0.7rem 0.95rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.82rem;
+    transition: 140ms ease;
+  }
+
+  .report-tab-button[data-active="true"] {
+    background: rgba(76, 123, 255, 0.14);
+    border-color: rgba(76, 123, 255, 0.45);
+    color: #dbe5ff;
+  }
+
+  .report-empty {
+    border: 1px dashed rgba(76, 93, 121, 0.85);
+    background: rgba(8, 18, 35, 0.72);
+    color: var(--ui-text-sub);
+    padding: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .report-timeline-group {
+    border: 1px solid rgba(76, 93, 121, 0.8);
+    background: rgba(11, 19, 36, 0.92);
+  }
+
+  .pixel-art-surface,
+  .pixel-art-surface img,
+  .pixel-art-surface image {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
 }
 

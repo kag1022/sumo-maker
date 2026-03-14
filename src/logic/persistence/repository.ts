@@ -349,6 +349,13 @@ export interface CareerPlayerBoutsByBasho {
   bouts: PlayerBoutDetail[];
 }
 
+export interface CareerBashoRecordsBySeq {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  rows: BashoRecordRow[];
+}
+
 export const createDraftCareer = async ({
   id,
   initialStatus,
@@ -797,6 +804,35 @@ export const listCareerPlayerBoutsByBasho = async (
   return [...grouped.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([bashoSeq, bouts]) => ({ bashoSeq, bouts }));
+};
+
+export const listCareerBashoRecordsBySeq = async (
+  careerId: string,
+): Promise<CareerBashoRecordsBySeq[]> => {
+  const db = getDb();
+  const rows = await db.bashoRecords.where('careerId').equals(careerId).toArray();
+  const grouped = new Map<number, BashoRecordRow[]>();
+
+  for (const row of rows) {
+    const current = grouped.get(row.seq) ?? [];
+    current.push(row);
+    grouped.set(row.seq, current);
+  }
+
+  return [...grouped.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([bashoSeq, bashoRows]) => {
+      const sortedRows = bashoRows
+        .slice()
+        .sort((a, b) => a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId));
+      const sample = sortedRows[0];
+      return {
+        bashoSeq,
+        year: sample?.year ?? 0,
+        month: sample?.month ?? 0,
+        rows: sortedRows,
+      };
+    });
 };
 
 export const getCareerHeadToHead = async (careerId: string): Promise<HeadToHeadRow[]> => {

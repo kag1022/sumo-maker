@@ -86,6 +86,7 @@ import {
   createDraftCareer,
   getCareerHeadToHead,
   isCareerSaved,
+  listCareerBashoRecordsBySeq,
   listBanzukeDecisions,
   listBanzukePopulation,
   listCollectionSummary,
@@ -133,6 +134,8 @@ import {
 import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../../src/logic/style/kata';
 import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori';
 import {
+  buildBanzukeSnapshotForSeq,
+  buildCareerRivalryDigest,
   buildHoshitoriCareerRecords,
   buildRankChartData,
   buildTimelineEventGroups,
@@ -151,6 +154,13 @@ import {
 } from '../../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../../src/logic/simulation/strength/update';
 import { resolveBashoFormDelta } from '../../../src/logic/simulation/variance/bashoVariance';
+const path = require('path');
+const {
+  createCareerRateAccumulator,
+  finalizeCareerRateAccumulator,
+  pushCareerRateSample,
+  buildCareerRateSample,
+} = require(path.join(process.cwd(), 'scripts', 'reports', '_shared', 'career_rate_metrics.cjs'));
 
 (globalThis as unknown as { indexedDB: typeof indexedDB }).indexedDB = indexedDB;
 (globalThis as unknown as { IDBKeyRange: typeof IDBKeyRange }).IDBKeyRange = IDBKeyRange;
@@ -301,6 +311,50 @@ const createBashoRecord = (
   absent,
   yusho,
   specialPrizes: [],
+});
+
+const createBashoRecordRow = ({
+  seq,
+  entityId,
+  entityType,
+  shikona,
+  division,
+  rankName,
+  rankNumber,
+  rankSide,
+  wins,
+  losses,
+  absent = 0,
+  titles = [],
+}: {
+  seq: number;
+  entityId: string;
+  entityType: 'PLAYER' | 'NPC';
+  shikona: string;
+  division: string;
+  rankName: string;
+  rankNumber?: number;
+  rankSide?: 'East' | 'West';
+  wins: number;
+  losses: number;
+  absent?: number;
+  titles?: string[];
+}) => ({
+  careerId: 'career-report',
+  seq,
+  entityId,
+  entityType,
+  year: 2026,
+  month: seq * 2 - 1,
+  shikona,
+  division,
+  rankName,
+  rankNumber,
+  rankSide,
+  wins,
+  losses,
+  absent,
+  titles,
 });
 
 const createSekitoriSnapshot = (
@@ -5116,6 +5170,57 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'report: listCareerBashoRecordsBySeq groups saved basho rows by sequence',
+    run: async () => {
+      await resetDb();
+      const initial = createStatus({
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: initial,
+        careerStartYearMonth: '2026-01',
+      });
+
+      await appendBashoChunk({
+        careerId,
+        seq: 1,
+        playerRecord: {
+          year: 2026,
+          month: 1,
+          rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
+          wins: 9,
+          losses: 6,
+          absent: 0,
+          yusho: false,
+          specialPrizes: [],
+        },
+        playerBouts: [],
+        npcRecords: [
+          {
+            entityId: 'NPC-A',
+            shikona: '甲山',
+            division: 'Juryo',
+            rankName: '十両',
+            rankNumber: 8,
+            rankSide: 'West',
+            wins: 8,
+            losses: 7,
+            absent: 0,
+            titles: [],
+          },
+        ],
+        statusSnapshot: initial,
+      });
+
+      const rows = await listCareerBashoRecordsBySeq(careerId);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]?.bashoSeq, 1);
+      assert.equal(rows[0]?.rows.length, 2);
+      assert.equal(rows[0]?.rows.some((row) => row.entityId === 'PLAYER'), true);
+      assert.equal(rows[0]?.rows.some((row) => row.entityId === 'NPC-A'), true);
+    },
+  },
+  {
     name: 'storage: getCareerHeadToHead aggregates by opponent id and uses latest shikona',
     run: async () => {
       await resetDb();
@@ -6793,6 +6898,283 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'report: rivalry digest includes title blocker and era titan with strong evidence only',
+    run: () => {
+      const status = createStatus({
+        rank: { division: 'Makuuchi', name: '小結', side: 'East' },
+      });
+      status.history.records = [
+        { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 1 }, 12, 3), month: 1 },
+        { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'West', number: 2 }, 11, 4), month: 3 },
+        { ...createBashoRecord({ division: 'Makuuchi', name: '小結', side: 'East' }, 10, 5), month: 5 },
+      ];
+      status.history.maxRank = { division: 'Makuuchi', name: '小結', side: 'East' };
+      status.history.totalWins = 33;
+      status.history.totalLosses = 12;
+      status.history.totalAbsent = 0;
+
+      const headToHeadRows = [
+        {
+          opponentId: 'Y1',
+          latestShikona: '北海龍',
+          bouts: 6,
+          wins: 1,
+          losses: 5,
+          absences: 0,
+          firstSeenSeq: 1,
+          lastSeenSeq: 3,
+        },
+        {
+          opponentId: 'F1',
+          latestShikona: '富士嶺',
+          bouts: 1,
+          wins: 0,
+          losses: 1,
+          absences: 0,
+          firstSeenSeq: 2,
+          lastSeenSeq: 2,
+        },
+      ];
+      const boutsByBasho: Array<{ bashoSeq: number; bouts: PlayerBoutDetail[] }> = [
+        {
+          bashoSeq: 1,
+          bouts: [{ day: 15, result: 'LOSS', opponentId: 'Y1', opponentShikona: '北海龍' }],
+        },
+        {
+          bashoSeq: 2,
+          bouts: [{ day: 14, result: 'LOSS', opponentId: 'Y1', opponentShikona: '北海龍' }],
+        },
+        {
+          bashoSeq: 3,
+          bouts: [{ day: 13, result: 'WIN', opponentId: 'Y1', opponentShikona: '北海龍' }],
+        },
+      ];
+      const bashoRowsBySeq = [
+        {
+          bashoSeq: 1,
+          year: 2026,
+          month: 1,
+          rows: [
+            createBashoRecordRow({
+              seq: 1,
+              entityId: 'PLAYER',
+              entityType: 'PLAYER',
+              shikona: '試験山',
+              division: 'Makuuchi',
+              rankName: '前頭',
+              rankNumber: 1,
+              rankSide: 'East',
+              wins: 12,
+              losses: 3,
+            }),
+            createBashoRecordRow({
+              seq: 1,
+              entityId: 'Y1',
+              entityType: 'NPC',
+              shikona: '北海龍',
+              division: 'Makuuchi',
+              rankName: '横綱',
+              rankSide: 'East',
+              wins: 12,
+              losses: 3,
+              titles: ['YUSHO'],
+            }),
+          ],
+        },
+        {
+          bashoSeq: 2,
+          year: 2026,
+          month: 3,
+          rows: [
+            createBashoRecordRow({
+              seq: 2,
+              entityId: 'PLAYER',
+              entityType: 'PLAYER',
+              shikona: '試験山',
+              division: 'Makuuchi',
+              rankName: '前頭',
+              rankNumber: 2,
+              rankSide: 'West',
+              wins: 11,
+              losses: 4,
+            }),
+            createBashoRecordRow({
+              seq: 2,
+              entityId: 'Y1',
+              entityType: 'NPC',
+              shikona: '北海龍',
+              division: 'Makuuchi',
+              rankName: '横綱',
+              rankSide: 'East',
+              wins: 12,
+              losses: 3,
+              titles: ['YUSHO'],
+            }),
+            createBashoRecordRow({
+              seq: 2,
+              entityId: 'F1',
+              entityType: 'NPC',
+              shikona: '富士嶺',
+              division: 'Makuuchi',
+              rankName: '前頭',
+              rankNumber: 8,
+              rankSide: 'West',
+              wins: 11,
+              losses: 4,
+            }),
+          ],
+        },
+        {
+          bashoSeq: 3,
+          year: 2026,
+          month: 5,
+          rows: [
+            createBashoRecordRow({
+              seq: 3,
+              entityId: 'PLAYER',
+              entityType: 'PLAYER',
+              shikona: '試験山',
+              division: 'Makuuchi',
+              rankName: '小結',
+              rankSide: 'East',
+              wins: 10,
+              losses: 5,
+            }),
+            createBashoRecordRow({
+              seq: 3,
+              entityId: 'Y1',
+              entityType: 'NPC',
+              shikona: '北海龍',
+              division: 'Makuuchi',
+              rankName: '横綱',
+              rankSide: 'East',
+              wins: 11,
+              losses: 4,
+            }),
+          ],
+        },
+      ];
+
+      const digest = buildCareerRivalryDigest(status, headToHeadRows, boutsByBasho, bashoRowsBySeq, []);
+
+      assert.equal(digest.titleBlockers[0]?.opponentId, 'Y1');
+      assert.equal(digest.titleBlockers[0]?.evidenceCount, 2);
+      assert.equal(digest.eraTitans[0]?.opponentId, 'Y1');
+      assert.equal(digest.eraTitans[0]?.yushoCount, 2);
+      assert.equal(digest.titleBlockers.some((entry) => entry.opponentId === 'F1'), false);
+    },
+  },
+  {
+    name: 'report: rivalry digest excludes nemesis with too few bouts',
+    run: () => {
+      const status = createStatus();
+      status.history.records = [
+        { ...createBashoRecord({ division: 'Juryo', name: '十両', side: 'East', number: 1 }, 10, 5), month: 1 },
+      ];
+
+      const digest = buildCareerRivalryDigest(
+        status,
+        [
+          {
+            opponentId: 'R1',
+            latestShikona: '雷王',
+            bouts: 4,
+            wins: 0,
+            losses: 4,
+            absences: 0,
+            firstSeenSeq: 1,
+            lastSeenSeq: 1,
+          },
+        ],
+        [{ bashoSeq: 1, bouts: [] }],
+        [
+          {
+            bashoSeq: 1,
+            year: 2026,
+            month: 1,
+            rows: [
+              createBashoRecordRow({
+                seq: 1,
+                entityId: 'PLAYER',
+                entityType: 'PLAYER',
+                shikona: '試験山',
+                division: 'Juryo',
+                rankName: '十両',
+                rankNumber: 1,
+                rankSide: 'East',
+                wins: 10,
+                losses: 5,
+              }),
+              createBashoRecordRow({
+                seq: 1,
+                entityId: 'R1',
+                entityType: 'NPC',
+                shikona: '雷王',
+                division: 'Juryo',
+                rankName: '十両',
+                rankNumber: 2,
+                rankSide: 'West',
+                wins: 11,
+                losses: 4,
+              }),
+            ],
+          },
+        ],
+        [],
+      );
+
+      assert.equal(digest.nemesis.length, 0);
+    },
+  },
+  {
+    name: 'report: banzuke snapshot keeps player division only and sorts east before west',
+    run: () => {
+      const snapshot = buildBanzukeSnapshotForSeq(2, 'Makuuchi', [
+        createBashoRecordRow({
+          seq: 2,
+          entityId: 'J1',
+          entityType: 'NPC',
+          shikona: '十両海',
+          division: 'Juryo',
+          rankName: '十両',
+          rankNumber: 1,
+          rankSide: 'East',
+          wins: 10,
+          losses: 5,
+        }),
+        createBashoRecordRow({
+          seq: 2,
+          entityId: 'R2',
+          entityType: 'NPC',
+          shikona: '若ノ峰',
+          division: 'Makuuchi',
+          rankName: '前頭',
+          rankNumber: 1,
+          rankSide: 'West',
+          wins: 8,
+          losses: 7,
+        }),
+        createBashoRecordRow({
+          seq: 2,
+          entityId: 'PLAYER',
+          entityType: 'PLAYER',
+          shikona: '試験山',
+          division: 'Makuuchi',
+          rankName: '前頭',
+          rankNumber: 1,
+          rankSide: 'East',
+          wins: 9,
+          losses: 6,
+        }),
+      ]);
+
+      assert.equal(snapshot.rows.length, 2);
+      assert.equal(snapshot.rows[0]?.entityId, 'PLAYER');
+      assert.equal(snapshot.rows[1]?.entityId, 'R2');
+      assert.equal(snapshot.rows.some((row) => row.entityId === 'J1'), false);
+    },
+  },
+  {
     name: 'kimarite: catalog excludes unofficial names and includes official additions',
     run: () => {
       const names = new Set(KIMARITE_CATALOG.map((entry) => entry.name));
@@ -7102,6 +7484,42 @@ export const tests: TestCase[] = [
       assert.ok(Boolean(normalized.kataProfile));
       assert.equal(normalized.kataProfile?.settled, true);
       assert.equal(resolveKataDisplay(normalized.kataProfile).styleLabel.includes('寄り'), true);
+    },
+  },
+  {
+    name: 'report: career rate metrics separate simple average from pooled legacy average',
+    run: () => {
+      const accumulator = createCareerRateAccumulator();
+      pushCareerRateSample(accumulator, { wins: 600, losses: 400, absent: 0 });
+      pushCareerRateSample(accumulator, { wins: 573, losses: 427, absent: 0 });
+      pushCareerRateSample(accumulator, { wins: 23, losses: 37, absent: 0 });
+      pushCareerRateSample(accumulator, { wins: 17, losses: 37, absent: 0 });
+      const summary = finalizeCareerRateAccumulator(accumulator);
+      const expectedAverage = (0.6 + 0.573 + (23 / 60) + (17 / 54)) / 4;
+
+      assert.ok(
+        Math.abs(summary.officialWinRate - expectedAverage) < 1e-9,
+        `Expected simple average ${expectedAverage}, got ${summary.officialWinRate}`,
+      );
+      assert.ok(
+        summary.pooledWinRate > summary.officialWinRate + 0.09,
+        `Expected pooled win rate to stay much higher, got official=${summary.officialWinRate} pooled=${summary.pooledWinRate}`,
+      );
+    },
+  },
+  {
+    name: 'report: career rate metrics treat absences as lower effective win rate and losing careers',
+    run: () => {
+      const sample = buildCareerRateSample({ wins: 10, losses: 8, absent: 20 });
+      assert.ok(sample.officialWinRate > 0.5, `Expected official win rate > 0.5, got ${sample.officialWinRate}`);
+      assert.ok(sample.effectiveWinRate < 0.5, `Expected effective win rate < 0.5, got ${sample.effectiveWinRate}`);
+      assert.equal(sample.effectiveIsLosing, true);
+
+      const accumulator = createCareerRateAccumulator();
+      pushCareerRateSample(accumulator, { wins: 10, losses: 8, absent: 20 });
+      pushCareerRateSample(accumulator, { wins: 12, losses: 8, absent: 0 });
+      const summary = finalizeCareerRateAccumulator(accumulator);
+      assert.equal(summary.losingCareerRate, 0.5);
     },
   },
 ];

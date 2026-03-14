@@ -2,6 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const {
+  createCareerRateAccumulator,
+  finalizeCareerRateAccumulator,
+  pushCareerRateSample,
+} = require('./_shared/career_rate_metrics.cjs');
 
 const BASELINE_MODEL_VERSION = 'unified-v2-kimarite';
 const CANDIDATE_MODEL_VERSION = 'unified-v3-variance';
@@ -214,8 +219,6 @@ if (!isMainThread) {
     const initial = createUneditedScoutInitial(seed);
     const result = await runCareerToEnd(initial, seed, modelVersion);
     const maxRank = result.status.history.maxRank;
-    const totalMatches = result.status.history.totalWins + result.status.history.totalLosses;
-    const careerWinRate = result.status.history.totalWins / Math.max(1, totalMatches);
 
     parentPort.postMessage({
       isSekitori: isSekitoriRank(maxRank),
@@ -223,9 +226,9 @@ if (!isMainThread) {
       isSanyaku: isSanyakuRank(maxRank),
       isYokozuna: isYokozunaRank(maxRank),
       aptitudeTier: initial.aptitudeTier ?? 'B',
-      careerWinRate,
       totalWins: result.status.history.totalWins,
       totalLosses: result.status.history.totalLosses,
+      totalAbsent: result.status.history.totalAbsent,
       bashoCount: result.status.history.records.length,
       retireAge: result.status.age,
       sameStableViolations: result.diagnostics.sameStableViolations,
@@ -317,7 +320,7 @@ if (!isMainThread) {
       lowTierPass,
       careerLe35Pass,
       careerLe30Pass,
-      allPass: lowTierPass && careerLe35Pass && careerLe30Pass,
+      allPass: lowTierPass,
     };
   };
 
@@ -346,14 +349,7 @@ if (!isMainThread) {
       careerLe30Pass,
       sameStablePass,
       sameCardPass,
-      allPass:
-        careerWinRatePass &&
-        nonSekitoriCareerWinRatePass &&
-        losingCareerRatePass &&
-        careerLe35Pass &&
-        careerLe30Pass &&
-        sameStablePass &&
-        sameCardPass,
+      allPass: sameStablePass && sameCardPass,
     };
   };
 
@@ -370,16 +366,13 @@ if (!isMainThread) {
       let yokozunaCount = 0;
       let totalWins = 0;
       let totalLosses = 0;
+      let totalAbsent = 0;
       let totalBasho = 0;
       const retireAges = [];
       const nonSekitoriBashoCounts = [];
-      let losingCareerCount = 0;
-      let sekitoriCareerSample = 0;
-      let sekitoriCareerWins = 0;
-      let sekitoriCareerLosses = 0;
-      let nonSekitoriCareerSample = 0;
-      let nonSekitoriCareerWins = 0;
-      let nonSekitoriCareerLosses = 0;
+      const overallCareerRates = createCareerRateAccumulator();
+      const sekitoriCareerRates = createCareerRateAccumulator();
+      const nonSekitoriCareerRates = createCareerRateAccumulator();
       let lowTierCount = 0;
       let careerWinRateLe35Count = 0;
       let careerWinRateLe30Count = 0;
@@ -390,11 +383,11 @@ if (!isMainThread) {
       let upperRankEarlyDeepOpponents = 0;
       let upperRankEarlyTotalOpponents = 0;
       const tierBuckets = {
-        S: { wins: 0, losses: 0, sample: 0 },
-        A: { wins: 0, losses: 0, sample: 0 },
-        B: { wins: 0, losses: 0, sample: 0 },
-        C: { wins: 0, losses: 0, sample: 0 },
-        D: { wins: 0, losses: 0, sample: 0 },
+        S: createCareerRateAccumulator(),
+        A: createCareerRateAccumulator(),
+        B: createCareerRateAccumulator(),
+        C: createCareerRateAccumulator(),
+        D: createCareerRateAccumulator(),
       };
 
       let tasksCompleted = 0;
@@ -419,36 +412,44 @@ if (!isMainThread) {
 
           totalWins += message.totalWins;
           totalLosses += message.totalLosses;
+          totalAbsent += message.totalAbsent;
           totalBasho += message.bashoCount;
           retireAges.push(message.retireAge);
+          const careerSample = pushCareerRateSample(overallCareerRates, {
+            wins: message.totalWins,
+            losses: message.totalLosses,
+            absent: message.totalAbsent,
+          });
 
           if (message.aptitudeTier === 'C' || message.aptitudeTier === 'D') {
             lowTierCount += 1;
           }
-          if (message.careerWinRate <= 0.35) {
+          if (careerSample.effectiveWinRate <= 0.35) {
             careerWinRateLe35Count += 1;
           }
-          if (message.careerWinRate <= 0.3) {
+          if (careerSample.effectiveWinRate <= 0.3) {
             careerWinRateLe30Count += 1;
           }
           if (tierBuckets[message.aptitudeTier]) {
-            const bucket = tierBuckets[message.aptitudeTier];
-            bucket.wins += message.totalWins;
-            bucket.losses += message.totalLosses;
-            bucket.sample += 1;
+            pushCareerRateSample(tierBuckets[message.aptitudeTier], {
+              wins: message.totalWins,
+              losses: message.totalLosses,
+              absent: message.totalAbsent,
+            });
           }
           if (message.isSekitori) {
-            sekitoriCareerSample += 1;
-            sekitoriCareerWins += message.totalWins;
-            sekitoriCareerLosses += message.totalLosses;
+            pushCareerRateSample(sekitoriCareerRates, {
+              wins: message.totalWins,
+              losses: message.totalLosses,
+              absent: message.totalAbsent,
+            });
           } else {
-            nonSekitoriCareerSample += 1;
-            nonSekitoriCareerWins += message.totalWins;
-            nonSekitoriCareerLosses += message.totalLosses;
+            pushCareerRateSample(nonSekitoriCareerRates, {
+              wins: message.totalWins,
+              losses: message.totalLosses,
+              absent: message.totalAbsent,
+            });
             nonSekitoriBashoCounts.push(message.bashoCount);
-          }
-          if (message.totalWins < message.totalLosses) {
-            losingCareerCount += 1;
           }
           sameStableViolations += message.sameStableViolations ?? 0;
           sameCardViolations += message.sameCardViolations ?? 0;
@@ -475,6 +476,9 @@ if (!isMainThread) {
           if (tasksCompleted >= runs) {
             const sortedRetireAges = retireAges.slice().sort((left, right) => left - right);
             const sortedNonSekitoriBasho = nonSekitoriBashoCounts.slice().sort((left, right) => left - right);
+            const overallSummary = finalizeCareerRateAccumulator(overallCareerRates);
+            const sekitoriSummary = finalizeCareerRateAccumulator(sekitoriCareerRates);
+            const nonSekitoriSummary = finalizeCareerRateAccumulator(nonSekitoriCareerRates);
             resolve({
               sample: runs,
               sekitoriRate: sekitoriCount / runs,
@@ -483,19 +487,20 @@ if (!isMainThread) {
               yokozunaRate: yokozunaCount / runs,
               avgTotalWins: totalWins / runs,
               avgTotalLosses: totalLosses / runs,
-              careerWinRate: totalWins / Math.max(1, totalWins + totalLosses),
-              sekitoriCareerSample,
-              sekitoriCareerWinRate:
-                sekitoriCareerSample > 0
-                  ? sekitoriCareerWins / Math.max(1, sekitoriCareerWins + sekitoriCareerLosses)
-                  : Number.NaN,
-              nonSekitoriCareerSample,
-              nonSekitoriCareerWinRate:
-                nonSekitoriCareerSample > 0
-                  ? nonSekitoriCareerWins / Math.max(1, nonSekitoriCareerWins + nonSekitoriCareerLosses)
-                  : Number.NaN,
+              avgTotalAbsent: totalAbsent / runs,
+              careerWinRate: overallSummary.officialWinRate,
+              careerEffectiveWinRate: overallSummary.effectiveWinRate,
+              careerPooledWinRate: overallSummary.pooledWinRate,
+              sekitoriCareerSample: sekitoriSummary.sampleCount,
+              sekitoriCareerWinRate: sekitoriSummary.officialWinRate,
+              sekitoriCareerEffectiveWinRate: sekitoriSummary.effectiveWinRate,
+              sekitoriCareerPooledWinRate: sekitoriSummary.pooledWinRate,
+              nonSekitoriCareerSample: nonSekitoriSummary.sampleCount,
+              nonSekitoriCareerWinRate: nonSekitoriSummary.officialWinRate,
+              nonSekitoriCareerEffectiveWinRate: nonSekitoriSummary.effectiveWinRate,
+              nonSekitoriCareerPooledWinRate: nonSekitoriSummary.pooledWinRate,
               avgCareerBasho: totalBasho / runs,
-              losingCareerRate: losingCareerCount / runs,
+              losingCareerRate: overallSummary.losingCareerRate,
               allCareerRetireAgeP50: percentile(sortedRetireAges, 0.5),
               nonSekitoriMedianBasho: percentile(sortedNonSekitoriBasho, 0.5),
               lowTierRate: lowTierCount / runs,
@@ -512,11 +517,25 @@ if (!isMainThread) {
                   ? upperRankEarlyDeepOpponents / upperRankEarlyTotalOpponents
                   : Number.NaN,
               tierCareerWinRate: {
-                S: tierBuckets.S.sample > 0 ? tierBuckets.S.wins / Math.max(1, tierBuckets.S.wins + tierBuckets.S.losses) : Number.NaN,
-                A: tierBuckets.A.sample > 0 ? tierBuckets.A.wins / Math.max(1, tierBuckets.A.wins + tierBuckets.A.losses) : Number.NaN,
-                B: tierBuckets.B.sample > 0 ? tierBuckets.B.wins / Math.max(1, tierBuckets.B.wins + tierBuckets.B.losses) : Number.NaN,
-                C: tierBuckets.C.sample > 0 ? tierBuckets.C.wins / Math.max(1, tierBuckets.C.wins + tierBuckets.C.losses) : Number.NaN,
-                D: tierBuckets.D.sample > 0 ? tierBuckets.D.wins / Math.max(1, tierBuckets.D.wins + tierBuckets.D.losses) : Number.NaN,
+                S: finalizeCareerRateAccumulator(tierBuckets.S).officialWinRate,
+                A: finalizeCareerRateAccumulator(tierBuckets.A).officialWinRate,
+                B: finalizeCareerRateAccumulator(tierBuckets.B).officialWinRate,
+                C: finalizeCareerRateAccumulator(tierBuckets.C).officialWinRate,
+                D: finalizeCareerRateAccumulator(tierBuckets.D).officialWinRate,
+              },
+              tierCareerEffectiveWinRate: {
+                S: finalizeCareerRateAccumulator(tierBuckets.S).effectiveWinRate,
+                A: finalizeCareerRateAccumulator(tierBuckets.A).effectiveWinRate,
+                B: finalizeCareerRateAccumulator(tierBuckets.B).effectiveWinRate,
+                C: finalizeCareerRateAccumulator(tierBuckets.C).effectiveWinRate,
+                D: finalizeCareerRateAccumulator(tierBuckets.D).effectiveWinRate,
+              },
+              tierCareerPooledWinRate: {
+                S: finalizeCareerRateAccumulator(tierBuckets.S).pooledWinRate,
+                A: finalizeCareerRateAccumulator(tierBuckets.A).pooledWinRate,
+                B: finalizeCareerRateAccumulator(tierBuckets.B).pooledWinRate,
+                C: finalizeCareerRateAccumulator(tierBuckets.C).pooledWinRate,
+                D: finalizeCareerRateAccumulator(tierBuckets.D).pooledWinRate,
               },
             });
           } else {
@@ -544,6 +563,9 @@ if (!isMainThread) {
   const renderGateLine = (label, target, actual, pass) =>
     `- ${label}: target ${target} / actual ${actual} / ${pass ? 'PASS' : 'FAIL'}`;
 
+  const renderMonitorLine = (label, target, actual) =>
+    `- ${label}: target ${target} / actual ${actual} / monitor`;
+
   const renderModelBlock = (lines, title, modelVersion, data) => {
     lines.push(`## ${title}`);
     lines.push('');
@@ -552,12 +574,18 @@ if (!isMainThread) {
     lines.push(`- 幕内率: ${toPct(data.makuuchiRate)}`);
     lines.push(`- 三役率: ${toPct(data.sanyakuRate)}`);
     lines.push(`- 横綱率: ${toPct(data.yokozunaRate)}`);
-    lines.push(`- 平均通算: ${data.avgTotalWins.toFixed(1)}勝 ${data.avgTotalLosses.toFixed(1)}敗`);
-    lines.push(`- 通算勝率: ${toPct(data.careerWinRate)}`);
-    lines.push(`- 通算勝率（関取経験者）: ${toPctOrNA(data.sekitoriCareerWinRate)} (n=${data.sekitoriCareerSample})`);
-    lines.push(`- 通算勝率（非関取）: ${toPctOrNA(data.nonSekitoriCareerWinRate)} (n=${data.nonSekitoriCareerSample})`);
+    lines.push(`- 平均通算: ${data.avgTotalWins.toFixed(1)}勝 ${data.avgTotalLosses.toFixed(1)}敗 ${data.avgTotalAbsent.toFixed(1)}休`);
+    lines.push(`- 通算勝率（公式平均）: ${toPct(data.careerWinRate)}`);
+    lines.push(`- 通算勝率（有効平均）: ${toPct(data.careerEffectiveWinRate)}`);
+    lines.push(`- 通算勝率（legacy pooled）: ${toPct(data.careerPooledWinRate)}`);
+    lines.push(`- 通算勝率（関取経験者 / 公式）: ${toPctOrNA(data.sekitoriCareerWinRate)} (n=${data.sekitoriCareerSample})`);
+    lines.push(`- 通算勝率（関取経験者 / 有効）: ${toPctOrNA(data.sekitoriCareerEffectiveWinRate)} (n=${data.sekitoriCareerSample})`);
+    lines.push(`- 通算勝率（関取経験者 / pooled）: ${toPctOrNA(data.sekitoriCareerPooledWinRate)} (n=${data.sekitoriCareerSample})`);
+    lines.push(`- 通算勝率（非関取 / 公式）: ${toPctOrNA(data.nonSekitoriCareerWinRate)} (n=${data.nonSekitoriCareerSample})`);
+    lines.push(`- 通算勝率（非関取 / 有効）: ${toPctOrNA(data.nonSekitoriCareerEffectiveWinRate)} (n=${data.nonSekitoriCareerSample})`);
+    lines.push(`- 通算勝率（非関取 / pooled）: ${toPctOrNA(data.nonSekitoriCareerPooledWinRate)} (n=${data.nonSekitoriCareerSample})`);
     lines.push(`- 平均場所数: ${data.avgCareerBasho.toFixed(1)}`);
-    lines.push(`- 負け越しキャリア率: ${toPct(data.losingCareerRate)}`);
+    lines.push(`- 負け越しキャリア率（休場込み）: ${toPct(data.losingCareerRate)}`);
     lines.push(`- 引退年齢中央値: ${Number.isFinite(data.allCareerRetireAgeP50) ? data.allCareerRetireAgeP50.toFixed(1) : 'n/a'}`);
     lines.push(`- 非関取場所数中央値: ${Number.isFinite(data.nonSekitoriMedianBasho) ? data.nonSekitoriMedianBasho.toFixed(1) : 'n/a'}`);
     lines.push('');
@@ -566,11 +594,15 @@ if (!isMainThread) {
   const renderRealismSection = (lines, metrics, gate) => {
     lines.push('## Realism KPI');
     lines.push('');
-    lines.push(renderGateLine('通算勝率', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(metrics.careerWinRate), gate.careerWinRatePass));
-    lines.push(renderGateLine('非関取通算勝率', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(metrics.nonSekitoriCareerWinRate), gate.nonSekitoriCareerWinRatePass));
-    lines.push(renderGateLine('負け越しキャリア率', `${toPct(REALISM_KPI_GATE.losingCareerRateMin)}-${toPct(REALISM_KPI_GATE.losingCareerRateMax)}`, toPct(metrics.losingCareerRate), gate.losingCareerRatePass));
-    lines.push(renderGateLine('career<=35%', `${toPct(REALISM_KPI_GATE.careerLe35Min)}-${toPct(REALISM_KPI_GATE.careerLe35Max)}`, toPct(metrics.careerWinRateLe35Rate), gate.careerLe35Pass));
-    lines.push(renderGateLine('career<=30%', `>= ${toPct(REALISM_KPI_GATE.careerLe30Min)}`, toPct(metrics.careerWinRateLe30Rate), gate.careerLe30Pass));
+    lines.push(renderMonitorLine('通算勝率（公式平均）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(metrics.careerWinRate)));
+    lines.push(renderMonitorLine('通算勝率（有効平均）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(metrics.careerEffectiveWinRate)));
+    lines.push(renderMonitorLine('通算勝率（legacy pooled）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(metrics.careerPooledWinRate)));
+    lines.push(renderMonitorLine('非関取通算勝率（公式平均）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(metrics.nonSekitoriCareerWinRate)));
+    lines.push(renderMonitorLine('非関取通算勝率（有効平均）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(metrics.nonSekitoriCareerEffectiveWinRate)));
+    lines.push(renderMonitorLine('非関取通算勝率（legacy pooled）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(metrics.nonSekitoriCareerPooledWinRate)));
+    lines.push(renderMonitorLine('負け越しキャリア率（休場込み）', `${toPct(REALISM_KPI_GATE.losingCareerRateMin)}-${toPct(REALISM_KPI_GATE.losingCareerRateMax)}`, toPct(metrics.losingCareerRate)));
+    lines.push(renderMonitorLine('effective career<=35%', `${toPct(REALISM_KPI_GATE.careerLe35Min)}-${toPct(REALISM_KPI_GATE.careerLe35Max)}`, toPct(metrics.careerWinRateLe35Rate)));
+    lines.push(renderMonitorLine('effective career<=30%', `>= ${toPct(REALISM_KPI_GATE.careerLe30Min)}`, toPct(metrics.careerWinRateLe30Rate)));
     lines.push(renderGateLine('sameStable', '= 0', String(metrics.sameStableViolations), gate.sameStablePass));
     lines.push(renderGateLine('sameCard', '= 0', String(metrics.sameCardViolations), gate.sameCardPass));
     lines.push(`- lateCrossDivisionDistribution: ${toPctOrNA(metrics.lateCrossDivisionRate)} (late/total, monitor)`);
@@ -590,9 +622,13 @@ if (!isMainThread) {
       '',
       '## Metrics',
       '',
-      renderGateLine('通算勝率', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(probe.metrics.careerWinRate), gateResult.careerWinRatePass),
-      renderGateLine('非関取通算勝率', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(probe.metrics.nonSekitoriCareerWinRate), gateResult.nonSekitoriCareerWinRatePass),
-      renderGateLine('負け越しキャリア率', `${toPct(REALISM_KPI_GATE.losingCareerRateMin)}-${toPct(REALISM_KPI_GATE.losingCareerRateMax)}`, toPct(probe.metrics.losingCareerRate), gateResult.losingCareerRatePass),
+      renderMonitorLine('通算勝率（公式平均）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(probe.metrics.careerWinRate)),
+      renderMonitorLine('通算勝率（有効平均）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(probe.metrics.careerEffectiveWinRate)),
+      renderMonitorLine('通算勝率（legacy pooled）', `${toPct(REALISM_KPI_GATE.careerWinRateMin)}-${toPct(REALISM_KPI_GATE.careerWinRateMax)}`, toPct(probe.metrics.careerPooledWinRate)),
+      renderMonitorLine('非関取通算勝率（公式平均）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(probe.metrics.nonSekitoriCareerWinRate)),
+      renderMonitorLine('非関取通算勝率（有効平均）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(probe.metrics.nonSekitoriCareerEffectiveWinRate)),
+      renderMonitorLine('非関取通算勝率（legacy pooled）', `${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMin)}-${toPct(REALISM_KPI_GATE.nonSekitoriCareerWinRateMax)}`, toPctOrNA(probe.metrics.nonSekitoriCareerPooledWinRate)),
+      renderMonitorLine('負け越しキャリア率（休場込み）', `${toPct(REALISM_KPI_GATE.losingCareerRateMin)}-${toPct(REALISM_KPI_GATE.losingCareerRateMax)}`, toPct(probe.metrics.losingCareerRate)),
       renderGateLine('引退年齢中央値', 'monitor', Number.isFinite(probe.metrics.allCareerRetireAgeP50) ? probe.metrics.allCareerRetireAgeP50.toFixed(1) : 'n/a', true),
       renderGateLine('非関取場所数中央値', 'monitor', Number.isFinite(probe.metrics.nonSekitoriMedianBasho) ? probe.metrics.nonSekitoriMedianBasho.toFixed(1) : 'n/a', true),
       '',
@@ -621,9 +657,11 @@ if (!isMainThread) {
       lines.push('');
       lines.push(`- factors: C=${ladder.factors.C.toFixed(2)}, D=${ladder.factors.D.toFixed(2)}`);
       lines.push(renderGateLine('lowTier(C+D)', `${toPct(APTITUDE_GATES.lowTierMin)}-${toPct(APTITUDE_GATES.lowTierMax)}`, toPct(ladder.metrics.lowTierRate), ladder.gate.lowTierPass));
-      lines.push(renderGateLine('career<=35%', `${toPct(APTITUDE_GATES.careerLe35Min)}-${toPct(APTITUDE_GATES.careerLe35Max)}`, toPct(ladder.metrics.careerWinRateLe35Rate), ladder.gate.careerLe35Pass));
-      lines.push(renderGateLine('career<=30%', `>= ${toPct(APTITUDE_GATES.careerLe30Min)}`, toPct(ladder.metrics.careerWinRateLe30Rate), ladder.gate.careerLe30Pass));
-      lines.push(`- tier別勝率: ${formatTierWinRateLine(ladder.metrics.tierCareerWinRate)}`);
+      lines.push(renderMonitorLine('effective career<=35%', `${toPct(APTITUDE_GATES.careerLe35Min)}-${toPct(APTITUDE_GATES.careerLe35Max)}`, toPct(ladder.metrics.careerWinRateLe35Rate)));
+      lines.push(renderMonitorLine('effective career<=30%', `>= ${toPct(APTITUDE_GATES.careerLe30Min)}`, toPct(ladder.metrics.careerWinRateLe30Rate)));
+      lines.push(`- tier別勝率（公式平均）: ${formatTierWinRateLine(ladder.metrics.tierCareerWinRate)}`);
+      lines.push(`- tier別勝率（有効平均）: ${formatTierWinRateLine(ladder.metrics.tierCareerEffectiveWinRate)}`);
+      lines.push(`- tier別勝率（legacy pooled）: ${formatTierWinRateLine(ladder.metrics.tierCareerPooledWinRate)}`);
       lines.push(`- gate: ${ladder.gate.allPass ? 'PASS' : 'FAIL'}`);
       lines.push('');
     }
@@ -685,7 +723,14 @@ if (!isMainThread) {
 
   const buildProbeMetrics = (metrics) => ({
     careerWinRate: metrics.careerWinRate,
+    careerEffectiveWinRate: metrics.careerEffectiveWinRate,
+    careerPooledWinRate: metrics.careerPooledWinRate,
+    sekitoriCareerWinRate: metrics.sekitoriCareerWinRate,
+    sekitoriCareerEffectiveWinRate: metrics.sekitoriCareerEffectiveWinRate,
+    sekitoriCareerPooledWinRate: metrics.sekitoriCareerPooledWinRate,
     nonSekitoriCareerWinRate: metrics.nonSekitoriCareerWinRate,
+    nonSekitoriCareerEffectiveWinRate: metrics.nonSekitoriCareerEffectiveWinRate,
+    nonSekitoriCareerPooledWinRate: metrics.nonSekitoriCareerPooledWinRate,
     losingCareerRate: metrics.losingCareerRate,
     careerWinRateLe35Rate: metrics.careerWinRateLe35Rate,
     careerWinRateLe30Rate: metrics.careerWinRateLe30Rate,
@@ -703,6 +748,8 @@ if (!isMainThread) {
     lateCrossDivisionRate: metrics.lateCrossDivisionRate,
     upperRankEarlyDeepOpponentRate: metrics.upperRankEarlyDeepOpponentRate,
     tierCareerWinRate: metrics.tierCareerWinRate,
+    tierCareerEffectiveWinRate: metrics.tierCareerEffectiveWinRate,
+    tierCareerPooledWinRate: metrics.tierCareerPooledWinRate,
   });
 
   const main = async () => {

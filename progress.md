@@ -1,6 +1,77 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-14: Added rivalry-history report read model and initial UI wiring.
+  - `src/logic/persistence/repository.ts`
+    - added `listCareerBashoRecordsBySeq(careerId)` to read saved `bashoRecords` grouped by basho sequence for report reconstruction
+  - `src/features/report/utils/reportCareer.ts`
+    - added rivalry digest types and builders:
+      - `CareerRivalryDigest`
+      - `TitleBlockerEntry`
+      - `EraTitanEntry`
+      - `NemesisEntry`
+      - `ReportBanzukeSnapshot`
+      - `ReportBanzukeRow`
+      - `buildCareerRivalryDigest(...)`
+      - `buildBanzukeSnapshotForSeq(...)`
+      - `buildSnapshotBoutMarks(...)`
+    - current heuristics are intentionally strict:
+      - title blockers: only tied-finish / direct block / 11+ win title-race cases
+      - era titans: only upper-rank overlap + multi-yusho or long Yokozuna/Ozeki stays
+      - nemesis: 5+ bouts and 3+ loss margin
+  - `src/features/report/components/ReportScreen.tsx`
+    - passes `careerId` into details tab so report-only read models can be loaded lazily
+  - `src/features/report/components/ReportDetailsTab.tsx`
+    - loads rivalry data on demand for saved careers
+    - added `壁だった力士` section with three blocks:
+      - `優勝を阻んだ相手`
+      - `時代を築いた強敵`
+      - `宿敵`
+    - added `当時の番付表` modal that reconstructs the player's division only, highlights player/rival, and shows stored title marks plus direct-bout `○/●/や`
+  - `scripts/tests/legacy/allCases.ts`
+    - added report tests for rivalry digest inclusion/exclusion and banzuke snapshot filtering
+  - TODO before wrapping:
+    - tune rivalry heuristics after seeing real saved careers with longer sekitori histories
+    - consider deduping the same rikishi across `優勝を阻んだ相手` and `時代を築いた強敵` if repetition becomes noisy
+  - Validation:
+    - `npm run build` PASS
+    - `npm test -- --grep "report:|storage:"` PASS
+    - Manual browser verification on `http://127.0.0.1:4173`:
+      - promoted one existing browser-side career to `shelved` and injected one demo shelved career with rivalry data into IndexedDB
+      - confirmed `壁だった力士` section renders in report details
+      - confirmed `当時の番付表を見る` opens a modal with player/rival highlight and `○/●` bout mark
+      - confirmed mobile screenshot remains readable:
+        - `output/report-rivalry-modal.png`
+        - `output/report-rivalry-mobile.png`
+      - browser console errors: 0
+    - `develop-web-game` client smoke PASS on isolated context:
+      - `output/web-game-rivalry/shot-0.png`
+- 2026-03-13: Implemented report-screen information hierarchy redesign focused on career spotlight.
+  - Reworked global visual semantics toward role-based color meaning:
+    - `tailwind.config.js`: added semantic `brand / surface / action / state / warning` color groups without removing legacy aliases
+    - `src/index.css`: reduced CRT noise, softened default panel chrome, switched form focus to action color, and added report-specific classes (`report-hero-panel`, `report-chart-panel`, `report-summary-card`, `report-pill`, `report-tab-button`, `report-empty`, `report-timeline-group`)
+    - `src/shared/ui/Button.tsx`: button variants now map to action/state/warning semantics; added `success` variant for saved state
+  - Added UI presentation DTOs in `src/features/report/utils/reportCareer.ts`:
+    - `buildReportHeroSummary`
+    - `buildReportSpotlightPayload`
+    - `buildReportTimelineDigest`
+    - supporting `ReportHeroSummary / ReportSpotlightPayload / ReportTimelineDigestItem` types
+  - Rebuilt report UI into composable screen sections:
+    - `src/features/report/components/ReportScreen.tsx`: reduced to orchestration/state management
+    - `src/features/report/components/ReportHero.tsx`: hero header + spotlight chart + summary strip + action row + tabs
+    - `src/features/report/components/ReportDetailsTab.tsx`: ability trend, division comparison, kimarite focus, rank movement table, profile, traits, injuries, DNA
+    - `src/features/report/components/ReportTimelineTab.tsx`: grouped turning-point timeline with important/all filter + hoshitori
+    - `src/features/report/components/ReportAchievementsTab.tsx`: “what this rikishi achieved” summary above existing achievements grid
+  - `src/shared/ui/DamageMap.tsx`: added `pixel-art-surface` usage and pixelated image rendering for sprite display consistency.
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` PASS
+    - Playwright client PASS via `.tmp/web_game_playwright_client.js` against `http://127.0.0.1:4173`
+    - Browser smoke PASS on local dev server:
+      - result desktop: `output/report-redesign-desktop.png`
+      - result timeline desktop: `output/report-redesign-timeline-desktop.png`
+      - result mobile: `output/report-redesign-mobile.png`
+      - browser console errors: 0
 - 2026-03-13: Fixed rikishi generation after resetting UI to `main`.
   - Root cause: restored `main` scout UI no longer chooses a stable, but current runtime still required `selectedStableId` during `buildInitialRikishiFromDraft`, causing registration to fail with `所属部屋が未選択です`.
   - `src/logic/scout/gacha.ts`:
