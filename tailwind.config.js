@@ -4,6 +4,34 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          ink: "#081223",
+          panel: "#101d33",
+          raised: "#162542",
+          line: "#c49a4d",
+          muted: "#4c5d79",
+        },
+        surface: {
+          base: "#0b1324",
+          panel: "#101b30",
+          raised: "#15233d",
+          soft: "#1a2c4b",
+        },
+        action: {
+          DEFAULT: "#4c7bff",
+          dim: "#3156bf",
+          bright: "#dbe5ff",
+        },
+        state: {
+          DEFAULT: "#49b97b",
+          dim: "#2f7b52",
+          bright: "#dbffea",
+        },
+        warning: {
+          DEFAULT: "#d26b52",
+          dim: "#8d4334",
+          bright: "#ffe2d8",
+        },
         // === 背景系（藍色ベース） ===
         bg: {
           DEFAULT: "#0a0e1a",   // メイン背景
