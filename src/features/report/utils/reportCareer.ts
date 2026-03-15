@@ -4,7 +4,7 @@ import { BashoRecord, HighlightEventTag, Rank, RikishiStatus, TimelineEvent } fr
 import { PlayerBoutDetail } from '../../../logic/simulation/basho';
 import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
 import type { HeadToHeadRow, CareerBashoRecordsBySeq } from '../../../logic/persistence/repository';
-import type { BashoRecordRow, BoutResultType } from '../../../logic/persistence/db';
+import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
@@ -244,6 +244,76 @@ export interface ReportTimelineDigestItem {
   tone: Exclude<ReportTone, 'action'>;
   isMajor: boolean;
   items: string[];
+  entryType?: 'EVENT' | 'BANZUKE' | 'TORIKUMI';
+  bashoSeq?: number;
+  day?: number;
+  sortYear?: number;
+  sortMonth?: number;
+  sortDay?: number;
+  sortPriority?: number;
+}
+
+export type ImportantBanzukeDecisionTrigger =
+  | 'SEKITORI_PROMOTION'
+  | 'MAKUUCHI_PROMOTION'
+  | 'OZEKI_PROMOTION'
+  | 'YOKOZUNA_PROMOTION'
+  | 'KACHIKOSHI_HELD'
+  | 'SANYAKU_MISSED_BY_SLOT_JAM';
+
+export interface ImportantBanzukeDecisionDigest {
+  key: string;
+  bashoSeq: number;
+  bashoLabel: string;
+  trigger: ImportantBanzukeDecisionTrigger;
+  summary: string;
+  resultLine: string;
+  reasonLine: string;
+  contextLine: string;
+  recordText: string;
+  fromRankLabel: string;
+  toRankLabel: string;
+  year: number;
+  month: number;
+}
+
+export type ImportantTorikumiTrigger =
+  | 'YUSHO_RACE'
+  | 'JOI_DUTY'
+  | 'SEKITORI_BOUNDARY'
+  | 'CROSS_DIVISION_EVAL'
+  | 'LATE_RELAXATION';
+
+export interface ImportantTorikumiDigest {
+  key: string;
+  bashoSeq: number;
+  bashoLabel: string;
+  day: number;
+  trigger: ImportantTorikumiTrigger;
+  summary: string;
+  detailLine: string;
+  opponentId?: string;
+  opponentShikona?: string;
+  opponentRankLabel: string;
+  year: number;
+  month: number;
+}
+
+export interface ReportImportantDecisionHighlight {
+  key: string;
+  kind: 'BANZUKE' | 'TORIKUMI';
+  bashoSeq: number;
+  bashoLabel: string;
+  day?: number;
+  title: string;
+  summary: string;
+  detailLines: string[];
+  tone: Exclude<ReportTone, 'action'>;
+}
+
+export interface ReportImportantDecisionDigest {
+  highlights: ReportImportantDecisionHighlight[];
+  timelineItems: ReportTimelineDigestItem[];
 }
 
 export interface RivalHeadToHeadSummary {
@@ -444,6 +514,123 @@ const resolveTimelineTone = (type: TimelineEvent['type']): Exclude<ReportTone, '
   if (type === 'INJURY' || type === 'DEMOTION' || type === 'RETIREMENT') return 'warning';
   if (type === 'ENTRY') return 'brand';
   return 'neutral';
+};
+
+const isUpperMaegashira = (rank: Rank): boolean =>
+  rank.division === 'Makuuchi' && rank.name === '前頭' && (rank.number ?? 99) <= 4;
+
+const isUpperJuryo = (rank: Rank): boolean =>
+  rank.division === 'Juryo' && (rank.number ?? 99) <= 2;
+
+const isSekitoriBoundaryRank = (rank: Rank): boolean =>
+  (rank.division === 'Juryo' && (rank.number ?? 99) >= 12) ||
+  (rank.division === 'Makushita' && (rank.number ?? 99) <= 5);
+
+const isSameRankSlot = (left: Rank, right: Rank): boolean =>
+  left.division === right.division &&
+  left.name === right.name &&
+  (left.number ?? 0) === (right.number ?? 0) &&
+  (left.side ?? 'East') === (right.side ?? 'East');
+
+const getPromotionSlotDelta = (fromRank: Rank, toRank: Rank): number =>
+  getRankValueForChart(fromRank) - getRankValueForChart(toRank);
+
+const buildPromotionSummary = (trigger: ImportantBanzukeDecisionTrigger, toRankLabel: string): string => {
+  if (trigger === 'SEKITORI_PROMOTION') return `関取昇進を決め、${toRankLabel}に届いた。`;
+  if (trigger === 'MAKUUCHI_PROMOTION') return `新入幕を決め、${toRankLabel}に座った。`;
+  if (trigger === 'OZEKI_PROMOTION') return `大関昇進を決め、看板力士の列へ入った。`;
+  if (trigger === 'YOKOZUNA_PROMOTION') return `横綱昇進を決め、土俵の頂点に立った。`;
+  if (trigger === 'SANYAKU_MISSED_BY_SLOT_JAM') return '勝ち越したが、三役の空席不足で平幕に据え置かれた。';
+  return '勝ち越したが、番付事情で動きが止まった。';
+};
+
+const resolveBanzukeTrigger = (
+  log: BanzukeDecisionLog,
+  record: BashoRecord,
+): ImportantBanzukeDecisionTrigger | null => {
+  if (log.fromRank.division !== 'Juryo' && log.finalRank.division === 'Juryo') {
+    return 'SEKITORI_PROMOTION';
+  }
+  if (log.fromRank.division === 'Juryo' && log.finalRank.division === 'Makuuchi') {
+    return 'MAKUUCHI_PROMOTION';
+  }
+  if (!['大関', '横綱'].includes(log.fromRank.name) && log.finalRank.name === '大関') {
+    return 'OZEKI_PROMOTION';
+  }
+  if (log.fromRank.name !== '横綱' && log.finalRank.name === '横綱') {
+    return 'YOKOZUNA_PROMOTION';
+  }
+  if (record.wins <= record.losses) return null;
+  if (
+    isUpperMaegashira(log.fromRank) &&
+    log.finalRank.division === 'Makuuchi' &&
+    log.finalRank.name === '前頭' &&
+    (log.reasons.includes('REVIEW_BOUNDARY_SLOT_JAM_NOTED') || (record.wins >= 10 && (log.finalRank.number ?? 99) <= 4))
+  ) {
+    return 'SANYAKU_MISSED_BY_SLOT_JAM';
+  }
+
+  const promotionDelta = getPromotionSlotDelta(log.fromRank, log.finalRank);
+  const isBoundaryCase =
+    isUpperMaegashira(log.fromRank) ||
+    isUpperJuryo(log.fromRank) ||
+    isSekitoriBoundaryRank(log.fromRank);
+  if (isBoundaryCase && (isSameRankSlot(log.fromRank, log.finalRank) || promotionDelta <= 1)) {
+    return 'KACHIKOSHI_HELD';
+  }
+  return null;
+};
+
+const resolveBanzukeReasonLine = (
+  trigger: ImportantBanzukeDecisionTrigger,
+  log: BanzukeDecisionLog,
+): string => {
+  if (trigger === 'SEKITORI_PROMOTION') return '理由: 幕下以下を抜け、関取枠へ届く成績を残した。';
+  if (trigger === 'MAKUUCHI_PROMOTION') return '理由: 十両上位の実績が評価され、幕内枠へ繰り上がった。';
+  if (trigger === 'OZEKI_PROMOTION') return '理由: 上位での継続成績が昇進基準を満たした。';
+  if (trigger === 'YOKOZUNA_PROMOTION') return '理由: 大関としての実績が綱取りの水準に達した。';
+  if (trigger === 'SANYAKU_MISSED_BY_SLOT_JAM') return '理由: 勝ち越し自体は評価されたが、三役の空席が足りなかった。';
+  if (log.reasons.includes('REVIEW_BOUNDARY_SLOT_JAM_NOTED')) {
+    return '理由: 勝ち越しでも上位枠の詰まりが強く、昇進幅が抑えられた。';
+  }
+  return '理由: 勝ち越しでも、番付境界の競合で動きが小さくなった。';
+};
+
+const resolveBanzukeContextLine = (
+  trigger: ImportantBanzukeDecisionTrigger,
+  _log: BanzukeDecisionLog,
+): string => {
+  if (trigger === 'SEKITORI_PROMOTION') return '番付事情: 関取境界での競合を抜け、十両の空席側へ滑り込んだ。';
+  if (trigger === 'MAKUUCHI_PROMOTION') return '番付事情: 幕内下位の入れ替え枠に入るだけの余地があった。';
+  if (trigger === 'OZEKI_PROMOTION') return '番付事情: 上位番付の連続成績が重く見られる地位で、会議判断も昇進側に寄った。';
+  if (trigger === 'YOKOZUNA_PROMOTION') return '番付事情: 綱取りは通常昇進より慎重だが、今回は押し切る材料が揃った。';
+  if (trigger === 'SANYAKU_MISSED_BY_SLOT_JAM') {
+    return '番付事情: 三役側の空席不足か残留者の兼ね合いで、平幕上位に押し戻された。';
+  }
+  return '番付事情: 勝ち越し優先の原則は保たれたが、上位の空席不足で据え置き寄りになった。';
+};
+
+const resolveBanzukeHighlightTitle = (trigger: ImportantBanzukeDecisionTrigger): string => {
+  if (trigger === 'SEKITORI_PROMOTION') return '関取昇進';
+  if (trigger === 'MAKUUCHI_PROMOTION') return '新入幕';
+  if (trigger === 'OZEKI_PROMOTION') return '大関昇進';
+  if (trigger === 'YOKOZUNA_PROMOTION') return '横綱昇進';
+  if (trigger === 'SANYAKU_MISSED_BY_SLOT_JAM') return '三役見送り';
+  return '勝ち越し据え置き';
+};
+
+const resolveTorikumiHighlightTitle = (trigger: ImportantTorikumiTrigger): string => {
+  if (trigger === 'YUSHO_RACE') return '優勝争いの割';
+  if (trigger === 'JOI_DUTY') return '上位総当たり';
+  if (trigger === 'SEKITORI_BOUNDARY') return '関取境界戦';
+  if (trigger === 'CROSS_DIVISION_EVAL') return '越境評価戦';
+  return '異例編成';
+};
+
+const resolveTorikumiTone = (trigger: ImportantTorikumiTrigger): Exclude<ReportTone, 'action'> => {
+  if (trigger === 'YUSHO_RACE' || trigger === 'SEKITORI_BOUNDARY') return 'state';
+  if (trigger === 'LATE_RELAXATION') return 'warning';
+  return 'brand';
 };
 
 const resolvePeakBand = (
@@ -660,11 +847,19 @@ export const buildReportSpotlightPayload = (
 export const buildReportTimelineDigest = (
   events: TimelineEvent[],
   entryAge: number,
+  importantDecisions?: ReportImportantDecisionDigest,
 ): ReportTimelineDigestItem[] => {
   const groups = buildTimelineEventGroups(events);
-  const startYear = events.find((event) => event.type === 'ENTRY')?.year ?? events[0]?.year ?? 0;
-
-  return groups.map((group) => {
+  const importantStartYear = importantDecisions?.timelineItems
+    .map((item) => item.sortYear ?? 0)
+    .filter((year) => year > 0)
+    .sort((left, right) => left - right)[0];
+  const startYear =
+    events.find((event) => event.type === 'ENTRY')?.year ??
+    events[0]?.year ??
+    importantStartYear ??
+    0;
+  const baseItems: ReportTimelineDigestItem[] = groups.map((group) => {
     const descriptions = dedupeStrings(group.descriptions);
     const isMajor =
       group.primaryType === 'YUSHO' ||
@@ -681,8 +876,214 @@ export const buildReportTimelineDigest = (
       tone: resolveTimelineTone(group.primaryType),
       isMajor,
       items: descriptions,
+      entryType: 'EVENT' as const,
+      sortYear: group.year,
+      sortMonth: group.month,
+      sortDay: 0,
+      sortPriority: 10,
     };
   });
+
+  if (!importantDecisions?.timelineItems.length) return baseItems;
+
+  const importantItems: ReportTimelineDigestItem[] = importantDecisions.timelineItems.map((item) => ({
+    ...item,
+    age: entryAge + Math.max(0, (item.sortYear ?? startYear) - startYear),
+  }));
+
+  return [...baseItems, ...importantItems]
+    .slice()
+    .sort((left, right) => {
+      if ((right.sortYear ?? 0) !== (left.sortYear ?? 0)) {
+        return (right.sortYear ?? 0) - (left.sortYear ?? 0);
+      }
+      if ((right.sortMonth ?? 0) !== (left.sortMonth ?? 0)) {
+        return (right.sortMonth ?? 0) - (left.sortMonth ?? 0);
+      }
+      if ((right.sortDay ?? 0) !== (left.sortDay ?? 0)) {
+        return (right.sortDay ?? 0) - (left.sortDay ?? 0);
+      }
+      if ((left.sortPriority ?? 0) !== (right.sortPriority ?? 0)) {
+        return (left.sortPriority ?? 0) - (right.sortPriority ?? 0);
+      }
+      return left.key.localeCompare(right.key);
+    });
+};
+
+export const buildImportantBanzukeDecisionDigests = (
+  status: RikishiStatus,
+  decisionLogs: BanzukeDecisionLog[],
+  _bashoRowsBySeq: CareerBashoRecordsBySeq[],
+): ImportantBanzukeDecisionDigest[] =>
+  decisionLogs
+    .map((log) => {
+      const record = status.history.records[log.seq - 1];
+      if (!record) return null;
+      const trigger = resolveBanzukeTrigger(log, record);
+      if (!trigger) return null;
+      const bashoLabel = formatBashoLabel(record.year, record.month);
+      const recordText = formatRecordText(record.wins, record.losses, record.absent);
+      const fromRankLabel = formatRankDisplayName(log.fromRank);
+      const toRankLabel = formatRankDisplayName(log.finalRank);
+      const summary = buildPromotionSummary(trigger, toRankLabel);
+      const resultLine =
+        trigger === 'KACHIKOSHI_HELD' || trigger === 'SANYAKU_MISSED_BY_SLOT_JAM'
+          ? `結果: ${recordText}でも${toRankLabel}にとどまった。`
+          : `結果: ${recordText}で${toRankLabel}へ動いた。`;
+
+      return {
+        key: `banzuke-${log.seq}-${trigger}`,
+        bashoSeq: log.seq,
+        bashoLabel,
+        trigger,
+        summary,
+        resultLine,
+        reasonLine: resolveBanzukeReasonLine(trigger, log),
+        contextLine: resolveBanzukeContextLine(trigger, log),
+        recordText,
+        fromRankLabel,
+        toRankLabel,
+        year: record.year,
+        month: record.month,
+      } satisfies ImportantBanzukeDecisionDigest;
+    })
+    .filter((entry): entry is ImportantBanzukeDecisionDigest => Boolean(entry))
+    .sort((left, right) => right.bashoSeq - left.bashoSeq);
+
+export const buildImportantTorikumiDigests = (
+  torikumiRows: ImportantTorikumiRow[],
+): ImportantTorikumiDigest[] =>
+  torikumiRows
+    .map((row) => {
+      const opponentRank: Rank = {
+        division:
+          row.opponentRankName === '横綱' || row.opponentRankName === '大関' || row.opponentRankName === '関脇' || row.opponentRankName === '小結' || row.opponentRankName === '前頭'
+            ? 'Makuuchi'
+            : row.opponentRankName === '十両'
+              ? 'Juryo'
+              : row.opponentRankName === '幕下'
+                ? 'Makushita'
+                : row.opponentRankName === '三段目'
+                  ? 'Sandanme'
+                  : row.opponentRankName === '序二段'
+                    ? 'Jonidan'
+                    : row.opponentRankName === '序ノ口'
+                      ? 'Jonokuchi'
+                      : 'Maezumo',
+        name: row.opponentRankName,
+        number: row.opponentRankNumber,
+        side: row.opponentRankSide,
+      };
+      return {
+        key: `torikumi-${row.bashoSeq}-${row.day}-${row.trigger}`,
+        bashoSeq: row.bashoSeq,
+        bashoLabel: formatBashoLabel(row.year, row.month),
+        day: row.day,
+        trigger: row.trigger,
+        summary: row.summary,
+        detailLine:
+          row.opponentShikona
+            ? `${row.day}日目は${row.opponentShikona}（${formatRankDisplayName(opponentRank)}）と組まれた。`
+            : `${row.day}日目は${formatRankDisplayName(opponentRank)}との割になった。`,
+        opponentId: row.opponentId,
+        opponentShikona: row.opponentShikona,
+        opponentRankLabel: formatRankDisplayName(opponentRank),
+        year: row.year,
+        month: row.month,
+      } satisfies ImportantTorikumiDigest;
+    })
+    .sort((left, right) =>
+      right.bashoSeq - left.bashoSeq || right.day - left.day,
+    );
+
+export const buildImportantDecisionDigest = (
+  banzukeDigests: ImportantBanzukeDecisionDigest[],
+  torikumiDigests: ImportantTorikumiDigest[],
+): ReportImportantDecisionDigest => {
+  const timelineItems: ReportTimelineDigestItem[] = [
+    ...banzukeDigests.map((entry): ReportTimelineDigestItem => {
+      const tone: Exclude<ReportTone, 'action'> =
+        entry.trigger === 'KACHIKOSHI_HELD' || entry.trigger === 'SANYAKU_MISSED_BY_SLOT_JAM'
+          ? 'warning'
+          : 'state';
+      return {
+        key: entry.key,
+        dateLabel: entry.bashoLabel,
+        age: 0,
+        label: '番付判断',
+        tone,
+        isMajor: true,
+        items: [entry.summary, entry.reasonLine, entry.contextLine],
+        entryType: 'BANZUKE',
+        bashoSeq: entry.bashoSeq,
+        sortYear: entry.year,
+        sortMonth: entry.month,
+        sortDay: 0,
+        sortPriority: 0,
+      };
+    }),
+    ...torikumiDigests.map((entry): ReportTimelineDigestItem => ({
+      key: entry.key,
+      dateLabel: `${entry.bashoLabel} ${entry.day}日目`,
+      age: 0,
+      label: '本割判断',
+      tone: resolveTorikumiTone(entry.trigger),
+      isMajor: true,
+      items: [entry.summary, entry.detailLine],
+      entryType: 'TORIKUMI' as const,
+      bashoSeq: entry.bashoSeq,
+      day: entry.day,
+      sortYear: entry.year,
+      sortMonth: entry.month,
+      sortDay: entry.day,
+      sortPriority: 1,
+    })),
+  ].sort((left, right) => {
+    if ((right.sortYear ?? 0) !== (left.sortYear ?? 0)) return (right.sortYear ?? 0) - (left.sortYear ?? 0);
+    if ((right.sortMonth ?? 0) !== (left.sortMonth ?? 0)) return (right.sortMonth ?? 0) - (left.sortMonth ?? 0);
+    if ((right.sortDay ?? 0) !== (left.sortDay ?? 0)) return (right.sortDay ?? 0) - (left.sortDay ?? 0);
+    return (left.sortPriority ?? 0) - (right.sortPriority ?? 0);
+  });
+
+  const highlights: ReportImportantDecisionHighlight[] = [
+    ...banzukeDigests.map((entry): ReportImportantDecisionHighlight => {
+      const tone: Exclude<ReportTone, 'action'> =
+        entry.trigger === 'KACHIKOSHI_HELD' || entry.trigger === 'SANYAKU_MISSED_BY_SLOT_JAM'
+          ? 'warning'
+          : 'state';
+      return {
+        key: entry.key,
+        kind: 'BANZUKE',
+        bashoSeq: entry.bashoSeq,
+        bashoLabel: entry.bashoLabel,
+        title: resolveBanzukeHighlightTitle(entry.trigger),
+        summary: entry.summary,
+        detailLines: [entry.resultLine, entry.reasonLine, entry.contextLine],
+        tone,
+      };
+    }),
+    ...torikumiDigests.map((entry): ReportImportantDecisionHighlight => ({
+      key: entry.key,
+      kind: 'TORIKUMI',
+      bashoSeq: entry.bashoSeq,
+      bashoLabel: entry.bashoLabel,
+      day: entry.day,
+      title: resolveTorikumiHighlightTitle(entry.trigger),
+      summary: entry.summary,
+      detailLines: [entry.detailLine],
+      tone: resolveTorikumiTone(entry.trigger),
+    })),
+  ]
+    .sort((left, right) => {
+      if (right.bashoSeq !== left.bashoSeq) return right.bashoSeq - left.bashoSeq;
+      return (right.day ?? 0) - (left.day ?? 0);
+    })
+    .slice(0, 3);
+
+  return {
+    highlights,
+    timelineItems,
+  };
 };
 
 export const buildCareerRivalryDigest = (

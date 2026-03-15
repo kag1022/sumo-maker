@@ -5,6 +5,8 @@ export {
 export type {
   BashoSimulationResult,
   BoutOutcome,
+  ImportantTorikumiNote,
+  ImportantTorikumiTrigger,
   NpcBashoAggregate,
   PlayerBoutDetail,
 } from './basho/types';

@@ -121,6 +121,7 @@ const runLoop = async (): Promise<void> => {
           seq: step.seq,
           playerRecord: step.playerRecord,
           playerBouts: step.playerBouts,
+          importantTorikumiNotes: step.importantTorikumiNotes,
           npcRecords: step.npcBashoRecords,
           statusSnapshot: step.statusSnapshot,
           banzukePopulation: step.banzukePopulation,

@@ -1,6 +1,56 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-14: Started Phase 2 important-decision explanation pass.
+  - Persistence / simulation:
+    - `src/logic/persistence/db.ts`
+      - added Dexie `version(12)` with `importantTorikumi` store
+      - added `ImportantTorikumiRow`
+    - `src/logic/persistence/repository.ts`
+      - `appendBashoChunk(...)` now accepts `importantTorikumiNotes`
+      - added persistence/read path for important torikumi notes
+      - `removeCareerRows` / discard / delete now include the new store
+    - `src/logic/simulation/basho/types.ts`
+      - added `ImportantTorikumiTrigger`, `ImportantTorikumiNote`
+      - added `buildImportantTorikumiNote(...)`
+    - `src/logic/simulation/basho/topDivision.ts`
+    - `src/logic/simulation/basho/lowerDivision.ts`
+    - `src/logic/simulation/engine/types.ts`
+    - `src/logic/simulation/engine/runOneStep.ts`
+    - `src/features/simulation/workers/simulation.worker.ts`
+      - now capture/save player-only important torikumi notes for `YUSHO_RACE / JOI_DUTY / SEKITORI_BOUNDARY / CROSS_DIVISION_EVAL / LATE_RELAXATION`
+  - Report read model / UI:
+    - `src/features/report/utils/reportCareer.ts`
+      - added important decision digests for banzuke and torikumi
+      - `buildReportTimelineDigest(...)` now optionally merges important decisions into the timeline
+    - `src/features/report/components/ReportDetailsTab.tsx`
+      - added `重要判断` card section with top 3 highlights
+      - added modals for important banzuke snapshots and important torikumi detail
+    - `src/features/report/components/ReportTimelineTab.tsx`
+      - rebuilt to lazy-load saved important decisions
+      - inserts `番付判断 / 本割判断` into the timeline and links each to modal detail
+    - `src/features/report/components/ReportScreen.tsx`
+      - timeline tab now receives unfiltered base items and lets the tab merge/filter important decisions
+  - Tests in progress:
+    - added repository test for `importantTorikumi`
+    - added report digest tests for promotions, kachikoshi hold, slot jam, and mixed timeline output
+  - TODO before wrap:
+    - add a stronger automated browser fixture for saved-career injection so the develop-web-game client can cover report-detail states without manual IndexedDB seeding
+  - Follow-up fix during validation:
+    - `src/features/report/utils/reportCareer.ts`
+      - fixed `転機` tab age calculation when a saved career has no timeline events but does have important decision digests; it now falls back to the earliest important-decision year instead of `0`
+  - Validation:
+    - `npm run build` PASS
+    - `npm test -- --grep "report:|storage:"` PASS
+    - Manual browser verification on `http://127.0.0.1:4173` with seeded IndexedDB career:
+      - confirmed `詳細` tab shows `重要判断` cards for:
+        - `優勝争いの割`
+        - `三役見送り`
+      - confirmed `その日の対戦情報を見る` opens torikumi detail modal with result / kimarite / opponent
+      - confirmed `当時の番付表を見る` opens banzuke snapshot modal from the important-decision card
+      - confirmed `転機` tab mixes `本割判断` and `番付判断` entries and exposes modal buttons from timeline cards
+    - `develop-web-game` client smoke PASS against preview server:
+      - `output/web-game-phase2/shot-0.png`
 - 2026-03-14: Added rivalry-history report read model and initial UI wiring.
   - `src/logic/persistence/repository.ts`
     - added `listCareerBashoRecordsBySeq(careerId)` to read saved `bashoRecords` grouped by basho sequence for report reconstruction

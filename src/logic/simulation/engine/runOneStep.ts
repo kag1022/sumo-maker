@@ -552,6 +552,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     month: bashoRecord.month,
     playerRecord: bashoRecord,
     playerBouts: bashoResult.playerBoutDetails,
+    importantTorikumiNotes: bashoResult.importantTorikumiNotes,
     npcBashoRecords,
     banzukePopulation: populationSnapshot,
     banzukeDecisions: committee.decisionLogs,

@@ -19,15 +19,21 @@ import {
   getCareerHeadToHead,
   listCareerBanzukeDecisions,
   listCareerBashoRecordsBySeq,
+  listCareerImportantTorikumi,
   listCareerPlayerBoutsByBasho,
   type CareerBashoRecordsBySeq,
 } from "../../../logic/persistence/repository";
 import {
   buildBanzukeSnapshotForSeq,
   buildCareerRivalryDigest,
+  buildImportantBanzukeDecisionDigests,
+  buildImportantDecisionDigest,
+  buildImportantTorikumiDigests,
   buildSnapshotBoutMarks,
   type CareerRivalryDigest,
   type EraTitanEntry,
+  type ReportImportantDecisionDigest,
+  type ReportImportantDecisionHighlight,
   type NemesisEntry,
   type ReportBanzukeSnapshot,
   type TitleBlockerEntry,
@@ -129,10 +135,30 @@ interface SnapshotModalState {
   boutMarks: Record<string, string>;
 }
 
+interface DecisionSnapshotModalState {
+  highlight: ReportImportantDecisionHighlight;
+  snapshot: ReportBanzukeSnapshot;
+  boutMarks: Record<string, string>;
+}
+
+interface TorikumiModalState {
+  highlight: ReportImportantDecisionHighlight;
+  bout?: {
+    result: "WIN" | "LOSS" | "ABSENT";
+    kimarite?: string;
+    opponentShikona?: string;
+  };
+}
+
 const EMPTY_RIVALRY_DIGEST: CareerRivalryDigest = {
   titleBlockers: [],
   eraTitans: [],
   nemesis: [],
+};
+
+const EMPTY_IMPORTANT_DECISION_DIGEST: ReportImportantDecisionDigest = {
+  highlights: [],
+  timelineItems: [],
 };
 
 const headToHeadLabel = (entry: RivalryEntry): string =>
@@ -226,16 +252,22 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
   const [rivalryBoutsBySeq, setRivalryBoutsBySeq] = React.useState<Array<{ bashoSeq: number; bouts: Array<{ day: number; result: "WIN" | "LOSS" | "ABSENT"; kimarite?: string; opponentId?: string; opponentShikona?: string; opponentRankName?: string; opponentRankNumber?: number; opponentRankSide?: "East" | "West"; }> }>>([]);
   const [rivalryLoading, setRivalryLoading] = React.useState(false);
   const [rivalryErrorMessage, setRivalryErrorMessage] = React.useState<string | null>(null);
+  const [importantDecisionDigest, setImportantDecisionDigest] = React.useState<ReportImportantDecisionDigest>(EMPTY_IMPORTANT_DECISION_DIGEST);
+  const [importantDecisionErrorMessage, setImportantDecisionErrorMessage] = React.useState<string | null>(null);
   const [snapshotModal, setSnapshotModal] = React.useState<SnapshotModalState | null>(null);
+  const [decisionSnapshotModal, setDecisionSnapshotModal] = React.useState<DecisionSnapshotModalState | null>(null);
+  const [torikumiModal, setTorikumiModal] = React.useState<TorikumiModalState | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     if (!careerId) {
       setRivalryDigest(EMPTY_RIVALRY_DIGEST);
+      setImportantDecisionDigest(EMPTY_IMPORTANT_DECISION_DIGEST);
       setRivalryBashoRows([]);
       setRivalryBoutsBySeq([]);
       setRivalryLoading(false);
       setRivalryErrorMessage(null);
+      setImportantDecisionErrorMessage(null);
       return () => {
         cancelled = true;
       };
@@ -243,13 +275,15 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
 
     setRivalryLoading(true);
     setRivalryErrorMessage(null);
+    setImportantDecisionErrorMessage(null);
     void (async () => {
       try {
-        const [headToHeadRows, boutsByBasho, bashoRowsBySeq, banzukeDecisionLogs] = await Promise.all([
+        const [headToHeadRows, boutsByBasho, bashoRowsBySeq, banzukeDecisionLogs, importantTorikumiRows] = await Promise.all([
           getCareerHeadToHead(careerId),
           listCareerPlayerBoutsByBasho(careerId),
           listCareerBashoRecordsBySeq(careerId),
           listCareerBanzukeDecisions(careerId),
+          listCareerImportantTorikumi(careerId),
         ]);
         if (cancelled) return;
         setRivalryDigest(
@@ -261,14 +295,22 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
             banzukeDecisionLogs,
           ),
         );
+        setImportantDecisionDigest(
+          buildImportantDecisionDigest(
+            buildImportantBanzukeDecisionDigests(status, banzukeDecisionLogs, bashoRowsBySeq),
+            buildImportantTorikumiDigests(importantTorikumiRows),
+          ),
+        );
         setRivalryBashoRows(bashoRowsBySeq);
         setRivalryBoutsBySeq(boutsByBasho);
       } catch {
         if (cancelled) return;
         setRivalryDigest(EMPTY_RIVALRY_DIGEST);
+        setImportantDecisionDigest(EMPTY_IMPORTANT_DECISION_DIGEST);
         setRivalryBashoRows([]);
         setRivalryBoutsBySeq([]);
         setRivalryErrorMessage("宿敵データの取得に失敗したため、このセクションだけ省略しています。");
+        setImportantDecisionErrorMessage("重要判断の読み出しに失敗したため、このセクションだけ省略しています。");
       } finally {
         if (!cancelled) setRivalryLoading(false);
       }
@@ -311,17 +353,81 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
   );
 
   React.useEffect(() => {
-    if (!snapshotModal) return undefined;
+    if (!snapshotModal && !decisionSnapshotModal && !torikumiModal) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSnapshotModal(null);
+      if (event.key === "Escape") {
+        setSnapshotModal(null);
+        setDecisionSnapshotModal(null);
+        setTorikumiModal(null);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [snapshotModal]);
+  }, [decisionSnapshotModal, snapshotModal, torikumiModal]);
+
+  const openDecisionSnapshot = React.useCallback(
+    (highlight: ReportImportantDecisionHighlight) => {
+      const playerRecord = status.history.records[highlight.bashoSeq - 1];
+      if (!playerRecord) return;
+      const snapshot = buildBanzukeSnapshotForSeq(
+        highlight.bashoSeq,
+        playerRecord.rank.division,
+        rivalryBashoRowsMap.get(highlight.bashoSeq) ?? [],
+      );
+      const boutMarks = Object.fromEntries(
+        buildSnapshotBoutMarks(snapshot, rivalryBoutsMap.get(highlight.bashoSeq) ?? []),
+      );
+      setDecisionSnapshotModal({
+        highlight,
+        snapshot,
+        boutMarks,
+      });
+    },
+    [rivalryBashoRowsMap, rivalryBoutsMap, status.history.records],
+  );
+
+  const openTorikumiDetail = React.useCallback(
+    (highlight: ReportImportantDecisionHighlight) => {
+      const bouts = rivalryBoutsMap.get(highlight.bashoSeq) ?? [];
+      const bout = highlight.day ? bouts.find((entry) => entry.day === highlight.day) : undefined;
+      setTorikumiModal({
+        highlight,
+        bout,
+      });
+    },
+    [rivalryBoutsMap],
+  );
 
   return (
     <div className="space-y-4 animate-in">
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.9fr)] gap-4">
+        <div className="report-detail-card p-4 sm:p-5 xl:col-span-2">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="section-header">
+              <ScrollText className="w-4 h-4 text-warning" /> 重要判断
+            </h3>
+            <p className="text-xs text-text-dim">重要昇進と特殊据え置き、異例の本割だけを残します</p>
+          </div>
+          {rivalryLoading ? (
+            <div className="report-empty">重要判断を読み込んでいます。</div>
+          ) : importantDecisionDigest.highlights.length === 0 ? (
+            <div className="report-empty">
+              {careerId ? "このキャリアでは説明が必要な重要判断は見つかりませんでした。" : "保存済みキャリアを開くと、重要判断だけを読み返せます。"}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              {importantDecisionDigest.highlights.map((highlight) => (
+                <ImportantDecisionCard
+                  key={highlight.key}
+                  highlight={highlight}
+                  onOpen={highlight.kind === "BANZUKE" ? openDecisionSnapshot : openTorikumiDetail}
+                />
+              ))}
+            </div>
+          )}
+          {importantDecisionErrorMessage && <div className="mt-3 text-xs text-warning-bright">{importantDecisionErrorMessage}</div>}
+        </div>
+
         <div className="report-detail-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="section-header">
@@ -576,6 +682,18 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           onClose={() => setSnapshotModal(null)}
         />
       )}
+      {decisionSnapshotModal && (
+        <DecisionSnapshotModal
+          state={decisionSnapshotModal}
+          onClose={() => setDecisionSnapshotModal(null)}
+        />
+      )}
+      {torikumiModal && (
+        <TorikumiDetailModal
+          state={torikumiModal}
+          onClose={() => setTorikumiModal(null)}
+        />
+      )}
     </div>
   );
 };
@@ -667,6 +785,45 @@ const RivalryBlock: React.FC<{
   </div>
 );
 
+const ImportantDecisionCard: React.FC<{
+  highlight: ReportImportantDecisionHighlight;
+  onOpen: (highlight: ReportImportantDecisionHighlight) => void;
+}> = ({ highlight, onOpen }) => {
+  const toneClass =
+    highlight.tone === "warning"
+      ? "border-warning/45 bg-warning/8"
+      : highlight.tone === "state"
+        ? "border-state/40 bg-state/10"
+        : "border-brand-line/35 bg-brand-ink/60";
+
+  return (
+    <div className={`border p-3 space-y-3 ${toneClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm text-text">{highlight.title}</div>
+          <div className="text-xs text-text-dim">
+            {highlight.bashoLabel}
+            {highlight.day ? ` ${highlight.day}日目` : ""}
+          </div>
+        </div>
+        <div className="text-[11px] text-text-dim">{highlight.kind === "BANZUKE" ? "番付" : "本割"}</div>
+      </div>
+      <p className="text-xs text-text leading-relaxed">{highlight.summary}</p>
+      <div className="space-y-1 text-xs text-text-dim">
+        {highlight.detailLines.map((line, index) => (
+          <div key={`${highlight.key}-${index}`} className="leading-relaxed">
+            {line}
+          </div>
+        ))}
+      </div>
+      <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => onOpen(highlight)}>
+        <Eye className="w-3.5 h-3.5" />
+        {highlight.kind === "BANZUKE" ? "当時の番付表を見る" : "その日の対戦情報を見る"}
+      </Button>
+    </div>
+  );
+};
+
 const SnapshotModal: React.FC<{
   state: SnapshotModalState;
   onClose: () => void;
@@ -757,6 +914,135 @@ const SnapshotModal: React.FC<{
             })
           )}
         </div>
+      </div>
+    </div>
+  </div>
+);
+
+const DecisionSnapshotModal: React.FC<{
+  state: DecisionSnapshotModalState;
+  onClose: () => void;
+}> = ({ state, onClose }) => (
+  <div
+    className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center"
+    onClick={onClose}
+  >
+    <div
+      className="w-full max-w-4xl max-h-[88vh] overflow-hidden border border-brand-muted/70 bg-surface-panel shadow-rpg"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-brand-muted/60 px-4 py-3 sm:px-5">
+        <div className="space-y-1">
+          <div className="ui-text-label text-xs text-warning-bright">重要番付判断</div>
+          <h4 className="text-sm sm:text-base text-text">{state.highlight.bashoLabel}の番付表</h4>
+          <p className="text-xs text-text-dim">{state.highlight.summary}</p>
+        </div>
+        <button
+          type="button"
+          className="p-2 text-text-dim hover:text-text border border-transparent hover:border-brand-muted/70"
+          onClick={onClose}
+          aria-label="番付表を閉じる"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="space-y-3 px-4 py-3 sm:px-5 sm:py-4 overflow-y-auto max-h-[calc(88vh-72px)]">
+        <div className="border border-brand-muted/60 bg-surface-base/80 px-3 py-2 text-xs text-text-dim leading-relaxed">
+          {state.highlight.detailLines.join(" / ")}
+        </div>
+        <div className="space-y-2">
+          {state.snapshot.rows.length === 0 ? (
+            <div className="report-empty">この場所の番付表は保存されていません。</div>
+          ) : (
+            state.snapshot.rows.map((row) => {
+              const boutMark = state.boutMarks[row.entityId];
+              const highlightClass = row.isPlayer
+                ? "border-action/55 bg-action/10"
+                : "border-brand-muted/55 bg-surface-base/75";
+              return (
+                <div
+                  key={`${state.snapshot.seq}-${row.entityId}`}
+                  className={`grid grid-cols-[78px_minmax(0,1fr)_70px] sm:grid-cols-[94px_minmax(0,1fr)_92px_120px] gap-2 items-start border px-3 py-2 text-xs ${highlightClass}`}
+                >
+                  <div className="text-text-dim">{formatRankName(row.rank)}</div>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`${row.isPlayer ? "text-text" : "text-text-dim"} truncate`}>{row.shikona}</span>
+                      {boutMark && (
+                        <span className="ui-text-label border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line">
+                          {boutMark}
+                        </span>
+                      )}
+                      {row.isYushoWinner && (
+                        <span className="ui-text-label border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright">
+                          優勝
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-text">{row.recordText}</div>
+                  <div className="hidden sm:block text-text-dim">{row.isPlayer ? "プレイヤー" : ""}</div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const TorikumiDetailModal: React.FC<{
+  state: TorikumiModalState;
+  onClose: () => void;
+}> = ({ state, onClose }) => (
+  <div
+    className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center"
+    onClick={onClose}
+  >
+    <div
+      className="w-full max-w-2xl border border-brand-muted/70 bg-surface-panel shadow-rpg"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-brand-muted/60 px-4 py-3 sm:px-5">
+        <div className="space-y-1">
+          <div className="ui-text-label text-xs text-brand-line">重要本割判断</div>
+          <h4 className="text-sm sm:text-base text-text">
+            {state.highlight.bashoLabel}
+            {state.highlight.day ? ` ${state.highlight.day}日目` : ""}
+          </h4>
+          <p className="text-xs text-text-dim">{state.highlight.summary}</p>
+        </div>
+        <button
+          type="button"
+          className="p-2 text-text-dim hover:text-text border border-transparent hover:border-brand-muted/70"
+          onClick={onClose}
+          aria-label="対戦情報を閉じる"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="space-y-3 px-4 py-4 sm:px-5">
+        <div className="border border-brand-muted/60 bg-surface-base/80 px-3 py-2 text-xs text-text-dim leading-relaxed">
+          {state.highlight.detailLines.join(" / ")}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="border border-brand-muted/60 bg-surface-base/75 px-3 py-2">
+            <div className="text-text-dim">対戦結果</div>
+            <div className="text-text">
+              {state.bout ? (state.bout.result === "WIN" ? "○ 勝ち" : state.bout.result === "LOSS" ? "● 負け" : "や 休場") : "保存なし"}
+            </div>
+          </div>
+          <div className="border border-brand-muted/60 bg-surface-base/75 px-3 py-2">
+            <div className="text-text-dim">決まり手</div>
+            <div className="text-text">{state.bout?.kimarite || "記録なし"}</div>
+          </div>
+        </div>
+        {state.bout?.opponentShikona && (
+          <div className="text-xs text-text-dim">
+            相手: {state.bout.opponentShikona}
+          </div>
+        )}
       </div>
     </div>
   </div>
