@@ -1,6 +1,237 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-15: Split the old persistence/report monolith modules into responsibility-based entrypoints without changing runtime behavior.
+  - Persistence refactor:
+    - moved the former `src/logic/persistence/repository.ts` implementation into `src/logic/persistence/shared.ts`
+    - added focused public entrypoints:
+      - `src/logic/persistence/careers.ts`
+      - `src/logic/persistence/careerHistory.ts`
+      - `src/logic/persistence/collections.ts`
+      - `src/logic/persistence/oyakata.ts`
+      - `src/logic/persistence/ads.ts`
+    - updated all app/test imports to consume the new modules directly
+    - updated legacy compatibility layer `src/logic/persistence/careerStorage.ts` to use `careers.ts`
+  - Report utility refactor:
+    - moved the former `src/features/report/utils/reportCareer.ts` implementation into `src/features/report/utils/reportShared.ts`
+    - added focused public entrypoints:
+      - `src/features/report/utils/reportFormatters.ts`
+      - `src/features/report/utils/reportHero.ts`
+      - `src/features/report/utils/reportTimeline.ts`
+      - `src/features/report/utils/reportRivalry.ts`
+      - `src/features/report/utils/reportBanzukeSnapshot.ts`
+    - rewired report components/tests to import from the new utility modules
+  - Validation:
+    - `npm run build` PASS
+    - `npm test -- --grep "collection:|career:|report:"` PASS
+    - browser smoke on `http://127.0.0.1:4173`
+      - confirmed app boot on `新弟子`
+      - confirmed `図鑑` screen loads and renders summary/detail panes
+      - confirmed console errors: 0
+    - `rg -n "logic/persistence/repository|reportCareer|utils/reportCareer|persistence/repository" src scripts` returned no matches
+- 2026-03-15: Rebuilt kimarite handling around the official 82 winning kimarite plus a separate non-technique catalog.
+  - Canonical kimarite data:
+    - `src/logic/kimarite/catalog.ts`
+      - replaced the partial move pool with a full official `82手` catalog
+      - split out `NON_TECHNIQUE_CATALOG` (`踏み出し / 勇み足 / 腰砕け / つきひざ / つき手 / 不戦 / 反則`)
+      - standardized helper exports for family / rarity / style counting
+      - kept legacy alias normalization (`すくい投げ -> 掬い投げ`, `不戦勝 -> 不戦`, etc.)
+  - Selection layer / battle:
+    - added `src/logic/kimarite/selection.ts`
+      - new two-step selection flow:
+        - resolve bout pattern (`押し合い前進 / 差し身寄り / 投げ打ち合い / 叩き・引き / 送り / 土俵際逆転 / 足取り・掛け / 反り / 非技`)
+        - sample only compatible official moves
+      - weight inputs now include:
+        - historical weight
+        - style fit
+        - stat affinity
+        - body / size fit
+        - trait tags
+        - signature move bias
+        - novelty control
+        - repeat suppression
+      - added kimarite usage summarizer for report / realism metrics
+    - `src/logic/battle.ts`
+      - removed old `WIN/LOSS` kimarite matchup dependency
+      - now always resolves the winner's official kimarite
+      - preserved reversal traits by forcing `EDGE_REVERSAL` resolution on comeback triggers
+    - removed unused legacy selector:
+      - deleted `src/logic/kimarite/matchup.ts`
+  - Style / analysis wiring:
+    - `src/logic/style/kata.ts`
+      - switched move bucket inference to kimarite metadata instead of string contains
+    - `src/logic/phaseA.ts`
+      - switched style-score counting to kimarite family metadata
+    - `src/features/report/components/ReportDetailsTab.tsx`
+      - added `通算種類数 / 主力3手比率 / レア技数` above the top-8 kimarite chart
+  - Collection / UI:
+    - `src/logic/persistence/repository.ts`
+      - `KIMARITE` collection now treats the main denominator as `82`
+      - added separate non-tech metadata and summary note (`非技 x/7`)
+      - locked kimarite entries now keep family metadata so family filters work even before unlock
+    - `src/features/collection/components/CollectionScreen.tsx`
+      - added kimarite family filters:
+        - `すべて / 押し・突き / 寄り・極め / 投げ / 捻り・落とし / 足取り・掛け / 反り / 送り / 非技`
+      - detail pane now shows `系統 / 頻度 / 別枠`
+  - Realism probe:
+    - `scripts/reports/realism_monte_carlo.cjs`
+      - worker now emits kimarite variety metrics:
+        - unique official count
+        - top1/top3 move share
+        - rare move rate
+        - dominant style bucket
+        - `20種類` reach rate for eligible careers
+      - acceptance/quick payloads now include kimarite variety metrics
+      - added a style-bucket kimarite variety gate scaffold for `PUSH / GRAPPLE / TECHNIQUE`
+  - Tests / validation:
+    - `scripts/tests/legacy/allCases.ts`
+      - added regressions for:
+        - exact `82` official kimarite
+        - non-tech separation
+        - alias normalization
+        - impossible extreme moves under incompatible patterns
+        - non-zero extreme-floor occurrence under compatible patterns
+    - Validation:
+      - `npm run build` PASS
+      - targeted `npx eslint` on changed implementation files PASS
+      - `node scripts/tests/run_sim_tests.cjs --grep "kimarite:|collection: dashboard summary and recent unlocks include factual labels|battle: deterministic win path|battle: dohyougiwa reversal can flip a loss"` PASS
+      - `npm test -- --grep "kimarite:|collection: dashboard summary and recent unlocks include factual labels|battle: deterministic win path|battle: dohyougiwa reversal can flip a loss"` PASS
+      - `REALISM_RUN_KIND=quick REALISM_MC_BASE_RUNS=8 node scripts/reports/realism_monte_carlo.cjs` PASS (smoke only; not a tuning-grade full report)
+      - Browser smoke on `http://127.0.0.1:4173`:
+        - confirmed `図鑑` summary shows `決まり手 2/82` and `非技 0/7`
+        - confirmed `決まり手図鑑` family filters render
+        - confirmed `非技` filter now lists locked non-tech entries instead of collapsing empty
+        - console errors: 0
+- 2026-03-15: Added a dedicated `図鑑` screen for `記録 / 偉業 / 決まり手` and aligned collection labels with factual sumo terminology.
+  - Navigation / app shell:
+    - `src/app/AppShell.tsx`
+      - added main-nav section `図鑑`
+    - `src/app/App.tsx`
+      - added dedicated `collection` section copy and routing
+      - connected result reveal CTA `図鑑を見る`
+  - Collection screen:
+    - added `src/features/collection/components/CollectionScreen.tsx`
+      - summary cards for `総解放数 / 新着 / 記録 / 偉業 / 決まり手`
+      - exactly 3 tabs: `記録図鑑 / 偉業図鑑 / 決まり手図鑑`
+      - list + detail layout
+      - locked entries masked as `？？？`
+      - recent unlock list and archive shortcut
+  - Catalog / repository:
+    - `src/logic/career/clearScore.ts`
+      - exported fixed record catalog metadata for `記録図鑑`
+    - `src/logic/achievements.ts`
+      - replaced poetic achievement UI labels with factual names like `幕内優勝1回`, `35歳現役`, `金星5個`
+      - exported `ACHIEVEMENT_CATALOG`
+    - `src/logic/kimarite/catalog.ts`
+      - exported unique `WIN`-side official kimarite catalog helper
+    - `src/logic/persistence/repository.ts`
+      - added `getCollectionDashboardSummary()`
+      - added `listCollectionCatalogEntries(type)`
+      - added `listRecentCollectionUnlocks(limit)`
+      - locked entries no longer expose `meta`
+      - legacy saved careers now backfill collection entries once, without marking them as `new`
+  - Validation:
+    - `npm run build` PASS
+    - targeted `npx eslint` on changed implementation files PASS
+    - `npm test -- --grep "collection: catalog exposes|collection: legacy saved careers backfill|collection: achievement display uses factual|collection: kimarite catalog is unique|collection: dashboard summary and recent unlocks|collection: save incentive|report: clear score|report: record badges"` PASS
+    - browser verification:
+      - confirmed `図鑑` appears in the main nav
+      - confirmed only 3 tabs render
+      - confirmed locked entries stay masked
+      - confirmed `結果画面 -> 図鑑を見る -> 図鑑` navigation
+      - confirmed legacy saved data is backfilled into the new collection screen on first open
+- 2026-03-15: Rebuilt the result flow into a reveal-first `clear score` opening screen with record-collection incentives.
+  - Score / persistence:
+    - added `src/logic/career/clearScore.ts`
+      - pure `総評点` evaluation based on highest rank, yusho, sansho, kinboshi, tenure, win rate, and factual record badges
+      - introduced factual `記録バッジ` keys such as `幕内到達`, `関取到達`, `金星獲得`, `二桁勝利`, `長期在位`
+    - `src/logic/models.ts`
+      - extended `CollectionType` with `RECORD`
+    - `src/logic/persistence/db.ts`
+      - added `clearScore`, `clearScoreVersion`, `recordBadgeKeys`, `bestScoreRank` to `CareerRow`
+      - added Dexie v13 migration to backfill clear score / badges / best-rank metadata for existing saved careers
+    - `src/logic/persistence/repository.ts`
+      - career summary patches now persist clear score + badge keys
+      - added save-preview evaluation via `getCareerSaveIncentiveSummary()`
+      - added record collection preview / unlock support
+      - added saved-career score ranking (`bestScoreRank`) refresh
+      - added `RECORD` labels to collection summary/detail APIs
+  - Result UI:
+    - `src/features/report/components/ReportScreen.tsx`
+      - split result flow into `reveal` and `details`
+      - reveal is now the default for both fresh results and saved careers
+      - reveal emphasizes:
+        - clear score
+        - self-best / top-rank incentive
+        - featured record badges
+        - collection delta before save
+        - CTAs `保存する / 詳しく見る / もう一度`
+    - `src/features/report/components/ReportOverviewTab.tsx`
+      - replaced the old reading-order helper with clear-score breakdown and full record badge listing
+    - `src/features/report/components/ReportHero.tsx`
+      - normalized save CTA copy from `殿堂入り` to `保存する`
+    - `src/features/report/utils/reportCareer.ts`
+      - hero title badge now uses factual score/badge output instead of poetic `titleBadge`
+  - Archive / list motivation:
+    - `src/features/report/components/ArchiveScreen.tsx`
+      - added clear score column
+      - added score sorting
+      - preview now shows clear score and top record badges
+  - Validation:
+    - `npm run build` PASS
+    - targeted `npx eslint` on changed implementation files PASS
+    - `npm test -- --grep "report: clear score|report: record badges|collection: save incentive|career: standard start resolves|career: observe start resolves"` PASS
+    - production preview:
+      - confirmed `保存済み記録` shows the new score column and score sort controls
+      - confirmed `力士結果` empty state still renders correctly
+- 2026-03-15: Switched the main player flow from live observation to immediate-result reveal.
+  - Simulation flow:
+    - `src/logic/simulation/workerProtocol.ts`
+      - `START` payload now includes `initialPacing`
+    - `src/logic/simulation/appFlow.ts`
+      - added pure helpers for start/completion phase resolution and observation gating
+    - `src/features/simulation/store/simulationStore.ts`
+      - default pacing is now `skip_to_end`
+      - added mainline phases `simulating` and `reveal_ready`
+      - completed skip-to-end runs now wait in `reveal_ready` until `revealCurrentResult()`
+      - observe-only data (`latestEvents`, `observationLog`, `latestPauseReason`) no longer updates in the standard flow
+    - `src/features/simulation/workers/simulation.worker.ts`
+      - worker now honors `initialPacing` from the initial `START` message instead of assuming observe mode first
+  - Main UI:
+    - `src/app/AppShell.tsx`
+      - renamed `現役力士記録` to `力士結果`
+    - `src/app/App.tsx`
+      - removed effect-driven auto section switching
+      - added a mainline loading/reveal panel:
+        - `力士人生を演算中`
+        - `結果の準備ができました`
+        - `結果を見る`
+      - kept `進行監督盤` only for dev observe flow
+    - `src/features/scout/components/ScoutScreen.tsx`
+      - normal CTA starts `skip_to_end`
+      - dev-only CTA starts `observe`
+      - production preview no longer exposes the observe button
+  - Validation:
+    - `npm test -- --grep "career: standard start resolves|career: observe start resolves"` PASS
+    - targeted `npx eslint` on changed implementation files PASS
+    - `npm run build` PASS
+    - Browser verification:
+      - production preview (`http://127.0.0.1:4173`)
+        - confirmed `候補を引く -> この新弟子で始める -> 力士人生を演算中 -> 結果の準備ができました -> 結果を見る -> レポート`
+        - confirmed `観測モードで始める` is hidden
+        - confirmed `結果を見る` does not appear before completion
+      - dev server (`http://127.0.0.1:5173`)
+        - confirmed `観測モードで始める` is visible
+- 2026-03-15: Added product-direction spec for a `10-star` release target to `README.md`.
+  - Reframed the target product from `進行観測型シミュレーション` toward `結果開封型の相撲人生コレクションゲーム`.
+  - Captured the desired loop as:
+    - `候補を引く -> 少し決める -> 即シミュレート -> 結果を見る -> 保存/破棄 -> 図鑑を埋める`
+  - Explicitly documented:
+    - no mid-simulation log as the mainline experience
+    - result-first report/opening screen
+    - career rarity / title / collection progression as the addiction core
+    - light monetization centered on extra scout attempts rather than power selling
+  - No runtime changes in this pass; documentation update only.
 - 2026-03-15: Implemented Japanese-first UI refresh pass for the main player-facing flow.
   - App shell / navigation:
     - added `src/app/AppShell.tsx`

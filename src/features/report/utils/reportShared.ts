@@ -1,9 +1,10 @@
 import { getRankValueForChart } from '../../../logic/ranking';
+import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
 import { buildCounterfactualInjuryText, buildFantasyHooks, getStyleLabel } from '../../../logic/phaseA';
 import { BashoRecord, HighlightEventTag, Rank, RikishiStatus, TimelineEvent } from '../../../logic/models';
 import { PlayerBoutDetail } from '../../../logic/simulation/basho';
 import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
-import type { HeadToHeadRow, CareerBashoRecordsBySeq } from '../../../logic/persistence/repository';
+import type { HeadToHeadRow, CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
 import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
@@ -662,6 +663,7 @@ const resolvePeakBand = (
 
 export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary => {
   const { history } = status;
+  const clearScore = buildCareerClearScoreSummary(status);
   const totalBashoCount = history.records.length;
   const totalDecisions = history.totalWins + history.totalLosses;
   const winRate = totalDecisions > 0 ? (history.totalWins / totalDecisions) * 100 : 0;
@@ -703,7 +705,10 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
         : undefined;
 
   return {
-    titleBadge: history.title || '無名の力士',
+    titleBadge:
+      clearScore.badges[0]
+        ? `${resolveCareerRecordBadgeLabel(clearScore.badges[0].key)} / ${clearScore.clearScore}`
+        : `総評点 ${clearScore.clearScore}`,
     careerHeadline: buildCareerHeadline(status),
     profileFacts,
     journeyLabel: `${status.entryAge}歳入門 - ${status.age}歳引退 / ${totalBashoCount}場所`,

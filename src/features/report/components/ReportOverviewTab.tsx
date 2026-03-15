@@ -1,12 +1,14 @@
 import React from "react";
-import { Award, ScrollText, Sparkles, Trophy } from "lucide-react";
+import { Award, Gauge, Sparkles, Trophy } from "lucide-react";
+import { CareerClearScoreSummary, resolveCareerRecordBadgeLabel } from "../../../logic/career/clearScore";
 import { RikishiStatus } from "../../../logic/models";
-import { formatRankDisplayName } from "../utils/reportCareer";
+import { formatRankDisplayName } from "../utils/reportFormatters";
 
 interface ReportOverviewTabProps {
   status: RikishiStatus;
   achievementSummary: string;
   winRate: string;
+  clearScore: CareerClearScoreSummary;
   awardsSummary: {
     kinboshi: number;
     totalSansho: number;
@@ -17,6 +19,7 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
   status,
   achievementSummary,
   winRate,
+  clearScore,
   awardsSummary,
 }) => (
   <div className="space-y-4 animate-in">
@@ -47,26 +50,55 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
       </section>
 
       <section className="surface-panel space-y-3">
-        <div className="panel-title">読み始める順番</div>
+        <div className="panel-title">総評点内訳</div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <OverviewFact label="総合点" value={`${clearScore.clearScore}`} />
+          <OverviewFact label="競技スコア" value={`${clearScore.competitiveScore}`} />
+          <OverviewFact label="記録ボーナス" value={`${clearScore.recordBonus}`} />
+        </div>
         <div className="space-y-2 text-sm leading-relaxed text-text-dim">
           <OverviewHint
-            icon={<ScrollText className="h-4 w-4 text-action" />}
-            title="場所史"
-            text="場所ごとの転機と星取を見て、どこで流れが変わったかを読む。"
+            icon={<Gauge className="h-4 w-4 text-action" />}
+            title="最高位"
+            text={`最高位の比重が最も大きく、${formatRankDisplayName(status.history.maxRank)}まで到達した価値を強く見ます。`}
           />
           <OverviewHint
             icon={<Trophy className="h-4 w-4 text-award" />}
-            title="宿敵と判断"
-            text="優勝を阻んだ相手や、説明が必要だった番付判断だけを追う。"
+            title="競技実績"
+            text="優勝、三賞、金星、幕内在位、通算勝率などの競技成績を加点します。"
           />
           <OverviewHint
             icon={<Award className="h-4 w-4 text-state" />}
-            title="能力と型"
-            text="体格、決まり手、怪我、素質設計からどんな力士だったかを掴む。"
+            title="記録バッジ"
+            text="保存すると記録図鑑に残る、事実ベースの達成項目をまとめています。"
           />
         </div>
       </section>
     </div>
+
+    <section className="surface-panel space-y-4">
+      <div className="flex items-center gap-2 text-brand">
+        <Sparkles className="h-4 w-4" />
+        <span className="ui-text-label text-sm">記録バッジ一覧</span>
+      </div>
+      {clearScore.badges.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {clearScore.badges.map((badge) => (
+            <div key={badge.key} className="rounded-none border border-line bg-surface px-3 py-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <div className="ui-text-label text-sm text-text">{resolveCareerRecordBadgeLabel(badge.key)}</div>
+                <div className="text-xs text-award">+{badge.scoreBonus}</div>
+              </div>
+              <p className="text-sm leading-relaxed text-text-dim">{badge.detail}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-none border border-line bg-surface px-3 py-4 text-sm text-text-dim">
+          まだ記録バッジはありません。最高位や主要実績ができるとここに追加されます。
+        </div>
+      )}
+    </section>
   </div>
 );
 

@@ -55,6 +55,14 @@ const REALISM_KPI_GATE = {
   careerLe30Min: 0.015,
 };
 
+const KIMARITE_VARIETY_GATE = {
+  PUSH: { p50Min: 10, p50Max: 18, p90Max: 28 },
+  GRAPPLE: { p50Min: 14, p50Max: 24, p90Max: 34 },
+  TECHNIQUE: { p50Min: 18, p50Max: 32, p90Max: 44 },
+  variety20RateMin: 0.03,
+  variety20RateMax: 0.35,
+};
+
 const APTITUDE_LADDERS = [
   { id: 'ladder1', factors: { C: 0.84, D: 0.68 } },
   { id: 'ladder2', factors: { C: 0.82, D: 0.64 } },
@@ -115,6 +123,15 @@ if (!isMainThread) {
     'logic',
     'constants.js',
   ));
+  const { listOfficialWinningKimariteCatalog } = require(path.join(
+    process.cwd(),
+    '.tmp',
+    'sim-tests',
+    'src',
+    'logic',
+    'kimarite',
+    'catalog.js',
+  ));
 
   const withPatchedMathRandom = (randomFn, run) => {
     const original = Math.random;
@@ -135,6 +152,54 @@ if (!isMainThread) {
         selectedStableId: draft.selectedStableId ?? 'stable-001',
       });
     });
+  };
+
+  const OFFICIAL_KIMARITE_MAP = new Map(
+    listOfficialWinningKimariteCatalog().map((entry) => [entry.name, entry]),
+  );
+
+  const resolveStyleBucketFromFamily = (family) => {
+    if (family === 'PUSH_THRUST') return 'PUSH';
+    if (family === 'FORCE_OUT') return 'GRAPPLE';
+    return 'TECHNIQUE';
+  };
+
+  const summarizeKimariteMetrics = (kimariteTotal) => {
+    const entries = Object.entries(kimariteTotal || {})
+      .filter(([, count]) => count > 0)
+      .map(([name, count]) => ({ name, count, entry: OFFICIAL_KIMARITE_MAP.get(name) }))
+      .filter((row) => row.entry);
+    if (!entries.length) {
+      return {
+        uniqueOfficialKimariteCount: 0,
+        top1MoveShare: Number.NaN,
+        top3MoveShare: Number.NaN,
+        rareMoveRate: Number.NaN,
+        dominantStyleBucket: null,
+      };
+    }
+
+    const total = entries.reduce((sum, row) => sum + row.count, 0);
+    const sorted = entries.slice().sort((left, right) => right.count - left.count);
+    let rareCount = 0;
+    const familyWeights = new Map();
+    for (const row of entries) {
+      familyWeights.set(
+        row.entry.family,
+        (familyWeights.get(row.entry.family) ?? 0) + row.count,
+      );
+      if (row.entry.rarityBucket === 'RARE' || row.entry.rarityBucket === 'EXTREME') {
+        rareCount += row.count;
+      }
+    }
+    const dominantFamily = [...familyWeights.entries()].sort((left, right) => right[1] - left[1])[0]?.[0];
+    return {
+      uniqueOfficialKimariteCount: entries.length,
+      top1MoveShare: sorted[0].count / total,
+      top3MoveShare: sorted.slice(0, 3).reduce((sum, row) => sum + row.count, 0) / total,
+      rareMoveRate: rareCount / total,
+      dominantStyleBucket: dominantFamily ? resolveStyleBucketFromFamily(dominantFamily) : null,
+    };
   };
 
   const runCareerToEnd = async (initialStatus, seed, modelVersion) => {
@@ -219,6 +284,9 @@ if (!isMainThread) {
     const initial = createUneditedScoutInitial(seed);
     const result = await runCareerToEnd(initial, seed, modelVersion);
     const maxRank = result.status.history.maxRank;
+    const kimariteMetrics = summarizeKimariteMetrics(result.status.history.kimariteTotal);
+    const kimariteVarietyEligible =
+      result.status.history.totalWins >= 100 && result.status.history.records.length >= 20;
 
     parentPort.postMessage({
       isSekitori: isSekitoriRank(maxRank),
@@ -237,6 +305,14 @@ if (!isMainThread) {
       lateCrossDivisionBouts: result.diagnostics.lateCrossDivisionBouts,
       upperRankEarlyDeepOpponents: result.diagnostics.upperRankEarlyDeepOpponents,
       upperRankEarlyTotalOpponents: result.diagnostics.upperRankEarlyTotalOpponents,
+      kimariteVarietyEligible,
+      uniqueOfficialKimariteCount: kimariteMetrics.uniqueOfficialKimariteCount,
+      top1MoveShare: kimariteMetrics.top1MoveShare,
+      top3MoveShare: kimariteMetrics.top3MoveShare,
+      rareMoveRate: kimariteMetrics.rareMoveRate,
+      dominantStyleBucket: kimariteMetrics.dominantStyleBucket,
+      kimariteVariety20Reached:
+        kimariteVarietyEligible && kimariteMetrics.uniqueOfficialKimariteCount >= 20,
     });
   };
 
@@ -353,6 +429,34 @@ if (!isMainThread) {
     };
   };
 
+  const evaluateKimariteVarietyGate = (metrics) => {
+    const bucketPasses = Object.fromEntries(
+      Object.entries(KIMARITE_VARIETY_GATE)
+        .filter(([key]) => key === 'PUSH' || key === 'GRAPPLE' || key === 'TECHNIQUE')
+        .map(([bucket, gate]) => {
+          const sample = metrics.styleBucketMetrics?.[bucket];
+          if (!sample || !sample.sample) {
+            return [bucket, { sample: 0, p50Pass: true, p90Pass: true, allPass: true }];
+          }
+          const p50Pass =
+            sample.uniqueKimariteP50 >= gate.p50Min && sample.uniqueKimariteP50 <= gate.p50Max;
+          const p90Pass = sample.uniqueKimariteP90 <= gate.p90Max;
+          return [bucket, { sample: sample.sample, p50Pass, p90Pass, allPass: p50Pass && p90Pass }];
+        }),
+    );
+    const variety20Pass =
+      !Number.isFinite(metrics.kimariteVariety20Rate) ||
+      (metrics.kimariteVariety20Rate >= KIMARITE_VARIETY_GATE.variety20RateMin &&
+        metrics.kimariteVariety20Rate <= KIMARITE_VARIETY_GATE.variety20RateMax);
+    return {
+      bucketPasses,
+      variety20Pass,
+      allPass:
+        Object.values(bucketPasses).every((entry) => entry.allPass) &&
+        variety20Pass,
+    };
+  };
+
   const runParallelSimulation = (runs, modelVersion, ladder) =>
     new Promise((resolve, reject) => {
       const maxWorkers = Math.max(1, Math.min(os.cpus().length - 1, 16));
@@ -382,6 +486,17 @@ if (!isMainThread) {
       let lateCrossDivisionBouts = 0;
       let upperRankEarlyDeepOpponents = 0;
       let upperRankEarlyTotalOpponents = 0;
+      const uniqueOfficialKimariteCounts = [];
+      const top1MoveShares = [];
+      const top3MoveShares = [];
+      const rareMoveRates = [];
+      let kimariteVarietyEligibleCount = 0;
+      let kimariteVariety20Count = 0;
+      const styleBucketMetrics = {
+        PUSH: { uniqueCounts: [], top1Shares: [], top3Shares: [], rareRates: [] },
+        GRAPPLE: { uniqueCounts: [], top1Shares: [], top3Shares: [], rareRates: [] },
+        TECHNIQUE: { uniqueCounts: [], top1Shares: [], top3Shares: [], rareRates: [] },
+      };
       const tierBuckets = {
         S: createCareerRateAccumulator(),
         A: createCareerRateAccumulator(),
@@ -457,6 +572,36 @@ if (!isMainThread) {
           lateCrossDivisionBouts += message.lateCrossDivisionBouts ?? 0;
           upperRankEarlyDeepOpponents += message.upperRankEarlyDeepOpponents ?? 0;
           upperRankEarlyTotalOpponents += message.upperRankEarlyTotalOpponents ?? 0;
+          if (message.kimariteVarietyEligible) {
+            kimariteVarietyEligibleCount += 1;
+            if (message.kimariteVariety20Reached) kimariteVariety20Count += 1;
+            if (Number.isFinite(message.uniqueOfficialKimariteCount)) {
+              uniqueOfficialKimariteCounts.push(message.uniqueOfficialKimariteCount);
+            }
+            if (Number.isFinite(message.top1MoveShare)) {
+              top1MoveShares.push(message.top1MoveShare);
+            }
+            if (Number.isFinite(message.top3MoveShare)) {
+              top3MoveShares.push(message.top3MoveShare);
+            }
+            if (Number.isFinite(message.rareMoveRate)) {
+              rareMoveRates.push(message.rareMoveRate);
+            }
+            if (message.dominantStyleBucket && styleBucketMetrics[message.dominantStyleBucket]) {
+              styleBucketMetrics[message.dominantStyleBucket].uniqueCounts.push(
+                message.uniqueOfficialKimariteCount,
+              );
+              styleBucketMetrics[message.dominantStyleBucket].top1Shares.push(
+                message.top1MoveShare,
+              );
+              styleBucketMetrics[message.dominantStyleBucket].top3Shares.push(
+                message.top3MoveShare,
+              );
+              styleBucketMetrics[message.dominantStyleBucket].rareRates.push(
+                message.rareMoveRate,
+              );
+            }
+          }
 
           tasksCompleted += 1;
           if (tasksCompleted % 50 === 0) {
@@ -476,9 +621,30 @@ if (!isMainThread) {
           if (tasksCompleted >= runs) {
             const sortedRetireAges = retireAges.slice().sort((left, right) => left - right);
             const sortedNonSekitoriBasho = nonSekitoriBashoCounts.slice().sort((left, right) => left - right);
+            const sortedUniqueOfficialKimariteCounts = uniqueOfficialKimariteCounts.slice().sort((left, right) => left - right);
+            const sortedTop1MoveShares = top1MoveShares.slice().sort((left, right) => left - right);
+            const sortedTop3MoveShares = top3MoveShares.slice().sort((left, right) => left - right);
             const overallSummary = finalizeCareerRateAccumulator(overallCareerRates);
             const sekitoriSummary = finalizeCareerRateAccumulator(sekitoriCareerRates);
             const nonSekitoriSummary = finalizeCareerRateAccumulator(nonSekitoriCareerRates);
+            const finalizedStyleBucketMetrics = Object.fromEntries(
+              Object.entries(styleBucketMetrics).map(([bucket, values]) => {
+                const uniqueCounts = values.uniqueCounts.slice().sort((left, right) => left - right);
+                const top1Shares = values.top1Shares.slice().sort((left, right) => left - right);
+                const top3Shares = values.top3Shares.slice().sort((left, right) => left - right);
+                return [bucket, {
+                  sample: values.uniqueCounts.length,
+                  uniqueKimariteP50: percentile(uniqueCounts, 0.5),
+                  uniqueKimariteP90: percentile(uniqueCounts, 0.9),
+                  top1MoveShareP50: percentile(top1Shares, 0.5),
+                  top3MoveShareP50: percentile(top3Shares, 0.5),
+                  rareMoveRate:
+                    values.rareRates.length > 0
+                      ? values.rareRates.reduce((sum, value) => sum + value, 0) / values.rareRates.length
+                      : Number.NaN,
+                }];
+              }),
+            );
             resolve({
               sample: runs,
               sekitoriRate: sekitoriCount / runs,
@@ -516,6 +682,19 @@ if (!isMainThread) {
                 upperRankEarlyTotalOpponents > 0
                   ? upperRankEarlyDeepOpponents / upperRankEarlyTotalOpponents
                   : Number.NaN,
+              uniqueKimariteP50: percentile(sortedUniqueOfficialKimariteCounts, 0.5),
+              uniqueKimariteP90: percentile(sortedUniqueOfficialKimariteCounts, 0.9),
+              topMoveShareP50: percentile(sortedTop1MoveShares, 0.5),
+              top3MoveShareP50: percentile(sortedTop3MoveShares, 0.5),
+              rareMoveRate:
+                rareMoveRates.length > 0
+                  ? rareMoveRates.reduce((sum, value) => sum + value, 0) / rareMoveRates.length
+                  : Number.NaN,
+              kimariteVariety20Rate:
+                kimariteVarietyEligibleCount > 0
+                  ? kimariteVariety20Count / kimariteVarietyEligibleCount
+                  : Number.NaN,
+              styleBucketMetrics: finalizedStyleBucketMetrics,
               tierCareerWinRate: {
                 S: finalizeCareerRateAccumulator(tierBuckets.S).officialWinRate,
                 A: finalizeCareerRateAccumulator(tierBuckets.A).officialWinRate,
@@ -610,6 +789,39 @@ if (!isMainThread) {
     lines.push('');
   };
 
+  const renderKimariteVarietySection = (lines, metrics, gate) => {
+    lines.push('## Kimarite Variety');
+    lines.push('');
+    lines.push(renderMonitorLine('通算種類数 P50', 'style-bucket target', Number.isFinite(metrics.uniqueKimariteP50) ? String(metrics.uniqueKimariteP50.toFixed(1)) : 'n/a'));
+    lines.push(renderMonitorLine('通算種類数 P90', 'style-bucket target', Number.isFinite(metrics.uniqueKimariteP90) ? String(metrics.uniqueKimariteP90.toFixed(1)) : 'n/a'));
+    lines.push(renderMonitorLine('主力1手比率 P50', 'monitor', toPctOrNA(metrics.topMoveShareP50)));
+    lines.push(renderMonitorLine('主力3手比率 P50', 'monitor', toPctOrNA(metrics.top3MoveShareP50)));
+    lines.push(renderMonitorLine('レア技率', 'monitor', toPctOrNA(metrics.rareMoveRate)));
+    lines.push(renderGateLine('20種類達成率', `${toPct(KIMARITE_VARIETY_GATE.variety20RateMin)}-${toPct(KIMARITE_VARIETY_GATE.variety20RateMax)}`, toPctOrNA(metrics.kimariteVariety20Rate), gate.variety20Pass));
+    for (const bucket of ['PUSH', 'GRAPPLE', 'TECHNIQUE']) {
+      const sample = metrics.styleBucketMetrics?.[bucket];
+      const bucketGate = gate.bucketPasses[bucket];
+      const target = KIMARITE_VARIETY_GATE[bucket];
+      lines.push(
+        renderGateLine(
+          `${bucket} unique P50`,
+          `${target.p50Min}-${target.p50Max}`,
+          sample?.sample ? sample.uniqueKimariteP50.toFixed(1) : 'n/a',
+          bucketGate.p50Pass,
+        ),
+      );
+      lines.push(
+        renderGateLine(
+          `${bucket} unique P90`,
+          `<= ${target.p90Max}`,
+          sample?.sample ? sample.uniqueKimariteP90.toFixed(1) : 'n/a',
+          bucketGate.p90Pass,
+        ),
+      );
+    }
+    lines.push('');
+  };
+
   const renderQuickReport = (payload) => {
     const { probe, gateResult } = payload;
     const lines = [
@@ -682,9 +894,11 @@ if (!isMainThread) {
       lines.push('');
       renderModelBlock(lines, 'Candidate（無編集ランダムスカウト）', CANDIDATE_MODEL_VERSION, result.candidate);
       renderRealismSection(lines, result.candidate, result.acceptance.realismKpi);
+      renderKimariteVarietySection(lines, result.candidate, result.acceptance.kimariteVariety);
       lines.push('## Gate Result');
       lines.push('');
       lines.push(`- realism KPI gate: ${result.acceptance.realismKpi.allPass ? 'PASS' : 'FAIL'}`);
+      lines.push(`- kimarite variety gate: ${result.acceptance.kimariteVariety.allPass ? 'PASS' : 'FAIL'}`);
       lines.push('');
       return lines.join('\n');
     }
@@ -711,11 +925,13 @@ if (!isMainThread) {
     }
     lines.push('');
     renderRealismSection(lines, result.candidate, result.acceptance.realismKpi);
+    renderKimariteVarietySection(lines, result.candidate, result.acceptance.kimariteVariety);
     lines.push('## Gate Result');
     lines.push('');
     lines.push(`- baseline absolute gate (${BASELINE_MODEL_VERSION}): ${result.acceptance.baseline.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- relative gate (${CANDIDATE_MODEL_VERSION} vs ${BASELINE_MODEL_VERSION}): ${result.acceptance.relative.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- realism KPI gate (${CANDIDATE_MODEL_VERSION}): ${result.acceptance.realismKpi.allPass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- kimarite variety gate (${CANDIDATE_MODEL_VERSION}): ${result.acceptance.kimariteVariety.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- overall: ${result.acceptance.allPass ? 'PASS' : 'FAIL'}`);
     lines.push('');
     return lines.join('\n');
@@ -747,6 +963,13 @@ if (!isMainThread) {
     lateCrossDivisionBouts: metrics.lateCrossDivisionBouts,
     lateCrossDivisionRate: metrics.lateCrossDivisionRate,
     upperRankEarlyDeepOpponentRate: metrics.upperRankEarlyDeepOpponentRate,
+    uniqueKimariteP50: metrics.uniqueKimariteP50,
+    uniqueKimariteP90: metrics.uniqueKimariteP90,
+    topMoveShareP50: metrics.topMoveShareP50,
+    top3MoveShareP50: metrics.top3MoveShareP50,
+    rareMoveRate: metrics.rareMoveRate,
+    kimariteVariety20Rate: metrics.kimariteVariety20Rate,
+    styleBucketMetrics: metrics.styleBucketMetrics,
     tierCareerWinRate: metrics.tierCareerWinRate,
     tierCareerEffectiveWinRate: metrics.tierCareerEffectiveWinRate,
     tierCareerPooledWinRate: metrics.tierCareerPooledWinRate,
@@ -766,6 +989,7 @@ if (!isMainThread) {
       const candidate = await runParallelSimulation(BASE_RUNS, CANDIDATE_MODEL_VERSION);
       console.timeEnd(`${CANDIDATE_MODEL_VERSION} quick simulation time`);
       const gateResult = evaluateRealismKpiGate(candidate);
+      const kimariteVarietyGate = evaluateKimariteVarietyGate(candidate);
       const probe = {
         runKind: 'quick',
         scenarioId: 'candidate',
@@ -774,7 +998,10 @@ if (!isMainThread) {
         compiledAt: COMPILED_AT,
         generatedAt,
         metrics: buildProbeMetrics(candidate),
-        gateResult,
+        gateResult: {
+          ...gateResult,
+          kimariteVarietyPass: kimariteVarietyGate.allPass,
+        },
       };
       const payload = {
         runKind: 'quick',
@@ -782,6 +1009,7 @@ if (!isMainThread) {
         compiledAt: COMPILED_AT,
         probe,
         gateResult,
+        kimariteVarietyGate,
       };
       const report = renderQuickReport(payload);
       writeFile(reportPath, report);
@@ -839,6 +1067,7 @@ if (!isMainThread) {
     const candidate = await runParallelSimulation(BASE_RUNS, CANDIDATE_MODEL_VERSION);
     console.timeEnd(`${CANDIDATE_MODEL_VERSION} simulation time`);
     const realismKpi = evaluateRealismKpiGate(candidate);
+    const kimariteVariety = evaluateKimariteVarietyGate(candidate);
 
     if (!IS_COMPARE_MODE) {
       const result = {
@@ -859,7 +1088,8 @@ if (!isMainThread) {
         },
         acceptance: {
           realismKpi,
-          allPass: realismKpi.allPass,
+          kimariteVariety,
+          allPass: realismKpi.allPass && kimariteVariety.allPass,
         },
       };
       const report = renderAcceptanceReport(result);
@@ -889,7 +1119,8 @@ if (!isMainThread) {
         baseline: baselineGate,
         relative: relativeGate,
         realismKpi,
-        allPass: baselineGate.allPass && relativeGate.allPass && realismKpi.allPass,
+        kimariteVariety,
+        allPass: baselineGate.allPass && relativeGate.allPass && realismKpi.allPass && kimariteVariety.allPass,
       },
       probes: {
         baseline: {
@@ -910,7 +1141,10 @@ if (!isMainThread) {
           compiledAt: COMPILED_AT,
           generatedAt,
           metrics: buildProbeMetrics(candidate),
-          gateResult: realismKpi,
+          gateResult: {
+            ...realismKpi,
+            kimariteVarietyPass: kimariteVariety.allPass,
+          },
         },
       },
     };

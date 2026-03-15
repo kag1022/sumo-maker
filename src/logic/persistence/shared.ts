@@ -6,6 +6,16 @@ import {
   OyakataProfile,
   RikishiStatus,
 } from '../models';
+import {
+  buildCareerClearScoreSummary,
+  buildCareerRecordBadges,
+  CLEAR_SCORE_VERSION,
+  listCareerRecordCatalog,
+  resolveCareerRecordBadgeLabel,
+  resolveRecordCollectionTier,
+  type CareerClearScoreSummary,
+  type CareerRecordBadge,
+} from '../career/clearScore';
 import { ImportantTorikumiNote, NpcBashoAggregate, PlayerBoutDetail } from '../simulation/basho';
 import { formatKinboshiTitle } from '../simulation/titles';
 import {
@@ -28,8 +38,15 @@ import {
 } from '../simulation/modelVersion';
 import { addWalletPoints } from './wallet';
 import { buildCareerRewardSummary, calculateCareerPrizeBreakdown } from '../economy/prizeMoney';
-import { evaluateAchievementProgress } from '../achievements';
-import { KIMARITE_CATALOG, normalizeKimariteName } from '../kimarite/catalog';
+import { ACHIEVEMENT_CATALOG, evaluateAchievementProgress } from '../achievements';
+import {
+  COLLECTION_KIMARITE_NAME_SET,
+  listNonTechniqueCatalog,
+  listOfficialWinningKimariteCatalog,
+  normalizeKimariteName,
+  resolveKimariteFamilyLabel,
+  resolveKimariteRarityLabel,
+} from '../kimarite/catalog';
 import { deriveOyakataProfile } from '../oyakata/profile';
 import { ensureKataProfile, resolveKataDisplay } from '../style/kata';
 import {
@@ -40,8 +57,8 @@ import {
 } from '../phaseA';
 
 const MAX_SHELVED_CAREERS = 200;
-const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT'];
-const OFFICIAL_KIMARITE_KEYS = new Set(KIMARITE_CATALOG.map((entry) => entry.name));
+const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT', 'RECORD'];
+const OFFICIAL_KIMARITE_KEYS = COLLECTION_KIMARITE_NAME_SET;
 
 const normalizeBanzukeDecisionLog = (log: BanzukeDecisionLog): BanzukeDecisionLog => ({
   ...log,
@@ -62,17 +79,23 @@ const resolveRetirementYearMonth = (status?: RikishiStatus): string | null => {
   return toYearMonth(retirement.year, retirement.month);
 };
 
-const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => ({
-  shikona: status.shikona,
-  title: status.history.title,
-  maxRank: status.history.maxRank,
-  totalWins: status.history.totalWins,
-  totalLosses: status.history.totalLosses,
-  totalAbsent: status.history.totalAbsent,
-  yushoCount: status.history.yushoCount,
-  bashoCount: status.history.records.length,
-  finalStatus: ensurePhaseAStatus(status),
-});
+const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => {
+  const scoreSummary = buildCareerClearScoreSummary(status);
+  return {
+    shikona: status.shikona,
+    title: status.history.title,
+    maxRank: status.history.maxRank,
+    totalWins: status.history.totalWins,
+    totalLosses: status.history.totalLosses,
+    totalAbsent: status.history.totalAbsent,
+    yushoCount: status.history.yushoCount,
+    bashoCount: status.history.records.length,
+    finalStatus: ensurePhaseAStatus(status),
+    clearScore: scoreSummary.clearScore,
+    clearScoreVersion: scoreSummary.version,
+    recordBadgeKeys: scoreSummary.badges.map((badge) => badge.key),
+  };
+};
 
 const toCollectionEntryId = (type: CollectionType, key: string): string => `${type}:${key}`;
 
@@ -90,12 +113,22 @@ const resolveKimariteTier = (
   return { tier: 'BRONZE', target: 10 };
 };
 
+const resolveCollectionProgressTier = (
+  type: CollectionType,
+  progress: number,
+): { tier: CollectionTier; target: number } | undefined => {
+  if (type === 'KIMARITE') return resolveKimariteTier(progress);
+  if (type === 'RECORD') return resolveRecordCollectionTier(progress);
+  return undefined;
+};
+
 const unlockCollectionEntry = async (
   type: CollectionType,
   key: string,
   sourceCareerId?: string,
   options?: {
     progressIncrement?: number;
+    markAsNew?: boolean;
   },
 ): Promise<boolean> => {
   const db = getDb();
@@ -105,9 +138,10 @@ const unlockCollectionEntry = async (
   const existing = await db.collectionEntries.get(id);
   const now = new Date().toISOString();
   const progressIncrement = Math.max(0, Math.floor(options?.progressIncrement ?? 0));
+  const markAsNew = options?.markAsNew ?? true;
   if (!existing) {
-    const progress = type === 'KIMARITE' ? Math.max(1, progressIncrement) : undefined;
-    const kimariteTier = type === 'KIMARITE' ? resolveKimariteTier(progress ?? 1) : undefined;
+    const progress = type === 'KIMARITE' || type === 'RECORD' ? Math.max(1, progressIncrement) : undefined;
+    const progressTier = progress ? resolveCollectionProgressTier(type, progress) : undefined;
     await db.collectionEntries.put({
       id,
       type,
@@ -115,59 +149,168 @@ const unlockCollectionEntry = async (
       sourceCareerId,
       unlockedAt: now,
       progress,
-      tier: kimariteTier?.tier,
-      target: kimariteTier?.target,
-      isNew: true,
+      tier: progressTier?.tier,
+      target: progressTier?.target,
+      isNew: markAsNew,
     });
     return true;
   }
 
   let changed = false;
   const patch: Partial<typeof existing> = {};
-  if (type === 'KIMARITE' && progressIncrement > 0) {
+  if ((type === 'KIMARITE' || type === 'RECORD') && progressIncrement > 0) {
     const nextProgress = (existing.progress ?? 0) + progressIncrement;
-    const nextTier = resolveKimariteTier(nextProgress);
+    const nextTier = resolveCollectionProgressTier(type, nextProgress);
     if (nextProgress !== existing.progress) {
       patch.progress = nextProgress;
       changed = true;
     }
-    if (nextTier.tier !== existing.tier || nextTier.target !== existing.target) {
+    if (nextTier && (nextTier.tier !== existing.tier || nextTier.target !== existing.target)) {
       patch.tier = nextTier.tier;
       patch.target = nextTier.target;
       changed = true;
     }
   }
-  if (changed || !existing.isNew) {
-    patch.isNew = true;
+  if (changed || (markAsNew && !existing.isNew)) {
+    if (markAsNew) patch.isNew = true;
     await db.collectionEntries.update(id, patch);
   }
   return changed;
+};
+
+interface CollectionUnlockCandidate {
+  type: CollectionType;
+  key: string;
+  progressIncrement?: number;
+}
+
+const buildCollectionUnlockCandidates = (
+  careerId: string,
+  status: RikishiStatus,
+  includeOyakata: boolean,
+): CollectionUnlockCandidate[] => {
+  const candidates: CollectionUnlockCandidate[] = [{ type: 'RIKISHI', key: careerId }];
+
+  Object.entries(status.history.kimariteTotal ?? {})
+    .filter(([, count]) => count > 0)
+    .forEach(([key, count]) => {
+      candidates.push({ type: 'KIMARITE', key, progressIncrement: count });
+    });
+
+  evaluateAchievementProgress(status).unlocked.forEach((achievement) => {
+    candidates.push({ type: 'ACHIEVEMENT', key: achievement.id });
+  });
+
+  buildCareerRecordBadges(status).forEach((badge) => {
+    candidates.push({ type: 'RECORD', key: badge.key, progressIncrement: 1 });
+  });
+
+  if (includeOyakata) {
+    candidates.push({ type: 'OYAKATA', key: careerId });
+  }
+
+  return candidates;
+};
+
+interface CollectionUnlockPreview {
+  collectionDeltaCount: number;
+  newRecordCount: number;
+}
+
+const previewCollectionUnlocks = async (
+  careerId: string,
+  status: RikishiStatus,
+  includeOyakata: boolean,
+): Promise<CollectionUnlockPreview> => {
+  const db = getDb();
+  const candidates = buildCollectionUnlockCandidates(careerId, status, includeOyakata);
+  let collectionDeltaCount = 0;
+  let newRecordCount = 0;
+
+  for (const candidate of candidates) {
+    const resolvedKey = resolveCollectionKey(candidate.type, candidate.key);
+    if (!resolvedKey) continue;
+    const existing = await db.collectionEntries.get(toCollectionEntryId(candidate.type, resolvedKey));
+    if (!existing) {
+      collectionDeltaCount += 1;
+      if (candidate.type === 'RECORD') newRecordCount += 1;
+      continue;
+    }
+    if ((candidate.type === 'KIMARITE' || candidate.type === 'RECORD') && (candidate.progressIncrement ?? 0) > 0) {
+      const nextProgress = (existing.progress ?? 0) + (candidate.progressIncrement ?? 0);
+      const currentTier = existing.progress ? resolveCollectionProgressTier(candidate.type, existing.progress) : undefined;
+      const nextTier = resolveCollectionProgressTier(candidate.type, nextProgress);
+      if (nextProgress !== existing.progress || nextTier?.tier !== currentTier?.tier) {
+        collectionDeltaCount += 1;
+      }
+    }
+  }
+
+  return {
+    collectionDeltaCount,
+    newRecordCount,
+  };
 };
 
 const unlockCollectionsForStatus = async (
   careerId: string,
   status: RikishiStatus,
   includeOyakata: boolean,
+  options?: {
+    markAsNew?: boolean;
+  },
 ): Promise<number> => {
   let changedCount = 0;
-  if (await unlockCollectionEntry('RIKISHI', careerId, careerId)) changedCount += 1;
-
-  const kimarite = Object.entries(status.history.kimariteTotal ?? {}).filter(([, count]) => count > 0);
-  for (const [key, count] of kimarite) {
-    if (await unlockCollectionEntry('KIMARITE', key, careerId, { progressIncrement: count })) {
+  const candidates = buildCollectionUnlockCandidates(careerId, status, includeOyakata);
+  for (const candidate of candidates) {
+    if (
+      await unlockCollectionEntry(candidate.type, candidate.key, careerId, {
+        progressIncrement: candidate.progressIncrement,
+        markAsNew: options?.markAsNew,
+      })
+    ) {
       changedCount += 1;
     }
   }
-
-  const achievements = evaluateAchievementProgress(status).unlocked;
-  for (const achievement of achievements) {
-    if (await unlockCollectionEntry('ACHIEVEMENT', achievement.id, careerId)) changedCount += 1;
-  }
-
-  if (includeOyakata) {
-    if (await unlockCollectionEntry('OYAKATA', careerId, careerId)) changedCount += 1;
-  }
   return changedCount;
+};
+
+const ensureLegacyCollectionEntries = async (): Promise<void> => {
+  const db = getDb();
+  const existingCollectionCount = await db.collectionEntries.count();
+  if (existingCollectionCount > 0) return;
+
+  const savedRows = await db.careers.where('state').equals('shelved').toArray();
+  for (const row of savedRows) {
+    if (!row.finalStatus) continue;
+    const collectionDeltaCount = await unlockCollectionsForStatus(row.id, row.finalStatus, true, {
+      markAsNew: false,
+    });
+    if (row.collectionDeltaCount !== collectionDeltaCount) {
+      await db.careers.update(row.id, { collectionDeltaCount });
+    }
+  }
+};
+
+const refreshBestScoreRanks = async (): Promise<void> => {
+  const db = getDb();
+  const rows = await db.careers.where('state').equals('shelved').toArray();
+  const ranked = rows
+    .slice()
+    .sort((left, right) => {
+      const scoreDelta = (right.clearScore ?? 0) - (left.clearScore ?? 0);
+      if (scoreDelta !== 0) return scoreDelta;
+      const savedDelta = (right.savedAt ?? '').localeCompare(left.savedAt ?? '');
+      if (savedDelta !== 0) return savedDelta;
+      return right.updatedAt.localeCompare(left.updatedAt);
+    });
+
+  for (let index = 0; index < ranked.length; index += 1) {
+    const row = ranked[index];
+    const nextRank = index + 1;
+    if (row.bestScoreRank === nextRank) continue;
+    await db.careers.update(row.id, { bestScoreRank: nextRank });
+  }
 };
 
 const toPlayerBashoRow = (
@@ -355,6 +498,11 @@ export interface CareerListItem {
   parentCareerId?: string;
   generation?: number;
   careerIndex?: number;
+  clearScore: number;
+  clearScoreVersion?: number;
+  recordBadgeKeys: string[];
+  bestScoreRank?: number;
+  collectionDeltaCount?: number;
 }
 
 export interface HeadToHeadRow {
@@ -403,30 +551,34 @@ export const createDraftCareer = async ({
     : 0;
   const generation = parentCareerId ? Math.min(99, parentGeneration + 1) : 1;
   const nextCareerIndex = allRows.reduce((max, row) => Math.max(max, row.careerIndex ?? 0), 0) + 1;
+  const initialSummary = toSummaryPatch(initialStatus);
 
   const row: CareerRow = {
     id: careerId,
     state: 'in_progress',
     createdAt: now,
     updatedAt: now,
-    shikona: initialStatus.shikona,
-    title: initialStatus.history.title,
-    maxRank: initialStatus.history.maxRank,
-    totalWins: initialStatus.history.totalWins,
-    totalLosses: initialStatus.history.totalLosses,
-    totalAbsent: initialStatus.history.totalAbsent,
-    yushoCount: initialStatus.history.yushoCount,
-    bashoCount: initialStatus.history.records.length,
+    shikona: initialSummary.shikona ?? initialStatus.shikona,
+    title: initialSummary.title,
+    maxRank: initialSummary.maxRank ?? initialStatus.history.maxRank,
+    totalWins: initialSummary.totalWins ?? initialStatus.history.totalWins,
+    totalLosses: initialSummary.totalLosses ?? initialStatus.history.totalLosses,
+    totalAbsent: initialSummary.totalAbsent ?? initialStatus.history.totalAbsent,
+    yushoCount: initialSummary.yushoCount ?? initialStatus.history.yushoCount,
+    bashoCount: initialSummary.bashoCount ?? initialStatus.history.records.length,
     careerStartYearMonth,
     careerEndYearMonth: null,
     simulationModelVersion: simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
-    finalStatus: initialStatus,
     lifetimePrizeYen: 0,
     earnedPointsFromPrize: 0,
     selectedOyakataId: selectedOyakataId ?? null,
     parentCareerId,
     generation,
     careerIndex: nextCareerIndex,
+    finalStatus: initialSummary.finalStatus ?? ensurePhaseAStatus(initialStatus),
+    clearScore: initialSummary.clearScore,
+    clearScoreVersion: initialSummary.clearScoreVersion,
+    recordBadgeKeys: initialSummary.recordBadgeKeys,
   };
 
   await db.careers.put(row);
@@ -615,13 +767,13 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       }
     }
     await db.careers.update(careerId, {
+      ...(finalStatus ? toSummaryPatch(finalStatus) : {}),
       state: 'shelved',
       savedAt: now,
       updatedAt: now,
       careerEndYearMonth:
         career.careerEndYearMonth ?? resolveRetirementYearMonth(finalStatus),
       oyakataProfile,
-      finalStatus: finalStatus ? ensurePhaseAStatus(finalStatus) : finalStatus,
       lifetimePrizeYen: finalStatus?.history.prizeBreakdown?.totalYen ?? career.lifetimePrizeYen,
       earnedPointsFromPrize: finalStatus?.history.rewardSummary?.convertedPoints ?? career.earnedPointsFromPrize,
       rewardGrantedAt: finalStatus?.history.rewardSummary?.grantedAt,
@@ -646,6 +798,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
     const collectionDeltaCount = await unlockCollectionsForStatus(careerId, career.finalStatus, true);
     await db.careers.update(careerId, { collectionDeltaCount });
   }
+  await refreshBestScoreRanks();
 };
 
 export const commitCareer = async (careerId: string): Promise<void> => shelveCareer(careerId);
@@ -694,6 +847,11 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   parentCareerId: row.parentCareerId,
   generation: row.generation,
   careerIndex: row.careerIndex,
+  clearScore: row.clearScore ?? 0,
+  clearScoreVersion: row.clearScoreVersion,
+  recordBadgeKeys: row.recordBadgeKeys ?? [],
+  bestScoreRank: row.bestScoreRank,
+  collectionDeltaCount: row.collectionDeltaCount,
 });
 
 export const listShelvedCareers = async (): Promise<CareerListItem[]> => {
@@ -715,6 +873,120 @@ export const listUnshelvedCareers = async (): Promise<CareerListItem[]> => {
   const rows = await db.careers.where('state').equals('unshelved').toArray();
   return rows
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map(toCareerListItem);
+};
+
+export interface CareerSaveIncentiveSummary {
+  clearScore: CareerClearScoreSummary;
+  recordBadges: CareerRecordBadge[];
+  featuredBadges: CareerRecordBadge[];
+  projectedBestScoreRank?: number;
+  collectionDeltaCount: number;
+  newRecordCount: number;
+  isPersonalBest: boolean;
+  rewardLabel: string;
+  rewardDetail: string;
+  saveLabel: string;
+}
+
+const resolveScoreTieBreak = (left: CareerRow, right: CareerRow): number => {
+  const scoreDelta = (right.clearScore ?? 0) - (left.clearScore ?? 0);
+  if (scoreDelta !== 0) return scoreDelta;
+  const savedDelta = (right.savedAt ?? '').localeCompare(left.savedAt ?? '');
+  if (savedDelta !== 0) return savedDelta;
+  return right.updatedAt.localeCompare(left.updatedAt);
+};
+
+export const getCareerSaveIncentiveSummary = async (
+  status: RikishiStatus,
+  options?: {
+    careerId?: string | null;
+    isSaved?: boolean;
+    includeOyakata?: boolean;
+  },
+): Promise<CareerSaveIncentiveSummary> => {
+  const db = getDb();
+  const clearScore = buildCareerClearScoreSummary(status);
+  const rows = await db.careers.where('state').equals('shelved').toArray();
+  const compareRows = options?.careerId
+    ? rows.filter((row) => row.id !== options.careerId)
+    : rows;
+  const virtualRow: CareerRow = {
+    id: options?.careerId ?? 'virtual-current',
+    state: 'shelved',
+    createdAt: '',
+    updatedAt: new Date().toISOString(),
+    savedAt: new Date().toISOString(),
+    shikona: status.shikona,
+    maxRank: status.history.maxRank,
+    totalWins: status.history.totalWins,
+    totalLosses: status.history.totalLosses,
+    totalAbsent: status.history.totalAbsent,
+    yushoCount: status.history.yushoCount,
+    bashoCount: status.history.records.length,
+    careerStartYearMonth: '',
+    careerEndYearMonth: null,
+    simulationModelVersion: DEFAULT_SIMULATION_MODEL_VERSION,
+    clearScore: clearScore.clearScore,
+    clearScoreVersion: CLEAR_SCORE_VERSION,
+    recordBadgeKeys: clearScore.badges.map((badge) => badge.key),
+  };
+  const projectedBestScoreRank = [...compareRows, virtualRow]
+    .sort(resolveScoreTieBreak)
+    .findIndex((row) => row.id === virtualRow.id) + 1;
+  const collectionPreview = options?.isSaved || !options?.careerId
+    ? { collectionDeltaCount: 0, newRecordCount: 0 }
+    : await previewCollectionUnlocks(options.careerId, status, options?.includeOyakata ?? true);
+
+  let rewardLabel = '保存候補';
+  let rewardDetail = '記録を残すと、あとで詳細な一代記を読み返せます。';
+  let saveLabel = '保存する';
+  if (options?.isSaved) {
+    rewardLabel = projectedBestScoreRank > 0 ? `歴代${projectedBestScoreRank}位` : '保存済み';
+    rewardDetail = 'すでに保存済みの記録です。詳しく見るから分析画面へ進めます。';
+    saveLabel = '保存済み';
+  } else if (projectedBestScoreRank === 1) {
+    rewardLabel = '自己ベスト更新';
+    rewardDetail = '保存すると、総評点の歴代1位になります。';
+    saveLabel = '自己ベストとして保存';
+  } else if (projectedBestScoreRank === 2) {
+    rewardLabel = '歴代2位';
+    rewardDetail = '保存すると、総評点の上位圏に入ります。';
+    saveLabel = '上位記録として保存';
+  } else if (projectedBestScoreRank > 0 && projectedBestScoreRank <= 10) {
+    rewardLabel = '上位10入り';
+    rewardDetail = '保存すると、総評点上位10件に入ります。';
+    saveLabel = '上位記録として保存';
+  } else if (collectionPreview.newRecordCount > 0) {
+    rewardLabel = `新規記録 ${collectionPreview.newRecordCount}件`;
+    rewardDetail = '保存すると、記録図鑑の新しい項目が解放されます。';
+    saveLabel = '図鑑を更新して保存';
+  } else if (collectionPreview.collectionDeltaCount > 0) {
+    rewardLabel = `図鑑進捗 +${collectionPreview.collectionDeltaCount}`;
+    rewardDetail = '保存すると、図鑑の進捗が更新されます。';
+    saveLabel = '図鑑を更新して保存';
+  }
+
+  return {
+    clearScore,
+    recordBadges: clearScore.badges,
+    featuredBadges: clearScore.badges.slice(0, 3),
+    projectedBestScoreRank: projectedBestScoreRank > 0 ? projectedBestScoreRank : undefined,
+    collectionDeltaCount: collectionPreview.collectionDeltaCount,
+    newRecordCount: collectionPreview.newRecordCount,
+    isPersonalBest: projectedBestScoreRank === 1,
+    rewardLabel,
+    rewardDetail,
+    saveLabel,
+  };
+};
+
+export const listTopCareerClearScores = async (limit = 10): Promise<CareerListItem[]> => {
+  const db = getDb();
+  const rows = await db.careers.where('state').equals('shelved').toArray();
+  return rows
+    .sort(resolveScoreTieBreak)
+    .slice(0, Math.max(1, limit))
     .map(toCareerListItem);
 };
 
@@ -793,6 +1065,7 @@ export const deleteCareer = async (careerId: string): Promise<void> => {
     db.careers,
     db.bashoRecords,
     db.boutRecords,
+    db.importantTorikumi,
     db.banzukePopulation,
     db.banzukeDecisions,
     db.simulationDiagnostics,
@@ -802,6 +1075,7 @@ export const deleteCareer = async (careerId: string): Promise<void> => {
   await db.transaction('rw', writableTables, async () => {
     await removeCareerRows(careerId);
   });
+  await refreshBestScoreRanks();
 };
 
 export const isCareerSaved = async (careerId: string): Promise<boolean> => {
@@ -1020,7 +1294,134 @@ export interface CollectionSummaryRow {
   newCount: number;
 }
 
+export type CollectionCatalogType = Extract<CollectionType, 'RECORD' | 'ACHIEVEMENT' | 'KIMARITE'>;
+
+export interface CollectionCatalogEntry {
+  id: string;
+  type: CollectionCatalogType;
+  key: string;
+  state: 'UNLOCKED' | 'LOCKED';
+  label: string;
+  description?: string;
+  isSecret?: boolean;
+  unlockedAt?: string;
+  progress?: number;
+  target?: number;
+  tier?: CollectionTier;
+  isNew?: boolean;
+  meta?: Record<string, string | number | boolean>;
+}
+
+export interface CollectionRecentUnlock {
+  id: string;
+  type: CollectionCatalogType;
+  label: string;
+  unlockedAt: string;
+  isNew?: boolean;
+  meta?: Record<string, string | number | boolean>;
+}
+
+export interface CollectionDashboardSummary {
+  totalUnlocked: number;
+  totalNew: number;
+  rows: Array<{
+    type: CollectionCatalogType;
+    label: string;
+    unlocked: number;
+    total: number;
+    newCount: number;
+    note?: string;
+  }>;
+  recentUnlocks: CollectionRecentUnlock[];
+}
+
+interface CollectionCatalogBaseEntry {
+  type: CollectionCatalogType;
+  key: string;
+  label: string;
+  description: string;
+  isSecret?: boolean;
+  meta?: Record<string, string | number | boolean>;
+}
+
+const resolveAchievementCategoryLabel = (category: string): string => {
+  if (category === 'YUSHO') return '優勝';
+  if (category === 'ZENSHO') return '全勝優勝';
+  if (category === 'WINS') return '通算勝利';
+  if (category === 'AGE') return '現役年齢';
+  if (category === 'IRONMAN') return '無休場';
+  if (category === 'STREAK') return '連続勝ち越し';
+  if (category === 'RAPID_PROMOTION') return '新入幕速度';
+  if (category === 'SANSHO') return '三賞';
+  if (category === 'GRAND_SLAM') return '各段優勝';
+  if (category === 'KINBOSHI') return '金星';
+  if (category === 'KIMARITE_VARIETY') return '決まり手';
+  return '初勝利';
+};
+
+const buildCollectionCatalog = (
+  type: CollectionCatalogType,
+): CollectionCatalogBaseEntry[] => {
+  if (type === 'RECORD') {
+    return listCareerRecordCatalog().map((entry) => ({
+      type,
+      key: entry.key,
+      label: entry.label,
+      description: entry.description,
+      isSecret: entry.isSecret,
+      meta: {
+        scoreBonus: entry.scoreBonus,
+      },
+    }));
+  }
+  if (type === 'ACHIEVEMENT') {
+    return ACHIEVEMENT_CATALOG.map((entry) => ({
+      type,
+      key: entry.id,
+      label: entry.name,
+      description: entry.description,
+      isSecret: entry.isSecret,
+      meta: {
+        category: resolveAchievementCategoryLabel(entry.category),
+        tier: entry.tier,
+      },
+    }));
+  }
+  const officialEntries = listOfficialWinningKimariteCatalog().map((entry) => ({
+    type,
+    key: entry.name,
+    label: entry.name,
+    description: `${resolveKimariteFamilyLabel(entry.family)}の公式決まり手`,
+    meta: {
+      familyLabel: resolveKimariteFamilyLabel(entry.family),
+      rarityLabel: resolveKimariteRarityLabel(entry.rarityBucket),
+      isNonTechnique: false,
+    },
+  }));
+  const nonTechniqueEntries = listNonTechniqueCatalog().map((entry) => ({
+    type,
+    key: entry.name,
+    label: entry.collectionLabel,
+    description: '決まり手82手とは別枠の非技',
+    meta: {
+      familyLabel: '非技',
+      rarityLabel: resolveKimariteRarityLabel(entry.rarityBucket),
+      isNonTechnique: true,
+    },
+  }));
+  return [...officialEntries, ...nonTechniqueEntries];
+};
+
+const resolveCollectionEntryLabel = (
+  type: CollectionCatalogType,
+  key: string,
+): string => {
+  const catalogEntry = buildCollectionCatalog(type).find((entry) => entry.key === key);
+  return catalogEntry?.label ?? key;
+};
+
 export const listCollectionSummary = async (): Promise<CollectionSummaryRow[]> => {
+  await ensureLegacyCollectionEntries();
   const db = getDb();
   const allRows = await db.collectionEntries.toArray();
   const summary: CollectionSummaryRow[] = COLLECTION_TYPES.map((type) => ({
@@ -1055,6 +1456,15 @@ export const listCollectionSummary = async (): Promise<CollectionSummaryRow[]> =
   return summary;
 };
 
+export const getRecordCollectionSummary = async (): Promise<CollectionSummaryRow> => {
+  const summary = await listCollectionSummary();
+  return summary.find((row) => row.type === 'RECORD') ?? {
+    type: 'RECORD',
+    count: 0,
+    newCount: 0,
+  };
+};
+
 export interface CollectionEntryDetail {
   id: string;
   type: CollectionType;
@@ -1064,7 +1474,117 @@ export interface CollectionEntryDetail {
   isNew?: boolean;
 }
 
+const COLLECTION_DETAIL_TYPES: CollectionCatalogType[] = ['RECORD', 'ACHIEVEMENT', 'KIMARITE'];
+
+export const listCollectionCatalogEntries = async (
+  type: CollectionCatalogType,
+): Promise<CollectionCatalogEntry[]> => {
+  await ensureLegacyCollectionEntries();
+  const db = getDb();
+  const rows = await db.collectionEntries.where('type').equals(type).toArray();
+  const rowByKey = new Map(rows.map((row) => [resolveCollectionKey(row.type, row.key) ?? row.key, row]));
+  const catalog = buildCollectionCatalog(type);
+
+  return catalog
+    .filter((entry) => {
+      const unlocked = rowByKey.get(entry.key);
+      if (!entry.isSecret) return true;
+      return Boolean(unlocked);
+    })
+    .map((entry) => {
+      const unlocked = rowByKey.get(entry.key);
+      if (!unlocked) {
+        return {
+          id: toCollectionEntryId(type, entry.key),
+          type,
+          key: entry.key,
+          state: 'LOCKED' as const,
+          label: '？？？',
+          isSecret: entry.isSecret,
+          meta: type === 'KIMARITE' ? entry.meta : undefined,
+        };
+      }
+      return {
+        id: toCollectionEntryId(type, entry.key),
+        type,
+        key: entry.key,
+        state: 'UNLOCKED' as const,
+        label: entry.label,
+        description: entry.description,
+        isSecret: entry.isSecret,
+        unlockedAt: unlocked.unlockedAt,
+        progress: unlocked.progress,
+        target: unlocked.target,
+        tier: unlocked.tier,
+        isNew: unlocked.isNew,
+        meta: entry.meta,
+      };
+    });
+};
+
+export const listRecentCollectionUnlocks = async (
+  limit = 8,
+): Promise<CollectionRecentUnlock[]> => {
+  await ensureLegacyCollectionEntries();
+  const db = getDb();
+  const rows = (await db.collectionEntries.toArray())
+    .filter((row): row is typeof row & { type: CollectionCatalogType } => COLLECTION_DETAIL_TYPES.includes(row.type as CollectionCatalogType))
+    .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt))
+    .slice(0, Math.max(1, limit));
+
+  return rows.map((row) => {
+    const key = resolveCollectionKey(row.type, row.key) ?? row.key;
+    const catalogEntry = buildCollectionCatalog(row.type).find((entry) => entry.key === key);
+    return {
+      id: toCollectionEntryId(row.type, key),
+      type: row.type,
+      label: catalogEntry?.label ?? resolveCollectionEntryLabel(row.type, key),
+      unlockedAt: row.unlockedAt,
+      isNew: row.isNew,
+      meta: catalogEntry?.meta,
+    };
+  });
+};
+
+export const getCollectionDashboardSummary = async (): Promise<CollectionDashboardSummary> => {
+  const summaryRows = await listCollectionSummary();
+  const recentUnlocks = await listRecentCollectionUnlocks(6);
+  const kimariteCatalog = buildCollectionCatalog('KIMARITE');
+  const officialTotal = kimariteCatalog.filter((entry) => !entry.meta?.isNonTechnique).length;
+  const nonTechniqueTotal = kimariteCatalog.filter((entry) => entry.meta?.isNonTechnique).length;
+  const unlockedKimariteEntries = await listCollectionCatalogEntries('KIMARITE');
+  const unlockedNonTechniqueCount = unlockedKimariteEntries.filter(
+    (entry) => entry.state === 'UNLOCKED' && entry.meta?.isNonTechnique,
+  ).length;
+  const unlockedOfficialKimariteCount = unlockedKimariteEntries.filter(
+    (entry) => entry.state === 'UNLOCKED' && !entry.meta?.isNonTechnique,
+  ).length;
+  const rows = COLLECTION_DETAIL_TYPES.map((type) => {
+    const summary = summaryRows.find((row) => row.type === type);
+    const total = buildCollectionCatalog(type).filter((entry) => !entry.isSecret).length;
+    return {
+      type,
+      label: type === 'RECORD' ? '記録' : type === 'ACHIEVEMENT' ? '偉業' : '決まり手',
+      unlocked: type === 'KIMARITE' ? unlockedOfficialKimariteCount : summary?.count ?? 0,
+      total: type === 'KIMARITE' ? officialTotal : total,
+      newCount: summary?.newCount ?? 0,
+      note:
+        type === 'KIMARITE'
+          ? `非技 ${unlockedNonTechniqueCount}/${nonTechniqueTotal}`
+          : undefined,
+    };
+  });
+
+  return {
+    totalUnlocked: rows.reduce((sum, row) => sum + row.unlocked, 0) + unlockedNonTechniqueCount,
+    totalNew: rows.reduce((sum, row) => sum + row.newCount, 0),
+    rows,
+    recentUnlocks,
+  };
+};
+
 export const listUnlockedCollectionEntries = async (): Promise<CollectionEntryDetail[]> => {
+  await ensureLegacyCollectionEntries();
   const db = getDb();
   const rows = await db.collectionEntries.toArray();
   const details = new Map<string, CollectionEntryDetail>();
@@ -1087,7 +1607,9 @@ export const listUnlockedCollectionEntries = async (): Promise<CollectionEntryDe
     } else if (row.type === 'KIMARITE') {
       label = `決まり手：${resolvedKey}`;
     } else if (row.type === 'ACHIEVEMENT') {
-      label = `偉業達成：${resolvedKey}`;
+      label = `偉業達成：${resolveCollectionEntryLabel('ACHIEVEMENT', resolvedKey)}`;
+    } else if (row.type === 'RECORD') {
+      label = `記録図鑑：${resolveCareerRecordBadgeLabel(resolvedKey as Parameters<typeof resolveCareerRecordBadgeLabel>[0])}`;
     }
 
     const normalizedId = toCollectionEntryId(row.type, resolvedKey);

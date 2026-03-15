@@ -1,5 +1,6 @@
 import React from "react";
 import { Archive, Search, Star, Trash2 } from "lucide-react";
+import { resolveCareerRecordBadgeLabel } from "../../../logic/career/clearScore";
 import { Rank } from "../../../logic/models";
 import { Button } from "../../../shared/ui/Button";
 
@@ -21,6 +22,9 @@ interface ArchiveItem {
   };
   savedAt?: string;
   updatedAt?: string;
+  clearScore?: number;
+  recordBadgeKeys?: string[];
+  bestScoreRank?: number;
 }
 
 interface ArchiveScreenProps {
@@ -30,6 +34,7 @@ interface ArchiveScreenProps {
 }
 
 type ArchiveFilter = "ALL" | "YOKOZUNA" | "YUSHO";
+type ArchiveSort = "RECENT" | "SCORE";
 
 const formatRankName = (rank: Rank): string => {
   const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
@@ -39,6 +44,7 @@ const formatRankName = (rank: Rank): string => {
 };
 
 const resolveArchiveLabel = (item: ArchiveItem): string => {
+  if (item.bestScoreRank && item.bestScoreRank <= 10) return `総評点歴代${item.bestScoreRank}位`;
   if (item.maxRank.name === "横綱") return "横綱到達";
   if (item.maxRank.name === "大関") return "大関到達";
   if (item.yushoCount.makuuchi > 0) return `幕内優勝 ${item.yushoCount.makuuchi}回`;
@@ -61,6 +67,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
   onDelete,
 }) => {
   const [filter, setFilter] = React.useState<ArchiveFilter>("ALL");
+  const [sortBy, setSortBy] = React.useState<ArchiveSort>("RECENT");
   const [keyword, setKeyword] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(items[0]?.id ?? null);
 
@@ -85,8 +92,18 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         formatRankName(item.maxRank).includes(normalized) ||
         (item.title ?? "").includes(normalized)
       );
+    }).sort((left, right) => {
+      if (sortBy === "SCORE") {
+        const scoreDelta = (right.clearScore ?? 0) - (left.clearScore ?? 0);
+        if (scoreDelta !== 0) return scoreDelta;
+        const rankDelta = (left.bestScoreRank ?? Number.MAX_SAFE_INTEGER) - (right.bestScoreRank ?? Number.MAX_SAFE_INTEGER);
+        if (rankDelta !== 0) return rankDelta;
+      }
+      const savedDelta = (right.savedAt || right.updatedAt || "").localeCompare(left.savedAt || left.updatedAt || "");
+      if (savedDelta !== 0) return savedDelta;
+      return right.shikona.localeCompare(left.shikona, "ja");
     });
-  }, [filter, items, keyword]);
+  }, [filter, items, keyword, sortBy]);
 
   const selectedItem =
     filteredItems.find((item) => item.id === selectedId) ?? filteredItems[0] ?? null;
@@ -143,6 +160,26 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             </button>
           ))}
         </div>
+
+        <div className="space-y-2 border-t border-line pt-3">
+          <div className="panel-title">並び順</div>
+          <div className="space-y-2">
+            {[
+              { id: "RECENT" as const, label: "新しい順" },
+              { id: "SCORE" as const, label: "スコア順" },
+            ].map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className="filter-chip"
+                data-active={sortBy === entry.id}
+                onClick={() => setSortBy(entry.id)}
+              >
+                <span>{entry.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="surface-panel min-w-0">
@@ -170,6 +207,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               <thead>
                 <tr>
                   <th>四股名</th>
+                  <th>総評点</th>
                   <th>最高位</th>
                   <th>幕内優勝</th>
                   <th>通算成績</th>
@@ -188,6 +226,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                       <div className="font-medium text-text">{item.shikona}</div>
                       <div className="text-xs text-text-dim">{resolveArchiveLabel(item)}</div>
                     </td>
+                    <td>{item.clearScore ?? 0}</td>
                     <td>{formatRankName(item.maxRank)}</td>
                     <td>{item.yushoCount.makuuchi}回</td>
                     <td>
@@ -232,6 +271,10 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
             <div className="metric-strip">
               <div className="metric-card">
+                <div className="metric-label">総評点</div>
+                <div className="metric-value">{selectedItem.clearScore ?? 0}</div>
+              </div>
+              <div className="metric-card">
                 <div className="metric-label">通算成績</div>
                 <div className="metric-value">
                   {selectedItem.totalWins}勝 {selectedItem.totalLosses}敗
@@ -242,6 +285,18 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 <div className="metric-value">{selectedItem.yushoCount.makuuchi}回</div>
               </div>
             </div>
+
+            {!!selectedItem.recordBadgeKeys?.length && (
+              <div className="flex flex-wrap gap-2">
+                {selectedItem.recordBadgeKeys.slice(0, 3).map((badgeKey) => (
+                  <span key={badgeKey} className="report-pill" data-tone="state">
+                    {resolveCareerRecordBadgeLabel(
+                      badgeKey as Parameters<typeof resolveCareerRecordBadgeLabel>[0],
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="space-y-2 text-sm text-text-dim">
               <div className="info-row">

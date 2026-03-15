@@ -10,14 +10,14 @@ import {
   appendBashoChunk,
   discardDraftCareer,
   markCareerCompleted,
-} from '../../../logic/persistence/repository';
+} from '../../../logic/persistence/careers';
 import { normalizeNewRunModelVersion } from '../../../logic/simulation/modelVersion';
 
 let engine: ReturnType<typeof createSimulationEngine> | null = null;
 let activeCareerId: string | null = null;
 let stopped = false;
 let loopRunning = false;
-let pacing: 'observe' | 'skip_to_end' = 'observe';
+let pacing: 'observe' | 'skip_to_end' = 'skip_to_end';
 
 const post = (message: SimulationWorkerResponse): void => {
   self.postMessage(message);
@@ -184,11 +184,18 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
   const message = event.data;
 
   if (message.type === 'START') {
-    const { careerId, initialStats, oyakata, runOptions, simulationModelVersion } = message.payload;
+    const {
+      careerId,
+      initialStats,
+      oyakata,
+      runOptions,
+      simulationModelVersion,
+      initialPacing,
+    } = message.payload;
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
 
     stopped = false;
-    pacing = 'observe';
+    pacing = initialPacing;
     activeCareerId = careerId;
     engine = createSimulationEngine({
       initialStats,

@@ -17,8 +17,10 @@ import {
   ReportHeroMetric,
   ReportHeroSummary,
   ReportSpotlightPayload,
+} from "../utils/reportHero";
+import {
   formatRankDisplayName,
-} from "../utils/reportCareer";
+} from "../utils/reportFormatters";
 
 const RANK_CHART_BANDS: Array<{
   key: "Makuuchi" | "Juryo" | "Makushita" | "Sandanme" | "Jonidan" | "Jonokuchi";
@@ -362,7 +364,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
               </>
             ) : (
               <>
-                <Save className="w-3.5 h-3.5 mr-1" /> 殿堂入り
+                <Save className="w-3.5 h-3.5 mr-1" /> 保存する
               </>
             )}
           </Button>

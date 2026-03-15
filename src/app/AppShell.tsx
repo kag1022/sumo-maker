@@ -1,7 +1,7 @@
 import React from "react";
-import { Archive, BookOpenText, FlaskConical, ScrollText } from "lucide-react";
+import { Archive, BookOpenText, FlaskConical, LayoutGrid, ScrollText } from "lucide-react";
 
-export type AppSection = "scout" | "career" | "archive" | "logicLab";
+export type AppSection = "scout" | "career" | "archive" | "collection" | "logicLab";
 
 interface AppShellProps {
   activeSection: AppSection;
@@ -21,8 +21,9 @@ const NAV_ITEMS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { id: "scout", label: "新弟子", shortLabel: "新弟子", icon: ScrollText },
-  { id: "career", label: "現役力士記録", shortLabel: "記録", icon: BookOpenText },
+  { id: "career", label: "力士結果", shortLabel: "結果", icon: BookOpenText },
   { id: "archive", label: "保存済み記録", shortLabel: "保存済み", icon: Archive },
+  { id: "collection", label: "図鑑", shortLabel: "図鑑", icon: LayoutGrid },
   { id: "logicLab", label: "ロジック検証", shortLabel: "検証", icon: FlaskConical },
 ];
 

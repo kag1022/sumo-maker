@@ -2,7 +2,7 @@ import React from "react";
 import { Award, Trophy } from "lucide-react";
 import { RikishiStatus } from "../../../logic/models";
 import { AchievementView } from "./AchievementView";
-import { formatRankDisplayName } from "../utils/reportCareer";
+import { formatRankDisplayName } from "../utils/reportFormatters";
 
 interface ReportAchievementsTabProps {
   status: RikishiStatus;
