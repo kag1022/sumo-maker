@@ -37,7 +37,13 @@ import {
   resolveScheduledBoutDay,
   toBoundarySnapshotsByDivision,
 } from './shared';
-import { BashoSimulationResult, BoutOutcome, PlayerBoutDetail } from './types';
+import {
+  BashoSimulationResult,
+  BoutOutcome,
+  PlayerBoutDetail,
+  buildImportantTorikumiNote,
+  type ImportantTorikumiNote,
+} from './types';
 
 const resolveLowerRankScore = (rank: Rank, lowerWorld: LowerDivisionQuotaWorld): number => {
   if (
@@ -175,6 +181,7 @@ export const runLowerDivisionBasho = (
   let sosTotal = 0;
   let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
+  const importantTorikumiNotes: ImportantTorikumiNote[] = [];
   const playerRankScore = resolveLowerRankScore(status.rank, lowerWorld);
   const participants: TorikumiParticipant[] = LOWER_DIVISIONS.flatMap((lowerDivision) =>
     lowerWorld.rosters[lowerDivision]
@@ -329,7 +336,8 @@ export const runLowerDivisionBasho = (
       if (participant.id.startsWith('JURYO_GUEST_')) return day >= 1 && day <= 15;
       return resolveLowerDivisionEligibility(participant, day, lowerDayMap);
     },
-    onPair: ({ a, b }, day) => {
+    onPair: (pair, day) => {
+      const { a, b } = pair;
       // 事前にNPCのケガ判定を実施 (1日1回)
       const npcInjuryCheck = (participant: DivisionParticipant) => {
         if (!participant.isPlayer && participant.active) {
@@ -365,6 +373,23 @@ export const runLowerDivisionBasho = (
         opponentDivision === 'Juryo'
           ? 6
           : LOWER_RANK_VALUE_MAP[opponentDivision as keyof typeof LOWER_RANK_VALUE_MAP];
+      const importantNote = buildImportantTorikumiNote({
+        pair,
+        day,
+        year,
+        month,
+        opponentId: opponent.id,
+        opponentShikona: opponent.shikona,
+        opponentRank: {
+          division: opponentDivision,
+          name: rankName,
+          number: rankNumber,
+          side: rankSide,
+        },
+      });
+      if (importantNote) {
+        importantTorikumiNotes.push(importantNote);
+      }
 
       if (!opponent.active) {
         wins += 1;
@@ -557,6 +582,7 @@ export const runLowerDivisionBasho = (
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],
+    importantTorikumiNotes,
     lowerLeagueSnapshots: toBoundarySnapshotsByDivision(
       participants.filter((participant) => !participant.id.startsWith('JURYO_GUEST_')),
     ),

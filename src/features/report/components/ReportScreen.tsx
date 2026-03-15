@@ -94,11 +94,6 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
     [spotlight.points],
   );
 
-  const visibleTimelineItems = React.useMemo(() => {
-    if (timelineFilter === "ALL") return timelineDigest;
-    return timelineDigest.filter((item) => item.isMajor);
-  }, [timelineDigest, timelineFilter]);
-
   const achievementSummary = React.useMemo(() => {
     const parts: string[] = [];
     if (status.history.yushoCount.makuuchi > 0) parts.push(`幕内優勝 ${status.history.yushoCount.makuuchi}回`);
@@ -208,7 +203,9 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       {activeTab === "details" && <ReportDetailsTab status={status} careerId={careerId} />}
       {activeTab === "timeline" && (
         <ReportTimelineTab
-          items={visibleTimelineItems}
+          items={timelineDigest}
+          status={status}
+          careerId={careerId}
           filter={timelineFilter}
           onFilterChange={setTimelineFilter}
           hoshitoriCareerRecords={hoshitoriCareerRecords}

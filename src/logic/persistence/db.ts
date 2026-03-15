@@ -11,6 +11,8 @@ import {
 import type { BanzukeDecisionLog, BanzukePopulationSnapshot } from '../banzuke/types';
 import { SimulationDiagnostics } from '../simulation/diagnostics';
 import { SimulationModelVersion } from '../simulation/modelVersion';
+import type { ImportantTorikumiTrigger } from '../simulation/basho';
+import type { TorikumiMatchReason } from '../simulation/torikumi/types';
 import { ensureKataProfile } from '../style/kata';
 
 export type CareerState = 'in_progress' | 'unshelved' | 'shelved';
@@ -98,6 +100,23 @@ export interface BoutRecordRow {
   opponentRankSide?: 'East' | 'West';
 }
 
+export interface ImportantTorikumiRow {
+  careerId: string;
+  bashoSeq: number;
+  day: number;
+  year: number;
+  month: number;
+  opponentId?: string;
+  opponentShikona?: string;
+  opponentRankName: string;
+  opponentRankNumber?: number;
+  opponentRankSide?: 'East' | 'West';
+  trigger: ImportantTorikumiTrigger;
+  summary: string;
+  matchReason: TorikumiMatchReason;
+  relaxationStage: number;
+}
+
 export interface WalletRow {
   key: 'wallet';
   points: number;
@@ -152,6 +171,8 @@ class SumoMakerDatabase extends Dexie {
   banzukeDecisions!: Table<BanzukeDecisionRow, [string, number, string]>;
 
   simulationDiagnostics!: Table<SimulationDiagnosticsRow, [string, number]>;
+
+  importantTorikumi!: Table<ImportantTorikumiRow, [string, number, number]>;
 
   walletTransactions!: Table<WalletTransactionRow, string>;
 
@@ -428,6 +449,26 @@ class SumoMakerDatabase extends Dexie {
           });
         }
       });
+
+    this.version(12).stores({
+      careers:
+        '&id, state, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      importantTorikumi:
+        '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq], trigger',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+      walletTransactions: '&id, createdAt, reason, careerId',
+      careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+      collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+      adRewardLedger: '&id, [day+slot], day, type, createdAt',
+      oyakataProfiles: '&id, sourceCareerId',
+    });
   }
 }
 

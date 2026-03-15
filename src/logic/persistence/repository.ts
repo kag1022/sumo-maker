@@ -6,7 +6,7 @@ import {
   OyakataProfile,
   RikishiStatus,
 } from '../models';
-import { NpcBashoAggregate, PlayerBoutDetail } from '../simulation/basho';
+import { ImportantTorikumiNote, NpcBashoAggregate, PlayerBoutDetail } from '../simulation/basho';
 import { formatKinboshiTitle } from '../simulation/titles';
 import {
   AdRewardLedgerRow,
@@ -16,6 +16,7 @@ import {
   BoutRecordRow,
   CareerRow,
   CareerState,
+  ImportantTorikumiRow,
   SimulationDiagnosticsRow,
   getDb,
 } from './db';
@@ -255,11 +256,33 @@ const toBoutRows = (
   opponentRankSide: bout.opponentRankSide,
 }));
 
+const toImportantTorikumiRows = (
+  careerId: string,
+  seq: number,
+  notes: ImportantTorikumiNote[],
+): ImportantTorikumiRow[] => notes.map((note) => ({
+  careerId,
+  bashoSeq: seq,
+  day: note.day,
+  year: note.year,
+  month: note.month,
+  opponentId: note.opponentId,
+  opponentShikona: note.opponentShikona,
+  opponentRankName: note.opponentRank.name,
+  opponentRankNumber: note.opponentRank.number,
+  opponentRankSide: note.opponentRank.side,
+  trigger: note.trigger,
+  summary: note.summary,
+  matchReason: note.matchReason,
+  relaxationStage: note.relaxationStage,
+}));
+
 const removeCareerRows = async (careerId: string): Promise<void> => {
   const db = getDb();
   await db.careers.delete(careerId);
   await db.bashoRecords.where('careerId').equals(careerId).delete();
   await db.boutRecords.where('careerId').equals(careerId).delete();
+  await db.importantTorikumi.where('careerId').equals(careerId).delete();
   await db.banzukePopulation.where('careerId').equals(careerId).delete();
   await db.banzukeDecisions.where('careerId').equals(careerId).delete();
   await db.simulationDiagnostics.where('careerId').equals(careerId).delete();
@@ -302,6 +325,7 @@ export interface AppendBashoChunkParams {
   seq: number;
   playerRecord: BashoRecord;
   playerBouts: PlayerBoutDetail[];
+  importantTorikumiNotes?: ImportantTorikumiNote[];
   npcRecords: NpcBashoAggregate[];
   statusSnapshot: RikishiStatus;
   banzukePopulation?: BanzukePopulationSnapshot;
@@ -354,6 +378,11 @@ export interface CareerBashoRecordsBySeq {
   year: number;
   month: number;
   rows: BashoRecordRow[];
+}
+
+export interface CareerImportantTorikumiByBasho {
+  bashoSeq: number;
+  notes: ImportantTorikumiRow[];
 }
 
 export const createDraftCareer = async ({
@@ -409,6 +438,7 @@ export const appendBashoChunk = async ({
   seq,
   playerRecord,
   playerBouts,
+  importantTorikumiNotes,
   npcRecords,
   statusSnapshot,
   banzukePopulation,
@@ -426,10 +456,12 @@ export const appendBashoChunk = async ({
     playerRecord.rank,
     playerBouts,
   );
+  const importantTorikumiRows = toImportantTorikumiRows(careerId, seq, importantTorikumiNotes ?? []);
   const writableTables = [
     db.careers,
     db.bashoRecords,
     db.boutRecords,
+    db.importantTorikumi,
     db.banzukePopulation,
     db.banzukeDecisions,
     db.simulationDiagnostics,
@@ -448,6 +480,9 @@ export const appendBashoChunk = async ({
 
       await db.bashoRecords.bulkPut([playerRow, ...npcRows]);
       await db.boutRecords.bulkPut(boutRows);
+      if (importantTorikumiRows.length) {
+        await db.importantTorikumi.bulkPut(importantTorikumiRows);
+      }
       if (banzukePopulation) {
         const row: BanzukePopulationRow = {
           ...banzukePopulation,
@@ -515,6 +550,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
     db.careers,
     db.bashoRecords,
     db.boutRecords,
+    db.importantTorikumi,
     db.banzukePopulation,
     db.banzukeDecisions,
     db.simulationDiagnostics,
@@ -620,6 +656,7 @@ export const discardCareer = async (careerId: string): Promise<void> => {
     db.careers,
     db.bashoRecords,
     db.boutRecords,
+    db.importantTorikumi,
     db.banzukePopulation,
     db.banzukeDecisions,
     db.simulationDiagnostics,
@@ -833,6 +870,16 @@ export const listCareerBashoRecordsBySeq = async (
         rows: sortedRows,
       };
     });
+};
+
+export const listCareerImportantTorikumi = async (
+  careerId: string,
+): Promise<ImportantTorikumiRow[]> => {
+  const db = getDb();
+  return db.importantTorikumi
+    .where('careerId')
+    .equals(careerId)
+    .sortBy('[careerId+bashoSeq+day]');
 };
 
 export const getCareerHeadToHead = async (careerId: string): Promise<HeadToHeadRow[]> => {

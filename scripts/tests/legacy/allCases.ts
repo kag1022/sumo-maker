@@ -87,6 +87,7 @@ import {
   getCareerHeadToHead,
   isCareerSaved,
   listCareerBashoRecordsBySeq,
+  listCareerImportantTorikumi,
   listBanzukeDecisions,
   listBanzukePopulation,
   listCollectionSummary,
@@ -136,6 +137,9 @@ import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori
 import {
   buildBanzukeSnapshotForSeq,
   buildCareerRivalryDigest,
+  buildImportantBanzukeDecisionDigests,
+  buildImportantDecisionDigest,
+  buildImportantTorikumiDigests,
   buildHoshitoriCareerRecords,
   buildRankChartData,
   buildTimelineEventGroups,
@@ -5170,6 +5174,66 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'storage: appendBashoChunk persists important torikumi notes',
+    run: async () => {
+      await resetDb();
+      const initial = createStatus({
+        rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: initial,
+        careerStartYearMonth: '2026-01',
+      });
+
+      await appendBashoChunk({
+        careerId,
+        seq: 1,
+        playerRecord: {
+          year: 2026,
+          month: 1,
+          rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          wins: 8,
+          losses: 7,
+          absent: 0,
+          yusho: false,
+          specialPrizes: [],
+        },
+        playerBouts: [
+          {
+            day: 15,
+            result: 'LOSS',
+            opponentId: 'NPC-Y',
+            opponentShikona: '覇王山',
+            opponentRankName: '横綱',
+            opponentRankSide: 'East',
+          },
+        ],
+        importantTorikumiNotes: [
+          {
+            day: 15,
+            year: 2026,
+            month: 1,
+            opponentId: 'NPC-Y',
+            opponentShikona: '覇王山',
+            opponentRank: { division: 'Makuuchi', name: '横綱', side: 'East' },
+            trigger: 'YUSHO_RACE',
+            summary: '優勝争いの割で組まれた。',
+            matchReason: 'YUSHO_RACE',
+            relaxationStage: 0,
+          },
+        ],
+        npcRecords: [],
+        statusSnapshot: initial,
+      });
+
+      const rows = await listCareerImportantTorikumi(careerId);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]?.trigger, 'YUSHO_RACE');
+      assert.equal(rows[0]?.opponentShikona, '覇王山');
+      assert.equal(rows[0]?.day, 15);
+    },
+  },
+  {
     name: 'report: listCareerBashoRecordsBySeq groups saved basho rows by sequence',
     run: async () => {
       await resetDb();
@@ -6895,6 +6959,184 @@ export const tests: TestCase[] = [
         '西十両2枚目へ昇進 (12勝3敗)',
         '技能賞を受賞',
       ]);
+    },
+  },
+  {
+    name: 'report: important banzuke digest includes sekitori and makuuchi promotions only when significant',
+    run: () => {
+      const status = createStatus();
+      status.history.records = [
+        {
+          ...createBashoRecord({ division: 'Makushita', name: '幕下', side: 'East', number: 2 }, 6, 1),
+          month: 1,
+        },
+        {
+          ...createBashoRecord({ division: 'Juryo', name: '十両', side: 'East', number: 1 }, 11, 4),
+          month: 3,
+        },
+        {
+          ...createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 10 }, 8, 7),
+          month: 5,
+        },
+      ];
+
+      const digests = buildImportantBanzukeDecisionDigests(status, [
+        {
+          careerId: 'career',
+          seq: 1,
+          rikishiId: 'PLAYER',
+          fromRank: { division: 'Makushita', name: '幕下', side: 'East', number: 2 },
+          proposedRank: { division: 'Juryo', name: '十両', side: 'East', number: 13 },
+          finalRank: { division: 'Juryo', name: '十両', side: 'East', number: 13 },
+          reasons: ['REVIEW_ACCEPTED'],
+        },
+        {
+          careerId: 'career',
+          seq: 2,
+          rikishiId: 'PLAYER',
+          fromRank: { division: 'Juryo', name: '十両', side: 'East', number: 1 },
+          proposedRank: { division: 'Makuuchi', name: '前頭', side: 'West', number: 14 },
+          finalRank: { division: 'Makuuchi', name: '前頭', side: 'West', number: 14 },
+          reasons: ['REVIEW_ACCEPTED'],
+        },
+        {
+          careerId: 'career',
+          seq: 3,
+          rikishiId: 'PLAYER',
+          fromRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 10 },
+          proposedRank: { division: 'Makuuchi', name: '前頭', side: 'West', number: 9 },
+          finalRank: { division: 'Makuuchi', name: '前頭', side: 'West', number: 9 },
+          reasons: ['REVIEW_ACCEPTED'],
+        },
+      ], []);
+
+      assert.deepEqual(digests.map((entry) => entry.trigger), ['MAKUUCHI_PROMOTION', 'SEKITORI_PROMOTION']);
+    },
+  },
+  {
+    name: 'report: important banzuke digest flags kachikoshi hold and sanyaku slot jam',
+    run: () => {
+      const status = createStatus();
+      status.history.records = [
+        {
+          ...createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 1 }, 8, 7),
+          month: 1,
+        },
+        {
+          ...createBashoRecord({ division: 'Makuuchi', name: '前頭', side: 'East', number: 4 }, 12, 3),
+          month: 3,
+        },
+      ];
+
+      const digests = buildImportantBanzukeDecisionDigests(status, [
+        {
+          careerId: 'career',
+          seq: 1,
+          rikishiId: 'PLAYER',
+          fromRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          proposedRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          finalRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          reasons: ['REVIEW_ACCEPTED'],
+        },
+        {
+          careerId: 'career',
+          seq: 2,
+          rikishiId: 'PLAYER',
+          fromRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 4 },
+          proposedRank: { division: 'Makuuchi', name: '小結', side: 'West' },
+          finalRank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 1 },
+          reasons: ['REVIEW_BOUNDARY_SLOT_JAM_NOTED'],
+        },
+      ], []);
+
+      assert.equal(digests[0]?.trigger, 'SANYAKU_MISSED_BY_SLOT_JAM');
+      assert.equal(digests[1]?.trigger, 'KACHIKOSHI_HELD');
+    },
+  },
+  {
+    name: 'report: important torikumi digest ignores ordinary nearby bouts and keeps yusho race',
+    run: () => {
+      const digests = buildImportantTorikumiDigests([
+        {
+          careerId: 'career',
+          bashoSeq: 1,
+          day: 15,
+          year: 2026,
+          month: 1,
+          opponentId: 'Y1',
+          opponentShikona: '覇王山',
+          opponentRankName: '横綱',
+          opponentRankSide: 'East',
+          trigger: 'YUSHO_RACE',
+          summary: '優勝争いの割で組まれた。',
+          matchReason: 'YUSHO_RACE',
+          relaxationStage: 0,
+        },
+        {
+          careerId: 'career',
+          bashoSeq: 1,
+          day: 8,
+          year: 2026,
+          month: 1,
+          opponentId: 'M8',
+          opponentShikona: '平幕山',
+          opponentRankName: '前頭',
+          opponentRankNumber: 8,
+          opponentRankSide: 'West',
+          trigger: 'LATE_RELAXATION',
+          summary: '制約緩和が深い編成で相手が決まった。',
+          matchReason: 'FALLBACK',
+          relaxationStage: 3,
+        },
+      ]);
+
+      assert.equal(digests.length, 2);
+      assert.equal(digests[0]?.trigger, 'YUSHO_RACE');
+      assert.ok(digests[0]?.detailLine.includes('覇王山'));
+    },
+  },
+  {
+    name: 'report: important decision digest mixes banzuke and torikumi timeline items',
+    run: () => {
+      const digest = buildImportantDecisionDigest(
+        [
+          {
+            key: 'banzuke-1',
+            bashoSeq: 2,
+            bashoLabel: '2026年3月',
+            trigger: 'SEKITORI_PROMOTION',
+            summary: '関取昇進を決め、東十両13枚目に届いた。',
+            resultLine: '結果: 6勝1敗で東十両13枚目へ動いた。',
+            reasonLine: '理由: 幕下以下を抜け、関取枠へ届く成績を残した。',
+            contextLine: '番付事情: 関取境界での競合を抜けた。',
+            recordText: '6勝1敗',
+            fromRankLabel: '東幕下2枚目',
+            toRankLabel: '東十両13枚目',
+            year: 2026,
+            month: 3,
+          },
+        ],
+        [
+          {
+            key: 'torikumi-1',
+            bashoSeq: 2,
+            bashoLabel: '2026年3月',
+            day: 15,
+            trigger: 'YUSHO_RACE',
+            summary: '優勝争いの割で組まれた。',
+            detailLine: '15日目は覇王山（東横綱）と組まれた。',
+            opponentId: 'Y1',
+            opponentShikona: '覇王山',
+            opponentRankLabel: '東横綱',
+            year: 2026,
+            month: 3,
+          },
+        ],
+      );
+
+      assert.equal(digest.highlights.length, 2);
+      assert.equal(digest.timelineItems[0]?.entryType, 'TORIKUMI');
+      assert.equal(digest.timelineItems[1]?.entryType, 'BANZUKE');
     },
   },
   {
