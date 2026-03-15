@@ -6,20 +6,22 @@ import {
   listCareerBashoRecordsBySeq,
   listCareerImportantTorikumi,
   listCareerPlayerBoutsByBasho,
-} from "../../../logic/persistence/repository";
+} from "../../../logic/persistence/careerHistory";
 import type { BashoRecordRow } from "../../../logic/persistence/db";
 import { HoshitoriCareerRecord, HoshitoriTable } from "./HoshitoriTable";
 import {
   buildBanzukeSnapshotForSeq,
+  buildSnapshotBoutMarks,
+  type ReportBanzukeSnapshot,
+} from "../utils/reportBanzukeSnapshot";
+import {
   buildImportantBanzukeDecisionDigests,
   buildImportantDecisionDigest,
   buildImportantTorikumiDigests,
   buildReportTimelineDigest,
-  buildSnapshotBoutMarks,
-  type ReportBanzukeSnapshot,
   type ReportImportantDecisionDigest,
   type ReportTimelineDigestItem,
-} from "../utils/reportCareer";
+} from "../utils/reportTimeline";
 
 interface ReportTimelineTabProps {
   items: ReportTimelineDigestItem[];

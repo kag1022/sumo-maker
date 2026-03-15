@@ -19,6 +19,7 @@ import {
   StyleProfile,
   TacticsType,
 } from './models';
+import { resolveStyleCountScoreForKimarite } from './kimarite/catalog';
 
 export const PHASE_A_STARTING_POINTS = 50;
 export const PHASE_A_WALLET_CAP = 100;
@@ -177,29 +178,6 @@ const STYLE_TO_TACTICS: Record<StyleArchetype, TacticsType> = {
   POWER_PRESSURE: 'PUSH',
 };
 
-const resolveStyleCountScore = (kimarite: string): Partial<Record<StyleArchetype, number>> => {
-  const move = kimarite.replace(/\s/g, '');
-  if (move.includes('押') || move.includes('突')) {
-    return { TSUKI_OSHI: 1.2, POWER_PRESSURE: 0.6 };
-  }
-  if (move.includes('寄') || move.includes('極め')) {
-    return { YOTSU: 1.1, MOROZASHI: 0.9 };
-  }
-  if (move.includes('差')) {
-    return { MOROZASHI: 1.4 };
-  }
-  if (move.includes('投') || move.includes('捻')) {
-    return { NAGE_TECH: 1.2, DOHYOUGIWA: 0.4 };
-  }
-  if (move.includes('うっちゃり') || move.includes('突き落') || move.includes('肩透')) {
-    return { DOHYOUGIWA: 1.2, NAGE_TECH: 0.5 };
-  }
-  if (move.includes('叩') || move.includes('引')) {
-    return { DOHYOUGIWA: 0.8, TSUKI_OSHI: 0.3 };
-  }
-  return {};
-};
-
 const rankToNumericTier = (rank: Rank): number => {
   if (rank.division === 'Makuuchi') return 6;
   if (rank.division === 'Juryo') return 5;
@@ -264,7 +242,7 @@ export const resolveRealizedStyleProfile = (status: RikishiStatus): StyleProfile
   };
   let total = 0;
   for (const [move, count] of entries) {
-    const styleScores = resolveStyleCountScore(move);
+    const styleScores = resolveStyleCountScoreForKimarite(move);
     total += count;
     (Object.keys(styleScores) as StyleArchetype[]).forEach((style) => {
       scoreMap[style] += (styleScores[style] ?? 0) * count;

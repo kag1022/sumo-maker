@@ -78,23 +78,49 @@ import { BashoRecord, BuildSpecVNext, Rank, RikishiStatus, Trait } from '../../.
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb';
 import { closeDb, getDb } from '../../../src/logic/persistence/db';
 import {
+  ACHIEVEMENT_CATALOG,
+  evaluateAchievements,
+} from '../../../src/logic/achievements';
+import {
   appendBashoChunk,
-  appendBanzukeDecisionLogs,
-  appendBanzukePopulation,
   buildCareerStartYearMonth,
   commitCareer,
   createDraftCareer,
-  getCareerHeadToHead,
+  getCareerSaveIncentiveSummary,
   isCareerSaved,
-  listCareerBashoRecordsBySeq,
-  listCareerImportantTorikumi,
+  listCommittedCareers,
+  markCareerCompleted,
+} from '../../../src/logic/persistence/careers';
+import {
+  appendBanzukeDecisionLogs,
+  appendBanzukePopulation,
+  getCareerHeadToHead,
   listBanzukeDecisions,
   listBanzukePopulation,
+  listCareerBashoRecordsBySeq,
+  listCareerImportantTorikumi,
+} from '../../../src/logic/persistence/careerHistory';
+import {
+  getCollectionDashboardSummary,
+  getRecordCollectionSummary,
+  listCollectionCatalogEntries,
   listCollectionSummary,
-  listCommittedCareers,
+  listRecentCollectionUnlocks,
   listUnlockedCollectionEntries,
-  markCareerCompleted,
-} from '../../../src/logic/persistence/repository';
+} from '../../../src/logic/persistence/collections';
+import {
+  buildCareerClearScoreSummary,
+  buildCareerRecordBadges,
+} from '../../../src/logic/career/clearScore';
+import {
+  listNonTechniqueCatalog,
+  listOfficialWinningKimariteCatalog,
+  normalizeKimariteName,
+} from '../../../src/logic/kimarite/catalog';
+import {
+  inferBodyTypeFromMetrics,
+  resolveKimariteOutcome,
+} from '../../../src/logic/kimarite/selection';
 import {
   composeNextBanzuke,
   maxNumber,
@@ -135,15 +161,19 @@ import {
 import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../../src/logic/style/kata';
 import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori';
 import {
-  buildBanzukeSnapshotForSeq,
   buildCareerRivalryDigest,
+} from '../../../src/features/report/utils/reportRivalry';
+import {
   buildImportantBanzukeDecisionDigests,
   buildImportantDecisionDigest,
   buildImportantTorikumiDigests,
   buildHoshitoriCareerRecords,
   buildRankChartData,
   buildTimelineEventGroups,
-} from '../../../src/features/report/utils/reportCareer';
+} from '../../../src/features/report/utils/reportTimeline';
+import {
+  buildBanzukeSnapshotForSeq,
+} from '../../../src/features/report/utils/reportBanzukeSnapshot';
 import {
   createLogicLabInitialStatus,
   LOGIC_LAB_DEFAULT_PRESET,
@@ -158,6 +188,11 @@ import {
 } from '../../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../../src/logic/simulation/strength/update';
 import { resolveBashoFormDelta } from '../../../src/logic/simulation/variance/bashoVariance';
+import {
+  resolveSimulationPhaseOnCompletion,
+  resolveSimulationPhaseOnStart,
+  shouldCaptureObservations,
+} from '../../../src/logic/simulation/appFlow';
 const path = require('path');
 const {
   createCareerRateAccumulator,
@@ -647,6 +682,415 @@ const resetDb = async (): Promise<void> => {
 };
 
 export const tests: TestCase[] = [
+  {
+    name: 'report: clear score favors stronger results over lower-division careers',
+    run: () => {
+      const eliteRecords = [
+        { ...createBashoRecord({ division: 'Juryo', name: '十両', number: 1, side: 'East' }, 11, 4), month: 1, yusho: true },
+        { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 3, side: 'East' }, 10, 5), month: 3, yusho: false, specialPrizes: ['殊勲賞'], kinboshi: 1 },
+        { ...createBashoRecord({ division: 'Makuuchi', name: '関脇', side: 'East' }, 9, 6), month: 5 },
+      ];
+      const elite = createStatus({
+        age: 27,
+        rank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+        history: {
+          records: eliteRecords,
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+          totalWins: 30,
+          totalLosses: 15,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 1, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 18 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const grinder = createStatus({
+        age: 23,
+        rank: { division: 'Makushita', name: '幕下', number: 8, side: 'East' },
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Makushita', name: '幕下', number: 15, side: 'East' }, 5, 2), month: 1 },
+            { ...createBashoRecord({ division: 'Makushita', name: '幕下', number: 8, side: 'West' }, 4, 3), month: 3 },
+          ],
+          events: [],
+          maxRank: { division: 'Makushita', name: '幕下', number: 8, side: 'West' },
+          totalWins: 9,
+          totalLosses: 5,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: { 押し出し: 4 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+
+      const eliteScore = buildCareerClearScoreSummary(elite);
+      const grinderScore = buildCareerClearScoreSummary(grinder);
+      const eliteWithStory = createStatus({
+        ...elite,
+        history: {
+          ...elite.history,
+          events: [{ year: 2026, month: 7, type: 'OTHER', description: '大きな転機があった' }],
+        },
+      });
+
+      assert.ok(eliteScore.clearScore > grinderScore.clearScore, 'Expected elite career to score higher');
+      assert.equal(buildCareerClearScoreSummary(eliteWithStory).clearScore, eliteScore.clearScore);
+    },
+  },
+  {
+    name: 'report: record badges map milestone achievements to factual labels',
+    run: () => {
+      const status = createStatus({
+        age: 29,
+        rank: { division: 'Makuuchi', name: '前頭', number: 2, side: 'East' },
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Juryo', name: '十両', number: 1, side: 'East' }, 12, 3), month: 1, yusho: true },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 2, side: 'East' }, 10, 5), month: 3, kinboshi: 1 },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 1, side: 'West' }, 9, 6), month: 5, specialPrizes: ['敢闘賞'] },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 4, side: 'East' }, 8, 7), month: 7 },
+          ],
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'West' },
+          totalWins: 39,
+          totalLosses: 21,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 1, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 12 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+
+      const badgeKeys = buildCareerRecordBadges(status).map((badge) => badge.key);
+      assert.ok(badgeKeys.includes('MAKUUCHI_REACHED'));
+      assert.ok(badgeKeys.includes('JURYO_YUSHO'));
+      assert.ok(badgeKeys.includes('KINBOSHI'));
+      assert.ok(badgeKeys.includes('DOUBLE_DIGIT_WINS'));
+      assert.ok(badgeKeys.includes('KACHIKOSHI_STREAK'));
+    },
+  },
+  {
+    name: 'collection: save incentive uses clear score and record collection progress',
+    run: async () => {
+      await resetDb();
+
+      const baseline = createStatus({
+        shikona: '控山',
+        age: 23,
+        rank: { division: 'Makushita', name: '幕下', number: 20, side: 'East' },
+        history: {
+          records: [{ ...createBashoRecord({ division: 'Makushita', name: '幕下', number: 20, side: 'East' }, 4, 3), month: 1 }],
+          events: [],
+          maxRank: { division: 'Makushita', name: '幕下', number: 20, side: 'East' },
+          totalWins: 4,
+          totalLosses: 3,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: { 押し出し: 2 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const baselineCareerId = await createDraftCareer({
+        initialStatus: baseline,
+        careerStartYearMonth: buildCareerStartYearMonth(2026, 1),
+      });
+      await markCareerCompleted(baselineCareerId, baseline);
+      await commitCareer(baselineCareerId);
+
+      const contender = createStatus({
+        shikona: '挑戦岳',
+        age: 28,
+        rank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Juryo', name: '十両', number: 1, side: 'East' }, 11, 4), month: 1, yusho: true },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 3, side: 'East' }, 10, 5), month: 3, kinboshi: 1 },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 1, side: 'East' }, 9, 6), month: 5, specialPrizes: ['殊勲賞'] },
+          ],
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+          totalWins: 30,
+          totalLosses: 15,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 1, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 10 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const contenderCareerId = await createDraftCareer({
+        initialStatus: contender,
+        careerStartYearMonth: buildCareerStartYearMonth(2026, 1),
+      });
+      await markCareerCompleted(contenderCareerId, contender);
+
+      const preview = await getCareerSaveIncentiveSummary(contender, {
+        careerId: contenderCareerId,
+        isSaved: false,
+        includeOyakata: true,
+      });
+      assert.equal(preview.projectedBestScoreRank, 1);
+      assert.equal(preview.isPersonalBest, true);
+      assert.ok(preview.newRecordCount > 0);
+      assert.ok(preview.collectionDeltaCount > 0);
+
+      await commitCareer(contenderCareerId);
+      const savedRows = await listCommittedCareers();
+      const saved = savedRows.find((row) => row.id === contenderCareerId);
+      assert.ok(Boolean(saved), 'Expected committed career row');
+      assert.ok((saved?.clearScore ?? 0) > 0);
+      assert.equal(saved?.bestScoreRank, 1);
+      assert.ok((saved?.recordBadgeKeys ?? []).length > 0);
+
+      const recordSummary = await getRecordCollectionSummary();
+      assert.ok(recordSummary.count > 0, 'Expected record collection entries after save');
+    },
+  },
+  {
+    name: 'collection: catalog exposes locked entries as masked placeholders',
+    run: async () => {
+      await resetDb();
+      const entries = await listCollectionCatalogEntries('RECORD');
+      assert.ok(entries.length >= 10, 'Expected full record catalog');
+      assert.ok(entries.every((entry) => entry.state === 'LOCKED'));
+      assert.ok(entries.every((entry) => entry.label === '？？？'));
+      assert.ok(entries.every((entry) => entry.meta == null));
+    },
+  },
+  {
+    name: 'collection: legacy saved careers backfill collection entries without new flags',
+    run: async () => {
+      await resetDb();
+
+      const status = createStatus({
+        shikona: '旧記録山',
+        age: 28,
+        rank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Juryo', name: '十両', number: 1, side: 'East' }, 12, 3), month: 1, yusho: true },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 1, side: 'East' }, 10, 5), month: 3, kinboshi: 1, specialPrizes: ['殊勲賞'] },
+          ],
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+          totalWins: 22,
+          totalLosses: 8,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 1, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 6, 押し出し: 3 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: status,
+        careerStartYearMonth: buildCareerStartYearMonth(2026, 1),
+      });
+      await markCareerCompleted(careerId, status);
+      await commitCareer(careerId);
+
+      await getDb().collectionEntries.clear();
+
+      const dashboard = await getCollectionDashboardSummary();
+      assert.ok(dashboard.totalUnlocked > 0);
+      assert.equal(dashboard.totalNew, 0);
+
+      const recordEntries = await listCollectionCatalogEntries('RECORD');
+      assert.ok(recordEntries.some((entry) => entry.state === 'UNLOCKED'));
+      assert.ok(recordEntries.every((entry) => entry.state === 'UNLOCKED' ? entry.isNew !== true : true));
+    },
+  },
+  {
+    name: 'collection: achievement display uses factual names',
+    run: () => {
+      const names = new Set(ACHIEVEMENT_CATALOG.map((entry) => entry.name));
+      assert.ok(names.has('幕内優勝1回'));
+      assert.ok(names.has('12場所以内で新入幕'));
+      assert.ok(names.has('20種類の決まり手で勝利'));
+
+      const status = createStatus({
+        age: 40,
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 1, side: 'East' }, 15, 0), month: 1, yusho: true },
+          ],
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+          totalWins: 100,
+          totalLosses: 0,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 1, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 30 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const labels = evaluateAchievements(status).map((entry) => entry.name);
+      assert.ok(labels.includes('幕内優勝1回'));
+      assert.ok(labels.includes('幕内全勝優勝1回'));
+    },
+  },
+  {
+    name: 'kimarite: official catalog exposes exactly 82 winning kimarite',
+    run: async () => {
+      const official = listOfficialWinningKimariteCatalog();
+      const unique = new Set(official.map((entry) => entry.name));
+      assert.equal(official.length, 82);
+      assert.equal(unique.size, 82);
+    },
+  },
+  {
+    name: 'kimarite: non-tech catalog stays separate',
+    run: () => {
+      const official = listOfficialWinningKimariteCatalog();
+      const nonTech = listNonTechniqueCatalog();
+      assert.ok(nonTech.length >= 5);
+      assert.ok(nonTech.every((entry) => !official.some((officialEntry) => officialEntry.name === entry.name)));
+    },
+  },
+  {
+    name: 'kimarite: alias normalization maps legacy labels to canonical names',
+    run: () => {
+      assert.equal(normalizeKimariteName('すくい投げ'), '掬い投げ');
+      assert.equal(normalizeKimariteName('不戦勝'), '不戦');
+      assert.equal(normalizeKimariteName('不戦敗'), '不戦');
+    },
+  },
+  {
+    name: 'collection: kimarite catalog includes 82 official moves plus non-tech metadata',
+    run: async () => {
+      const entries = await listCollectionCatalogEntries('KIMARITE');
+      assert.equal(entries.length, 89);
+      const officialCount = entries.filter((entry) => entry.meta?.isNonTechnique !== true).length;
+      const nonTechniqueCount = entries.filter((entry) => entry.meta?.isNonTechnique === true).length;
+      assert.equal(officialCount, 82);
+      assert.equal(nonTechniqueCount, 7);
+    },
+  },
+  {
+    name: 'collection: dashboard summary and recent unlocks include factual labels',
+    run: async () => {
+      await resetDb();
+      const status = createStatus({
+        shikona: '図鑑山',
+        age: 27,
+        rank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+        history: {
+          records: [
+            { ...createBashoRecord({ division: 'Juryo', name: '十両', number: 1, side: 'East' }, 12, 3), month: 1, yusho: true },
+            { ...createBashoRecord({ division: 'Makuuchi', name: '前頭', number: 1, side: 'East' }, 10, 5), month: 3, kinboshi: 1, specialPrizes: ['殊勲賞'] },
+          ],
+          events: [],
+          maxRank: { division: 'Makuuchi', name: '前頭', number: 1, side: 'East' },
+          totalWins: 22,
+          totalLosses: 8,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 1, makushita: 0, others: 0 },
+          kimariteTotal: { 寄り切り: 12, 押し出し: 3 },
+          bodyTimeline: [],
+          highlightEvents: [],
+        },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: status,
+        careerStartYearMonth: buildCareerStartYearMonth(2026, 1),
+      });
+      await markCareerCompleted(careerId, status);
+      await commitCareer(careerId);
+
+      const dashboard = await getCollectionDashboardSummary();
+      assert.ok(dashboard.totalUnlocked > 0);
+      assert.equal(dashboard.rows.length, 3);
+      const kimariteRow = dashboard.rows.find((row) => row.type === 'KIMARITE');
+      assert.equal(kimariteRow?.total, 82);
+      assert.ok(String(kimariteRow?.note).includes('非技'));
+
+      const recent = await listRecentCollectionUnlocks(3);
+      assert.ok(recent.length > 0);
+      assert.ok(recent.every((entry) => entry.label !== '？？？'));
+
+      const recordEntries = await listCollectionCatalogEntries('RECORD');
+      assert.ok(recordEntries.some((entry) => entry.state === 'UNLOCKED' && entry.label === '幕内到達'));
+    },
+  },
+  {
+    name: 'kimarite: extreme backward body drop requires compatible pattern',
+    run: () => {
+      const winner = {
+        style: 'PUSH' as const,
+        bodyType: 'ANKO' as const,
+        heightCm: 178,
+        weightKg: 165,
+        stats: { tsuki: 95, oshi: 95, power: 92, waza: 45, nage: 40, deashi: 58, kumi: 42, koshi: 48 },
+        traits: ['TSUPPARI_TOKKA'] as Trait[],
+        historyCounts: { 押し出し: 20 },
+      };
+      const loser = {
+        style: 'PUSH' as const,
+        bodyType: inferBodyTypeFromMetrics(182, 145),
+        heightCm: 182,
+        weightKg: 145,
+        stats: { tsuki: 70, oshi: 72, power: 68 },
+        traits: [],
+        historyCounts: {},
+      };
+      const seen = new Set<string>();
+      for (let index = 0; index < 200; index += 1) {
+        const result = resolveKimariteOutcome({
+          winner,
+          loser,
+          rng: lcg(index + 1),
+          forcePattern: 'PUSH_ADVANCE',
+          allowNonTechnique: false,
+        });
+        seen.add(result.kimarite);
+      }
+      assert.ok(!seen.has('居反り'));
+      assert.ok(!seen.has('伝え反り'));
+    },
+  },
+  {
+    name: 'kimarite: extreme floor remains non-zero for compatible pattern',
+    run: () => {
+      const winner = {
+        style: 'TECHNIQUE' as const,
+        bodyType: 'SOPPU' as const,
+        heightCm: 191,
+        weightKg: 122,
+        stats: { waza: 105, nage: 94, deashi: 88, kumi: 64, koshi: 60, tsuki: 52, oshi: 48, power: 46 },
+        traits: ['ARAWAZASHI', 'CLUTCH_REVERSAL', 'READ_THE_BOUT'] as Trait[],
+        historyCounts: {},
+      };
+      const loser = {
+        style: 'GRAPPLE' as const,
+        bodyType: 'MUSCULAR' as const,
+        heightCm: 185,
+        weightKg: 132,
+        stats: { power: 72, kumi: 68, koshi: 66 },
+        traits: [],
+        historyCounts: {},
+      };
+      let extremeCount = 0;
+      for (let index = 0; index < 5000; index += 1) {
+        const result = resolveKimariteOutcome({
+          winner,
+          loser,
+          rng: lcg(index + 77),
+          forcePattern: 'BACKWARD_ARCH',
+          allowNonTechnique: false,
+        });
+        if (['居反り', '掛け反り', '撞木反り', '外たすき反り', 'たすき反り', '伝え反り'].includes(result.kimarite)) {
+          extremeCount += 1;
+        }
+      }
+      assert.ok(extremeCount > 0, 'Expected at least one extreme backward-body-drop selection');
+    },
+  },
   {
     name: 'battle: deterministic win path',
     run: () => {
@@ -7489,6 +7933,22 @@ export const tests: TestCase[] = [
 
       assert.equal(status.history.events[0]?.description, '西十両13枚目へ昇進 (7勝0敗)');
       assert.equal(status.history.events[1]?.description, '幕下優勝 (東幕下3枚目 / 7勝)');
+    },
+  },
+  {
+    name: 'career: standard start resolves to hidden simulation and reveal-ready completion',
+    run: () => {
+      assert.equal(resolveSimulationPhaseOnStart('skip_to_end'), 'simulating');
+      assert.equal(resolveSimulationPhaseOnCompletion('skip_to_end'), 'reveal_ready');
+      assert.equal(shouldCaptureObservations('skip_to_end'), false);
+    },
+  },
+  {
+    name: 'career: observe start resolves to running and completed phases with observation capture',
+    run: () => {
+      assert.equal(resolveSimulationPhaseOnStart('observe'), 'running');
+      assert.equal(resolveSimulationPhaseOnCompletion('observe'), 'completed');
+      assert.equal(shouldCaptureObservations('observe'), true);
     },
   },
   {

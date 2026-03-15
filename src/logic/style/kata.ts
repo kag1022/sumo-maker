@@ -1,4 +1,5 @@
 import { BashoRecord, KataArchetype, KataProfile, RikishiStatus, TacticsType } from '../models';
+import { resolveMoveBucket } from '../kimarite/catalog';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -25,37 +26,6 @@ const DEFAULT_KATA_PROFILE: KataProfile = {
 };
 
 const normalizeMove = (move: string): string => move.replace(/\s/g, '');
-
-const resolveMoveBucket = (move: string): 'PUSH' | 'YORI' | 'NAGE' | 'BATTLE' => {
-  const normalized = normalizeMove(move);
-  if (normalized === '不戦勝' || normalized === '不戦敗') return 'BATTLE';
-  if (
-    normalized.includes('押') ||
-    normalized.includes('突') ||
-    normalized === '電車道'
-  ) {
-    return 'PUSH';
-  }
-  if (
-    normalized.includes('寄') ||
-    normalized.includes('極め')
-  ) {
-    return 'YORI';
-  }
-  if (normalized.includes('投')) {
-    return 'NAGE';
-  }
-  if (
-    normalized.includes('叩') ||
-    normalized.includes('引') ||
-    normalized.includes('引き') ||
-    normalized.includes('捻') ||
-    normalized.includes('すくい')
-  ) {
-    return 'BATTLE';
-  }
-  return 'BATTLE';
-};
 
 const resolveMoveScores = (
   kimariteCount?: Record<string, number>,

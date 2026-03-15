@@ -12,15 +12,26 @@ import {
   loadCareerStatus,
   shelveCareer,
   type CareerListItem,
-} from '../../../logic/persistence/repository';
+} from '../../../logic/persistence/careers';
 import { PauseReason, SimulationProgressSnapshot } from '../../../logic/simulation/engine';
+import {
+  resolveSimulationPhaseOnCompletion,
+  resolveSimulationPhaseOnStart,
+  shouldCaptureObservations,
+} from '../../../logic/simulation/appFlow';
 import {
   SimulationObservationEntry,
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
 
-export type SimulationPhase = 'idle' | 'running' | 'completed' | 'error';
+export type SimulationPhase =
+  | 'idle'
+  | 'simulating'
+  | 'reveal_ready'
+  | 'running'
+  | 'completed'
+  | 'error';
 export type SimulationPacing = 'observe' | 'skip_to_end';
 
 interface SimulationStore {
@@ -42,8 +53,10 @@ interface SimulationStore {
     oyakata: Oyakata | null,
     runOptions?: SimulationRunOptions,
     simulationModelVersion?: SimulationModelVersion,
+    initialPacing?: SimulationPacing,
   ) => Promise<void>;
   skipToEnd: () => void;
+  revealCurrentResult: () => void;
   stopSimulation: () => Promise<void>;
   saveCurrentCareer: () => Promise<void>;
   loadHallOfFame: () => Promise<void>;
@@ -80,7 +93,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   progress: null,
   currentCareerId: null,
   isCurrentCareerSaved: false,
-  simulationPacing: 'observe',
+  simulationPacing: 'skip_to_end',
   latestEvents: [],
   observationLog: [],
   latestPauseReason: undefined,
@@ -93,7 +106,13 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ simulationPacing: pacing });
   },
 
-  startSimulation: async (initialStats, oyakata, runOptions, simulationModelVersion) => {
+  startSimulation: async (
+    initialStats,
+    oyakata,
+    runOptions,
+    simulationModelVersion,
+    initialPacing = 'skip_to_end',
+  ) => {
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
     const currentCareerId = get().currentCareerId;
     if (currentCareerId && !get().isCurrentCareerSaved) {
@@ -126,6 +145,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
           isCurrentCareerSaved: false,
           latestEvents: toLatestEvents(message.payload.events),
           observationLog: pushObservation(get().observationLog, message.payload.observation),
+          simulationPacing: 'observe',
           latestPauseReason: undefined,
           errorMessage: undefined,
         });
@@ -133,17 +153,19 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       }
 
       if (message.type === 'COMPLETED') {
+        const completedWithObserve = shouldCaptureObservations(get().simulationPacing);
         set({
-          phase: 'completed',
+          phase: resolveSimulationPhaseOnCompletion(get().simulationPacing),
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
-          latestEvents: toLatestEvents(message.payload.events),
-          observationLog: pushObservation(get().observationLog, message.payload.observation),
-          latestPauseReason: message.payload.pauseReason,
+          latestEvents: completedWithObserve ? toLatestEvents(message.payload.events) : [],
+          observationLog: completedWithObserve
+            ? pushObservation(get().observationLog, message.payload.observation)
+            : [],
+          latestPauseReason: completedWithObserve ? message.payload.pauseReason : undefined,
           errorMessage: undefined,
           isCurrentCareerSaved: false,
-          simulationPacing: 'observe',
         });
         terminateWorker();
         void get().loadUnshelvedCareers();
@@ -168,12 +190,12 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     };
 
     set({
-      phase: 'running',
+      phase: resolveSimulationPhaseOnStart(initialPacing),
       status: null,
       progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
-      simulationPacing: 'observe',
+      simulationPacing: initialPacing,
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -188,6 +210,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         oyakata,
         runOptions,
         simulationModelVersion: normalizedModelVersion,
+        initialPacing,
       },
     });
   },
@@ -195,6 +218,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   skipToEnd: () => {
     postToWorker({ type: 'SET_PACING', payload: { pacing: 'skip_to_end' } });
     set({ simulationPacing: 'skip_to_end' });
+  },
+
+  revealCurrentResult: () => {
+    if (get().phase !== 'reveal_ready' || !get().status) return;
+    set({ phase: 'completed' });
   },
 
   stopSimulation: async () => {
@@ -210,7 +238,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       progress: null,
       currentCareerId: null,
       isCurrentCareerSaved: false,
-      simulationPacing: 'observe',
+      simulationPacing: 'skip_to_end',
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -247,9 +275,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({
       status,
       phase: 'completed',
+      progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: saved,
-      simulationPacing: 'observe',
+      simulationPacing: 'skip_to_end',
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -267,7 +296,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         phase: 'idle',
         progress: null,
         isCurrentCareerSaved: false,
-        simulationPacing: 'observe',
+        simulationPacing: 'skip_to_end',
         latestEvents: [],
         observationLog: [],
         latestPauseReason: undefined,
@@ -288,7 +317,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       progress: null,
       currentCareerId: null,
       isCurrentCareerSaved: false,
-      simulationPacing: 'observe',
+      simulationPacing: 'skip_to_end',
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,

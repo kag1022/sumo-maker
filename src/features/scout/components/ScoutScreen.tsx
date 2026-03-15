@@ -16,6 +16,7 @@ import {
   resolveScoutOverrideCost,
 } from "../../../logic/scout/gacha";
 import { getWalletState, spendWalletPoints, WalletState } from "../../../logic/persistence/wallet";
+import type { SimulationPacing } from "../../simulation/store/simulationStore";
 import { Button } from "../../../shared/ui/Button";
 import { RefreshCw, Trophy, Coins, ChevronDown, User, Dna, Zap } from "lucide-react";
 
@@ -23,6 +24,7 @@ interface ScoutScreenProps {
   onStart: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
+    initialPacing?: SimulationPacing,
   ) => void | Promise<void>;
 }
 
@@ -46,6 +48,7 @@ const INPUT_CLASS = "w-full border-2 border-gold-muted bg-bg px-3 py-2.5 text-te
 const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
+  const isDev = import.meta.env.DEV;
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [baseDraft, setBaseDraft] = useState<ScoutDraft | null>(null);
   const [editedDraft, setEditedDraft] = useState<ScoutDraft | null>(null);
@@ -141,7 +144,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     });
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (initialPacing: SimulationPacing = "skip_to_end") => {
     if (!editedDraft) return;
     setErrorMessage("");
     setIsRegistering(true);
@@ -155,7 +158,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
         return;
       }
       const initialStats = buildInitialRikishiFromDraft(editedDraft);
-      await onStart(initialStats, null);
+      await onStart(initialStats, null, initialPacing);
     } finally {
       setIsRegistering(false);
     }
@@ -629,33 +632,58 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             {/* 登録ボタン */}
             <Button
               size="lg"
-              onClick={handleRegister}
+              onClick={() => void handleRegister("skip_to_end")}
               disabled={isRegistering}
               className="w-full"
             >
               <Trophy className="w-5 h-5 mr-2" />
-              {isRegistering ? "入門手続きを進めています..." : "この新弟子で始める"}
+              {isRegistering ? "力士人生を演算しています..." : "この新弟子で始める"}
             </Button>
+            {isDev && (
+              <Button
+                variant="outline"
+                onClick={() => void handleRegister("observe")}
+                disabled={isRegistering}
+                className="w-full"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                {isRegistering ? "観測モードを準備しています..." : "観測モードで始める"}
+              </Button>
+            )}
           </section>
         </div>
       )}
 
       {/* モバイル下部固定バー（抽選後のみ, lg以下） */}
       {editedDraft && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 flex items-center justify-between gap-3 safe-area-bottom">
-          <div className="text-xs ui-text-label text-gold">
-            {overrideCost.total}pt
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 safe-area-bottom">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs ui-text-label text-gold">
+              {overrideCost.total}pt
+            </div>
+            <Button
+              variant="danger"
+              size="md"
+              onClick={() => void handleRegister("skip_to_end")}
+              disabled={isRegistering}
+              className="flex-1 max-w-[240px]"
+            >
+              <Trophy className="w-4 h-4 mr-1" />
+              {isRegistering ? "演算中..." : "結果を見る"}
+            </Button>
           </div>
-          <Button
-            variant="danger"
-            size="md"
-            onClick={handleRegister}
-            disabled={isRegistering}
-            className="flex-1 max-w-[240px]"
-          >
-            <Trophy className="w-4 h-4 mr-1" />
-            {isRegistering ? "登録中..." : "力士登録"}
-          </Button>
+          {isDev && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleRegister("observe")}
+              disabled={isRegistering}
+              className="mt-2 w-full"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {isRegistering ? "観測モードを準備しています..." : "観測モードで始める"}
+            </Button>
+          )}
         </div>
       )}
     </div>

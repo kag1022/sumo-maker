@@ -19,6 +19,7 @@ export interface StartSimulationMessage {
     oyakata: Oyakata | null;
     runOptions?: SimulationRunOptions;
     simulationModelVersion?: SimulationModelVersion;
+    initialPacing: 'observe' | 'skip_to_end';
   };
 }
 

@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { resolveRankLimits, resolveRankSlotOffset } from "../../../logic/banzuke/scale/rankLimits";
 import { CONSTANTS } from "../../../logic/constants";
+import { summarizeKimariteUsage } from "../../../logic/kimarite/selection";
 import { Rank, RankScaleSlots, Rarity, RikishiStatus } from "../../../logic/models";
 import {
   getCareerHeadToHead,
@@ -22,22 +23,26 @@ import {
   listCareerImportantTorikumi,
   listCareerPlayerBoutsByBasho,
   type CareerBashoRecordsBySeq,
-} from "../../../logic/persistence/repository";
+} from "../../../logic/persistence/careerHistory";
 import {
   buildBanzukeSnapshotForSeq,
-  buildCareerRivalryDigest,
+  buildSnapshotBoutMarks,
+  type ReportBanzukeSnapshot,
+} from "../utils/reportBanzukeSnapshot";
+import {
   buildImportantBanzukeDecisionDigests,
   buildImportantDecisionDigest,
   buildImportantTorikumiDigests,
-  buildSnapshotBoutMarks,
-  type CareerRivalryDigest,
-  type EraTitanEntry,
   type ReportImportantDecisionDigest,
   type ReportImportantDecisionHighlight,
+} from "../utils/reportTimeline";
+import {
+  buildCareerRivalryDigest,
+  type CareerRivalryDigest,
+  type EraTitanEntry,
   type NemesisEntry,
-  type ReportBanzukeSnapshot,
   type TitleBlockerEntry,
-} from "../utils/reportCareer";
+} from "../utils/reportRivalry";
 import { DamageMap } from "../../../shared/ui/DamageMap";
 import { Button } from "../../../shared/ui/Button";
 
@@ -223,6 +228,15 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
       .sort(([, a], [, b]) => b - a)
       .slice(0, 8)
       .map(([name, count]) => ({ name, count }));
+  }, [status.history.kimariteTotal]);
+
+  const kimariteSummary = React.useMemo(() => {
+    const usage = summarizeKimariteUsage(status.history.kimariteTotal);
+    return {
+      uniqueOfficial: usage.officialUniqueCount,
+      top3ShareText: `${(usage.top3MoveShare * 100).toFixed(1)}%`,
+      rareMoveCount: usage.rareOrExtremeUniqueCount,
+    };
   }, [status.history.kimariteTotal]);
 
   const rankMovements = React.useMemo(() => {
@@ -514,7 +528,21 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
             <h3 className="section-header">
               <Swords className="w-4 h-4 text-action" /> 決まり手の偏り
             </h3>
-            <p className="text-xs text-text-dim">上位8手だけを比較対象として残します</p>
+            <p className="text-xs text-text-dim">上位8手に絞りつつ、多様性の指標も残します</p>
+          </div>
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <div className="metric-card">
+              <div className="metric-label">通算種類数</div>
+              <div className="metric-value">{kimariteSummary.uniqueOfficial}</div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-label">主力3手比率</div>
+              <div className="metric-value">{kimariteSummary.top3ShareText}</div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-label">レア技数</div>
+              <div className="metric-value">{kimariteSummary.rareMoveCount}</div>
+            </div>
           </div>
           {kimariteData.length > 0 ? (
             <div className="h-[260px] sm:h-[320px]">

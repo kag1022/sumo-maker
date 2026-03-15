@@ -26,7 +26,7 @@ export type StableArchetypeId =
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
 export type RetirementProfile = 'EARLY_EXIT' | 'STANDARD' | 'IRONMAN';
-export type CollectionType = 'RIKISHI' | 'OYAKATA' | 'KIMARITE' | 'ACHIEVEMENT';
+export type CollectionType = 'RIKISHI' | 'OYAKATA' | 'KIMARITE' | 'ACHIEVEMENT' | 'RECORD';
 export type CollectionTier = 'BRONZE' | 'SILVER' | 'GOLD';
 
 // レア度
@@ -600,6 +600,15 @@ export type RealismProbeRunKind =
   | 'aptitude'
   | 'acceptance';
 
+export interface RealismStyleBucketMetrics {
+  sample: number;
+  uniqueKimariteP50: number;
+  uniqueKimariteP90: number;
+  top1MoveShareP50: number;
+  top3MoveShareP50: number;
+  rareMoveRate: number;
+}
+
 export interface RealismProbeMetrics extends RealismKpiSnapshot {
   sekitoriRate?: number;
   makuuchiRate?: number;
@@ -607,6 +616,13 @@ export interface RealismProbeMetrics extends RealismKpiSnapshot {
   yokozunaRate?: number;
   lowTierRate?: number;
   tierCareerWinRate?: Partial<Record<AptitudeTier, number>>;
+  uniqueKimariteP50?: number;
+  uniqueKimariteP90?: number;
+  topMoveShareP50?: number;
+  top3MoveShareP50?: number;
+  rareMoveRate?: number;
+  kimariteVariety20Rate?: number;
+  styleBucketMetrics?: Partial<Record<'PUSH' | 'GRAPPLE' | 'TECHNIQUE', RealismStyleBucketMetrics>>;
 }
 
 export interface RealismProbeResult {

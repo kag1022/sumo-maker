@@ -16,6 +16,7 @@ export const useSimulation = () => ({
   setSimulationPacing: useSimulationStore((state) => state.setSimulationPacing),
   startSimulation: useSimulationStore((state) => state.startSimulation),
   skipToEnd: useSimulationStore((state) => state.skipToEnd),
+  revealCurrentResult: useSimulationStore((state) => state.revealCurrentResult),
   stopSimulation: useSimulationStore((state) => state.stopSimulation),
   saveCurrentCareer: useSimulationStore((state) => state.saveCurrentCareer),
   loadHallOfFame: useSimulationStore((state) => state.loadHallOfFame),
