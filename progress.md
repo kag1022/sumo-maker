@@ -1,6 +1,49 @@
 Original prompt: Implement プロトタイプ仕様改修計画 v2（生成ポイント制 + 強ガチャ + 身長体重反映 + スキル拡張）。
 
 ## Progress
+- 2026-03-15: Implemented Japanese-first UI refresh pass for the main player-facing flow.
+  - App shell / navigation:
+    - added `src/app/AppShell.tsx`
+      - persistent desktop sidebar + mobile bottom navigation
+      - Japanese context bar (`現在地 / 主役 / 状態`)
+    - rebuilt `src/app/App.tsx`
+      - sections now route through `新弟子 / 現役力士記録 / 保存済み記録 / ロジック検証`
+      - running view replaced with a quieter `進行監督盤`
+      - saved-career archive is now an embedded screen instead of a modal
+      - fixed section auto-switch so `保存済み記録` remains reachable after opening a completed career
+  - Archive / report:
+    - added `src/features/report/components/ArchiveScreen.tsx`
+      - left filters, center ledger table, right preview panel
+    - added `src/features/report/components/ReportOverviewTab.tsx`
+      - `概況` tab summary layer
+    - `src/features/report/components/ReportScreen.tsx`
+      - tabs now read `概況 / 場所史 / 宿敵と判断 / 能力と型`
+    - `src/features/report/components/ReportDetailsTab.tsx`
+      - accepts `mode="story" | "profile"` so rivalry/important decisions can be separated from profile data
+    - `src/features/report/components/ReportHero.tsx`
+      - removed English `CAREER SPOTLIGHT` copy in favor of Japanese label
+  - Scout / theme:
+    - `src/features/scout/components/ScoutScreen.tsx`
+      - entry hero rewritten toward candidate-first copy and stronger primary action
+      - post-draw layout now uses the new surface system and Japanese action language
+    - `tailwind.config.js`
+      - added semantic tokens needed by the new shell (`app`, `line`, `award`, `danger`, `text.faint`, `brand.DEFAULT`, `surface.DEFAULT`)
+    - `src/index.css`
+      - removed CRT overlay from base theme
+      - switched body typography to a modern Japanese UI stack
+      - added shell / archive / dashboard / form utility classes (`app-sidebar`, `context-bar`, `surface-panel`, `archive-layout`, `metric-card`, `status-callout`, etc.)
+  - Validation:
+    - `npm run build` PASS
+    - `npm test` timed out in this environment at ~124s; not completed in this pass
+    - Playwright visual verification against `http://127.0.0.1:4173`
+      - report desktop screenshot: `output/ui-refresh-report-desktop.png`
+      - report mobile screenshot: `output/ui-refresh-report-mobile.png`
+      - archive mobile screenshot: `output/ui-refresh-archive-mobile.png`
+      - confirmed mobile bottom navigation can open `保存済み記録`
+      - confirmed archive is no longer modal-based
+  - Notes / follow-up:
+    - `ScoutScreen` still contains old inner form blocks under the new shell; a second pass should finish converting the form itself into explicit section switches instead of relying on legacy stacked controls
+    - the external `develop-web-game` client script could not be run directly here because its module resolution did not find `playwright` when executed from the skill directory
 - 2026-03-14: Started Phase 2 important-decision explanation pass.
   - Persistence / simulation:
     - `src/logic/persistence/db.ts`

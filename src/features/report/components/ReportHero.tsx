@@ -188,7 +188,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
       <section className="report-chart-panel px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 mb-4">
           <div>
-            <p className="text-xs ui-text-label tracking-[0.16em] text-text-dim mb-1">CAREER SPOTLIGHT</p>
+            <p className="text-xs ui-text-label tracking-[0.16em] text-text-dim mb-1">番付推移</p>
             <h2 className="section-header text-base sm:text-lg">
               <Activity className="w-4 h-4 text-action" /> 力士一代記の推移
             </h2>

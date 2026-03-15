@@ -1,11 +1,11 @@
 import React from "react";
-import { Award, ScrollText, Sparkles } from "lucide-react";
+import { BookOpenText, ScrollText, Swords, Sparkles } from "lucide-react";
 import { RikishiStatus } from "../../../logic/models";
 import { listCareerPlayerBoutsByBasho } from "../../../logic/persistence/repository";
 import { HoshitoriCareerRecord } from "./HoshitoriTable";
-import { ReportAchievementsTab } from "./ReportAchievementsTab";
 import { ReportDetailsTab } from "./ReportDetailsTab";
 import { ReportHero } from "./ReportHero";
+import { ReportOverviewTab } from "./ReportOverviewTab";
 import { ReportTimelineTab } from "./ReportTimelineTab";
 import {
   buildReportHeroSummary,
@@ -15,9 +15,10 @@ import {
 } from "../utils/reportCareer";
 
 const TABS = [
-  { id: "details", label: "詳細", icon: Sparkles },
-  { id: "timeline", label: "転機", icon: ScrollText },
-  { id: "achievements", label: "実績", icon: Award },
+  { id: "overview", label: "概況", icon: Sparkles },
+  { id: "timeline", label: "場所史", icon: ScrollText },
+  { id: "story", label: "宿敵と判断", icon: Swords },
+  { id: "profile", label: "能力と型", icon: BookOpenText },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -37,7 +38,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   isSaved = false,
   careerId = null,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<TabId>("details");
+  const [activeTab, setActiveTab] = React.useState<TabId>("overview");
   const [timelineFilter, setTimelineFilter] = React.useState<"IMPORTANT" | "ALL">("IMPORTANT");
   const [hoshitoriCareerRecords, setHoshitoriCareerRecords] = React.useState<HoshitoriCareerRecord[]>([]);
   const [isHoshitoriLoading, setIsHoshitoriLoading] = React.useState(false);
@@ -200,7 +201,14 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         onTabChange={(tabId) => setActiveTab(tabId as TabId)}
       />
 
-      {activeTab === "details" && <ReportDetailsTab status={status} careerId={careerId} />}
+      {activeTab === "overview" && (
+        <ReportOverviewTab
+          status={status}
+          achievementSummary={achievementSummary}
+          winRate={winRate}
+          awardsSummary={awardsSummary}
+        />
+      )}
       {activeTab === "timeline" && (
         <ReportTimelineTab
           items={timelineDigest}
@@ -214,13 +222,11 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           hoshitoriErrorMessage={hoshitoriErrorMessage}
         />
       )}
-      {activeTab === "achievements" && (
-        <ReportAchievementsTab
-          status={status}
-          achievementSummary={achievementSummary}
-          winRate={winRate}
-          awardsSummary={awardsSummary}
-        />
+      {activeTab === "story" && (
+        <ReportDetailsTab status={status} careerId={careerId} mode="story" />
+      )}
+      {activeTab === "profile" && (
+        <ReportDetailsTab status={status} careerId={careerId} mode="profile" />
       )}
     </div>
   );
