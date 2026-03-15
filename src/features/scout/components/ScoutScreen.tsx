@@ -169,65 +169,84 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="space-y-5">
       {/* === ウェルカムヒーロー（抽選前のみ） === */}
       {!editedDraft && (
-        <div className="rpg-panel p-5 sm:p-8 text-center animate-in">
-          <p className="text-xs ui-text-label tracking-[0.2em] text-gold mb-3">
-            人生放置型・履歴書作成ゲーム
-          </p>
-          <h2 className="text-2xl sm:text-4xl ui-text-label text-gold-bright mb-4 tracking-tight">
-            新弟子の運命を<br className="sm:hidden" />デザインせよ
-          </h2>
-          <p className="text-xs sm:text-sm text-text-dim max-w-lg mx-auto leading-relaxed mb-6">
-            あなたは相撲部屋の親方。新弟子の才能をデザインし、ボタン一つで入門から引退までの
-            力士人生をシミュレーション。生涯成績やドラマを「力士履歴書」としてコレクションしよう。
-          </p>
+        <section className="dashboard-hero animate-in">
+          <div className="surface-panel space-y-5">
+            <div className="space-y-3">
+              <p className="app-kicker">新弟子の入口</p>
+              <h2 className="text-3xl sm:text-5xl ui-text-heading text-text leading-tight">
+                候補の輪郭を見てから、
+                <br className="hidden sm:block" />
+                必要な項目だけ整える
+              </h2>
+              <p className="text-sm sm:text-base text-text-dim max-w-2xl leading-relaxed">
+                まず候補を引き、その候補の体格、来歴、持ち味を見てから細部を整えます。
+                長い入力フォームを最初に全部埋める流れにはしません。
+              </p>
+            </div>
 
-          {/* ウォレット */}
-          <div className="inline-flex items-center gap-3 border-2 border-gold-muted bg-bg px-4 py-2.5 mb-6">
-            <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
-            <span className="text-base sm:text-lg ui-text-label text-gold">{wallet?.points ?? "..."}</span>
-            <span className="text-xs text-text-dim">/ {wallet?.cap ?? 500}</span>
-            <span className="text-xs text-text-dim border-l-2 border-gold-muted pl-3">
-              回復 {wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}
-            </span>
+            <div className="metric-strip">
+              <div className="metric-card">
+                <div className="metric-label">所持ポイント</div>
+                <div className="metric-value">{wallet?.points ?? "..."}ポイント</div>
+                <div className="metric-note">上限 {wallet?.cap ?? 500}ポイント</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">次の回復</div>
+                <div className="metric-value">{wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}</div>
+                <div className="metric-note">一定時間ごとにポイントが回復します。</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">候補を引く費用</div>
+                <div className="metric-value">{SCOUT_COST.DRAW}ポイント</div>
+                <div className="metric-note">気に入らなければ引き直せます。</div>
+              </div>
+            </div>
           </div>
 
-          <div>
+          <div className="surface-panel space-y-4">
+            <div>
+              <p className="panel-title">最初の一手</p>
+              <p className="panel-caption">
+                まず1人だけ候補を引き、その候補を起点に調整を始めます。
+              </p>
+            </div>
             <Button
               size="lg"
               onClick={handleDraw}
               disabled={!canDraw}
-              className="w-full sm:w-auto sm:min-w-[280px]"
+              className="w-full"
             >
               <RefreshCw className={`w-5 h-5 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
-              {isDrawing ? "抽選中..." : `新弟子を抽選 (-${SCOUT_COST.DRAW}pt)`}
+              {isDrawing ? "候補を引いています..." : "候補を引く"}
             </Button>
-          </div>
 
-          {errorMessage && (
-            <p className="mt-4 text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10 inline-block">
-              {errorMessage}
-            </p>
-          )}
-        </div>
+            {errorMessage && (
+              <div className="status-callout" data-tone="danger">
+                <div className="status-callout-title">操作できません</div>
+                <div className="status-callout-text">{errorMessage}</div>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {/* === 抽選後: レイアウト === */}
       {editedDraft && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-4 animate-in">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_340px] gap-5 animate-in">
           {/* 左パネル: スカウト管理局 */}
-          <section className="rpg-panel p-4 sm:p-5 space-y-4">
+          <section className="surface-panel space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="section-header">
-                <span className="w-1 h-4 bg-gold inline-block" />
-                スカウト管理局
-              </h2>
-              <div className="flex items-center gap-2 text-xs">
-                <Coins className="w-3.5 h-3.5 text-gold" />
-                <span className="ui-text-label text-gold">{wallet?.points ?? "..."}</span>
-                <span className="text-text-dim">/ {wallet?.cap ?? 500}</span>
+              <div>
+                <p className="panel-title">候補の調整</p>
+                <p className="panel-caption">候補の輪郭を見ながら必要な項目だけを上書きします。</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-text-dim">
+                <Coins className="w-3.5 h-3.5 text-brand-line" />
+                <span className="ui-text-label text-text">{wallet?.points ?? "..."}</span>
+                <span>/ {wallet?.cap ?? 500}ポイント</span>
               </div>
             </div>
 
@@ -235,14 +254,18 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             <Button
               onClick={handleDraw}
               disabled={!canDraw}
+              variant="secondary"
               className="w-full py-3"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
-              {isDrawing ? "抽選中..." : `新弟子を再抽選 (-${SCOUT_COST.DRAW}pt)`}
+              {isDrawing ? "引き直しています..." : `候補を引き直す（${SCOUT_COST.DRAW}ポイント）`}
             </Button>
 
             {errorMessage && (
-              <p className="text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10">{errorMessage}</p>
+              <div className="status-callout" data-tone="danger">
+                <div className="status-callout-title">登録できません</div>
+                <div className="status-callout-text">{errorMessage}</div>
+              </div>
             )}
 
             {/* === フォーム === */}
@@ -538,15 +561,15 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           </section>
 
           {/* 右パネル: 候補サマリー */}
-          <section className="rpg-panel p-4 sm:p-5 space-y-4 lg:sticky lg:top-16 lg:self-start">
+          <section className="surface-panel space-y-4 lg:sticky lg:top-6 lg:self-start">
             <h2 className="section-header">
-              <User className="w-4 h-4 sm:w-5 sm:h-5" />
-              候補プロフィール
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-action" />
+              現在の力士像
             </h2>
 
             {/* 四股名ヒーロー */}
             <div className="text-center py-3 border-b-2 border-gold-muted">
-              <p className="text-2xl sm:text-3xl ui-text-label text-gold tracking-wider">
+              <p className="text-2xl sm:text-3xl ui-text-heading text-text tracking-wider">
                 {editedDraft.shikona}
               </p>
               <p className="text-xs text-text-dim mt-1">
@@ -575,9 +598,9 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
             {/* コスト内訳 */}
             <div className="border-t-2 border-gold-muted pt-3 space-y-1">
-              <p className="text-xs ui-text-label text-gold mb-2">
+              <p className="text-xs ui-text-label text-brand-line mb-2">
                 <Zap className="w-3.5 h-3.5 inline mr-1" />
-                上書きコスト
+                追加費用
               </p>
               <div className="space-y-0.5 text-xs">
                 {[
@@ -598,21 +621,20 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 ))}
               </div>
               <div className="pt-2 mt-2 border-t-2 border-gold-muted flex justify-between items-center">
-                <span className="text-xs ui-text-label text-text-dim">合計コスト</span>
-                <span className="text-lg ui-text-label text-gold">{overrideCost.total}pt</span>
+                <span className="text-xs ui-text-label text-text-dim">合計費用</span>
+                <span className="text-lg ui-text-label text-text">{overrideCost.total}ポイント</span>
               </div>
             </div>
 
             {/* 登録ボタン */}
             <Button
-              variant="danger"
               size="lg"
               onClick={handleRegister}
               disabled={isRegistering}
               className="w-full"
             >
               <Trophy className="w-5 h-5 mr-2" />
-              {isRegistering ? "登録中..." : `力士登録（追加 ${overrideCost.total}pt）`}
+              {isRegistering ? "入門手続きを進めています..." : "この新弟子で始める"}
             </Button>
           </section>
         </div>

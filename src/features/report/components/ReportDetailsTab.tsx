@@ -178,9 +178,14 @@ const emptyRivalryText = (careerId?: string | null): string => {
 interface ReportDetailsTabProps {
   status: RikishiStatus;
   careerId?: string | null;
+  mode?: "full" | "story" | "profile";
 }
 
-export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, careerId = null }) => {
+export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
+  status,
+  careerId = null,
+  mode = "full",
+}) => {
   const divisionStats = React.useMemo(() => {
     const divisions = ["Makuuchi", "Juryo", "Makushita", "Sandanme", "Jonidan", "Jonokuchi", "Maezumo"] as const;
     return divisions
@@ -401,6 +406,7 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
   return (
     <div className="space-y-4 animate-in">
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.9fr)] gap-4">
+        {mode !== "profile" && (
         <div className="report-detail-card p-4 sm:p-5 xl:col-span-2">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="section-header">
@@ -427,7 +433,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           )}
           {importantDecisionErrorMessage && <div className="mt-3 text-xs text-warning-bright">{importantDecisionErrorMessage}</div>}
         </div>
+        )}
 
+        {mode !== "story" && (
         <div className="report-detail-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="section-header">
@@ -463,7 +471,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
             <div className="report-empty">能力履歴が少ないため、番付推移と転機の履歴を優先して読む設計です。</div>
           )}
         </div>
+        )}
 
+        {mode !== "story" && (
         <div className="report-detail-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="section-header">
@@ -494,8 +504,10 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
             })}
           </div>
         </div>
+        )}
       </div>
 
+      {mode !== "story" && (
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
         <div className="report-detail-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -548,7 +560,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           </div>
         </div>
       </div>
+      )}
 
+      {mode !== "profile" && (
       <div className="report-detail-card p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className="section-header">
@@ -584,7 +598,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           {rivalryErrorMessage && <div className="text-xs text-warning-bright">{rivalryErrorMessage}</div>}
         </div>
       </div>
+      )}
 
+      {mode !== "story" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <InfoCard
           title="プロフィール"
@@ -627,7 +643,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           )}
         </div>
       </div>
+      )}
 
+      {mode !== "story" && (
       <div className="report-detail-card p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className="section-header">
@@ -660,8 +678,9 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({ status, care
           <div className="report-empty">深刻な怪我や古傷は確認されませんでした。</div>
         )}
       </div>
+      )}
 
-      {status.genome && (
+      {mode !== "story" && status.genome && (
         <div className="report-detail-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="section-header">DNA要約</h3>
