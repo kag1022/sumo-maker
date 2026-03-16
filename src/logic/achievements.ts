@@ -35,6 +35,7 @@ export interface Achievement {
   iconKey: AchievementIconKey;
   category: AchievementCategory;
   tier: number;
+  isSecret?: boolean;
 }
 
 // Helper to check rank division
@@ -71,8 +72,8 @@ type AchievementRule = Achievement & {
 const RULES: AchievementRule[] = [
   {
     id: 'YUSHO_1',
-    name: '賜杯の重み',
-    description: '幕内最高優勝を達成',
+    name: '幕内優勝1回',
+    description: '幕内最高優勝を1回達成',
     rarity: 'RARE',
     iconKey: 'trophy',
     category: 'YUSHO',
@@ -81,7 +82,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'YUSHO_10',
-    name: '名横綱',
+    name: '幕内優勝10回',
     description: '幕内優勝10回を達成',
     rarity: 'EPIC',
     iconKey: 'trophy',
@@ -91,7 +92,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'YUSHO_20',
-    name: '大横綱',
+    name: '幕内優勝20回',
     description: '幕内優勝20回以上を達成',
     rarity: 'LEGENDARY',
     iconKey: 'trophy',
@@ -101,8 +102,8 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'ZENSHO_1',
-    name: '完全優勝',
-    description: '幕内全勝優勝を達成',
+    name: '幕内全勝優勝1回',
+    description: '幕内全勝優勝を1回達成',
     rarity: 'EPIC',
     iconKey: 'sparkles',
     category: 'ZENSHO',
@@ -111,7 +112,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'ZENSHO_5',
-    name: '無敵艦隊',
+    name: '幕内全勝優勝5回',
     description: '幕内全勝優勝を5回達成',
     rarity: 'LEGENDARY',
     iconKey: 'sparkles',
@@ -131,7 +132,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'WINS_300',
-    name: '勝ち星街道',
+    name: '通算300勝',
     description: '通算300勝を達成',
     rarity: 'RARE',
     iconKey: 'swords',
@@ -141,7 +142,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'WINS_500',
-    name: '名力士の証',
+    name: '通算500勝',
     description: '通算500勝を達成',
     rarity: 'RARE',
     iconKey: 'swords',
@@ -151,7 +152,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'WINS_1000',
-    name: '千勝力士',
+    name: '通算1000勝',
     description: '通算1000勝を達成',
     rarity: 'LEGENDARY',
     iconKey: 'swords',
@@ -161,7 +162,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'AGE_35',
-    name: '熟練の域',
+    name: '35歳現役',
     description: '35歳以上まで現役を続行',
     rarity: 'RARE',
     iconKey: 'timer',
@@ -171,7 +172,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'AGE_40',
-    name: '生涯現役',
+    name: '40歳現役',
     description: '40歳以上まで現役を続行',
     rarity: 'EPIC',
     iconKey: 'timer',
@@ -181,8 +182,8 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'IRONMAN_30',
-    name: '頑健不動',
-    description: '5年間（30場所）以上、無休場',
+    name: '30場所無休場',
+    description: '30場所以上、無休場を継続',
     rarity: 'RARE',
     iconKey: 'shield',
     category: 'IRONMAN',
@@ -191,8 +192,8 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'IRONMAN',
-    name: '鉄の肉体',
-    description: '10年間（60場所）以上、無休場',
+    name: '60場所無休場',
+    description: '60場所以上、無休場を継続',
     rarity: 'EPIC',
     iconKey: 'shield',
     category: 'IRONMAN',
@@ -201,7 +202,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'STREAK_8',
-    name: '上昇気流',
+    name: '幕内8場所連続勝ち越し',
     description: '幕内で8場所連続勝ち越し',
     rarity: 'COMMON',
     iconKey: 'sun',
@@ -211,7 +212,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'STREAK_15',
-    name: '安定勢力',
+    name: '幕内15場所連続勝ち越し',
     description: '幕内で15場所連続勝ち越し',
     rarity: 'RARE',
     iconKey: 'sun',
@@ -221,7 +222,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'STREAK_30',
-    name: '黄金時代',
+    name: '幕内30場所連続勝ち越し',
     description: '幕内で30場所連続勝ち越し',
     rarity: 'LEGENDARY',
     iconKey: 'sun',
@@ -231,7 +232,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'RAPID_PROMOTION_18',
-    name: '急成長株',
+    name: '18場所以内で新入幕',
     description: '入門から18場所以内で新入幕',
     rarity: 'RARE',
     iconKey: 'rocket',
@@ -241,7 +242,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'RAPID_PROMOTION',
-    name: 'スピード出世',
+    name: '12場所以内で新入幕',
     description: '入門から12場所以内で新入幕',
     rarity: 'EPIC',
     iconKey: 'rocket',
@@ -251,7 +252,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'SANSHO_3',
-    name: '三賞の芽',
+    name: '三賞3回',
     description: '三賞を合計3回以上受賞',
     rarity: 'COMMON',
     iconKey: 'medal',
@@ -261,7 +262,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'SANSHO_10',
-    name: '三賞常連',
+    name: '三賞10回',
     description: '三賞を合計10回以上受賞',
     rarity: 'RARE',
     iconKey: 'medal',
@@ -271,7 +272,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'SANSHO_ALL',
-    name: '万能型力士',
+    name: '殊勲・敢闘・技能を各5回',
     description: '殊勲・敢闘・技能賞を各5回以上受賞',
     rarity: 'EPIC',
     iconKey: 'medal',
@@ -281,7 +282,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'GRAND_SLAM',
-    name: 'グランドスラム',
+    name: '幕下・十両・幕内優勝',
     description: '幕下・十両・幕内の各段で優勝',
     rarity: 'EPIC',
     iconKey: 'ladder',
@@ -291,7 +292,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'KINBOSHI_1',
-    name: '金星ハンター',
+    name: '金星1個',
     description: '金星を1個以上獲得',
     rarity: 'RARE',
     iconKey: 'star',
@@ -301,7 +302,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'KINBOSHI_5',
-    name: '横綱キラー',
+    name: '金星5個',
     description: '金星を5個以上獲得',
     rarity: 'EPIC',
     iconKey: 'star',
@@ -311,7 +312,7 @@ const RULES: AchievementRule[] = [
   },
   {
     id: 'KIMARITE_20',
-    name: '技の博覧会',
+    name: '20種類の決まり手で勝利',
     description: '通算20種類以上の決まり手で勝利',
     rarity: 'EPIC',
     iconKey: 'sparkles',
@@ -323,13 +324,21 @@ const RULES: AchievementRule[] = [
 
 const FIRST_STEP_FALLBACK: Achievement = {
   id: 'FIRST_STEP',
-  name: '土俵への一歩',
+  name: '初勝利',
   description: '大相撲の舞台で初勝利を挙げる',
   rarity: 'COMMON',
   iconKey: 'seedling',
   category: 'FIRST_STEP',
   tier: 1,
 };
+
+export const ACHIEVEMENT_CATALOG: Achievement[] = [
+  ...RULES.map(({ isUnlocked: _isUnlocked, ...achievement }) => achievement),
+  FIRST_STEP_FALLBACK,
+].sort((a, b) => {
+  if (a.category === b.category) return a.tier - b.tier;
+  return a.category.localeCompare(b.category);
+});
 
 const RARITY_ORDER: Record<AchievementRarity, number> = {
   LEGENDARY: 0,

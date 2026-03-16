@@ -143,6 +143,9 @@ const toTopRosterItem = (
   weightKg: npc.weightKg,
   aptitudeTier: npc.aptitudeTier,
   aptitudeFactor: npc.aptitudeFactor,
+  aptitudeProfile: npc.aptitudeProfile,
+  careerBand: npc.careerBand,
+  stagnation: npc.stagnation,
 });
 
 const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNpc => ({
@@ -163,6 +166,8 @@ const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNp
   weightKg: npc.weightKg,
   aptitudeTier: npc.aptitudeTier,
   aptitudeFactor: npc.aptitudeFactor,
+  aptitudeProfile: npc.aptitudeProfile,
+  careerBand: npc.careerBand,
   growthBias: npc.growthBias,
   retirementBias: npc.retirementBias,
   retirementProfile: npc.retirementProfile,
@@ -173,6 +178,7 @@ const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNp
   entrySeq: npc.entrySeq,
   retiredAtSeq: npc.retiredAtSeq,
   riseBand: npc.riseBand,
+  stagnation: npc.stagnation,
   recentBashoResults: npc.recentBashoResults,
 });
 
@@ -193,7 +199,10 @@ const toMakushitaPoolNpc = (
   weightKg: npc.weightKg,
   aptitudeTier: npc.aptitudeTier,
   aptitudeFactor: npc.aptitudeFactor,
+  aptitudeProfile: npc.aptitudeProfile,
+  careerBand: npc.careerBand,
   growthBias: npc.growthBias,
+  stagnation: npc.stagnation,
 });
 
 export const reconcileNpcLeague = (

@@ -232,7 +232,7 @@ export const DamageMap: React.FC<DamageMapProps> = ({
                 <svg
                     viewBox={viewBox}
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-full h-full drop-shadow-md"
+                    className="w-full h-full drop-shadow-md pixel-art-surface"
                 >
                     <defs>
                         <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -249,7 +249,7 @@ export const DamageMap: React.FC<DamageMapProps> = ({
                         height={config.h}
                         preserveAspectRatio="xMidYMid meet"
                         opacity="1"
-                        style={{ filter: 'drop-shadow(0px 0px 8px rgba(239, 68, 68, 0.25))' }}
+                        style={{ filter: 'drop-shadow(0px 0px 8px rgba(239, 68, 68, 0.25))', imageRendering: 'pixelated' }}
                     />
 
                     {renderInjuryOverlays(config, isBack)}

@@ -1,5 +1,6 @@
 import { RikishiStatus } from '../models';
 import {
+  appendBashoChunk,
   buildCareerStartYearMonth,
   commitCareer,
   createDraftCareer,
@@ -8,9 +9,8 @@ import {
   listCommittedCareers,
   loadCareerStatus,
   markCareerCompleted,
-  appendBashoChunk,
   type CareerListItem,
-} from './repository';
+} from './careers';
 
 export type { CareerListItem };
 export {

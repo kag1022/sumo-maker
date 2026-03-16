@@ -13,19 +13,22 @@ import {
   resolvePlayerAbility,
 } from './simulation/strength/model';
 import {
+  resolveCompetitiveFactor,
+} from './simulation/realism';
+import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from './simulation/modelVersion';
 import {
-  getKimariteDefsByOutcome,
-  getReversalKimariteDefs,
   KimariteStyle,
   normalizeKimariteName,
 } from './kimarite/catalog';
 import {
-  resolveTopKimariteScore,
-  selectWeightedKimarite,
-} from './kimarite/matchup';
+  inferBodyTypeFromMetrics,
+  resolveKimariteOutcome,
+  type KimariteCompetitorProfile,
+} from './kimarite/selection';
+import { getCompatibilityWeight, styleToTactics } from './phaseA';
 
 export { type EnemyStats };
 
@@ -52,11 +55,6 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const resolveSignedStreak = (winStreak: number, lossStreak: number): number =>
   winStreak > 0 ? winStreak : lossStreak > 0 ? -lossStreak : 0;
-
-const resolveAptitudeBattleFactor = (value?: number): number => {
-  if (!Number.isFinite(value)) return 1;
-  return Math.max(0.3, value as number);
-};
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
@@ -99,6 +97,21 @@ const resolveEnemyStyleMatchupModifier = (
   return 1;
 };
 
+const resolveKataBattleModifier = (status: RikishiStatus): number => {
+  const kata = status.kataProfile;
+  if (!kata) return 1;
+  if (kata.settled) return 1.03;
+  return kata.confidence < 0.35 ? 0.985 : 1.0;
+};
+
+const resolveDesignedStyleBattleModifier = (status: RikishiStatus): number => {
+  const profile = status.designedStyleProfile;
+  if (!profile) return 1;
+  const compatibilityBonus = getCompatibilityWeight(profile.compatibility) / 100;
+  const secretTacticsMatch = profile.secret && styleToTactics(profile.secret) === status.tactics;
+  return 1 + compatibilityBonus + (secretTacticsMatch ? 0.03 : 0);
+};
+
 /**
  * 勝敗判定ロジック
  * @param rikishi 自分の力士
@@ -139,6 +152,8 @@ const resolveBattleResultV1 = (
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
+  myPower *= resolveKataBattleModifier(rikishi);
+  myPower *= resolveDesignedStyleBattleModifier(rikishi);
   const baselinePower = myPower;
 
   // 得意技ボーナス
@@ -321,16 +336,18 @@ const resolveBattleResultV1 = (
         rikishi.tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
           'BALANCE';
   const bonus = myPower - baselinePower;
-  const playerAptitudeFactor = resolveAptitudeBattleFactor(rikishi.aptitudeFactor);
-  const enemyAptitudeFactor = resolveAptitudeBattleFactor(enemy.aptitudeFactor);
+  const playerCompetitiveFactor = resolveCompetitiveFactor(rikishi);
+  const enemyCompetitiveFactor = resolveCompetitiveFactor(
+    enemy as EnemyStats & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
+  );
   const enemyAbilityRaw =
     (enemy.ability ?? enemy.power) +
     ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
-  const enemyAbility = enemyAbilityRaw * enemyAptitudeFactor;
+  const enemyAbility = enemyAbilityRaw * enemyCompetitiveFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
   const myAbilityBase =
     resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
-  const myAbility = myAbilityBase * playerAptitudeFactor;
+  const myAbility = myAbilityBase * playerCompetitiveFactor;
   const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
   const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
   const momentumDelta = myMomentum - opponentMomentum;
@@ -419,6 +436,98 @@ const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
       tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
         'BALANCE';
 
+const buildEnemyKimariteStats = (
+  enemy: EnemyStats,
+): Partial<Record<keyof RikishiStatus['stats'], number>> => {
+  const base = clamp((enemy.ability ?? enemy.power) * 1.05, 35, 120);
+  if (enemy.styleBias === 'PUSH') {
+    return {
+      tsuki: base * 1.15,
+      oshi: base * 1.2,
+      deashi: base * 0.95,
+      power: base,
+      waza: base * 0.6,
+      nage: base * 0.5,
+      kumi: base * 0.45,
+      koshi: base * 0.55,
+    };
+  }
+  if (enemy.styleBias === 'GRAPPLE') {
+    return {
+      kumi: base * 1.15,
+      koshi: base * 1.1,
+      power: base * 1.05,
+      nage: base * 0.9,
+      deashi: base * 0.8,
+      waza: base * 0.72,
+      tsuki: base * 0.45,
+      oshi: base * 0.5,
+    };
+  }
+  if (enemy.styleBias === 'TECHNIQUE') {
+    return {
+      waza: base * 1.2,
+      nage: base * 1.1,
+      deashi: base,
+      tsuki: base * 0.7,
+      oshi: base * 0.65,
+      kumi: base * 0.75,
+      koshi: base * 0.72,
+      power: base * 0.68,
+    };
+  }
+  return {
+    tsuki: base * 0.82,
+    oshi: base * 0.82,
+    deashi: base * 0.82,
+    power: base * 0.82,
+    waza: base * 0.82,
+    nage: base * 0.82,
+    kumi: base * 0.82,
+    koshi: base * 0.82,
+  };
+};
+
+const buildEnemyKimariteProfile = (
+  enemy: EnemyStats,
+): KimariteCompetitorProfile => {
+  const bodyType = inferBodyTypeFromMetrics(enemy.heightCm, enemy.weightKg);
+  const traits: RikishiStatus['traits'] = [];
+  if (enemy.styleBias === 'PUSH') traits.push('TSUPPARI_TOKKA');
+  if (enemy.styleBias === 'GRAPPLE') traits.push('YOTSU_NO_ONI');
+  if (enemy.styleBias === 'TECHNIQUE') traits.push('ARAWAZASHI', 'READ_THE_BOUT');
+  if (enemy.heightCm >= 190) traits.push('LONG_REACH');
+  if (enemy.weightKg >= 155) traits.push('HEAVY_PRESSURE');
+  return {
+    style:
+      enemy.styleBias === 'PUSH' || enemy.styleBias === 'GRAPPLE' || enemy.styleBias === 'TECHNIQUE'
+        ? enemy.styleBias
+        : 'BALANCE',
+    bodyType,
+    heightCm: enemy.heightCm,
+    weightKg: enemy.weightKg,
+    stats: buildEnemyKimariteStats(enemy),
+    traits,
+    historyCounts: {},
+  };
+};
+
+const buildPlayerKimariteProfile = (
+  rikishi: RikishiStatus,
+  heightCm: number,
+  weightKg: number,
+  preferredMove?: string | null,
+): KimariteCompetitorProfile => ({
+  style: toKimariteStyle(rikishi.tactics),
+  bodyType: rikishi.bodyType,
+  heightCm,
+  weightKg,
+  stats: rikishi.stats,
+  traits: rikishi.traits || [],
+  preferredMove: preferredMove ?? undefined,
+  historyCounts: rikishi.history.kimariteTotal ?? {},
+});
+
 const resolveBattleResultV2 = (
   rikishi: RikishiStatus,
   enemy: EnemyStats,
@@ -446,6 +555,8 @@ const resolveBattleResultV2 = (
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
+  myPower *= resolveKataBattleModifier(rikishi);
+  myPower *= resolveDesignedStyleBattleModifier(rikishi);
   const baselinePower = myPower;
 
   let usedSignatureMove: string | null = null;
@@ -515,41 +626,27 @@ const resolveBattleResultV2 = (
   if (rikishi.bodyType === 'ANKO') myPower += 3;
 
   const playerStyle = toKimariteStyle(rikishi.tactics);
-  const enemyStyle: KimariteStyle =
-    enemy.styleBias === 'PUSH' || enemy.styleBias === 'GRAPPLE' || enemy.styleBias === 'TECHNIQUE'
-      ? enemy.styleBias
-      : 'BALANCE';
-  const kimariteContext = {
-    playerStyle,
-    enemyStyle,
-    playerBodyType: rikishi.bodyType,
-    stats: rikishi.stats,
-    playerHeightCm: myHeight,
-    playerWeightKg: myWeight,
-    enemyHeightCm: enemyHeight,
-    enemyWeightKg: enemyWeight,
-    traits,
-    preferredMove: usedSignatureMove ?? undefined,
-    allowReversal: false,
-  };
-  const winDefs = getKimariteDefsByOutcome('WIN');
-  const lossDefs = getKimariteDefsByOutcome('LOSS');
-  const topWinScore = resolveTopKimariteScore(winDefs, kimariteContext);
-  const topLossScore = resolveTopKimariteScore(lossDefs, kimariteContext);
-  const kimariteDeltaRaw = (topWinScore - topLossScore) / Math.max(1, topWinScore + topLossScore);
-  const kimariteDelta = clamp(kimariteDeltaRaw * 0.08, -0.06, 0.06);
+  const playerProfile = buildPlayerKimariteProfile(
+    rikishi,
+    myHeight,
+    myWeight,
+    usedSignatureMove,
+  );
+  const enemyProfile = buildEnemyKimariteProfile(enemy);
 
   const bonus = myPower - baselinePower;
-  const playerAptitudeFactor = resolveAptitudeBattleFactor(rikishi.aptitudeFactor);
-  const enemyAptitudeFactor = resolveAptitudeBattleFactor(enemy.aptitudeFactor);
+  const playerCompetitiveFactor = resolveCompetitiveFactor(rikishi);
+  const enemyCompetitiveFactor = resolveCompetitiveFactor(
+    enemy as EnemyStats & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
+  );
   const enemyAbilityRaw =
     (enemy.ability ?? enemy.power) +
     ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
-  const enemyAbility = enemyAbilityRaw * enemyAptitudeFactor;
+  const enemyAbility = enemyAbilityRaw * enemyCompetitiveFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
   const myAbilityBase =
     resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
-  const myAbility = myAbilityBase * playerAptitudeFactor;
+  const myAbility = myAbilityBase * playerCompetitiveFactor;
   const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
   const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
   const momentumDelta = myMomentum - opponentMomentum;
@@ -561,7 +658,7 @@ const resolveBattleResultV2 = (
     injuryPenalty,
     bonus: momentumDelta,
   });
-  const winProbability = clamp(baseWinProbability + kimariteDelta, 0.03, 0.97);
+  const winProbability = clamp(baseWinProbability, 0.03, 0.97);
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;
 
@@ -569,22 +666,31 @@ const resolveBattleResultV2 = (
     const hasDohyogiwa = traits.includes('DOHYOUGIWA_MAJUTSU') && rng() < 0.06;
     const hasClutchReversal = traits.includes('CLUTCH_REVERSAL') && rng() < 0.04;
     if (hasDohyogiwa || hasClutchReversal) {
-      const reversalChoice = selectWeightedKimarite(
-        getReversalKimariteDefs(),
-        {
-          ...kimariteContext,
-          allowReversal: true,
-        },
+      const reversal = resolveKimariteOutcome({
+        winner: playerProfile,
+        loser: enemyProfile,
         rng,
-      );
-      return { isWin: true, kimarite: normalizeKimariteName(reversalChoice.move), winProbability, opponentAbility };
+        forcePattern: 'EDGE_REVERSAL',
+        allowNonTechnique: false,
+      });
+      return {
+        isWin: true,
+        kimarite: normalizeKimariteName(reversal.kimarite),
+        winProbability,
+        opponentAbility,
+      };
     }
   }
 
-  const selected = selectWeightedKimarite(isWin ? winDefs : lossDefs, kimariteContext, rng);
+  const selected = resolveKimariteOutcome({
+    winner: isWin ? playerProfile : enemyProfile,
+    loser: isWin ? enemyProfile : playerProfile,
+    rng,
+    allowNonTechnique: true,
+  });
   return {
     isWin,
-    kimarite: normalizeKimariteName(selected.move),
+    kimarite: normalizeKimariteName(selected.kimarite),
     winProbability,
     opponentAbility,
   };

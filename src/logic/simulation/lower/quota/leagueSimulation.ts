@@ -67,6 +67,8 @@ const createDivisionParticipants = (
         weightKg: npc.weightKg,
         aptitudeTier: npc.aptitudeTier,
         aptitudeFactor: npc.aptitudeFactor,
+        aptitudeProfile: npc.aptitudeProfile,
+        careerBand: npc.careerBand,
         wins: 0,
         losses: 0,
         currentWinStreak: 0,
@@ -75,6 +77,7 @@ const createDivisionParticipants = (
         opponentAbilityTotal: 0,
         boutsSimulated: 0,
         active: true,
+        stagnation: npc.stagnation,
       };
     });
 };
@@ -127,6 +130,8 @@ const toDivisionParticipants = (
     weightKg: participant.weightKg,
     aptitudeTier: participant.aptitudeTier,
     aptitudeFactor: participant.aptitudeFactor,
+    aptitudeProfile: participant.aptitudeProfile,
+    careerBand: participant.careerBand,
     wins: participant.wins,
     losses: participant.losses,
     currentWinStreak: participant.currentWinStreak,
@@ -135,6 +140,7 @@ const toDivisionParticipants = (
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
     active: participant.active,
+    stagnation: participant.stagnation,
   }));
 
 export const simulateLowerLeagueBasho = (

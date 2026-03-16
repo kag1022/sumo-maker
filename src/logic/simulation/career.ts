@@ -1,8 +1,12 @@
 import { generateTitle } from '../naming/playerNaming';
 import { RankChangeResult } from '../banzuke';
 import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
+import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
+import { ensureKataProfile } from '../style/kata';
+import { ensurePhaseAStatus } from '../phaseA';
+import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -17,6 +21,23 @@ const DEFAULT_BODY_METRICS: Record<BodyType, { heightCm: number; weightKg: numbe
   SOPPU: { heightCm: 186, weightKg: 124 },
   ANKO: { heightCm: 180, weightKg: 162 },
   MUSCULAR: { heightCm: 184, weightKg: 152 },
+};
+
+const DIVISION_LABEL: Record<Rank['division'], string> = {
+  Makuuchi: '幕内',
+  Juryo: '十両',
+  Makushita: '幕下',
+  Sandanme: '三段目',
+  Jonidan: '序二段',
+  Jonokuchi: '序ノ口',
+  Maezumo: '前相撲',
+};
+
+const formatFullRankLabel = (rank: Rank): string => {
+  if (rank.division === 'Maezumo') return '前相撲';
+  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
+  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
+  return `${side}${rank.name}${rank.number || 1}枚目`;
 };
 
 export const initializeSimulationStatus = (initialStats: RikishiStatus): RikishiStatus => {
@@ -71,10 +92,20 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
     }
   }
   if (typeof status.entryAge !== 'number') status.entryAge = status.age;
+  if (!status.aptitudeProfile) {
+    status.aptitudeProfile = resolveAptitudeProfile(status.aptitudeTier);
+  }
+  if (!Number.isFinite(status.aptitudeFactor)) {
+    status.aptitudeFactor = resolveLegacyAptitudeFactor(status.aptitudeProfile, status.aptitudeTier);
+  }
+  if (!status.careerBand) status.careerBand = DEFAULT_CAREER_BAND;
   if (typeof status.isOzekiKadoban !== 'boolean') status.isOzekiKadoban = false;
   if (typeof status.isOzekiReturn !== 'boolean') status.isOzekiReturn = false;
   if (!status.retirementProfile) status.retirementProfile = 'STANDARD';
-  return status;
+  if (!Number.isFinite(status.spirit)) status.spirit = 70;
+  if (!status.stagnation) status.stagnation = createDefaultStagnationState();
+  status.history.realismKpi = buildCareerRealismSnapshot(status);
+  return ensurePhaseAStatus(ensureKataProfile(status));
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
@@ -82,7 +113,7 @@ export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
     year,
     month: 1,
     type: 'ENTRY',
-    description: `新弟子として入門。四股名「${status.shikona}」。`,
+    description: `新弟子として入門。四股名「${status.shikona}」で土俵へ。`,
   });
 };
 
@@ -100,7 +131,11 @@ export const appendBashoEvents = (
   rankChange: RankChangeResult,
   currentRank: Rank,
 ): void => {
-  if (bashoRecord.absent > 0) {
+  const hasInjuryEventThisBasho = status.history.events.some(
+    (event) => event.type === 'INJURY' && event.year === year && event.month === month,
+  );
+
+  if (bashoRecord.absent > 0 && !hasInjuryEventThisBasho) {
     status.history.events.push({
       year,
       month,
@@ -119,13 +154,13 @@ export const appendBashoEvents = (
       description = `大関カド番 ${recordStr}`;
     } else if (rankChange.event.includes('PROMOTION')) {
       eventType = 'PROMOTION';
-      description = `${rankChange.nextRank.name}へ昇進 ${recordStr}`;
+      description = `${formatFullRankLabel(rankChange.nextRank)}へ昇進 ${recordStr}`;
     } else if (rankChange.event.includes('DEMOTION')) {
       eventType = 'DEMOTION';
-      description = `${rankChange.nextRank.name}へ陥落 ${recordStr}`;
+      description = `${formatFullRankLabel(rankChange.nextRank)}へ陥落 ${recordStr}`;
     } else {
       eventType = 'PROMOTION';
-      description = `${currentRank.name}から${rankChange.nextRank.name}へ移動 ${recordStr}`;
+      description = `${formatFullRankLabel(currentRank)}から${formatFullRankLabel(rankChange.nextRank)}へ移動 ${recordStr}`;
     }
 
     status.history.events.push({
@@ -137,12 +172,12 @@ export const appendBashoEvents = (
   }
 
   if (bashoRecord.yusho) {
-    const yushoTitle = currentRank.division === 'Makuuchi' ? '幕内優勝' : `${currentRank.name}優勝`;
+    const yushoTitle = `${DIVISION_LABEL[currentRank.division]}優勝`;
     status.history.events.push({
       year,
       month,
       type: 'YUSHO',
-      description: `${yushoTitle} (${bashoRecord.wins}勝)`,
+      description: `${yushoTitle} (${formatFullRankLabel(currentRank)} / ${bashoRecord.wins}勝)`,
     });
   }
 
@@ -202,6 +237,7 @@ export const finalizeCareer = (
     description: `引退 (${reason || '理由不明'})`,
   });
   status.history.title = generateTitle(status.history);
+  status.history.realismKpi = buildCareerRealismSnapshot(status);
   return status;
 };
 

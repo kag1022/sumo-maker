@@ -114,6 +114,17 @@ const resolveProposalSource = (
 const normalizeReasons = (reasons: BanzukeDecisionReasonCode[] | undefined): BanzukeDecisionReasonCode[] =>
   reasons?.length ? reasons : ['AUTO_ACCEPTED'];
 
+const resolveRuleBucket = (
+  rank: Rank,
+): 'YOKOZUNA' | 'OZEKI' | 'SANYAKU' | 'MAEGASHIRA' | 'JURYO' | 'LOWER' => {
+  if (rank.division === 'Makuuchi' && rank.name === '横綱') return 'YOKOZUNA';
+  if (rank.division === 'Makuuchi' && rank.name === '大関') return 'OZEKI';
+  if (rank.division === 'Makuuchi' && (rank.name === '関脇' || rank.name === '小結')) return 'SANYAKU';
+  if (rank.division === 'Makuuchi') return 'MAEGASHIRA';
+  if (rank.division === 'Juryo') return 'JURYO';
+  return 'LOWER';
+};
+
 export const composeNextBanzuke = (
   input: ComposeNextBanzukeInput,
 ): ComposeNextBanzukeOutput => {
@@ -228,6 +239,13 @@ export const composeNextBanzuke = (
       finalRank,
       reasons,
       constraintHits,
+      ruleBucket: resolveRuleBucket(committeeCase.currentRank),
+      usedBoundaryPressure:
+        proposalSource === 'TOP_DIVISION' ||
+        proposalSource === 'SEKITORI_BOUNDARY' ||
+        proposalSource === 'LOWER_BOUNDARY',
+      usedDiscretion:
+        reasons.some((reason) => reason !== 'AUTO_ACCEPTED' && reason !== 'AUDIT_PASS'),
       shadowDiff: {
         rankChanged: compareRank(committeeCase.proposalRank, finalRank) !== 0,
         eventChanged: proposedChange.nextRank.name !== finalRank.name ||

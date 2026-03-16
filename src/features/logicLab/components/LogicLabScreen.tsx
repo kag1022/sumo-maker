@@ -127,95 +127,95 @@ export const LogicLabScreen: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <section className="border-4 border-sumi bg-[linear-gradient(120deg,#203744,#2b2b2b,#5c6e46)] text-washi p-4 shadow-[6px_6px_0px_0px_#2b2b2b]">
+      <section className="rpg-panel p-4 relative overflow-hidden">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <Heading as="p" className="text-xl">ロジック検証モード</Heading>
-            <CaptionText as="p" className="text-washi/90">番付変化・会議理由・NPC文脈を集約表示</CaptionText>
+            <Heading as="h2" className="text-xl ui-text-label text-gold">ロジック検証モード</Heading>
+            <CaptionText as="p" className="text-text-dim mt-1">番付変化・会議理由・NPC文脈を集約表示</CaptionText>
           </div>
-          <div className="text-[11px] font-black border border-washi/60 px-2 py-1 bg-kassairo/40">
+          <div className="text-[11px] font-bold border-2 border-gold-muted px-2 py-1 bg-bg text-text shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
             状態: {formatPhase(phase)}
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-4 border-2 border-sumi bg-washi p-4 space-y-2">
-          <LabelText as="p" className="text-sm">設定</LabelText>
-          <label className="text-xs font-bold block">
+        <div className="xl:col-span-4 rpg-panel p-4 space-y-2">
+          <LabelText as="p" className="section-header">設定</LabelText>
+          <label className="text-xs text-text-dim block">
             プリセット
             <select
               value={presetId}
               onChange={(event) => setPresetId(event.target.value as typeof presetId)}
-              className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1"
+              className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"
               disabled={autoPlay}
             >
               {LOGIC_LAB_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
             </select>
           </label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-bold block">
+            <label className="text-xs text-text-dim block">
               Seed
-              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1" disabled={autoPlay || comparisonBusy} />
+              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay || comparisonBusy} />
             </label>
-            <label className="text-xs font-bold block">
+            <label className="text-xs text-text-dim block">
               最大場所数
-              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-sumi bg-washi px-2 py-1 text-sm mt-1" disabled={autoPlay || comparisonBusy} />
+              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay || comparisonBusy} />
             </label>
           </div>
-          <CaptionText as="p" className="text-[11px] text-sumi">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</CaptionText>
+          <CaptionText as="p" className="text-[11px] text-text-dim">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</CaptionText>
         </div>
 
-        <div className="xl:col-span-8 border-2 border-sumi bg-washi p-4 space-y-3">
-          <LabelText as="p" className="text-sm">操作</LabelText>
+        <div className="xl:col-span-8 rpg-panel p-4 space-y-3">
+          <LabelText as="p" className="section-header">操作</LabelText>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <button onClick={() => void startRun()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-kassairo text-washi'}`}>開始</button>
-            <button onClick={() => void stepOne()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>1場所進む</button>
-            {!autoPlay ? <button onClick={() => void startAutoPlay()} disabled={comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-sumi text-washi'}`}>自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-shuiro bg-washi text-shuiro font-black px-2 py-2 text-xs">停止</button>}
-            <button onClick={() => void runToEnd()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-washi text-sumi'}`}>最後まで</button>
-            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-black px-2 py-2 text-xs ${autoPlay || comparisonBusy ? 'border-sumi-light bg-washi-dark text-sumi-light' : 'border-sumi bg-shuiro text-washi'}`}>{comparisonBusy ? '比較中...' : '2モデル比較（現行/新）'}</button>
-            <button onClick={resetRun} disabled={comparisonBusy} className="border-2 border-sumi bg-washi text-sumi font-black px-2 py-2 text-xs">リセット</button>
+            <button onClick={() => void startRun()} disabled={comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold bg-gold/10 text-gold'}`}>開始</button>
+            <button onClick={() => void stepOne()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>1場所進む</button>
+            {!autoPlay ? <button onClick={() => void startAutoPlay()} disabled={comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-text text-bg'}`}>自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-crimson bg-crimson/10 text-crimson font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">停止</button>}
+            <button onClick={() => void runToEnd()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>最後まで</button>
+            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-crimson bg-crimson/20 text-text'}`}>{comparisonBusy ? '比較中...' : '2モデル比較（現行/新）'}</button>
+            <button onClick={resetRun} disabled={comparisonBusy} className="border-2 border-gold-muted bg-bg text-text font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">リセット</button>
           </div>
-          {errorMessage && <BodyText as="p" className="text-xs text-shuiro border border-shuiro px-2 py-1">{errorMessage}</BodyText>}
+          {errorMessage && <BodyText as="p" className="text-xs text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-1">{errorMessage}</BodyText>}
         </div>
       </section>
 
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-black">
-        <div className="border-2 border-sumi bg-washi p-2"><LabelText>昇進: </LabelText><MetricText as="span" className="text-matcha">{stats.promotion}</MetricText></div>
-        <div className="border-2 border-sumi bg-washi p-2"><LabelText>降下: </LabelText><MetricText as="span" className="text-shuiro">{stats.demotion}</MetricText></div>
-        <div className="border-2 border-sumi bg-washi p-2"><LabelText>警告: </LabelText><MetricText as="span">{stats.warning}</MetricText></div>
-        <div className="border-2 border-sumi bg-washi p-2"><LabelText>怪我: </LabelText><MetricText as="span">{stats.injury}</MetricText></div>
-        <div className="border-2 border-sumi bg-washi p-2"><LabelText>優勝: </LabelText><MetricText as="span">{stats.yusho}</MetricText></div>
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-bold">
+        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>昇進: </LabelText><MetricText as="span" className="text-hp">{stats.promotion}</MetricText></div>
+        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>降下: </LabelText><MetricText as="span" className="text-crimson">{stats.demotion}</MetricText></div>
+        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>警告: </LabelText><MetricText as="span" className="text-text">{stats.warning}</MetricText></div>
+        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>怪我: </LabelText><MetricText as="span" className="text-text">{stats.injury}</MetricText></div>
+        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>優勝: </LabelText><MetricText as="span" className="text-text">{stats.yusho}</MetricText></div>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-7 border-2 border-sumi bg-washi p-4 space-y-2">
+        <div className="xl:col-span-7 rpg-panel p-4 space-y-2">
           <div className="flex flex-wrap gap-2 items-center justify-between">
-            <p className="text-sm font-black">場所ログ</p>
+            <p className="section-header">場所ログ</p>
             <div className="flex flex-wrap gap-2">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="検索" className="border-2 border-sumi px-2 py-1 text-xs bg-washi" />
-              <button onClick={() => setDesc((v) => !v)} className="border-2 border-sumi px-2 py-1 text-xs font-black">{desc ? '新しい順' : '古い順'}</button>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="検索" className="border-2 border-gold-muted px-2 py-1 text-xs bg-bg shadow-[inset_0_0_4px_rgba(0,0,0,0.5)] focus:outline-none focus:border-gold transition-none" />
+              <button onClick={() => setDesc((v) => !v)} className="border-2 border-gold-muted px-2 py-1 text-xs font-bold hover:border-gold hover:bg-gold/10 transition-none">{desc ? '新しい順' : '古い順'}</button>
             </div>
           </div>
           <div className="flex flex-wrap gap-1">
             {LOG_FILTERS.map((item) => (
-              <button key={item.id} onClick={() => setFilter(item.id)} className={`text-xs font-black px-2 py-1 border ${filter === item.id ? 'border-sumi bg-sumi text-washi' : 'border-sumi bg-washi text-sumi'}`}>{item.label}</button>
+              <button key={item.id} onClick={() => setFilter(item.id)} className={`text-xs font-bold px-2 py-1 border-2 transition-none ${filter === item.id ? 'border-gold bg-gold/20 text-gold shadow-none' : 'border-gold-muted bg-bg text-text-dim shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]'}`}>{item.label}</button>
             ))}
-            <span className="text-xs font-black text-sumi-light px-2 py-1">表示 {filtered.length}/{logs.length}</span>
+            <span className="text-xs font-bold text-text-dim px-2 py-1">表示 {filtered.length}/{logs.length}</span>
           </div>
-          <div className="overflow-x-auto max-h-[420px] border border-sumi">
+          <div className="overflow-x-auto max-h-[420px] border-2 border-gold-muted shadow-[inset_0_0_8px_rgba(0,0,0,0.8)]">
             <table className="min-w-full text-xs border-collapse">
-              <thead className="sticky top-0 bg-washi border-b-2 border-sumi">
-                <tr><th className="text-left py-1 px-2">Seq</th><th className="text-left py-1 px-2">場所</th><th className="text-left py-1 px-2">番付</th><th className="text-left py-1 px-2">成績</th><th className="text-left py-1 px-2">変動</th><th className="text-left py-1 px-2">警告</th></tr>
+              <thead className="sticky top-0 bg-bg border-b-2 border-gold-muted z-10">
+                <tr><th className="text-left py-1 px-2 text-text-dim">Seq</th><th className="text-left py-1 px-2 text-text-dim">場所</th><th className="text-left py-1 px-2 text-text-dim">番付</th><th className="text-left py-1 px-2 text-text-dim">成績</th><th className="text-left py-1 px-2 text-text-dim">変動</th><th className="text-left py-1 px-2 text-text-dim">警告</th></tr>
               </thead>
               <tbody>
                 {filtered.map(({ row, index }) => (
-                  <tr key={`${row.seq}-${row.year}-${row.month}`} onClick={() => selectLogIndex(index)} className={`border-b border-sumi-light/30 cursor-pointer ${selectedRow === row ? 'bg-washi-dark' : 'bg-washi'}`}>
-                    <td className="py-1 px-2 font-black">{row.seq}</td><td className="py-1 px-2">{row.year}/{row.month}</td>
-                    <td className="py-1 px-2">{formatRankName(row.rankBefore)} → {formatRankName(row.rankAfter)}</td>
-                    <td className="py-1 px-2">{formatRecord(row.record.wins, row.record.losses, row.record.absent)}{row.record.yusho ? ' (優勝)' : ''}</td>
-                    <td className={`py-1 px-2 font-black ${isPromotion(row) ? 'text-matcha' : isDemotion(row) ? 'text-shuiro' : 'text-sumi-light'}`}>{rankDeltaText(row)}</td>
-                    <td className="py-1 px-2">{row.committeeWarnings}</td>
+                  <tr key={`${row.seq}-${row.year}-${row.month}`} onClick={() => selectLogIndex(index)} className={`border-b border-gold-muted/30 cursor-pointer transition-none ${selectedRow === row ? 'bg-gold/10 text-text' : 'bg-bg text-text/80 hover:bg-bg-light hover:text-text'}`}>
+                    <td className="py-1 px-2 font-bold text-text-dim">{row.seq}</td><td className="py-1 px-2">{row.year}/{row.month}</td>
+                    <td className="py-1 px-2 text-gold">{formatRankName(row.rankBefore)}<span className="text-text-dim mx-1">→</span>{formatRankName(row.rankAfter)}</td>
+                    <td className="py-1 px-2">{formatRecord(row.record.wins, row.record.losses, row.record.absent)}{row.record.yusho ? <span className="text-gold ml-1 text-xs">★</span> : ''}</td>
+                    <td className={`py-1 px-2 font-bold ${isPromotion(row) ? 'text-hp' : isDemotion(row) ? 'text-crimson' : 'text-text-dim'}`}>{rankDeltaText(row)}</td>
+                    <td className="py-1 px-2 text-text-dim">{row.committeeWarnings}</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,51 +223,55 @@ export const LogicLabScreen: React.FC = () => {
           </div>
         </div>
 
-        <div className="xl:col-span-5 border-2 border-sumi bg-washi p-4 space-y-2">
-          <p className="text-sm font-black">詳細</p>
-          {!selectedRow ? <p className="text-xs font-bold text-sumi">ログ行を選択してください。</p> : (
-            <div className="space-y-2 text-xs font-bold">
-              <p>{selectedRow.year}年{selectedRow.month}月</p>
-              <p>{formatRankName(selectedRow.rankBefore)} → {formatRankName(selectedRow.rankAfter)} / {rankDeltaText(selectedRow)}</p>
-              <p>成績: {formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}{selectedRow.record.yusho ? ' / 優勝' : ''}</p>
-              <p>停止理由: {formatStopReason(selectedRow.pauseReason)}</p>
-              <p>番付理由: {selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '-'}</p>
-              <p>イベント: {selectedRow.events.length ? selectedRow.events[0] : '-'}</p>
-              <p>怪我: Lv{selectedRow.injurySummary.injuryLevel} / 有効 {selectedRow.injurySummary.activeCount}件</p>
-              <p>同階級NPC: {selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : 'なし'}</p>
+        <div className="xl:col-span-5 rpg-panel p-4 space-y-2">
+          <p className="section-header">詳細</p>
+          {!selectedRow ? <p className="text-xs text-text-dim">ログ行を選択してください。</p> : (
+            <div className="space-y-1 text-xs border-2 border-gold-muted bg-bg p-3 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>場所</span><span className="data-val">{selectedRow.year}年{selectedRow.month}月</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>変動</span><span className="data-val">{formatRankName(selectedRow.rankBefore)} → {formatRankName(selectedRow.rankAfter)} / {rankDeltaText(selectedRow)}</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>成績</span><span className="data-val">{formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}{selectedRow.record.yusho ? ' / 優勝' : ''}</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>停止理由</span><span className="data-val">{formatStopReason(selectedRow.pauseReason)}</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>番付理由</span><span className="data-val">{selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '-'}</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>イベント</span><span className="data-val">{selectedRow.events.length ? selectedRow.events[0] : '-'}</span></div>
+              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>怪我</span><span className="data-val">Lv{selectedRow.injurySummary.injuryLevel} / 有効 {selectedRow.injurySummary.activeCount}件</span></div>
+              <div className="data-row cursor-help" title={selectedRow.npcContext ? `同階級NPC ${selectedRow.npcContext.rows.length}件` : ''}><span className="data-key" style={{ boxShadow: "none" }}>同階級NPC</span><span className="data-val">{selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : 'なし'}</span></div>
             </div>
           )}
           {comparison && (
-            <div className="border-t border-sumi pt-2 text-xs font-bold">
-              <p className="mb-1">比較: {comparisonPresetLabel}</p>
-              <p>現行最高位: {formatRankName(comparison.current.maxRank)}</p>
-              <p>新モデル最高位: {formatRankName(comparison.newModel.maxRank)}</p>
-              <p>勝利差: {comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? '+' : ''}{comparison.newModel.totalWins - comparison.current.totalWins}</p>
-              <p className="mt-2">主要決まり手差分</p>
-              {comparison.topKimariteDiffs.length === 0 ? (
-                <p>-</p>
-              ) : (
-                comparison.topKimariteDiffs.map((item) => (
-                  <p key={item.name}>
-                    {item.name}: {item.current} → {item.newModel} ({item.delta >= 0 ? '+' : ''}{item.delta})
-                  </p>
-                ))
-              )}
+            <div className="border-t-2 border-gold-muted pt-3 text-xs mt-3">
+              <p className="mb-2 text-gold ui-text-label">比較: {comparisonPresetLabel}</p>
+              <div className="space-y-1 border-2 border-gold-muted bg-bg p-3 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
+                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>現行最高位</span><span className="data-val">{formatRankName(comparison.current.maxRank)}</span></div>
+                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>新モデル最高位</span><span className="data-val">{formatRankName(comparison.newModel.maxRank)}</span></div>
+                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>勝利差</span><span className={`data-val ${comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? "text-hp" : "text-crimson"}`}>{comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? '+' : ''}{comparison.newModel.totalWins - comparison.current.totalWins}</span></div>
+                <p className="mt-2 text-text text-[11px] pt-1 border-t border-gold-muted/30">主要決まり手差分</p>
+                {comparison.topKimariteDiffs.length === 0 ? (
+                  <p className="text-text-dim text-[11px]">-</p>
+                ) : (
+                  comparison.topKimariteDiffs.map((item) => (
+                    <div key={item.name} className="flex justify-between text-[11px]">
+                      <span className="text-text-dim">{item.name}</span>
+                      <span className="text-text">{item.current} → {item.newModel} (<span className={item.delta >= 0 ? "text-hp" : "text-crimson"}>{item.delta >= 0 ? '+' : ''}{item.delta}</span>)</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
       </section>
 
       {summary && (
-        <section className="border-2 border-sumi bg-washi p-4 text-xs font-bold grid grid-cols-1 md:grid-cols-3 gap-2">
-          <p>現在番付: {formatRankName(summary.currentRank)}</p>
-          <p>最高位: {formatRankName(summary.maxRank)}</p>
-          <p>場所数: {summary.bashoCount}</p>
-          <p>年齢: {summary.age}</p>
-          <p>通算: {summary.totalWins}勝 {summary.totalLosses}敗 {summary.totalAbsent}休</p>
-          <p>停止理由: {formatStopReason(summary.stopReason)}</p>
+        <section className="rpg-panel p-4 text-xs font-bold grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>現在番付</span><span className="data-val text-gold">{formatRankName(summary.currentRank)}</span></div>
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>最高位</span><span className="data-val text-gold">{formatRankName(summary.maxRank)}</span></div>
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>場所数</span><span className="data-val">{summary.bashoCount}</span></div>
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>年齢</span><span className="data-val">{summary.age}</span></div>
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>通算</span><span className="data-val">{summary.totalWins}勝 {summary.totalLosses}敗 {summary.totalAbsent}休</span></div>
+          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>停止理由</span><span className="data-val">{formatStopReason(summary.stopReason)}</span></div>
         </section>
       )}
     </div>
   );
 };
+

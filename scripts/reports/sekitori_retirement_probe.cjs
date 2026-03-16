@@ -1,14 +1,25 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const {
+  createCareerRateAccumulator,
+  finalizeCareerRateAccumulator,
+  pushCareerRateSample,
+} = require('./_shared/career_rate_metrics.cjs');
 
 const RUNS = Number(process.env.PROBE_RUNS || 400);
-const MODEL = process.env.PROBE_MODEL || 'unified-v2-kimarite';
+const MODEL = process.env.PROBE_MODEL || 'unified-v3-variance';
 const START_YEAR = Number(process.env.PROBE_START_YEAR || 2026);
+const COMPILED_AT = process.env.SIMTESTS_COMPILED_AT;
 const JSON_PATH = path.join('docs', 'balance', 'sekitori-retirement-probe.json');
 const REPORT_PATH = path.join('docs', 'balance', 'sekitori-retirement-probe.md');
+const RETIREMENT_PROBE_GATE = {
+  losingCareerRateMin: 0.25,
+  losingCareerRateMax: 0.35,
+  allCareerRetireAgeP50Min: 24,
+  avgCareerBashoMin: 40,
+};
 
 const toPct = (value) => `${(value * 100).toFixed(2)}%`;
 
@@ -95,16 +106,15 @@ if (!isMainThread) {
     const juryoBasho = records.filter((record) => record.rank.division === 'Juryo').length;
     const wins = result.history.totalWins;
     const losses = result.history.totalLosses;
-    const totalMatches = wins + losses;
-    const winRate = totalMatches > 0 ? wins / totalMatches : 0.5;
+    const absent = result.history.totalAbsent;
 
     parentPort.postMessage({
       maxDivision: maxRank.division,
       juryoBasho,
       wins,
       losses,
+      absent,
       bashoCount: records.length,
-      winRate,
       retireAge: result.age,
       retirementProfile: result.retirementProfile ?? 'STANDARD',
     });
@@ -113,12 +123,6 @@ if (!isMainThread) {
     process.exit(1);
   });
 } else {
-  execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.simtests.json'], {
-    stdio: 'inherit',
-  });
-  fs.mkdirSync('.tmp/sim-tests', { recursive: true });
-  fs.writeFileSync('.tmp/sim-tests/package.json', JSON.stringify({ type: 'commonjs' }));
-
   const maxWorkers = Math.max(1, Math.min((os.cpus()?.length || 2) - 1, 12));
   let nextTask = 0;
   let completed = 0;
@@ -127,10 +131,11 @@ if (!isMainThread) {
   let makuuchi = 0;
   let juryoOnly = 0;
   let juryoOnlyOneBasho = 0;
-  let losingCareer = 0;
+  const careerRates = createCareerRateAccumulator();
   let ironmanLosing = 0;
   let totalWins = 0;
   let totalLosses = 0;
+  let totalAbsent = 0;
   let totalBasho = 0;
   const allRetireAges = [];
   const sekitoriRetireAges = [];
@@ -156,6 +161,11 @@ if (!isMainThread) {
         if (isMakuuchi) makuuchi += 1;
         if (isSekitori) sekitoriRetireAges.push(msg.retireAge);
         allRetireAges.push(msg.retireAge);
+        const careerSample = pushCareerRateSample(careerRates, {
+          wins: msg.wins,
+          losses: msg.losses,
+          absent: msg.absent,
+        });
 
         if (msg.maxDivision === 'Juryo') {
           juryoOnly += 1;
@@ -171,8 +181,7 @@ if (!isMainThread) {
           }
         }
 
-        if (msg.winRate < 0.5) {
-          losingCareer += 1;
+        if (careerSample.effectiveIsLosing) {
           if (msg.bashoCount >= 130) {
             ironmanLosing += 1;
           }
@@ -183,6 +192,7 @@ if (!isMainThread) {
 
         totalWins += msg.wins;
         totalLosses += msg.losses;
+        totalAbsent += msg.absent;
         totalBasho += msg.bashoCount;
       });
       worker.on('error', reject);
@@ -205,31 +215,39 @@ if (!isMainThread) {
     }
   };
 
-  const renderReport = (summary) => {
+  const renderReport = (payload) => {
+    const { summary, gateResult, generatedAt } = payload;
     const lines = [];
     lines.push('# sekitori + retirement probe');
     lines.push('');
-    lines.push(`- generatedAt: ${new Date().toISOString()}`);
+    lines.push(`- generatedAt: ${generatedAt}`);
+    lines.push(`- compiledAt: ${COMPILED_AT ?? 'n/a'}`);
+    lines.push('- runKind: retire');
+    lines.push('- scenarioId: retirement-probe');
     lines.push(`- model: ${MODEL}`);
     lines.push(`- runs: ${RUNS}`);
     lines.push('');
     lines.push('## Metrics');
     lines.push('');
-    lines.push(`- sekitoriRate: ${toPct(summary.sekitoriRate)}`);
-    lines.push(`- makuuchiRate: ${toPct(summary.makuuchiRate)}`);
-    lines.push(`- juryoOnlyOneBashoShareWithinJuryoOnly: ${toPct(summary.juryoOnlyOneBashoShareWithinJuryoOnly)}`);
-    lines.push(`- careerWinRate: ${toPct(summary.careerWinRate)}`);
-    lines.push(`- losingCareerRate: ${toPct(summary.losingCareerRate)}`);
-    lines.push(`- ironmanLosingRate: ${toPct(summary.ironmanLosingRate)}`);
-    lines.push(`- allCareerRetireAgeP50: ${summary.allCareerRetireAgeP50.toFixed(2)}`);
-    lines.push(`- sekitoriCareerRetireAgeP50: ${summary.sekitoriCareerRetireAgeP50.toFixed(2)}`);
-    lines.push(`- avgCareerBasho: ${summary.avgCareerBasho.toFixed(2)}`);
+    lines.push(`- 負け越しキャリア率(休場込み): target ${toPct(RETIREMENT_PROBE_GATE.losingCareerRateMin)}-${toPct(RETIREMENT_PROBE_GATE.losingCareerRateMax)} / actual ${toPct(summary.losingCareerRate)} / monitor`);
+    lines.push(`- 引退年齢中央値: target >= ${RETIREMENT_PROBE_GATE.allCareerRetireAgeP50Min.toFixed(1)} / actual ${summary.allCareerRetireAgeP50.toFixed(2)} / ${gateResult.allCareerRetireAgeP50Pass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- 平均場所数: target >= ${RETIREMENT_PROBE_GATE.avgCareerBashoMin.toFixed(1)} / actual ${summary.avgCareerBasho.toFixed(2)} / ${gateResult.avgCareerBashoPass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- 関取率: ${toPct(summary.sekitoriRate)}`);
+    lines.push(`- 幕内率: ${toPct(summary.makuuchiRate)}`);
+    lines.push(`- 十両のみ1場所率(十両止まり内): ${toPct(summary.juryoOnlyOneBashoShareWithinJuryoOnly)}`);
+    lines.push(`- 通算勝率（公式平均）: ${toPct(summary.careerWinRate)}`);
+    lines.push(`- 通算勝率（有効平均）: ${toPct(summary.careerEffectiveWinRate)}`);
+    lines.push(`- 通算勝率（legacy pooled）: ${toPct(summary.careerPooledWinRate)}`);
+    lines.push(`- 負け越し長寿率: ${toPct(summary.ironmanLosingRate)}`);
+    lines.push(`- 関取引退年齢中央値: ${summary.sekitoriCareerRetireAgeP50.toFixed(2)}`);
     lines.push('');
     lines.push('## Profile mix');
     lines.push('');
     lines.push(`- EARLY_EXIT: ${summary.profileCounts.EARLY_EXIT}`);
     lines.push(`- STANDARD: ${summary.profileCounts.STANDARD}`);
     lines.push(`- IRONMAN: ${summary.profileCounts.IRONMAN}`);
+    lines.push('');
+    lines.push(`- overall gate: ${gateResult.allPass ? 'PASS' : 'FAIL'}`);
     lines.push('');
     return lines.join('\n');
   };
@@ -239,6 +257,7 @@ if (!isMainThread) {
 
     allRetireAges.sort((a, b) => a - b);
     sekitoriRetireAges.sort((a, b) => a - b);
+    const rateSummary = finalizeCareerRateAccumulator(careerRates);
 
     const summary = {
       model: MODEL,
@@ -249,21 +268,51 @@ if (!isMainThread) {
       juryoOnlyOneBashoRate: juryoOnlyOneBasho / RUNS,
       juryoOnlyOneBashoShareWithinJuryoOnly:
         juryoOnly > 0 ? juryoOnlyOneBasho / juryoOnly : 0,
-      careerWinRate: totalWins / Math.max(1, totalWins + totalLosses),
-      losingCareerRate: losingCareer / RUNS,
+      careerWinRate: rateSummary.officialWinRate,
+      careerEffectiveWinRate: rateSummary.effectiveWinRate,
+      careerPooledWinRate: rateSummary.pooledWinRate,
+      losingCareerRate: rateSummary.losingCareerRate,
       ironmanLosingRate: ironmanLosing / RUNS,
       allCareerRetireAgeP50: quantile(allRetireAges, 0.5),
       sekitoriCareerRetireAgeP50: quantile(sekitoriRetireAges, 0.5),
       avgCareerBasho: totalBasho / RUNS,
+      avgTotalWins: totalWins / RUNS,
+      avgTotalLosses: totalLosses / RUNS,
+      avgTotalAbsent: totalAbsent / RUNS,
       juryoTenureBucketsWithinJuryoOnly,
       profileCounts,
     };
 
-    fs.mkdirSync(path.dirname(JSON_PATH), { recursive: true });
-    fs.writeFileSync(JSON_PATH, JSON.stringify(summary, null, 2));
-    fs.writeFileSync(REPORT_PATH, renderReport(summary));
+    const gateResult = {
+      losingCareerRatePass:
+        summary.losingCareerRate >= RETIREMENT_PROBE_GATE.losingCareerRateMin &&
+        summary.losingCareerRate <= RETIREMENT_PROBE_GATE.losingCareerRateMax,
+      allCareerRetireAgeP50Pass:
+        summary.allCareerRetireAgeP50 >= RETIREMENT_PROBE_GATE.allCareerRetireAgeP50Min,
+      avgCareerBashoPass: summary.avgCareerBasho >= RETIREMENT_PROBE_GATE.avgCareerBashoMin,
+    };
+    gateResult.allPass =
+      gateResult.allCareerRetireAgeP50Pass &&
+      gateResult.avgCareerBashoPass;
 
-    console.log(JSON.stringify(summary, null, 2));
+    const generatedAt = new Date().toISOString();
+    const payload = {
+      runKind: 'retire',
+      scenarioId: 'retirement-probe',
+      sample: RUNS,
+      modelVersion: MODEL,
+      compiledAt: COMPILED_AT,
+      generatedAt,
+      metrics: summary,
+      gateResult,
+      summary,
+    };
+
+    fs.mkdirSync(path.dirname(JSON_PATH), { recursive: true });
+    fs.writeFileSync(JSON_PATH, JSON.stringify(payload, null, 2));
+    fs.writeFileSync(REPORT_PATH, renderReport(payload));
+
+    console.log(JSON.stringify(payload, null, 2));
     console.log(`report written: ${REPORT_PATH}`);
     console.log(`json written: ${JSON_PATH}`);
   };

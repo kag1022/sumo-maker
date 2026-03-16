@@ -1,7 +1,7 @@
-import { getDb, WalletRow } from './db';
+import { getDb, WalletRow, WalletTransactionRow } from './db';
 
-export const WALLET_INITIAL_POINTS = 300;
-export const WALLET_MAX_POINTS = 500;
+export const WALLET_INITIAL_POINTS = 50;
+export const WALLET_MAX_POINTS = 100;
 export const WALLET_REGEN_INTERVAL_MS = 60_000;
 
 export interface WalletState {
@@ -15,6 +15,13 @@ export interface SpendWalletResult {
   ok: boolean;
   state: WalletState;
 }
+
+export type WalletEarnReason =
+  | 'CAREER_PRIZE_REWARD'
+  | 'MANUAL_TOP_UP'
+  | 'AD_REWARD'
+  | 'AD_REWARD_TOKEN';
+export type WalletSpendReason = 'BUILD_REGISTRATION' | 'SCOUT_DRAW' | 'SCOUT_OVERRIDE' | 'OTHER';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -34,51 +41,77 @@ const ensureWalletRow = async (nowMs: number): Promise<WalletRow> => {
   return row;
 };
 
+const createWalletTransaction = (
+  params: Omit<WalletTransactionRow, 'id' | 'createdAt'> & { nowMs: number },
+): WalletTransactionRow => ({
+  id: globalThis.crypto?.randomUUID?.() ?? `wallet-tx-${params.nowMs}-${Math.random().toString(36).slice(2, 10)}`,
+  createdAt: new Date(params.nowMs).toISOString(),
+  kind: params.kind,
+  amount: params.amount,
+  balanceAfter: params.balanceAfter,
+  reason: params.reason,
+  careerId: params.careerId,
+});
+
 const applyRegen = (row: WalletRow, nowMs: number): WalletRow => {
-  const normalizedNow = Math.max(nowMs, row.lastRegenAt);
-  if (row.points >= WALLET_MAX_POINTS) {
+  const safeNowMs = Math.max(nowMs, row.lastRegenAt);
+  const basePoints = clamp(row.points, 0, WALLET_MAX_POINTS);
+
+  if (WALLET_REGEN_INTERVAL_MS <= 0) {
     return {
       ...row,
-      points: WALLET_MAX_POINTS,
-      lastRegenAt: normalizedNow,
-      updatedAt: new Date(normalizedNow).toISOString(),
+      points: basePoints,
+      lastRegenAt: safeNowMs,
+      updatedAt: new Date(safeNowMs).toISOString(),
     };
   }
 
-  const elapsed = normalizedNow - row.lastRegenAt;
-  const ticks = Math.floor(elapsed / WALLET_REGEN_INTERVAL_MS);
-  if (ticks <= 0) return row;
+  if (basePoints >= WALLET_MAX_POINTS) {
+    return {
+      ...row,
+      points: WALLET_MAX_POINTS,
+      lastRegenAt: safeNowMs,
+      updatedAt: new Date(safeNowMs).toISOString(),
+    };
+  }
 
-  const gained = Math.min(WALLET_MAX_POINTS - row.points, ticks);
-  const nextPoints = clamp(row.points + gained, 0, WALLET_MAX_POINTS);
+  const elapsedMs = safeNowMs - row.lastRegenAt;
+  const regeneratedPoints = Math.floor(elapsedMs / WALLET_REGEN_INTERVAL_MS);
+  if (regeneratedPoints <= 0) {
+    return {
+      ...row,
+      points: basePoints,
+      lastRegenAt: row.lastRegenAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  const nextPoints = clamp(basePoints + regeneratedPoints, 0, WALLET_MAX_POINTS);
   const reachedCap = nextPoints >= WALLET_MAX_POINTS;
+  const lastRegenAt = reachedCap
+    ? safeNowMs
+    : row.lastRegenAt + regeneratedPoints * WALLET_REGEN_INTERVAL_MS;
+
   return {
     ...row,
     points: nextPoints,
-    lastRegenAt: reachedCap
-      ? normalizedNow
-      : row.lastRegenAt + ticks * WALLET_REGEN_INTERVAL_MS,
-    updatedAt: new Date(normalizedNow).toISOString(),
+    lastRegenAt,
+    updatedAt: new Date(lastRegenAt).toISOString(),
   };
 };
 
 const toWalletState = (row: WalletRow, nowMs: number): WalletState => {
-  const normalizedNow = Math.max(nowMs, row.lastRegenAt);
-  if (row.points >= WALLET_MAX_POINTS) {
-    return {
-      points: WALLET_MAX_POINTS,
-      cap: WALLET_MAX_POINTS,
-      nextRegenInSec: 0,
-      lastRegenAt: row.lastRegenAt,
-    };
-  }
-  const elapsed = normalizedNow - row.lastRegenAt;
-  const mod = elapsed % WALLET_REGEN_INTERVAL_MS;
-  const remainingMs = mod === 0 ? WALLET_REGEN_INTERVAL_MS : WALLET_REGEN_INTERVAL_MS - mod;
+  const points = clamp(row.points, 0, WALLET_MAX_POINTS);
+  const safeNowMs = Math.max(nowMs, row.lastRegenAt);
+  const elapsedMs = safeNowMs - row.lastRegenAt;
+  const remainingMs =
+    points >= WALLET_MAX_POINTS || WALLET_REGEN_INTERVAL_MS <= 0
+      ? 0
+      : Math.max(0, WALLET_REGEN_INTERVAL_MS - elapsedMs);
   return {
-    points: row.points,
+    points,
     cap: WALLET_MAX_POINTS,
-    nextRegenInSec: Math.ceil(remainingMs / 1000),
+    nextRegenInSec: remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 0,
     lastRegenAt: row.lastRegenAt,
   };
 };
@@ -100,10 +133,25 @@ export const getWalletState = async (nowMs: number = Date.now()): Promise<Wallet
 
 export const spendWalletPoints = async (
   amount: number,
-  nowMs: number = Date.now(),
+  reasonOrNowMs: WalletSpendReason | number = 'OTHER',
+  careerIdOrNowMs?: string | number,
+  nowMsArg?: number,
 ): Promise<SpendWalletResult> => {
+  const reason: WalletSpendReason =
+    typeof reasonOrNowMs === 'string' ? reasonOrNowMs : 'OTHER';
+  const careerId =
+    typeof reasonOrNowMs === 'string' && typeof careerIdOrNowMs === 'string'
+      ? careerIdOrNowMs
+      : undefined;
+  const nowMs =
+    typeof reasonOrNowMs === 'number'
+      ? reasonOrNowMs
+      : typeof careerIdOrNowMs === 'number'
+        ? careerIdOrNowMs
+        : (nowMsArg ?? Date.now());
+
   const db = getDb();
-  return db.transaction('rw', db.meta, async () => {
+  return db.transaction('rw', db.meta, db.walletTransactions, async () => {
     const current = await ensureWalletRow(nowMs);
     const regenerated = applyRegen(current, nowMs);
 
@@ -114,6 +162,14 @@ export const spendWalletPoints = async (
         updatedAt: new Date(nowMs).toISOString(),
       };
       await db.meta.put(next);
+      await db.walletTransactions.put(createWalletTransaction({
+        nowMs,
+        kind: 'SPEND',
+        amount,
+        balanceAfter: next.points,
+        reason,
+        careerId,
+      }));
       return { ok: true, state: toWalletState(next, nowMs) };
     }
 
@@ -124,5 +180,36 @@ export const spendWalletPoints = async (
       await db.meta.put(regenerated);
     }
     return { ok: amount <= 0, state: toWalletState(regenerated, nowMs) };
+  });
+};
+
+export const addWalletPoints = async (
+  amount: number,
+  reason: WalletEarnReason,
+  careerId?: string,
+  nowMs: number = Date.now(),
+): Promise<WalletState> => {
+  const db = getDb();
+  return db.transaction('rw', db.meta, db.walletTransactions, async () => {
+    const current = await ensureWalletRow(nowMs);
+    const regenerated = applyRegen(current, nowMs);
+    const nextPoints = clamp(regenerated.points + Math.max(0, Math.floor(amount)), 0, WALLET_MAX_POINTS);
+    const next = {
+      ...regenerated,
+      points: nextPoints,
+      updatedAt: new Date(nowMs).toISOString(),
+    };
+    await db.meta.put(next);
+    if (amount > 0) {
+      await db.walletTransactions.put(createWalletTransaction({
+        nowMs,
+        kind: 'EARN',
+        amount: Math.floor(amount),
+        balanceAfter: nextPoints,
+        reason,
+        careerId,
+      }));
+    }
+    return toWalletState(next, nowMs);
   });
 };

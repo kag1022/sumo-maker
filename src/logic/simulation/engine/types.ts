@@ -1,6 +1,6 @@
 import { BanzukeDecisionLog, BanzukePopulationSnapshot, BanzukeMode, BanzukeEngineVersion } from '../../banzuke';
-import { BashoRecord, Division, Oyakata, Rank, RikishiStatus, TimelineEvent } from '../../models';
-import { NpcBashoAggregate, PlayerBoutDetail } from '../basho';
+import { BashoRecord, Division, Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../../models';
+import { ImportantTorikumiNote, NpcBashoAggregate, PlayerBoutDetail } from '../basho';
 import { SimulationDiagnostics } from '../diagnostics';
 import { LowerDivisionPlacementTraceRow } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
@@ -9,6 +9,7 @@ import { TopDivision } from '../world';
 export interface SimulationParams {
   initialStats: RikishiStatus;
   oyakata: Oyakata | null;
+  runOptions?: SimulationRunOptions;
   careerId?: string;
   banzukeMode?: BanzukeMode;
   simulationModelVersion?: SimulationModelVersion;
@@ -63,6 +64,7 @@ export interface BashoStepResult {
   month: number;
   playerRecord: BashoRecord;
   playerBouts: PlayerBoutDetail[];
+  importantTorikumiNotes?: ImportantTorikumiNote[];
   npcBashoRecords: NpcBashoAggregate[];
   banzukePopulation: BanzukePopulationSnapshot;
   banzukeDecisions: BanzukeDecisionLog[];

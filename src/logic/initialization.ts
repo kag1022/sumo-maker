@@ -7,8 +7,10 @@ import {
   GrowthType,
   Rank,
   RetirementProfile,
+  BuildSummary,
   RikishiGenome,
   RikishiStatus,
+  StyleProfile,
   TacticsType,
   TalentArchetype,
   Trait,
@@ -17,12 +19,14 @@ import {
 } from './models';
 import {
   CONSTANTS,
-  DEFAULT_APTITUDE_FACTOR,
   DEFAULT_APTITUDE_TIER,
-  resolveAptitudeFactor,
+  DEFAULT_CAREER_BAND,
+  rollCareerBandForAptitude,
+  resolveAptitudeProfile,
 } from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
 import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
+import { resolveLegacyAptitudeFactor } from './simulation/realism';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -31,6 +35,8 @@ export interface CreateInitialRikishiParams {
   archetype: TalentArchetype;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: RikishiStatus['aptitudeProfile'];
+  careerBand?: RikishiStatus['careerBand'];
   tactics: TacticsType;
   signatureMove: string;
   bodyType: BodyType;
@@ -42,6 +48,10 @@ export interface CreateInitialRikishiParams {
   bodyMetrics?: BodyMetrics;
   genome?: RikishiGenome;
   retirementProfile?: RetirementProfile;
+  designedStyleProfile?: StyleProfile;
+  buildSummary?: BuildSummary;
+  mentorId?: string;
+  spirit?: number;
   stableId: string;
   ichimonId: IchimonId;
   stableArchetypeId: StableArchetypeId;
@@ -90,11 +100,14 @@ export const createInitialRikishi = (
   const [minPot, maxPot] = archData.potentialRange;
   const potentialBase = minPot + Math.floor(random() * (maxPot - minPot + 1));
   const aptitudeTier = params.aptitudeTier ?? DEFAULT_APTITUDE_TIER;
+  const aptitudeProfile = params.aptitudeProfile
+    ? { ...params.aptitudeProfile }
+    : resolveAptitudeProfile(aptitudeTier);
   const aptitudeFactor = Number.isFinite(params.aptitudeFactor)
     ? Math.max(0.3, params.aptitudeFactor as number)
-    : resolveAptitudeFactor(aptitudeTier, DEFAULT_APTITUDE_FACTOR);
+    : resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
   const potential = clamp(
-    Math.round(50 + (potentialBase - 50) * aptitudeFactor),
+    Math.round(50 + (potentialBase - 50) * aptitudeProfile.initialFactor),
     1,
     100,
   );
@@ -136,7 +149,7 @@ export const createInitialRikishi = (
     stats[k] += Math.floor(random() * 19) - 9;
     stats[k] = Math.max(1, stats[k]);
     const scaledBase = Math.max(20, stats[k]);
-    stats[k] = Math.max(1, Math.round(20 + (scaledBase - 20) * aptitudeFactor));
+    stats[k] = Math.max(1, Math.round(20 + (scaledBase - 20) * aptitudeProfile.initialFactor));
   });
 
   const entryDivision =
@@ -178,9 +191,11 @@ export const createInitialRikishi = (
     archetype: params.archetype,
     aptitudeTier,
     aptitudeFactor,
+    aptitudeProfile,
+    careerBand: params.careerBand ?? rollCareerBandForAptitude(aptitudeTier, random) ?? DEFAULT_CAREER_BAND,
     entryDivision,
     tactics: params.tactics,
-    signatureMoves: [params.signatureMove],
+    signatureMoves: params.signatureMove ? [params.signatureMove] : [],
     bodyType: params.bodyType,
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
@@ -198,6 +213,22 @@ export const createInitialRikishi = (
     isOzekiReturn: false,
     retirementProfile,
     genome: params.genome,
+    kataProfile: {
+      settled: false,
+      confidence: 0,
+    },
+    designedStyleProfile: params.designedStyleProfile,
+    realizedStyleProfile: null,
+    buildSummary: params.buildSummary,
+    mentorId: params.mentorId,
+    spirit: Number.isFinite(params.spirit) ? Math.round(params.spirit as number) : 70,
+    stagnation: {
+      pressure: 0,
+      makekoshiStreak: 0,
+      lowWinRateStreak: 0,
+      stuckBasho: 0,
+      reboundBoost: 0,
+    },
     history: {
       records: [],
       events: [],
@@ -207,6 +238,12 @@ export const createInitialRikishi = (
       totalAbsent: 0,
       yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
       kimariteTotal: {},
+      bodyTimeline: [],
+      highlightEvents: [],
+      realismKpi: {
+        careerWinRate: 0.5,
+        stagnationPressure: 0,
+      },
     },
     statHistory: [],
   };

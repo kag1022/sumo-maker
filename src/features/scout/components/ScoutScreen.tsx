@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Oyakata, RikishiStatus, BodyType, EntryDivision, PersonalityType, Trait } from "../../../logic/models";
-import { CONSTANTS, resolveAptitudeTierLabel } from "../../../logic/constants";
+import { CONSTANTS } from "../../../logic/constants";
 import {
   buildInitialRikishiFromDraft,
   PERSONALITY_LABELS,
@@ -16,17 +16,15 @@ import {
   resolveScoutOverrideCost,
 } from "../../../logic/scout/gacha";
 import { getWalletState, spendWalletPoints, WalletState } from "../../../logic/persistence/wallet";
-import { useSimulationStore } from "../../../features/simulation/store/simulationStore";
-import type { SimulationSpeed } from "../../../features/simulation/store/simulationStore";
+import type { SimulationPacing } from "../../simulation/store/simulationStore";
 import { Button } from "../../../shared/ui/Button";
 import { RefreshCw, Trophy, Coins, ChevronDown, User, Dna, Zap } from "lucide-react";
-import { ICHIMON_BY_ID, ICHIMON_CATALOG } from "../../../logic/simulation/heya/ichimonCatalog";
-import { listStablesByIchimon } from "../../../logic/simulation/heya/stableCatalog";
 
 interface ScoutScreenProps {
   onStart: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
+    initialPacing?: SimulationPacing,
   ) => void | Promise<void>;
 }
 
@@ -50,16 +48,13 @@ const INPUT_CLASS = "w-full border-2 border-gold-muted bg-bg px-3 py-2.5 text-te
 const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
+  const isDev = import.meta.env.DEV;
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [baseDraft, setBaseDraft] = useState<ScoutDraft | null>(null);
   const [editedDraft, setEditedDraft] = useState<ScoutDraft | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDrawing, setIsDrawing] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-
-  // 演算モード
-  const simulationSpeed = useSimulationStore((s) => s.simulationSpeed);
-  const setSimulationSpeed = useSimulationStore((s) => s.setSimulationSpeed);
 
   useEffect(() => {
     let active = true;
@@ -149,12 +144,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     });
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (initialPacing: SimulationPacing = "skip_to_end") => {
     if (!editedDraft) return;
-    if (!editedDraft.selectedStableId || !editedDraft.selectedIchimonId) {
-      setErrorMessage("一門と所属部屋を選択してください。");
-      return;
-    }
     setErrorMessage("");
     setIsRegistering(true);
     try {
@@ -167,17 +158,13 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
         return;
       }
       const initialStats = buildInitialRikishiFromDraft(editedDraft);
-      await onStart(initialStats, null);
+      await onStart(initialStats, null, initialPacing);
     } finally {
       setIsRegistering(false);
     }
   };
 
   const historyData = editedDraft ? SCOUT_HISTORY_OPTIONS[editedDraft.history] : undefined;
-  const stableOptions = useMemo(() => {
-    if (!editedDraft?.selectedIchimonId) return [];
-    return listStablesByIchimon(editedDraft.selectedIchimonId);
-  }, [editedDraft?.selectedIchimonId]);
   const activeTraitSlotDrafts = editedDraft
     ? [...editedDraft.traitSlotDrafts]
         .filter((slot) => slot.slotIndex < editedDraft.traitSlots)
@@ -185,65 +172,84 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="space-y-5">
       {/* === ウェルカムヒーロー（抽選前のみ） === */}
       {!editedDraft && (
-        <div className="rpg-panel p-5 sm:p-8 text-center animate-in">
-          <p className="text-xs ui-text-label tracking-[0.2em] text-gold mb-3">
-            人生放置型・履歴書作成ゲーム
-          </p>
-          <h2 className="text-2xl sm:text-4xl ui-text-label text-gold-bright mb-4 tracking-tight">
-            新弟子の運命を<br className="sm:hidden" />デザインせよ
-          </h2>
-          <p className="text-xs sm:text-sm text-text-dim max-w-lg mx-auto leading-relaxed mb-6">
-            あなたは相撲部屋の親方。新弟子の才能をデザインし、ボタン一つで入門から引退までの
-            力士人生をシミュレーション。生涯成績やドラマを「力士履歴書」としてコレクションしよう。
-          </p>
+        <section className="dashboard-hero animate-in">
+          <div className="surface-panel space-y-5">
+            <div className="space-y-3">
+              <p className="app-kicker">新弟子の入口</p>
+              <h2 className="text-3xl sm:text-5xl ui-text-heading text-text leading-tight">
+                候補の輪郭を見てから、
+                <br className="hidden sm:block" />
+                必要な項目だけ整える
+              </h2>
+              <p className="text-sm sm:text-base text-text-dim max-w-2xl leading-relaxed">
+                まず候補を引き、その候補の体格、来歴、持ち味を見てから細部を整えます。
+                長い入力フォームを最初に全部埋める流れにはしません。
+              </p>
+            </div>
 
-          {/* ウォレット */}
-          <div className="inline-flex items-center gap-3 border-2 border-gold-muted bg-bg px-4 py-2.5 mb-6">
-            <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
-            <span className="text-base sm:text-lg ui-text-label text-gold">{wallet?.points ?? "..."}</span>
-            <span className="text-xs text-text-dim">/ {wallet?.cap ?? 500}</span>
-            <span className="text-xs text-text-dim border-l-2 border-gold-muted pl-3">
-              回復 {wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}
-            </span>
+            <div className="metric-strip">
+              <div className="metric-card">
+                <div className="metric-label">所持ポイント</div>
+                <div className="metric-value">{wallet?.points ?? "..."}ポイント</div>
+                <div className="metric-note">上限 {wallet?.cap ?? 500}ポイント</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">次の回復</div>
+                <div className="metric-value">{wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}</div>
+                <div className="metric-note">一定時間ごとにポイントが回復します。</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">候補を引く費用</div>
+                <div className="metric-value">{SCOUT_COST.DRAW}ポイント</div>
+                <div className="metric-note">気に入らなければ引き直せます。</div>
+              </div>
+            </div>
           </div>
 
-          <div>
+          <div className="surface-panel space-y-4">
+            <div>
+              <p className="panel-title">最初の一手</p>
+              <p className="panel-caption">
+                まず1人だけ候補を引き、その候補を起点に調整を始めます。
+              </p>
+            </div>
             <Button
               size="lg"
               onClick={handleDraw}
               disabled={!canDraw}
-              className="w-full sm:w-auto sm:min-w-[280px]"
+              className="w-full"
             >
               <RefreshCw className={`w-5 h-5 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
-              {isDrawing ? "抽選中..." : `新弟子を抽選 (-${SCOUT_COST.DRAW}pt)`}
+              {isDrawing ? "候補を引いています..." : "候補を引く"}
             </Button>
-          </div>
 
-          {errorMessage && (
-            <p className="mt-4 text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10 inline-block">
-              {errorMessage}
-            </p>
-          )}
-        </div>
+            {errorMessage && (
+              <div className="status-callout" data-tone="danger">
+                <div className="status-callout-title">操作できません</div>
+                <div className="status-callout-text">{errorMessage}</div>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {/* === 抽選後: レイアウト === */}
       {editedDraft && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-4 animate-in">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_340px] gap-5 animate-in">
           {/* 左パネル: スカウト管理局 */}
-          <section className="rpg-panel p-4 sm:p-5 space-y-4">
+          <section className="surface-panel space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="section-header">
-                <span className="w-1 h-4 bg-gold inline-block" />
-                スカウト管理局
-              </h2>
-              <div className="flex items-center gap-2 text-xs">
-                <Coins className="w-3.5 h-3.5 text-gold" />
-                <span className="ui-text-label text-gold">{wallet?.points ?? "..."}</span>
-                <span className="text-text-dim">/ {wallet?.cap ?? 500}</span>
+              <div>
+                <p className="panel-title">候補の調整</p>
+                <p className="panel-caption">候補の輪郭を見ながら必要な項目だけを上書きします。</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-text-dim">
+                <Coins className="w-3.5 h-3.5 text-brand-line" />
+                <span className="ui-text-label text-text">{wallet?.points ?? "..."}</span>
+                <span>/ {wallet?.cap ?? 500}ポイント</span>
               </div>
             </div>
 
@@ -251,14 +257,18 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             <Button
               onClick={handleDraw}
               disabled={!canDraw}
+              variant="secondary"
               className="w-full py-3"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isDrawing ? "animate-spin" : ""}`} />
-              {isDrawing ? "抽選中..." : `新弟子を再抽選 (-${SCOUT_COST.DRAW}pt)`}
+              {isDrawing ? "引き直しています..." : `候補を引き直す（${SCOUT_COST.DRAW}ポイント）`}
             </Button>
 
             {errorMessage && (
-              <p className="text-xs ui-text-label text-crimson border-2 border-crimson/30 p-2 bg-crimson-dim/10">{errorMessage}</p>
+              <div className="status-callout" data-tone="danger">
+                <div className="status-callout-title">登録できません</div>
+                <div className="status-callout-text">{errorMessage}</div>
+              </div>
             )}
 
             {/* === フォーム === */}
@@ -342,60 +352,6 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 <p className="text-xs text-text-dim">
                   身長 {editedDraft.bodyMetrics.heightCm}cm / 体重 {editedDraft.bodyMetrics.weightKg}kg
                 </p>
-              </div>
-
-              {/* スキル枠 */}
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>一門</label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.selectedIchimonId ?? ""}
-                    onChange={(e) => {
-                      const nextIchimon = e.target.value || null;
-                      setEditedDraft((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              selectedIchimonId: nextIchimon as typeof prev.selectedIchimonId,
-                              selectedStableId: null,
-                            }
-                          : prev,
-                      );
-                    }}
-                    className={SELECT_CLASS}
-                  >
-                    <option value="">選択してください</option>
-                    {ICHIMON_CATALOG.map((ichimon) => (
-                      <option key={ichimon.id} value={ichimon.id}>
-                        {ichimon.displayName}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>所属部屋</label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.selectedStableId ?? ""}
-                    disabled={!editedDraft.selectedIchimonId}
-                    onChange={(e) =>
-                      setEditedDraft((prev) =>
-                        prev ? { ...prev, selectedStableId: e.target.value || null } : prev,
-                      )
-                    }
-                    className={SELECT_CLASS}
-                  >
-                    <option value="">選択してください</option>
-                    {stableOptions.map((stable) => (
-                      <option key={stable.id} value={stable.id}>
-                        {stable.displayName}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
               </div>
 
               {/* スキル枠 */}
@@ -492,7 +448,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
                 {historyData?.canTsukedashi && (
                   <div className="space-y-1">
-                    <label className={LABEL_CLASS}>付出指定（差分 +60/+30pt）</label>
+                    <label className={LABEL_CLASS}>付出指定（差分 +30/+60pt）</label>
                     <div className="relative">
                       <select
                         value={editedDraft.entryDivision}
@@ -504,8 +460,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                         className={SELECT_CLASS}
                       >
                         <option value="Maezumo">前相撲</option>
-                        <option value="Makushita60">幕下最下位格 (+60pt)</option>
-                        <option value="Sandanme90">三段目最下位格 (+30pt)</option>
+                        <option value="Makushita60">幕下最下位格 (+30pt)</option>
+                        <option value="Sandanme90">三段目最下位格 (+60pt)</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
                     </div>
@@ -608,19 +564,19 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           </section>
 
           {/* 右パネル: 候補サマリー */}
-          <section className="rpg-panel p-4 sm:p-5 space-y-4 lg:sticky lg:top-16 lg:self-start">
+          <section className="surface-panel space-y-4 lg:sticky lg:top-6 lg:self-start">
             <h2 className="section-header">
-              <User className="w-4 h-4 sm:w-5 sm:h-5" />
-              候補プロフィール
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-action" />
+              現在の力士像
             </h2>
 
             {/* 四股名ヒーロー */}
             <div className="text-center py-3 border-b-2 border-gold-muted">
-              <p className="text-2xl sm:text-3xl ui-text-label text-gold tracking-wider">
+              <p className="text-2xl sm:text-3xl ui-text-heading text-text tracking-wider">
                 {editedDraft.shikona}
               </p>
               <p className="text-xs text-text-dim mt-1">
-                素質ランク {resolveAptitudeTierLabel(editedDraft.aptitudeTier)}
+                {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
               </p>
             </div>
 
@@ -630,20 +586,6 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 ["本名", editedDraft.profile.realName || "(未設定)"],
                 ["出身地", editedDraft.profile.birthplace || "(未設定)"],
                 ["性格", PERSONALITY_LABELS[editedDraft.profile.personality]],
-                [
-                  "一門",
-                  editedDraft.selectedIchimonId
-                    ? ICHIMON_BY_ID[editedDraft.selectedIchimonId].displayName
-                    : "(未設定)",
-                ],
-                [
-                  "素質ランク",
-                  `${resolveAptitudeTierLabel(editedDraft.aptitudeTier)}（内部補正）`,
-                ],
-                [
-                  "所属部屋",
-                  stableOptions.find((s) => s.id === editedDraft.selectedStableId)?.displayName ?? "(未設定)",
-                ],
                 ["経歴", SCOUT_HISTORY_OPTIONS[editedDraft.history].label],
                 ["体格", `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)`],
                 ["戦術", editedDraft.tactics],
@@ -659,9 +601,9 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
             {/* コスト内訳 */}
             <div className="border-t-2 border-gold-muted pt-3 space-y-1">
-              <p className="text-xs ui-text-label text-gold mb-2">
+              <p className="text-xs ui-text-label text-brand-line mb-2">
                 <Zap className="w-3.5 h-3.5 inline mr-1" />
-                上書きコスト
+                追加費用
               </p>
               <div className="space-y-0.5 text-xs">
                 {[
@@ -682,70 +624,66 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 ))}
               </div>
               <div className="pt-2 mt-2 border-t-2 border-gold-muted flex justify-between items-center">
-                <span className="text-xs ui-text-label text-text-dim">合計コスト</span>
-                <span className="text-lg ui-text-label text-gold">{overrideCost.total}pt</span>
-              </div>
-            </div>
-
-            {/* 演算モード選択 */}
-            <div className="border-2 border-gold-muted bg-bg p-3 space-y-2">
-              <p className="text-xs ui-text-label text-gold">演算モード</p>
-              <div className="space-y-1">
-                {([
-                  { value: "instant" as SimulationSpeed, label: "一括演算", desc: "結果だけ見る" },
-                  { value: "yearly" as SimulationSpeed, label: "実況演算", desc: "年ごとに追う" },
-                ]).map((mode) => (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => setSimulationSpeed(mode.value)}
-                    className={`w-full text-left text-xs px-3 py-2 border-2 transition-colors ${
-                      simulationSpeed === mode.value
-                        ? "border-gold text-gold bg-gold/10"
-                        : "border-gold-muted text-text-dim hover:border-gold/50"
-                    }`}
-                  >
-                    <span className="ui-text-label">
-                      {simulationSpeed === mode.value ? "▶ " : "　 "}
-                      {mode.label}
-                    </span>
-                    <span className="text-text-dim ml-2">-- {mode.desc}</span>
-                  </button>
-                ))}
+                <span className="text-xs ui-text-label text-text-dim">合計費用</span>
+                <span className="text-lg ui-text-label text-text">{overrideCost.total}ポイント</span>
               </div>
             </div>
 
             {/* 登録ボタン */}
             <Button
-              variant="danger"
               size="lg"
-              onClick={handleRegister}
-              disabled={isRegistering || !editedDraft.selectedIchimonId || !editedDraft.selectedStableId}
+              onClick={() => void handleRegister("skip_to_end")}
+              disabled={isRegistering}
               className="w-full"
             >
               <Trophy className="w-5 h-5 mr-2" />
-              {isRegistering ? "登録中..." : `力士登録（追加 ${overrideCost.total}pt）`}
+              {isRegistering ? "力士人生を演算しています..." : "この新弟子で始める"}
             </Button>
+            {isDev && (
+              <Button
+                variant="outline"
+                onClick={() => void handleRegister("observe")}
+                disabled={isRegistering}
+                className="w-full"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                {isRegistering ? "観測モードを準備しています..." : "観測モードで始める"}
+              </Button>
+            )}
           </section>
         </div>
       )}
 
       {/* モバイル下部固定バー（抽選後のみ, lg以下） */}
       {editedDraft && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 flex items-center justify-between gap-3 safe-area-bottom">
-          <div className="text-xs ui-text-label text-gold">
-            {overrideCost.total}pt
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-panel border-t-2 border-gold px-3 py-3 safe-area-bottom">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs ui-text-label text-gold">
+              {overrideCost.total}pt
+            </div>
+            <Button
+              variant="danger"
+              size="md"
+              onClick={() => void handleRegister("skip_to_end")}
+              disabled={isRegistering}
+              className="flex-1 max-w-[240px]"
+            >
+              <Trophy className="w-4 h-4 mr-1" />
+              {isRegistering ? "演算中..." : "結果を見る"}
+            </Button>
           </div>
-          <Button
-            variant="danger"
-            size="md"
-            onClick={handleRegister}
-            disabled={isRegistering || !editedDraft.selectedIchimonId || !editedDraft.selectedStableId}
-            className="flex-1 max-w-[240px]"
-          >
-            <Trophy className="w-4 h-4 mr-1" />
-            {isRegistering ? "登録中..." : "力士登録"}
-          </Button>
+          {isDev && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleRegister("observe")}
+              disabled={isRegistering}
+              className="mt-2 w-full"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {isRegistering ? "観測モードを準備しています..." : "観測モードで始める"}
+            </Button>
+          )}
         </div>
       )}
     </div>

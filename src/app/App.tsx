@@ -1,359 +1,492 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BookOpenText, FastForward, Square } from "lucide-react";
+import { AppSection, AppShell } from "./AppShell";
 import { ScoutScreen } from "../features/scout/components/ScoutScreen";
 import { ReportScreen } from "../features/report/components/ReportScreen";
-import { HallOfFameGrid } from "../features/report/components/HallOfFameGrid";
+import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
+import { CollectionScreen } from "../features/collection/components/CollectionScreen";
 import { LogicLabScreen } from "../features/logicLab/components/LogicLabScreen";
 import { Oyakata, Rank, RikishiStatus } from "../logic/models";
 import { useSimulation } from "../features/simulation/hooks/useSimulation";
+import type { SimulationPacing, SimulationPhase } from "../features/simulation/store/simulationStore";
 import { Button } from "../shared/ui/Button";
-import {
-  Trophy,
-  Play,
-  Square,
-  AlertTriangle,
-  FastForward,
-  Scroll,
-  FlaskConical,
-  Menu,
-  X,
-} from "lucide-react";
 
 const formatRankName = (rank: Rank): string => {
   const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
-  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) {
-    return `${side}${rank.name}`;
-  }
+  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
   const number = rank.number || 1;
-  return `${side}${rank.name}${number}枚目`;
+  return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
 };
 
 function App() {
-  const [showSavedData, setShowSavedData] = useState(false);
-  const [viewMode, setViewMode] = useState<"normal" | "logicLab">("normal");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<AppSection>("scout");
 
   const {
     phase,
     status,
     progress,
     currentCareerId,
-    pauseReason,
+    latestPauseReason,
     latestEvents,
     hallOfFame,
+    unshelvedCareers,
     errorMessage,
     isCurrentCareerSaved,
-    isSkipToEnd,
-    simulationSpeed,
+    simulationPacing,
     startSimulation,
-    resumeSimulation,
     skipToEnd,
+    revealCurrentResult,
     stopSimulation,
     saveCurrentCareer,
     loadHallOfFame,
+    loadUnshelvedCareers,
     openCareer,
     deleteCareerById,
     resetView,
   } = useSimulation();
 
+  useEffect(() => {
+    void loadHallOfFame();
+    void loadUnshelvedCareers();
+  }, [loadHallOfFame, loadUnshelvedCareers]);
+
   const handleStart = async (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
+    initialPacing: SimulationPacing = "skip_to_end",
   ) => {
-    await startSimulation(initialStats, oyakata);
+    await startSimulation(initialStats, oyakata, undefined, undefined, initialPacing);
+    setActiveSection("career");
   };
 
   const handleReset = async () => {
     await resetView();
+    setActiveSection("scout");
   };
 
-  const isRunning = phase === "running" || phase === "paused";
-  const isCompleted = phase === "completed";
+  const handleStop = async () => {
+    await stopSimulation();
+    setActiveSection("scout");
+  };
+
   const isDev = import.meta.env.DEV;
-  const isLogicLabMode = viewMode === "logicLab";
-  const canToggleLogicLab = phase !== "running" && phase !== "paused";
-  const isInstantMode = simulationSpeed === "instant";
+  const isRunning = phase === "running";
+  const isSimulating = phase === "simulating";
+  const isRevealReady = phase === "reveal_ready";
+  const isCompleted = phase === "completed";
+  const isInstantMode = simulationPacing === "skip_to_end";
+
+  const shellCopy = useMemo(() => {
+    if (activeSection === "archive") {
+      return {
+        title: "保存済み記録",
+        subtitle:
+          "保存した力士人生を一覧し、右側のプレビューで誰のどんな記録かを素早く読み返します。",
+        statusLine: `${hallOfFame.length}件の保存済み記録`,
+      };
+    }
+    if (activeSection === "collection") {
+      return {
+        title: "図鑑",
+        subtitle:
+          "記録、偉業、決まり手の解放状況を一覧し、何が埋まったのかを具体的に読み返します。",
+        statusLine: "記録 / 偉業 / 決まり手",
+      };
+    }
+    if (activeSection === "logicLab" && isDev) {
+      return {
+        title: "ロジック検証",
+        subtitle: "通常プレイとは切り離し、番付や本割の挙動を検証するための画面です。",
+        statusLine: "開発者専用",
+      };
+    }
+    if (isRunning) {
+      return {
+        title: "力士結果",
+        subtitle:
+          "開発用の観測モードです。通常プレイでは見せない途中経過を確認できます。",
+        statusLine: progress
+          ? `${progress.year}年${progress.month}月場所 / ${progress.bashoCount}場所目`
+          : "演算開始準備中",
+      };
+    }
+    if (isSimulating) {
+      return {
+        title: "力士結果",
+        subtitle:
+          "候補から生まれる力士人生を裏で一気に演算し、結果の準備ができたら開封します。",
+        statusLine: "結果を準備中",
+      };
+    }
+    if (isRevealReady) {
+      return {
+        title: "力士結果",
+        subtitle:
+          "演算は完了しています。結果を見るまで中身は伏せたままにし、開封の瞬間を保ちます。",
+        statusLine: "演算完了",
+      };
+    }
+    if (status && isCompleted) {
+      return {
+        title: "力士結果",
+        subtitle:
+          "四股名、成績、転機、宿敵を読み返しながら、この力士が何者だったかを一画面で掴みます。",
+        statusLine: `${status.shikona} / 最高位 ${formatRankName(status.history.maxRank)}`,
+      };
+    }
+    return {
+      title: "新弟子",
+      subtitle:
+        "候補を引いて、素質の輪郭だけを先に見極め、必要な項目だけを整えて入門させます。",
+      statusLine: `${unshelvedCareers.length}件の未保存キャリア`,
+    };
+  }, [
+    activeSection,
+    hallOfFame.length,
+    isCompleted,
+    isDev,
+    isRevealReady,
+    isRunning,
+    isSimulating,
+    progress,
+    status,
+    unshelvedCareers.length,
+  ]);
 
   return (
-    <div className="min-h-screen bg-bg text-text font-sans pb-20 selection:bg-gold/30 selection:text-gold-bright">
-      {/* === ヘッダー === */}
-      <header className="sticky top-0 z-50 border-b-2 border-gold-muted bg-bg">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
-          <h1
-            className="text-lg sm:text-xl ui-text-label flex items-center gap-2 cursor-pointer text-gold hover:text-gold-bright transition-colors"
-            onClick={() => void handleReset()}
-          >
-            <span className="text-xl sm:text-2xl" aria-hidden="true">
-              &#x76F8;
-            </span>
-            <span className="hidden sm:inline">爆速！横綱メーカー</span>
-            <span className="sm:hidden">横綱メーカー</span>
-          </h1>
-
-          {/* デスクトップナビ */}
-          <div className="hidden sm:flex items-center gap-2">
-            {isDev && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (!canToggleLogicLab) return;
-                  setShowSavedData(false);
-                  setViewMode((current) =>
-                    current === "normal" ? "logicLab" : "normal",
-                  );
-                }}
-                disabled={!canToggleLogicLab}
-              >
-                <FlaskConical className="w-3.5 h-3.5 mr-1" />
-                {isLogicLabMode ? "通常画面" : "ロジック検証"}
+    <AppShell
+      activeSection={activeSection}
+      onSectionChange={(nextSection) => {
+        if (nextSection === "archive") void loadHallOfFame();
+        if (nextSection === "scout") void loadUnshelvedCareers();
+        if (nextSection === "logicLab" && !isDev) return;
+        setActiveSection(nextSection);
+      }}
+      title={shellCopy.title}
+      subtitle={shellCopy.subtitle}
+      statusLine={shellCopy.statusLine}
+      showLogicLab={isDev}
+      actions={
+        activeSection === "career" && isRunning ? (
+          <div className="flex flex-wrap gap-2">
+            {!isInstantMode && (
+              <Button variant="secondary" size="sm" onClick={skipToEnd}>
+                <FastForward className="mr-1.5 h-4 w-4" />
+                最後まで進める
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                await loadHallOfFame();
-                setShowSavedData(true);
-              }}
-            >
-              <Scroll className="w-3.5 h-3.5 mr-1" />
-              殿堂録
+            <Button variant="outline" size="sm" onClick={() => void handleStop()}>
+              <Square className="mr-1.5 h-4 w-4" />
+              演算を中止
             </Button>
           </div>
-
-          {/* モバイルメニューボタン */}
-          <button
-            className="sm:hidden p-2 text-gold hover:text-gold-bright transition-colors"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="メニュー"
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {/* モバイルメニュードロワー */}
-        {menuOpen && (
-          <div className="sm:hidden border-t-2 border-gold-muted bg-bg-panel px-3 py-3 space-y-2 animate-slide-up">
-            {isDev && (
-              <button
-                className="w-full text-left ui-text-label text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors disabled:opacity-40"
-                onClick={() => {
-                  if (!canToggleLogicLab) return;
-                  setShowSavedData(false);
-                  setViewMode((current) =>
-                    current === "normal" ? "logicLab" : "normal",
-                  );
-                  setMenuOpen(false);
-                }}
-                disabled={!canToggleLogicLab}
-              >
-                <FlaskConical className="w-4 h-4 inline mr-2" />
-                {isLogicLabMode ? "通常画面" : "ロジック検証"}
-              </button>
-            )}
-            <button
-              className="w-full text-left ui-text-label text-sm px-3 py-3 border-2 border-gold-muted text-text-dim hover:border-gold hover:text-gold transition-colors"
-              onClick={async () => {
-                await loadHallOfFame();
-                setShowSavedData(true);
-                setMenuOpen(false);
-              }}
-            >
-              <Scroll className="w-4 h-4 inline mr-2" />
-              殿堂録
-            </button>
+        ) : activeSection === "career" && (isSimulating || isRevealReady) ? undefined : (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" onClick={() => void handleReset()}>
+              初期状態へ戻す
+            </Button>
           </div>
-        )}
-      </header>
-
-      <main className="px-3 py-4 sm:p-4 sm:pt-6 mx-auto max-w-4xl">
-        {isLogicLabMode ? (
-          <LogicLabScreen />
-        ) : (
-          <>
-            {showSavedData && (
-              <HallOfFameGrid
-                items={hallOfFame as any}
-                onOpen={async (id) => {
-                  await openCareer(id);
-                  setShowSavedData(false);
-                }}
-                onDelete={async (id) => {
-                  await deleteCareerById(id);
-                }}
-                onClose={() => setShowSavedData(false)}
-              />
-            )}
-
-            {!status && !isRunning && phase !== "error" && (
-              <ScoutScreen onStart={handleStart} />
-            )}
-
-            {/* === 演算中画面 === */}
-            {isRunning && (
-              <div className="max-w-2xl mx-auto rpg-panel p-4 sm:p-6 space-y-4 animate-in">
-                {/* 一括演算モード: シンプルローディング */}
-                {isInstantMode ? (
-                  <div className="text-center py-8 sm:py-12">
-                    <p className="ui-text-label text-gold-bright text-lg sm:text-xl mb-4 animate-pulse-soft">
-                      演算中...
-                    </p>
-                    <div className="w-48 sm:w-64 mx-auto gauge-bar">
-                      <div
-                        className="gauge-fill bg-gold shimmer"
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                    <p className="text-xs text-text-dim mt-4 ui-text-label">
-                      力士人生を高速演算しています
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* 実況モード: 詳細進捗 */}
-                    <div className="flex items-center justify-between pb-3 border-b-2 border-gold-muted">
-                      <div>
-                        <p className="ui-text-label text-lg sm:text-xl text-gold leading-tight">
-                          力士人生を
-                          <br />
-                          演算中...
-                        </p>
-                        <p className="text-text-dim mt-2 text-xs sm:text-sm">
-                          {progress
-                            ? `${progress.year}年${progress.month}月場所 / ${progress.bashoCount}場所目`
-                            : "初期化中..."}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-bg border-2 border-gold flex items-center justify-center animate-pulse-soft">
-                        <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-gold" />
-                      </div>
-                    </div>
-
-                    {/* 進捗ステータス */}
-                    {progress && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 border-2 border-gold-muted bg-bg">
-                          <span className="text-xs ui-text-label text-text-dim">現在番付</span>
-                          <span className="ui-text-label text-base sm:text-lg text-gold">
-                            {formatRankName(progress.currentRank)}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
-                          {[
-                            { label: "幕内", active: progress.makuuchiActive, total: progress.makuuchiSlots },
-                            { label: "十両", active: progress.juryoActive, total: progress.juryoSlots },
-                            { label: "幕下", active: progress.makushitaActive, total: progress.makushitaSlots },
-                            { label: "三段目", active: progress.sandanmeActive, total: progress.sandanmeSlots },
-                            { label: "序二段", active: progress.jonidanActive, total: progress.jonidanSlots },
-                            { label: "序ノ口", active: progress.jonokuchiActive, total: progress.jonokuchiSlots },
-                          ].map(({ label, active, total }) => (
-                            <div key={label} className="flex justify-between p-2 border border-gold-muted bg-bg">
-                              <span className="text-text-dim">{label}</span>
-                              <span className="text-text">{active}/{total}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs p-2 border border-gold-muted bg-bg">
-                          <span className="text-text-dim">
-                            三賞 {progress.sanshoTotal}回 (殊{progress.shukunCount} 敢{progress.kantoCount} 技{progress.ginoCount})
-                          </span>
-                          <span className="text-text-dim">
-                            警告 {progress.lastCommitteeWarnings}件
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 最新イベント */}
-                    {latestEvents.length > 0 && (
-                      <div className="border-2 border-gold-muted p-3 bg-bg">
-                        <p className="text-xs ui-text-label text-gold mb-2">
-                          最新の出来事
-                        </p>
-                        <ul className="text-xs sm:text-sm text-text-dim space-y-1 list-disc list-inside">
-                          {latestEvents.map((eventText, idx) => (
-                            <li key={`${eventText}-${idx}`} className="leading-snug">
-                              {eventText}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* 一時停止通知 */}
-                    {phase === "paused" && (
-                      <div className="border-2 border-crimson bg-crimson-dim/10 p-4 glow-red">
-                        <p className="ui-text-label text-crimson mb-3">
-                          【中断】 {pauseReason}
-                        </p>
-                        <Button variant="danger" onClick={resumeSimulation}>
-                          <Play className="w-4 h-4 fill-current mr-2" />
-                          再開する
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* 操作ボタン */}
-                <div className="flex flex-col gap-2 pt-2">
-                  {!isInstantMode && (
-                    <Button
-                      variant="secondary"
-                      onClick={skipToEnd}
-                      disabled={isSkipToEnd}
-                      className="w-full py-3"
-                    >
-                      <FastForward className="w-5 h-5 fill-current mr-2" />
-                      {isSkipToEnd ? "スキップ中..." : "最後までスキップ"}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => void stopSimulation()}
-                    className="w-full py-3 text-crimson border-crimson/40 hover:bg-crimson-dim/10"
-                  >
-                    <Square className="w-5 h-5 fill-current mr-2" />
-                    演算中止
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* === エラー画面 === */}
-            {phase === "error" && (
-              <div className="max-w-2xl mx-auto rpg-panel border-crimson p-4 sm:p-6 glow-red animate-in">
-                <p className="ui-text-label text-lg sm:text-xl flex items-center gap-2 border-b-2 border-crimson/30 pb-3 mb-3 text-crimson">
-                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
-                  重大な演算エラー
-                </p>
-                <p className="text-xs sm:text-sm mb-6 text-text-dim">
-                  {errorMessage || "原因不明の致命的なエラーが発生しました。"}
-                </p>
-                <Button variant="danger" size="lg" onClick={() => void handleReset()}>
-                  初期画面へ戻る
-                </Button>
-              </div>
-            )}
-
-            {status && isCompleted && (
-              <ReportScreen
-                status={status}
-                careerId={currentCareerId}
-                onReset={() => void handleReset()}
-                onSave={async () => {
-                  await saveCurrentCareer();
-                }}
-                isSaved={isCurrentCareerSaved}
-              />
-            )}
-          </>
-        )}
-      </main>
-    </div>
+        )
+      }
+    >
+      {activeSection === "logicLab" && isDev ? (
+        <LogicLabScreen />
+      ) : activeSection === "archive" ? (
+        <ArchiveScreen
+          items={hallOfFame as any}
+          onOpen={async (id) => {
+            await openCareer(id);
+            setActiveSection("career");
+          }}
+          onDelete={async (id) => {
+            await deleteCareerById(id);
+            await loadHallOfFame();
+          }}
+        />
+      ) : activeSection === "collection" ? (
+        <CollectionScreen onOpenArchive={() => setActiveSection("archive")} />
+      ) : activeSection === "career" ? (
+        <CareerSection
+          phase={phase}
+          status={status}
+          progress={progress}
+          latestEvents={latestEvents}
+          latestPauseReason={latestPauseReason}
+          errorMessage={errorMessage}
+          isCurrentCareerSaved={isCurrentCareerSaved}
+          currentCareerId={currentCareerId}
+          isInstantMode={isInstantMode}
+          onReset={handleReset}
+          onReveal={revealCurrentResult}
+          onStop={handleStop}
+          onSave={async () => {
+            await saveCurrentCareer();
+            await loadHallOfFame();
+          }}
+          onOpenCollection={() => setActiveSection("collection")}
+          onOpenArchive={() => setActiveSection("archive")}
+        />
+      ) : (
+        <ScoutScreen onStart={handleStart} />
+      )}
+    </AppShell>
   );
 }
+
+const CareerSection: React.FC<{
+  phase: SimulationPhase;
+  status: RikishiStatus | null;
+  progress: any;
+  latestEvents: string[];
+  latestPauseReason?: string;
+  errorMessage?: string;
+  isCurrentCareerSaved: boolean;
+  currentCareerId: string | null;
+  isInstantMode: boolean;
+  onReset: () => void;
+  onReveal: () => void;
+  onStop: () => void;
+  onSave: () => void | Promise<void>;
+  onOpenCollection: () => void;
+  onOpenArchive: () => void;
+}> = ({
+  phase,
+  status,
+  progress,
+  latestEvents,
+  latestPauseReason,
+  errorMessage,
+  isCurrentCareerSaved,
+  currentCareerId,
+  isInstantMode,
+  onReset,
+  onReveal,
+  onStop,
+  onSave,
+  onOpenCollection,
+  onOpenArchive,
+}) => {
+  if (phase === "error") {
+    return (
+      <div className="surface-panel max-w-3xl space-y-4">
+        <div className="inline-flex items-center gap-2 text-sm text-danger">
+          <AlertTriangle className="h-4 w-4" />
+          演算を完了できませんでした
+        </div>
+        <div className="text-base text-text">{errorMessage || "不明なエラーが発生しました。"}</div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="danger" onClick={onReset}>
+            初期状態へ戻る
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "running") {
+    return (
+      <RunningDashboard
+        progress={progress}
+        latestEvents={latestEvents}
+        latestPauseReason={latestPauseReason}
+        isInstantMode={isInstantMode}
+      />
+    );
+  }
+
+  if (phase === "simulating" || phase === "reveal_ready") {
+    return (
+      <ResultPreparationPanel
+        phase={phase}
+        onReveal={onReveal}
+        onStop={onStop}
+      />
+    );
+  }
+
+  if (status && phase === "completed") {
+    return (
+      <ReportScreen
+        status={status}
+        careerId={currentCareerId}
+        onReset={onReset}
+        onSave={onSave}
+        isSaved={isCurrentCareerSaved}
+        onOpenCollection={onOpenCollection}
+      />
+    );
+  }
+
+  return (
+    <div className="empty-stage">
+      <BookOpenText className="h-12 w-12 text-text-faint" />
+      <div className="space-y-2 text-center">
+        <div className="text-xl ui-text-heading text-text">まだ結果がありません</div>
+        <p className="max-w-xl text-sm leading-relaxed text-text-dim">
+          新弟子から始めるか、保存済み記録を開くと、この画面が力士結果の閲覧画面に切り替わります。
+        </p>
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button onClick={onReset}>新弟子へ戻る</Button>
+        <Button variant="secondary" onClick={onOpenArchive}>
+          保存済み記録を開く
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const ResultPreparationPanel: React.FC<{
+  phase: "simulating" | "reveal_ready";
+  onReveal: () => void;
+  onStop: () => void;
+}> = ({ phase, onReveal, onStop }) => {
+  const isReady = phase === "reveal_ready";
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="surface-panel space-y-6">
+        <div className="space-y-3 text-center">
+          <div className="app-kicker">{isReady ? "開封の前" : "結果を準備中"}</div>
+          <h2 className="text-3xl ui-text-heading text-text">
+            {isReady ? "結果の準備ができました" : "力士人生を演算中"}
+          </h2>
+          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-text-dim">
+            {isReady
+              ? "人生の中身はまだ伏せています。準備が整ったら、結果を見るボタンから一代記を開封してください。"
+              : "途中経過は見せず、力士人生を裏でまとめて演算しています。終わったら、そのまま結果を開けます。"}
+          </p>
+        </div>
+
+        <div className="mx-auto flex max-w-xl items-center gap-2">
+          <div className="h-2 flex-1 overflow-hidden border-2 border-brand-muted bg-surface-panel">
+            <div
+              className={`h-full bg-action/70 ${isReady ? "w-full" : "w-1/3 animate-pulse"}`}
+            />
+          </div>
+          <div className="text-xs ui-text-label text-text-dim">
+            {isReady ? "完了" : "演算中"}
+          </div>
+        </div>
+
+        <div className="rounded-none border-2 border-brand-muted bg-surface-panel px-4 py-3 text-sm text-text-dim">
+          {isReady
+            ? "準備が整いました。結果を見ると一代記を開封できます。"
+            : "結果がまとまるまで、このまましばらくお待ちください。"}
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-3">
+          {isReady ? (
+            <Button size="lg" onClick={onReveal}>
+              結果を見る
+            </Button>
+          ) : null}
+          <Button variant={isReady ? "secondary" : "outline"} size="lg" onClick={onStop}>
+            中止して戻る
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RunningDashboard: React.FC<{
+  progress: any;
+  latestEvents: string[];
+  latestPauseReason?: string;
+  isInstantMode: boolean;
+}> = ({ progress, latestEvents, latestPauseReason, isInstantMode }) => {
+  const observationItems = latestEvents.length > 0 ? latestEvents : ["まだ大きな出来事は記録されていません。"];
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.7fr)]">
+      <section className="surface-panel space-y-5">
+        <div className="flex items-end justify-between gap-4 border-b border-line pb-4">
+          <div>
+            <div className="panel-title">進行監督盤</div>
+            <p className="panel-caption">
+              {isInstantMode
+                ? "開発用に最後まで早送りしています。現在地だけを静かに返します。"
+                : "通常プレイでは見せない途中経過を、開発用に短く観測します。"}
+            </p>
+          </div>
+          <div className="text-right text-sm text-text-dim">
+            {progress
+              ? `${progress.year}年${progress.month}月場所`
+              : "演算を準備中"}
+          </div>
+        </div>
+
+        <div className="metric-strip">
+          <div className="metric-card">
+            <div className="metric-label">現在の場所</div>
+            <div className="metric-value">
+              {progress ? `${progress.year}年${progress.month}月場所` : "初期化中"}
+            </div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">現在番付</div>
+            <div className="metric-value">
+              {progress ? formatRankName(progress.currentRank) : "未確定"}
+            </div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">進行段階</div>
+            <div className="metric-value">
+              {progress ? `${progress.bashoCount}場所目` : "準備中"}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="panel-title">最新の出来事</div>
+          <div className="observation-log">
+            {observationItems.map((eventText, index) => (
+              <div key={`${eventText}-${index}`} className="observation-item">
+                <div className="observation-index">{String(index + 1).padStart(2, "0")}</div>
+                <div className="observation-text">{eventText}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="surface-panel space-y-4">
+        <div>
+          <div className="panel-title">状況の要点</div>
+          <p className="panel-caption">
+            全階級の一覧ではなく、判断に必要な兆しだけを右側に置きます。
+          </p>
+        </div>
+
+        <div className="info-row">
+          <span>幕内の稼働</span>
+          <span>{progress ? `${progress.makuuchiActive}/${progress.makuuchiSlots}` : "不明"}</span>
+        </div>
+        <div className="info-row">
+          <span>十両の稼働</span>
+          <span>{progress ? `${progress.juryoActive}/${progress.juryoSlots}` : "不明"}</span>
+        </div>
+        <div className="info-row">
+          <span>三賞</span>
+          <span>
+            {progress
+              ? `${progress.sanshoTotal}回（殊${progress.shukunCount} / 敢${progress.kantoCount} / 技${progress.ginoCount}）`
+              : "不明"}
+          </span>
+        </div>
+        <div className="info-row">
+          <span>警告件数</span>
+          <span>{progress ? `${progress.lastCommitteeWarnings}件` : "0件"}</span>
+        </div>
+
+        {latestPauseReason && (
+          <div className="status-callout" data-tone="attention">
+            <div className="status-callout-title">直近の停止理由</div>
+            <div className="status-callout-text">{latestPauseReason}</div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
 
 export default App;
