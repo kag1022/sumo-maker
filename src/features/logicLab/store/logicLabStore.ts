@@ -7,47 +7,16 @@ import {
   LogicLabRunHandle,
   normalizeLogicLabMaxBasho,
   normalizeLogicLabSeed,
-  runLogicLabToEnd,
 } from '../runner';
 import {
   LogicLabBashoLogRow,
-  LogicLabComparisonResult,
+
   LogicLabPresetId,
   LogicLabRunConfig,
   LogicLabRunPhase,
   LogicLabSummary,
 } from '../types';
-import { DEFAULT_SIMULATION_MODEL_VERSION } from '../../../logic/simulation/modelVersion';
 
-const summarizeKimarite = (logs: LogicLabBashoLogRow[]): Record<string, number> => {
-  const total: Record<string, number> = {};
-  for (const row of logs) {
-    const count = row.kimariteCount || {};
-    for (const [name, value] of Object.entries(count)) {
-      total[name] = (total[name] || 0) + value;
-    }
-  }
-  return total;
-};
-
-const buildTopKimariteDiffs = (
-  currentLogs: LogicLabBashoLogRow[],
-  newLogs: LogicLabBashoLogRow[],
-  limit = 5,
-) => {
-  const current = summarizeKimarite(currentLogs);
-  const next = summarizeKimarite(newLogs);
-  const names = new Set<string>([...Object.keys(current), ...Object.keys(next)]);
-  return [...names]
-    .map((name) => ({
-      name,
-      current: current[name] || 0,
-      newModel: next[name] || 0,
-      delta: (next[name] || 0) - (current[name] || 0),
-    }))
-    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-    .slice(0, limit);
-};
 
 type StepOutcome = 'continue' | 'paused' | 'completed' | 'stale' | 'error';
 
@@ -60,8 +29,7 @@ interface LogicLabStore {
   summary: LogicLabSummary | null;
   logs: LogicLabBashoLogRow[];
   selectedLogIndex: number | null;
-  comparison: LogicLabComparisonResult | null;
-  comparisonBusy: boolean;
+
   autoPlay: boolean;
   runToken: number;
   errorMessage?: string;
@@ -73,7 +41,7 @@ interface LogicLabStore {
   startAutoPlay: () => Promise<void>;
   pauseAutoPlay: () => void;
   runToEnd: () => Promise<void>;
-  runComparison: () => Promise<void>;
+
   selectLogIndex: (index: number | null) => void;
   resetRun: () => void;
 }
@@ -84,7 +52,6 @@ const parseRunConfig = (
   store: Pick<LogicLabStore, 'presetId' | 'seedInput' | 'maxBashoInput'>,
 ): LogicLabRunConfig => ({
   presetId: store.presetId,
-  simulationModelVersion: DEFAULT_SIMULATION_MODEL_VERSION,
   seed: normalizeLogicLabSeed(store.seedInput),
   maxBasho: normalizeLogicLabMaxBasho(store.maxBashoInput),
 });
@@ -140,9 +107,8 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
     summary: null,
     logs: [],
     selectedLogIndex: null,
-    comparison: null,
-    comparisonBusy: false,
     autoPlay: false,
+
     runToken: 0,
     errorMessage: undefined,
 
@@ -163,8 +129,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
           summary: activeRun.getSummary(),
           logs: [],
           selectedLogIndex: null,
-          comparison: null,
-          comparisonBusy: false,
           seedInput: String(activeRun.config.seed),
           maxBashoInput: String(activeRun.config.maxBasho),
           errorMessage: undefined,
@@ -177,8 +141,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
           summary: null,
           logs: [],
           selectedLogIndex: null,
-          comparison: null,
-          comparisonBusy: false,
           autoPlay: false,
           errorMessage: error instanceof Error ? error.message : 'Failed to start logic-lab run',
         });
@@ -246,56 +208,7 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
       }
     },
 
-    runComparison: async () => {
-      const config = parseRunConfig(get());
-      const nextToken = get().runToken + 1;
-      set({
-        runToken: nextToken,
-        autoPlay: false,
-        comparison: null,
-        comparisonBusy: true,
-        errorMessage: undefined,
-      });
 
-      try {
-        const [current, newModel] = await Promise.all([
-          runLogicLabToEnd({
-            presetId: config.presetId,
-            seed: config.seed,
-            maxBasho: config.maxBasho,
-            simulationModelVersion: 'unified-v2-kimarite',
-          }),
-          runLogicLabToEnd({
-            presetId: config.presetId,
-            seed: config.seed,
-            maxBasho: config.maxBasho,
-            simulationModelVersion: 'unified-v3-variance',
-          }),
-        ]);
-
-        if (get().runToken !== nextToken) return;
-        set({
-          comparison: {
-            config: {
-              presetId: config.presetId,
-              seed: config.seed,
-              maxBasho: config.maxBasho,
-            },
-            current: current.summary,
-            newModel: newModel.summary,
-            topKimariteDiffs: buildTopKimariteDiffs(current.logs, newModel.logs),
-          },
-          comparisonBusy: false,
-          errorMessage: undefined,
-        });
-      } catch (error) {
-        if (get().runToken !== nextToken) return;
-        set({
-          comparisonBusy: false,
-          errorMessage: error instanceof Error ? error.message : 'Failed to compare logic-lab models',
-        });
-      }
-    },
 
     selectLogIndex: (index) => set({ selectedLogIndex: index }),
 

@@ -9,8 +9,7 @@ import {
   scoreDistanceWeight,
 } from '../policy';
 import { BoundaryId, TorikumiParticipant } from '../types';
-import { REALISM_V1_BALANCE } from '../../../balance/realismV1';
-import { SimulationModelVersion } from '../../modelVersion';
+import { BALANCE } from '../../../balance';
 
 export const resolveRankNumber = (participant: TorikumiParticipant): number =>
   participant.rankNumber ?? Math.floor((participant.rankScore - 1) / 2) + 1;
@@ -63,18 +62,16 @@ export const resolvePairScore = (
     boundaryNeed?: number;
     phase?: PairEvalPhase;
     boundaryId?: BoundaryId;
-    simulationModelVersion?: SimulationModelVersion;
   },
 ): number => {
   const boundaryNeed = options?.boundaryNeed ?? 0;
   const phase = options?.phase ?? (day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY ? 'LATE' : 'MID');
-  const simulationModelVersion = options?.simulationModelVersion ?? 'unified-v2-kimarite';
   let scoreWeight = Math.min(
-    REALISM_V1_BALANCE.torikumi.sameScoreWeightCap,
+    BALANCE.torikumi.sameScoreWeightCap,
     scoreDistanceWeight(day),
   );
   let rankWeight = rankDistanceWeight(day);
-  if (simulationModelVersion === 'unified-v3-variance') {
+  if (true) {
     if (day >= 6 && day <= 10) {
       scoreWeight *= 0.55;
       rankWeight *= 1.35;

@@ -66,8 +66,6 @@ export const LogicLabScreen: React.FC = () => {
   const summary = useLogicLabStore((state) => state.summary);
   const logs = useLogicLabStore((state) => state.logs);
   const selectedLogIndex = useLogicLabStore((state) => state.selectedLogIndex);
-  const comparison = useLogicLabStore((state) => state.comparison);
-  const comparisonBusy = useLogicLabStore((state) => state.comparisonBusy);
   const autoPlay = useLogicLabStore((state) => state.autoPlay);
   const errorMessage = useLogicLabStore((state) => state.errorMessage);
   const setPresetId = useLogicLabStore((state) => state.setPresetId);
@@ -78,7 +76,6 @@ export const LogicLabScreen: React.FC = () => {
   const startAutoPlay = useLogicLabStore((state) => state.startAutoPlay);
   const pauseAutoPlay = useLogicLabStore((state) => state.pauseAutoPlay);
   const runToEnd = useLogicLabStore((state) => state.runToEnd);
-  const runComparison = useLogicLabStore((state) => state.runComparison);
   const selectLogIndex = useLogicLabStore((state) => state.selectLogIndex);
   const resetRun = useLogicLabStore((state) => state.resetRun);
 
@@ -90,7 +87,6 @@ export const LogicLabScreen: React.FC = () => {
     if (typeof selectedLogIndex === 'number' && logs[selectedLogIndex]) return logs[selectedLogIndex];
     return logs.length ? logs[logs.length - 1] : null;
   }, [logs, selectedLogIndex]);
-  const comparisonPresetLabel = comparison ? resolveLogicLabPresetLabel(comparison.config.presetId) : '-';
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -156,25 +152,24 @@ export const LogicLabScreen: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-text-dim block">
               Seed
-              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay || comparisonBusy} />
+              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay} />
             </label>
             <label className="text-xs text-text-dim block">
               最大場所数
-              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay || comparisonBusy} />
+              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay} />
             </label>
           </div>
-          <CaptionText as="p" className="text-[11px] text-text-dim">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed} / max=${runConfig.maxBasho}` : '-'}</CaptionText>
+          <CaptionText as="p" className="text-[11px] text-text-dim">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed}` : '-'}</CaptionText>
         </div>
 
         <div className="xl:col-span-8 rpg-panel p-4 space-y-3">
           <LabelText as="p" className="section-header">操作</LabelText>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <button onClick={() => void startRun()} disabled={comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold bg-gold/10 text-gold'}`}>開始</button>
-            <button onClick={() => void stepOne()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>1場所進む</button>
-            {!autoPlay ? <button onClick={() => void startAutoPlay()} disabled={comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-text text-bg'}`}>自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-crimson bg-crimson/10 text-crimson font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">停止</button>}
-            <button onClick={() => void runToEnd()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>最後まで</button>
-            <button onClick={() => void runComparison()} disabled={autoPlay || comparisonBusy} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay || comparisonBusy ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-crimson bg-crimson/20 text-text'}`}>{comparisonBusy ? '比較中...' : '2モデル比較（現行/新）'}</button>
-            <button onClick={resetRun} disabled={comparisonBusy} className="border-2 border-gold-muted bg-bg text-text font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">リセット</button>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <button onClick={() => void startRun()} className="border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none border-gold bg-gold/10 text-gold">開始</button>
+            <button onClick={() => void stepOne()} disabled={autoPlay} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>1場所進む</button>
+            {!autoPlay ? <button onClick={() => void startAutoPlay()} className="border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none border-gold-muted bg-text text-bg">自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-crimson bg-crimson/10 text-crimson font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">停止</button>}
+            <button onClick={() => void runToEnd()} disabled={autoPlay} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>最後まで</button>
+            <button onClick={resetRun} className="border-2 border-gold-muted bg-bg text-text font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">リセット</button>
           </div>
           {errorMessage && <BodyText as="p" className="text-xs text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-1">{errorMessage}</BodyText>}
         </div>
@@ -237,27 +232,7 @@ export const LogicLabScreen: React.FC = () => {
               <div className="data-row cursor-help" title={selectedRow.npcContext ? `同階級NPC ${selectedRow.npcContext.rows.length}件` : ''}><span className="data-key" style={{ boxShadow: "none" }}>同階級NPC</span><span className="data-val">{selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : 'なし'}</span></div>
             </div>
           )}
-          {comparison && (
-            <div className="border-t-2 border-gold-muted pt-3 text-xs mt-3">
-              <p className="mb-2 text-gold ui-text-label">比較: {comparisonPresetLabel}</p>
-              <div className="space-y-1 border-2 border-gold-muted bg-bg p-3 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
-                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>現行最高位</span><span className="data-val">{formatRankName(comparison.current.maxRank)}</span></div>
-                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>新モデル最高位</span><span className="data-val">{formatRankName(comparison.newModel.maxRank)}</span></div>
-                <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>勝利差</span><span className={`data-val ${comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? "text-hp" : "text-crimson"}`}>{comparison.newModel.totalWins - comparison.current.totalWins >= 0 ? '+' : ''}{comparison.newModel.totalWins - comparison.current.totalWins}</span></div>
-                <p className="mt-2 text-text text-[11px] pt-1 border-t border-gold-muted/30">主要決まり手差分</p>
-                {comparison.topKimariteDiffs.length === 0 ? (
-                  <p className="text-text-dim text-[11px]">-</p>
-                ) : (
-                  comparison.topKimariteDiffs.map((item) => (
-                    <div key={item.name} className="flex justify-between text-[11px]">
-                      <span className="text-text-dim">{item.name}</span>
-                      <span className="text-text">{item.current} → {item.newModel} (<span className={item.delta >= 0 ? "text-hp" : "text-crimson"}>{item.delta >= 0 ? '+' : ''}{item.delta}</span>)</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+
         </div>
       </section>
 

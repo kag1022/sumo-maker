@@ -1,4 +1,11 @@
-export const UNIFIED_V1_BALANCE = {
+/**
+ * シミュレーション・バランス定数
+ *
+ * すべてのバランス調整パラメータをこのファイルに集約する。
+ * 旧 balance/realismV1.ts (torikumi) と balance/unifiedV1.ts (strength, ratingUpdate, yokozuna)
+ * を統合したもの。
+ */
+export const BALANCE = {
   strength: {
     logisticScale: 0.082,
     styleEdgeBonus: 3.8,
@@ -27,6 +34,18 @@ export const UNIFIED_V1_BALANCE = {
     youthBoost: 1.12,
     meanReversionToRankBaseline: 0.012,
   },
+  torikumi: {
+    sameScoreWeightCap: 78,
+    earlyRankDistanceWeight: 13,
+    midRankDistanceWeight: 11,
+    lateRankDistanceWeight: 10,
+    earlyScoreDistanceWeight: 20,
+    midScoreDistanceWeight: 36,
+    lateScoreDistanceWeight: 50,
+    boundaryVacancyWeight: 20,
+    boundaryPromotionPressureWeight: 14,
+    boundaryLateDayWeight: 12,
+  },
   yokozuna: {
     yushoEquivalentMinScore: 11.5,
     yushoEquivalentTotalMinScore: 24.0,
@@ -34,4 +53,4 @@ export const UNIFIED_V1_BALANCE = {
   },
 } as const;
 
-export type UnifiedV1Balance = typeof UNIFIED_V1_BALANCE;
+export type Balance = typeof BALANCE;

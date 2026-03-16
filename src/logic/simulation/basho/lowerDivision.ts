@@ -165,7 +165,7 @@ export const runLowerDivisionBasho = (
     division !== 'Jonidan' &&
     division !== 'Jonokuchi'
   ) {
-    return runSimplifiedBasho(status, year, month, rng, simulationModelVersion);
+    return runSimplifiedBasho(status, year, month, rng);
   }
 
   const numBouts = CONSTANTS.BOUTS_MAP[division];
@@ -189,7 +189,7 @@ export const runLowerDivisionBasho = (
       .slice()
       .sort((a, b) => a.rankScore - b.rankScore)
       .map((npc) => {
-        const bashoFormDelta = simulationModelVersion === 'unified-v3-variance'
+        const bashoFormDelta = true
           ? resolveBashoFormDelta({
             uncertainty: npc.uncertainty,
             volatility: npc.volatility,
@@ -244,7 +244,7 @@ export const runLowerDivisionBasho = (
       const guestId = `JURYO_GUEST_${guest.id}`;
       const rank = decodeJuryoRankFromScore(guest.rankScore);
       juryoGuestRankById.set(guestId, rank);
-      const guestBashoFormDelta = simulationModelVersion === 'unified-v3-variance'
+      const guestBashoFormDelta = true
         ? resolveBashoFormDelta({
           uncertainty: guest.uncertainty,
           volatility: guest.volatility,
@@ -287,7 +287,7 @@ export const runLowerDivisionBasho = (
     throw new Error('Player participant was not initialized for lower division basho');
   }
   const playerBashoFormDelta =
-    simulationModelVersion === 'unified-v3-variance'
+    true
       ? (
         Number.isFinite(forcedPlayerBashoFormDelta)
           ? (forcedPlayerBashoFormDelta as number)
@@ -354,7 +354,7 @@ export const runLowerDivisionBasho = (
       npcInjuryCheck(b);
 
       if (!a.isPlayer && !b.isPlayer) {
-        simulateNpcBout(a, b, rng, simulationModelVersion);
+        simulateNpcBout(a, b, rng);
         return;
       }
 
@@ -464,7 +464,7 @@ export const runLowerDivisionBasho = (
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
       };
-      const enemyPowerNoise = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
+      const enemyPowerNoise = 1.0;
       const enemy = {
         id: opponent.id,
         shikona: opponent.shikona,
@@ -484,7 +484,6 @@ export const runLowerDivisionBasho = (
         enemy,
         boutContext,
         rng,
-        simulationModelVersion,
       );
       expectedWins += result.winProbability;
       sosTotal += result.opponentAbility;

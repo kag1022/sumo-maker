@@ -11,10 +11,7 @@ import {
   PlayerLowerDivisionQuota,
   PlayerLowerRecord,
 } from './lower/types';
-import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from './modelVersion';
+
 import { buildPlacementTrace } from './lower/quota/placementTrace';
 import {
   applyLowerDivisionPlacements,
@@ -49,15 +46,14 @@ export const runLowerDivisionQuotaStep = (
   rng: RandomSource,
   playerRecord?: PlayerLowerRecord,
   precomputedLeagueResults?: LowerLeagueSnapshots,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
   banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): Record<LowerBoundaryId, LowerBoundaryExchange> => {
   promoteMaezumoToJonokuchi(world, rng);
   const lowerLeagueRaw =
     precomputedLeagueResults ??
-    simulateLowerLeagueBasho(world, rng, simulationModelVersion);
+    simulateLowerLeagueBasho(world, rng);
   if (precomputedLeagueResults) {
-    evolveLowerLeagueFromSnapshots(world, lowerLeagueRaw, rng, simulationModelVersion);
+    evolveLowerLeagueFromSnapshots(world, lowerLeagueRaw, rng);
   }
   const slotsByDivision: Record<LowerDivision, number> = {
     Makushita: world.rosters.Makushita.length,

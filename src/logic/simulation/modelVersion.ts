@@ -1,27 +1,18 @@
-export type SimulationModelVersion =
-  | 'unified-v2-kimarite'
-  | 'unified-v3-variance';
+/**
+ * シミュレーションモデルバージョン
+ *
+ * 現在は 'v3' のみ。将来バージョンを追加する場合に型として拡張する。
+ * 既存のセーブデータには 'unified-v2-kimarite' や 'unified-v3-variance' が
+ * 残っている可能性があるため、normalizeSimulationModelVersion で安全にフォールバックする。
+ */
+export type SimulationModelVersion = 'v3';
 
-export const DEFAULT_SIMULATION_MODEL_VERSION: SimulationModelVersion = 'unified-v3-variance';
-
-export const isUnifiedModel = (version: SimulationModelVersion): boolean =>
-  version === 'unified-v2-kimarite' || version === 'unified-v3-variance';
+export const DEFAULT_SIMULATION_MODEL_VERSION: SimulationModelVersion = 'v3';
 
 export const normalizeSimulationModelVersion = (
-  version?: string,
-): SimulationModelVersion => {
-  if (version === 'unified-v3-variance') return 'unified-v3-variance';
-  return 'unified-v2-kimarite';
-};
+  _version?: string,
+): SimulationModelVersion => 'v3';
 
 export const normalizeNewRunModelVersion = (
-  requested?: string,
-): SimulationModelVersion => {
-  if (
-    requested === 'unified-v3-variance' ||
-    requested === 'unified-v2-kimarite'
-  ) {
-    return requested;
-  }
-  return 'unified-v3-variance';
-};
+  _requested?: string,
+): SimulationModelVersion => 'v3';

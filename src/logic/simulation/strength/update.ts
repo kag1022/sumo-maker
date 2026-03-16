@@ -1,5 +1,5 @@
 import { CareerBand, Rank, RatingState } from '../../models';
-import { UNIFIED_V1_BALANCE } from '../../balance/unifiedV1';
+import { BALANCE } from '../../balance';
 import { resolveRankBaselineAbility } from './model';
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -61,21 +61,21 @@ export const updateAbilityAfterBasho = (input: {
   }
   const experienceFactor = Math.max(
     0.65,
-    1 - careerBashoCount * UNIFIED_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay * 0.1,
+    1 - careerBashoCount * BALANCE.ratingUpdate.experienceUncertaintyDecay * 0.1,
   );
   const youthFactor =
-    age <= UNIFIED_V1_BALANCE.ratingUpdate.youthBoostAge
-      ? UNIFIED_V1_BALANCE.ratingUpdate.youthBoost
+    age <= BALANCE.ratingUpdate.youthBoostAge
+      ? BALANCE.ratingUpdate.youthBoost
       : 1;
   const k =
-    UNIFIED_V1_BALANCE.ratingUpdate.baseK *
-    (1 + (current.uncertainty - 1) * UNIFIED_V1_BALANCE.ratingUpdate.uncertaintyK * 0.25) *
+    BALANCE.ratingUpdate.baseK *
+    (1 + (current.uncertainty - 1) * BALANCE.ratingUpdate.uncertaintyK * 0.25) *
     experienceFactor *
     youthFactor;
   const baselineAbility = resolveRankBaselineAbility(currentRank);
   const rawAbility = current.ability + delta * k;
   const meanReversion = clamp(
-    UNIFIED_V1_BALANCE.ratingUpdate.meanReversionToRankBaseline +
+    BALANCE.ratingUpdate.meanReversionToRankBaseline +
       (isSekitori ? 0.012 : 0.02) +
       Math.max(0, pressure - 1) * 0.01 +
       (careerBand === 'WASHOUT' ? 0.018 : careerBand === 'GRINDER' ? 0.01 : 0),
@@ -84,9 +84,9 @@ export const updateAbilityAfterBasho = (input: {
   );
   const nextAbility = rawAbility * (1 - meanReversion) + baselineAbility * meanReversion;
   const nextUncertainty = clamp(
-    current.uncertainty - UNIFIED_V1_BALANCE.ratingUpdate.experienceUncertaintyDecay,
-    UNIFIED_V1_BALANCE.ratingUpdate.minUncertainty,
-    UNIFIED_V1_BALANCE.ratingUpdate.maxUncertainty,
+    current.uncertainty - BALANCE.ratingUpdate.experienceUncertaintyDecay,
+    BALANCE.ratingUpdate.minUncertainty,
+    BALANCE.ratingUpdate.maxUncertainty,
   );
 
   return {

@@ -7,7 +7,7 @@ import {
   TorikumiTier,
   YushoRaceTier,
 } from './types';
-import { REALISM_V1_BALANCE } from '../../balance/realismV1';
+import { BALANCE } from '../../balance';
 
 export const DEFAULT_TORIKUMI_BOUNDARY_BANDS: BoundaryBandSpec[] = [
   {
@@ -61,17 +61,17 @@ export const DEFAULT_TORIKUMI_BOUNDARY_PRIORITY: BoundaryId[] = [
 ];
 
 export const rankDistanceWeight = (day: number): number => {
-  if (day <= 5) return REALISM_V1_BALANCE.torikumi.earlyRankDistanceWeight;
-  if (day <= 10) return REALISM_V1_BALANCE.torikumi.midRankDistanceWeight;
-  return REALISM_V1_BALANCE.torikumi.lateRankDistanceWeight;
+  if (day <= 5) return BALANCE.torikumi.earlyRankDistanceWeight;
+  if (day <= 10) return BALANCE.torikumi.midRankDistanceWeight;
+  return BALANCE.torikumi.lateRankDistanceWeight;
 };
 
 export const scoreDistanceWeight = (day: number): number => {
-  if (day <= 5) return REALISM_V1_BALANCE.torikumi.earlyScoreDistanceWeight;
-  if (day <= 10) return REALISM_V1_BALANCE.torikumi.midScoreDistanceWeight;
+  if (day <= 5) return BALANCE.torikumi.earlyScoreDistanceWeight;
+  if (day <= 10) return BALANCE.torikumi.midScoreDistanceWeight;
   return Math.min(
-    REALISM_V1_BALANCE.torikumi.sameScoreWeightCap,
-    REALISM_V1_BALANCE.torikumi.lateScoreDistanceWeight,
+    BALANCE.torikumi.sameScoreWeightCap,
+    BALANCE.torikumi.lateScoreDistanceWeight,
   );
 };
 
@@ -80,10 +80,10 @@ export const boundaryNeedWeight = (
   vacancy = 0,
   promotionPressure = 0,
 ): number => {
-  const lateWeight = day >= 11 ? REALISM_V1_BALANCE.torikumi.boundaryLateDayWeight : 0;
+  const lateWeight = day >= 11 ? BALANCE.torikumi.boundaryLateDayWeight : 0;
   return (
-    vacancy * REALISM_V1_BALANCE.torikumi.boundaryVacancyWeight +
-    promotionPressure * REALISM_V1_BALANCE.torikumi.boundaryPromotionPressureWeight +
+    vacancy * BALANCE.torikumi.boundaryVacancyWeight +
+    promotionPressure * BALANCE.torikumi.boundaryPromotionPressureWeight +
     lateWeight
   );
 };

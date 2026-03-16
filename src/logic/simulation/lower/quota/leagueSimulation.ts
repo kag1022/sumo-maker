@@ -28,7 +28,6 @@ const createDivisionParticipants = (
   world: LowerDivisionQuotaWorld,
   division: LowerDivision,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
 ): DivisionParticipant[] => {
   const range = POWER_RANGE[division];
   return world.rosters[division]
@@ -39,13 +38,11 @@ const createDivisionParticipants = (
       const registryNpc = world.npcRegistry.get(npc.id);
       const shikona = registryNpc?.shikona ?? npc.shikona;
       const stableId = registryNpc?.stableId ?? npc.stableId;
-      const variance = simulationModelVersion === 'unified-v3-variance'
-        ? resolveBashoFormDelta({
+      const variance = resolveBashoFormDelta({
           uncertainty: npc.uncertainty,
           volatility: npc.volatility,
           rng,
-        })
-        : undefined;
+        });
       const bashoFormDelta = variance?.bashoFormDelta ?? 0;
       const seasonalPower =
         npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 0.9);
@@ -150,7 +147,7 @@ export const simulateLowerLeagueBasho = (
 ): LowerLeagueSnapshots => {
   const divisions: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
   const participants = divisions.flatMap((division) =>
-    createDivisionParticipants(world, division, rng, simulationModelVersion).map((participant) =>
+    createDivisionParticipants(world, division, rng).map((participant) =>
       toTorikumiLowerParticipant(division, participant),
     ),
   );
@@ -169,7 +166,7 @@ export const simulateLowerLeagueBasho = (
     facedMap,
     dayEligibility: (participant, day) => resolveLowerDivisionEligibility(participant, day, dayMap),
     onPair: ({ a, b }) => {
-      simulateNpcBout(a, b, rng, simulationModelVersion);
+      simulateNpcBout(a, b, rng);
     },
   });
 
@@ -205,7 +202,6 @@ export const simulateLowerLeagueBasho = (
         participants.filter((participant) => participant.division === division),
       ),
       rng,
-      simulationModelVersion,
     );
   }
 

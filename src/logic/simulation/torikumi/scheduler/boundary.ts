@@ -1,6 +1,6 @@
 import { boundaryNeedWeight } from '../policy';
 import { RandomSource } from '../../deps';
-import { SimulationModelVersion } from '../../modelVersion';
+
 import {
   BoundaryActivationReason,
   BoundaryBandSpec,
@@ -127,7 +127,6 @@ export const pairAcrossBoundary = (
   upperCandidates: TorikumiParticipant[],
   lowerCandidates: TorikumiParticipant[],
   reasons: BoundaryActivationReason[],
-  simulationModelVersion: SimulationModelVersion,
   rng?: RandomSource,
 ): TorikumiPair[] => {
   const pairs: TorikumiPair[] = [];
@@ -153,7 +152,6 @@ export const pairAcrossBoundary = (
         boundaryNeed: needWeight,
         boundaryId: spec.id,
         phase: resolvePairEvalPhase(day, lateEvalStartDay, upper, lower),
-        simulationModelVersion,
       });
       scoredCandidates.push({ lower, score });
       if (score < bestScore) {
@@ -162,7 +160,7 @@ export const pairAcrossBoundary = (
       }
     }
     if (
-      simulationModelVersion === 'unified-v3-variance' &&
+      true &&
       rng &&
       scoredCandidates.length > 1
     ) {

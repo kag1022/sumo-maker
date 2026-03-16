@@ -1,6 +1,5 @@
 import { TorikumiPair, TorikumiParticipant } from '../types';
 import { RandomSource } from '../../deps';
-import { SimulationModelVersion } from '../../modelVersion';
 import { compareForPhase, resolvePairEvalPhase, resolvePairScore } from './scoring';
 
 const isAlreadyPaired = (
@@ -37,7 +36,6 @@ export const pairWithinDivision = (
   faced: Map<string, Set<string>>,
   day: number,
   lateEvalStartDay: number,
-  simulationModelVersion: SimulationModelVersion,
   rng?: RandomSource,
 ): { pairs: TorikumiPair[]; leftovers: TorikumiParticipant[] } => {
   if (pool.length <= 1) return { pairs: [], leftovers: pool.slice() };
@@ -59,7 +57,6 @@ export const pairWithinDivision = (
       if (!isValidPair(faced, current, candidate)) continue;
       const score = resolvePairScore(current, candidate, day, {
         phase: resolvePairEvalPhase(day, lateEvalStartDay, current, candidate),
-        simulationModelVersion,
       });
       scoredCandidates.push({ candidate, score });
       if (score < bestScore) {
@@ -69,7 +66,7 @@ export const pairWithinDivision = (
     }
 
     if (
-      simulationModelVersion === 'unified-v3-variance' &&
+      true &&
       rng &&
       scoredCandidates.length > 1
     ) {

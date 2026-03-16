@@ -5,10 +5,7 @@ import {
   createSimulationEngine,
 } from '../../logic/simulation/engine';
 import { NpcBashoAggregate } from '../../logic/simulation/basho';
-import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from '../../logic/simulation/modelVersion';
+
 import { normalizeKimariteName } from '../../logic/kimarite/catalog';
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from './presets';
 import {
@@ -77,14 +74,13 @@ const buildInjurySummary = (status: RikishiStatus): LogicLabInjurySummary => {
 
 const buildSummary = (
   status: RikishiStatus,
-  simulationModelVersion: SimulationModelVersion,
   committeeWarnings: number,
   stopReason?: LogicLabStopReason,
 ): LogicLabSummary => {
   const sansho = summarizeSansho(status);
   return {
     bashoCount: status.history.records.length,
-    simulationModelVersion,
+    simulationModelVersion: 'v3',
     currentRank: { ...status.rank },
     maxRank: { ...status.history.maxRank },
     age: status.age,
@@ -360,8 +356,6 @@ export const createLogicLabRun = (
     presetId: partialConfig.presetId ?? LOGIC_LAB_DEFAULT_PRESET,
     seed: normalizeLogicLabSeed(partialConfig.seed),
     maxBasho: normalizeLogicLabMaxBasho(partialConfig.maxBasho),
-    simulationModelVersion:
-      partialConfig.simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
   };
 
   const initialRng = createSeededRandom(config.seed ^ 0x9e3779b9);
@@ -371,9 +365,9 @@ export const createLogicLabRun = (
     {
       initialStats: initialStatus,
       oyakata: null,
-      careerId: `logic-lab-${config.presetId}-${config.seed}-${config.simulationModelVersion}`,
+      careerId: `logic-lab-${config.presetId}-${config.seed}-v3`,
       banzukeMode: 'SIMULATE',
-      simulationModelVersion: config.simulationModelVersion,
+      simulationModelVersion: 'v3',
     },
     {
       random: simRng,
@@ -388,7 +382,7 @@ export const createLogicLabRun = (
   let stopReason: LogicLabStopReason | undefined;
 
   const getSummary = (): LogicLabSummary =>
-    buildSummary(currentStatus, config.simulationModelVersion, currentWarnings, stopReason);
+    buildSummary(currentStatus, currentWarnings, stopReason);
 
   const step = async (): Promise<LogicLabRunStep> => {
     if (completed || currentStatus.history.records.length >= config.maxBasho) {

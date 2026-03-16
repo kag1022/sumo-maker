@@ -14,10 +14,7 @@ import {
   MAKUSHITA_POWER_MIN,
   SekitoriBoundaryWorld,
 } from '../types';
-import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from '../../modelVersion';
+
 import { resolveBashoFormDelta } from '../../variance/bashoVariance';
 
 const snapshotParticipants = (participants: DivisionParticipant[]): BoundarySnapshot[] =>
@@ -34,7 +31,7 @@ const snapshotParticipants = (participants: DivisionParticipant[]): BoundarySnap
 const createMakushitaParticipants = (
   world: SekitoriBoundaryWorld,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
+  
 ): DivisionParticipant[] => {
   const roster = world.makushitaPool
     .slice()
@@ -42,7 +39,7 @@ const createMakushitaParticipants = (
     .slice(0, MAKUSHITA_POOL_SIZE);
 
   return roster.map((npc) => {
-    const bashoFormDelta = simulationModelVersion === 'unified-v3-variance'
+    const bashoFormDelta = true
       ? resolveBashoFormDelta({
         uncertainty: npc.uncertainty,
         volatility: npc.volatility,
@@ -82,7 +79,7 @@ const evolveMakushitaPool = (
   world: SekitoriBoundaryWorld,
   participants: DivisionParticipant[],
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
+  
 ): void => {
   const byId = new Map(participants.filter((p) => !p.isPlayer).map((p) => [p.id, p]));
 
@@ -104,7 +101,7 @@ const evolveMakushitaPool = (
         ability:
           (npc.ability ?? npc.basePower) +
           performanceOverExpected * 1.0 +
-          (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.45 : 0) +
+          ((result.bashoFormDelta ?? 0) * 0.45) +
           randomNoise(rng, 0.35),
         uncertainty: clamp((npc.uncertainty ?? 1.7) - 0.02, 0.6, 2.3),
         form: clamp(
@@ -112,11 +109,11 @@ const evolveMakushitaPool = (
           (
             1 +
             diff * 0.012 +
-            (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.008 : 0) +
+            ((result.bashoFormDelta ?? 0) * 0.008) +
             randomNoise(rng, 0.05)
           ) * 0.36,
-          simulationModelVersion === 'unified-v3-variance' ? 0.8 : 0.85,
-          simulationModelVersion === 'unified-v3-variance' ? 1.2 : 1.15,
+          0.8,
+          1.2,
         ),
         rankScore: clamp(npc.rankScore - diff * 0.6 + randomNoise(rng, 0.25), 1, 999),
       };
@@ -144,21 +141,21 @@ const evolveMakushitaPool = (
 export const simulateMakushitaBoundaryBasho = (
   world: SekitoriBoundaryWorld,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
+  
 ): BoundarySnapshot[] => {
-  const participants = createMakushitaParticipants(world, rng, simulationModelVersion);
+  const participants = createMakushitaParticipants(world, rng);
   const facedMap = createFacedMap(participants);
 
   for (let boutIndex = 0; boutIndex < 7; boutIndex += 1) {
     const day = 1 + boutIndex * 2;
     const daily = createDailyMatchups(participants, facedMap, rng, day, 15);
     for (const { a, b } of daily.pairs) {
-      simulateNpcBout(a, b, rng, simulationModelVersion);
+      simulateNpcBout(a, b, rng);
     }
   }
 
   const snapshots = snapshotParticipants(participants);
   world.lastMakushitaResults = snapshots;
-  evolveMakushitaPool(world, participants, rng, simulationModelVersion);
+  evolveMakushitaPool(world, participants, rng);
   return snapshots;
 };

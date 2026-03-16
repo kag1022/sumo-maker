@@ -1,7 +1,6 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
-import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
 import { pushNpcBashoResult } from '../npc/retirement';
 import { evaluateSpecialPrizes, SpecialPrizeCode } from '../topDivision/specialPrizes';
 import { resolveYushoResolution } from '../yusho';
@@ -20,7 +19,6 @@ export const evolveDivisionAfterBasho = (
   division: TopDivision,
   participants: DivisionParticipant[],
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
   const yushoResolution = resolveYushoResolution(
     participants.map((participant) => ({
@@ -104,7 +102,7 @@ export const evolveDivisionAfterBasho = (
       const performanceOverExpected = result.wins - expectedWins;
       const ability = (npc.ability ?? npc.basePower) +
         performanceOverExpected * 1.05 +
-        (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.45 : 0) +
+        ((result.bashoFormDelta ?? 0) * 0.45) +
         npc.growthBias * 0.85 +
         randomNoise(rng, 0.45);
       const basePower = softClampPower(
@@ -116,11 +114,11 @@ export const evolveDivisionAfterBasho = (
         (
           1 +
           diff * 0.01 +
-          (simulationModelVersion === 'unified-v3-variance' ? (result.bashoFormDelta ?? 0) * 0.008 : 0) +
+          ((result.bashoFormDelta ?? 0) * 0.008) +
           randomNoise(rng, 0.06)
         ) * 0.4,
-        simulationModelVersion === 'unified-v3-variance' ? 0.78 : 0.85,
-        simulationModelVersion === 'unified-v3-variance' ? 1.22 : 1.15,
+        0.78,
+        1.22,
       );
       const nextUncertainty = clamp((npc.uncertainty ?? 1.7) - 0.02, 0.55, 2.3);
       const nextRankScore = clamp(

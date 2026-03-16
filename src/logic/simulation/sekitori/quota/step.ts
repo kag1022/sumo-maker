@@ -2,10 +2,7 @@ import { BanzukeEngineVersion } from '../../../banzuke/types';
 import { resolveSekitoriBoundaryAssignedRank } from '../../../banzuke/providers/sekitoriBoundary';
 import { RandomSource } from '../../deps';
 import { LowerDivisionQuotaWorld } from '../../lowerQuota';
-import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from '../../modelVersion';
+
 import { applyNpcExchange } from '../pool/applyExchange';
 import { createSekitoriMakushitaPool } from '../pool/factory';
 import { mergePlayerMakushitaRecord } from '../pool/mergePlayer';
@@ -36,7 +33,6 @@ export const runSekitoriQuotaStep = (
   rng: RandomSource,
   playerMakushitaRecord?: PlayerMakushitaRecord,
   lowerWorld?: LowerDivisionQuotaWorld,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
   banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
 ): SekitoriExchange => {
   boundaryWorld.lastPlayerJuryoHalfStepNudge = 0;
@@ -48,7 +44,7 @@ export const runSekitoriQuotaStep = (
   const makushitaBase =
     lowerWorld?.lastResults.Makushita && lowerWorld.lastResults.Makushita.length
       ? lowerWorld.lastResults.Makushita
-      : simulateMakushitaBoundaryBasho(boundaryWorld, rng, simulationModelVersion);
+      : simulateMakushitaBoundaryBasho(boundaryWorld, rng);
   const makushitaResults = mergePlayerMakushitaRecord(makushitaBase, playerMakushitaRecord);
   const playerMakushitaRow = makushitaResults.find((result) => result.id === 'PLAYER');
   const playerMakushitaIsKachikoshi = Boolean(
