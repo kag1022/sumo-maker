@@ -42,7 +42,7 @@ export const runBashoDetailed = (
     );
   }
   if (status.rank.division === 'Maezumo' && lowerWorld) {
-    return runMaezumoBasho(status, year, month, rng, lowerWorld, simulationModelVersion);
+    return runMaezumoBasho(status, year, month, rng, lowerWorld);
   }
   if (
     (status.rank.division === 'Makushita' ||
@@ -62,7 +62,7 @@ export const runBashoDetailed = (
       playerBashoFormDelta,
     );
   }
-  return runSimplifiedBasho(status, year, month, rng, simulationModelVersion);
+  return runSimplifiedBasho(status, year, month, rng);
 };
 
 export const runBasho = (

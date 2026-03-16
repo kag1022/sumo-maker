@@ -192,11 +192,11 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
 
   if (!playerTopDivision) {
-    simulateOffscreenSekitoriBasho(world, deps.random, simulationModelVersion);
+    simulateOffscreenSekitoriBasho(world, deps.random);
   }
   const conditionBeforeBasho = state.status.currentCondition;
   const playerBashoFormDelta =
-    simulationModelVersion === 'unified-v3-variance'
+    true
       ? resolveBashoFormDelta({
         uncertainty: state.status.ratingState.uncertainty,
         volatility: 1.2,
@@ -236,7 +236,6 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     deps.random,
     lowerPlayerRecord,
     bashoResult.lowerLeagueSnapshots,
-    simulationModelVersion,
     banzukeEngineVersion,
   );
   runSekitoriQuotaStep(
@@ -245,7 +244,6 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     deps.random,
     undefined,
     lowerDivisionQuotaWorld,
-    simulationModelVersion,
     banzukeEngineVersion,
   );
 
@@ -441,7 +439,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
   state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
   state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
-  if (simulationModelVersion === 'unified-v3-variance') {
+  if (true) {
     state.status.currentCondition = updateConditionForV3({
       previousCondition: conditionBeforeBasho,
       actualWins: bashoRecord.wins,
@@ -503,7 +501,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lateCrossDivisionBoutCount: bashoResult.torikumiDiagnostics?.lateCrossDivisionBoutCount,
     sameStableViolationCount: bashoResult.torikumiDiagnostics?.sameStableViolationCount,
     sameCardViolationCount: bashoResult.torikumiDiagnostics?.sameCardViolationCount,
-    ...(simulationModelVersion === 'unified-v3-variance'
+    ...(true
       ? {
         bashoVariance: {
           playerBashoFormDelta,

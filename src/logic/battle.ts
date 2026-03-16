@@ -16,10 +16,6 @@ import {
   resolveCompetitiveFactor,
 } from './simulation/realism';
 import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from './simulation/modelVersion';
-import {
   KimariteStyle,
   normalizeKimariteName,
 } from './kimarite/catalog';
@@ -112,329 +108,12 @@ const resolveDesignedStyleBattleModifier = (status: RikishiStatus): number => {
   return 1 + compatibilityBonus + (secretTacticsMatch ? 0.03 : 0);
 };
 
-/**
- * 勝敗判定ロジック
- * @param rikishi 自分の力士
- * @param enemy 相手力士の情報
- * @param context 取組コンテキスト（スキル判定用）
- * @returns boolean 勝利ならtrue
- */
-const resolveBattleResultV1 = (
-  rikishi: RikishiStatus, 
-  enemy: EnemyStats, 
-  context?: BoutContext,
-  rng: RandomSource = Math.random,
-  _simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
-): { isWin: boolean, kimarite: string; winProbability: number; opponentAbility: number } => {
-  const traits = rikishi.traits || [];
-  const numBouts = CONSTANTS.BOUTS_MAP[rikishi.rank.division];
-  const currentWinStreak = Math.max(0, context?.currentWinStreak ?? context?.consecutiveWins ?? 0);
-  const currentLossStreak = Math.max(0, context?.currentLossStreak ?? 0);
-  const opponentWinStreak = Math.max(0, context?.opponentWinStreak ?? 0);
-  const opponentLossStreak = Math.max(0, context?.opponentLossStreak ?? 0);
-
-  // 1. 基礎能力の総合値を計算
-  const myTotal = Object.values(rikishi.stats).reduce((a, b) => a + b, 0);
-  const myAverage = myTotal / 8;
-  
-  // 2. 調子補正
-  const conditionMod = 1.0 + ((rikishi.currentCondition - 50) / 200); 
-  
-  // 3. 戦闘力基本値
-  let myPower = myAverage * conditionMod;
-
-  const baseMetrics = rikishi.bodyMetrics ?? DEFAULT_BODY_METRICS[rikishi.bodyType];
-  const metricMod = resolveBodyMetricModifiers(rikishi.bodyType);
-  const myHeight = baseMetrics.heightCm * metricMod.height;
-  const myWeight = baseMetrics.weightKg * metricMod.weight;
-  const enemyHeight = enemy.heightCm;
-  const enemyWeight = enemy.weightKg;
-  const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
-  myPower += sizeDiff * 0.9;
-  myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
-  myPower *= resolveKataBattleModifier(rikishi);
-  myPower *= resolveDesignedStyleBattleModifier(rikishi);
-  const baselinePower = myPower;
-
-  // 得意技ボーナス
-  let usedSignatureMove: string | null = null;
-  
-  if (rikishi.signatureMoves && rikishi.signatureMoves.length > 0) {
-      const moveName = rikishi.signatureMoves[0];
-      const moveData = CONSTANTS.SIGNATURE_MOVE_DATA[moveName];
-      if (moveData) {
-          const relatedTotal = moveData.relatedStats.reduce((sum, stat) => sum + (rikishi.stats[stat as keyof typeof rikishi.stats] || 0), 0);
-          const relatedAvg = relatedTotal / moveData.relatedStats.length;
-          
-          if (relatedAvg >= myAverage * 0.9) {
-             const signatureBonus = moveData.winRateBonus * 8;
-             myPower += signatureBonus;
-             usedSignatureMove = moveName;
-          }
-      }
-  }
-
-  // --- スキル効果（勝敗補正） ---
-
-  // 【強心臓】: 幕内での取組、または勝ち越しがかかった一番で+10%
-  if (traits.includes('KYOUSHINZOU')) {
-      const isMakuuchi = rikishi.rank.division === 'Makuuchi';
-      const isKachiKoshiMatch = context && context.currentWins === 7 && context.currentLosses <= 7;
-      const isNijuuShouMatch = context && context.currentWins === 9 && context.currentLosses <= 5;
-      if (isMakuuchi || isKachiKoshiMatch || isNijuuShouMatch) {
-          myPower *= 1.1;
-      }
-  }
-
-  // 【金星ハンター】: 横綱・大関相手で1.25倍
-  if (traits.includes('KINBOSHI_HUNTER') && enemy.rankValue <= 2) {
-      myPower *= 1.25;
-  }
-
-  // 【ノミの心臓】: 横綱・大関相手、または大事な一番で0.8倍
-  if (traits.includes('NOMI_NO_SHINZOU')) {
-      const isImportantMatch = context && (
-          context.currentWins === 7 || // 勝ち越しがかかった
-          (context.isLastDay && context.isYushoContention)
-      );
-      if (enemy.rankValue <= 2 || isImportantMatch) {
-          myPower *= 0.8;
-      }
-  }
-
-  // 【大舞台の鬼】: 優勝がかかった千秋楽/優勝決定戦で+20%
-  if (traits.includes('OOBUTAI_NO_ONI') && context) {
-      if (context.isLastDay && context.isYushoContention) {
-          myPower *= 1.2;
-      }
-  }
-
-  // 【連勝街道】: 3連勝以上で連勝数*1.2（最大+8）のボーナス
-  if (traits.includes('RENSHOU_KAIDOU') && currentWinStreak >= 3) {
-      const streakBonus = Math.min(8, currentWinStreak * 1.2);
-      myPower += streakBonus;
-  }
-
-  // 【スロースターター】: 前半-6%, 後半+6%
-  if (traits.includes('SLOW_STARTER') && context) {
-      if (context.day <= Math.ceil(numBouts / 2)) {
-          myPower *= 0.94;
-      } else {
-          myPower *= 1.06;
-      }
-  }
-
-  // 【巨人殺し】: 格上の相手に+20%
-  if (traits.includes('KYOJIN_GOROSHI') && enemy.power > myAverage * 1.2) {
-      myPower *= 1.2;
-  }
-
-  // 【小兵キラー】: 格下の相手に+15%
-  if (traits.includes('KOHEI_KILLER') && enemy.power < myAverage * 0.9) {
-      myPower *= 1.15;
-  }
-
-  // 【四つの鬼】: GRAPPLE戦術時に+10%
-  if (traits.includes('YOTSU_NO_ONI') && rikishi.tactics === 'GRAPPLE') {
-      myPower *= 1.1;
-  }
-
-  // 【突っ張り特化】: PUSH戦術時に+10%
-  if (traits.includes('TSUPPARI_TOKKA') && rikishi.tactics === 'PUSH') {
-      myPower *= 1.1;
-  }
-
-  if (traits.includes('LONG_REACH') && myHeight >= 190) {
-      myPower += 6;
-  }
-
-  if (traits.includes('HEAVY_PRESSURE') && myWeight - enemyWeight >= 15) {
-      myPower *= 1.12;
-  }
-
-  if (traits.includes('WEAK_LOWER_BACK') && context && context.currentLosses > context.currentWins) {
-      myPower *= 0.92;
-  }
-
-  if (traits.includes('OPENING_DASH') && context && context.day <= 3) {
-      myPower *= 1.12;
-  }
-
-  if (traits.includes('SENSHURAKU_KISHITSU') && context?.isLastDay) {
-      myPower *= 1.15;
-  }
-
-  if (traits.includes('TRAILING_FIRE') && context && context.currentLosses > context.currentWins) {
-      myPower *= 1.18;
-  }
-
-  if (traits.includes('PROTECT_LEAD') && context && context.currentWins - context.currentLosses >= 3) {
-      myPower *= 1.10;
-  }
-
-  if (traits.includes('BELT_COUNTER') && rikishi.tactics === 'GRAPPLE' && enemyWeight - myWeight >= 10) {
-      myPower *= 1.15;
-  }
-
-  if (traits.includes('THRUST_RUSH') && rikishi.tactics === 'PUSH' && context && context.day <= 5) {
-      myPower *= 1.12;
-  }
-
-  if (traits.includes('READ_THE_BOUT') && context?.previousResult === 'LOSS') {
-      myPower += 4;
-  }
-
-  // --- DNA CareerVariance 補正 ---
-  if (rikishi.genome) {
-    const gv = rikishi.genome.variance;
-    let dnaBonus = 0;
-
-    // clutchBias: 重要場面で勝負強さを反映
-    if (context) {
-      const isImportant = context.currentWins === 7 ||
-        (context.isLastDay && context.isYushoContention) ||
-        context.currentWins >= 10;
-      if (isImportant) {
-        dnaBonus += gv.clutchBias * 0.1; // -5 ~ +5
-      }
-    }
-
-    // formVolatility: 調子補正の振れ幅を拡大/縮小
-    const volatilityFactor = 1 + (gv.formVolatility - 50) / 200; // 0.75 ~ 1.25
-    const conditionDelta = myPower * (conditionMod - 1);
-    myPower += conditionDelta * (volatilityFactor - 1);
-
-    // streakSensitivity: 連勝/連敗ボーナスの乗数
-    if (context) {
-      const streakFactor = (gv.streakSensitivity - 50) / 100; // -0.5 ~ +0.5
-      if (currentWinStreak >= 2) {
-        dnaBonus += currentWinStreak * streakFactor * 0.5;
-      } else if (currentLossStreak >= 2) {
-        dnaBonus -= currentLossStreak * streakFactor * 0.35;
-      }
-    }
-
-    // 過剰補正防止: myPower の +/-15% まで
-    const maxDnaMod = baselinePower * 0.15;
-    dnaBonus = clamp(dnaBonus, -maxDnaMod, maxDnaMod);
-    myPower += dnaBonus;
-  }
-
-  // 体格ボーナス
-  if (rikishi.bodyType === 'ANKO') {
-      // アンコ型: 押し相撲ボーナス
-      myPower += 3;
-  } else if (rikishi.bodyType === 'SOPPU') {
-      // ソップ型: 引き技ボーナス（後で決まり手に反映）
-  }
-  
-  // 5. 乱数判定
-  const roll = rng();
-  const playerStyle =
-    rikishi.tactics === 'PUSH' ? 'PUSH' :
-      rikishi.tactics === 'GRAPPLE' ? 'GRAPPLE' :
-        rikishi.tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
-          'BALANCE';
-  const bonus = myPower - baselinePower;
-  const playerCompetitiveFactor = resolveCompetitiveFactor(rikishi);
-  const enemyCompetitiveFactor = resolveCompetitiveFactor(
-    enemy as EnemyStats & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
-  );
-  const enemyAbilityRaw =
-    (enemy.ability ?? enemy.power) +
-    ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
-  const enemyAbility = enemyAbilityRaw * enemyCompetitiveFactor;
-  const injuryPenalty = Math.max(0, rikishi.injuryLevel);
-  const myAbilityBase =
-    resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
-  const myAbility = myAbilityBase * playerCompetitiveFactor;
-  const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
-  const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
-  const momentumDelta = myMomentum - opponentMomentum;
-  const winProbability = resolveBoutWinProb({
-    attackerAbility: myAbility,
-    defenderAbility: enemyAbility,
-    attackerStyle: playerStyle,
-    defenderStyle: enemy.styleBias,
-    injuryPenalty,
-    bonus: momentumDelta,
-  });
-  const opponentAbility = enemyAbility;
-  const isWin = roll < winProbability;
-
-  // 【土俵際の魔術師 / 土壇場返し】: 負け判定時に低確率で逆転
-  if (!isWin) {
-      const hasDohyogiwa = traits.includes('DOHYOUGIWA_MAJUTSU') && rng() < 0.06;
-      const hasClutchReversal = traits.includes('CLUTCH_REVERSAL') && rng() < 0.04;
-      if (hasDohyogiwa || hasClutchReversal) {
-        const reversalMoves = ['うっちゃり', '網打ち', '突き落とし', '肩透かし', 'とったり'];
-        const kimarite = reversalMoves[Math.floor(rng() * reversalMoves.length)];
-        return { isWin: true, kimarite, winProbability, opponentAbility };
-      }
-  }
-
-  // 6. 決まり手の決定
-  let kimarite: string;
-  if (isWin) {
-    // 【荒技師】: レア技になりやすい
-    if (traits.includes('ARAWAZASHI') && rng() < 0.4) {
-        const rareMoves = ['一本背負い', '河津掛け', '蹴手繰り', 'とったり', '網打ち', '吊り出し', '小手投げ', '首投げ'];
-        kimarite = rareMoves[Math.floor(rng() * rareMoves.length)];
-    } else if (usedSignatureMove && rng() < 0.5) {
-        kimarite = usedSignatureMove;
-    } else {
-        const stats = rikishi.stats;
-        const totalPush = stats.tsuki + stats.oshi + stats.deashi;
-        const totalGrapple = stats.kumi + stats.koshi + stats.power;
-
-        const roll = rng();
-
-        // ソップ型: 引き技率UP
-        const soppuBonus = rikishi.bodyType === 'SOPPU' ? 0.15 : 0;
-
-        if (totalPush > totalGrapple && roll < 0.6) {
-            const pushMoves = ['押し出し', '押し倒し', '突き出し', '突き倒し', '電車道'];
-            kimarite = pushMoves[Math.floor(rng() * pushMoves.length)];
-        } else if (totalGrapple > totalPush && roll < 0.6) {
-            const grappleMoves = ['寄り切り', '寄り倒し', '吊り出し', '送り出し', 'もろ差し'];
-            kimarite = grappleMoves[Math.floor(rng() * grappleMoves.length)];
-        } else {
-            if (stats.nage > stats.waza) {
-                const throwMoves = ['上手投げ', '下手投げ', '小手投げ', '掬い投げ', '上手出し投げ', '首投げ'];
-                kimarite = throwMoves[Math.floor(rng() * throwMoves.length)];
-            } else if (stats.waza > stats.power || soppuBonus > 0) {
-                // ソップ型は技術・引き技寄りになる
-                const techMoves = ['叩き込み', '引き落とし', '突き落とし', '肩透かし', '蹴手繰り', 'とったり'];
-                kimarite = techMoves[Math.floor(rng() * techMoves.length)];
-            } else {
-                const reversalMoves = ['うっちゃり', '網打ち', '一本背負い', '河津掛け', '勇み足'];
-                if (rng() < 0.3) {
-                    kimarite = reversalMoves[Math.floor(rng() * reversalMoves.length)];
-                } else {
-                    kimarite = '寄り切り';
-                }
-            }
-        }
-    }
-  } else {
-    // 負け決まり手
-    const losingMoves = [
-        '押し出し', '寄り切り', '押し倒し', '寄り倒し', 
-        '突き出し', '突き倒し', '上手投げ', '下手投げ', 
-        '突き落とし', '引き落とし', '叩き込み', '吊り出し', 
-        '送り出し', '小手投げ', 'すくい投げ', '勇み足'
-    ];
-    kimarite = losingMoves[Math.floor(rng() * losingMoves.length)];
-  }
-
-  return { isWin, kimarite, winProbability, opponentAbility };
-};
-
 const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
   tactics === 'PUSH' ? 'PUSH' :
     tactics === 'GRAPPLE' ? 'GRAPPLE' :
       tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
         'BALANCE';
+
 
 const buildEnemyKimariteStats = (
   enemy: EnemyStats,
@@ -528,7 +207,7 @@ const buildPlayerKimariteProfile = (
   historyCounts: rikishi.history.kimariteTotal ?? {},
 });
 
-const resolveBattleResultV2 = (
+const resolveBattleResult = (
   rikishi: RikishiStatus,
   enemy: EnemyStats,
   context?: BoutContext,
@@ -701,16 +380,8 @@ export const calculateBattleResult = (
   enemy: EnemyStats,
   context?: BoutContext,
   rng: RandomSource = Math.random,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
-): { isWin: boolean; kimarite: string; winProbability: number; opponentAbility: number } => {
-  if (
-    simulationModelVersion === 'unified-v2-kimarite' ||
-    simulationModelVersion === 'unified-v3-variance'
-  ) {
-    return resolveBattleResultV2(rikishi, enemy, context, rng);
-  }
-  return resolveBattleResultV1(rikishi, enemy, context, rng, simulationModelVersion);
-};
+): { isWin: boolean; kimarite: string; winProbability: number; opponentAbility: number } =>
+  resolveBattleResult(rikishi, enemy, context, rng);
 
 /**
  * 階級に応じた敵を生成する（静的プールから取得）

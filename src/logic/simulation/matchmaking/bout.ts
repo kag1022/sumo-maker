@@ -5,10 +5,7 @@ import {
   resolveBoutWinProb,
   resolveUnifiedNpcStrength,
 } from '../strength/model';
-import {
-  DEFAULT_SIMULATION_MODEL_VERSION,
-  SimulationModelVersion,
-} from '../modelVersion';
+
 import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import { DivisionParticipant } from './types';
@@ -58,7 +55,6 @@ const resolveNpcWinProbability = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
 ): number => {
   const aStreakMomentum = calculateMomentumBonus(
     resolveSignedStreak(a.currentWinStreak, a.currentLossStreak),
@@ -68,7 +64,7 @@ const resolveNpcWinProbability = (
   );
   const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
   const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
-  const boutNoiseAmplitude = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.4;
+  const boutNoiseAmplitude = 1.0;
   const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
   const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
@@ -101,7 +97,6 @@ export const simulateNpcBout = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
   if (!a.active && !b.active) {
     // 両者休場の場合は勝敗つかず
@@ -132,7 +127,7 @@ export const simulateNpcBout = (
   a.currentLossStreak = Math.max(0, a.currentLossStreak ?? 0);
   b.currentWinStreak = Math.max(0, b.currentWinStreak ?? 0);
   b.currentLossStreak = Math.max(0, b.currentLossStreak ?? 0);
-  const aWinProbability = resolveNpcWinProbability(a, b, rng, simulationModelVersion);
+  const aWinProbability = resolveNpcWinProbability(a, b, rng);
   const aAbility = resolveUnifiedNpcStrength({
     ability: (a.ability ?? a.power) + (a.bashoFormDelta ?? 0),
     power: a.power,

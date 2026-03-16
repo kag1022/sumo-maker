@@ -3,7 +3,7 @@ import { CONSTANTS } from '../../constants';
 import { RikishiStatus } from '../../models';
 import { RandomSource } from '../deps';
 import { LowerDivisionQuotaWorld } from '../lowerQuota';
-import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
+
 import {
   resolvePerformanceMetrics,
   resolveScheduledBoutDay,
@@ -16,7 +16,6 @@ export const runMaezumoBasho = (
   month: number,
   rng: RandomSource,
   lowerWorld: LowerDivisionQuotaWorld,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP.Maezumo;
   let wins = 0;
@@ -73,7 +72,6 @@ export const runMaezumoBasho = (
         previousResult,
       },
       rng,
-      simulationModelVersion,
     );
     expectedWins += result.winProbability;
     sosTotal += result.opponentAbility;

@@ -1,6 +1,6 @@
 import { InjuryStatusType, Rank, RealismKpiSnapshot } from '../../logic/models';
 import { PauseReason } from '../../logic/simulation/engine';
-import { SimulationModelVersion } from '../../logic/simulation/modelVersion';
+
 
 export type LogicLabPresetId =
   | 'RANDOM_BASELINE'
@@ -22,7 +22,6 @@ export interface LogicLabRunConfig {
   presetId: LogicLabPresetId;
   seed: number;
   maxBasho: number;
-  simulationModelVersion: SimulationModelVersion;
 }
 
 export interface LogicLabBashoRecordView {
@@ -86,7 +85,7 @@ export interface LogicLabBashoLogRow {
 
 export interface LogicLabSummary {
   bashoCount: number;
-  simulationModelVersion: SimulationModelVersion;
+  simulationModelVersion: 'v3';
   currentRank: Rank;
   maxRank: Rank;
   age: number;
@@ -103,18 +102,3 @@ export interface LogicLabSummary {
   stopReason?: LogicLabStopReason;
 }
 
-export interface LogicLabComparisonResult {
-  config: {
-    presetId: LogicLabPresetId;
-    seed: number;
-    maxBasho: number;
-  };
-  current: LogicLabSummary;
-  newModel: LogicLabSummary;
-  topKimariteDiffs: Array<{
-    name: string;
-    current: number;
-    newModel: number;
-    delta: number;
-  }>;
-}

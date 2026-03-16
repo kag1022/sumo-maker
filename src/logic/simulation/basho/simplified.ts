@@ -10,7 +10,7 @@ import {
   resolveInjuryRate,
   withInjuryBattlePenalty,
 } from '../injury';
-import { SimulationModelVersion } from '../modelVersion';
+
 import {
   addAbsentBoutDetails,
   isKinboshiEligibleRank,
@@ -23,7 +23,6 @@ export const runSimplifiedBasho = (
   year: number,
   month: number,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP[status.rank.division];
   let wins = 0;
@@ -111,7 +110,6 @@ export const runSimplifiedBasho = (
       enemy,
       boutContext,
       rng,
-      simulationModelVersion,
     );
     expectedWins += result.winProbability;
     sosTotal += result.opponentAbility;

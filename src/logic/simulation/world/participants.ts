@@ -1,7 +1,6 @@
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
-import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
 import { resolveBashoFormDelta } from '../variance/bashoVariance';
 import { DIVISION_SIZE, POWER_RANGE, randomNoise, softClampPower } from './shared';
 import { SimulationWorld, TopDivision } from './types';
@@ -10,7 +9,6 @@ export const createDivisionParticipants = (
   world: SimulationWorld,
   division: TopDivision,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): DivisionParticipant[] => {
   const roster = world.rosters[division]
     .slice()
@@ -22,13 +20,11 @@ export const createDivisionParticipants = (
     const shikona = registryNpc?.shikona ?? npc.shikona;
     const stableId = registryNpc?.stableId ?? npc.stableId;
     const active = registryNpc?.active !== false;
-    const bashoVariance = simulationModelVersion === 'unified-v3-variance'
-      ? resolveBashoFormDelta({
+    const bashoVariance = resolveBashoFormDelta({
         uncertainty: registryNpc?.uncertainty ?? npc.uncertainty,
         volatility: npc.volatility,
         rng,
-      })
-      : undefined;
+      });
     const bashoFormDelta = bashoVariance?.bashoFormDelta ?? 0;
     const seasonalAbility =
       (registryNpc?.ability ?? npc.ability ?? npc.basePower) +

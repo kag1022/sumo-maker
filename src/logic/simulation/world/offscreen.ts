@@ -1,6 +1,5 @@
 import { RandomSource } from '../deps';
 import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../matchmaking';
-import { DEFAULT_SIMULATION_MODEL_VERSION, SimulationModelVersion } from '../modelVersion';
 import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from '../torikumi/policy';
 import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { toDivisionParticipants, toTorikumiParticipant } from './shared';
@@ -12,31 +11,29 @@ export const simulateOffscreenTopDivisionBasho = (
   world: SimulationWorld,
   division: TopDivision,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
-  const participants = createDivisionParticipants(world, division, rng, simulationModelVersion);
+  const participants = createDivisionParticipants(world, division, rng);
   const facedMap = createFacedMap(participants);
 
   for (let day = 1; day <= 15; day += 1) {
     const dailyMatchups = createDailyMatchups(participants, facedMap, rng, day, 15);
     const pairs = dailyMatchups.pairs;
     for (const { a, b } of pairs) {
-      simulateNpcBout(a, b, rng, simulationModelVersion);
+      simulateNpcBout(a, b, rng);
     }
   }
 
-  evolveDivisionAfterBasho(world, division, participants, rng, simulationModelVersion);
+  evolveDivisionAfterBasho(world, division, participants, rng);
 };
 
 export const simulateOffscreenSekitoriBasho = (
   world: SimulationWorld,
   rng: RandomSource,
-  simulationModelVersion: SimulationModelVersion = DEFAULT_SIMULATION_MODEL_VERSION,
 ): void => {
-  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng, simulationModelVersion).map((participant) =>
+  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng).map((participant) =>
     toTorikumiParticipant('Makuuchi', participant, world),
   );
-  const juryo = createDivisionParticipants(world, 'Juryo', rng, simulationModelVersion).map((participant) =>
+  const juryo = createDivisionParticipants(world, 'Juryo', rng).map((participant) =>
     toTorikumiParticipant('Juryo', participant, world),
   );
   const participants = makuuchi.concat(juryo);
@@ -45,11 +42,10 @@ export const simulateOffscreenSekitoriBasho = (
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
-    simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),
     onPair: ({ a, b }) => {
-      simulateNpcBout(a, b, rng, simulationModelVersion);
+      simulateNpcBout(a, b, rng);
     },
   });
 
@@ -58,13 +54,11 @@ export const simulateOffscreenSekitoriBasho = (
     'Makuuchi',
     toDivisionParticipants(participants.filter((participant) => participant.division === 'Makuuchi')),
     rng,
-    simulationModelVersion,
   );
   evolveDivisionAfterBasho(
     world,
     'Juryo',
     toDivisionParticipants(participants.filter((participant) => participant.division === 'Juryo')),
     rng,
-    simulationModelVersion,
   );
 };

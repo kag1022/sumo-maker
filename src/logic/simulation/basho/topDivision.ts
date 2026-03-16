@@ -118,13 +118,11 @@ export const runTopDivisionBasho = (
     world,
     'Makuuchi',
     rng,
-    simulationModelVersion,
   ).map((participant) => toTorikumiSekitoriParticipant('Makuuchi', participant));
   const juryo = createDivisionParticipants(
     world,
     'Juryo',
     rng,
-    simulationModelVersion,
   ).map((participant) => toTorikumiSekitoriParticipant('Juryo', participant));
   const participants = makuuchi.concat(juryo);
 
@@ -133,7 +131,7 @@ export const runTopDivisionBasho = (
     throw new Error('Player participant was not initialized for top division basho');
   }
   const playerBashoFormDelta =
-    simulationModelVersion === 'unified-v3-variance'
+    true
       ? (
         Number.isFinite(forcedPlayerBashoFormDelta)
           ? (forcedPlayerBashoFormDelta as number)
@@ -169,7 +167,7 @@ export const runTopDivisionBasho = (
         const aRank = resolveTopDivisionRank(aDivision, a.rankScore, world.makuuchiLayout);
         const bRank = resolveTopDivisionRank(bDivision, b.rankScore, world.makuuchiLayout);
         const aWinsBefore = a.wins;
-        simulateNpcBout(a, b, rng, simulationModelVersion);
+        simulateNpcBout(a, b, rng);
         if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
           const aWon = a.wins > aWinsBefore;
           const winner = aWon ? a : b;
@@ -269,7 +267,7 @@ export const runTopDivisionBasho = (
         return;
       }
 
-      const enemyPowerNoise = simulationModelVersion === 'unified-v3-variance' ? 1.0 : 1.5;
+      const enemyPowerNoise = 1.0;
       const enemy = {
         shikona: opponent.shikona,
         rankValue: resolveTopDivisionRankValue(
@@ -307,7 +305,6 @@ export const runTopDivisionBasho = (
         enemy,
         boutContext,
         rng,
-        simulationModelVersion,
       );
       expectedWins += result.winProbability;
       sosTotal += result.opponentAbility;
@@ -385,8 +382,8 @@ export const runTopDivisionBasho = (
   const juryoParticipants = toDivisionParticipants(
     participants.filter((participant) => participant.division === 'Juryo'),
   );
-  evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng, simulationModelVersion);
-  evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng, simulationModelVersion);
+  evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng);
+  evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng);
 
   const divisionParticipants = division === 'Makuuchi' ? makuuchiParticipants : juryoParticipants;
   const divisionResults = world.lastBashoResults[division] ?? [];
