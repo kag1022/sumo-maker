@@ -11,6 +11,7 @@ export default tseslint.config(
       '.tmp',
       'scripts/tests/run_sim_tests.cjs',
       'scripts/reports/**',
+      'scripts/remove_bg.cjs',
     ],
   },
   js.configs.recommended,
@@ -28,6 +29,9 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'indent': ['warn', 2, { SwitchCase: 1 }],
+      'no-multiple-empty-lines': ['warn', { max: 1, maxEOF: 0 }],
+      'eol-last': ['warn', 'always'],
     },
   },
 );

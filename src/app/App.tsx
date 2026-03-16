@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React from "react";
 import { AlertTriangle, BookOpenText, FastForward, Square } from "lucide-react";
 import { AppSection, AppShell } from "./AppShell";
 import { ScoutScreen } from "../features/scout/components/ScoutScreen";
@@ -18,8 +18,8 @@ const formatRankName = (rank: Rank): string => {
   return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
 };
 
-function App() {
-  const [activeSection, setActiveSection] = useState<AppSection>("scout");
+export const App: React.FC = () => {
+  const [activeSection, setActiveSection] = React.useState<AppSection>("scout");
 
   const {
     phase,
@@ -45,7 +45,7 @@ function App() {
     resetView,
   } = useSimulation();
 
-  useEffect(() => {
+  React.useEffect(() => {
     void loadHallOfFame();
     void loadUnshelvedCareers();
   }, [loadHallOfFame, loadUnshelvedCareers]);
@@ -76,7 +76,7 @@ function App() {
   const isCompleted = phase === "completed";
   const isInstantMode = simulationPacing === "skip_to_end";
 
-  const shellCopy = useMemo(() => {
+  const shellCopy = React.useMemo(() => {
     if (activeSection === "archive") {
       return {
         title: "保存済み記録",
@@ -489,4 +489,4 @@ const RunningDashboard: React.FC<{
   );
 };
 
-export default App;
+

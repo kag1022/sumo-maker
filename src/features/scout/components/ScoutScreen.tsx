@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import { Oyakata, RikishiStatus, BodyType, EntryDivision, PersonalityType, Trait } from "../../../logic/models";
 import { CONSTANTS } from "../../../logic/constants";
 import {
@@ -49,14 +49,14 @@ const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const isDev = import.meta.env.DEV;
-  const [wallet, setWallet] = useState<WalletState | null>(null);
-  const [baseDraft, setBaseDraft] = useState<ScoutDraft | null>(null);
-  const [editedDraft, setEditedDraft] = useState<ScoutDraft | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [wallet, setWallet] = React.useState<WalletState | null>(null);
+  const [baseDraft, setBaseDraft] = React.useState<ScoutDraft | null>(null);
+  const [editedDraft, setEditedDraft] = React.useState<ScoutDraft | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState<string>("");
+  const [isDrawing, setIsDrawing] = React.useState(false);
+  const [isRegistering, setIsRegistering] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let active = true;
     const refreshWallet = async () => {
       const next = await getWalletState();
@@ -74,7 +74,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     };
   }, []);
 
-  const overrideCost = useMemo(() => {
+  const overrideCost = React.useMemo(() => {
     if (!baseDraft || !editedDraft) {
       return {
         total: 0,
