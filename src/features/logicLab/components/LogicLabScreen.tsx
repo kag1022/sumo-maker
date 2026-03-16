@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { getRankValueForChart } from '../../../logic/ranking';
 import { Rank } from '../../../logic/models';
 import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
@@ -82,17 +82,17 @@ export const LogicLabScreen: React.FC = () => {
   const selectLogIndex = useLogicLabStore((state) => state.selectLogIndex);
   const resetRun = useLogicLabStore((state) => state.resetRun);
 
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<LogFilter>('ALL');
-  const [desc, setDesc] = useState(true);
+  const [query, setQuery] = React.useState('');
+  const [filter, setFilter] = React.useState<LogFilter>('ALL');
+  const [desc, setDesc] = React.useState(true);
 
-  const selectedRow = useMemo(() => {
+  const selectedRow = React.useMemo(() => {
     if (typeof selectedLogIndex === 'number' && logs[selectedLogIndex]) return logs[selectedLogIndex];
     return logs.length ? logs[logs.length - 1] : null;
   }, [logs, selectedLogIndex]);
   const comparisonPresetLabel = comparison ? resolveLogicLabPresetLabel(comparison.config.presetId) : '-';
 
-  const filtered = useMemo(() => {
+  const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = logs.map((row, index) => ({ row, index })).filter(({ row }) => {
       if (!matchesFilter(row, filter)) return false;
@@ -109,7 +109,7 @@ export const LogicLabScreen: React.FC = () => {
     return desc ? rows.slice().reverse() : rows;
   }, [logs, query, filter, desc]);
 
-  const stats = useMemo(() => {
+  const stats = React.useMemo(() => {
     let promotion = 0;
     let demotion = 0;
     let warning = 0;
