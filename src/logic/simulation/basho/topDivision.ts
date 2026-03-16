@@ -4,6 +4,7 @@ import { RikishiStatus } from '../../models';
 import { RandomSource } from '../deps';
 import {
   applyGeneratedInjury,
+  appendInjuryHistoryEvent,
   generateInjury,
   resolveInjuryParticipation,
   resolveInjuryRate,
@@ -35,7 +36,13 @@ import {
 import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { TorikumiParticipant } from '../torikumi/types';
 import { resolvePerformanceMetrics } from './shared';
-import { BashoSimulationResult, BoutOutcome, PlayerBoutDetail } from './types';
+import {
+  BashoSimulationResult,
+  BoutOutcome,
+  PlayerBoutDetail,
+  buildImportantTorikumiNote,
+  type ImportantTorikumiNote,
+} from './types';
 
 const toDivisionParticipants = (
   participants: TorikumiParticipant[],
@@ -86,6 +93,7 @@ export const runTopDivisionBasho = (
   let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const playerBoutDetails: PlayerBoutDetail[] = [];
+  const importantTorikumiNotes: ImportantTorikumiNote[] = [];
   const kinboshiById = new Map<string, number>();
   let expectedWins = 0;
   let sosTotal = 0;
@@ -145,7 +153,7 @@ export const runTopDivisionBasho = (
     kinboshiById.set(id, (kinboshiById.get(id) ?? 0) + 1);
   };
 
-  scheduleTorikumiBasho({
+  const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
@@ -153,7 +161,8 @@ export const runTopDivisionBasho = (
     rng,
     facedMap: createFacedMap(participants),
     dayEligibility: () => true,
-    onPair: ({ a, b }, day) => {
+    onPair: (pair, day) => {
+      const { a, b } = pair;
       if (!a.isPlayer && !b.isPlayer) {
         const aDivision = a.division as TopDivision;
         const bDivision = b.division as TopDivision;
@@ -180,6 +189,23 @@ export const runTopDivisionBasho = (
         opponent.rankScore,
         world.makuuchiLayout,
       );
+      const importantNote = buildImportantTorikumiNote({
+        pair,
+        day,
+        year,
+        month,
+        opponentId: opponent.id,
+        opponentShikona: opponent.shikona,
+        opponentRank: {
+          division: opponentDivision,
+          name: opponentRank.name,
+          number: opponentRank.number,
+          side: opponentRank.side,
+        },
+      });
+      if (importantNote) {
+        importantTorikumiNotes.push(importantNote);
+      }
 
       if (!opponent.active) {
         wins += 1;
@@ -221,8 +247,10 @@ export const runTopDivisionBasho = (
         opponent.currentLossStreak = 0;
         previousResult = 'LOSS';
 
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const injury = generateInjury(status, year, month, rng);
+        applyGeneratedInjury(status, injury);
         const postInjury = resolveInjuryParticipation(status);
+        appendInjuryHistoryEvent(status, year, month, injury, postInjury.mustSitOut);
 
         playerBoutDetails.push({
           day,
@@ -393,5 +421,7 @@ export const runTopDivisionBasho = (
     },
     playerBoutDetails,
     sameDivisionNpcRecords,
+    importantTorikumiNotes,
+    torikumiDiagnostics: torikumiResult.diagnostics,
   };
 };

@@ -1,5 +1,12 @@
 import { RandomSource } from '../deps';
-import { BoundaryBandSpec, BoundaryId, TorikumiDivision, TorikumiParticipant } from './types';
+import {
+  BoundaryBandSpec,
+  BoundaryId,
+  TorikumiDivision,
+  TorikumiParticipant,
+  TorikumiTier,
+  YushoRaceTier,
+} from './types';
 import { REALISM_V1_BALANCE } from '../../balance/realismV1';
 
 export const DEFAULT_TORIKUMI_BOUNDARY_BANDS: BoundaryBandSpec[] = [
@@ -94,19 +101,73 @@ export const isBorderlineSurvivalMatchPoint = (
   return participant.wins === border && participant.losses === border;
 };
 
-const resolveRankNumber = (participant: TorikumiParticipant): number =>
+export const resolveRankNumber = (participant: TorikumiParticipant): number =>
   participant.rankNumber ?? Math.floor((participant.rankScore - 1) / 2) + 1;
+
+export const resolveTorikumiTier = (participant: TorikumiParticipant): TorikumiTier => {
+  if (participant.torikumiTier) return participant.torikumiTier;
+  if (participant.division === 'Makuuchi') {
+    if (participant.rankName === '横綱') return 'Yokozuna';
+    if (participant.rankName === '大関') return 'Ozeki';
+    if (participant.rankName === '関脇' || participant.rankName === '小結') return 'Sanyaku';
+    return resolveRankNumber(participant) <= 8 ? 'Upper' : 'Lower';
+  }
+  if (participant.division === 'Juryo') {
+    const rankNumber = resolveRankNumber(participant);
+    return rankNumber <= 5 || rankNumber >= 12 ? 'Boundary' : 'Lower';
+  }
+  if (participant.division === 'Makushita') {
+    return resolveRankNumber(participant) <= 5 ? 'Boundary' : 'Lower';
+  }
+  if (participant.division === 'Sandanme') {
+    return resolveRankNumber(participant) <= 5 || resolveRankNumber(participant) >= 85
+      ? 'Boundary'
+      : 'Lower';
+  }
+  if (participant.division === 'Jonidan') {
+    return resolveRankNumber(participant) <= 5 || resolveRankNumber(participant) >= 96
+      ? 'Boundary'
+      : 'Lower';
+  }
+  return resolveRankNumber(participant) <= 5 ? 'Boundary' : 'Lower';
+};
+
+export const resolveYushoRaceTier = (
+  participant: TorikumiParticipant,
+  divisionLeaderWins: number,
+): YushoRaceTier => {
+  if (participant.yushoRaceTier) return participant.yushoRaceTier;
+  const gap = divisionLeaderWins - participant.wins;
+  if (gap <= 0) return 'Leader';
+  if (gap <= 1) return 'Contender';
+  return 'Outside';
+};
+
+export const resolveSurvivalBubble = (participant: TorikumiParticipant): boolean => {
+  if (typeof participant.survivalBubble === 'boolean') return participant.survivalBubble;
+  if (isJuryoDemotionBubble(participant)) return true;
+  if (participant.division === 'Makuuchi' && resolveRankNumber(participant) >= 15 && participant.wins <= 6) {
+    return true;
+  }
+  if (participant.division === 'Makushita' && resolveRankNumber(participant) <= 5) {
+    return participant.wins >= 4 && participant.losses >= 1;
+  }
+  return isBorderlineSurvivalMatchPoint(participant);
+};
+
+export const isUpperRankTier = (participant: TorikumiParticipant): boolean =>
+  ['Yokozuna', 'Ozeki', 'Sanyaku'].includes(resolveTorikumiTier(participant));
 
 export const isJuryoDemotionBubble = (participant: TorikumiParticipant): boolean => {
   if (participant.division !== 'Juryo') return false;
   const rankNumber = resolveRankNumber(participant);
-  return rankNumber >= 12 && participant.wins <= 7;
+  return rankNumber >= 13 && participant.wins <= 6;
 };
 
 export const isMakushitaPromotionBubble = (participant: TorikumiParticipant): boolean => {
   if (participant.division !== 'Makushita') return false;
   const rankNumber = resolveRankNumber(participant);
-  return rankNumber <= 15 && participant.wins >= 4 && participant.wins >= participant.losses;
+  return rankNumber <= 5 && participant.wins >= 5 && participant.wins >= participant.losses + 1;
 };
 
 export const buildBoundaryBandMap = (

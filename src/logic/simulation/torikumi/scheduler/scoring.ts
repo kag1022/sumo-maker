@@ -76,11 +76,11 @@ export const resolvePairScore = (
   let rankWeight = rankDistanceWeight(day);
   if (simulationModelVersion === 'unified-v3-variance') {
     if (day >= 6 && day <= 10) {
-      scoreWeight *= 0.7;
-      rankWeight *= 1.15;
+      scoreWeight *= 0.55;
+      rankWeight *= 1.35;
     } else if (day >= 11) {
-      scoreWeight *= 0.8;
-      rankWeight *= 1.1;
+      scoreWeight *= options?.boundaryId ? 0.72 : 0.48;
+      rankWeight *= options?.boundaryId ? 1.22 : 1.5;
     }
   }
   const lossWeight = Math.max(4, Math.round(scoreWeight * 0.1));

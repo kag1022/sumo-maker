@@ -1,5 +1,5 @@
 import { Division } from '../../models';
-import { resolveAptitudeFactor, rollAptitudeTier } from '../../constants';
+import { resolveAptitudeProfile, rollAptitudeTier, rollCareerBand, CONSTANTS } from '../../constants';
 import {
   ENEMY_SEED_POOL,
   EnemySeedProfile,
@@ -7,6 +7,7 @@ import {
 } from '../../catalog/enemyData';
 import { RandomSource } from '../deps';
 import { resolveRetirementProfileByRoll } from '../retirement/shared';
+import { resolveLegacyAptitudeFactor } from '../realism';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
@@ -69,14 +70,24 @@ const createNpc = (
   );
   const entryAge = 15 + Math.floor(rng() * 10);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
-  const basePower = clamp(seed.basePower + randomNoise(rng, seed.powerVariance), range.min, range.max);
+  const careerBand = rollCareerBand(rng);
+  const bandBias = CONSTANTS.CAREER_BAND_DATA[careerBand];
+  const aptitudeTier = rollAptitudeTier(rng);
+  const aptitudeProfile = resolveAptitudeProfile(aptitudeTier);
+  const basePower = clamp(
+    seed.basePower +
+      bandBias.abilityBias +
+      randomNoise(rng, seed.powerVariance + (careerBand === 'WASHOUT' ? 1.4 : 0.6)),
+    range.min,
+    range.max,
+  );
   const ability =
-    basePower * 0.9 +
+    basePower * (0.82 + aptitudeProfile.boutFactor * 0.08) +
     abilityDist.mean * 0.1 +
     randomNoise(rng, abilityDist.sigma * 0.45) +
-    seed.growthBias * 5.2;
-  const aptitudeTier = rollAptitudeTier(rng);
-  const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
+    seed.growthBias * 5.2 +
+    bandBias.abilityBias * 0.6;
+  const aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
   const retirementProfile = resolveRetirementProfileByRoll(rng());
   return {
     actorId: `NPC-${serial}`,
@@ -99,6 +110,8 @@ const createNpc = (
     growthBias: seed.growthBias,
     aptitudeTier,
     aptitudeFactor,
+    aptitudeProfile,
+    careerBand,
     retirementBias: seed.retirementBias,
     retirementProfile,
     entryAge,
@@ -107,6 +120,13 @@ const createNpc = (
     active: true,
     entrySeq: seq,
     riseBand: undefined,
+    stagnation: {
+      pressure: careerBand === 'ELITE' ? 0 : careerBand === 'STRONG' ? 0.1 : careerBand === 'STANDARD' ? 0.35 : careerBand === 'GRINDER' ? 0.8 : 1.1,
+      makekoshiStreak: 0,
+      lowWinRateStreak: 0,
+      stuckBasho: 0,
+      reboundBoost: 0,
+    },
     recentBashoResults: [],
   };
 };

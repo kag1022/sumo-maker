@@ -118,6 +118,9 @@ export interface BanzukeDecisionLog {
   finalRank: Rank;
   reasons: BanzukeDecisionReasonCode[];
   constraintHits?: BanzukeConstraintCode[];
+  ruleBucket?: 'YOKOZUNA' | 'OZEKI' | 'SANYAKU' | 'MAEGASHIRA' | 'JURYO' | 'LOWER';
+  usedBoundaryPressure?: boolean;
+  usedDiscretion?: boolean;
   shadowDiff?: {
     rankChanged: boolean;
     eventChanged: boolean;

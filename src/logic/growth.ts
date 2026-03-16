@@ -1,13 +1,98 @@
-import { RikishiStatus, Oyakata, Injury } from './models';
+import { RikishiStatus, Oyakata, Injury, BashoRecord } from './models';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
+import { getRetirementSpiritReason } from './phaseA';
 import {
     computeConsecutiveAbsenceStreak,
     computeConsecutiveMakekoshiStreak,
     resolveRetirementChance,
     resolveRetirementReason,
 } from './simulation/retirement/shared';
+import {
+    buildCareerRealismSnapshot,
+    resolveCareerBandBias,
+    resolveGrowthFactor,
+    resolveLongevityFactor,
+    resolveStagnationPenalty,
+} from './simulation/realism';
+
+const resolveAbsenceWeightPenalty = (record?: { wins: number; losses: number; absent: number }): number => {
+    if (!record || record.absent <= 0) return 0;
+    const scheduledBouts = Math.max(0, record.wins + record.losses + record.absent);
+    let penalty = 0.8;
+    if (record.absent >= 8) penalty += 1.5;
+    if (scheduledBouts > 0 && record.absent >= Math.max(6, scheduledBouts - 1)) penalty += 2.5;
+    return penalty;
+};
+
+const resolveInjuryWeightPenalty = (injuries: Injury[]): number => {
+    let maxSeverity = 0;
+    for (const injury of injuries) {
+        if (injury.status === 'HEALED') continue;
+        const effectiveSeverity = injury.status === 'CHRONIC'
+            ? Math.max(1, Math.round(injury.severity * 0.6))
+            : injury.severity;
+        maxSeverity = Math.max(maxSeverity, effectiveSeverity);
+    }
+
+    if (maxSeverity >= 7) return 4.5;
+    if (maxSeverity >= 4) return 2.0;
+    if (maxSeverity >= 1) return 0.8;
+    return 0;
+};
+
+const resolveWeightRecoveryStep = (age: number, hasActiveInjury: boolean): number => {
+    if (hasActiveInjury) return 0.3;
+    if (age <= 27) return 1.2;
+    if (age <= 32) return 0.9;
+    return 0.6;
+};
+
+const resolveWeightForNextBasho = ({
+    currentWeightKg,
+    baselineWeightKg,
+    age,
+    records,
+    activeInjuries,
+}: {
+    currentWeightKg: number;
+    baselineWeightKg: number;
+    age: number;
+    records: BashoRecord[];
+    activeInjuries: Injury[];
+}): number => {
+    const latestRecord = records[records.length - 1];
+    const consecutiveAbsence = computeConsecutiveAbsenceStreak(records, 10);
+    const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(records, 10);
+    const minWeight = Math.max(70, baselineWeightKg - 18);
+    const maxWeight = baselineWeightKg + 4;
+
+    let effectiveSetpoint = baselineWeightKg;
+    if (age >= 31) effectiveSetpoint -= 1.5;
+    if (age >= 35) effectiveSetpoint -= 1.5;
+    if (consecutiveMakekoshi >= 3) effectiveSetpoint -= 0.7;
+    effectiveSetpoint = Math.max(minWeight, Math.min(maxWeight, effectiveSetpoint));
+
+    let setback = resolveInjuryWeightPenalty(activeInjuries) + resolveAbsenceWeightPenalty(latestRecord);
+    if (consecutiveAbsence >= 3) {
+        setback += 3.0;
+    } else if (consecutiveAbsence >= 2) {
+        setback += 1.5;
+    }
+
+    const hasActiveInjury = activeInjuries.some((injury) => injury.status !== 'HEALED');
+    let nextWeight = Math.max(minWeight, currentWeightKg - setback);
+    const recoveryStep = resolveWeightRecoveryStep(age, hasActiveInjury);
+
+    if (nextWeight < effectiveSetpoint) {
+        nextWeight = Math.min(effectiveSetpoint, nextWeight + recoveryStep);
+    } else if (nextWeight > effectiveSetpoint) {
+        nextWeight = Math.max(effectiveSetpoint, nextWeight - (setback > 0 ? 1.2 : 0.6));
+    }
+
+    return Math.max(minWeight, Math.min(maxWeight, nextWeight));
+};
 
 /**
  * 能力成長・衰退ロジック
@@ -26,6 +111,9 @@ export const applyGrowth = (
     const { age, growthType, tactics, potential, bodyType, traits } = currentStatus;
     const stableTraining = STABLE_ARCHETYPE_BY_ID[currentStatus.stableArchetypeId]?.training;
     const injuries = currentStatus.injuries ? currentStatus.injuries.map(i => ({ ...i })) : []; // Deep copy injuries
+    const aptitudeGrowthFactor = resolveGrowthFactor(currentStatus);
+    const stagnationPenalty = resolveStagnationPenalty(currentStatus.stagnation);
+    const careerBandBias = resolveCareerBandBias(currentStatus.careerBand);
 
     // --- 1. 怪我の回復・進行処理 ---
     let maxSeverity = 0;
@@ -279,13 +367,43 @@ export const applyGrowth = (
     let durability = currentStatus.durability;
     if (age > 30) durability -= 1;
 
+    const bodyMetrics = { ...currentStatus.bodyMetrics };
+    const targetHeight = currentStatus.buildSummary?.heightPotentialCm ?? bodyMetrics.heightCm;
+    const baselineWeight = currentStatus.buildSummary?.weightPotentialKg ?? bodyMetrics.weightKg;
+    if (age <= 23 && bodyMetrics.heightCm < targetHeight) {
+        bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + 0.2 + Math.max(0, (23 - age) * 0.04));
+    }
+    growthRate *= aptitudeGrowthFactor;
+    if (growthRate > 0) {
+        growthRate *= stagnationPenalty.growthPenalty;
+        growthRate += careerBandBias.growthBias;
+    } else {
+        growthRate *= 1 + Math.max(0, stagnationPenalty.formPenalty * 0.15);
+    }
+    bodyMetrics.weightKg = resolveWeightForNextBasho({
+        currentWeightKg: bodyMetrics.weightKg,
+        baselineWeightKg: baselineWeight,
+        age,
+        records: currentStatus.history.records,
+        activeInjuries,
+    });
+
     return {
         ...currentStatus,
         stats,
         injuryLevel,
         durability,
         injuries: activeInjuries,
-        currentCondition: 50
+        currentCondition: Math.max(28, Math.round(50 - stagnationPenalty.formPenalty * 8 + (careerBandBias.abilityBias > 0 ? 2 : 0))),
+        bodyMetrics,
+        history: {
+            ...currentStatus.history,
+            realismKpi: buildCareerRealismSnapshot({
+                history: currentStatus.history,
+                age: currentStatus.age,
+                stagnation: currentStatus.stagnation,
+            }),
+        },
     };
 };
 
@@ -297,6 +415,12 @@ export const checkRetirement = (
     status: RikishiStatus,
     rng: RandomSource = Math.random,
 ): { shouldRetire: boolean, reason?: string } => {
+    if (status.spirit <= 0) {
+        return { shouldRetire: true, reason: getRetirementSpiritReason(status) };
+    }
+    if (status.age >= 31 && status.spirit <= 15) {
+        return { shouldRetire: true, reason: getRetirementSpiritReason(status) };
+    }
     if (status.age >= CONSTANTS.PHYSICAL_LIMIT_RETIREMENT_AGE) {
         return { shouldRetire: true, reason: '気力・体力の限界により引退' };
     }
@@ -322,9 +446,11 @@ export const checkRetirement = (
         consecutiveAbsence,
         consecutiveMakekoshi,
         profile: status.retirementProfile ?? 'STANDARD',
-        retirementBias: 1,
+        retirementBias: resolveCareerBandBias(status.careerBand).retentionBias / resolveLongevityFactor(status),
         careerBashoCount: records.length,
         careerWinRate,
+        stagnationPressure: status.stagnation?.pressure ?? 0,
+        careerBand: status.careerBand,
     });
 
     if (chance > 0 && rng() < chance) {

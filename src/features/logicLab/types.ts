@@ -1,14 +1,12 @@
-import { InjuryStatusType, Rank } from '../../logic/models';
+import { InjuryStatusType, Rank, RealismKpiSnapshot } from '../../logic/models';
 import { PauseReason } from '../../logic/simulation/engine';
 import { SimulationModelVersion } from '../../logic/simulation/modelVersion';
 
 export type LogicLabPresetId =
-  | 'M8_BALANCED'
-  | 'J2_MONSTER'
-  | 'K_BALANCED'
-  | 'SD70_MIX'
-  | 'JD70_MIX'
-  | 'JK_MONSTER';
+  | 'RANDOM_BASELINE'
+  | 'LOW_TALENT_CD'
+  | 'STANDARD_B_GRINDER'
+  | 'HIGH_TALENT_AS';
 
 export type LogicLabRunPhase =
   | 'idle'
@@ -101,6 +99,7 @@ export interface LogicLabSummary {
   ginoCount: number;
   injurySummary: LogicLabInjurySummary;
   committeeWarnings: number;
+  realismKpi: RealismKpiSnapshot;
   stopReason?: LogicLabStopReason;
 }
 

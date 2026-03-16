@@ -8,6 +8,7 @@ import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import {
   applyGeneratedInjury,
+  appendInjuryHistoryEvent,
   generateInjury,
   resolveInjuryParticipation,
   resolveInjuryRate,
@@ -36,7 +37,13 @@ import {
   resolveScheduledBoutDay,
   toBoundarySnapshotsByDivision,
 } from './shared';
-import { BashoSimulationResult, BoutOutcome, PlayerBoutDetail } from './types';
+import {
+  BashoSimulationResult,
+  BoutOutcome,
+  PlayerBoutDetail,
+  buildImportantTorikumiNote,
+  type ImportantTorikumiNote,
+} from './types';
 
 const resolveLowerRankScore = (rank: Rank, lowerWorld: LowerDivisionQuotaWorld): number => {
   if (
@@ -117,10 +124,13 @@ export const syncPlayerToLowerDivisionRoster = (
     weightKg: playerActor?.weightKg ?? status.bodyMetrics.weightKg,
     aptitudeTier: playerActor?.aptitudeTier ?? status.aptitudeTier,
     aptitudeFactor: playerActor?.aptitudeFactor ?? status.aptitudeFactor,
+    aptitudeProfile: playerActor?.aptitudeProfile ?? status.aptitudeProfile,
+    careerBand: playerActor?.careerBand ?? status.careerBand,
     growthBias: playerActor?.growthBias ?? 0,
     retirementBias: playerActor?.retirementBias ?? 0,
     retirementProfile: playerActor?.retirementProfile ?? status.retirementProfile ?? 'STANDARD',
     active: true,
+    stagnation: playerActor?.stagnation ?? status.stagnation,
     recentBashoResults: playerActor?.recentBashoResults ?? [],
   });
   lowerWorld.rosters[division] = merged
@@ -171,6 +181,7 @@ export const runLowerDivisionBasho = (
   let sosTotal = 0;
   let sosCount = 0;
   const playerBoutDetails: PlayerBoutDetail[] = [];
+  const importantTorikumiNotes: ImportantTorikumiNote[] = [];
   const playerRankScore = resolveLowerRankScore(status.rank, lowerWorld);
   const participants: TorikumiParticipant[] = LOWER_DIVISIONS.flatMap((lowerDivision) =>
     lowerWorld.rosters[lowerDivision]
@@ -204,11 +215,14 @@ export const runLowerDivisionBasho = (
           weightKg: npc.weightKg ?? 130,
           aptitudeTier: npc.aptitudeTier,
           aptitudeFactor: npc.aptitudeFactor,
+          aptitudeProfile: npc.aptitudeProfile,
+          careerBand: npc.careerBand,
           wins: 0,
           losses: 0,
           currentWinStreak: 0,
           currentLossStreak: 0,
           active: true,
+          stagnation: npc.stagnation,
           targetBouts: 7,
           boutsDone: 0,
         };
@@ -254,11 +268,14 @@ export const runLowerDivisionBasho = (
         weightKg: guest.weightKg ?? 152,
         aptitudeTier: guest.aptitudeTier,
         aptitudeFactor: guest.aptitudeFactor,
+        aptitudeProfile: guest.aptitudeProfile,
+        careerBand: guest.careerBand,
         wins: 0,
         losses: 0,
         currentWinStreak: 0,
         currentLossStreak: 0,
         active: true,
+        stagnation: guest.stagnation,
         targetBouts: 1,
         boutsDone: 0,
       });
@@ -291,6 +308,9 @@ export const runLowerDivisionBasho = (
   player.targetBouts = numBouts;
   player.boutsDone = 0;
   player.active = true;
+  player.aptitudeProfile = status.aptitudeProfile;
+  player.careerBand = status.careerBand;
+  player.stagnation = status.stagnation;
   player.currentWinStreak = 0;
   player.currentLossStreak = 0;
   const lowerDayMap = createLowerDivisionBoutDayMap(participants, rng);
@@ -301,7 +321,7 @@ export const runLowerDivisionBasho = (
   if (resolveInjuryParticipation(status).mustSitOut) {
     player.active = false;
   }
-  scheduleTorikumiBasho({
+  const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) =>
@@ -316,7 +336,8 @@ export const runLowerDivisionBasho = (
       if (participant.id.startsWith('JURYO_GUEST_')) return day >= 1 && day <= 15;
       return resolveLowerDivisionEligibility(participant, day, lowerDayMap);
     },
-    onPair: ({ a, b }, day) => {
+    onPair: (pair, day) => {
+      const { a, b } = pair;
       // 事前にNPCのケガ判定を実施 (1日1回)
       const npcInjuryCheck = (participant: DivisionParticipant) => {
         if (!participant.isPlayer && participant.active) {
@@ -352,6 +373,23 @@ export const runLowerDivisionBasho = (
         opponentDivision === 'Juryo'
           ? 6
           : LOWER_RANK_VALUE_MAP[opponentDivision as keyof typeof LOWER_RANK_VALUE_MAP];
+      const importantNote = buildImportantTorikumiNote({
+        pair,
+        day,
+        year,
+        month,
+        opponentId: opponent.id,
+        opponentShikona: opponent.shikona,
+        opponentRank: {
+          division: opponentDivision,
+          name: rankName,
+          number: rankNumber,
+          side: rankSide,
+        },
+      });
+      if (importantNote) {
+        importantTorikumiNotes.push(importantNote);
+      }
 
       if (!opponent.active) {
         wins += 1;
@@ -386,8 +424,10 @@ export const runLowerDivisionBasho = (
         player.currentLossStreak = (player.currentLossStreak ?? 0) + 1;
         opponent.currentWinStreak = (opponent.currentWinStreak ?? 0) + 1;
         opponent.currentLossStreak = 0;
-        applyGeneratedInjury(status, generateInjury(status, year, month, rng));
+        const injury = generateInjury(status, year, month, rng);
+        applyGeneratedInjury(status, injury);
         const postInjury = resolveInjuryParticipation(status);
+        appendInjuryHistoryEvent(status, year, month, injury, postInjury.mustSitOut);
         playerBoutDetails.push({
           day,
           result: 'LOSS',
@@ -542,9 +582,11 @@ export const runLowerDivisionBasho = (
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],
+    importantTorikumiNotes,
     lowerLeagueSnapshots: toBoundarySnapshotsByDivision(
       participants.filter((participant) => !participant.id.startsWith('JURYO_GUEST_')),
     ),
+    torikumiDiagnostics: torikumiResult.diagnostics,
   };
 };
 

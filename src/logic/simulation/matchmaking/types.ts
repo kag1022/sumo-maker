@@ -1,4 +1,4 @@
-import { AptitudeTier } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, StagnationState } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 
 export type DivisionParticipant = {
@@ -16,6 +16,9 @@ export type DivisionParticipant = {
   weightKg?: number;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
+  stagnation?: StagnationState;
   wins: number;
   losses: number;
   currentWinStreak?: number;

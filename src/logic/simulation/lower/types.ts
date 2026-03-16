@@ -1,4 +1,4 @@
-import { AptitudeTier, Rank, RetirementProfile } from '../../models';
+import { AptitudeProfile, AptitudeTier, CareerBand, Rank, RetirementProfile, StagnationState } from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { LOWER_DIVISION_SLOTS, NpcNameContext, NpcRegistry } from '../npc/types';
 
@@ -24,6 +24,8 @@ export type LowerNpc = {
   growthBias?: number;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
   retirementBias?: number;
   retirementProfile?: RetirementProfile;
   entryAge?: number;
@@ -33,6 +35,7 @@ export type LowerNpc = {
   entrySeq?: number;
   retiredAtSeq?: number;
   riseBand?: 1 | 2 | 3;
+  stagnation?: StagnationState;
   recentBashoResults?: { division: string; wins: number; losses: number }[];
 };
 

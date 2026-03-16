@@ -4,6 +4,46 @@ export default {
   theme: {
     extend: {
       colors: {
+        app: "#0b1018",
+        line: "#2a3444",
+        brand: {
+          DEFAULT: "#c49a4d",
+          ink: "#081223",
+          panel: "#101d33",
+          raised: "#162542",
+          line: "#c49a4d",
+          muted: "#4c5d79",
+        },
+        surface: {
+          DEFAULT: "#111826",
+          base: "#0b1324",
+          panel: "#101b30",
+          raised: "#15233d",
+          soft: "#1a2c4b",
+        },
+        action: {
+          DEFAULT: "#4c7bff",
+          dim: "#3156bf",
+          bright: "#dbe5ff",
+        },
+        state: {
+          DEFAULT: "#49b97b",
+          dim: "#2f7b52",
+          bright: "#dbffea",
+        },
+        warning: {
+          DEFAULT: "#d26b52",
+          dim: "#8d4334",
+          bright: "#ffe2d8",
+        },
+        danger: {
+          DEFAULT: "#d26b52",
+          bright: "#ffe2d8",
+        },
+        award: {
+          DEFAULT: "#c49a4d",
+          bright: "#f2ddb0",
+        },
         // === 背景系（藍色ベース） ===
         bg: {
           DEFAULT: "#0a0e1a",   // メイン背景
@@ -15,6 +55,7 @@ export default {
         text: {
           DEFAULT: "#e8e0d0",   // メインテキスト
           dim: "#8a8472",       // サブテキスト
+          faint: "#6d7a92",
           bright: "#ffffff",    // 強調
         },
         // === アクセント: ゴールド（RPG風） ===

@@ -2,6 +2,7 @@
 export type TalentArchetype = 'MONSTER' | 'GENIUS' | 'HARD_WORKER' | 'AVG_JOE' | 
                               'UNIVERSITY_YOKOZUNA' | 'HIGH_SCHOOL_CHAMP' | 'STREET_FIGHTER';
 export type AptitudeTier = 'S' | 'A' | 'B' | 'C' | 'D';
+export type CareerBand = 'ELITE' | 'STRONG' | 'STANDARD' | 'GRINDER' | 'WASHOUT';
 
 // 入門区分
 export type EntryDivision = 'Maezumo' | 'Makushita60' | 'Sandanme90';
@@ -25,6 +26,8 @@ export type StableArchetypeId =
 
 export type PersonalityType = 'CALM' | 'AGGRESSIVE' | 'SERIOUS' | 'WILD' | 'CHEERFUL' | 'SHY';
 export type RetirementProfile = 'EARLY_EXIT' | 'STANDARD' | 'IRONMAN';
+export type CollectionType = 'RIKISHI' | 'OYAKATA' | 'KIMARITE' | 'ACHIEVEMENT' | 'RECORD';
+export type CollectionTier = 'BRONZE' | 'SILVER' | 'GOLD';
 
 // レア度
 export type Rarity = 'N' | 'R' | 'SR' | 'UR';
@@ -78,6 +81,7 @@ export interface BasicProfile {
 export interface BodyMetrics {
   heightCm: number;
   weightKg: number;
+  reachDeltaCm?: number;
 }
 
 export interface RatingState {
@@ -85,6 +89,22 @@ export interface RatingState {
   form: number;
   uncertainty: number;
   lastBashoExpectedWins?: number;
+}
+
+export interface AptitudeProfile {
+  initialFactor: number;
+  growthFactor: number;
+  boutFactor: number;
+  longevityFactor: number;
+}
+
+export interface StagnationState {
+  pressure: number;
+  makekoshiStreak: number;
+  lowWinRateStreak: number;
+  stuckBasho: number;
+  reboundBoost: number;
+  lastTrigger?: 'MAKEKOSHI' | 'LOW_WIN_RATE' | 'BOUNDARY_MISS';
 }
 
 // 怪我の種類
@@ -185,6 +205,8 @@ export interface RikishiStatus {
   archetype?: TalentArchetype; // 素質タイプ
   aptitudeTier: AptitudeTier; // 素質ランク
   aptitudeFactor: number; // 隠し素質係数
+  aptitudeProfile?: AptitudeProfile;
+  careerBand?: CareerBand;
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   bodyType: BodyType;          // 体格タイプ
@@ -200,6 +222,13 @@ export interface RikishiStatus {
   isOzekiReturn?: boolean; // 大関陥落直後の特例復帰チャンス（次の1場所のみ）
   retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
+  kataProfile?: KataProfile;
+  designedStyleProfile?: StyleProfile;
+  realizedStyleProfile?: StyleProfile | null;
+  buildSummary?: BuildSummary;
+  mentorId?: string;
+  spirit: number;
+  stagnation?: StagnationState;
 
   history: CareerHistory;
   
@@ -225,11 +254,265 @@ export interface Oyakata {
   id: string;
   name: string;
   trait: string; // 特性名
+  secretStyle?: StyleArchetype;
   // 補正係数 (1.0 = 標準)
   growthMod: {
     [key: string]: number; // 'tsuki': 1.2 など
   };
   injuryMod: number; // 怪我しやすさ
+  spiritMods?: {
+    injuryPenalty?: number;
+    slumpPenalty?: number;
+    promotionBonus?: number;
+  };
+}
+
+export interface OyakataProfile {
+  id: string;
+  sourceCareerId: string;
+  shikona: string;
+  displayName: string;
+  trait: string;
+  secretStyle?: StyleArchetype;
+  growthMod: Oyakata['growthMod'];
+  injuryMod: number;
+  maxRank: Rank;
+  legacyStars: 1 | 2 | 3 | 4 | 5;
+  cooldownUntilCareerIndex?: number;
+}
+
+export type StyleArchetype =
+  | 'YOTSU'
+  | 'TSUKI_OSHI'
+  | 'MOROZASHI'
+  | 'DOHYOUGIWA'
+  | 'NAGE_TECH'
+  | 'POWER_PRESSURE';
+
+export type StyleCompatibility = 'EXCELLENT' | 'GOOD' | 'NEUTRAL' | 'POOR';
+
+export type BodyConstitution =
+  | 'BALANCED_FRAME'
+  | 'HEAVY_BULK'
+  | 'LONG_REACH'
+  | 'SPRING_LEGS';
+
+export type AmateurBackground =
+  | 'MIDDLE_SCHOOL'
+  | 'HIGH_SCHOOL'
+  | 'STUDENT_ELITE'
+  | 'COLLEGE_YOKOZUNA';
+
+export type MentalTraitType =
+  | 'CALM_ENGINE'
+  | 'BIG_STAGE'
+  | 'VOLATILE_FIRE'
+  | 'STONEWALL';
+
+export type InjuryResistanceType =
+  | 'FRAGILE'
+  | 'STANDARD'
+  | 'IRON_BODY';
+
+export type DebtCardId = 'OLD_KNEE' | 'PRESSURE_LINEAGE' | 'LATE_START';
+
+export interface StyleProfile {
+  primary: StyleArchetype;
+  secondary: StyleArchetype;
+  secret?: StyleArchetype;
+  dominant: StyleArchetype;
+  compatibility: StyleCompatibility;
+  label: string;
+  confidence: number;
+  source: 'DESIGNED' | 'REALIZED';
+  locked?: boolean;
+}
+
+export interface BuildSummary {
+  oyakataName: string;
+  amateurBackground: AmateurBackground;
+  bodyConstitution: BodyConstitution;
+  heightPotentialCm: number;
+  weightPotentialKg: number;
+  reachDeltaCm: number;
+  spentPoints: number;
+  remainingPoints: number;
+  debtCount: number;
+  debtCards?: DebtCardId[];
+  secretStyle?: StyleArchetype;
+  careerBandLabel: string;
+}
+
+export interface OyakataUnlockRule {
+  type: 'STARTER' | 'CAREER';
+  summary: string;
+}
+
+export interface OyakataBlueprint {
+  id: string;
+  name: string;
+  ichimonId: IchimonId;
+  advantage: string;
+  drawback: string;
+  secretStyle: StyleArchetype;
+  growthMods: Oyakata['growthMod'];
+  spiritMods: NonNullable<Oyakata['spiritMods']>;
+  injuryMod: number;
+  unlockRule: OyakataUnlockRule;
+  sourceCareerId?: string;
+  maxRank?: Rank;
+}
+
+export interface PrizeBreakdownEntry {
+  key:
+    | 'MAKUUCHI_YUSHO'
+    | 'JURYO_YUSHO'
+    | 'MAKUSHITA_YUSHO'
+    | 'SANDANME_YUSHO'
+    | 'JONIDAN_YUSHO'
+    | 'JONOKUCHI_YUSHO'
+    | 'SHUKUN'
+    | 'KANTO'
+    | 'GINO';
+  label: string;
+  unitYen: number;
+  count: number;
+  subtotalYen: number;
+}
+
+export interface CareerPrizeBreakdown {
+  asOf: string;
+  totalYen: number;
+  entries: PrizeBreakdownEntry[];
+  conversion: PointConversionBreakdown;
+}
+
+export interface PointConversionBreakdown {
+  tier1Yen: number;
+  tier1Pt: number;
+  tier2Yen: number;
+  tier2Pt: number;
+  tier3Yen: number;
+  tier3Pt: number;
+  rawPoints: number;
+  cappedPt: number;
+}
+
+export interface CareerRewardSummary {
+  conversionRuleId: string;
+  rawPoints: number;
+  awardedPoints: number;
+  convertedPoints: number; // deprecated: alias of awardedPoints
+  granted: boolean;
+  grantedAt?: string;
+}
+
+export type WalletTransactionReason =
+  | 'BUILD_REGISTRATION'
+  | 'SCOUT_DRAW'
+  | 'SCOUT_OVERRIDE'
+  | 'CAREER_PRIZE_REWARD'
+  | 'MANUAL_TOP_UP'
+  | 'AD_REWARD'
+  | 'AD_REWARD_TOKEN'
+  | 'OTHER';
+
+export interface WalletTransaction {
+  id: string;
+  kind: 'SPEND' | 'EARN';
+  amount: number;
+  balanceAfter: number;
+  reason: WalletTransactionReason;
+  careerId?: string;
+  createdAt: string;
+}
+
+export interface CollectionEntry {
+  id: string;
+  type: CollectionType;
+  key: string;
+  sourceCareerId?: string;
+  unlockedAt: string;
+  tier?: CollectionTier;
+  progress?: number;
+  target?: number;
+  isNew?: boolean;
+}
+
+export type BuildAxisWinStyle = 'STABILITY' | 'BURST' | 'COMEBACK';
+export type BuildAxisPeakDesign = 'EARLY' | 'BALANCED' | 'LATE';
+export type BuildAxisVolatility = 'LOW' | 'MID' | 'HIGH';
+export type BuildAxisDurability = 'IRON' | 'BALANCED' | 'GAMBLE';
+export type BuildAxisClutch = 'BIG_MATCH' | 'BALANCED' | 'DEVELOPMENT';
+export type BuildIntent = 'YUSHO' | 'LONGEVITY' | 'COLLECTOR' | 'BALANCE';
+
+export interface AptitudePlan {
+  reveal: boolean;
+  tuneStep: -2 | -1 | 0 | 1 | 2;
+}
+
+export type KataArchetype =
+  | 'TSUKI_OSHI'
+  | 'HIDARI_YOTSU_YORI'
+  | 'MIGI_YOTSU_YORI'
+  | 'YOTSU_NAGE'
+  | 'BATTLECRAFT';
+
+export interface KataProfile {
+  settled: boolean;
+  confidence: number;
+  archetype?: KataArchetype;
+  displayName?: string;
+  dominantMove?: string;
+  settledAtBashoSeq?: number;
+  // 内部状態（表示・公開用途では未使用）
+  pendingArchetype?: KataArchetype;
+  pendingCount?: number;
+}
+
+export interface BuildSpecV4 {
+  shikona: string;
+  profile: BasicProfile;
+  history: 'JHS_GRAD' | 'HS_GRAD' | 'HS_YOKOZUNA' | 'UNI_YOKOZUNA';
+  entryDivision: EntryDivision;
+  bodyType: BodyType;
+  bodyMetrics: BodyMetrics;
+  traitSlots: number;
+  selectedTraits: Trait[];
+  genome: RikishiGenome;
+  aptitudeBaseTier: AptitudeTier;
+  aptitudePlan: AptitudePlan;
+  selectedIchimonId: IchimonId | null;
+  selectedStableId: string | null;
+  selectedOyakataId: string | null;
+  abstractAxes: {
+    winStyle: BuildAxisWinStyle;
+    peakDesign: BuildAxisPeakDesign;
+    volatility: BuildAxisVolatility;
+    durability: BuildAxisDurability;
+    clutch: BuildAxisClutch;
+  };
+}
+
+export type BuildSpecV3 = BuildSpecV4;
+export type BuildSpecV2 = BuildSpecV4;
+
+export interface BuildSpecVNext {
+  oyakataId: string;
+  heightPotentialCm: number;
+  weightPotentialKg: number;
+  reachDeltaCm: number;
+  bodyConstitution: BodyConstitution;
+  amateurBackground: AmateurBackground;
+  primaryStyle: StyleArchetype;
+  secondaryStyle: StyleArchetype;
+  mentalTrait: MentalTraitType;
+  injuryResistance: InjuryResistanceType;
+  debtCards: DebtCardId[];
+}
+
+export interface SimulationRunOptions {
+  selectedOyakataId?: string | null;
 }
 
 // キャリア履歴
@@ -248,6 +531,12 @@ export interface CareerHistory {
   };
   kimariteTotal: Record<string, number>; // 通算決まり手カウント
   title?: string; // 二つ名
+  prizeBreakdown?: CareerPrizeBreakdown;
+  rewardSummary?: CareerRewardSummary;
+  bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
+  highlightEvents?: HighlightEvent[];
+  careerTurningPoint?: CareerTurningPoint;
+  realismKpi?: RealismKpiSnapshot;
 }
 
 // 1場所ごとの記録
@@ -266,6 +555,85 @@ export interface BashoRecord {
   kinboshi?: number; // 金星獲得数（平幕が横綱を破った回数）
   kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
   scaleSlots?: RankScaleSlots; // その場所時点の番付スロット構成（相対スケール）
+  bodyWeightKg?: number;
+}
+
+export type HighlightEventTag =
+  | 'MAJOR_INJURY'
+  | 'KINBOSHI'
+  | 'YUSHO'
+  | 'PROMOTION'
+  | 'RETIREMENT'
+  | 'FIRST_SEKITORI'
+  | 'JURYO_DROP';
+
+export interface HighlightEvent {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  tag: HighlightEventTag;
+  label: string;
+}
+
+export interface CareerTurningPoint {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  reason: string;
+  severity: number;
+}
+
+export interface RealismKpiSnapshot {
+  careerWinRate: number;
+  nonSekitoriCareerWinRate?: number;
+  losingCareerRate?: number;
+  careerWinRateLe35Rate?: number;
+  careerWinRateLe30Rate?: number;
+  allCareerRetireAgeP50?: number;
+  nonSekitoriMedianBasho?: number;
+  stagnationPressure?: number;
+}
+
+export type RealismProbeRunKind =
+  | 'quick'
+  | 'retire'
+  | 'aptitude'
+  | 'acceptance';
+
+export interface RealismStyleBucketMetrics {
+  sample: number;
+  uniqueKimariteP50: number;
+  uniqueKimariteP90: number;
+  top1MoveShareP50: number;
+  top3MoveShareP50: number;
+  rareMoveRate: number;
+}
+
+export interface RealismProbeMetrics extends RealismKpiSnapshot {
+  sekitoriRate?: number;
+  makuuchiRate?: number;
+  sanyakuRate?: number;
+  yokozunaRate?: number;
+  lowTierRate?: number;
+  tierCareerWinRate?: Partial<Record<AptitudeTier, number>>;
+  uniqueKimariteP50?: number;
+  uniqueKimariteP90?: number;
+  topMoveShareP50?: number;
+  top3MoveShareP50?: number;
+  rareMoveRate?: number;
+  kimariteVariety20Rate?: number;
+  styleBucketMetrics?: Partial<Record<'PUSH' | 'GRAPPLE' | 'TECHNIQUE', RealismStyleBucketMetrics>>;
+}
+
+export interface RealismProbeResult {
+  runKind: RealismProbeRunKind;
+  scenarioId: string;
+  sample: number;
+  modelVersion: string;
+  compiledAt?: string;
+  generatedAt: string;
+  metrics: RealismProbeMetrics;
+  gateResult: Record<string, boolean>;
 }
 
 // タイムラインイベント
