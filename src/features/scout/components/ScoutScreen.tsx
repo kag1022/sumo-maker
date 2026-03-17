@@ -15,10 +15,18 @@ import {
   ScoutHistory,
   resolveScoutOverrideCost,
 } from "../../../logic/scout/gacha";
+import {
+  SCOUT_BACKGROUNDS,
+  SCOUT_PHYSICAL_TRAITS,
+  SCOUT_STYLES,
+  ScoutBackgroundId,
+  ScoutPhysicalTraitId,
+  ScoutStyleId,
+} from "../../../logic/scout/choices";
 import { getWalletState, spendWalletPoints, WalletState } from "../../../logic/persistence/wallet";
 import type { SimulationPacing } from "../../simulation/store/simulationStore";
 import { Button } from "../../../shared/ui/Button";
-import { RefreshCw, Trophy, Coins, ChevronDown, User, Dna, Zap } from "lucide-react";
+import { RefreshCw, Trophy, Coins, ChevronDown, User, Zap } from "lucide-react";
 
 interface ScoutScreenProps {
   onStart: (
@@ -55,6 +63,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const [errorMessage, setErrorMessage] = React.useState<string>("");
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [isRegistering, setIsRegistering] = React.useState(false);
+  const [helpInfo, setHelpInfo] = React.useState<{ title: string; text: string } | null>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -80,7 +89,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
         total: 0,
         breakdown: {
           shikona: 0, realName: 0, birthplace: 0, personality: 0,
-          bodyType: 0, traitSlots: 0, history: 0, tsukedashi: 0, genome: 0,
+          bodyType: 0, traitSlots: 0, history: 0, tsukedashi: 0,
+          background: 0, physicalTrait: 0, style: 0,
         },
       };
     }
@@ -162,6 +172,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     } finally {
       setIsRegistering(false);
     }
+  };
+
+  const showHelp = (title: string, text: string) => {
+    setHelpInfo((prev) => (prev?.title === title ? null : { title, text }));
   };
 
   const historyData = editedDraft ? SCOUT_HISTORY_OPTIONS[editedDraft.history] : undefined;
@@ -271,385 +285,468 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
               </div>
             )}
 
-            {/* === フォーム === */}
-            <div className="space-y-3">
-              {/* 四股名 */}
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>四股名（変更 +{SCOUT_COST.SHIKONA}pt）</label>
-                <input
-                  value={editedDraft.shikona}
-                  onChange={(e) =>
-                    setEditedDraft((prev) => (prev ? { ...prev, shikona: e.target.value } : prev))
-                  }
-                  className={`${INPUT_CLASS} ui-text-label text-base sm:text-lg text-gold`}
-                />
-              </div>
-
-              {/* 本名・出身地 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className={LABEL_CLASS}>本名（+{SCOUT_COST.REAL_NAME}pt）</label>
-                  <input
-                    value={editedDraft.profile.realName}
-                    onChange={(e) =>
-                      setEditedDraft((prev) =>
-                        prev ? { ...prev, profile: { ...prev.profile, realName: e.target.value } } : prev,
-                      )
-                    }
-                    className={INPUT_CLASS}
-                  />
+            {/* === フォームセクション === */}
+            <div className="space-y-6">
+              {/* カード 1: 基本プロフィール */}
+              <div className="surface-card p-5 space-y-4 border-l-4 border-gold">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-gold" />
+                  <h3 className="ui-text-label text-sm text-text">基本プロフィール</h3>
                 </div>
-                <div className="space-y-1.5">
-                  <label className={LABEL_CLASS}>出身地（+{SCOUT_COST.BIRTHPLACE}pt）</label>
-                  <input
-                    value={editedDraft.profile.birthplace}
-                    onChange={(e) =>
-                      setEditedDraft((prev) =>
-                        prev ? { ...prev, profile: { ...prev.profile, birthplace: e.target.value } } : prev,
-                      )
-                    }
-                    className={INPUT_CLASS}
-                  />
-                </div>
-              </div>
-
-              {/* 性格 */}
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>性格（+{SCOUT_COST.PERSONALITY}pt）</label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.profile.personality}
-                    onChange={(e) =>
-                      setEditedDraft((prev) =>
-                        prev ? { ...prev, profile: { ...prev.profile, personality: e.target.value as PersonalityType } } : prev,
-                      )
-                    }
-                    className={SELECT_CLASS}
-                  >
-                    {(Object.keys(PERSONALITY_LABELS) as PersonalityType[]).map((p) => (
-                      <option key={p} value={p}>{PERSONALITY_LABELS[p]}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
-              </div>
-
-              {/* 体格 */}
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>体格（+{SCOUT_COST.BODY_TYPE}pt）</label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.bodyType}
-                    onChange={(e) => handleBodyTypeChange(e.target.value as BodyType)}
-                    className={SELECT_CLASS}
-                  >
-                    {(Object.keys(CONSTANTS.BODY_TYPE_DATA) as BodyType[]).map((bt) => (
-                      <option key={bt} value={bt}>{CONSTANTS.BODY_TYPE_DATA[bt].name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
-                <p className="text-xs text-text-dim">
-                  身長 {editedDraft.bodyMetrics.heightCm}cm / 体重 {editedDraft.bodyMetrics.weightKg}kg
-                </p>
-              </div>
-
-              {/* スキル枠 */}
-              <div className="space-y-2">
-                <label className={LABEL_CLASS}>
-                  スキル枠（+{resolveTraitSlotCost(editedDraft.traitSlots)}pt）
-                </label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.traitSlots}
-                    onChange={(e) => handleTraitSlotsChange(Number(e.target.value))}
-                    className={SELECT_CLASS}
-                  >
-                    {[0, 1, 2, 3, 4, 5].map((slot) => (
-                      <option key={slot} value={slot}>
-                        {slot} 枠 (+{resolveTraitSlotCost(slot)}pt)
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
-
-                {editedDraft.traitSlots === 0 ? (
-                  <p className="text-xs text-text-dim border-2 border-dashed border-gold-muted p-2 bg-bg">
-                    スキルは非表示中です。枠を戻すと候補と選択は復元されます。
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {activeTraitSlotDrafts.map((slotDraft) => (
-                      <div key={slotDraft.slotIndex} className="border-2 border-gold-muted p-2 bg-bg space-y-2">
-                        <p className="text-xs ui-text-label text-text-dim">
-                          枠 {slotDraft.slotIndex + 1}
-                          {slotDraft.selected ? `: ${traitName(slotDraft.selected)}` : ": 未選択"}
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                          {slotDraft.options.map((option) => {
-                            const selectedElsewhere = activeTraitSlotDrafts.some(
-                              (other) => other.slotIndex !== slotDraft.slotIndex && other.selected === option,
-                            );
-                            const isSelected = slotDraft.selected === option;
-                            return (
-                              <button
-                                key={`${slotDraft.slotIndex}-${option}`}
-                                type="button"
-                                onClick={() => handleTraitSelection(slotDraft.slotIndex, option)}
-                                disabled={selectedElsewhere && !isSelected}
-                                className={`text-xs px-2 py-2 border-2 text-left transition-colors ${
-                                  isSelected
-                                    ? "border-gold text-gold bg-gold/10"
-                                    : selectedElsewhere
-                                      ? "border-bg-light text-text-dim/40 bg-bg"
-                                      : "border-gold-muted bg-bg text-text-dim hover:border-gold/50 hover:text-gold"
-                                }`}
-                              >
-                                {isSelected && <span className="text-gold mr-1">▶</span>}
-                                {traitName(option)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                
+                <div className="space-y-4">
+                  {/* 四股名 */}
+                  <div className="space-y-1.5">
+                    <label className={LABEL_CLASS}>四股名（変更 +{SCOUT_COST.SHIKONA}pt）</label>
+                    <input
+                      value={editedDraft.shikona}
+                      onChange={(e) =>
+                        setEditedDraft((prev) => (prev ? { ...prev, shikona: e.target.value } : prev))
+                      }
+                      className={`${INPUT_CLASS} ui-text-label text-lg sm:text-xl text-gold bg-bg-light/30`}
+                    />
                   </div>
-                )}
 
-                <div className="flex flex-wrap gap-1.5 border-2 border-gold-muted p-2 bg-bg min-h-10">
-                  {editedDraft.traits.length === 0 ? (
-                    <span className="text-xs text-text-dim">採用スキルなし</span>
-                  ) : (
-                    editedDraft.traits.map((trait) => (
-                      <span key={trait} className="text-xs px-2 py-1 border-2 border-gold/40 ui-text-label bg-gold/10 text-gold">
-                        {traitName(trait)}
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* 経歴 */}
-              <div className="space-y-1.5">
-                <label className={LABEL_CLASS}>経歴（+{SCOUT_COST.HISTORY}pt）</label>
-                <div className="relative">
-                  <select
-                    value={editedDraft.history}
-                    onChange={(e) => handleHistoryChange(e.target.value as ScoutHistory)}
-                    className={SELECT_CLASS}
-                  >
-                    {(Object.keys(SCOUT_HISTORY_OPTIONS) as ScoutHistory[]).map((h) => (
-                      <option key={h} value={h}>{SCOUT_HISTORY_OPTIONS[h].label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
-                </div>
-
-                {historyData?.canTsukedashi && (
-                  <div className="space-y-1">
-                    <label className={LABEL_CLASS}>付出指定（差分 +30/+60pt）</label>
-                    <div className="relative">
-                      <select
-                        value={editedDraft.entryDivision}
+                  {/* 本名・出身地 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className={LABEL_CLASS}>本名（+{SCOUT_COST.REAL_NAME}pt）</label>
+                      <input
+                        value={editedDraft.profile.realName}
                         onChange={(e) =>
                           setEditedDraft((prev) =>
-                            prev ? { ...prev, entryDivision: e.target.value as EntryDivision } : prev,
+                            prev ? { ...prev, profile: { ...prev.profile, realName: e.target.value } } : prev,
+                          )
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className={LABEL_CLASS}>出身地（+{SCOUT_COST.BIRTHPLACE}pt）</label>
+                      <input
+                        value={editedDraft.profile.birthplace}
+                        onChange={(e) =>
+                          setEditedDraft((prev) =>
+                            prev ? { ...prev, profile: { ...prev.profile, birthplace: e.target.value } } : prev,
+                          )
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 性格 */}
+                  <div className="space-y-1.5">
+                    <label className={LABEL_CLASS}>性格（+{SCOUT_COST.PERSONALITY}pt）</label>
+                    <div className="relative">
+                      <select
+                        value={editedDraft.profile.personality}
+                        onChange={(e) =>
+                          setEditedDraft((prev) =>
+                            prev ? { ...prev, profile: { ...prev.profile, personality: e.target.value as PersonalityType } } : prev,
                           )
                         }
                         className={SELECT_CLASS}
                       >
-                        <option value="Maezumo">前相撲</option>
-                        <option value="Makushita60">幕下最下位格 (+30pt)</option>
-                        <option value="Sandanme90">三段目最下位格 (+60pt)</option>
+                        {(Object.keys(PERSONALITY_LABELS) as PersonalityType[]).map((p) => (
+                          <option key={p} value={p}>{PERSONALITY_LABELS[p]}</option>
+                        ))}
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
                     </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* DNA設定 */}
-              <div className="space-y-2">
-                <label className={LABEL_CLASS}>
-                  <Dna className="w-3.5 h-3.5 inline mr-1" />
-                  DNA設定（変更分コスト加算）
-                </label>
-                <details className="border-2 border-gold-muted bg-bg group">
-                  <summary className="px-3 py-2.5 text-xs ui-text-label cursor-pointer text-text-dim hover:text-gold transition-colors flex items-center gap-1">
-                    <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
-                    DNA詳細を開く（初期能力・成長・耐久・変動）
-                  </summary>
-                  <div className="px-3 py-3 space-y-4 border-t-2 border-gold-muted">
-                    {/* 初期能力 */}
-                    <DnaSliderGroup
-                      title="初期能力上限"
-                      sliders={[
-                        { key: 'powerCeiling', label: '筋力' },
-                        { key: 'techCeiling', label: '技術' },
-                        { key: 'speedCeiling', label: '速度' },
-                        { key: 'ringSense', label: '土俵感覚' },
-                        { key: 'styleFit', label: '戦術適性' },
-                      ]}
-                      values={editedDraft.genomeDraft.base as unknown as Record<string, number>}
-                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
-                        ...prev,
-                        genomeDraft: { ...prev.genomeDraft, base: { ...prev.genomeDraft.base, [key]: v } },
-                      } : prev)}
-                      min={0} max={100}
-                    />
-                    {/* 成長曲線 */}
-                    <DnaSliderGroup
-                      title="成長曲線"
-                      sliders={[
-                        { key: 'maturationAge', label: 'ピーク年齢', suffix: '歳' },
-                        { key: 'peakLength', label: 'ピーク期間', suffix: '年' },
-                      ]}
-                      values={editedDraft.genomeDraft.growth as unknown as Record<string, number>}
-                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
-                        ...prev,
-                        genomeDraft: { ...prev.genomeDraft, growth: { ...prev.genomeDraft.growth, [key]: v } },
-                      } : prev)}
-                      min={key => key === 'maturationAge' ? 18 : 1}
-                      max={key => key === 'maturationAge' ? 35 : 12}
-                    />
-                    {/* 衰退速度 */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs w-20 shrink-0 text-text-dim">衰退速度</span>
-                      <input type="range" min={1} max={20} step={1}
-                        value={Math.round(editedDraft.genomeDraft.growth.lateCareerDecay * 10)}
-                        onChange={(e) => setEditedDraft((prev) => prev ? {
-                          ...prev,
-                          genomeDraft: { ...prev.genomeDraft, growth: { ...prev.genomeDraft.growth, lateCareerDecay: Number(e.target.value) / 10 } },
-                        } : prev)}
-                        className="flex-1 h-1.5"
-                      />
-                      <span className="text-xs w-10 text-right ui-text-label text-gold">{editedDraft.genomeDraft.growth.lateCareerDecay.toFixed(1)}x</span>
+              {/* カード 2: 身体構造とキャリア */}
+              <div className="surface-card p-5 space-y-4 border-l-4 border-action">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-action" />
+                  <h3 className="ui-text-label text-sm text-text">身体構造とキャリア</h3>
+                </div>
+
+                <div className="space-y-5">
+                  {/* 体格 */}
+                  <div className="space-y-1.5">
+                    <label className={LABEL_CLASS}>体格（+{SCOUT_COST.BODY_TYPE}pt）</label>
+                    <div className="relative">
+                      <select
+                        value={editedDraft.bodyType}
+                        onChange={(e) => handleBodyTypeChange(e.target.value as BodyType)}
+                        className={SELECT_CLASS}
+                      >
+                        {(Object.keys(CONSTANTS.BODY_TYPE_DATA) as BodyType[]).map((bt) => (
+                          <option key={bt} value={bt}>{CONSTANTS.BODY_TYPE_DATA[bt].name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
                     </div>
-                    {/* 耐久性 */}
-                    <DnaSliderGroup
-                      title="耐久性"
-                      sliders={[
-                        { key: 'baseInjuryRisk', label: '怪我リスク', scale: 10, suffix: 'x', precision: 1 },
-                        { key: 'recoveryRate', label: '回復力', scale: 10, suffix: 'x', precision: 1 },
-                        { key: 'chronicResistance', label: '慢性化耐性' },
-                      ]}
-                      values={editedDraft.genomeDraft.durability as unknown as Record<string, number>}
-                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
-                        ...prev,
-                        genomeDraft: { ...prev.genomeDraft, durability: { ...prev.genomeDraft.durability, [key]: v } },
-                      } : prev)}
-                      min={key => key === 'baseInjuryRisk' ? 3 : key === 'recoveryRate' ? 5 : 0}
-                      max={key => key === 'chronicResistance' ? 100 : 20}
-                    />
-                    {/* 変動性 */}
-                    <DnaSliderGroup
-                      title="変動性"
-                      sliders={[
-                        { key: 'clutchBias', label: '勝負強さ' },
-                        { key: 'formVolatility', label: '調子の振れ' },
-                      ]}
-                      values={editedDraft.genomeDraft.variance as unknown as Record<string, number>}
-                      onChange={(key, v) => setEditedDraft((prev) => prev ? {
-                        ...prev,
-                        genomeDraft: { ...prev.genomeDraft, variance: { ...prev.genomeDraft.variance, [key]: v } },
-                      } : prev)}
-                      min={key => key === 'clutchBias' ? -50 : 0}
-                      max={key => key === 'clutchBias' ? 50 : 100}
-                    />
+                    <div className="flex justify-between items-center px-1">
+                      <p className="text-[11px] text-text-dim">
+                        身長 <span className="text-text">{editedDraft.bodyMetrics.heightCm}</span> cm
+                      </p>
+                      <p className="text-[11px] text-text-dim">
+                        体重 <span className="text-text">{editedDraft.bodyMetrics.weightKg}</span> kg
+                      </p>
+                    </div>
                   </div>
-                </details>
+
+                  {/* スキル枠 */}
+                  <div className="space-y-3">
+                    <label className={LABEL_CLASS}>
+                      スキル枠（+{resolveTraitSlotCost(editedDraft.traitSlots)}pt）
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={editedDraft.traitSlots}
+                        onChange={(e) => handleTraitSlotsChange(Number(e.target.value))}
+                        className={SELECT_CLASS}
+                      >
+                        {[0, 1, 2, 3, 4, 5].map((slot) => (
+                          <option key={slot} value={slot}>
+                            {slot} 枠 (+{resolveTraitSlotCost(slot)}pt)
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                    </div>
+
+                    {editedDraft.traitSlots > 0 && (
+                      <div className="space-y-3 animate-in fade-in duration-300">
+                        {activeTraitSlotDrafts.map((slotDraft) => (
+                          <div key={slotDraft.slotIndex} className="bg-bg-light/20 p-3 border border-gold-muted/30 space-y-2">
+                            <p className="text-[10px] ui-text-label text-text-dim uppercase tracking-wider">
+                              Slot {slotDraft.slotIndex + 1}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {slotDraft.options.map((option) => {
+                                const selectedElsewhere = activeTraitSlotDrafts.some(
+                                  (other) => other.slotIndex !== slotDraft.slotIndex && other.selected === option,
+                                );
+                                const isSelected = slotDraft.selected === option;
+                                return (
+                                  <button
+                                    key={`${slotDraft.slotIndex}-${option}`}
+                                    type="button"
+                                    onClick={() => handleTraitSelection(slotDraft.slotIndex, option)}
+                                    disabled={selectedElsewhere && !isSelected}
+                                    className={`text-xs px-2 py-2.5 border-2 text-center transition-all duration-200 ${
+                                      isSelected
+                                        ? "border-gold bg-gold/15 text-gold shadow-[0_0_10px_rgba(212,175,55,0.2)]"
+                                        : selectedElsewhere
+                                          ? "border-bg-light text-text-dim/30 bg-bg cursor-not-allowed opacity-50"
+                                          : "border-gold-muted/40 bg-bg/50 text-text-dim hover:border-gold/60 hover:text-text"
+                                    }`}
+                                  >
+                                    {traitName(option)}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 経歴 */}
+                  <div className="space-y-4 pt-2 border-t border-gold-muted/20">
+                    <div className="space-y-1.5">
+                      <label className={LABEL_CLASS}>来歴（+{SCOUT_COST.HISTORY}pt）</label>
+                      <div className="relative">
+                        <select
+                          value={editedDraft.history}
+                          onChange={(e) => handleHistoryChange(e.target.value as ScoutHistory)}
+                          className={SELECT_CLASS}
+                        >
+                          {(Object.keys(SCOUT_HISTORY_OPTIONS) as ScoutHistory[]).map((h) => (
+                            <option key={h} value={h}>{SCOUT_HISTORY_OPTIONS[h].label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {historyData?.canTsukedashi && (
+                      <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                        <label className={LABEL_CLASS}>付出制度の利用（差分 +30/+60pt）</label>
+                        <div className="relative">
+                          <select
+                            value={editedDraft.entryDivision}
+                            onChange={(e) =>
+                              setEditedDraft((prev) =>
+                                prev ? { ...prev, entryDivision: e.target.value as EntryDivision } : prev,
+                              )
+                            }
+                            className={SELECT_CLASS}
+                          >
+                            <option value="Maezumo">前相撲を希望</option>
+                            <option value="Makushita60">幕下最下位格付出 (+30pt)</option>
+                            <option value="Sandanme90">三段目最下位格付出 (+60pt)</option>
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* カード 3: 資質と志しの選択 */}
+              <div className="surface-card p-5 space-y-4 border-l-4 border-brand-line">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-brand-line" />
+                    <h3 className="ui-text-label text-sm text-text">資質と志し</h3>
+                  </div>
+                  <span className="text-[10px] text-text-dim uppercase tracking-widest">Genome Resolution</span>
+                </div>
+
+                <div className="space-y-6">
+                  {/* 素養 */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className={LABEL_CLASS}>素養</label>
+                      <button
+                        type="button"
+                        onClick={() => showHelp("素養", "力士の出身背景やスポーツ歴です。初期能力や成長の限界値、得意とする技術に影響します。")}
+                        className={`text-[10px] px-2 py-0.5 border transition-colors ${helpInfo?.title === "素養" ? "bg-brand-line border-brand-line text-bg" : "text-brand-line border-brand-line/30 hover:bg-brand-line/10"}`}
+                      >
+                        {helpInfo?.title === "素養" ? "閉じる" : "解説を表示"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(Object.keys(SCOUT_BACKGROUNDS) as ScoutBackgroundId[]).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setEditedDraft(prev => prev ? { ...prev, selectedBackgroundId: id } : prev)}
+                          className={`px-2 py-2.5 text-xs border-2 transition-all duration-200 ${
+                            editedDraft.selectedBackgroundId === id
+                              ? "border-gold bg-gold/15 text-gold shadow-[0_0_8px_rgba(212,175,55,0.15)]"
+                              : "border-gold-muted/30 bg-bg text-text-dim hover:border-gold/50"
+                          }`}
+                        >
+                          {SCOUT_BACKGROUNDS[id].name}
+                        </button>
+                      ))}
+                    </div>
+                    {helpInfo?.title === "素養" && (
+                      <div className="text-[11px] text-text-dim bg-brand-line/5 p-3 border-l-2 border-brand-line animate-in zoom-in-95 duration-200">
+                        {SCOUT_BACKGROUNDS[editedDraft.selectedBackgroundId].help}
+                        <p className="mt-2 text-action opacity-80 leading-relaxed italic">
+                          ※{helpInfo.text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 体質 */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className={LABEL_CLASS}>体質</label>
+                      <button
+                        type="button"
+                        onClick={() => showHelp("体質", "生まれ持った肉体的な特徴です。ステータスの伸びやすさや、怪我への耐性を決定付けます。")}
+                        className={`text-[10px] px-2 py-0.5 border transition-colors ${helpInfo?.title === "体質" ? "bg-brand-line border-brand-line text-bg" : "text-brand-line border-brand-line/30 hover:bg-brand-line/10"}`}
+                      >
+                        {helpInfo?.title === "体質" ? "閉じる" : "解説を表示"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(Object.keys(SCOUT_PHYSICAL_TRAITS) as ScoutPhysicalTraitId[]).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setEditedDraft(prev => prev ? { ...prev, selectedPhysicalTraitId: id } : prev)}
+                          className={`px-2 py-2.5 text-xs border-2 transition-all duration-200 ${
+                            editedDraft.selectedPhysicalTraitId === id
+                              ? "border-gold bg-gold/15 text-gold shadow-[0_0_8px_rgba(212,175,55,0.15)]"
+                              : "border-gold-muted/30 bg-bg text-text-dim hover:border-gold/50"
+                          }`}
+                        >
+                          {SCOUT_PHYSICAL_TRAITS[id].name}
+                        </button>
+                      ))}
+                    </div>
+                    {helpInfo?.title === "体質" && (
+                      <div className="text-[11px] text-text-dim bg-brand-line/5 p-3 border-l-2 border-brand-line animate-in zoom-in-95 duration-200">
+                        {SCOUT_PHYSICAL_TRAITS[editedDraft.selectedPhysicalTraitId].help}
+                        <p className="mt-2 text-action opacity-80 leading-relaxed italic">
+                          ※{helpInfo.text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 相撲型 */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className={LABEL_CLASS}>相撲型</label>
+                      <button
+                        type="button"
+                        onClick={() => showHelp("相撲型", "将来どのような取り口を目指すかの志向です。成長曲線や、土壇場での勝負強さに影響します。")}
+                        className={`text-[10px] px-2 py-0.5 border transition-colors ${helpInfo?.title === "相撲型" ? "bg-brand-line border-brand-line text-bg" : "text-brand-line border-brand-line/30 hover:bg-brand-line/10"}`}
+                      >
+                        {helpInfo?.title === "相撲型" ? "閉じる" : "解説を表示"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(Object.keys(SCOUT_STYLES) as ScoutStyleId[]).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setEditedDraft(prev => prev ? { ...prev, selectedStyleId: id } : prev)}
+                          className={`px-2 py-2.5 text-xs border-2 transition-all duration-200 ${
+                            editedDraft.selectedStyleId === id
+                              ? "border-gold bg-gold/15 text-gold shadow-[0_0_8px_rgba(212,175,55,0.15)]"
+                              : "border-gold-muted/30 bg-bg text-text-dim hover:border-gold/50"
+                          }`}
+                        >
+                          {SCOUT_STYLES[id].name}
+                        </button>
+                      ))}
+                    </div>
+                    {helpInfo?.title === "相撲型" && (
+                      <div className="text-[11px] text-text-dim bg-brand-line/5 p-3 border-l-2 border-brand-line animate-in zoom-in-95 duration-200">
+                        {SCOUT_STYLES[editedDraft.selectedStyleId].help}
+                        <p className="mt-2 text-action opacity-80 leading-relaxed italic">
+                          ※{helpInfo.text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {helpInfo && (
+                    <div className="mt-2 p-3 bg-action/5 border border-action/20 relative animate-in slide-in-from-bottom-2 duration-300">
+                      <button
+                        onClick={() => setHelpInfo(null)}
+                        className="absolute top-1 right-2 text-text-dim hover:text-text text-sm"
+                      >
+                        ×
+                      </button>
+                      <p className="text-[10px] ui-text-label text-action mb-1">{helpInfo.title}の補足</p>
+                      <p className="text-[11px] text-text-dim leading-relaxed">{helpInfo.text}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </section>
 
           {/* 右パネル: 候補サマリー */}
-          <section className="surface-panel space-y-4 lg:sticky lg:top-6 lg:self-start">
-            <h2 className="section-header">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 text-action" />
-              現在の力士像
-            </h2>
+          <section className="lg:sticky lg:top-6 lg:self-start space-y-4">
+            <div className="surface-panel space-y-4 shadow-xl border-t-4 border-gold">
+              <div className="flex items-center justify-between border-b border-gold-muted/30 pb-2">
+                <h2 className="ui-text-label text-sm text-gold flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  新弟子カルテ
+                </h2>
+                <span className="text-[10px] text-text-dim px-2 py-0.5 bg-bg-light/40 border border-gold-muted/20">
+                  ID: {editedDraft.shikona.substring(0, 4).toUpperCase()}-{Math.floor(Math.random() * 9000) + 1000}
+                </span>
+              </div>
 
-            {/* 四股名ヒーロー */}
-            <div className="text-center py-3 border-b-2 border-gold-muted">
-              <p className="text-2xl sm:text-3xl ui-text-heading text-text tracking-wider">
-                {editedDraft.shikona}
-              </p>
-              <p className="text-xs text-text-dim mt-1">
-                {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
-              </p>
-            </div>
-
-            {/* 基本情報 */}
-            <div className="space-y-1 text-xs">
-              {[
-                ["本名", editedDraft.profile.realName || "(未設定)"],
-                ["出身地", editedDraft.profile.birthplace || "(未設定)"],
-                ["性格", PERSONALITY_LABELS[editedDraft.profile.personality]],
-                ["経歴", SCOUT_HISTORY_OPTIONS[editedDraft.history].label],
-                ["体格", `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)`],
-                ["戦術", editedDraft.tactics],
-                ["得意技", editedDraft.signatureMove],
-                ["ピーク", `${Math.round(editedDraft.genomeDraft.growth.maturationAge)}歳 (${Math.round(editedDraft.genomeDraft.growth.peakLength)}年間)`],
-              ].map(([key, val]) => (
-                <div key={key} className="data-row">
-                  <span className="data-key">{key}</span>
-                  <span className="data-val">{val}</span>
+              {/* 四股名ヒーロー */}
+              <div className="text-center py-4 bg-gradient-to-b from-gold/10 to-transparent rounded-t-lg">
+                <p className="text-xs ui-text-label text-brand-line mb-1">西之海部屋 門下</p>
+                <p className="text-3xl sm:text-4xl ui-text-heading text-text tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                  {editedDraft.shikona}
+                </p>
+                <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-bg/60 border border-gold-muted/30">
+                  <span className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                  <span className="text-[10px] ui-text-label text-gold uppercase tracking-tighter">
+                    {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
+                  </span>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* コスト内訳 */}
-            <div className="border-t-2 border-gold-muted pt-3 space-y-1">
-              <p className="text-xs ui-text-label text-brand-line mb-2">
-                <Zap className="w-3.5 h-3.5 inline mr-1" />
-                追加費用
-              </p>
-              <div className="space-y-0.5 text-xs">
+              {/* 基本情報グリッド */}
+              <div className="grid grid-cols-1 gap-1 pt-2">
                 {[
-                  ["四股名", overrideCost.breakdown.shikona],
-                  ["本名", overrideCost.breakdown.realName],
-                  ["出身地", overrideCost.breakdown.birthplace],
-                  ["性格", overrideCost.breakdown.personality],
-                  ["体格", overrideCost.breakdown.bodyType],
-                  ["スキル枠", overrideCost.breakdown.traitSlots],
-                  ["経歴", overrideCost.breakdown.history],
-                  ["付出", overrideCost.breakdown.tsukedashi],
-                  ["DNA変更", overrideCost.breakdown.genome],
-                ].filter(([, v]) => (v as number) > 0).map(([key, val]) => (
-                  <div key={key as string} className="data-row">
-                    <span className="data-key">{key}</span>
-                    <span className="data-val">{val}pt</span>
+                  { key: "本名", val: editedDraft.profile.realName || "不詳", icon: <User className="w-3 h-3" /> },
+                  { key: "出身", val: editedDraft.profile.birthplace || "日本", icon: <Trophy className="w-3 h-3" /> },
+                  { key: "性格", val: PERSONALITY_LABELS[editedDraft.profile.personality], icon: <Zap className="w-3 h-3" /> },
+                  { key: "体格", val: `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name}型`, icon: <Zap className="w-3 h-3" /> },
+                  { key: "身長/体重", val: `${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg`, icon: <Zap className="w-3 h-3" /> },
+                ].map((item) => (
+                  <div key={item.key} className="flex justify-between items-center py-1.5 border-b border-gold-muted/10 text-[11px]">
+                    <span className="text-text-dim flex items-center gap-1.5 ui-text-label">
+                      {item.icon}
+                      {item.key}
+                    </span>
+                    <span className="text-text font-medium">{item.val}</span>
                   </div>
                 ))}
               </div>
-              <div className="pt-2 mt-2 border-t-2 border-gold-muted flex justify-between items-center">
-                <span className="text-xs ui-text-label text-text-dim">合計費用</span>
-                <span className="text-lg ui-text-label text-text">{overrideCost.total}ポイント</span>
+
+              {/* 素養・体質・型カード */}
+              <div className="bg-bg-light/30 border border-gold-muted/20 p-3 space-y-2">
+                <p className="text-[10px] ui-text-label text-gold/70 border-b border-gold/10 pb-1 mb-2">資質と型</p>
+                <div className="space-y-1.5">
+                  {[
+                    { key: "素養", val: SCOUT_BACKGROUNDS[editedDraft.selectedBackgroundId].name },
+                    { key: "体質", val: SCOUT_PHYSICAL_TRAITS[editedDraft.selectedPhysicalTraitId].name },
+                    { key: "相撲型", val: SCOUT_STYLES[editedDraft.selectedStyleId].name },
+                  ].map((item) => (
+                    <div key={item.key} className="flex justify-between items-center text-[10px]">
+                      <span className="text-text-dim italic">{item.key}</span>
+                      <span className="text-gold border border-gold/20 px-1.5 bg-gold/5">{item.val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* コストサマリー */}
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] ui-text-label text-text-dim">構築費用 合計</span>
+                  <div className="text-right">
+                    {overrideCost.total > 0 && (
+                      <p className="text-[10px] text-brand-line line-through opacity-50 mb-[-2px]">
+                        {overrideCost.total + 50}pt
+                      </p>
+                    )}
+                    <p className="text-2xl ui-text-metric text-text leading-none">
+                      {overrideCost.total}<span className="text-xs ml-1">PT</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 登録アクション */}
+              <div className="space-y-2 pt-2">
+                <Button
+                  size="lg"
+                  onClick={() => void handleRegister("skip_to_end")}
+                  disabled={isRegistering}
+                  className="w-full py-4 relative group overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gold/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  <Trophy className="w-5 h-5 mr-2 relative z-10" />
+                  <span className="relative z-10">
+                    {isRegistering ? "門出を祝っています..." : "この内容で入門させる"}
+                  </span>
+                </Button>
+                
+                {isDev && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleRegister("observe")}
+                    disabled={isRegistering}
+                    className="w-full text-xs opacity-60 hover:opacity-100"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                    開発者メニュー: 観測モード
+                  </Button>
+                )}
               </div>
             </div>
-
-            {/* 登録ボタン */}
-            <Button
-              size="lg"
-              onClick={() => void handleRegister("skip_to_end")}
-              disabled={isRegistering}
-              className="w-full"
-            >
-              <Trophy className="w-5 h-5 mr-2" />
-              {isRegistering ? "力士人生を演算しています..." : "この新弟子で始める"}
-            </Button>
-            {isDev && (
-              <Button
-                variant="outline"
-                onClick={() => void handleRegister("observe")}
-                disabled={isRegistering}
-                className="w-full"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                {isRegistering ? "観測モードを準備しています..." : "観測モードで始める"}
-              </Button>
-            )}
+            
+            {/* 最後に調整した日時などの補助情報 */}
+            <p className="text-[10px] text-text-dim text-center italic">
+              ※入門後の基本能力値は、選択した資質に基づき算出されます。
+            </p>
           </section>
         </div>
       )}
@@ -689,49 +786,3 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     </div>
   );
 };
-
-// --- DNAスライダーグループ(内部コンポーネント) ---
-const DnaSliderGroup: React.FC<{
-  title: string;
-  sliders: Array<{
-    key: string;
-    label: string;
-    scale?: number;
-    suffix?: string;
-    precision?: number;
-  }>;
-  values: Record<string, number>;
-  onChange: (key: string, value: number) => void;
-  min: number | ((key: string) => number);
-  max: number | ((key: string) => number);
-}> = ({ title, sliders, values, onChange, min, max }) => (
-  <div className="space-y-1.5">
-    <p className="text-xs ui-text-label text-gold">{title}</p>
-    {sliders.map(({ key, label, scale, suffix, precision }) => {
-      const s = scale ?? 1;
-      const rawVal = values[key] ?? 0;
-      const sliderVal = Math.round(rawVal * s);
-      const displayVal = precision != null ? (rawVal).toFixed(precision) : String(Math.round(rawVal));
-      const minVal = typeof min === "function" ? min(key) : min;
-      const maxVal = typeof max === "function" ? max(key) : max;
-
-      return (
-        <div key={key} className="flex items-center gap-2">
-          <span className="text-xs w-20 shrink-0 text-text-dim">{label}</span>
-          <input
-            type="range"
-            min={minVal}
-            max={maxVal}
-            step={1}
-            value={sliderVal}
-            onChange={(e) => onChange(key, Number(e.target.value) / s)}
-            className="flex-1 h-1.5"
-          />
-          <span className="text-xs w-10 text-right ui-text-label text-gold">
-            {displayVal}{suffix ?? ""}
-          </span>
-        </div>
-      );
-    })}
-  </div>
-);

@@ -28,6 +28,15 @@ import {
 } from '../models';
 import { generateShikona } from '../naming/playerNaming';
 import { listStablesByIchimon, resolveStableById, STABLE_CATALOG } from '../simulation/heya/stableCatalog';
+import {
+  SCOUT_BACKGROUNDS,
+  SCOUT_PHYSICAL_TRAITS,
+  SCOUT_STYLES,
+  ScoutBackgroundId,
+  ScoutPhysicalTraitId,
+  ScoutStyleId,
+  DNAModifiers,
+} from './choices';
 
 type RandomSource = () => number;
 
@@ -95,9 +104,12 @@ export interface ScoutDraft {
   traits: Trait[];
   traitSlotDrafts: ScoutTraitSlotDraft[];
   genomeDraft: RikishiGenome;
-  genomeBudget: number;
   selectedIchimonId: IchimonId | null;
   selectedStableId: string | null;
+  // 追加された選択肢
+  selectedBackgroundId: ScoutBackgroundId;
+  selectedPhysicalTraitId: ScoutPhysicalTraitId;
+  selectedStyleId: ScoutStyleId;
 }
 
 export interface ScoutTraitSlotDraft {
@@ -115,7 +127,10 @@ export interface ScoutOverrideCostBreakdown {
   traitSlots: number;
   history: number;
   tsukedashi: number;
-  genome: number;
+  // 直接編集コストを廃止し、選択肢変更コスト（一律または無料）に置き換える余地
+  background: number;
+  physicalTrait: number;
+  style: number;
 }
 
 export interface ScoutOverrideCost {
@@ -141,6 +156,7 @@ export const SCOUT_COST = {
   HISTORY: 50,
   TSUKEDASHI_MAKUSHITA60: 30,
   TSUKEDASHI_SANDANME90: 60,
+  CHOICE_CHANGE: 20, // 選択肢を変更するコスト（一律）
 } as const;
 
 const HISTORY_DRAW_WEIGHTS: Array<{ value: ScoutHistory; weight: number }> = [
@@ -540,6 +556,56 @@ export const resolveGenomeDiffCost = (
   return Math.min(cost, CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX);
 };
 
+/** DNAModifiers をゲノムに適用する */
+const applyDNAModifiers = (genome: RikishiGenome, mods: DNAModifiers): RikishiGenome => {
+  const next = JSON.parse(JSON.stringify(genome)) as RikishiGenome;
+
+  if (mods.base) {
+    (Object.entries(mods.base) as [keyof RikishiGenome['base'], number][]).forEach(([k, v]) => {
+      next.base[k] = Math.max(0, Math.min(100, next.base[k] + v));
+    });
+  }
+  if (mods.growth) {
+    (Object.entries(mods.growth) as [keyof RikishiGenome['growth'], number][]).forEach(([k, v]) => {
+      next.growth[k] = Math.max(1, Math.min(100, next.growth[k] + v)); // 年齢や期間なので最小1
+    });
+  }
+  if (mods.durability) {
+    (Object.entries(mods.durability) as [keyof RikishiGenome['durability'], number][]).forEach(([k, v]) => {
+      if (k === 'partVulnerability') return; // 個別部位は一旦除外
+      const val = next.durability[k] as number;
+      next.durability[k] = Math.max(0.1, Math.min(5.0, val + v));
+    });
+  }
+  if (mods.variance) {
+    (Object.entries(mods.variance) as [keyof RikishiGenome['variance'], number][]).forEach(([k, v]) => {
+      next.variance[k] = Math.max(-100, Math.min(100, next.variance[k] + v));
+    });
+  }
+
+  return next;
+};
+
+/** 選択肢に基づいて最終的なゲノムを確定する */
+export const resolveGenomeFromChoices = (
+  archetype: TalentArchetype,
+  growthType: string,
+  background: ScoutBackgroundId,
+  physicalTrait: ScoutPhysicalTraitId,
+  style: ScoutStyleId,
+  rng: RandomSource = Math.random
+): RikishiGenome => {
+  // 1. アーキタイプ・成長型のベースゲノムを生成
+  let genome = rollGenomeDraft(archetype, growthType, rng);
+
+  // 2. 各選択肢の Modifiers を適用
+  genome = applyDNAModifiers(genome, SCOUT_BACKGROUNDS[background].modifiers);
+  genome = applyDNAModifiers(genome, SCOUT_PHYSICAL_TRAITS[physicalTrait].modifiers);
+  genome = applyDNAModifiers(genome, SCOUT_STYLES[style].modifiers);
+
+  return genome;
+};
+
 export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const history = rollHistory(rng);
   const entryDivision = rollEntryDivision(history, rng);
@@ -548,10 +614,23 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const archetype = WEIGHTED_PICK(rng, SCOUT_ARCHETYPE_WEIGHTS);
   const aptitudeTier = rollAptitudeTier(rng);
   const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
-  const growthType = WEIGHTED_PICK(rng, GENOME_GROWTH_HINT_WEIGHTS);
-  const genomeDraft = rollGenomeDraft(archetype, growthType, rng);
-  const careerBand = resolveScoutCareerBand(aptitudeTier, archetype, history, rng);
   const defaultStable = resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
+
+  const growthType = WEIGHTED_PICK(rng, GENOME_GROWTH_HINT_WEIGHTS);
+  const backgroundId: ScoutBackgroundId = 'CLUB';
+  const physicalTraitId: ScoutPhysicalTraitId = 'POWER';
+  const styleId: ScoutStyleId = 'YOTSU';
+  const careerBand = resolveScoutCareerBand(aptitudeTier, archetype, history, rng);
+
+  const genomeDraft = resolveGenomeFromChoices(
+    archetype,
+    growthType,
+    backgroundId,
+    physicalTraitId,
+    styleId,
+    rng
+  );
+
   const baseDraft: ScoutDraft = {
     shikona: generateShikona(),
     profile: rollProfile(rng),
@@ -569,9 +648,11 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     traits: [],
     traitSlotDrafts: [],
     genomeDraft,
-    genomeBudget: CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX,
     selectedIchimonId: defaultStable?.ichimonId ?? null,
     selectedStableId: defaultStable?.id ?? null,
+    selectedBackgroundId: backgroundId,
+    selectedPhysicalTraitId: physicalTraitId,
+    selectedStyleId: styleId,
   };
 
   return resizeTraitSlots(baseDraft, traitSlots, rng);
@@ -695,7 +776,9 @@ export const resolveScoutOverrideCost = (
     traitSlots: base.traitSlots !== edited.traitSlots ? resolveTraitSlotCost(edited.traitSlots) : 0,
     history: base.history !== edited.history ? SCOUT_COST.HISTORY : 0,
     tsukedashi: 0,
-    genome: resolveGenomeDiffCost(base.genomeDraft, edited.genomeDraft),
+    background: base.selectedBackgroundId !== edited.selectedBackgroundId ? SCOUT_COST.CHOICE_CHANGE : 0,
+    physicalTrait: base.selectedPhysicalTraitId !== edited.selectedPhysicalTraitId ? SCOUT_COST.CHOICE_CHANGE : 0,
+    style: base.selectedStyleId !== edited.selectedStyleId ? SCOUT_COST.CHOICE_CHANGE : 0,
   };
 
   if (base.entryDivision !== edited.entryDivision) {
