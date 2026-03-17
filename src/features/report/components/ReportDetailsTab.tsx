@@ -169,15 +169,10 @@ const EMPTY_IMPORTANT_DECISION_DIGEST: ReportImportantDecisionDigest = {
 const headToHeadLabel = (entry: RivalryEntry): string =>
   `${entry.headToHead.wins}勝${entry.headToHead.losses}敗${entry.headToHead.absences > 0 ? ` ${entry.headToHead.absences}や` : ""}`;
 
-const resolveRivalryAccent = (categoryLabel: string): string => {
-  if (categoryLabel === "優勝を阻んだ相手") return "border-warning/45 bg-warning/8";
-  if (categoryLabel === "時代を築いた強敵") return "border-brand-line/35 bg-brand-ink/60";
-  return "border-action/35 bg-action/6";
-};
 
 const emptyRivalryText = (careerId?: string | null): string => {
   if (!careerId) return "保存済みキャリアを開くと、対戦相手との因縁を復元できます。";
-  return "根拠が十分な優勝阻止や宿敵は見つかりませんでした。";
+  return "特記すべきライバルや強敵は確認されませんでした。";
 };
 
 interface ReportDetailsTabProps {
@@ -328,8 +323,8 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
         setImportantDecisionDigest(EMPTY_IMPORTANT_DECISION_DIGEST);
         setRivalryBashoRows([]);
         setRivalryBoutsBySeq([]);
-        setRivalryErrorMessage("宿敵データの取得に失敗したため、このセクションだけ省略しています。");
-        setImportantDecisionErrorMessage("重要判断の読み出しに失敗したため、このセクションだけ省略しています。");
+        setRivalryErrorMessage("ライバルデータの取得に失敗したため、このセクションだけ省略しています。");
+        setImportantDecisionErrorMessage("歩みの転換点の読み出しに失敗したため、このセクションだけ省略しています。");
       } finally {
         if (!cancelled) setRivalryLoading(false);
       }
@@ -422,22 +417,22 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.9fr)] gap-4">
         {mode !== "profile" && (
         <div className="report-detail-card p-4 sm:p-5 xl:col-span-2">
-          <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center justify-between gap-3 mb-6">
             <h3 className="section-header">
-              <ScrollText className="w-4 h-4 text-warning" /> 重要判断
+              <ScrollText className="w-4 h-4 text-warning" /> 歩みの転換点
             </h3>
-            <p className="text-xs text-text-dim">重要昇進と特殊据え置き、異例の本割だけを残します</p>
+            <p className="text-xs text-text-dim">昇進や優勝争いなど、力士人生の分岐点を振り返ります</p>
           </div>
           {rivalryLoading ? (
-            <div className="report-empty">重要判断を読み込んでいます。</div>
+            <div className="report-empty">歩みを読み込んでいます。</div>
           ) : importantDecisionDigest.highlights.length === 0 ? (
             <div className="report-empty">
-              {careerId ? "このキャリアでは説明が必要な重要判断は見つかりませんでした。" : "保存済みキャリアを開くと、重要判断だけを読み返せます。"}
+              {careerId ? "この力士の歩みには、特記すべき大きな分岐点は見つかりませんでした。" : "保存済みキャリアを開くと、歩みの転換点を読み返せます。"}
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="relative ml-4 pl-8 border-l border-brand-muted/40 space-y-8 pb-4">
               {importantDecisionDigest.highlights.map((highlight) => (
-                <ImportantDecisionCard
+                <ImportantDecisionTimelineItem
                   key={highlight.key}
                   highlight={highlight}
                   onOpen={highlight.kind === "BANZUKE" ? openDecisionSnapshot : openTorikumiDetail}
@@ -592,36 +587,39 @@ export const ReportDetailsTab: React.FC<ReportDetailsTabProps> = ({
 
       {mode !== "profile" && (
       <div className="report-detail-card p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center justify-between gap-3 mb-6">
           <h3 className="section-header">
-            <Trophy className="w-4 h-4 text-warning" /> 壁だった力士
+            <Swords className="w-4 h-4 text-warning" /> 立ちはだかったライバル
           </h3>
-          <p className="text-xs text-text-dim">優勝阻止と宿敵だけを、根拠が強い順に残します</p>
+          <p className="text-xs text-text-dim">賜杯への熱闘や、幾度も壁となった強敵との絆</p>
         </div>
-        <div className="space-y-4">
-          <RivalryBlock
-            title="優勝を阻んだ相手"
-            description="同星で並んだ場所や、直接対決で賜杯を遠ざけた相手だけを拾います。"
+        <div className="space-y-8">
+          <RivalrySection
+            title="優勝を賭けた熱戦"
+            description="千秋楽の直接対決や、同星で賜杯を争った記憶に残るライバルです。"
             entries={rivalryDigest.titleBlockers}
             isLoading={rivalryLoading}
             emptyText={emptyRivalryText(careerId)}
             onOpenSnapshot={openSnapshot}
+            accentColor="warning"
           />
-          <RivalryBlock
-            title="時代を築いた強敵"
-            description="上位在位期に何度も前にいた横綱・大関だけを並べます。"
+          <RivalrySection
+            title="時代を共にした強敵"
+            description="番付の上位で幾度となく対峙した、この時代の象徴的な力士たちです。"
             entries={rivalryDigest.eraTitans}
             isLoading={rivalryLoading}
             emptyText={emptyRivalryText(careerId)}
             onOpenSnapshot={openSnapshot}
+            accentColor="brand"
           />
-          <RivalryBlock
-            title="宿敵"
-            description="長期の負け越しで、何度も壁になった相手です。"
+          <RivalrySection
+            title="幾度も阻まれた壁"
+            description="長期にわたって黒星が先行し、乗り越えるべき目標となった相手です。"
             entries={rivalryDigest.nemesis}
             isLoading={rivalryLoading}
             emptyText={emptyRivalryText(careerId)}
             onOpenSnapshot={openSnapshot}
+            accentColor="action"
           />
           {rivalryErrorMessage && <div className="text-xs text-warning-bright">{rivalryErrorMessage}</div>}
         </div>
@@ -775,56 +773,90 @@ const DnaBlock: React.FC<{ title: string; items: Array<[string, string | number]
   </div>
 );
 
-const RivalryBlock: React.FC<{
+const RivalrySection: React.FC<{
   title: string;
   description: string;
   entries: RivalryEntry[];
   isLoading: boolean;
   emptyText: string;
   onOpenSnapshot: (categoryLabel: string, entry: RivalryEntry) => void;
-}> = ({ title, description, entries, isLoading, emptyText, onOpenSnapshot }) => (
-  <div className="space-y-2">
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-      <div className="ui-text-label text-sm text-text">{title}</div>
-      <div className="text-xs text-text-dim">{description}</div>
+  accentColor: "warning" | "brand" | "action";
+}> = ({ title, description, entries, isLoading, emptyText, onOpenSnapshot, accentColor }) => (
+  <div className="space-y-4">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between border-b border-brand-muted/30 pb-2">
+      <div className="ui-text-label text-sm text-text font-bold">{title}</div>
+      <div className="text-[11px] text-text-dim italic">{description}</div>
     </div>
     {isLoading ? (
-      <div className="report-empty">宿敵史を読み込んでいます。</div>
+      <div className="report-empty">ライバルを読み込んでいます...</div>
     ) : entries.length === 0 ? (
-      <div className="report-empty">{emptyText}</div>
+      <div className="report-empty text-[11px]">{emptyText}</div>
     ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {entries.map((entry) => (
           <div
             key={`${title}-${entry.opponentId}`}
-            className={`border p-3 space-y-3 ${resolveRivalryAccent(title)}`}
+            className={`relative group border p-4 transition-all duration-300 hover:border-brand-line/50 ${
+              accentColor === "warning"
+                ? "border-warning/30 bg-warning/5"
+                : accentColor === "brand"
+                  ? "border-brand-line/30 bg-brand-ink/40"
+                  : "border-action/30 bg-action/5"
+            }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm text-text">{entry.shikona}</div>
-                <div className="text-xs text-text-dim">{entry.representativeRankLabel}</div>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-1 h-8 ${
+                  accentColor === "warning" ? "bg-warning" : accentColor === "brand" ? "bg-brand-line" : "bg-action"
+                }`} />
+                <div>
+                  <div className="text-base font-bold text-text tracking-wider">{entry.shikona}</div>
+                  <div className="text-[10px] text-text-dim uppercase tracking-tighter">{entry.representativeRankLabel}</div>
+                </div>
               </div>
-              <div className="text-right text-[11px] text-text-dim">
-                <div>{entry.featuredBashoLabel}</div>
-                <div>根拠 {entry.evidenceCount}件</div>
-              </div>
-            </div>
-            <p className="text-xs text-text leading-relaxed">{entry.summary}</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="border border-brand-muted/60 bg-surface-base/75 px-2 py-1.5">
-                <div className="text-text-dim">通算対戦</div>
-                <div className="text-text">{headToHeadLabel(entry)}</div>
-              </div>
-              <div className="border border-brand-muted/60 bg-surface-base/75 px-2 py-1.5">
-                <div className="text-text-dim">象徴の場所</div>
-                <div className="text-text">{entry.featuredBashoLabel}</div>
+              <div className="text-center bg-surface-base px-3 py-1 border border-brand-muted/40">
+                <div className="text-[9px] text-text-dim leading-none mb-1 uppercase">Head to Head</div>
+                <div className="text-xs font-bold text-text leading-none">{headToHeadLabel(entry)}</div>
               </div>
             </div>
-            <p className="text-xs text-text-dim leading-relaxed">{entry.featuredReason}</p>
-            <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => onOpenSnapshot(title, entry)}>
-              <Eye className="w-3.5 h-3.5" />
-              当時の番付表を見る
-            </Button>
+
+            <div className="mb-4 relative h-12 flex items-center justify-center overflow-hidden">
+               <div className="absolute inset-0 opacity-10 flex items-center justify-center text-4xl font-black italic select-none pointer-events-none">VS</div>
+               <div className="relative text-xs text-text leading-relaxed text-center px-4 italic opacity-90">
+                「{entry.summary}」
+               </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="bg-brand-ink/20 p-2 border border-brand-muted/20">
+                  <div className="text-text-dim mb-1 flex items-center gap-1">
+                    <Trophy className="w-3 h-3 text-warning" /> 象徴の場所
+                  </div>
+                  <div className="text-text font-medium">{entry.featuredBashoLabel}</div>
+                </div>
+                <div className="bg-brand-ink/20 p-2 border border-brand-muted/20">
+                  <div className="text-text-dim mb-1 flex items-center gap-1">
+                    <ScrollText className="w-3 h-3 text-brand-line" /> 転機の文脈
+                  </div>
+                  <div className="text-text font-medium">{entry.evidenceCount}件の記録</div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-text-dim leading-relaxed bg-surface-base/30 p-2 border-l-2 border-brand-muted/40 font-serif">
+                {entry.featuredReason}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-[11px] gap-2 hover:bg-brand-line/10 border-brand-muted/60 transition-colors"
+                onClick={() => onOpenSnapshot(title, entry)}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                当時の激闘を番付で振り返る
+              </Button>
+            </div>
           </div>
         ))}
       </div>
@@ -832,41 +864,71 @@ const RivalryBlock: React.FC<{
   </div>
 );
 
-const ImportantDecisionCard: React.FC<{
+const ImportantDecisionTimelineItem: React.FC<{
   highlight: ReportImportantDecisionHighlight;
   onOpen: (highlight: ReportImportantDecisionHighlight) => void;
 }> = ({ highlight, onOpen }) => {
-  const toneClass =
+  const toneColor =
     highlight.tone === "warning"
-      ? "border-warning/45 bg-warning/8"
+      ? "bg-warning"
       : highlight.tone === "state"
-        ? "border-state/40 bg-state/10"
-        : "border-brand-line/35 bg-brand-ink/60";
+        ? "bg-state"
+        : "bg-brand-line";
+
+  const toneBg =
+    highlight.tone === "warning"
+      ? "bg-warning/10 border-warning/40"
+      : highlight.tone === "state"
+        ? "bg-state/10 border-state/40"
+        : "bg-brand-ink/60 border-brand-line/35";
 
   return (
-    <div className={`border p-3 space-y-3 ${toneClass}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm text-text">{highlight.title}</div>
-          <div className="text-xs text-text-dim">
-            {highlight.bashoLabel}
-            {highlight.day ? ` ${highlight.day}日目` : ""}
+    <div className="relative">
+      <div className={`absolute -left-[45px] top-1 w-9 h-9 rounded-full ${toneBg} flex items-center justify-center border-2 z-10 shadow-sm`}>
+        {highlight.kind === "BANZUKE" ? <ScrollText className="w-4 h-4 text-text" /> : <Swords className="w-4 h-4 text-text" />}
+      </div>
+
+      <div className={`border p-4 transition-all hover:shadow-md ${toneBg}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-3">
+             <div className="bg-surface-base px-2 py-0.5 border border-brand-muted/60 text-[10px] text-text-dim font-bold tracking-tighter uppercase whitespace-nowrap">
+              {highlight.bashoLabel} {highlight.day ? `${highlight.day}日目` : "番付編成"}
+            </div>
+            <h4 className="text-sm font-bold text-text tracking-wide">{highlight.title}</h4>
+          </div>
+          <div className={`text-[10px] px-2 py-0.5 rounded-sm text-white font-bold tracking-widest ${toneColor}`}>
+            {highlight.kind === "BANZUKE" ? "RANKING" : "BOUT"}
           </div>
         </div>
-        <div className="text-[11px] text-text-dim">{highlight.kind === "BANZUKE" ? "番付" : "本割"}</div>
-      </div>
-      <p className="text-xs text-text leading-relaxed">{highlight.summary}</p>
-      <div className="space-y-1 text-xs text-text-dim">
-        {highlight.detailLines.map((line, index) => (
-          <div key={`${highlight.key}-${index}`} className="leading-relaxed">
-            {line}
+
+        <div className="pl-0 sm:pl-2 space-y-3">
+          <p className="text-xs text-text leading-relaxed font-medium">
+            {highlight.summary}
+          </p>
+
+          {highlight.detailLines.length > 0 && (
+            <div className="space-y-1.5 py-3 px-3 bg-brand-ink/20 border-l-2 border-brand-muted/40">
+              {highlight.detailLines.map((line, index) => (
+                <div key={`${highlight.key}-${index}`} className="text-[11px] text-text-dim leading-relaxed flex items-start gap-2">
+                  <span className="text-brand-line opacity-50">•</span>
+                  <span>{line}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => onOpen(highlight)}
+              className="text-[11px] text-brand-line hover:text-action-bright flex items-center gap-1.5 transition-colors font-bold group"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>詳細な記録を確認</span>
+              <span className="transform translate-x-0 group-hover:translate-x-1 transition-transform">→</span>
+            </button>
           </div>
-        ))}
+        </div>
       </div>
-      <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => onOpen(highlight)}>
-        <Eye className="w-3.5 h-3.5" />
-        {highlight.kind === "BANZUKE" ? "当時の番付表を見る" : "その日の対戦情報を見る"}
-      </Button>
     </div>
   );
 };
@@ -888,7 +950,7 @@ const SnapshotModal: React.FC<{
           <div className="ui-text-label text-xs text-warning-bright">{state.categoryLabel}</div>
           <h4 className="text-sm sm:text-base text-text">{state.snapshot.bashoLabel}の番付表</h4>
           <p className="text-xs text-text-dim">
-            {DIVISION_NAMES[state.snapshot.division]} / {state.entry.shikona} が壁として立った場所
+            {DIVISION_NAMES[state.snapshot.division]} / {state.entry.shikona} がライバルとして立ちふさがった場所
           </p>
         </div>
         <button

@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, AlertTriangle, ArrowLeft, Check, Save, ScrollText } from "lucide-react";
+import { Activity, ArrowLeft, Check, Save, ScrollText } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { Rank } from "../../../logic/models";
 import { Button } from "../../../shared/ui/Button";
+
 import {
   ReportHeroMetric,
   ReportHeroSummary,
@@ -114,7 +115,6 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
   tabs,
   saveState,
   isSaved,
-  saveErrorMessage,
   onReset,
   onSave,
   onShowTimeline,
@@ -122,121 +122,150 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
 }) => {
   return (
     <>
-      <section className="report-hero-panel px-4 sm:px-6 py-5 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.85fr)] gap-5">
-          <div className="space-y-4 min-w-0">
-            <div className="inline-flex px-3 py-1 border border-brand-line/40 bg-brand-line/10 text-brand-line text-xs ui-text-label">
-              {summary.titleBadge}
+      <section className="relative overflow-hidden mb-8 lg:mb-12 animate-in fade-in duration-1000">
+        <div className="absolute inset-0 bg-asanoha opacity-5 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-washi/40 to-transparent pointer-events-none" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-8 relative z-10 p-6 sm:p-10">
+          {/* 左: 力士肖像 (New) */}
+          <div className="flex flex-col items-center space-y-4">
+             <div className="rpg-panel p-2 shadow-2xl relative group">
+                <div className="absolute inset-0 bg-gold/5 pointer-events-none" />
+                <div className="h-64 sm:h-80 w-48 sm:w-56 overflow-hidden flex items-end justify-center bg-white/20">
+                   {/* bodyType情報がない場合はNormalと仮定するか、propsに追加する必要がある。現状は画像パス構築の都合上適当な対応が必要 */}
+                   <img 
+                      src="/images/rikishi/normal_front.png" 
+                      alt="Rikishi Portrait" 
+                      className="h-full object-contain pixelated drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]"
+                   />
+                </div>
+             </div>
+             <div className="washi-surface px-4 py-2 ink-border-small text-center">
+                <p className="text-[10px] ui-text-label text-gold uppercase tracking-widest">{summary.titleBadge}</p>
+             </div>
+          </div>
+
+          {/* 中央: 叙事詩タイトル */}
+          <div className="space-y-6 flex flex-col justify-center">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-sumi/20" />
+                <p className="text-sm ui-text-label text-gold italic">{summary.journeyLabel}</p>
+              </div>
+              <h1 className="text-5xl sm:text-7xl ui-text-decoration text-sumi leading-tight drop-shadow-sm font-bold">
+                {shikona}
+              </h1>
+              <p className="text-xl sm:text-2xl text-sumi/80 ui-text-label border-b border-sumi/10 pb-4 inline-block">
+                {summary.careerHeadline}
+              </p>
+              <div className="relative">
+                <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gold/30" />
+                <p className="text-sm sm:text-base text-sumi/70 leading-relaxed max-w-2xl font-serif italic pl-4">
+                  “{summary.narrative}”
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl sm:text-5xl ui-text-heading text-text break-words">{shikona}</h1>
-              <p className="text-sm sm:text-base text-text leading-relaxed">{summary.careerHeadline}</p>
-              <p className="text-xs sm:text-sm text-text-dim leading-relaxed">{summary.narrative}</p>
-            </div>
+
             <div className="flex flex-wrap gap-2">
               {summary.profileFacts.map((fact) => (
-                <span key={fact} className="report-pill" data-tone="neutral">
+                <span key={fact} className="px-3 py-1 bg-sumi/5 border border-sumi/10 text-[10px] ui-text-label text-sumi/60">
                   {fact}
                 </span>
               ))}
-              <span className="report-pill" data-tone="brand">
-                {summary.journeyLabel}
-              </span>
               {summary.pills.map((pill) => (
-                <span key={pill.label} className="report-pill" data-tone={pill.tone}>
+                <span key={pill.label} className="px-3 py-1 bg-gold/10 border border-gold/20 text-[10px] ui-text-label text-gold">
                   {pill.label}
                 </span>
               ))}
             </div>
-            {summary.caution && (
-              <div className="flex items-start gap-2 border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning-bright">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{summary.caution}</span>
-              </div>
-            )}
           </div>
 
-          <div className="report-detail-card p-4 sm:p-5 space-y-3">
-            <div className="border-b border-brand-muted/60 pb-3">
-              <div className="text-xs text-text-dim mb-1">最高位</div>
-              <div className="text-xl ui-text-heading text-text break-words">{formatRankDisplayName(maxRank)}</div>
+          {/* 右: 主要戦績スタッツ */}
+          <div className="washi-surface p-8 ink-border shadow-2xl space-y-6 flex flex-col justify-center bg-seigaiha/5">
+            <div className="text-center border-b border-sumi/10 pb-4">
+              <div className="text-[10px] ui-text-label text-gold/60 mb-2 uppercase tracking-widest">角界最高位</div>
+              <div className="text-4xl ui-text-decoration text-sumi">
+                {formatRankDisplayName(maxRank)}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-text-dim text-xs mb-1">通算成績</div>
-                <div className="text-text ui-text-label">
-                  {totalWins}勝 {totalLosses}敗{totalAbsent > 0 ? ` ${totalAbsent}休` : ""}
+            
+            <div className="space-y-4">
+              {[
+                { label: "通算成績", val: `${totalWins}勝 ${totalLosses}敗${totalAbsent > 0 ? ` ${totalAbsent}休` : ""}` },
+                { label: "勝率", val: `${winRate}%` },
+                { label: "幕内優勝", val: `${yushoCountMakuuchi}回` },
+                { label: "金星 / 三賞", val: `${awardsSummary.kinboshi} / ${awardsSummary.totalSansho}` },
+              ].map((item) => (
+                <div key={item.label} className="flex justify-between items-end border-b border-sumi/5 pb-2">
+                  <div className="text-[10px] ui-text-label text-sumi/40">{item.label}</div>
+                  <div className="text-sm font-bold text-sumi font-serif">{item.val}</div>
                 </div>
-              </div>
-              <div>
-                <div className="text-text-dim text-xs mb-1">勝率</div>
-                <div className="text-text ui-text-label">{winRate}%</div>
-              </div>
-              <div>
-                <div className="text-text-dim text-xs mb-1">幕内優勝</div>
-                <div className="text-text ui-text-label">{yushoCountMakuuchi}回</div>
-              </div>
-              <div>
-                <div className="text-text-dim text-xs mb-1">金星 / 三賞</div>
-                <div className="text-text ui-text-label">
-                  {awardsSummary.kinboshi} / {awardsSummary.totalSansho}
-                </div>
-              </div>
+              ))}
+            </div>
+
+            <div className="pt-2 text-center">
+              <p className="text-[9px] text-sumi/30 font-serif italic">
+                この歩みは西之海部屋の歴史に永劫刻まれる。
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="report-chart-panel px-4 sm:px-6 py-4 sm:py-5">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 mb-4">
-          <div>
-            <p className="text-xs ui-text-label tracking-[0.16em] text-text-dim mb-1">番付推移</p>
-            <h2 className="section-header text-base sm:text-lg">
-              <Activity className="w-4 h-4 text-action" /> 力士一代記の推移
+      <section className="px-4 sm:px-10 py-10 washi-surface ink-border-small bg-seigaiha opacity-95 relative overflow-hidden group">
+        <div className="absolute inset-0 bg-white/40 pointer-events-none" />
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 relative z-10">
+          <div className="space-y-2">
+            <p className="text-[10px] ui-text-label tracking-[0.4em] text-sumi/40 uppercase">番付一代記 - RANK HISTORY</p>
+            <h2 className="text-3xl ui-text-decoration text-sumi flex items-center gap-3">
+              <ScrollText className="w-8 h-8 text-gold" />
+              <span>星霜を累ねた軌跡</span>
             </h2>
           </div>
-          <p className="text-xs sm:text-sm text-text-dim max-w-2xl leading-relaxed">{spotlight.note}</p>
+          <div className="text-sm text-sumi/60 max-w-xl leading-relaxed italic border-l-4 border-gold/40 pl-6">
+            {spotlight.note}
+          </div>
         </div>
 
         {spotlight.points.length > 1 ? (
           <>
-            <div className="flex flex-wrap gap-2 text-xs text-text-dim mb-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] ui-text-label text-text-dim mb-6 bg-bg/30 p-2 border border-gold-muted/10">
               {RANK_CHART_BANDS.map((band) => (
-                <span key={band.key} className="inline-flex items-center gap-1.5">
+                <span key={band.key} className="inline-flex items-center gap-2">
                   <span
-                    className="inline-block w-2.5 h-2.5 border border-brand-muted/50"
-                    style={{ backgroundColor: band.color, opacity: 0.4 }}
+                    className="inline-block w-2.5 h-2.5 border border-white/10"
+                    style={{ backgroundColor: band.color, opacity: 0.6 }}
                   />
                   {band.label}
                 </span>
               ))}
               {spotlight.peakBand && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-2 border-l border-gold-muted/20 pl-4 ml-2">
                   <span className="inline-block w-2.5 h-2.5 border border-action/40 bg-action/30" />
-                  {spotlight.peakBand.label}
+                  黄金期: {spotlight.peakBand.label}
                 </span>
               )}
             </div>
 
-            <div className="h-[280px] sm:h-[360px]">
+            <div className="h-[300px] sm:h-[400px] bg-bg/20 p-2 rounded-sm border border-gold-muted/5 relative">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={spotlight.points}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(157, 172, 191, 0.12)" />
+                <LineChart data={spotlight.points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(196, 154, 77, 0.08)" />
                   <XAxis
                     dataKey="slot"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
+                    type="category"
                     ticks={chartTicks}
                     tickFormatter={(value) => spotlight.points.find((point) => point.slot === value)?.axisLabel || ""}
-                    tick={{ fontSize: 10, fill: "#9dacbf" }}
-                    allowDecimals={false}
+                    tick={{ fontSize: 9, fill: "#6f7b90", fontFamily: "DotGothic16" }}
+                    axisLine={{ stroke: "rgba(196, 154, 77, 0.2)" }}
                   />
                   <YAxis
                     domain={[chartMin, 10]}
                     tickFormatter={formatAxisRank}
                     ticks={[0, -10, -40, -60, -80, -150, -260, -470]}
                     width={54}
-                    tick={{ fontSize: 10, fill: "#9dacbf" }}
+                    tick={{ fontSize: 9, fill: "#6f7b90", fontFamily: "DotGothic16" }}
+                    axisLine={{ stroke: "rgba(196, 154, 77, 0.2)" }}
                   />
                   <Tooltip
                     labelFormatter={(slot) => spotlight.points.find((point) => point.slot === slot)?.bashoLabel || ""}
@@ -244,7 +273,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                       payload.payload ? `${payload.payload.rankLabel} / ${payload.payload.age}歳` : "",
                       "番付",
                     ]}
-                    contentStyle={TOOLTIP_STYLE}
+                    contentStyle={{ ...TOOLTIP_STYLE, backgroundColor: "rgba(8, 18, 35, 0.95)", backdropFilter: "blur(4px)" }}
                   />
                   {RANK_CHART_BANDS.map((band) => (
                     <ReferenceArea
@@ -253,7 +282,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                       y2={-1 * band.bottom}
                       strokeOpacity={0}
                       fill={band.color}
-                      fillOpacity={0.07}
+                      fillOpacity={0.04}
                     />
                   ))}
                   {spotlight.peakBand && (
@@ -262,16 +291,17 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                       x2={spotlight.peakBand.endSlot}
                       strokeOpacity={0}
                       fill="#4c7bff"
-                      fillOpacity={0.08}
+                      fillOpacity={0.06}
                     />
                   )}
                   <Line
-                    type="stepAfter"
+                    type="linear"
                     dataKey="plotValue"
-                    stroke="#e2ba6e"
+                    stroke="#c49a4d"
                     strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 4, fill: "#4c7bff", stroke: "#dbe5ff" }}
+                    activeDot={{ r: 5, fill: "#4c7bff", stroke: "#fff", strokeWidth: 2 }}
+                    animationDuration={1000}
                   />
                   {spotlight.events.map((event) => (
                     <ReferenceDot
@@ -286,7 +316,8 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                             ? "#d26b52"
                             : "#c49a4d"
                       }
-                      stroke="#081223"
+                      stroke="#0b1018"
+                      strokeWidth={2}
                     />
                   ))}
                 </LineChart>
@@ -294,106 +325,98 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             </div>
 
             {spotlight.events.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
                 {spotlight.events.map((event) => (
                   <div
                     key={event.key}
-                    className="border p-3 text-xs"
+                    className="surface-card p-3 border-l-4 transition-all hover:translate-x-1"
                     style={{
-                      borderColor:
+                      borderLeftColor:
                         event.tone === "state"
-                          ? "rgba(73, 185, 123, 0.45)"
+                          ? "#49b97b"
                           : event.tone === "warning"
-                            ? "rgba(210, 107, 82, 0.45)"
-                            : "rgba(196, 154, 77, 0.45)",
-                      background:
-                        event.tone === "state"
-                          ? "rgba(73, 185, 123, 0.08)"
-                          : event.tone === "warning"
-                            ? "rgba(210, 107, 82, 0.08)"
-                            : "rgba(196, 154, 77, 0.08)",
+                            ? "#d26b52"
+                            : "#c49a4d",
+                      background: "rgba(12, 18, 27, 0.5)"
                     }}
                   >
-                    <div className="text-text-dim mb-1">{event.bashoLabel}</div>
-                    <div className="text-text ui-text-label break-words">{event.label}</div>
+                    <div className="text-[10px] ui-text-label text-text-dim mb-1">{event.bashoLabel}</div>
+                    <div className="text-xs text-text leading-relaxed">{event.label}</div>
                   </div>
                 ))}
               </div>
             )}
           </>
         ) : (
-          <div className="report-empty">
-            番付推移を描くほどの記録がまだありません。短命ケースでも壊れないよう、ここでは空状態を明示します。
+          <div className="report-empty border-dashed border-gold-muted/20 text-center py-20 flex flex-col items-center gap-3">
+            <Activity className="w-8 h-8 text-gold/20" />
+            <p className="text-sm italic">番付推移を描くほどの記録がまだありません。</p>
           </div>
         )}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-3 items-start">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.4fr)] gap-4 items-stretch">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {summary.metrics.map((metric) => (
-            <div key={metric.label} className="report-summary-card" data-tone={metric.tone}>
-              <div className="text-[11px] ui-text-label tracking-[0.12em] text-text-dim">{metric.label}</div>
+            <div key={metric.label} className="surface-card p-4 flex flex-col justify-between min-h-[100px] border-gold-muted/10 group hover:border-gold/30 transition-all" data-tone={metric.tone}>
+              <div className="text-[10px] ui-text-label tracking-widest text-text-dim group-hover:text-gold/70 transition-colors uppercase">{metric.label}</div>
               <div
-                className="text-xl sm:text-2xl ui-text-heading leading-tight break-words"
+                className="text-xl ui-text-metric leading-tight break-words"
                 style={{ color: resolveMetricToneColor(metric.tone) }}
               >
                 {metric.value}
               </div>
-              <div className="text-xs text-text-dim leading-relaxed">{metric.meta}</div>
+              <div className="text-[10px] text-text-faint leading-tight italic">{metric.meta}</div>
             </div>
           ))}
         </div>
 
-        <div className="report-detail-card p-3 sm:p-4 flex flex-col gap-2">
-          <Button size="sm" variant="outline" onClick={onReset}>
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> もう一度
+        <div className="surface-panel p-4 flex flex-col gap-2.5 border-gold/20 bg-bg-panel/40">
+          <Button size="sm" variant="outline" onClick={onReset} className="w-full justify-start text-[10px] ui-text-label opacity-60 hover:opacity-100 italic transition-all">
+            <ArrowLeft className="w-3.5 h-3.5 mr-2" /> 新弟子を待つ
           </Button>
           <Button
             size="sm"
             variant={saveState === "saved" || isSaved ? "success" : saveState === "error" ? "danger" : "primary"}
             onClick={onSave}
             disabled={saveState === "saving" || isSaved}
+            className="w-full justify-start text-[10px] ui-text-label font-bold"
           >
             {saveState === "saved" || isSaved ? (
               <>
-                <Check className="w-3.5 h-3.5 mr-1" /> 保存済み
+                <Check className="w-3.5 h-3.5 mr-2" /> 永久保存済み
               </>
             ) : saveState === "saving" ? (
               <>
-                <Save className="w-3.5 h-3.5 mr-1" /> 保存中...
+                <Activity className="w-3.5 h-3.5 mr-2 animate-spin" /> 保存中...
               </>
             ) : (
               <>
-                <Save className="w-3.5 h-3.5 mr-1" /> 保存する
+                <Save className="w-3.5 h-3.5 mr-2" /> この人生を保存
               </>
             )}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onShowTimeline}>
-            <ScrollText className="w-3.5 h-3.5 mr-1" /> 転機を見る
+          <Button size="sm" variant="ghost" onClick={onShowTimeline} className="w-full justify-start text-[10px] ui-text-label opacity-80 hover:opacity-100 hover:bg-gold/5">
+            <ScrollText className="w-3.5 h-3.5 mr-2" /> 転機を振り返る
           </Button>
-          {saveErrorMessage && (
-            <div className="text-xs text-warning-bright border border-warning/35 bg-warning/10 px-3 py-2">
-              {saveErrorMessage}
-            </div>
-          )}
         </div>
       </section>
 
-      <section className="report-detail-card p-1.5 sm:p-2">
-        <nav className="flex flex-wrap gap-1" aria-label="結果画面タブ">
+      <section className="surface-panel p-1 border-gold/10 bg-bg-panel/40 backdrop-blur-sm sticky bottom-2 z-30 shadow-2xl">
+        <nav className="flex flex-wrap gap-1" aria-label="詳細分析タブ">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className="report-tab-button"
+                className="report-tab-button flex-1 min-w-[80px]"
                 data-active={activeTab === tab.id}
                 aria-pressed={activeTab === tab.id}
               >
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center justify-center gap-2 py-1">
                   <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </span>
               </button>
             );
