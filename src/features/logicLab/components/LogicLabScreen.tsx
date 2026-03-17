@@ -4,7 +4,8 @@ import { Rank } from '../../../logic/models';
 import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
 import { useLogicLabStore } from '../store/logicLabStore';
 import { LogicLabBashoLogRow, LogicLabStopReason } from '../types';
-import { BodyText, CaptionText, Heading, LabelText, MetricText } from '../../../shared/ui/Typography';
+import { CaptionText, Heading, MetricText } from '../../../shared/ui/Typography';
+import { Activity, ScrollText, Sparkles, RefreshCw, Trash2, Trophy, AlertTriangle, ChevronDown } from "lucide-react";
 
 type LogFilter = 'ALL' | 'PROMOTION' | 'DEMOTION' | 'WARNING' | 'INJURY' | 'YUSHO';
 const LOG_FILTERS: Array<{ id: LogFilter; label: string }> = [
@@ -122,69 +123,143 @@ export const LogicLabScreen: React.FC = () => {
   }, [logs]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
-      <section className="rpg-panel p-4 relative overflow-hidden">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <Heading as="h2" className="text-xl ui-text-label text-gold">ロジック検証モード</Heading>
-            <CaptionText as="p" className="text-text-dim mt-1">番付変化・会議理由・NPC文脈を集約表示</CaptionText>
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+      <section className="surface-panel overflow-hidden relative p-6 border-t-4 border-gold shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-gold/5 via-transparent to-transparent pointer-events-none" />
+        <div className="flex flex-wrap items-end justify-between gap-4 relative z-10">
+          <div className="space-y-1">
+            <div className="ui-text-label text-[10px] text-gold/60 uppercase tracking-widest">
+              内部論理検証環境 - LOGIC PROVING GROUND
+            </div>
+            <Heading as="h2" className="text-2xl sm:text-3xl ui-text-heading text-text tracking-tighter">
+              八百萬ロジックラボ
+            </Heading>
+            <CaptionText as="p" className="text-text-dim text-xs italic">
+              番付ロジック、イベント発生率、NPC文脈の整合性をシミュレートします。
+            </CaptionText>
           </div>
-          <div className="text-[11px] font-bold border-2 border-gold-muted px-2 py-1 bg-bg text-text shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
-            状態: {formatPhase(phase)}
+          <div className="flex items-center gap-3">
+            <div className={`px-3 py-1.5 border ui-text-label text-[11px] font-bold shadow-inner ${phase === 'running' ? 'border-hp/40 bg-hp/10 text-hp animate-pulse' : 'border-gold-muted/30 bg-bg-panel/50 text-text-dim'}`}>
+              <Activity className={`w-3.5 h-3.5 inline mr-2 ${phase === 'running' ? 'animate-spin' : ''}`} />
+              LAB STATE: {formatPhase(phase)}
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-4 rpg-panel p-4 space-y-2">
-          <LabelText as="p" className="section-header">設定</LabelText>
-          <label className="text-xs text-text-dim block">
-            プリセット
-            <select
-              value={presetId}
-              onChange={(event) => setPresetId(event.target.value as typeof presetId)}
-              className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"
-              disabled={autoPlay}
-            >
-              {LOGIC_LAB_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-text-dim block">
-              Seed
-              <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay} />
-            </label>
-            <label className="text-xs text-text-dim block">
-              最大場所数
-              <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border-2 border-gold-muted bg-bg text-text px-2 py-1 text-sm mt-1 focus:border-gold focus:outline-none shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]" disabled={autoPlay} />
-            </label>
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-4 space-y-4">
+          <div className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/40">
+            <div className="flex items-center gap-2 text-gold/60 mb-2 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+              <ScrollText className="w-3.5 h-3.5" />
+              環境構成 - Configuration
+            </div>
+            
+            <div className="space-y-4">
+              <label className="block space-y-2">
+                <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">シナリオ・プリセット</span>
+                <select
+                  value={presetId}
+                  onChange={(event) => setPresetId(event.target.value as typeof presetId)}
+                  className="w-full border border-gold/20 bg-bg/60 text-text px-3 py-2 text-sm focus:border-gold focus:outline-none transition-all shadow-inner"
+                  disabled={autoPlay}
+                >
+                  {LOGIC_LAB_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+                </select>
+              </label>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block space-y-2">
+                  <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">初期種子 (Seed)</span>
+                  <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border border-gold/20 bg-bg/60 text-text px-3 py-2 text-sm focus:border-gold focus:outline-none transition-all shadow-inner font-mono" disabled={autoPlay} />
+                </label>
+                <label className="block space-y-2">
+                  <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">最大刻み (Basho)</span>
+                  <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border border-gold/20 bg-bg/60 text-text px-3 py-2 text-sm focus:border-gold focus:outline-none transition-all shadow-inner font-mono" disabled={autoPlay} />
+                </label>
+              </div>
+              
+              <div className="p-3 bg-bg/40 border border-gold-muted/10 text-[10px] text-text-faint leading-tight italic">
+                反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} [seed:${runConfig.seed}]` : '未構成'}
+              </div>
+            </div>
           </div>
-          <CaptionText as="p" className="text-[11px] text-text-dim">反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} / seed=${runConfig.seed}` : '-'}</CaptionText>
         </div>
 
-        <div className="xl:col-span-8 rpg-panel p-4 space-y-3">
-          <LabelText as="p" className="section-header">操作</LabelText>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            <button onClick={() => void startRun()} className="border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none border-gold bg-gold/10 text-gold">開始</button>
-            <button onClick={() => void stepOne()} disabled={autoPlay} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>1場所進む</button>
-            {!autoPlay ? <button onClick={() => void startAutoPlay()} className="border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none border-gold-muted bg-text text-bg">自動再生</button> : <button onClick={pauseAutoPlay} className="border-2 border-crimson bg-crimson/10 text-crimson font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">停止</button>}
-            <button onClick={() => void runToEnd()} disabled={autoPlay} className={`border-2 font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none ${autoPlay ? 'border-gold-muted/50 bg-bg text-text-dim shadow-none' : 'border-gold-muted bg-bg text-text'}`}>最後まで</button>
-            <button onClick={resetRun} className="border-2 border-gold-muted bg-bg text-text font-bold px-2 py-2 text-xs shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-none transition-none">リセット</button>
+        <div className="lg:col-span-8 space-y-4">
+          <div className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/40 flex flex-col justify-between h-full">
+            <div className="flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+              <Sparkles className="w-3.5 h-3.5" />
+              計器操作 - Cockpit
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <button onClick={() => void startRun()} className="surface-card flex flex-col items-center justify-center p-4 border-gold/30 hover:border-gold bg-gold/5 text-gold group transition-all">
+                <Activity className="w-6 h-6 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">開始</span>
+              </button>
+              <button 
+                onClick={() => void stepOne()} 
+                disabled={autoPlay} 
+                className={`surface-card flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`}
+              >
+                <ChevronDown className="w-6 h-6 mb-2" />
+                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">1場所進む</span>
+              </button>
+              {!autoPlay ? (
+                <button onClick={() => void startAutoPlay()} className="surface-card flex flex-col items-center justify-center p-4 border-action/30 hover:border-action bg-action/5 text-action group transition-all">
+                  <RefreshCw className="w-6 h-6 mb-2 group-hover:rotate-180 transition-transform duration-700" />
+                  <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">自動再生</span>
+                </button>
+              ) : (
+                <button onClick={pauseAutoPlay} className="surface-card flex flex-col items-center justify-center p-4 border-crimson/30 hover:border-crimson bg-crimson/10 text-crimson animate-pulse group">
+                  <AlertTriangle className="w-6 h-6 mb-2 group-hover:scale-90 transition-transform" />
+                  <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">停止</span>
+                </button>
+              )}
+              <button 
+                onClick={() => void runToEnd()} 
+                disabled={autoPlay} 
+                className={`surface-card flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`}
+              >
+                <Trophy className="w-6 h-6 mb-2" />
+                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">最後まで</span>
+              </button>
+              <button onClick={resetRun} className="surface-card flex flex-col items-center justify-center p-4 border-gold-muted/10 hover:border-crimson/40 text-text-faint hover:text-crimson transition-all">
+                <Trash2 className="w-6 h-6 mb-2" />
+                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">リセット</span>
+              </button>
+            </div>
+            
+            {errorMessage && (
+              <div className="flex items-center gap-3 border border-crimson/30 bg-crimson/5 px-4 py-2 text-[10px] text-crimson italic animate-in slide-in-from-bottom-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>ERR_LOGIC_BREAK: {errorMessage}</span>
+              </div>
+            )}
           </div>
-          {errorMessage && <BodyText as="p" className="text-xs text-crimson border-2 border-crimson/40 bg-crimson/10 px-2 py-1">{errorMessage}</BodyText>}
         </div>
       </section>
 
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-bold">
-        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>昇進: </LabelText><MetricText as="span" className="text-hp">{stats.promotion}</MetricText></div>
-        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>降下: </LabelText><MetricText as="span" className="text-crimson">{stats.demotion}</MetricText></div>
-        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>警告: </LabelText><MetricText as="span" className="text-text">{stats.warning}</MetricText></div>
-        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>怪我: </LabelText><MetricText as="span" className="text-text">{stats.injury}</MetricText></div>
-        <div className="border-2 border-gold-muted bg-bg p-2 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]"><LabelText>優勝: </LabelText><MetricText as="span" className="text-text">{stats.yusho}</MetricText></div>
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "昇進累積", val: stats.promotion, color: "text-hp", icon: <Trophy className="w-3.5 h-3.5" /> },
+          { label: "降下累積", val: stats.demotion, color: "text-crimson", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+          { label: "審判部警告", val: stats.warning, color: "text-text", icon: <ScrollText className="w-3.5 h-3.5" /> },
+          { label: "負傷・欠場", val: stats.injury, color: "text-text", icon: <Activity className="w-3.5 h-3.5" /> },
+          { label: "本場所優勝", val: stats.yusho, color: "text-gold", icon: <Sparkles className="w-3.5 h-3.5" /> },
+        ].map(s => (
+          <div key={s.label} className="surface-card p-4 border-gold-muted/10 bg-bg-panel/20 flex items-center justify-between group hover:border-gold/20 transition-all">
+            <div className="space-y-1">
+              <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter group-hover:text-text-dim transition-colors">{s.label}</div>
+              <MetricText as="div" className={`text-xl ${s.color}`}>{s.val}</MetricText>
+            </div>
+            <div className="opacity-20 group-hover:opacity-60 transition-opacity">{s.icon}</div>
+          </div>
+        ))}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-7 rpg-panel p-4 space-y-2">
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-7 rpg-panel p-4 space-y-2">
           <div className="flex flex-wrap gap-2 items-center justify-between">
             <p className="section-header">場所ログ</p>
             <div className="flex flex-wrap gap-2">
@@ -218,35 +293,124 @@ export const LogicLabScreen: React.FC = () => {
           </div>
         </div>
 
-        <div className="xl:col-span-5 rpg-panel p-4 space-y-2">
-          <p className="section-header">詳細</p>
-          {!selectedRow ? <p className="text-xs text-text-dim">ログ行を選択してください。</p> : (
-            <div className="space-y-1 text-xs border-2 border-gold-muted bg-bg p-3 shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]">
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>場所</span><span className="data-val">{selectedRow.year}年{selectedRow.month}月</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>変動</span><span className="data-val">{formatRankName(selectedRow.rankBefore)} → {formatRankName(selectedRow.rankAfter)} / {rankDeltaText(selectedRow)}</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>成績</span><span className="data-val">{formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}{selectedRow.record.yusho ? ' / 優勝' : ''}</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>停止理由</span><span className="data-val">{formatStopReason(selectedRow.pauseReason)}</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>番付理由</span><span className="data-val">{selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '-'}</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>イベント</span><span className="data-val">{selectedRow.events.length ? selectedRow.events[0] : '-'}</span></div>
-              <div className="data-row"><span className="data-key" style={{ boxShadow: "none" }}>怪我</span><span className="data-val">Lv{selectedRow.injurySummary.injuryLevel} / 有効 {selectedRow.injurySummary.activeCount}件</span></div>
-              <div className="data-row cursor-help" title={selectedRow.npcContext ? `同階級NPC ${selectedRow.npcContext.rows.length}件` : ''}><span className="data-key" style={{ boxShadow: "none" }}>同階級NPC</span><span className="data-val">{selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : 'なし'}</span></div>
+        <div className="lg:col-span-5 space-y-4">
+          <div className="surface-panel p-5 border-gold/10 bg-bg-panel/40 h-full flex flex-col">
+            <div className="flex items-center gap-2 text-gold/60 mb-4 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+              <ScrollText className="w-3.5 h-3.5" />
+              明細解析 - Detailed Analysis
             </div>
-          )}
+            
+            {!selectedRow ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-text-faint italic opacity-30 text-[10px] min-h-[200px]">
+                SELECT A LOG ENTRY TO ANALYZE
+              </div>
+            ) : (
+              <div className="flex-1 space-y-6 animate-in fade-in slide-in-from-right-2">
+                <div className="surface-card p-4 border-gold/20 bg-bg/40 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Trophy className="w-12 h-12" />
+                  </div>
+                  <div className="ui-text-label text-[9px] text-gold/60 uppercase tracking-tighter mb-1 select-none">場所・時刻</div>
+                  <div className="text-lg ui-text-heading text-text">{selectedRow.year}年 {selectedRow.month}月場所</div>
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gold/10 pt-4">
+                    <InfoField label="始点番付" value={formatRankName(selectedRow.rankBefore)} />
+                    <InfoField label="終点番付" value={formatRankName(selectedRow.rankAfter)} tone="gold" />
+                  </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <section className="space-y-2">
+                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">取組成績</div>
+                      <div className="text-sm font-bold text-text">
+                        {formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}
+                        {selectedRow.record.yusho && <span className="text-gold ml-2">★ 優勝成就</span>}
+                      </div>
+                    </section>
+                    <section className="space-y-2">
+                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">番付編成理由</div>
+                      <div className="text-[10px] text-text-dim leading-relaxed italic">
+                        {selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '特記事項なし'}
+                      </div>
+                    </section>
+                  </div>
+                  <div className="space-y-4">
+                    <section className="space-y-2">
+                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">健康・コンディション</div>
+                      <div className="text-[10px] text-text-dim">
+                        怪我度: Lv{selectedRow.injurySummary.injuryLevel}
+                        <div className="mt-1 flex items-center gap-1">
+                          <Activity className={`w-3 h-3 ${selectedRow.injurySummary.activeCount > 0 ? 'text-crimson' : 'text-text-faint'}`} />
+                          <span>有効負傷 {selectedRow.injurySummary.activeCount}件</span>
+                        </div>
+                      </div>
+                    </section>
+                    <section className="space-y-2">
+                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">NPC環境文脈</div>
+                      <div className="text-[10px] text-text-dim">
+                        同階級NPC: {selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : '記録なし'}
+                      </div>
+                    </section>
+                  </div>
+                </div>
+                
+                {selectedRow.events.length > 0 && (
+                  <div className="p-3 bg-gold/5 border border-gold/10 text-[10px] text-gold/80 italic leading-relaxed">
+                    <Sparkles className="w-3.5 h-3.5 inline mr-2 text-gold/60" />
+                    発生事象: {selectedRow.events[0]}
+                  </div>
+                )}
+                
+                {selectedRow.pauseReason && (
+                  <div className="p-3 bg-hp/5 border border-hp/20 text-[10px] text-hp italic">
+                    <AlertTriangle className="w-3.5 h-3.5 inline mr-2" />
+                    停止検知: {formatStopReason(selectedRow.pauseReason)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       {summary && (
-        <section className="rpg-panel p-4 text-xs font-bold grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>現在番付</span><span className="data-val text-gold">{formatRankName(summary.currentRank)}</span></div>
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>最高位</span><span className="data-val text-gold">{formatRankName(summary.maxRank)}</span></div>
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>場所数</span><span className="data-val">{summary.bashoCount}</span></div>
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>年齢</span><span className="data-val">{summary.age}</span></div>
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>通算</span><span className="data-val">{summary.totalWins}勝 {summary.totalLosses}敗 {summary.totalAbsent}休</span></div>
-          <div className="data-row"><span className="data-key text-text-dim" style={{ boxShadow: "none" }}>停止理由</span><span className="data-val">{formatStopReason(summary.stopReason)}</span></div>
+        <section className="surface-panel p-6 border-gold/10 bg-gradient-to-r from-bg-panel/40 to-transparent flex flex-wrap items-center justify-between gap-6 animate-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-4 border-r border-gold/10 pr-6">
+            <div className="ui-text-label text-[10px] text-gold/60 uppercase vertical-rl tracking-widest hidden sm:block">CURRENT STATE</div>
+            <div className="space-y-1">
+              <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">現在 / 最高</div>
+              <div className="text-xl ui-text-metric text-gold uppercase tracking-tighter">
+                {formatRankName(summary.currentRank)} <span className="text-text-faint mx-2 opacity-30">/</span> {formatRankName(summary.maxRank)}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-1 gap-8 overflow-x-auto no-scrollbar">
+            <MetricSmall label="年齢" value={`${summary.age}歳`} />
+            <MetricSmall label="場所数" value={`${summary.bashoCount}`} />
+            <MetricSmall label="通算成績" value={formatRecord(summary.totalWins, summary.totalLosses, summary.totalAbsent)} />
+            <MetricSmall label="終了因" value={formatStopReason(summary.stopReason)} tone="dim" />
+          </div>
+          
+          <div className="p-2 border border-gold-muted/20 bg-bg-panel/20 text-[9px] ui-text-label text-text-faint tracking-widest">
+            LOGIC LAB VERIFICATION PASSED
+          </div>
         </section>
       )}
     </div>
   );
 };
 
+const InfoField: React.FC<{ label: string; value: string; tone?: 'gold' | 'dim' }> = ({ label, value, tone }) => (
+  <div className="space-y-1">
+    <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">{label}</div>
+    <div className={`text-sm font-bold ${tone === 'gold' ? 'text-gold' : 'text-text-dim'}`}>{value}</div>
+  </div>
+);
+
+const MetricSmall: React.FC<{ label: string; value: string; tone?: 'dim' }> = ({ label, value, tone }) => (
+  <div className="space-y-0.5 min-w-fit">
+    <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter opacity-60">{label}</div>
+    <div className={`text-sm ui-text-metric whitespace-nowrap ${tone === 'dim' ? 'text-text-faint' : 'text-text'}`}>{value}</div>
+  </div>
+);

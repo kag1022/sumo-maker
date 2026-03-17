@@ -130,7 +130,7 @@ export const App: React.FC = () => {
       return {
         title: "力士結果",
         subtitle:
-          "四股名、成績、転機、宿敵を読み返しながら、この力士が何者だったかを一画面で掴みます。",
+          "四股名、成績、歩み、ライバルを読み返しながら、この力士が何者だったかを一画面で掴みます。",
         statusLine: `${status.shikona} / 最高位 ${formatRankName(status.history.maxRank)}`,
       };
     }

@@ -15,11 +15,11 @@ export default {
           muted: "#4c5d79",
         },
         surface: {
-          DEFAULT: "#111826",
-          base: "#0b1324",
-          panel: "#101b30",
-          raised: "#15233d",
-          soft: "#1a2c4b",
+          DEFAULT: "#111b2e",
+          base: "#0d141e",
+          panel: "#111927",
+          raised: "#162238",
+          soft: "#1d2c4d",
         },
         action: {
           DEFAULT: "#4c7bff",
@@ -46,10 +46,10 @@ export default {
         },
         // === 背景系（藍色ベース） ===
         bg: {
-          DEFAULT: "#0a0e1a",   // メイン背景
-          panel: "#111b2e",     // パネル内側
-          hover: "#1a2844",     // ホバー/アクティブ
-          light: "#1e3050",     // 明るめパネル
+          DEFAULT: "#0d141e",   // わずかに明度を上げたメイン背景
+          panel: "#111927",     // パネル内側
+          hover: "#1a253d",     // ホバー/アクティブ
+          light: "#212d45",     // 明るめパネル
         },
         // === テキスト系 ===
         text: {
@@ -60,9 +60,9 @@ export default {
         },
         // === アクセント: ゴールド（RPG風） ===
         gold: {
-          DEFAULT: "#D4A017",
+          DEFAULT: "#b88a3e", // 古金
           dim: "#8B6914",
-          bright: "#FFD700",
+          bright: "#D4A017",
           muted: "#6B5010",
         },
         // === アクセント: 朱色 ===
@@ -76,18 +76,18 @@ export default {
         mp: "#4488DD",
         // === 旧名互換エイリアス（段階的に除去） ===
         washi: {
-          DEFAULT: "#0a0e1a",
-          dark: "#060a12",
-          light: "#111b2e",
+          DEFAULT: "#e8e2d0",
+          dark: "#dcd4bc",
+          light: "#f0ede0",
         },
         sumi: {
-          DEFAULT: "#e8e0d0",
-          light: "#8a8472",
-          dark: "#ffffff",
+          DEFAULT: "#1a1a1a",
+          light: "#3a3a3a",
+          dark: "#0a0a0a",
         },
         kiniro: {
-          DEFAULT: "#D4A017",
-          light: "#FFD700",
+          DEFAULT: "#b88a3e",
+          light: "#D4A017",
           dark: "#8B6914",
           muted: "#6B5010",
         },

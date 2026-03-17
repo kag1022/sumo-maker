@@ -1,5 +1,5 @@
 import React from "react";
-import { Award, BookOpenText, ScrollText, Sparkles, Swords } from "lucide-react";
+import { Award, BookOpenText, Save, Sparkles, Trophy, AlertTriangle, Swords, ScrollText } from "lucide-react";
 import {
   buildCareerClearScoreSummary,
   resolveCareerRecordBadgeLabel,
@@ -32,7 +32,7 @@ import {
 const TABS = [
   { id: "overview", label: "概況", icon: Sparkles },
   { id: "timeline", label: "場所史", icon: ScrollText },
-  { id: "story", label: "宿敵と判断", icon: Swords },
+  { id: "story", label: "歩みとライバル", icon: Swords },
   { id: "profile", label: "能力と型", icon: BookOpenText },
 ] as const;
 
@@ -348,121 +348,161 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
       : incentive?.saveLabel ?? "保存する";
 
   return (
-    <>
-      <section className="surface-panel space-y-6">
-        <div className="space-y-3 text-center">
-          <div className="app-kicker">{isSaved ? "保存済み記録" : "開封結果"}</div>
-          <h1 className="text-4xl sm:text-6xl ui-text-heading text-text break-words">{status.shikona}</h1>
-          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-text-dim">
-            最高位 {formatRankDisplayName(status.history.maxRank)}
-            {incentive?.projectedBestScoreRank ? ` / 総評点歴代${incentive.projectedBestScoreRank}位` : ""}
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-          <div className="report-hero-panel px-4 py-5 sm:px-6">
-            <div className="text-xs ui-text-label tracking-[0.18em] text-text-dim">総評点</div>
-            <div className="mt-2 text-6xl sm:text-7xl ui-text-heading text-award">{clearScore.clearScore}</div>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-none border border-award/35 bg-award/8 px-3 py-2 text-sm text-award">
-              <Award className="h-4 w-4" />
-              {incentive?.rewardLabel ?? "集計中"}
-            </div>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-dim">
-              {incentive?.rewardDetail ?? "競技成績と記録樹立をもとに、今回の力士人生を採点しています。"}
-            </p>
+    <div className="space-y-6 animate-in zoom-in-95">
+      {/* ヒーローヘッダー: 四股名の威厳 */}
+      <section className="relative overflow-hidden py-16 sm:py-24 text-center">
+        <div className="absolute inset-0 bg-asanoha opacity-5 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-washi/60 via-washi/20 to-transparent pointer-events-none" />
+        
+        <div className="relative z-10 space-y-8">
+          <div className="inline-flex items-center gap-3 px-6 py-2 washi-surface ink-border-small text-[10px] ui-text-label text-gold tracking-widest uppercase mb-4">
+            <Sparkles className="w-3.5 h-3.5" />
+            {isSaved ? "殿堂入り力士 扁額" : "千秋楽・成績開示"}
           </div>
+          <div className="flex flex-col items-center justify-center space-y-6">
+             {/* 肖像画を中央に */}
+             <div className="rpg-panel p-2 shadow-2xl relative group bg-white/20">
+                <img 
+                   src="/images/rikishi/normal_front.png" 
+                   alt="Rikishi" 
+                   className="h-64 sm:h-80 object-contain pixelated drop-shadow-[0_20px_40px_rgba(0,0,0,0.5)]"
+                />
+             </div>
 
-          <div className="report-detail-card space-y-3 p-4 sm:p-5">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-text-dim">競技スコア</div>
-                <div className="ui-text-heading text-xl text-text">{clearScore.competitiveScore}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-dim">記録ボーナス</div>
-                <div className="ui-text-heading text-xl text-text">{clearScore.recordBonus}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-dim">勝率</div>
-                <div className="ui-text-label text-text">{winRate}%</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-dim">幕内優勝</div>
-                <div className="ui-text-label text-text">{status.history.yushoCount.makuuchi}回</div>
-              </div>
-            </div>
-            <div className="rounded-none border border-line bg-surface px-3 py-3 text-sm text-text-dim">
-              最高位の価値を軸に、優勝、三賞、金星、勝率、主要記録バッジをまとめて採点します。
-            </div>
-          </div>
-        </div>
-
-        <section className="space-y-3">
-          <div className="panel-title">主要記録バッジ</div>
-          {featuredBadges.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-3">
-              {featuredBadges.map((badge) => (
-                <div key={badge.key} className="rounded-none border border-line bg-surface px-3 py-3">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <div className="ui-text-label text-sm text-text">{resolveCareerRecordBadgeLabel(badge.key)}</div>
-                    <div className="text-xs text-award">+{badge.scoreBonus}</div>
-                  </div>
-                  <p className="text-sm leading-relaxed text-text-dim">{badge.detail}</p>
+             <div className="space-y-4">
+                <h1 className="text-6xl sm:text-8xl ui-text-decoration text-sumi tracking-widest drop-shadow-md py-4">
+                  {status.shikona}
+                </h1>
+                <div className="flex flex-col items-center gap-3">
+                  <p className="text-2xl ui-text-label text-gold border-b-2 border-gold/30 pb-2 px-8">
+                    最高位 {formatRankDisplayName(status.history.maxRank)}
+                  </p>
+                  {incentive?.projectedBestScoreRank && (
+                    <span className="text-xs ui-text-label px-3 py-1 bg-sumi text-washi">
+                      相撲史 歴代{incentive.projectedBestScoreRank}位 相当
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-none border border-line bg-surface px-3 py-4 text-sm text-text-dim">
-              今回は大きな記録バッジなしで終えた人生です。詳しく見るから場所史や能力分析へ進めます。
-            </div>
-          )}
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* スコア・スタッツグリッド */}
+      <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] items-start">
+        <section className="washi-surface p-10 flex flex-col justify-center items-center text-center space-y-6 ink-border shadow-2xl bg-seigaiha/5">
+          <div className="ui-text-label text-xs text-sumi/40 tracking-[0.3em] uppercase">総評点 - GRAND TOTAL</div>
+          <div className="text-8xl sm:text-9xl ui-text-decoration text-sumi drop-shadow-sm">
+            {clearScore.clearScore}
+          </div>
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-sumi text-washi ui-text-label text-sm tracking-widest">
+            <Trophy className="w-5 h-5 text-gold" />
+            {incentive?.rewardLabel ?? "判定中"}
+          </div>
+          <p className="text-sm text-sumi/60 max-w-sm leading-relaxed font-serif italic">
+            {incentive?.rewardDetail ?? "今生の足跡を正当に評価し、相撲史に刻むべき評点を算定せり。"}
+          </p>
         </section>
 
-        {!isSaved && (
-          <section className="grid gap-3 sm:grid-cols-3">
-            <div className="metric-card">
-              <div className="metric-label">保存報酬</div>
-              <div className="metric-value">{incentive?.rewardLabel ?? "判定中"}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">新規記録</div>
-              <div className="metric-value">{incentive?.newRecordCount ?? 0}件</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">図鑑進捗</div>
-              <div className="metric-value">+{incentive?.collectionDeltaCount ?? 0}</div>
-            </div>
-          </section>
-        )}
+        <section className="washi-surface p-8 space-y-6 ink-border shadow-xl">
+          <div className="ui-text-label text-xs text-gold/80 border-b border-sumi/10 pb-3 mb-2 tracking-widest uppercase">評定内訳</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            {[
+              { label: "競技記録", val: clearScore.competitiveScore, note: "星取・番付" },
+              { label: "勲章加点", val: clearScore.recordBonus, note: "バッジ獲得" },
+              { label: "生涯勝率", val: `${winRate}%`, note: "安定性" },
+              { label: "優勝回数", val: `${status.history.yushoCount.makuuchi}回`, note: "栄冠" },
+            ].map((item) => (
+              <div key={item.label} className="space-y-2">
+                <div className="text-[10px] ui-text-label text-sumi/40 uppercase">{item.label}</div>
+                <div className="text-3xl ui-text-decoration text-sumi">{item.val}</div>
+                <div className="text-[9px] text-sumi/30 font-serif italic">{item.note}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button
-            size="lg"
-            onClick={onSave}
-            disabled={saveState === "saving" || isSaved}
-          >
-            {saveLabel}
-          </Button>
-          <Button size="lg" variant="secondary" onClick={onShowDetails}>
-            詳しく見る
-          </Button>
-          {onOpenCollection ? (
-            <Button size="lg" variant="ghost" onClick={onOpenCollection}>
-              図鑑を見る
-            </Button>
-          ) : null}
-          <Button size="lg" variant="outline" onClick={onReset}>
-            もう一度
-          </Button>
+      {/* 主要記録バッジ */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-4 text-xl ui-text-decoration text-sumi">
+          <span className="h-px w-8 bg-gold/50" />
+          <Award className="w-6 h-6 text-gold" />
+          <span>獲得せし勲章</span>
         </div>
-
-        {saveErrorMessage && (
-          <div className="text-xs text-warning-bright border border-warning/35 bg-warning/10 px-3 py-2">
-            {saveErrorMessage}
+        
+        {featuredBadges.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredBadges.map((badge) => (
+              <div key={badge.key} className="washi-surface p-6 ink-border group hover:translate-y-[-4px] transition-all duration-300">
+                <div className="flex items-center justify-between mb-3 border-b border-sumi/5 pb-2">
+                  <div className="ui-text-label text-sm text-sumi group-hover:text-gold transition-colors">{resolveCareerRecordBadgeLabel(badge.key)}</div>
+                  <div className="text-sm ui-text-decoration text-gold group-hover:scale-110 transition-transform">+{badge.scoreBonus}</div>
+                </div>
+                <p className="text-xs text-sumi/60 leading-relaxed font-serif italic">{badge.detail}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="washi-surface p-12 text-center text-sumi/30 text-sm italic ink-border-small opacity-50">
+            特筆すべき記録は確認されませんでした。
           </div>
         )}
       </section>
-    </>
+
+      {/* 保存報酬・統計 (未保存時のみ) */}
+      {!isSaved && (
+        <section className="grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "保存報酬", val: incentive?.rewardLabel ?? "判定中", color: "text-award" },
+            { label: "新規記録", val: `${incentive?.newRecordCount ?? 0}件`, color: "text-action" },
+            { label: "図鑑進捗", val: `+${incentive?.collectionDeltaCount ?? 0}`, color: "text-state" },
+          ].map((item) => (
+            <div key={item.label} className="surface-card p-4 text-center border-gold-muted/10">
+              <div className="text-[10px] ui-text-label text-text-dim mb-1">{item.label}</div>
+              <div className={`text-xl ui-text-metric ${item.color}`}>{item.val}</div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* アクションボタン */}
+      <div className="flex flex-wrap justify-center gap-6 pt-10 pb-20">
+        <Button
+          size="lg"
+          onClick={onSave}
+          disabled={saveState === "saving" || isSaved}
+          className="min-w-[200px] h-16 text-xl ui-text-decoration relative group overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gold/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+          <Save className="w-6 h-6 mr-3 relative z-10" />
+          <span className="relative z-10">{saveLabel}</span>
+        </Button>
+        
+        <Button size="lg" variant="secondary" onClick={onShowDetails} className="min-w-[200px] h-16 text-xl ui-text-decoration">
+          <BookOpenText className="w-6 h-6 mr-3" />
+          一代記を紐解く
+        </Button>
+
+        <div className="w-full flex justify-center gap-4 mt-4">
+           {onOpenCollection && (
+             <Button variant="ghost" onClick={onOpenCollection} className="text-sm ui-text-label text-sumi/60 hover:text-sumi">
+               殿堂を閲覧する
+             </Button>
+           )}
+           <Button variant="outline" onClick={onReset} className="text-sm ui-text-label text-sumi/40 hover:text-sumi italic">
+             新弟子を待つ
+           </Button>
+        </div>
+      </div>
+
+      {saveErrorMessage && (
+        <div className="animate-in slide-in-from-bottom-2 text-xs text-center text-warning-bright border border-warning/35 bg-warning/10 px-4 py-2 mt-4">
+          <AlertTriangle className="w-3.5 h-3.5 inline mr-2" />
+          {saveErrorMessage}
+        </div>
+      )}
+    </div>
   );
 };
 
