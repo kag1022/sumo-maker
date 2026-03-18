@@ -620,6 +620,7 @@ const resolveBanzukeHighlightTitle = (trigger: ImportantBanzukeDecisionTrigger):
   return '勝ち越し据え置き';
 };
 
+/*
 const resolveTorikumiHighlightTitle = (trigger: ImportantTorikumiTrigger): string => {
   if (trigger === 'YUSHO_RACE') return '優勝争いの割';
   if (trigger === 'JOI_DUTY') return '上位総当たり';
@@ -627,12 +628,15 @@ const resolveTorikumiHighlightTitle = (trigger: ImportantTorikumiTrigger): strin
   if (trigger === 'CROSS_DIVISION_EVAL') return '越境評価戦';
   return '異例編成';
 };
+*/
 
+/*
 const resolveTorikumiTone = (trigger: ImportantTorikumiTrigger): Exclude<ReportTone, 'action'> => {
   if (trigger === 'YUSHO_RACE' || trigger === 'SEKITORI_BOUNDARY') return 'state';
   if (trigger === 'LATE_RELAXATION') return 'warning';
   return 'brand';
 };
+*/
 
 const resolvePeakBand = (
   status: RikishiStatus,
@@ -1003,7 +1007,7 @@ export const buildImportantTorikumiDigests = (
 
 export const buildImportantDecisionDigest = (
   banzukeDigests: ImportantBanzukeDecisionDigest[],
-  torikumiDigests: ImportantTorikumiDigest[],
+  _torikumiDigests: ImportantTorikumiDigest[],
 ): ReportImportantDecisionDigest => {
   const timelineItems: ReportTimelineDigestItem[] = [
     ...banzukeDigests.map((entry): ReportTimelineDigestItem => {
@@ -1027,22 +1031,6 @@ export const buildImportantDecisionDigest = (
         sortPriority: 0,
       };
     }),
-    ...torikumiDigests.map((entry): ReportTimelineDigestItem => ({
-      key: entry.key,
-      dateLabel: `${entry.bashoLabel} ${entry.day}日目`,
-      age: 0,
-      label: '本割判断',
-      tone: resolveTorikumiTone(entry.trigger),
-      isMajor: true,
-      items: [entry.summary, entry.detailLine],
-      entryType: 'TORIKUMI' as const,
-      bashoSeq: entry.bashoSeq,
-      day: entry.day,
-      sortYear: entry.year,
-      sortMonth: entry.month,
-      sortDay: entry.day,
-      sortPriority: 1,
-    })),
   ].sort((left, right) => {
     if ((right.sortYear ?? 0) !== (left.sortYear ?? 0)) return (right.sortYear ?? 0) - (left.sortYear ?? 0);
     if ((right.sortMonth ?? 0) !== (left.sortMonth ?? 0)) return (right.sortMonth ?? 0) - (left.sortMonth ?? 0);
@@ -1067,17 +1055,6 @@ export const buildImportantDecisionDigest = (
         tone,
       };
     }),
-    ...torikumiDigests.map((entry): ReportImportantDecisionHighlight => ({
-      key: entry.key,
-      kind: 'TORIKUMI',
-      bashoSeq: entry.bashoSeq,
-      bashoLabel: entry.bashoLabel,
-      day: entry.day,
-      title: resolveTorikumiHighlightTitle(entry.trigger),
-      summary: entry.summary,
-      detailLines: [entry.detailLine],
-      tone: resolveTorikumiTone(entry.trigger),
-    })),
   ]
     .sort((left, right) => {
       if (right.bashoSeq !== left.bashoSeq) return right.bashoSeq - left.bashoSeq;

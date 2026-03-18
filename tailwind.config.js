@@ -53,10 +53,11 @@ export default {
         },
         // === テキスト系 ===
         text: {
-          DEFAULT: "#e8e0d0",   // メインテキスト
-          dim: "#8a8472",       // サブテキスト
+          DEFAULT: "#f5f0e1",   // Light on dark
+          dark: "#f5f0e1",      // Now used on dark blue panels
+          dim: "#8a8472",
           faint: "#6d7a92",
-          bright: "#ffffff",    // 強調
+          bright: "#ffffff",
         },
         // === アクセント: ゴールド（RPG風） ===
         gold: {
@@ -76,9 +77,9 @@ export default {
         mp: "#4488DD",
         // === 旧名互換エイリアス（段階的に除去） ===
         washi: {
-          DEFAULT: "#e8e2d0",
-          dark: "#dcd4bc",
-          light: "#f0ede0",
+          DEFAULT: "rgba(17, 25, 39, 0.85)",
+          dark: "rgba(12, 18, 27, 0.9)",
+          light: "rgba(22, 34, 56, 0.8)",
         },
         sumi: {
           DEFAULT: "#1a1a1a",

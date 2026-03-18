@@ -17,7 +17,7 @@ let engine: ReturnType<typeof createSimulationEngine> | null = null;
 let activeCareerId: string | null = null;
 let stopped = false;
 let loopRunning = false;
-let pacing: 'observe' | 'skip_to_end' = 'skip_to_end';
+// let _pacing: 'observe' | 'skip_to_end' = 'skip_to_end';
 
 const post = (message: SimulationWorkerResponse): void => {
   self.postMessage(message);
@@ -129,23 +129,21 @@ const runLoop = async (): Promise<void> => {
           diagnostics: step.diagnostics,
         });
 
-        if (pacing === 'observe') {
-          const observation = buildObservation(step);
-          post({
-            type: 'BASHO_PROGRESS',
-            payload: {
-              careerId,
-              seq: step.seq,
-              year: step.year,
-              month: step.month,
-              playerRecord: step.playerRecord,
-              status: step.statusSnapshot,
-              events: step.events,
-              progress: step.progress,
-              observation,
-            },
-          });
-        }
+        const observation = buildObservation(step);
+        post({
+          type: 'BASHO_PROGRESS',
+          payload: {
+            careerId,
+            seq: step.seq,
+            year: step.year,
+            month: step.month,
+            playerRecord: step.playerRecord,
+            status: step.statusSnapshot,
+            events: step.events,
+            progress: step.progress,
+            observation,
+          },
+        });
 
         continue;
       }
@@ -190,12 +188,12 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
       oyakata,
       runOptions,
       simulationModelVersion,
-      initialPacing,
+      initialPacing: _initialPacing,
     } = message.payload;
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
 
     stopped = false;
-    pacing = initialPacing;
+    // _pacing = initialPacing;
     activeCareerId = careerId;
     engine = createSimulationEngine({
       initialStats,
@@ -221,7 +219,7 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
   }
 
   if (message.type === 'SET_PACING') {
-    pacing = message.payload.pacing;
+    // _pacing = message.payload.pacing;
   }
 };
 
