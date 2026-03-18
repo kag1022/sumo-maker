@@ -8183,7 +8183,7 @@ export const tests: TestCase[] = [
           power: 118,
         },
       });
-      for (let seq = 1; seq <= 14; seq += 1) {
+      for (let seq = 1; seq <= 15; seq += 1) {
         const record: BashoRecord = {
           ...createBashoRecord(status.rank, 14, 1, 0),
           kimariteCount: { 押し出し: 10, 突き出し: 3, 突き落とし: 1 },
