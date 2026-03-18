@@ -130,7 +130,7 @@ export const App: React.FC = () => {
       return {
         title: "力士結果",
         subtitle:
-          "四股名、成績、転機、宿敵を読み返しながら、この力士が何者だったかを一画面で掴みます。",
+          "四股名、成績、歩み、ライバルを読み返しながら、この力士が何者だったかを一画面で掴みます。",
         statusLine: `${status.shikona} / 最高位 ${formatRankName(status.history.maxRank)}`,
       };
     }
@@ -298,6 +298,7 @@ const CareerSection: React.FC<{
     return (
       <ResultPreparationPanel
         phase={phase}
+        progress={progress}
         onReveal={onReveal}
         onStop={onStop}
       />
@@ -338,51 +339,69 @@ const CareerSection: React.FC<{
 
 const ResultPreparationPanel: React.FC<{
   phase: "simulating" | "reveal_ready";
+  progress: any;
   onReveal: () => void;
   onStop: () => void;
-}> = ({ phase, onReveal, onStop }) => {
+}> = ({ phase, progress, onReveal, onStop }) => {
   const isReady = phase === "reveal_ready";
+  const bashoCount = progress?.bashoCount || 0;
+  // 推定される進行度 (平均90場所として計算。95%で止めて完了時に100%にする)
+  const percent = isReady ? 100 : Math.min(95, Math.ceil((bashoCount / 90) * 100));
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="surface-panel space-y-6">
-        <div className="space-y-3 text-center">
-          <div className="app-kicker">{isReady ? "開封の前" : "結果を準備中"}</div>
-          <h2 className="text-3xl ui-text-heading text-text">
-            {isReady ? "結果の準備ができました" : "力士人生を演算中"}
+    <div className="mx-auto max-w-2xl py-12">
+      <div className="premium-panel p-8 sm:p-12 space-y-8 text-center relative overflow-hidden group">
+        <div className="corner-gold corner-top-left" />
+        <div className="corner-gold corner-top-right" />
+        <div className="corner-gold corner-bottom-left" />
+        <div className="corner-gold corner-bottom-right" />
+        
+        <div className="space-y-4 relative z-10">
+          <div className="flex items-center justify-center gap-3">
+             <div className="h-px w-8 bg-gold/30" />
+             <div className="text-[10px] ui-text-label text-gold tracking-widest uppercase">
+                {isReady ? "演算完了" : "運命を記録中"}
+             </div>
+             <div className="h-px w-8 bg-gold/30" />
+          </div>
+          <h2 className="text-4xl ui-text-heading text-text tracking-widest">
+            {isReady ? "一代記が整いました" : "力士人生を演算中"}
           </h2>
-          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-text-dim">
+          <p className="mx-auto max-w-md text-sm leading-relaxed text-text-dim/80 font-serif italic">
             {isReady
-              ? "人生の中身はまだ伏せています。準備が整ったら、結果を見るボタンから一代記を開封してください。"
-              : "途中経過は見せず、力士人生を裏でまとめて演算しています。終わったら、そのまま結果を開けます。"}
+              ? "その力士が歩んだ全ての場所、流した汗と涙が今、一つの物語となりました。"
+              : "裏側で力士の一生を高速にシミュレートしています。完了までしばし黙考してお待ちください。"}
           </p>
         </div>
 
-        <div className="mx-auto flex max-w-xl items-center gap-2">
-          <div className="h-2 flex-1 overflow-hidden border-2 border-brand-muted bg-surface-panel">
+        <div className="space-y-4 relative z-10">
+          <div className="flex justify-between items-end mb-1">
+             <div className="text-[10px] ui-text-label text-gold/60">
+                {isReady ? "SUCCESS" : `${progress?.year || "????"}年 ${progress?.month || "??"}月場所 ${progress?.bashoCount || 0}場所目`}
+             </div>
+             <div className="text-xl ui-text-metric text-text">
+                {percent}<span className="text-xs ml-0.5">%</span>
+             </div>
+          </div>
+          <div className="h-1.5 w-full bg-gold/10 overflow-hidden relative border border-gold/10">
             <div
-              className={`h-full bg-action/70 ${isReady ? "w-full" : "w-1/3 animate-pulse"}`}
+              className={`h-full bg-gradient-to-r from-gold/5 from-gold/40 via-gold to-gold/40 transition-all duration-700 ease-out ${!isReady ? "animate-pulse" : ""}`}
+              style={{ width: `${percent}%` }}
             />
           </div>
-          <div className="text-xs ui-text-label text-text-dim">
-            {isReady ? "完了" : "演算中"}
-          </div>
         </div>
 
-        <div className="rounded-none border-2 border-brand-muted bg-surface-panel px-4 py-3 text-sm text-text-dim">
-          {isReady
-            ? "準備が整いました。結果を見ると一代記を開封できます。"
-            : "結果がまとまるまで、このまましばらくお待ちください。"}
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex flex-wrap justify-center gap-6 pt-4 relative z-10">
           {isReady ? (
-            <Button size="lg" onClick={onReveal}>
-              結果を見る
+            <Button size="lg" onClick={onReveal} className="min-w-[180px] h-14 text-lg">
+              <BookOpenText className="w-5 h-5 mr-3" />
+              一代記を開く
             </Button>
-          ) : null}
-          <Button variant={isReady ? "secondary" : "outline"} size="lg" onClick={onStop}>
-            中止して戻る
-          </Button>
+          ) : (
+            <Button variant="outline" size="lg" onClick={onStop} className="min-w-[180px] h-14 text-lg border-gold/30 text-gold/80 hover:bg-gold/10 hover:text-gold">
+              中断して戻る
+            </Button>
+          )}
         </div>
       </div>
     </div>

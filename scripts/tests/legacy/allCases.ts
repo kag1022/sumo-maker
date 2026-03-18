@@ -659,9 +659,11 @@ const createScoutDraft = (overrides: Partial<ScoutDraft> = {}): ScoutDraft => {
       durability: { baseInjuryRisk: 1.0, partVulnerability: {}, recoveryRate: 1.0, chronicResistance: 50 },
       variance: { formVolatility: 50, clutchBias: 0, slumpRecovery: 50, streakSensitivity: 50 },
     },
-    genomeBudget: 200,
     selectedIchimonId: 'RAIMEI',
     selectedStableId: 'stable-025',
+    selectedBackgroundId: 'CLUB',
+    selectedPhysicalTraitId: 'POWER',
+    selectedStyleId: 'YOTSU',
   };
   const merged = {
     ...baseDraft,
@@ -1141,7 +1143,7 @@ export const tests: TestCase[] = [
         heightCm: 176,
         weightKg: 104,
       };
-      const result = calculateBattleResult(rikishi, enemy, undefined, () => 0.01, 'unified-v2-kimarite');
+      const result = calculateBattleResult(rikishi, enemy, undefined, () => 0.01);
       assert.equal(result.isWin, true);
       assert.equal(typeof result.kimarite, 'string');
       assert.ok(result.kimarite.length > 0);
@@ -1503,7 +1505,7 @@ export const tests: TestCase[] = [
             losses: 0,
             active: true,
           };
-          simulateNpcBout(a, b, rng, 'unified-v3-variance');
+          simulateNpcBout(a, b, rng);
           if (a.wins > 0) wins += 1;
         }
         winRates.push(wins / trials);
@@ -1843,7 +1845,7 @@ export const tests: TestCase[] = [
         styleBias: 'GRAPPLE',
       };
       for (let i = 0; i < 30; i += 1) {
-        const result = calculateBattleResult(rikishi, enemy, undefined, lcg(300 + i), 'unified-v2-kimarite');
+        const result = calculateBattleResult(rikishi, enemy, undefined, lcg(300 + i));
         assert.ok(result.kimarite !== 'すくい投げ');
       }
     },
@@ -1872,8 +1874,8 @@ export const tests: TestCase[] = [
         weightKg: 154,
         styleBias: 'BALANCE',
       };
-      const v2 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v2-kimarite');
-      const v3 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5, 'unified-v3-variance');
+      const v2 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5);
+      const v3 = calculateBattleResult(rikishi, enemy, undefined, () => 0.5);
       assert.ok(Math.abs(v3.winProbability - v2.winProbability) <= 0.061);
     },
   },
@@ -5044,7 +5046,7 @@ export const tests: TestCase[] = [
   {
     name: 'simulation: model request keeps explicit model version in new runs',
     run: async () => {
-      for (const requested of ['unified-v2-kimarite', 'unified-v3-variance'] as const) {
+      for (const requested of ['v3'] as const) {
         const initial = createStatus({
           age: 20,
           entryAge: 20,
@@ -5087,7 +5089,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'simulation: default new run model version is unified-v3-variance',
+    name: 'simulation: default new run model version is v3',
     run: async () => {
       const initial = createStatus({
         age: 20,
@@ -5107,28 +5109,28 @@ export const tests: TestCase[] = [
       );
 
       const step = expectBashoStep(await engine.runNextBasho(), 'default model version');
-      assert.equal(step.diagnostics?.simulationModelVersion, 'unified-v3-variance');
+      assert.equal(step.diagnostics?.simulationModelVersion, 'v3');
     },
   },
   {
-    name: 'simulation: legacy model values normalize to unified-v2-kimarite on load',
+    name: 'simulation: legacy model values normalize to v3 on load',
     run: () => {
-      assert.equal(normalizeSimulationModelVersion('legacy-v6'), 'unified-v2-kimarite');
-      assert.equal(normalizeSimulationModelVersion('realism-v1'), 'unified-v2-kimarite');
-      assert.equal(normalizeSimulationModelVersion('unified-v1'), 'unified-v2-kimarite');
-      assert.equal(normalizeSimulationModelVersion('unified-v2-kimarite'), 'unified-v2-kimarite');
-      assert.equal(normalizeSimulationModelVersion('unified-v3-variance'), 'unified-v3-variance');
-      assert.equal(normalizeSimulationModelVersion(undefined), 'unified-v2-kimarite');
-      assert.equal(normalizeSimulationModelVersion('unknown-model'), 'unified-v2-kimarite');
+      assert.equal(normalizeSimulationModelVersion('legacy-v6'), 'v3');
+      assert.equal(normalizeSimulationModelVersion('realism-v1'), 'v3');
+      assert.equal(normalizeSimulationModelVersion('unified-v1'), 'v3');
+      assert.equal(normalizeSimulationModelVersion('unified-v2-kimarite'), 'v3');
+      assert.equal(normalizeSimulationModelVersion('unified-v3-variance'), 'v3');
+      assert.equal(normalizeSimulationModelVersion(undefined), 'v3');
+      assert.equal(normalizeSimulationModelVersion('unknown-model'), 'v3');
     },
   },
   {
-    name: 'simulation: new run model normalizer defaults to unified-v3-variance',
+    name: 'simulation: new run model normalizer defaults to v3',
     run: () => {
-      assert.equal(normalizeNewRunModelVersion(undefined), 'unified-v3-variance');
-      assert.equal(normalizeNewRunModelVersion('unknown-model'), 'unified-v3-variance');
-      assert.equal(normalizeNewRunModelVersion('unified-v2-kimarite'), 'unified-v2-kimarite');
-      assert.equal(normalizeNewRunModelVersion('unified-v3-variance'), 'unified-v3-variance');
+      assert.equal(normalizeNewRunModelVersion(undefined), 'v3');
+      assert.equal(normalizeNewRunModelVersion('unknown-model'), 'v3');
+      assert.equal(normalizeNewRunModelVersion('unified-v2-kimarite'), 'v3');
+      assert.equal(normalizeNewRunModelVersion('unified-v3-variance'), 'v3');
     },
   },
   {
@@ -6064,13 +6066,62 @@ export const tests: TestCase[] = [
           },
         ],
       });
-
       assert.equal(out.allocations.length, 1);
       const allocation = out.allocations[0];
       assert.equal(allocation.finalRank.division, 'Sandanme');
       assert.ok((allocation.finalRank.number ?? 999) <= 20);
       assert.ok(!allocation.flags.includes('BOUNDARY_SLOT_JAM'));
       assert.equal(out.warnings.length, 0);
+    },
+  },
+  {
+    name: 'simulation model normalization',
+    run: async () => {
+      const RUNS: Array<{ requested: any; expected: any }> = [
+        { requested: 'v3', expected: 'v3' },
+        { requested: undefined, expected: 'v3' },
+        { requested: 'unified-v2-kimarite', expected: 'v3' },
+        { requested: 'unified-v3-variance', expected: 'v3' },
+      ];
+      for (const { requested, expected } of RUNS) {
+        const initial = createStatus({
+          age: 20,
+          entryAge: 20,
+          rank: { division: 'Makushita', name: '幕下', side: 'East', number: 25 },
+          history: {
+            records: [],
+            events: [],
+            maxRank: { division: 'Makushita', name: '幕下', side: 'East', number: 25 },
+            totalWins: 0,
+            totalLosses: 0,
+            totalAbsent: 0,
+            yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+            kimariteTotal: {},
+          },
+        });
+        const engine = createSimulationEngine(
+          {
+            initialStats: initial,
+            oyakata: null,
+            simulationModelVersion: requested as any,
+          },
+          {
+            random: lcg(1986),
+            getCurrentYear: () => 2026,
+            yieldControl: async () => { },
+          },
+        );
+
+        const step = expectBashoStep(
+          await engine.runNextBasho(),
+          `simulation model normalization (${requested})`,
+        );
+
+        assert.equal(step.diagnostics?.simulationModelVersion, expected);
+        assert.ok(
+          step.banzukeDecisions.every((decision) => decision.modelVersion === expected),
+        );
+      }
     },
   },
   {
@@ -6419,7 +6470,6 @@ export const tests: TestCase[] = [
         faced,
         8,
         11,
-        'unified-v3-variance',
         sequenceRng([roll]),
       ).pairs[0]?.b.id;
 
@@ -8133,7 +8183,7 @@ export const tests: TestCase[] = [
           power: 118,
         },
       });
-      for (let seq = 1; seq <= 14; seq += 1) {
+      for (let seq = 1; seq <= 15; seq += 1) {
         const record: BashoRecord = {
           ...createBashoRecord(status.rank, 14, 1, 0),
           kimariteCount: { 押し出し: 10, 突き出し: 3, 突き落とし: 1 },

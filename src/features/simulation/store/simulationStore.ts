@@ -137,15 +137,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       const message = event.data;
 
       if (message.type === 'BASHO_PROGRESS') {
+        const state = get();
         set({
-          phase: 'running',
+          phase: state.phase === 'simulating' ? 'simulating' : 'running',
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
           isCurrentCareerSaved: false,
           latestEvents: toLatestEvents(message.payload.events),
-          observationLog: pushObservation(get().observationLog, message.payload.observation),
-          simulationPacing: 'observe',
+          observationLog: pushObservation(state.observationLog, message.payload.observation),
+          simulationPacing: state.simulationPacing,
           latestPauseReason: undefined,
           errorMessage: undefined,
         });
