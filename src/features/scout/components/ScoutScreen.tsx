@@ -49,10 +49,10 @@ const formatCountdown = (seconds: number): string => {
 
 const traitName = (id: string): string => CONSTANTS.TRAIT_DATA[id as keyof typeof CONSTANTS.TRAIT_DATA]?.name ?? id;
 
-// --- 共通スタイル定数 ---
-const LABEL_CLASS = "text-xs ui-text-label text-gold";
-const INPUT_CLASS = "w-full border border-white/10 bg-black/20 px-3 py-2.5 text-text text-sm focus:border-gold focus:bg-black/40 focus:ring-1 focus:ring-gold/30 transition-all";
-const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
+// --- 共通スタイル定数 (プレミアム・ネオ和風) ---
+const LABEL_CLASS = "text-xs ui-text-label text-gold/80 font-bold mb-2 flex items-center gap-2 uppercase tracking-[0.2em]";
+const INPUT_CLASS = "w-full border-b border-gold/30 bg-gold/5 px-4 py-3 text-text text-base focus:border-gold focus:bg-gold/10 transition-all outline-none placeholder:text-text/20";
+const SELECT_CLASS = "w-full border-b border-gold/30 bg-gold/5 px-4 py-3 text-text text-base focus:border-gold focus:bg-gold/10 transition-all outline-none appearance-none cursor-pointer";
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
@@ -181,60 +181,67 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     <div className="space-y-5">
       {/* === ウェルカムヒーロー（抽選前のみ） === */}
       {!editedDraft && (
-        <section className="dashboard-hero animate-in slide-in-from-bottom-4 duration-700">
-          <div className="rpg-panel p-8 space-y-6 bg-asanoha">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="h-px w-8 bg-gold/60" />
-                <p className="app-kicker text-gold">新弟子の入口</p>
-              </div>
-              <h2 className="text-4xl sm:text-6xl ui-text-decoration text-text leading-tight drop-shadow-md">
-                運命の輪郭を<br />
-                その手で整える。
-              </h2>
-              <p className="text-sm sm:text-lg text-text-dim max-w-2xl leading-relaxed font-serif italic">
-                土俵に上がる前の「最初の一歩」を演出しましょう。<br />
-                まず候補を呼び込み、その力士の将来性を見極めてから、必要な項目だけを魂込めて調整します。
-              </p>
+        <div className="flex flex-col items-center justify-center py-20 min-h-[70vh] space-y-16 animate-in fade-in zoom-in duration-1000">
+          {/* Majestic Header Section */}
+          <div className="text-center space-y-8">
+            <div className="flex items-center justify-center gap-6 mb-2">
+              <span className="h-px w-16 bg-gradient-to-r from-transparent to-gold/40" />
+              <p className="ui-text-label text-gold text-xs tracking-[0.5em] uppercase">Recruitment Portal</p>
+              <span className="h-px w-16 bg-gradient-to-l from-transparent to-gold/40" />
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4">
-              <div className="washi-surface p-6 ink-border group hover:translate-y-[-4px] transition-all">
-                <div className="text-[10px] ui-text-label text-gold/60 mb-1">所持ポイント</div>
-                <div className="text-2xl ui-text-decoration text-sumi">{wallet?.points ?? "..."}<span className="text-xs ml-1">PT</span></div>
-                <div className="mt-2 text-[10px] text-sumi/40 italic">上限 {wallet?.cap ?? 500}pt</div>
-              </div>
-              <div className="washi-surface p-6 ink-border group hover:translate-y-[-4px] transition-all">
-                <div className="text-[10px] ui-text-label text-gold/60 mb-1">次回の回復</div>
-                <div className="text-2xl ui-text-decoration text-sumi">{wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--"}</div>
-                <div className="mt-2 text-[10px] text-sumi/40 italic">一定間隔で気が満ちます</div>
-              </div>
-              <div className="washi-surface p-6 ink-border group hover:translate-y-[-4px] transition-all">
-                <div className="text-[10px] ui-text-label text-gold/60 mb-1">呼び込み費用</div>
-                <div className="text-2xl ui-text-decoration text-sumi">{SCOUT_COST.DRAW}<span className="text-xs ml-1">PT</span></div>
-                <div className="mt-2 text-[10px] text-sumi/40 italic">新しい風を土俵に</div>
-              </div>
-            </div>
-
-            <div className="pt-8">
-              <Button
-                size="lg"
-                onClick={handleDraw}
-                disabled={!canDraw}
-                className="w-full sm:w-auto px-12 py-6 text-xl ui-text-decoration relative group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gold/20 translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                <RefreshCw className={`w-6 h-6 mr-3 relative z-10 ${isDrawing ? "animate-spin" : ""}`} />
-                <span className="relative z-10 tracking-widest">{isDrawing ? "召集しています..." : "新弟子を呼び込む"}</span>
-              </Button>
-              {errorMessage && (
-                <div className="mt-4 p-4 bg-danger/10 border-l-4 border-danger animate-in fade-in slide-in-from-left-4">
-                   <p className="text-sm text-danger font-medium">{errorMessage}</p>
-                </div>
-              )}
-            </div>
+            <h2 className="text-5xl sm:text-8xl ui-text-heading text-text leading-tight drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+              一期一会の力士を<br />
+              スカウトしよう。
+            </h2>
+            <p className="text-base sm:text-xl text-text-dim max-w-2xl mx-auto leading-relaxed opacity-80">
+              相撲の歴史を塗り替える才能を、あなたの手で見つけ出す。<br />
+              まずは「スカウト開始」ボタンを押して、新たな弟子を探しましょう。
+            </p>
           </div>
-        </section>
+
+          {/* Stats Bar (Premium Style) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full max-w-5xl">
+            {[
+              { label: "所持ポイント", val: wallet?.points ?? "...", unit: "PT", note: `上限 ${wallet?.cap ?? 500}` },
+              { label: "ポイント回復", val: wallet ? formatCountdown(wallet.nextRegenInSec) : "--:--", unit: "", note: "自動で貯まります" },
+              { label: "スカウトコスト", val: SCOUT_COST.DRAW, unit: "PT", note: "1回につき消費" },
+            ].map((card, i) => (
+              <div key={i} className="premium-panel p-10 text-center group hover:translate-y-[-8px] transition-all duration-300 shadow-[0_15px_35px_rgba(0,0,0,0.4)]">
+                <div className="corner-gold corner-top-left" />
+                <div className="corner-gold corner-top-right" />
+                <div className="corner-gold corner-bottom-left" />
+                <div className="corner-gold corner-bottom-right" />
+                <div className="text-[11px] ui-text-label text-gold/50 mb-4">{card.label}</div>
+                <div className="text-4xl ui-text-heading text-text mb-2">
+                  {card.val}<span className="text-sm ml-1 opacity-40 font-normal">{card.unit}</span>
+                </div>
+                <div className="text-[10px] text-text-faint italic opacity-60 tracking-wider text-gold/30">{card.note}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-8">
+            <Button
+              size="lg"
+              onClick={handleDraw}
+              disabled={!canDraw || isDrawing}
+              className="group relative px-20 h-24 text-2xl ui-text-heading bg-gold text-bg font-bold overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] hover:shadow-[0_15px_60px_rgba(212,175,55,0.6)]"
+            >
+              <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <div className="flex items-center gap-4 relative z-10">
+                <RefreshCw className={`w-8 h-8 ${isDrawing ? "animate-spin" : ""}`} />
+                <span className="tracking-[0.2em]">{isDrawing ? "探索中..." : "スカウトを開始する"}</span>
+              </div>
+            </Button>
+            
+            {errorMessage && (
+              <p className="text-warning-bright text-sm animate-pulse ui-text-label tracking-widest">{errorMessage}</p>
+            )}
+            {!canDraw && !isDrawing && (
+              <p className="text-text-faint text-xs italic tracking-widest">※ポイントが不足しています</p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* === 抽選後: 適応型レイアウト === */}
@@ -242,81 +249,88 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
         <div className="lg:grid lg:grid-cols-[400px_1fr] lg:gap-10 items-start animate-in fade-in duration-500">
           {/* 左カラム: 力士プレビューとサマリー (DesktopではSticky) */}
           <aside className="lg:sticky lg:top-24 space-y-6 mb-8 lg:mb-0">
-            <div className="rpg-panel p-2 shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gold/5 pointer-events-none group-hover:bg-gold/10 transition-colors" />
-              {/* RikishiPortrait の導入 */}
-              <div className="relative h-[480px] w-full bg-seigaiha/10 overflow-hidden flex items-end justify-center">
+            <div className="premium-panel p-8 py-10 flex flex-col items-center justify-center text-center shadow-2xl relative animate-in zoom-in-95 duration-500">
+              <div className="corner-gold corner-top-left" />
+              <div className="corner-gold corner-top-right" />
+              <div className="corner-gold corner-bottom-left" />
+              <div className="corner-gold corner-bottom-right" />
+
+              <div className="absolute top-6 right-8 text-[10px] ui-text-label text-gold/30 tracking-[0.3em]">
+                NO. {editedDraft.shikona.charAt(0)}{editedDraft.profile.realName.length}-{Math.floor(Math.random() * 900) + 100}
+              </div>
+              
+              <div className="mb-8 space-y-2">
+                <div className="text-sm ui-text-label text-gold/60">
+                  西之海部屋 スカウト候補
+                </div>
+                <h1 className="text-6xl sm:text-7xl ui-text-heading text-text tracking-widest drop-shadow-2xl py-2">
+                  {editedDraft.shikona}
+                </h1>
+              </div>
+
+              {/* 力士肖像画 */}
+              <div className="relative h-[440px] w-full bg-gradient-to-b from-transparent via-gold/5 to-transparent overflow-hidden flex items-end justify-center border-y border-gold/10 my-4">
+                <div className="absolute inset-0 bg-asanoha opacity-[0.05] pointer-events-none" />
                 <RikishiPortrait 
                   bodyType={editedDraft.bodyType} 
-                  className="h-full w-full"
+                  className="h-full w-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]"
                   innerClassName="bg-transparent border-none p-0 shadow-none"
                 />
               </div>
-            </div>
 
-            <div className="washi-surface p-8 ink-border relative">
-              <div className="absolute top-4 right-4 text-[10px] ui-text-label text-sumi/40">
-                NO. {editedDraft.profile.realName.substring(0, 2).toUpperCase()}-{Math.floor(Math.random() * 900) + 100}
-              </div>
-              <div className="text-center space-y-3">
-                <p className="text-xs ui-text-label text-gold/80 italic">西之海部屋 門下</p>
-                <h2 className="text-5xl ui-text-decoration text-sumi border-b border-sumi/10 pb-4">
-                  {editedDraft.shikona}
-                </h2>
-                <div className="inline-block px-4 py-1.5 bg-sumi/5 border border-sumi/10">
-                  <span className="text-[10px] ui-text-label text-sumi/60 uppercase tracking-widest">
-                    {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
-                  </span>
+              {/* 基本情報サマリー */}
+              <div className="w-full mt-8 space-y-4">
+                <div className="inline-block px-6 py-2 bg-gold/20 border border-gold/40 text-text ui-text-label text-xs tracking-[0.3em]">
+                  {CONSTANTS.TALENT_ARCHETYPES[editedDraft.archetype].name}
                 </div>
-              </div>
-
-              <div className="mt-8 space-y-2">
-                {[
-                  { key: "本名", val: editedDraft.profile.realName || "不詳" },
-                  { key: "生国", val: editedDraft.profile.birthplace || "日本" },
-                  { key: "性格", val: PERSONALITY_LABELS[editedDraft.profile.personality] },
-                  { key: "体格", val: `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)` }
-                ].map((row) => (
-                  <div key={row.key} className="flex justify-between items-center text-xs py-1.5 border-b border-sumi/5">
-                    <span className="ui-text-label text-sumi/60">{row.key}</span>
-                    <span className="text-sumi font-medium">{row.val}</span>
-                  </div>
-                ))}
+                
+                <div className="grid grid-cols-1 gap-1 text-left">
+                  {[
+                    { key: "本名", val: editedDraft.profile.realName || "不明" },
+                    { key: "生国", val: editedDraft.profile.birthplace || "日本" },
+                    { key: "性格", val: PERSONALITY_LABELS[editedDraft.profile.personality] },
+                    { key: "体格", val: `${CONSTANTS.BODY_TYPE_DATA[editedDraft.bodyType].name} (${editedDraft.bodyMetrics.heightCm}cm / ${editedDraft.bodyMetrics.weightKg}kg)` }
+                  ].map((row) => (
+                    <div key={row.key} className="flex justify-between items-center text-xs py-3 border-b border-gold/10">
+                      <span className="ui-text-label text-gold/50">{row.key}</span>
+                      <span className="text-text font-bold">{row.val}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* モバイル表示時のアクションバーは別出しにするが、デスクトップではここにコストを表示 */}
-            <div className="hidden lg:block washi-surface p-6 ink-border bg-seigaiha/5">
+            <div className="hidden lg:block premium-panel p-6 border-gold/30 bg-gold/5">
               <div className="flex justify-between items-end mb-6">
                 <div className="space-y-1">
-                   <p className="text-[10px] ui-text-label text-gold/60">構築費用 合計</p>
-                   <p className="text-4xl ui-text-decoration text-sumi">
-                     {overrideCost.total}<span className="text-xs ml-1">PT</span>
+                   <p className="text-[10px] ui-text-label text-gold/40">変更コスト 合計</p>
+                   <p className="text-5xl ui-text-heading text-text">
+                     {overrideCost.total}<span className="text-sm ml-2 opacity-60">PT</span>
                    </p>
                 </div>
-                <div className="text-right text-[10px] text-sumi/40 font-serif italic">
-                  現有: {wallet?.points ?? "..."}pt
+                <div className="text-right text-[10px] text-gold/40 italic">
+                  現在の残高: {wallet?.points ?? "..."}pt
                 </div>
               </div>
-              <Button
-                size="lg"
-                onClick={() => void handleRegister("skip_to_end")}
-                disabled={isRegistering}
-                className="w-full py-6 text-xl ui-text-decoration relative group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gold/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                <Trophy className="w-6 h-6 mr-3 relative z-10" />
-                <span className="relative z-10">{isRegistering ? "入門手続中..." : "この内容で入門"}</span>
-              </Button>
-            </div>
-          </aside>
+                <Button
+                  size="lg"
+                  onClick={() => void handleRegister()}
+                  disabled={isRegistering}
+                  className="w-full h-16 text-xl ui-text-heading bg-gold/80 text-bg shadow-2xl border-none hover:bg-gold"
+                >
+                  <Trophy className="w-6 h-6 mr-3 relative z-10" />
+                  <span className="relative z-10 font-bold">{isRegistering ? "入門手続き中..." : "この内容で入門させる"}</span>
+                </Button>
+              </div>
+            </aside>
 
           {/* 右カラム: 各種調整フォーム */}
           <div className="space-y-8">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <span className="h-4 w-1 bg-gold" />
-                <h3 className="ui-text-label text-gold text-sm tracking-widest uppercase">新弟子の調整</h3>
+                <h3 className="ui-text-label text-gold-bright text-sm tracking-widest uppercase">新弟子の調整</h3>
               </div>
               <Button
                 onClick={handleDraw}
@@ -333,10 +347,12 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             {/* 設定セクションをひとまとめにする */}
             <div className="space-y-6">
               {/* カード 1: 基本プロフィール */}
-              <div className="washi-surface p-6 ink-border space-y-4 border-l-4 border-gold">
-                <div className="flex items-center gap-3 mb-2 border-b border-sumi/5 pb-2">
-                  <User className="w-4 h-4 text-gold" />
-                  <h3 className="ui-text-label text-sm text-sumi">一、基本プロフィール</h3>
+              <div className="premium-panel p-6 border-gold/10 space-y-4 border-l-4 border-gold shadow-lg">
+                <div className="corner-gold corner-top-left" />
+                <div className="corner-gold corner-top-right" />
+                <div className="flex items-center gap-3 mb-2 border-b border-gold/10 pb-2">
+                  <User className="w-4 h-4 text-gold/60" />
+                  <h3 className="ui-text-label text-sm text-gold font-bold">1. 基本プロフィール</h3>
                 </div>
                 
                 <div className="space-y-4">
@@ -347,7 +363,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                       onChange={(e) =>
                         setEditedDraft((prev) => (prev ? { ...prev, shikona: e.target.value } : prev))
                       }
-                      className="w-full border-2 border-gold-muted/30 bg-black/30 px-4 py-3 text-text text-2xl ui-text-decoration outline-none focus:border-gold focus:bg-black/50 transition-all"
+                      className="w-full border-b-2 border-gold/40 bg-white/5 px-4 py-3 text-text text-2xl ui-text-heading outline-none focus:border-gold focus:bg-white/10 transition-all"
                     />
                   </div>
 
@@ -400,11 +416,13 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 </div>
               </div>
 
-              {/* カード 2: 身体構造とキャリア */}
-              <div className="washi-surface p-6 ink-border space-y-4 border-l-4 border-action">
-                <div className="flex items-center gap-3 mb-2 border-b border-sumi/5 pb-2">
-                  <Zap className="w-4 h-4 text-action" />
-                  <h3 className="ui-text-label text-sm text-sumi">二、身体構造とキャリア</h3>
+              {/* カード 2: 体格とスタイル */}
+              <div className="premium-panel p-6 border-gold/10 space-y-4 border-l-4 border-secondary shadow-lg">
+                <div className="corner-gold corner-top-left" />
+                <div className="corner-gold corner-top-right" />
+                <div className="flex items-center gap-3 mb-2 border-b border-gold/10 pb-2">
+                  <Zap className="w-4 h-4 text-secondary/70" />
+                  <h3 className="ui-text-label text-sm text-gold font-bold">2. 体格とスタイル</h3>
                 </div>
 
                 <div className="space-y-5">
@@ -418,8 +436,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                            onClick={() => handleBodyTypeChange(bt)}
                            className={`py-2 text-[10px] ui-text-label border-2 transition-all ${
                              editedDraft.bodyType === bt 
-                               ? 'border-action bg-action/10 text-action' 
-                               : 'border-sumi/10 text-sumi/40 hover:border-action/40'
+                               ? 'border-gold bg-gold/20 text-text ring-1 ring-gold/40' 
+                               : 'border-gold/10 text-text/40 hover:border-gold/40'
                            }`}
                          >
                            {CONSTANTS.BODY_TYPE_DATA[bt].name}
@@ -434,28 +452,28 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                     </label>
                     <div className="flex gap-2">
                       {[0, 1, 2, 3, 4, 5].map((slot) => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => handleTraitSlotsChange(slot)}
-                          className={`flex-1 py-2 text-xs border-2 transition-all ${
-                            editedDraft.traitSlots === slot
-                              ? 'border-gold bg-gold/10 text-gold'
-                              : 'border-sumi/10 text-sumi/40 hover:border-gold/40'
-                          }`}
-                        >
-                          {slot}
-                        </button>
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => handleTraitSlotsChange(slot)}
+                            className={`flex-1 py-2 text-xs border-2 transition-all ${
+                              editedDraft.traitSlots === slot
+                                ? 'border-gold bg-gold/20 text-text ring-1 ring-gold/40'
+                                : 'border-gold/10 text-text/40 hover:border-gold/40'
+                            }`}
+                          >
+                            {slot}
+                          </button>
                       ))}
                     </div>
 
                     {editedDraft.traitSlots > 0 && (
                       <div className="space-y-3 animate-in fade-in duration-300">
                         {activeTraitSlotDrafts.map((slotDraft) => (
-                          <div key={slotDraft.slotIndex} className="bg-sumi/5 p-3 border border-sumi/10 space-y-2">
-                            <p className="text-[10px] ui-text-label text-sumi/40 uppercase tracking-wider">
-                              秘められし力 {slotDraft.slotIndex + 1}
-                            </p>
+                          <div key={slotDraft.slotIndex} className="bg-bg/40 p-3 border border-gold/10 space-y-2">
+                             <p className="text-[10px] ui-text-label text-gold/60 uppercase tracking-wider">
+                               スキル枠 {slotDraft.slotIndex + 1}
+                             </p>
                             <div className="grid grid-cols-2 gap-2">
                               {slotDraft.options.map((option) => {
                                 const isSelected = slotDraft.selected === option;
@@ -466,8 +484,8 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                                     onClick={() => handleTraitSelection(slotDraft.slotIndex, option)}
                                     className={`text-[10px] px-2 py-2 border-2 text-center transition-all ${
                                       isSelected
-                                        ? "border-gold bg-gold text-white"
-                                        : "border-sumi/10 bg-white/40 text-sumi/60 hover:border-gold/60"
+                                        ? "border-gold bg-gold/20 text-text"
+                                        : "border-gold/10 bg-bg/20 text-text/40 hover:border-gold/40"
                                     }`}
                                   >
                                     {traitName(option)}
@@ -483,11 +501,13 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                 </div>
               </div>
 
-              {/* カード 3: 資質と志し */}
-              <div className="washi-surface p-6 ink-border space-y-4 border-l-4 border-brand-line bg-asanoha/5">
-                <div className="flex items-center gap-3 mb-2 border-b border-sumi/5 pb-2">
+              {/* カード 3: 素養と目標 */}
+              <div className="premium-panel p-6 border-gold/10 space-y-4 border-l-4 border-brand-line shadow-lg">
+                <div className="corner-gold corner-top-left" />
+                <div className="corner-gold corner-top-right" />
+                <div className="flex items-center gap-3 mb-2 border-b border-gold/10 pb-2">
                   <Coins className="w-4 h-4 text-brand-line" />
-                  <h3 className="ui-text-label text-sm text-sumi">三、資質と志し</h3>
+                  <h3 className="ui-text-label text-sm text-gold font-bold">3. 素養と目標</h3>
                 </div>
 
                 <div className="space-y-6">
@@ -500,10 +520,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                           key={id}
                           type="button"
                           onClick={() => setEditedDraft(prev => prev ? { ...prev, selectedBackgroundId: id } : prev)}
-                          className={`px-2 py-2 text-[10px] border-2 transition-all ${
+                          className={`px-2 py-2 text-xs border-2 transition-all ${
                             editedDraft.selectedBackgroundId === id
-                              ? "border-brand-line bg-brand-line/10 text-brand-line"
-                              : "border-sumi/10 text-sumi/40 hover:border-brand-line/30"
+                              ? "border-brand-line bg-brand-line/20 text-brand-line"
+                              : "border-gold/10 text-text/40 hover:border-brand-line/40"
                           }`}
                         >
                           {SCOUT_BACKGROUNDS[id].name}
@@ -521,10 +541,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                           key={id}
                           type="button"
                           onClick={() => setEditedDraft(prev => prev ? { ...prev, selectedPhysicalTraitId: id } : prev)}
-                          className={`px-2 py-2 text-[10px] border-2 transition-all ${
+                          className={`px-2 py-2 text-xs border-2 transition-all ${
                             editedDraft.selectedPhysicalTraitId === id
-                              ? "border-brand-line bg-brand-line/10 text-brand-line"
-                              : "border-sumi/10 text-sumi/40 hover:border-brand-line/30"
+                              ? "border-brand-line bg-brand-line/20 text-brand-line"
+                              : "border-gold/10 text-text/40 hover:border-brand-line/40"
                           }`}
                         >
                           {SCOUT_PHYSICAL_TRAITS[id].name}
@@ -532,8 +552,6 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
 
                   {/* 相撲型 */}
                   <div className="space-y-2">
@@ -572,37 +590,42 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                       </div>
                     )}
                   </div>
+                </div>
 
-                {helpInfo && (
-                  <div className="mt-6 p-4 washi-surface ink-border bg-action/5 border-l-4 border-action animate-in slide-in-from-bottom-2 duration-300">
+                <div className="corner-gold corner-bottom-left" />
+                <div className="corner-gold corner-bottom-right" />
+
+                {helpInfo && helpInfo.title !== "相撲型" && (
+                  <div className="mt-6 p-4 washi-surface border-gold/20 bg-bg-panel/60 border-l-4 border-gold shadow-lg animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex justify-between items-start mb-2">
-                       <p className="text-[10px] ui-text-label text-action tracking-widest uppercase">{helpInfo.title}の補足</p>
-                       <button onClick={() => setHelpInfo(null)} className="text-sumi/40 hover:text-sumi">×</button>
+                       <p className="text-[10px] ui-text-label text-gold tracking-widest uppercase">{helpInfo.title}について</p>
+                       <button onClick={() => setHelpInfo(null)} className="text-text/40 hover:text-text">×</button>
                     </div>
-                    <p className="text-xs text-sumi/70 leading-relaxed italic">{helpInfo.text}</p>
+                    <p className="text-xs text-text/70 leading-relaxed italic">{helpInfo.text}</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* モバイル専用: 下部アクションバー (画面下部に固定) */}
       {editedDraft && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-4 bg-bg-panel/95 backdrop-blur-lg border-t-2 border-gold shadow-[0_-12px_32px_rgba(0,0,0,0.5)] safe-area-bottom">
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
-              <span className="text-[10px] ui-text-label text-gold/60">構築費用</span>
-              <span className="text-2xl ui-text-decoration text-text">{overrideCost.total}PT</span>
+              <span className="text-[10px] ui-text-label text-gold/60">必要ポイント</span>
+              <span className="text-2xl ui-text-metric text-text">{overrideCost.total}PT</span>
             </div>
             <Button
               size="lg"
               variant="primary"
               onClick={() => void handleRegister("skip_to_end")}
               disabled={isRegistering}
-              className="flex-1 max-w-[200px] h-14 ui-text-decoration text-lg"
+              className="flex-1 max-w-[200px] h-14 ui-text-heading text-lg"
             >
-              {isRegistering ? "入門中" : "入門させる"}
+              {isRegistering ? "入門中..." : "入門させる"}
             </Button>
           </div>
         </div>

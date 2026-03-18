@@ -267,11 +267,11 @@ export const LogicLabScreen: React.FC = () => {
               <button onClick={() => setDesc((v) => !v)} className="border-2 border-gold-muted px-2 py-1 text-xs font-bold hover:border-gold hover:bg-gold/10 transition-none">{desc ? '新しい順' : '古い順'}</button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {LOG_FILTERS.map((item) => (
-              <button key={item.id} onClick={() => setFilter(item.id)} className={`text-xs font-bold px-2 py-1 border-2 transition-none ${filter === item.id ? 'border-gold bg-gold/20 text-gold shadow-none' : 'border-gold-muted bg-bg text-text-dim shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]'}`}>{item.label}</button>
+              <button key={item.id} onClick={() => setFilter(item.id)} className={`text-xs font-bold px-3 py-1.5 border-2 transition-none shadow-sm ${filter === item.id ? 'border-gold bg-gold/20 text-gold shadow-none' : 'border-gold-muted bg-bg text-text-dim shadow-[inset_0_0_4px_rgba(0,0,0,0.5)]'}`}>{item.label}</button>
             ))}
-            <span className="text-xs font-bold text-text-dim px-2 py-1">表示 {filtered.length}/{logs.length}</span>
+            <span className="text-xs font-bold text-text-dim px-2 py-1 flex items-center">表示 {filtered.length}/{logs.length}</span>
           </div>
           <div className="overflow-x-auto max-h-[420px] border-2 border-gold-muted shadow-[inset_0_0_8px_rgba(0,0,0,0.8)]">
             <table className="min-w-full text-xs border-collapse">

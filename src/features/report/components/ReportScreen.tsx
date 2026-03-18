@@ -352,12 +352,12 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
       {/* ヒーローヘッダー: 四股名の威厳 */}
       <section className="relative overflow-hidden py-16 sm:py-24 text-center">
         <div className="absolute inset-0 bg-asanoha opacity-5 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-washi/60 via-washi/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-washi/30 via-washi/5 to-transparent pointer-events-none" />
         
         <div className="relative z-10 space-y-8">
-          <div className="inline-flex items-center gap-3 px-6 py-2 washi-surface ink-border-small text-[10px] ui-text-label text-gold tracking-widest uppercase mb-4">
+          <div className="inline-flex items-center gap-3 px-6 py-2 washi-surface border-gold/20 text-[10px] ui-text-label text-gold tracking-widest uppercase mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            {isSaved ? "殿堂入り力士 扁額" : "千秋楽・成績開示"}
+            {isSaved ? "殿堂入り力士" : "今回の相撲ライフ結果"}
           </div>
           <div className="flex flex-col items-center justify-center space-y-6">
              {/* 肖像画を中央に */}
@@ -370,7 +370,7 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
              </div>
 
              <div className="space-y-4">
-                <h1 className="text-6xl sm:text-8xl ui-text-decoration text-sumi tracking-widest drop-shadow-md py-4">
+                <h1 className="text-6xl sm:text-8xl ui-text-heading text-text tracking-widest drop-shadow-md py-4">
                   {status.shikona}
                 </h1>
                 <div className="flex flex-col items-center gap-3">
@@ -378,8 +378,8 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
                     最高位 {formatRankDisplayName(status.history.maxRank)}
                   </p>
                   {incentive?.projectedBestScoreRank && (
-                    <span className="text-xs ui-text-label px-3 py-1 bg-sumi text-washi">
-                      相撲史 歴代{incentive.projectedBestScoreRank}位 相当
+                    <span className="text-xs ui-text-label px-3 py-1 bg-gold/20 text-text">
+                      歴代{incentive.projectedBestScoreRank}位相当の記録
                     </span>
                   )}
                 </div>
@@ -390,22 +390,22 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
 
       {/* スコア・スタッツグリッド */}
       <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] items-start">
-        <section className="washi-surface p-10 flex flex-col justify-center items-center text-center space-y-6 ink-border shadow-2xl bg-seigaiha/5">
-          <div className="ui-text-label text-xs text-sumi/40 tracking-[0.3em] uppercase">総評点 - GRAND TOTAL</div>
-          <div className="text-8xl sm:text-9xl ui-text-decoration text-sumi drop-shadow-sm">
+        <section className="washi-surface p-10 flex flex-col justify-center items-center text-center space-y-6 border-gold/30 shadow-2xl bg-bg-panel/40">
+          <div className="ui-text-label text-xs text-gold/60 tracking-[0.3em] uppercase">トータルスコア</div>
+          <div className="text-8xl sm:text-9xl ui-text-metric text-text drop-shadow-sm">
             {clearScore.clearScore}
           </div>
-          <div className="inline-flex items-center gap-3 px-6 py-3 bg-sumi text-washi ui-text-label text-sm tracking-widest">
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-bg text-text ui-text-label text-sm tracking-widest border border-gold/30">
             <Trophy className="w-5 h-5 text-gold" />
-            {incentive?.rewardLabel ?? "判定中"}
+            {incentive?.rewardLabel ?? "判定結果"}
           </div>
-          <p className="text-sm text-sumi/60 max-w-sm leading-relaxed font-serif italic">
-            {incentive?.rewardDetail ?? "今生の足跡を正当に評価し、相撲史に刻むべき評点を算定せり。"}
+          <p className="text-sm text-text-dim max-w-sm leading-relaxed">
+            {incentive?.rewardDetail ?? "今回の相撲人生を振り返り、その実績をスコアとして算出しました。"}
           </p>
         </section>
 
-        <section className="washi-surface p-8 space-y-6 ink-border shadow-xl">
-          <div className="ui-text-label text-xs text-gold/80 border-b border-sumi/10 pb-3 mb-2 tracking-widest uppercase">評定内訳</div>
+        <section className="washi-surface p-8 space-y-6 border-gold/30 shadow-xl bg-bg-panel/40">
+          <div className="ui-text-label text-xs text-gold/80 border-b border-gold/20 pb-3 mb-2 tracking-widest uppercase">スコア内訳</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {[
               { label: "競技記録", val: clearScore.competitiveScore, note: "星取・番付" },
@@ -414,9 +414,9 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
               { label: "優勝回数", val: `${status.history.yushoCount.makuuchi}回`, note: "栄冠" },
             ].map((item) => (
               <div key={item.label} className="space-y-2">
-                <div className="text-[10px] ui-text-label text-sumi/40 uppercase">{item.label}</div>
-                <div className="text-3xl ui-text-decoration text-sumi">{item.val}</div>
-                <div className="text-[9px] text-sumi/30 font-serif italic">{item.note}</div>
+                <div className="text-[10px] ui-text-label text-gold/50 uppercase">{item.label}</div>
+                <div className="text-3xl ui-text-decoration text-text">{item.val}</div>
+                <div className="text-[9px] text-text-dim/60 font-serif italic">{item.note}</div>
               </div>
             ))}
           </div>
@@ -424,27 +424,28 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
       </div>
 
       {/* 主要記録バッジ */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-4 text-xl ui-text-decoration text-sumi">
-          <span className="h-px w-8 bg-gold/50" />
+      <section className="space-y-8">
+        <div className="flex items-center gap-4 text-xl ui-text-decoration text-text">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/30" />
           <Award className="w-6 h-6 text-gold" />
-          <span>獲得せし勲章</span>
+          <span className="tracking-widest">獲得せし勲章</span>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/30" />
         </div>
         
         {featuredBadges.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredBadges.map((badge) => (
-              <div key={badge.key} className="washi-surface p-6 ink-border group hover:translate-y-[-4px] transition-all duration-300">
-                <div className="flex items-center justify-between mb-3 border-b border-sumi/5 pb-2">
-                  <div className="ui-text-label text-sm text-sumi group-hover:text-gold transition-colors">{resolveCareerRecordBadgeLabel(badge.key)}</div>
+              <div key={badge.key} className="washi-surface p-6 border-gold/20 group hover:translate-y-[-4px] transition-all duration-300 bg-bg-panel/20 shadow-lg">
+                <div className="flex items-center justify-between mb-3 border-b border-gold/10 pb-2">
+                  <div className="ui-text-label text-sm text-text group-hover:text-gold transition-colors">{resolveCareerRecordBadgeLabel(badge.key)}</div>
                   <div className="text-sm ui-text-decoration text-gold group-hover:scale-110 transition-transform">+{badge.scoreBonus}</div>
                 </div>
-                <p className="text-xs text-sumi/60 leading-relaxed font-serif italic">{badge.detail}</p>
+                <p className="text-xs text-text-dim leading-relaxed font-serif italic">{badge.detail}</p>
               </div>
             ))}
           </div>
         ) : (
-          <div className="washi-surface p-12 text-center text-sumi/30 text-sm italic ink-border-small opacity-50">
+          <div className="washi-surface p-12 text-center text-text-dim/40 text-sm italic border-gold/10 opacity-60">
             特筆すべき記録は確認されませんでした。
           </div>
         )}
@@ -479,9 +480,9 @@ const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
           <span className="relative z-10">{saveLabel}</span>
         </Button>
         
-        <Button size="lg" variant="secondary" onClick={onShowDetails} className="min-w-[200px] h-16 text-xl ui-text-decoration">
+        <Button size="lg" variant="secondary" onClick={onShowDetails} className="min-w-[200px] h-16 text-xl ui-text-heading">
           <BookOpenText className="w-6 h-6 mr-3" />
-          一代記を紐解く
+          歩みを振り返る
         </Button>
 
         <div className="w-full flex justify-center gap-4 mt-4">

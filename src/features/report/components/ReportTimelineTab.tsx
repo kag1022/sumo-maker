@@ -42,16 +42,6 @@ interface DecisionSnapshotModalState {
   boutMarks: Record<string, string>;
 }
 
-interface TorikumiDetailModalState {
-  title: string;
-  summary: string;
-  detailLines: string[];
-  bout?: {
-    result: "WIN" | "LOSS" | "ABSENT";
-    kimarite?: string;
-    opponentShikona?: string;
-  };
-}
 
 const EMPTY_IMPORTANT_DECISIONS: ReportImportantDecisionDigest = {
   highlights: [],
@@ -95,7 +85,6 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
     new Map(),
   );
   const [decisionSnapshotModal, setDecisionSnapshotModal] = React.useState<DecisionSnapshotModalState | null>(null);
-  const [torikumiModal, setTorikumiModal] = React.useState<TorikumiDetailModalState | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -146,16 +135,15 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
   }, [careerId, status]);
 
   React.useEffect(() => {
-    if (!decisionSnapshotModal && !torikumiModal) return undefined;
+    if (!decisionSnapshotModal) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setDecisionSnapshotModal(null);
-        setTorikumiModal(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [decisionSnapshotModal, torikumiModal]);
+  }, [decisionSnapshotModal]);
 
   const mergedItems = React.useMemo(() => {
     const entryAge = resolveEntryAge(status);
@@ -188,15 +176,6 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
           boutMarks,
         });
         return;
-      }
-      if (item.entryType === "TORIKUMI" && item.bashoSeq && item.day) {
-        const bout = (playerBoutsBySeq.get(item.bashoSeq) ?? []).find((entry) => entry.day === item.day);
-        setTorikumiModal({
-          title: item.dateLabel,
-          summary: item.items[0] || "",
-          detailLines: item.items,
-          bout,
-        });
       }
     },
     [bashoRowsBySeq, playerBoutsBySeq, status.history.records],
@@ -253,9 +232,6 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
       {decisionSnapshotModal && (
         <DecisionSnapshotModal state={decisionSnapshotModal} onClose={() => setDecisionSnapshotModal(null)} />
       )}
-      {torikumiModal && (
-        <TorikumiDetailModal state={torikumiModal} onClose={() => setTorikumiModal(null)} />
-      )}
     </div>
   );
 };
@@ -286,7 +262,7 @@ const TimelineDigestCard: React.FC<{
           </span>
           {item.isMajor && <span className="text-[11px] ui-text-label text-brand-line">重要</span>}
         </div>
-        {(item.entryType === "BANZUKE" || item.entryType === "TORIKUMI") && (
+        {item.entryType === "BANZUKE" && item.bashoSeq && (
           <button
             type="button"
             className="text-[11px] ui-text-label text-brand-line border border-brand-muted/60 px-2 py-1 hover:border-brand-line/50"
@@ -294,7 +270,7 @@ const TimelineDigestCard: React.FC<{
           >
             <span className="inline-flex items-center gap-1">
               <Eye className="w-3 h-3" />
-              {item.entryType === "BANZUKE" ? "番付表" : "対戦情報"}
+              番付表
             </span>
           </button>
         )}
@@ -372,57 +348,6 @@ const DecisionSnapshotModal: React.FC<{
               </div>
             );
           })
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-const TorikumiDetailModal: React.FC<{
-  state: TorikumiDetailModalState;
-  onClose: () => void;
-}> = ({ state, onClose }) => (
-  <div
-    className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center"
-    onClick={onClose}
-  >
-    <div
-      className="w-full max-w-2xl border border-brand-muted/70 bg-surface-panel shadow-rpg"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="flex items-start justify-between gap-4 border-b border-brand-muted/60 px-4 py-3 sm:px-5">
-        <div className="space-y-1">
-          <div className="ui-text-label text-xs text-brand-line">重要本割判断</div>
-          <h4 className="text-sm sm:text-base text-text">{state.title}</h4>
-          <p className="text-xs text-text-dim">{state.summary}</p>
-        </div>
-        <button
-          type="button"
-          className="p-2 text-text-dim hover:text-text border border-transparent hover:border-brand-muted/70"
-          onClick={onClose}
-          aria-label="対戦情報を閉じる"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="space-y-3 px-4 py-4 sm:px-5">
-        <div className="border border-brand-muted/60 bg-surface-base/80 px-3 py-2 text-xs text-text-dim leading-relaxed">
-          {state.detailLines.join(" / ")}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="border border-brand-muted/60 bg-surface-base/75 px-3 py-2">
-            <div className="text-text-dim">対戦結果</div>
-            <div className="text-text">
-              {state.bout ? (state.bout.result === "WIN" ? "○ 勝ち" : state.bout.result === "LOSS" ? "● 負け" : "や 休場") : "保存なし"}
-            </div>
-          </div>
-          <div className="border border-brand-muted/60 bg-surface-base/75 px-3 py-2">
-            <div className="text-text-dim">決まり手</div>
-            <div className="text-text">{state.bout?.kimarite || "記録なし"}</div>
-          </div>
-        </div>
-        {state.bout?.opponentShikona && (
-          <div className="text-xs text-text-dim">相手: {state.bout.opponentShikona}</div>
         )}
       </div>
     </div>

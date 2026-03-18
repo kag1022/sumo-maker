@@ -13,16 +13,17 @@
   --ui-warning: #d26b52;
   --ui-danger: #d26b52;
   --ui-award: #c49a4d;
-  --ui-text-main: rgba(255, 255, 255, 0.85); /* 刺すような白を避けた乳白色 */
-  --ui-text-sub: rgba(255, 255, 255, 0.55);
-  --ui-text-faint: rgba(255, 255, 255, 0.35);
+  --ui-text-main: #f5f0e1; 
+  --ui-text-dark: #f5f0e1;   /* Modern crisp text on dark backgrounds */
+  --ui-text-sub: rgba(245, 240, 225, 0.7);
+  --ui-text-faint: rgba(245, 240, 225, 0.45);
 
   /* 和の伝統色追加 */
   --ui-color-shuiro: #d26b52; /* 朱色 */
-  --ui-color-kiniro: #b88a3e; /* 古金 */
-  --ui-color-sumi: #1a1a1a;   /* 墨色 */
-  --ui-color-washi: #b8b4a3;  /* 煤けた和紙色（明度を大幅に落とした中間トーン） */
-  --ui-color-aiiro: #165e83;  /* 藍色 */
+  --ui-color-kiniro: #b88a3e;
+  --ui-color-sumi: #1a1a1a;
+  --ui-color-washi: rgba(17, 25, 39, 0.85); /* No more white paper. Translucent deep blue. */
+  --ui-color-aiiro: #165e83;
 }
 
 /* === ベースレイヤー: 和レトロゲームテーマ === */
@@ -54,8 +55,8 @@
   .zoom-in-95 { animation-name: zoom-in-95; }
   body {
     background:
-      radial-gradient(circle at top left, rgba(76, 123, 255, 0.12), transparent 45%),
-      linear-gradient(180deg, #162238 0%, #111b2e 52%, #162238 100%); /* 全体的に明度を上げ、パネルとの差を縮小 */
+      radial-gradient(circle at top left, rgba(76, 123, 255, 0.08), transparent 40%),
+      linear-gradient(180deg, #0b1018 0%, #0d141e 52%, #080c12 100%);
     color: var(--ui-text-main);
     font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -82,10 +83,11 @@
   input,
   select,
   textarea {
-    background-color: rgba(0, 0, 0, 0.2); /* 影に溶け込む背景 */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--ui-text-main);
+    background-color: rgba(0, 0, 0, 0.04);
+    border: 1.5px solid rgba(26, 26, 26, 0.15); /* Stronger border for visibility */
+    color: var(--ui-text-dark);
     font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+    border-radius: 2px;
   }
   input:focus,
   select:focus,
@@ -132,8 +134,10 @@
   }
   .ui-text-label {
     font-family: "DotGothic16", monospace;
-    letter-spacing: 0.04em;
-    line-height: 1.35;
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+    color: #c49a4d; /* Golden labels */
+    text-shadow: 0 0 4px rgba(196, 154, 77, 0.2);
   }
   .ui-text-metric {
     font-family: "DotGothic16", monospace;
@@ -150,17 +154,47 @@
     letter-spacing: 0.05em;
   }
 
-  .washi-surface {
-    background-color: rgba(184, 180, 163, 0.45); /* 大幅な透過により背景と融和 */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
-    color: var(--ui-text-main); /* 文字は明るい色へ反転 */
-    border: 1px solid rgba(255, 255, 255, 0.08); /* 柔らかな光の境界 */
+  /* Premium Neo-Japanese Panels */
+  .premium-panel {
+    background: linear-gradient(135deg, rgba(17, 25, 39, 0.92) 0%, rgba(8, 12, 21, 0.98) 100%);
+    color: var(--ui-text-main);
+    border: 1px solid rgba(196, 154, 77, 0.3);
     box-shadow: 
-      inset 0 0 60px rgba(0, 0, 0, 0.1),
-      0 12px 32px rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(16px); /* 深いぼかしで「影の中の層」を表現 */
+      0 0 0 1px rgba(196, 154, 77, 0.1),
+      inset 0 0 30px rgba(0, 0, 0, 0.8),
+      0 20px 50px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
     position: relative;
     overflow: hidden;
+  }
+
+  .premium-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(196, 154, 77, 0.6), transparent);
+  }
+
+  /* Decorative Corner Ornament (隅金) */
+  .corner-gold {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #c49a4d;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .corner-top-left { top: 6px; left: 6px; border-right: 0; border-bottom: 0; }
+  .corner-top-right { top: 6px; right: 6px; border-left: 0; border-bottom: 0; }
+  .corner-bottom-left { bottom: 6px; left: 6px; border-right: 0; border-top: 0; }
+  .corner-bottom-right { bottom: 6px; right: 6px; border-left: 0; border-top: 0; }
+
+  /* Redefine washi-surface to use the new premium style */
+  .washi-surface {
+    @apply premium-panel;
   }
   .washi-surface::before {
     content: "";
