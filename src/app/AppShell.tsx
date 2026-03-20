@@ -20,10 +20,10 @@ const NAV_ITEMS: Array<{
   shortLabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: "scout", label: "スカウト", shortLabel: "スカウト", icon: ScrollText },
-  { id: "career", label: "歩みを振り返る", shortLabel: "歩み", icon: BookOpenText },
-  { id: "archive", label: "保存レコード", shortLabel: "記録", icon: Archive },
-  { id: "collection", label: "力士コレクション", shortLabel: "図鑑", icon: LayoutGrid },
+  { id: "scout", label: "新弟子設計", shortLabel: "設計", icon: ScrollText },
+  { id: "career", label: "力士記録", shortLabel: "記録", icon: BookOpenText },
+  { id: "archive", label: "保存済み記録", shortLabel: "保存", icon: Archive },
+  { id: "collection", label: "資料館", shortLabel: "資料", icon: LayoutGrid },
   { id: "logicLab", label: "テスト・検証", shortLabel: "検証", icon: FlaskConical },
 ];
 
@@ -38,15 +38,15 @@ export const AppShell: React.FC<AppShellProps> = ({
   showLogicLab = false,
 }) => {
   const defaultTitles: Record<string, string> = {
-    scout: "新弟子検査",
-    career: "力士結果",
-    archive: "力士記録庫",
-    collection: "勲章一覧",
+    scout: "新弟子設計",
+    career: "力士記録",
+    archive: "保存済み記録",
+    collection: "資料館",
     logicLab: "論理検証",
   };
 
   const title = customTitle || defaultTitles[activeSection] || "横綱メーカー";
-  const subtitle = customSubtitle || (activeSection === "career" ? "これまでの歩み" : "Sumo Simulation");
+  const subtitle = customSubtitle || (activeSection === "career" ? "記録を読む" : "Sumo Life Archive");
 
   const visibleItems = NAV_ITEMS.filter((item) =>
     item.id === "logicLab" ? (showLogicLab || activeSection === "logicLab") : true

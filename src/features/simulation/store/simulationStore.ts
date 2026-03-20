@@ -253,7 +253,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     if (!careerId) return;
     await shelveCareer(careerId);
     const saved = await isCareerSaved(careerId);
-    set({ isCurrentCareerSaved: saved });
+    const refreshedStatus = await loadCareerStatus(careerId);
+    set({
+      isCurrentCareerSaved: saved,
+      ...(refreshedStatus ? { status: refreshedStatus } : {}),
+    });
     await get().loadHallOfFame();
     await get().loadUnshelvedCareers();
   },
@@ -311,6 +315,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     if (get().phase === 'running') {
       await get().stopSimulation();
       return;
+    }
+    const currentCareerId = get().currentCareerId;
+    if (currentCareerId && !get().isCurrentCareerSaved) {
+      await discardCareer(currentCareerId);
     }
     set({
       phase: 'idle',

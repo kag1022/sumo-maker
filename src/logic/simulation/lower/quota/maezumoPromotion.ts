@@ -16,19 +16,19 @@ export const promoteMaezumoToJonokuchi = (
   const resolveRiseBandSlotRange = (riseBand: 1 | 2 | 3): [number, number] => {
     if (riseBand === 1) {
       return [
-        clamp(Math.round(jonokuchiSlots * 0.13), 1, jonokuchiSlots),
-        clamp(Math.round(jonokuchiSlots * 0.2), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.78), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.88), 1, jonokuchiSlots),
       ];
     }
     if (riseBand === 2) {
       return [
-        clamp(Math.round(jonokuchiSlots * 0.3), 1, jonokuchiSlots),
-        clamp(Math.round(jonokuchiSlots * 0.37), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.86), 1, jonokuchiSlots),
+        clamp(Math.round(jonokuchiSlots * 0.95), 1, jonokuchiSlots),
       ];
     }
     return [
-      clamp(Math.round(jonokuchiSlots * 0.47), 1, jonokuchiSlots),
-      clamp(Math.round(jonokuchiSlots * 0.5), 1, jonokuchiSlots),
+      clamp(Math.round(jonokuchiSlots * 0.92), 1, jonokuchiSlots),
+      clamp(Math.round(jonokuchiSlots * 0.99), 1, jonokuchiSlots),
     ];
   };
 

@@ -1,39 +1,30 @@
 import React from "react";
-import { Award, BookOpenText, Save, Sparkles, Trophy, AlertTriangle, Swords, ScrollText } from "lucide-react";
-import {
-  buildCareerClearScoreSummary,
-  resolveCareerRecordBadgeLabel,
-  type CareerClearScoreSummary,
-  type CareerRecordBadge,
-} from "../../../logic/career/clearScore";
+import { Archive, BookOpenText, Save, ScrollText, Swords, UserRound } from "lucide-react";
 import { RikishiStatus } from "../../../logic/models";
 import {
   getCareerSaveIncentiveSummary,
   type CareerSaveIncentiveSummary,
 } from "../../../logic/persistence/careers";
-import { listCareerPlayerBoutsByBasho } from "../../../logic/persistence/careerHistory";
 import { Button } from "../../../shared/ui/Button";
-import { HoshitoriCareerRecord } from "./HoshitoriTable";
-import { ReportDetailsTab } from "./ReportDetailsTab";
-import { ReportHero } from "./ReportHero";
-import { ReportOverviewTab } from "./ReportOverviewTab";
-import { ReportTimelineTab } from "./ReportTimelineTab";
-import {
-  buildReportHeroSummary,
-  buildReportSpotlightPayload,
-} from "../utils/reportHero";
-import {
-  buildReportTimelineDigest,
-} from "../utils/reportTimeline";
-import {
-  formatRankDisplayName,
-} from "../utils/reportFormatters";
+import { formatRankDisplayName } from "../utils/reportFormatters";
+import { RankTrajectoryTab } from "./RankTrajectoryTab";
+import { RecordTab } from "./RecordTab";
+import { RivalryTab } from "./RivalryTab";
+
+const PERSONALITY_LABELS: Record<string, string> = {
+  CALM: "冷静",
+  AGGRESSIVE: "闘争的",
+  SERIOUS: "真面目",
+  WILD: "奔放",
+  CHEERFUL: "陽気",
+  SHY: "人見知り",
+};
 
 const TABS = [
-  { id: "overview", label: "概況", icon: Sparkles },
-  { id: "timeline", label: "場所史", icon: ScrollText },
-  { id: "story", label: "歩みとライバル", icon: Swords },
-  { id: "profile", label: "能力と型", icon: BookOpenText },
+  { id: "profile", label: "プロフィール", icon: UserRound },
+  { id: "records", label: "戦績", icon: BookOpenText },
+  { id: "rank", label: "番付推移", icon: ScrollText },
+  { id: "rivals", label: "対戦・宿敵", icon: Swords },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -47,6 +38,19 @@ interface ReportScreenProps {
   careerId?: string | null;
 }
 
+const formatRecordText = (wins: number, losses: number, absent: number): string =>
+  `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
+
+const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="flex items-center justify-between gap-4 border-b border-gold/10 py-2 text-sm">
+    <span className="ui-text-label text-gold/60">{label}</span>
+    <span className="text-right text-text">{value}</span>
+  </div>
+);
+
+const surface = "surface-panel border border-gold/10 bg-bg-panel/70";
+const insetSurface = "border border-gold/10 bg-bg/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+
 export const ReportScreen: React.FC<ReportScreenProps> = ({
   status,
   onReset,
@@ -55,37 +59,28 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   isSaved = false,
   careerId = null,
 }) => {
-  const [viewMode, setViewMode] = React.useState<"reveal" | "details">("reveal");
-  const [activeTab, setActiveTab] = React.useState<TabId>("overview");
-  const [timelineFilter, setTimelineFilter] = React.useState<"IMPORTANT" | "ALL">("IMPORTANT");
-  const [hoshitoriCareerRecords, setHoshitoriCareerRecords] = React.useState<HoshitoriCareerRecord[]>([]);
-  const [isHoshitoriLoading, setIsHoshitoriLoading] = React.useState(false);
-  const [hoshitoriErrorMessage, setHoshitoriErrorMessage] = React.useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = React.useState<TabId>("profile");
   const [saveIncentive, setSaveIncentive] = React.useState<CareerSaveIncentiveSummary | null>(null);
-  const [saveState, setSaveState] = React.useState<"idle" | "saving" | "saved" | "error">(
-    isSaved ? "saved" : "idle",
+  const [saveState, setSaveState] = React.useState<"idle" | "saving" | "saved" | "error">(isSaved ? "saved" : "idle");
+
+  const initial = status.buildSummary?.initialConditionSummary;
+  const growth = status.buildSummary?.growthSummary;
+  const narrative = status.careerNarrative;
+  const totalRecord = formatRecordText(
+    status.history.totalWins,
+    status.history.totalLosses,
+    status.history.totalAbsent,
   );
-  const [saveErrorMessage, setSaveErrorMessage] = React.useState<string | null>(null);
-
-  const entryAge = React.useMemo(() => resolveEntryAge(status), [status]);
-  const totalWins = status.history.totalWins;
-  const totalLosses = status.history.totalLosses;
-  const totalAbsent = status.history.totalAbsent;
-  const winRate =
-    totalWins + totalLosses > 0 ? ((totalWins / (totalWins + totalLosses)) * 100).toFixed(1) : "0.0";
-  const fallbackClearScore = React.useMemo(() => buildCareerClearScoreSummary(status), [status]);
-
-  React.useEffect(() => {
-    if (isSaved) {
-      setSaveState("saved");
-      setSaveErrorMessage(null);
-    }
-  }, [isSaved]);
-
-  React.useEffect(() => {
-    setViewMode("reveal");
-    setActiveTab("overview");
-  }, [careerId, status.age, status.history.records.length, status.shikona]);
+  const currentHeight = Math.round(status.bodyMetrics.heightCm);
+  const currentWeight = Math.round(status.bodyMetrics.weightKg);
+  const narrativeTurningNotes = React.useMemo(
+    () =>
+      (narrative?.turningPoints ?? [])
+        .map((point) => point.summary)
+        .filter((summary, index, array) => Boolean(summary) && array.indexOf(summary) === index)
+        .slice(0, 2),
+    [narrative],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -96,421 +91,202 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           isSaved,
           includeOyakata: true,
         });
-        if (!cancelled) {
-          setSaveIncentive(summary);
-        }
+        if (!cancelled) setSaveIncentive(summary);
       } catch {
-        if (!cancelled) {
-          setSaveIncentive(null);
-        }
+        if (!cancelled) setSaveIncentive(null);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [careerId, isSaved, saveState, status]);
-
-  const awardsSummary = React.useMemo(() => {
-    let kinboshi = 0;
-    let shukun = 0;
-    let kantou = 0;
-    let ginou = 0;
-    status.history.records.forEach((record) => {
-      kinboshi += record.kinboshi || 0;
-      record.specialPrizes?.forEach((prize) => {
-        if (prize === "殊勲賞") shukun++;
-        if (prize === "敢闘賞") kantou++;
-        if (prize === "技能賞") ginou++;
-      });
-    });
-    return { kinboshi, totalSansho: shukun + kantou + ginou };
-  }, [status.history.records]);
-
-  const heroSummary = React.useMemo(() => buildReportHeroSummary(status), [status]);
-  const spotlight = React.useMemo(() => buildReportSpotlightPayload(status, entryAge), [status, entryAge]);
-  const timelineDigest = React.useMemo(
-    () => buildReportTimelineDigest(status.history.events, entryAge),
-    [entryAge, status.history.events],
-  );
-
-  const chartTicks = React.useMemo(
-    () => spotlight.points.filter((point) => point.axisLabel).map((point) => point.slot),
-    [spotlight.points],
-  );
-
-  const chartMin = React.useMemo(
-    () => Math.min(-470, ...spotlight.points.map((point) => point.plotValue)),
-    [spotlight.points],
-  );
-
-  const achievementSummary = React.useMemo(() => {
-    const parts: string[] = [];
-    if (status.history.yushoCount.makuuchi > 0) parts.push(`幕内優勝 ${status.history.yushoCount.makuuchi}回`);
-    if (awardsSummary.kinboshi > 0) parts.push(`金星 ${awardsSummary.kinboshi}個`);
-    if (awardsSummary.totalSansho > 0) parts.push(`三賞 ${awardsSummary.totalSansho}回`);
-    if (parts.length === 0) parts.push(`${formatRankDisplayName(status.history.maxRank)}まで到達`);
-    return parts.join(" / ");
-  }, [awardsSummary.kinboshi, awardsSummary.totalSansho, status.history.maxRank, status.history.yushoCount.makuuchi]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const baseRecords: HoshitoriCareerRecord[] = status.history.records
-      .filter((record) => record.rank.division !== "Maezumo")
-      .map((record) => ({
-        year: record.year,
-        month: record.month,
-        rank: record.rank,
-        wins: record.wins,
-        losses: record.losses,
-        absent: record.absent,
-        bouts: [],
-      }));
-
-    if (!careerId) {
-      setHoshitoriCareerRecords(baseRecords);
-      setIsHoshitoriLoading(false);
-      setHoshitoriErrorMessage("場所別の取組詳細データが未保存のため、記号のみで表示しています。");
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setIsHoshitoriLoading(true);
-    setHoshitoriErrorMessage(undefined);
-    void (async () => {
-      try {
-        const boutRows = await listCareerPlayerBoutsByBasho(careerId);
-        if (cancelled) return;
-        const boutsBySeq = new Map(boutRows.map((entry) => [entry.bashoSeq, entry.bouts]));
-        setHoshitoriCareerRecords(
-          status.history.records
-            .map((record, index) => ({
-              year: record.year,
-              month: record.month,
-              rank: record.rank,
-              wins: record.wins,
-              losses: record.losses,
-              absent: record.absent,
-              bouts: boutsBySeq.get(index + 1) || [],
-            }))
-            .filter((record) => record.rank.division !== "Maezumo"),
-        );
-      } catch {
-        if (!cancelled) {
-          setHoshitoriCareerRecords(baseRecords);
-          setHoshitoriErrorMessage("星取表データの取得に失敗したため、記号のみで表示しています。");
-        }
-      } finally {
-        if (!cancelled) setIsHoshitoriLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [careerId, status.history.records]);
+  }, [careerId, isSaved, status]);
 
   const handleSave = async () => {
     if (!onSave || isSaved || saveState === "saving") return;
     setSaveState("saving");
-    setSaveErrorMessage(null);
     try {
       await onSave();
       setSaveState("saved");
     } catch {
       setSaveState("error");
-      setSaveErrorMessage("殿堂入りの保存に失敗しました。もう一度お試しください。");
     }
   };
 
-  const revealSummary = saveIncentive?.clearScore ?? fallbackClearScore;
-  const featuredBadges = saveIncentive?.featuredBadges ?? fallbackClearScore.badges.slice(0, 3);
+  const saveLabel =
+    saveState === "saved" || isSaved
+      ? "保存済み"
+      : saveState === "saving"
+        ? "保存中..."
+        : "この人生を保存";
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
-      {viewMode === "reveal" ? (
-        <ReportRevealPanel
-          status={status}
-          clearScore={revealSummary}
-          incentive={saveIncentive}
-          featuredBadges={featuredBadges}
-          winRate={winRate}
-          saveState={saveState}
-          isSaved={isSaved}
-          saveErrorMessage={saveErrorMessage}
-          onReset={onReset}
-          onSave={() => void handleSave()}
-          onOpenCollection={onOpenCollection}
-          onShowDetails={() => setViewMode("details")}
-        />
-      ) : (
-        <>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className="report-tab-button"
-              onClick={() => setViewMode("reveal")}
-            >
-              開封面へ戻る
-            </button>
-          </div>
-          <ReportHero
-            shikona={status.shikona}
-            maxRank={status.history.maxRank}
-            summary={heroSummary}
-            spotlight={spotlight}
-            winRate={winRate}
-            totalWins={totalWins}
-            totalLosses={totalLosses}
-            totalAbsent={totalAbsent}
-            yushoCountMakuuchi={status.history.yushoCount.makuuchi}
-            awardsSummary={awardsSummary}
-            chartMin={chartMin}
-            chartTicks={chartTicks}
-            activeTab={activeTab}
-            tabs={[...TABS]}
-            saveState={saveState}
-            isSaved={isSaved}
-            saveErrorMessage={saveErrorMessage}
-            onReset={onReset}
-            onSave={() => void handleSave()}
-            onShowTimeline={() => setActiveTab("timeline")}
-            onTabChange={(tabId) => setActiveTab(tabId as TabId)}
-          />
-
-          {activeTab === "overview" && (
-            <ReportOverviewTab
-              status={status}
-              achievementSummary={achievementSummary}
-              winRate={winRate}
-              clearScore={revealSummary}
-              awardsSummary={awardsSummary}
-            />
-          )}
-          {activeTab === "timeline" && (
-            <ReportTimelineTab
-              items={timelineDigest}
-              status={status}
-              careerId={careerId}
-              filter={timelineFilter}
-              onFilterChange={setTimelineFilter}
-              hoshitoriCareerRecords={hoshitoriCareerRecords}
-              shikona={status.shikona}
-              isHoshitoriLoading={isHoshitoriLoading}
-              hoshitoriErrorMessage={hoshitoriErrorMessage}
-            />
-          )}
-          {activeTab === "story" && (
-            <ReportDetailsTab status={status} careerId={careerId} mode="story" />
-          )}
-          {activeTab === "profile" && (
-            <ReportDetailsTab status={status} careerId={careerId} mode="profile" />
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-interface ReportRevealPanelProps {
-  status: RikishiStatus;
-  clearScore: CareerClearScoreSummary;
-  incentive: CareerSaveIncentiveSummary | null;
-  featuredBadges: CareerRecordBadge[];
-  winRate: string;
-  saveState: "idle" | "saving" | "saved" | "error";
-  isSaved: boolean;
-  saveErrorMessage: string | null;
-  onReset: () => void;
-  onSave: () => void;
-  onOpenCollection?: () => void;
-  onShowDetails: () => void;
-}
-
-const ReportRevealPanel: React.FC<ReportRevealPanelProps> = ({
-  status,
-  clearScore,
-  incentive,
-  featuredBadges,
-  winRate,
-  saveState,
-  isSaved,
-  saveErrorMessage,
-  onReset,
-  onSave,
-  onOpenCollection,
-  onShowDetails,
-}) => {
-  const saveLabel = saveState === "saved" || isSaved
-    ? "保存済み"
-    : saveState === "saving"
-      ? "保存中..."
-      : incentive?.saveLabel ?? "保存する";
-
-  return (
-    <div className="space-y-6 animate-in zoom-in-95">
-      {/* ヒーローヘッダー: 四股名の威厳 */}
-      <section className="relative overflow-hidden py-16 sm:py-24 text-center">
-        <div className="absolute inset-0 bg-asanoha opacity-5 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-washi/30 via-washi/5 to-transparent pointer-events-none" />
-        
-        <div className="relative z-10 space-y-8">
-          <div className="inline-flex items-center gap-3 px-6 py-2 washi-surface border-gold/20 text-[10px] ui-text-label text-gold tracking-widest uppercase mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
-            {isSaved ? "殿堂入り力士" : "今回の相撲ライフ結果"}
-          </div>
-          <div className="flex flex-col items-center justify-center space-y-6">
-             {/* 肖像画を中央に */}
-             <div className="rpg-panel p-2 shadow-2xl relative group bg-white/20">
-                <img 
-                   src="/images/rikishi/normal_front.png" 
-                   alt="Rikishi" 
-                   className="h-64 sm:h-80 object-contain pixelated drop-shadow-[0_20px_40px_rgba(0,0,0,0.5)]"
-                />
-             </div>
-
-             <div className="space-y-4">
-                <h1 className="text-6xl sm:text-8xl ui-text-heading text-text tracking-widest drop-shadow-md py-4">
-                  {status.shikona}
-                </h1>
-                <div className="flex flex-col items-center gap-3">
-                  <p className="text-2xl ui-text-label text-gold border-b-2 border-gold/30 pb-2 px-8">
-                    最高位 {formatRankDisplayName(status.history.maxRank)}
-                  </p>
-                  {incentive?.projectedBestScoreRank && (
-                    <span className="text-xs ui-text-label px-3 py-1 bg-gold/20 text-text">
-                      歴代{incentive.projectedBestScoreRank}位相当の記録
-                    </span>
-                  )}
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="premium-panel relative overflow-hidden p-6 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(196,154,77,0.12),transparent_32%),linear-gradient(180deg,rgba(8,18,35,0.16),transparent_38%)]" />
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-end">
+          <div className="relative space-y-5">
+            <div className="space-y-3">
+              <p className="text-[10px] ui-text-label tracking-[0.5em] text-gold/60 uppercase">Rikishi Record</p>
+              <div className="flex flex-wrap items-end gap-4">
+                <h1 className="text-5xl sm:text-7xl ui-text-heading text-text">{status.shikona}</h1>
+                <div className="mb-2 inline-flex items-center border border-gold/15 bg-bg/30 px-3 py-1 text-[10px] ui-text-label tracking-[0.3em] text-gold/70 uppercase">
+                  最高位 {formatRankDisplayName(status.history.maxRank)}
                 </div>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* スコア・スタッツグリッド */}
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] items-start">
-        <section className="washi-surface p-10 flex flex-col justify-center items-center text-center space-y-6 border-gold/30 shadow-2xl bg-bg-panel/40">
-          <div className="ui-text-label text-xs text-gold/60 tracking-[0.3em] uppercase">トータルスコア</div>
-          <div className="text-8xl sm:text-9xl ui-text-metric text-text drop-shadow-sm">
-            {clearScore.clearScore}
-          </div>
-          <div className="inline-flex items-center gap-3 px-6 py-3 bg-bg text-text ui-text-label text-sm tracking-widest border border-gold/30">
-            <Trophy className="w-5 h-5 text-gold" />
-            {incentive?.rewardLabel ?? "判定結果"}
-          </div>
-          <p className="text-sm text-text-dim max-w-sm leading-relaxed">
-            {incentive?.rewardDetail ?? "今回の相撲人生を振り返り、その実績をスコアとして算出しました。"}
-          </p>
-        </section>
-
-        <section className="washi-surface p-8 space-y-6 border-gold/30 shadow-xl bg-bg-panel/40">
-          <div className="ui-text-label text-xs text-gold/80 border-b border-gold/20 pb-3 mb-2 tracking-widest uppercase">スコア内訳</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            {[
-              { label: "競技記録", val: clearScore.competitiveScore, note: "星取・番付" },
-              { label: "勲章加点", val: clearScore.recordBonus, note: "バッジ獲得" },
-              { label: "生涯勝率", val: `${winRate}%`, note: "安定性" },
-              { label: "優勝回数", val: `${status.history.yushoCount.makuuchi}回`, note: "栄冠" },
-            ].map((item) => (
-              <div key={item.label} className="space-y-2">
-                <div className="text-[10px] ui-text-label text-gold/50 uppercase">{item.label}</div>
-                <div className="text-3xl ui-text-decoration text-text">{item.val}</div>
-                <div className="text-[9px] text-text-dim/60 font-serif italic">{item.note}</div>
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* 主要記録バッジ */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4 text-xl ui-text-decoration text-text">
-          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/30" />
-          <Award className="w-6 h-6 text-gold" />
-          <span className="tracking-widest">獲得せし勲章</span>
-          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/30" />
-        </div>
-        
-        {featuredBadges.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredBadges.map((badge) => (
-              <div key={badge.key} className="washi-surface p-6 border-gold/20 group hover:translate-y-[-4px] transition-all duration-300 bg-bg-panel/20 shadow-lg">
-                <div className="flex items-center justify-between mb-3 border-b border-gold/10 pb-2">
-                  <div className="ui-text-label text-sm text-text group-hover:text-gold transition-colors">{resolveCareerRecordBadgeLabel(badge.key)}</div>
-                  <div className="text-sm ui-text-decoration text-gold group-hover:scale-110 transition-transform">+{badge.scoreBonus}</div>
-                </div>
-                <p className="text-xs text-text-dim leading-relaxed font-serif italic">{badge.detail}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="washi-surface p-12 text-center text-text-dim/40 text-sm italic border-gold/10 opacity-60">
-            特筆すべき記録は確認されませんでした。
-          </div>
-        )}
-      </section>
-
-      {/* 保存報酬・統計 (未保存時のみ) */}
-      {!isSaved && (
-        <section className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "保存報酬", val: incentive?.rewardLabel ?? "判定中", color: "text-award" },
-            { label: "新規記録", val: `${incentive?.newRecordCount ?? 0}件`, color: "text-action" },
-            { label: "図鑑進捗", val: `+${incentive?.collectionDeltaCount ?? 0}`, color: "text-state" },
-          ].map((item) => (
-            <div key={item.label} className="surface-card p-4 text-center border-gold-muted/10">
-              <div className="text-[10px] ui-text-label text-text-dim mb-1">{item.label}</div>
-              <div className={`text-xl ui-text-metric ${item.color}`}>{item.val}</div>
+              <p className="text-sm leading-relaxed text-text/68">
+                {initial?.birthplace ?? status.profile.birthplace} / {initial?.stableName ?? "所属不明"}
+              </p>
             </div>
-          ))}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className={`${surface} relative overflow-hidden p-5`}>
+                <div className="absolute inset-y-0 left-0 w-1 bg-gold/35" />
+                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">到達点</p>
+                <div className="mt-3 space-y-2">
+                  <InfoRow label="最高位" value={formatRankDisplayName(status.history.maxRank)} />
+                  <InfoRow label="通算成績" value={totalRecord} />
+                  <InfoRow label="幕内優勝" value={`${status.history.yushoCount.makuuchi}回`} />
+                  <InfoRow label="引退年齢" value={`${status.age}歳`} />
+                </div>
+              </div>
+
+              <div className={`${surface} relative overflow-hidden p-5`}>
+                <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
+                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">入門時と晩年</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className={`${insetSurface} p-4`}>
+                    <div className="text-xs text-text/58">入門時</div>
+                    <div className="mt-2 text-lg ui-text-heading text-text">
+                      {initial ? `${initial.initialHeightCm}cm / ${initial.initialWeightKg}kg` : "-"}
+                    </div>
+                    <div className="mt-1 text-xs text-text/58">
+                      {initial ? `${initial.entryAge}歳 / ${initial.entryPathLabel}` : "入門情報なし"}
+                    </div>
+                  </div>
+                  <div className={`${insetSurface} p-4`}>
+                    <div className="text-xs text-text/58">晩年時点</div>
+                    <div className="mt-2 text-lg ui-text-heading text-text">
+                      {currentHeight}cm / {currentWeight}kg
+                    </div>
+                    <div className="mt-1 text-xs text-text/58">
+                      {growth ? `成長見込み ${growth.peakHeightCm}cm / ${growth.peakWeightKg}kg` : `${status.age}歳時点`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => void handleSave()} disabled={saveState === "saving" || isSaved}>
+                <Save className="mr-2 h-4 w-4" />
+                {saveLabel}
+              </Button>
+              <Button variant="secondary" onClick={onReset}>
+                新弟子設計へ戻る
+              </Button>
+              {onOpenCollection && (
+                <Button variant="ghost" onClick={onOpenCollection}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  資料館を開く
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <aside className={`${surface} relative overflow-hidden p-5`}>
+            <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
+            <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">記録メモ</p>
+            <div className="mt-4 space-y-3 text-sm leading-relaxed text-text/70">
+              <p className={`${insetSurface} p-3`}>{narrative?.initialConditions ?? "この力士の入口は、記録の行間に残ります。"}</p>
+              <p className={`${insetSurface} p-3`}>{narrativeTurningNotes[0] ?? status.history.careerTurningPoint?.reason ?? "転機は番付推移と対戦史の中から読み取ります。"}</p>
+              {narrativeTurningNotes[1] && <p className={`${insetSurface} p-3`}>{narrativeTurningNotes[1]}</p>}
+              <p className={`${insetSurface} p-3`}>
+                {narrative?.rivalDigest?.summary ??
+                  saveIncentive?.rewardDetail ??
+                  "強さだけでなく、保存したくなる人生として残すかをここで判断します。"}
+              </p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className={`${surface} p-2`}>
+        <nav className="grid gap-2 sm:grid-cols-4" aria-label="力士記録タブ">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={`group flex min-w-[120px] items-center gap-3 border px-4 py-3 text-left transition-colors ${
+                  activeTab === tab.id
+                    ? "border-gold/35 bg-gold/10 text-text"
+                    : "border-gold/10 bg-bg/20 text-text/70 hover:border-brand-line/30 hover:bg-brand-ink/25 hover:text-text"
+                }`}
+                data-active={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className={`flex h-9 w-9 items-center justify-center border ${activeTab === tab.id ? "border-gold/25 bg-gold/10" : "border-gold/10 bg-bg/25"}`}>
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-sm">{tab.label}</span>
+                  <span className="text-[10px] ui-text-label tracking-[0.2em] text-gold/45 uppercase">
+                    {tab.id === "profile" ? "Identity" : tab.id === "records" ? "Records" : tab.id === "rank" ? "Trajectory" : "Rivalry"}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </section>
+
+      {activeTab === "profile" && (
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+          <div className={`${surface} relative overflow-hidden p-5`}>
+            <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
+            <div className="mb-4">
+              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物の入口</p>
+              <h2 className="mt-2 text-2xl ui-text-heading text-text">プロフィール</h2>
+            </div>
+            <div className="space-y-2">
+              <InfoRow label="出身地" value={initial?.birthplace ?? status.profile.birthplace} />
+              <InfoRow label="所属部屋" value={initial?.stableName ?? "不明"} />
+              <InfoRow label="入門年齢" value={`${initial?.entryAge ?? status.entryAge}歳`} />
+              <InfoRow label="学歴・競技歴" value={initial?.entryPathLabel ?? "記録なし"} />
+              <InfoRow label="気質" value={initial?.temperamentLabel ?? PERSONALITY_LABELS[status.profile.personality]} />
+              <InfoRow label="身体の素地" value={initial?.bodySeedLabel ?? "記録なし"} />
+              <InfoRow label="初期体格" value={initial ? `${initial.initialHeightCm}cm / ${initial.initialWeightKg}kg` : "-"} />
+              <InfoRow label="現在体格" value={`${currentHeight}cm / ${currentWeight}kg`} />
+              <InfoRow label="成長見込み" value={growth ? `${growth.peakHeightCm}cm / ${growth.peakWeightKg}kg` : "-"} />
+            </div>
+          </div>
+
+          <div className={`${surface} relative overflow-hidden p-5`}>
+            <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
+            <div className="mb-4">
+              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物像の読み口</p>
+              <h2 className="mt-2 text-2xl ui-text-heading text-text">記録から見えること</h2>
+            </div>
+            <div className="space-y-3 text-sm leading-relaxed text-text/70">
+              <p>{narrative?.growthArc ?? "身体の伸び方と残り方は、番付の浮沈と共に現れます。"}</p>
+              <p>{narrative?.careerIdentity ?? "どんな相撲が定着したかは、決まり手と対戦の積み重ねで読みます。"}</p>
+              {narrative?.designEchoes?.slice(0, 2).map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+              <p>
+                {status.history.totalAbsent > 0
+                  ? `生涯で${status.history.totalAbsent}休があり、怪我や停滞もこの力士像の一部として残っています。`
+                  : "長い休場は少なく、番付の推移で地力の積み上がりを読みやすい経歴です。"}
+              </p>
+            </div>
+          </div>
         </section>
       )}
 
-      {/* アクションボタン */}
-      <div className="flex flex-wrap justify-center gap-6 pt-10 pb-20">
-        <Button
-          size="lg"
-          onClick={onSave}
-          disabled={saveState === "saving" || isSaved}
-          className="min-w-[200px] h-16 text-xl ui-text-decoration relative group overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-gold/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-          <Save className="w-6 h-6 mr-3 relative z-10" />
-          <span className="relative z-10">{saveLabel}</span>
-        </Button>
-        
-        <Button size="lg" variant="secondary" onClick={onShowDetails} className="min-w-[200px] h-16 text-xl ui-text-heading">
-          <BookOpenText className="w-6 h-6 mr-3" />
-          歩みを振り返る
-        </Button>
-
-        <div className="w-full flex justify-center gap-4 mt-4">
-           {onOpenCollection && (
-             <Button variant="ghost" onClick={onOpenCollection} className="text-sm ui-text-label text-sumi/60 hover:text-sumi">
-               殿堂を閲覧する
-             </Button>
-           )}
-           <Button variant="outline" onClick={onReset} className="text-sm ui-text-label text-sumi/40 hover:text-sumi italic">
-             新弟子を待つ
-           </Button>
-        </div>
-      </div>
-
-      {saveErrorMessage && (
-        <div className="animate-in slide-in-from-bottom-2 text-xs text-center text-warning-bright border border-warning/35 bg-warning/10 px-4 py-2 mt-4">
-          <AlertTriangle className="w-3.5 h-3.5 inline mr-2" />
-          {saveErrorMessage}
-        </div>
-      )}
+      {activeTab === "records" && <RecordTab status={status} careerId={careerId} />}
+      {activeTab === "rank" && <RankTrajectoryTab status={status} careerId={careerId} />}
+      {activeTab === "rivals" && <RivalryTab status={status} careerId={careerId} />}
     </div>
   );
-};
-
-const resolveEntryAge = (status: RikishiStatus): number => {
-  if (typeof status.entryAge === "number" && Number.isFinite(status.entryAge)) return status.entryAge;
-  const records = status.history.records;
-  if (!records.length) return status.age;
-  const elapsed = Math.max(0, records[records.length - 1].year - records[0].year);
-  return Math.max(15, status.age - elapsed);
 };

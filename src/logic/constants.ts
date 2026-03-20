@@ -66,19 +66,19 @@ export const CONSTANTS = {
   } as Record<AptitudeTier, { label: string; name: string; weight: number; factor: number }>,
 
   APTITUDE_PROFILE_DATA: {
-    S: { initialFactor: 1.18, growthFactor: 1.12, boutFactor: 1.1, longevityFactor: 1.08 },
-    A: { initialFactor: 1.08, growthFactor: 1.05, boutFactor: 1.04, longevityFactor: 1.03 },
+    S: { initialFactor: 1.18, growthFactor: 1.12, boutFactor: 1.1, longevityFactor: 1.06 },
+    A: { initialFactor: 1.08, growthFactor: 1.05, boutFactor: 1.04, longevityFactor: 1.02 },
     B: { initialFactor: 1.0, growthFactor: 1.0, boutFactor: 1.0, longevityFactor: 1.0 },
-    C: { initialFactor: 0.72, growthFactor: 0.82, boutFactor: 0.74, longevityFactor: 1.08 },
-    D: { initialFactor: 0.52, growthFactor: 0.68, boutFactor: 0.58, longevityFactor: 1.15 },
+    C: { initialFactor: 0.74, growthFactor: 0.84, boutFactor: 0.76, longevityFactor: 0.98 },
+    D: { initialFactor: 0.54, growthFactor: 0.7, boutFactor: 0.6, longevityFactor: 0.92 },
   } as Record<AptitudeTier, AptitudeProfile>,
 
   CAREER_BAND_DATA: {
-    ELITE: { weight: 4, abilityBias: 12, growthBias: 0.18, retentionBias: 0.82, stagnationBias: 0.7 },
-    STRONG: { weight: 14, abilityBias: 5, growthBias: 0.08, retentionBias: 0.92, stagnationBias: 0.82 },
-    STANDARD: { weight: 42, abilityBias: 0, growthBias: 0.0, retentionBias: 1.0, stagnationBias: 1.0 },
-    GRINDER: { weight: 28, abilityBias: -8, growthBias: -0.12, retentionBias: 0.78, stagnationBias: 1.22 },
-    WASHOUT: { weight: 12, abilityBias: -15, growthBias: -0.22, retentionBias: 0.88, stagnationBias: 1.35 },
+    ELITE: { weight: 4, abilityBias: 11, growthBias: 0.14, retentionBias: 0.9, stagnationBias: 0.72 },
+    STRONG: { weight: 15, abilityBias: 6, growthBias: 0.09, retentionBias: 0.96, stagnationBias: 0.84 },
+    STANDARD: { weight: 43, abilityBias: 0, growthBias: 0.0, retentionBias: 1.0, stagnationBias: 1.0 },
+    GRINDER: { weight: 26, abilityBias: -6, growthBias: -0.07, retentionBias: 1.12, stagnationBias: 1.14 },
+    WASHOUT: { weight: 12, abilityBias: -16, growthBias: -0.2, retentionBias: 1.18, stagnationBias: 1.28 },
   } as Record<
     CareerBand,
     { weight: number; abilityBias: number; growthBias: number; retentionBias: number; stagnationBias: number }
@@ -465,7 +465,7 @@ export const rollCareerBandForAptitude = (
   const point = rng();
   if (tier === 'S') return point < 0.85 ? 'ELITE' : 'STRONG';
   if (tier === 'A') return point < 0.18 ? 'ELITE' : point < 0.78 ? 'STRONG' : 'STANDARD';
-  if (tier === 'B') return point < 0.1 ? 'STRONG' : point < 0.68 ? 'STANDARD' : point < 0.93 ? 'GRINDER' : 'WASHOUT';
-  if (tier === 'C') return point < 0.12 ? 'STANDARD' : point < 0.72 ? 'GRINDER' : 'WASHOUT';
-  return point < 0.28 ? 'GRINDER' : 'WASHOUT';
+  if (tier === 'B') return point < 0.14 ? 'STRONG' : point < 0.79 ? 'STANDARD' : point < 0.97 ? 'GRINDER' : 'WASHOUT';
+  if (tier === 'C') return point < 0.24 ? 'STANDARD' : point < 0.84 ? 'GRINDER' : 'WASHOUT';
+  return point < 0.42 ? 'GRINDER' : 'WASHOUT';
 };

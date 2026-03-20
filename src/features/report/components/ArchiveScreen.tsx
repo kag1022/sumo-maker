@@ -120,7 +120,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <div>
           <div className="panel-title">絞り込み</div>
           <p className="panel-caption">
-            条件を絞っても0件表示で破綻しない、記録庫向けの一覧にします。
+            見届けた人生を探しやすくし、あとから静かに読み返せる保管庫にします。
           </p>
         </div>
 
@@ -187,7 +187,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           <div>
             <div className="panel-title">保存済み記録</div>
             <p className="panel-caption">
-              一覧は記録行を主役にし、装飾カードではなく読みやすさを優先します。
+              強さの順位表ではなく、どの人生を読み返すか選ぶための一覧です。
             </p>
           </div>
           <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
@@ -251,7 +251,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <div>
           <div className="panel-title">プレビュー</div>
           <p className="panel-caption">
-            一覧を開かなくても、誰のどんな人生かが右で読める構成にします。
+            一覧を開かなくても、誰のどんな記録かを右側で静かに掴める構成にします。
           </p>
         </div>
 

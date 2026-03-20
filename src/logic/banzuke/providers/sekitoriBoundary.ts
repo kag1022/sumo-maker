@@ -2,6 +2,10 @@ import { Rank } from '../../models';
 import { BanzukeEngineVersion } from '../types';
 import { clamp } from '../../simulation/boundary/shared';
 import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
+import {
+  resolveMaxMakushitaDemotionNumber,
+  resolveMinJuryoPromotionNumber,
+} from '../../simulation/sekitori/boundaryTuning';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { resolveExpectedPlacementScore } from './expected/scoring';
 import { resolveExpectedSlotBand } from './expected/slotBands';
@@ -12,6 +16,9 @@ const JURYO_OFFSET = 0;
 const MAKUSHITA_OFFSET = JURYO_SIZE;
 const TOTAL_SLOTS = JURYO_SIZE + MAKUSHITA_POOL_SIZE;
 const JURYO_FULL_ABSENCE_MIN_DEMOTION_SLOTS = 22;
+const toJuryoNumber = (rankScore: number): number => Math.floor((clamp(rankScore, 1, JURYO_SIZE) - 1) / 2) + 1;
+const toMakushitaNumber = (rankScore: number): number =>
+  Math.floor((clamp(rankScore, 1, MAKUSHITA_POOL_SIZE) - 1) / 2) + 1;
 
 const toGlobalSlot = (division: 'Juryo' | 'Makushita', rankScore: number): number =>
   division === 'Juryo'
@@ -89,8 +96,19 @@ export const resolveSekitoriBoundaryAssignedRank = (
       if (isMakekoshi) {
         const minDemotionSlots = playerFullAbsence ? JURYO_FULL_ABSENCE_MIN_DEMOTION_SLOTS : 1;
         const demotionFloor = clamp(currentSlot + minDemotionSlots, 1, TOTAL_SLOTS);
+        const demotionCap = toGlobalSlot(
+          'Makushita',
+          resolveMaxMakushitaDemotionNumber(
+            toJuryoNumber(row.rankScore),
+            row.wins,
+            row.losses,
+            { fullAbsence: playerFullAbsence },
+          ) * 2,
+        );
         expectedSlot = Math.max(expectedSlot, demotionFloor);
+        expectedSlot = Math.min(expectedSlot, demotionCap);
         minSlot = Math.max(minSlot, clamp(currentSlot + 1, 1, TOTAL_SLOTS));
+        maxSlot = Math.min(maxSlot, demotionCap);
       } else if (isKachikoshi) {
         const promotionCeiling = clamp(currentSlot - 1, 1, TOTAL_SLOTS);
         expectedSlot = Math.min(expectedSlot, promotionCeiling);
@@ -147,7 +165,13 @@ export const resolveSekitoriBoundaryAssignedRank = (
         minSlot = Math.max(minSlot, demotionFloor);
       } else if (isKachikoshi) {
         const promotionCeiling = clamp(currentSlot - 1, 1, TOTAL_SLOTS);
+        const promotionFloor = toGlobalSlot(
+          'Juryo',
+          Math.max(1, resolveMinJuryoPromotionNumber(toMakushitaNumber(row.rankScore), row.wins) * 2 - 1),
+        );
         expectedSlot = Math.min(expectedSlot, promotionCeiling);
+        expectedSlot = Math.max(expectedSlot, promotionFloor);
+        minSlot = Math.max(minSlot, promotionFloor);
         maxSlot = Math.min(maxSlot, promotionCeiling);
       }
     }

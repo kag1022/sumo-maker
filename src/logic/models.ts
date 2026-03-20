@@ -226,6 +226,9 @@ export interface RikishiStatus {
   designedStyleProfile?: StyleProfile;
   realizedStyleProfile?: StyleProfile | null;
   buildSummary?: BuildSummary;
+  careerSeed?: CareerSeed;
+  careerNarrative?: CareerNarrativeSummary;
+  careerRivalryDigest?: CareerRivalryDigest;
   mentorId?: string;
   spirit: number;
   stagnation?: StagnationState;
@@ -328,6 +331,13 @@ export interface StyleProfile {
   locked?: boolean;
 }
 
+export interface LifeCardSummary {
+  slot: '経歴' | '骨格' | '相撲観' | '気質' | '背負うもの';
+  label: string;
+  previewTag: string;
+  reportLine: string;
+}
+
 export interface BuildSummary {
   oyakataName: string;
   amateurBackground: AmateurBackground;
@@ -341,6 +351,143 @@ export interface BuildSummary {
   debtCards?: DebtCardId[];
   secretStyle?: StyleArchetype;
   careerBandLabel: string;
+  initialConditionSummary?: {
+    birthplace: string;
+    stableName: string;
+    entryAge: number;
+    entryPathLabel: string;
+    temperamentLabel: string;
+    bodySeedLabel: string;
+    initialHeightCm: number;
+    initialWeightKg: number;
+  };
+  growthSummary?: {
+    peakHeightCm: number;
+    peakWeightKg: number;
+    bodyTypeLabel: string;
+  };
+  lifeCards?: LifeCardSummary[];
+  dominantLifeCard?: LifeCardSummary['slot'];
+  lifeCardNarrativeSeeds?: {
+    dominant: string;
+    burden: string;
+    frameAndInjury: string;
+    designedVsRealized: string;
+  };
+}
+
+export interface CareerSeedBiases {
+  startRankBias: number;
+  earlyGrowthBias: number;
+  peakAgeShift: number;
+  peakDurationBias: number;
+  styleBias: number;
+  styleSettlingBias: number;
+  durabilityBias: number;
+  injuryRiskBias: number;
+  slumpResistanceBias: number;
+  reboundBias: number;
+  volatilityBias: number;
+  clutchBias: number;
+  socialPressureBias: number;
+  rivalryBias: number;
+}
+
+export interface CareerSeed {
+  birthplace: string;
+  stableId: string;
+  stableName: string;
+  entryAge: number;
+  entryPath: string;
+  entryPathLabel: string;
+  temperament: string;
+  temperamentLabel: string;
+  bodySeed: string;
+  bodySeedLabel: string;
+  initialHeightCm: number;
+  initialWeightKg: number;
+  peakHeightCm: number;
+  peakWeightKg: number;
+  primaryStyle: StyleArchetype;
+  secondaryStyle: StyleArchetype;
+  biases: CareerSeedBiases;
+}
+
+export interface RivalSummary {
+  shikona: string;
+  balance: string;
+  summary: string;
+}
+
+export interface TurningPointSummary {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  label: string;
+  summary: string;
+  severity: number;
+}
+
+export interface CareerNarrativeSummary {
+  initialConditions: string;
+  growthArc: string;
+  careerIdentity: string;
+  designEchoes?: string[];
+  turningPoints: TurningPointSummary[];
+  rivalDigest?: RivalSummary;
+  retirementDigest: string;
+}
+
+export interface RivalHeadToHeadSummary {
+  bouts: number;
+  wins: number;
+  losses: number;
+  absences: number;
+}
+
+export interface RivalryEpisodeDigest {
+  bashoSeq: number;
+  bashoLabel: string;
+  summary: string;
+}
+
+export interface RivalryEntryBase {
+  opponentId: string;
+  shikona: string;
+  representativeRank: Rank;
+  representativeRankLabel: string;
+  headToHead: RivalHeadToHeadSummary;
+  summary: string;
+  evidenceCount: number;
+  featuredSeq: number;
+  featuredBashoLabel: string;
+  featuredReason: string;
+}
+
+export interface TitleBlockerEntry extends RivalryEntryBase {
+  kind: 'TIED_FINAL' | 'DIRECT_BLOCK' | 'TITLE_RACE';
+  blockedYushoCount: number;
+  episodes: RivalryEpisodeDigest[];
+}
+
+export interface EraTitanEntry extends RivalryEntryBase {
+  overlapCount: number;
+  yushoCount: number;
+  ozekiYokozunaBasho: number;
+  episodes: RivalryEpisodeDigest[];
+}
+
+export interface NemesisEntry extends RivalryEntryBase {
+  lossMargin: number;
+  sameDivisionOverlapCount: number;
+  hasTitleBlockHistory: boolean;
+  episodes: RivalryEpisodeDigest[];
+}
+
+export interface CareerRivalryDigest {
+  titleBlockers: TitleBlockerEntry[];
+  eraTitans: EraTitanEntry[];
+  nemesis: NemesisEntry[];
 }
 
 export interface OyakataUnlockRule {
@@ -535,6 +682,7 @@ export interface CareerHistory {
   rewardSummary?: CareerRewardSummary;
   bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
   highlightEvents?: HighlightEvent[];
+  careerTurningPoints?: CareerTurningPoint[];
   careerTurningPoint?: CareerTurningPoint;
   realismKpi?: RealismKpiSnapshot;
 }
@@ -567,6 +715,15 @@ export type HighlightEventTag =
   | 'FIRST_SEKITORI'
   | 'JURYO_DROP';
 
+export type CareerTurningPointKind =
+  | 'FIRST_SEKITORI'
+  | 'MAKUUCHI_PROMOTION'
+  | 'YUSHO'
+  | 'MAJOR_INJURY'
+  | 'JURYO_DROP'
+  | 'SLUMP_RECOVERY'
+  | 'RETIREMENT';
+
 export interface HighlightEvent {
   bashoSeq: number;
   year: number;
@@ -579,6 +736,8 @@ export interface CareerTurningPoint {
   bashoSeq: number;
   year: number;
   month: number;
+  kind: CareerTurningPointKind;
+  label: string;
   reason: string;
   severity: number;
 }

@@ -5,6 +5,7 @@ import {
 } from '../../banzuke/scale/banzukeLayout';
 import { Rank } from '../../models';
 import { normalizeSekitoriLosses } from '../../banzuke/rules/topDivisionRules';
+import { resolveMakuuchiPromotionLandingNumber } from '../sekitori/boundaryTuning';
 
 type TopDivision = 'Makuuchi' | 'Juryo';
 
@@ -93,19 +94,11 @@ export const normalizePlayerAssignedRank = (
   if (currentRank.division === 'Juryo' && assignedRank.division === 'Makuuchi') {
     const juryoNumber = currentRank.number || 14;
     const upperLanePressure = resolveUpperLanePressure(world);
-    let mNumber = 17;
+    let mNumber = resolveMakuuchiPromotionLandingNumber(juryoNumber, wins);
     if (juryoNumber <= 3 && wins >= 14) {
-      const dominantBase = juryoNumber === 1 ? 9 : juryoNumber === 2 ? 10 : 11;
+      const dominantBase = juryoNumber === 1 ? 11 : juryoNumber === 2 ? 12 : 13;
       const pressureShift = upperLanePressure >= 4 ? -1 : upperLanePressure <= -3 ? 1 : 0;
-      mNumber = clamp(dominantBase + pressureShift, 8, 12);
-    } else if (juryoNumber === 1 && wins >= 10) {
-      mNumber = clamp(16 - (wins - 10), 12, 17);
-    } else if (juryoNumber === 2 && wins >= 11) {
-      mNumber = clamp(15 - (wins - 11), 11, 17);
-    } else if (juryoNumber <= 3 && wins >= 12) {
-      mNumber = clamp(14 - (wins - 12), 10, 17);
-    } else if (juryoNumber <= 6 && wins >= 13) {
-      mNumber = 12;
+      mNumber = clamp(dominantBase + pressureShift, 10, 14);
     }
     return {
       division: 'Makuuchi',

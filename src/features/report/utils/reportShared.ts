@@ -1,10 +1,17 @@
 import { getRankValueForChart } from '../../../logic/ranking';
 import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
-import { buildCounterfactualInjuryText, buildFantasyHooks, getStyleLabel } from '../../../logic/phaseA';
-import { BashoRecord, HighlightEventTag, Rank, RikishiStatus, TimelineEvent } from '../../../logic/models';
+import { buildCounterfactualInjuryText, buildFantasyHooks } from '../../../logic/careerNarrative';
+import { getStyleLabel } from '../../../logic/styleProfile';
+import {
+  BashoRecord,
+  HighlightEventTag,
+  Rank,
+  RikishiStatus,
+  TimelineEvent,
+} from '../../../logic/models';
 import { PlayerBoutDetail } from '../../../logic/simulation/basho';
 import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
-import type { HeadToHeadRow, CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
+import type { CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
 import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
@@ -204,6 +211,7 @@ export interface ReportHeroSummary {
   journeyLabel: string;
   narrative: string;
   caution?: string;
+  lifeCards: Array<{ slot: string; label: string; previewTag: string }>;
   pills: Array<{ label: string; tone: Exclude<ReportTone, 'action'> }>;
   metrics: ReportHeroMetric[];
 }
@@ -223,6 +231,7 @@ export interface ReportSpotlightEvent {
   plotValue: number;
   bashoLabel: string;
   label: string;
+  summary: string;
   tone: ReportTone;
 }
 
@@ -317,60 +326,6 @@ export interface ReportImportantDecisionDigest {
   timelineItems: ReportTimelineDigestItem[];
 }
 
-export interface RivalHeadToHeadSummary {
-  bouts: number;
-  wins: number;
-  losses: number;
-  absences: number;
-}
-
-export interface RivalryEpisodeDigest {
-  bashoSeq: number;
-  bashoLabel: string;
-  summary: string;
-}
-
-type TitleBlockerKind = 'TIED_FINAL' | 'DIRECT_BLOCK' | 'TITLE_RACE';
-
-interface RivalryEntryBase {
-  opponentId: string;
-  shikona: string;
-  representativeRank: Rank;
-  representativeRankLabel: string;
-  headToHead: RivalHeadToHeadSummary;
-  summary: string;
-  evidenceCount: number;
-  featuredSeq: number;
-  featuredBashoLabel: string;
-  featuredReason: string;
-}
-
-export interface TitleBlockerEntry extends RivalryEntryBase {
-  kind: TitleBlockerKind;
-  blockedYushoCount: number;
-  episodes: RivalryEpisodeDigest[];
-}
-
-export interface EraTitanEntry extends RivalryEntryBase {
-  overlapCount: number;
-  yushoCount: number;
-  ozekiYokozunaBasho: number;
-  episodes: RivalryEpisodeDigest[];
-}
-
-export interface NemesisEntry extends RivalryEntryBase {
-  lossMargin: number;
-  sameDivisionOverlapCount: number;
-  hasTitleBlockHistory: boolean;
-  episodes: RivalryEpisodeDigest[];
-}
-
-export interface CareerRivalryDigest {
-  titleBlockers: TitleBlockerEntry[];
-  eraTitans: EraTitanEntry[];
-  nemesis: NemesisEntry[];
-}
-
 export interface ReportBanzukeRow {
   entityId: string;
   entityType: 'PLAYER' | 'NPC';
@@ -390,23 +345,21 @@ export interface ReportBanzukeSnapshot {
   seq: number;
   bashoLabel: string;
   division: Rank['division'];
+  totalRowCount: number;
+  focusRank?: Rank;
+  focusWindow?: number;
+  entryPoints?: string[];
+  highlightReason?: string;
   rows: ReportBanzukeRow[];
 }
 
-interface TitleBlockerCandidate {
-  opponentId: string;
-  shikona: string;
-  kind: TitleBlockerKind;
-  bashoSeq: number;
-  bashoLabel: string;
-  summary: string;
+export interface BuildBanzukeSnapshotOptions {
+  focusRank?: Rank;
+  focusEntityIds?: string[];
+  focusWindow?: number;
+  entryPoints?: string[];
+  highlightReason?: string;
 }
-
-const EMPTY_RIVALRY_DIGEST: CareerRivalryDigest = {
-  titleBlockers: [],
-  eraTitans: [],
-  nemesis: [],
-};
 
 const buildRankFromRow = (row: BashoRecordRow): Rank => ({
   division: row.division as Rank['division'],
@@ -427,55 +380,6 @@ const compareBanzukeRows = (left: BashoRecordRow, right: BashoRecordRow): number
   if (rankDelta !== 0) return rankDelta;
   if (left.entityType !== right.entityType) return left.entityType === 'PLAYER' ? -1 : 1;
   return left.shikona.localeCompare(right.shikona, 'ja');
-};
-
-const resolveHeadToHeadSummary = (row?: HeadToHeadRow): RivalHeadToHeadSummary => ({
-  bouts: row?.bouts ?? 0,
-  wins: row?.wins ?? 0,
-  losses: row?.losses ?? 0,
-  absences: row?.absences ?? 0,
-});
-
-const findRepresentativeRank = (rows: BashoRecordRow[]): Rank => {
-  const best = rows
-    .slice()
-    .sort((left, right) => compareRankOrder(buildRankFromRow(left), buildRankFromRow(right)))[0];
-  return best ? buildRankFromRow(best) : { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
-};
-
-const findFeaturedRowForSeq = (
-  rows: BashoRecordRow[],
-  seq: number,
-  opponentId: string,
-): BashoRecordRow | undefined =>
-  rows.find((row) => row.seq === seq && row.entityId === opponentId);
-
-const resolveTitleBlockerPriority = (kind: TitleBlockerKind): number => {
-  if (kind === 'TIED_FINAL') return 3;
-  if (kind === 'DIRECT_BLOCK') return 2;
-  return 1;
-};
-
-const isPlayerUpperPhaseRecord = (record: BashoRecord): boolean =>
-  record.rank.division === 'Makuuchi' && getRankValueForChart(record.rank) <= 45;
-
-const toBashoRowsMap = (
-  bashoRowsBySeq: CareerBashoRecordsBySeq[],
-): Map<number, BashoRecordRow[]> => new Map(bashoRowsBySeq.map((entry) => [entry.bashoSeq, entry.rows]));
-
-const toOpponentRowsMap = (
-  bashoRowsBySeq: CareerBashoRecordsBySeq[],
-): Map<string, BashoRecordRow[]> => {
-  const grouped = new Map<string, BashoRecordRow[]>();
-  for (const group of bashoRowsBySeq) {
-    for (const row of group.rows) {
-      if (row.entityType !== 'NPC') continue;
-      const current = grouped.get(row.entityId) ?? [];
-      current.push(row);
-      grouped.set(row.entityId, current);
-    }
-  }
-  return grouped;
 };
 
 const buildBashoLabelFromRows = (rows: BashoRecordRow[], fallbackSeq: number): string => {
@@ -503,12 +407,6 @@ const dedupeStrings = (values: string[]): string[] => {
 
 const truncateReportLabel = (value: string, max = 13): string =>
   value.length > max ? `${value.slice(0, max - 1)}…` : value;
-
-const resolveSpotlightToneFromTag = (tag: HighlightEventTag): ReportTone => {
-  if (tag === 'MAJOR_INJURY' || tag === 'JURYO_DROP' || tag === 'RETIREMENT') return 'warning';
-  if (tag === 'YUSHO' || tag === 'FIRST_SEKITORI' || tag === 'PROMOTION' || tag === 'KINBOSHI') return 'state';
-  return 'brand';
-};
 
 const resolveTimelineTone = (type: TimelineEvent['type']): Exclude<ReportTone, 'action'> => {
   if (type === 'YUSHO' || type === 'PROMOTION') return 'state';
@@ -688,6 +586,11 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
     `${Math.round(status.bodyMetrics?.heightCm || 0)}cm / ${Math.round(status.bodyMetrics?.weightKg || 0)}kg`,
   ];
   const pills: ReportHeroSummary['pills'] = [];
+  const lifeCards = (status.buildSummary?.lifeCards ?? []).map((card) => ({
+    slot: card.slot,
+    label: card.label,
+    previewTag: card.previewTag,
+  }));
 
   if (history.maxRank.division === 'Makuuchi') pills.push({ label: '幕内到達', tone: 'state' });
   else if (history.maxRank.division === 'Juryo') pills.push({ label: '関取到達', tone: 'state' });
@@ -695,7 +598,9 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
 
   if (history.yushoCount.makuuchi > 0) pills.push({ label: `幕内優勝 ${history.yushoCount.makuuchi}回`, tone: 'state' });
   if (history.totalAbsent > 0 || (status.injuries?.length ?? 0) > 0) pills.push({ label: '休場記録あり', tone: 'warning' });
-  if (history.careerTurningPoint?.reason) pills.push({ label: '転機あり', tone: 'neutral' });
+  if ((history.careerTurningPoints?.length ?? 0) > 0 || history.careerTurningPoint?.reason) {
+    pills.push({ label: '転機あり', tone: 'neutral' });
+  }
 
   const caution =
     totalBashoCount <= 3
@@ -703,6 +608,9 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
       : history.totalAbsent > 0
         ? `休場 ${history.totalAbsent} を含む波のある経歴です。好不調の切り替わりもあわせて確認してください。`
         : undefined;
+
+  const dominantNarrative = status.careerNarrative?.initialConditions;
+  const burdenNarrative = status.careerNarrative?.growthArc;
 
   return {
     titleBadge:
@@ -713,11 +621,14 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
     profileFacts,
     journeyLabel: `${status.entryAge}歳入門 - ${status.age}歳引退 / ${totalBashoCount}場所`,
     narrative:
+      dominantNarrative ||
+      burdenNarrative ||
       history.careerTurningPoint?.reason ||
       (makuuchiRecords.length > 0
         ? `幕内では ${makuuchiRecords.length}場所を過ごし、勝率 ${makuuchiWinRate ?? '0.0'}% を記録しました。`
         : '大舞台よりも、一場所ごとの積み上げが印象に残る力士人生です。'),
     caution,
+    lifeCards,
     pills,
     metrics: [
       {
@@ -781,65 +692,102 @@ export const buildReportSpotlightPayload = (
     };
   }
 
-  const eventMap = new Map<number, ReportSpotlightEvent>();
-  (status.history.highlightEvents ?? []).forEach((event) => {
-    const point = points[event.bashoSeq - 1];
+  type SpotlightCandidate = ReportSpotlightEvent & { priority: number };
+  const eventMap = new Map<number, SpotlightCandidate>();
+  const upsertCandidate = (candidate: SpotlightCandidate) => {
+    const current = eventMap.get(candidate.slot);
+    if (!current || candidate.priority > current.priority) {
+      eventMap.set(candidate.slot, candidate);
+    }
+  };
+
+  const turningPoints = status.history.careerTurningPoints?.length
+    ? status.history.careerTurningPoints
+    : status.history.careerTurningPoint
+      ? [status.history.careerTurningPoint]
+      : [];
+  turningPoints.forEach((turningPoint) => {
+    const point = points[turningPoint.bashoSeq - 1];
     if (!point) return;
-    const current = eventMap.get(event.bashoSeq);
-    const next: ReportSpotlightEvent = {
-      key: `highlight-${event.bashoSeq}-${event.tag}`,
+    upsertCandidate({
+      key: `turning-${turningPoint.bashoSeq}-${turningPoint.kind}`,
       slot: point.slot,
       plotValue: point.plotValue,
       bashoLabel: point.bashoLabel,
-      label: truncateReportLabel(event.label),
-      tone: resolveSpotlightToneFromTag(event.tag),
-    };
-    if (!current || current.tone === 'brand') {
-      eventMap.set(event.bashoSeq, next);
-    }
+      label: truncateReportLabel(turningPoint.label, 10),
+      summary: turningPoint.reason,
+      tone:
+        turningPoint.kind === 'MAJOR_INJURY' || turningPoint.kind === 'JURYO_DROP'
+          ? 'warning'
+          : turningPoint.kind === 'YUSHO'
+            ? 'state'
+            : 'brand',
+      priority: 100 + turningPoint.severity,
+    });
   });
 
-  if (status.history.careerTurningPoint) {
-    const turningPoint = status.history.careerTurningPoint;
-    const point = points[turningPoint.bashoSeq - 1];
-    if (point) {
-      eventMap.set(turningPoint.bashoSeq, {
-        key: `turning-${turningPoint.bashoSeq}`,
-        slot: point.slot,
-        plotValue: point.plotValue,
-        bashoLabel: point.bashoLabel,
-        label: truncateReportLabel(turningPoint.reason, 12),
-        tone: turningPoint.severity >= 3 ? 'warning' : 'brand',
-      });
-    }
+  for (let index = 1; index < points.length; index += 1) {
+    const previousPoint = points[index - 1];
+    const point = points[index];
+    const delta = point.plotValue - previousPoint.plotValue;
+    if (Math.abs(delta) < 18) continue;
+    const promoted = delta > 0;
+    upsertCandidate({
+      key: `swing-${point.slot}-${promoted ? 'up' : 'down'}`,
+      slot: point.slot,
+      plotValue: point.plotValue,
+      bashoLabel: point.bashoLabel,
+      label: promoted ? '急上昇' : '急落',
+      summary: `${previousPoint.bashoLabel}の${previousPoint.rankLabel}から、${point.bashoLabel}に${point.rankLabel}まで${promoted ? '番付を上げた' : '番付を落とした'}。`,
+      tone: promoted ? 'state' : 'warning',
+      priority: Math.abs(delta),
+    });
   }
+
+  const bestPoint = points.reduce((best, point) => (point.plotValue > best.plotValue ? point : best), points[0]);
+  upsertCandidate({
+    key: `peak-${bestPoint.slot}`,
+    slot: bestPoint.slot,
+    plotValue: bestPoint.plotValue,
+    bashoLabel: bestPoint.bashoLabel,
+    label: '最高到達点',
+    summary: `${bestPoint.bashoLabel}に${bestPoint.rankLabel}まで到達した。`,
+    tone: 'brand',
+    priority: 40,
+  });
 
   if (eventMap.size === 0) {
     displayRecords.forEach((record, index) => {
       if (!record.yusho && record.absent < 5) return;
       const point = points[index];
       if (!point) return;
-      eventMap.set(record.bashoSeq, {
+      upsertCandidate({
         key: `record-${record.bashoSeq}`,
         slot: point.slot,
         plotValue: point.plotValue,
         bashoLabel: point.bashoLabel,
         label: record.yusho ? '優勝' : truncateReportLabel(`${record.absent}休`, 8),
+        summary:
+          record.yusho
+            ? `${record.year}年${record.month}月場所で優勝。`
+            : `${record.year}年${record.month}月場所は${record.absent}休を含んだ。`,
         tone: record.yusho ? 'state' : 'warning',
+        priority: record.yusho ? 80 : 30,
       });
     });
   }
 
   const events = [...eventMap.values()]
     .sort((a, b) => a.slot - b.slot)
-    .slice(0, 6);
+    .slice(0, 10)
+    .map(({ priority: _priority, ...event }) => event);
 
   const note =
     points.length <= 3
       ? 'まだ山場の少ない力士人生です。大きな事件より、最初の昇降格に注目してください。'
       : events.length === 0
         ? '主要な転機が少ないため、番付の積み上がりそのものを読むキャリアです。'
-        : '優勝、昇進、怪我などの主要な転機だけを重ねています。細部は転機の履歴で確認できます。';
+        : '昇進だけでなく、急落、停滞脱出、最高到達点も含めて番付の山谷を拾っています。';
 
   return {
     points,
@@ -850,10 +798,11 @@ export const buildReportSpotlightPayload = (
 };
 
 export const buildReportTimelineDigest = (
-  events: TimelineEvent[],
+  status: RikishiStatus,
   entryAge: number,
   importantDecisions?: ReportImportantDecisionDigest,
 ): ReportTimelineDigestItem[] => {
+  const events = status.history.events;
   const groups = buildTimelineEventGroups(events);
   const importantStartYear = importantDecisions?.timelineItems
     .map((item) => item.sortYear ?? 0)
@@ -889,14 +838,56 @@ export const buildReportTimelineDigest = (
     };
   });
 
-  if (!importantDecisions?.timelineItems.length) return baseItems;
+  const turningPointItems: ReportTimelineDigestItem[] = (status.history.careerTurningPoints ?? [])
+    .filter((point) => point.kind === 'SLUMP_RECOVERY' || point.kind === 'MAKUUCHI_PROMOTION')
+    .filter((point) =>
+      !baseItems.some((item) =>
+        item.sortYear === point.year &&
+        item.sortMonth === point.month &&
+        item.items.some((entry) => entry.includes(point.label) || entry.includes(point.reason)),
+      ))
+    .map((point) => ({
+      key: `turning-point-${point.bashoSeq}-${point.kind}`,
+      dateLabel: formatBashoLabel(point.year, point.month),
+      age: entryAge + Math.max(0, point.year - startYear),
+      label: point.label,
+      tone: point.kind === 'SLUMP_RECOVERY' ? 'brand' : 'state',
+      isMajor: point.severity >= 6,
+      items: [point.reason],
+      entryType: 'EVENT' as const,
+      bashoSeq: point.bashoSeq,
+      sortYear: point.year,
+      sortMonth: point.month,
+      sortDay: 0,
+      sortPriority: 9,
+    }));
+
+  if (!importantDecisions?.timelineItems.length) {
+    return [...baseItems, ...turningPointItems]
+      .slice()
+      .sort((left, right) => {
+        if ((right.sortYear ?? 0) !== (left.sortYear ?? 0)) {
+          return (right.sortYear ?? 0) - (left.sortYear ?? 0);
+        }
+        if ((right.sortMonth ?? 0) !== (left.sortMonth ?? 0)) {
+          return (right.sortMonth ?? 0) - (left.sortMonth ?? 0);
+        }
+        if ((right.sortDay ?? 0) !== (left.sortDay ?? 0)) {
+          return (right.sortDay ?? 0) - (left.sortDay ?? 0);
+        }
+        if ((left.sortPriority ?? 0) !== (right.sortPriority ?? 0)) {
+          return (left.sortPriority ?? 0) - (right.sortPriority ?? 0);
+        }
+        return left.key.localeCompare(right.key);
+      });
+  }
 
   const importantItems: ReportTimelineDigestItem[] = importantDecisions.timelineItems.map((item) => ({
     ...item,
     age: entryAge + Math.max(0, (item.sortYear ?? startYear) - startYear),
   }));
 
-  return [...baseItems, ...importantItems]
+  return [...baseItems, ...turningPointItems, ...importantItems]
     .slice()
     .sort((left, right) => {
       if ((right.sortYear ?? 0) !== (left.sortYear ?? 0)) {
@@ -1090,302 +1081,47 @@ export const buildImportantDecisionDigest = (
   };
 };
 
-export const buildCareerRivalryDigest = (
-  status: RikishiStatus,
-  headToHeadRows: HeadToHeadRow[],
-  boutsByBasho: Array<{ bashoSeq: number; bouts: PlayerBoutDetail[] }>,
-  bashoRowsBySeq: CareerBashoRecordsBySeq[],
-  _banzukeDecisionLogs: BanzukeDecisionLog[],
-): CareerRivalryDigest => {
-  if (!status.history.records.length || !bashoRowsBySeq.length) return EMPTY_RIVALRY_DIGEST;
-
-  const headToHeadById = new Map(headToHeadRows.map((row) => [row.opponentId, row]));
-  const boutsBySeq = new Map(boutsByBasho.map((entry) => [entry.bashoSeq, entry.bouts]));
-  const bashoRowsMap = toBashoRowsMap(bashoRowsBySeq);
-  const opponentRowsMap = toOpponentRowsMap(bashoRowsBySeq);
-  const titleBlockerCandidates = new Map<string, TitleBlockerCandidate[]>();
-
-  status.history.records.forEach((record, index) => {
-    const bashoSeq = index + 1;
-    if (!['Makuuchi', 'Juryo'].includes(record.rank.division) || record.yusho) return;
-
-    const bashoRows = bashoRowsMap.get(bashoSeq) ?? [];
-    const sameDivisionRows = bashoRows.filter((row) => row.division === record.rank.division);
-    const yushoRows = sameDivisionRows.filter((row) => row.entityId !== 'PLAYER' && row.titles.includes('YUSHO'));
-    if (!yushoRows.length) return;
-
-    const bouts = boutsBySeq.get(bashoSeq) ?? [];
-    for (const yushoRow of yushoRows) {
-      const directBout = bouts.find((bout) => bout.opponentId === yushoRow.entityId);
-      const winGap = yushoRow.wins - record.wins;
-      let kind: TitleBlockerKind | null = null;
-      let summary = '';
-
-      if (directBout?.result === 'LOSS' && record.wins >= 12 && winGap === 0) {
-        kind = 'TIED_FINAL';
-        summary = `${formatBashoLabel(record.year, record.month)}に同星で並び、${yushoRow.shikona}が最後に賜杯を持っていった。`;
-      } else if (directBout?.result === 'LOSS' && record.wins >= 11 && winGap >= 0 && winGap <= 2) {
-        kind = 'DIRECT_BLOCK';
-        summary = `${formatBashoLabel(record.year, record.month)}の直接対決で敗れ、${yushoRow.shikona}がそのまま優勝へ届いた。`;
-      } else if (record.wins >= 11 && winGap >= 0 && winGap <= 1) {
-        kind = 'TITLE_RACE';
-        summary = `${formatBashoLabel(record.year, record.month)}に${record.wins}勝を挙げたが、${yushoRow.shikona}が一歩先に賜杯へ届いた。`;
-      }
-
-      if (!kind) continue;
-
-      const next = titleBlockerCandidates.get(yushoRow.entityId) ?? [];
-      next.push({
-        opponentId: yushoRow.entityId,
-        shikona: yushoRow.shikona,
-        kind,
-        bashoSeq,
-        bashoLabel: formatBashoLabel(record.year, record.month),
-        summary,
-      });
-      titleBlockerCandidates.set(yushoRow.entityId, next);
-    }
-  });
-
-  const titleBlockers: TitleBlockerEntry[] = [...titleBlockerCandidates.entries()]
-    .map(([opponentId, episodes]) => {
-      const opponentRows = opponentRowsMap.get(opponentId) ?? [];
-      const featured = episodes
-        .slice()
-        .sort((left, right) => {
-          const priorityDelta = resolveTitleBlockerPriority(right.kind) - resolveTitleBlockerPriority(left.kind);
-          if (priorityDelta !== 0) return priorityDelta;
-          return right.bashoSeq - left.bashoSeq;
-        })[0];
-      if (!featured) return null;
-      const representativeRank = findRepresentativeRank(opponentRows);
-      const headToHead = resolveHeadToHeadSummary(headToHeadById.get(opponentId));
-      const kindSummary =
-        featured.kind === 'TIED_FINAL'
-          ? '優勝争いの最終盤で立ちはだかった。'
-          : featured.kind === 'DIRECT_BLOCK'
-            ? '直接対決で優勝戦線から押し出した。'
-            : '好成績の場所で一歩先に賜杯へ届いた。';
-
-      return {
-        opponentId,
-        shikona: featured.shikona,
-        representativeRank,
-        representativeRankLabel: formatRankDisplayName(representativeRank),
-        headToHead,
-        summary: kindSummary,
-        evidenceCount: episodes.length,
-        featuredSeq: featured.bashoSeq,
-        featuredBashoLabel: featured.bashoLabel,
-        featuredReason: featured.summary,
-        kind: featured.kind,
-        blockedYushoCount: episodes.length,
-        episodes: episodes
-          .slice()
-          .sort((left, right) => right.bashoSeq - left.bashoSeq)
-          .map((episode) => ({
-            bashoSeq: episode.bashoSeq,
-            bashoLabel: episode.bashoLabel,
-            summary: episode.summary,
-          })),
-      } satisfies TitleBlockerEntry;
-    })
-    .filter((entry): entry is TitleBlockerEntry => Boolean(entry))
-    .sort((left, right) => {
-      if (right.evidenceCount !== left.evidenceCount) return right.evidenceCount - left.evidenceCount;
-      const priorityDelta = resolveTitleBlockerPriority(right.kind) - resolveTitleBlockerPriority(left.kind);
-      if (priorityDelta !== 0) return priorityDelta;
-      return right.featuredSeq - left.featuredSeq;
-    })
-    .slice(0, 4);
-
-  const titleBlockerIds = new Set(titleBlockers.map((entry) => entry.opponentId));
-
-  const eraTitans: EraTitanEntry[] = headToHeadRows
-    .map((row) => {
-      const opponentRows = opponentRowsMap.get(row.opponentId) ?? [];
-      if (!opponentRows.length) return null;
-
-      const playerOverlapSeqs: number[] = [];
-      const upperOverlapSeqs: number[] = [];
-      for (const opponentRow of opponentRows) {
-        const playerRecord = status.history.records[opponentRow.seq - 1];
-        if (!playerRecord) continue;
-        if (playerRecord.rank.division === opponentRow.division) {
-          playerOverlapSeqs.push(opponentRow.seq);
-        }
-        if (opponentRow.division === 'Makuuchi' && isPlayerUpperPhaseRecord(playerRecord)) {
-          upperOverlapSeqs.push(opponentRow.seq);
-        }
-      }
-
-      const overlapCount = new Set(upperOverlapSeqs).size;
-      if (overlapCount < 2) return null;
-
-      const yushoCount = opponentRows.filter(
-        (entry) => entry.division === 'Makuuchi' && entry.titles.includes('YUSHO'),
-      ).length;
-      const ozekiYokozunaBasho = opponentRows.filter(
-        (entry) => entry.division === 'Makuuchi' && (entry.rankName === '横綱' || entry.rankName === '大関'),
-      ).length;
-      const sameDivisionOverlapCount = new Set(playerOverlapSeqs).size;
-
-      if (!(yushoCount >= 2 || ozekiYokozunaBasho >= 6)) return null;
-      if (!(row.bouts >= 2 || sameDivisionOverlapCount >= 3)) return null;
-
-      const featuredSeq = [...new Set(upperOverlapSeqs)]
-        .sort((left, right) => right - left)
-        .find((seq) => {
-          const featuredRow = findFeaturedRowForSeq(opponentRows, seq, row.opponentId);
-          return Boolean(featuredRow?.titles.includes('YUSHO')) || ['横綱', '大関'].includes(featuredRow?.rankName ?? '');
-        }) ?? Math.max(...upperOverlapSeqs);
-      const featuredRow = findFeaturedRowForSeq(opponentRows, featuredSeq, row.opponentId);
-      if (!featuredRow) return null;
-
-      const representativeRank = findRepresentativeRank(opponentRows);
-      const episodes: RivalryEpisodeDigest[] = [...new Set(upperOverlapSeqs)]
-        .sort((left, right) => right - left)
-        .slice(0, 3)
-        .map((seq) => {
-          const rivalRow = findFeaturedRowForSeq(opponentRows, seq, row.opponentId);
-          const bashoLabel = buildBashoLabelFromRows(bashoRowsMap.get(seq) ?? [], seq);
-          const summary =
-            rivalRow?.titles.includes('YUSHO')
-              ? `${bashoLabel}は${rivalRow.shikona}が賜杯を抱えた。`
-              : `${bashoLabel}も上位で顔を合わせた。`;
-          return {
-            bashoSeq: seq,
-            bashoLabel,
-            summary,
-          };
-        });
-
-      const summary =
-        yushoCount >= 2
-          ? `上位在位の${overlapCount}場所で重なり、幕内優勝${yushoCount}回。この時代の主役だった。`
-          : `上位在位の${overlapCount}場所で重なり、横綱・大関として${ozekiYokozunaBasho}場所を戦った。`;
-
-      return {
-        opponentId: row.opponentId,
-        shikona: row.latestShikona,
-        representativeRank,
-        representativeRankLabel: formatRankDisplayName(representativeRank),
-        headToHead: resolveHeadToHeadSummary(row),
-        summary,
-        evidenceCount: overlapCount,
-        featuredSeq,
-        featuredBashoLabel: buildBashoLabelFromRows(bashoRowsMap.get(featuredSeq) ?? [], featuredSeq),
-        featuredReason:
-          yushoCount >= 2
-            ? `${row.latestShikona}は幕内優勝${yushoCount}回で、上位在位期に何度も前にいた。`
-            : `${row.latestShikona}は横綱・大関として長く居座り、上位の壁になった。`,
-        overlapCount,
-        yushoCount,
-        ozekiYokozunaBasho,
-        episodes,
-      } satisfies EraTitanEntry;
-    })
-    .filter((entry): entry is EraTitanEntry => Boolean(entry))
-    .sort((left, right) => {
-      if (right.yushoCount !== left.yushoCount) return right.yushoCount - left.yushoCount;
-      if (right.ozekiYokozunaBasho !== left.ozekiYokozunaBasho) {
-        return right.ozekiYokozunaBasho - left.ozekiYokozunaBasho;
-      }
-      return right.overlapCount - left.overlapCount;
-    })
-    .slice(0, 3);
-
-  const eraTitanIds = new Set(eraTitans.map((entry) => entry.opponentId));
-
-  const nemesis: NemesisEntry[] = headToHeadRows
-    .map((row) => {
-      const lossMargin = row.losses - row.wins;
-      if (row.bouts < 5 || lossMargin < 3) return null;
-      const opponentRows = opponentRowsMap.get(row.opponentId) ?? [];
-      const sameDivisionOverlapCount = new Set(
-        opponentRows
-          .map((opponentRow) => {
-            const playerRecord = status.history.records[opponentRow.seq - 1];
-            if (!playerRecord || playerRecord.rank.division !== opponentRow.division) return null;
-            return opponentRow.seq;
-          })
-          .filter((value): value is number => value !== null),
-      ).size;
-      const hasTitleBlockHistory = titleBlockerIds.has(row.opponentId);
-      if (!hasTitleBlockHistory && sameDivisionOverlapCount < 2) return null;
-
-      const representativeRank = findRepresentativeRank(opponentRows);
-      const preferredSeq =
-        titleBlockers.find((entry) => entry.opponentId === row.opponentId)?.featuredSeq ??
-        eraTitans.find((entry) => entry.opponentId === row.opponentId)?.featuredSeq ??
-        row.lastSeenSeq;
-      const featuredSeq = preferredSeq;
-      const featuredBashoLabel = buildBashoLabelFromRows(bashoRowsMap.get(featuredSeq) ?? [], featuredSeq);
-      const featuredReason = hasTitleBlockHistory
-        ? `${featuredBashoLabel}の優勝争いでも立ちはだかり、通算でも苦手な相手だった。`
-        : `${featuredBashoLabel}まで通算${row.wins}勝${row.losses}敗。長く壁になった。`;
-
-      return {
-        opponentId: row.opponentId,
-        shikona: row.latestShikona,
-        representativeRank,
-        representativeRankLabel: formatRankDisplayName(representativeRank),
-        headToHead: resolveHeadToHeadSummary(row),
-        summary: hasTitleBlockHistory
-          ? `優勝争いを阻まれたうえ、通算でも${lossMargin}差だけ負け越した。`
-          : `通算${row.wins}勝${row.losses}敗。長く壁になった。`,
-        evidenceCount: row.bouts,
-        featuredSeq,
-        featuredBashoLabel,
-        featuredReason,
-        lossMargin,
-        sameDivisionOverlapCount,
-        hasTitleBlockHistory,
-        episodes: [
-          {
-            bashoSeq: featuredSeq,
-            bashoLabel: featuredBashoLabel,
-            summary: featuredReason,
-          },
-        ],
-      } satisfies NemesisEntry;
-    })
-    .filter((entry): entry is NemesisEntry => Boolean(entry))
-    .sort((left, right) => {
-      if (Number(right.hasTitleBlockHistory) !== Number(left.hasTitleBlockHistory)) {
-        return Number(right.hasTitleBlockHistory) - Number(left.hasTitleBlockHistory);
-      }
-      if (Number(!eraTitanIds.has(right.opponentId)) !== Number(!eraTitanIds.has(left.opponentId))) {
-        return Number(!eraTitanIds.has(right.opponentId)) - Number(!eraTitanIds.has(left.opponentId));
-      }
-      if (right.lossMargin !== left.lossMargin) return right.lossMargin - left.lossMargin;
-      return right.headToHead.bouts - left.headToHead.bouts;
-    })
-    .slice(0, 4);
-
-  return {
-    titleBlockers,
-    eraTitans,
-    nemesis,
-  };
-};
 
 export const buildBanzukeSnapshotForSeq = (
   seq: number,
   playerDivision: Rank['division'],
   bashoRows: BashoRecordRow[],
+  options: BuildBanzukeSnapshotOptions = {},
 ): ReportBanzukeSnapshot => {
   const divisionRows = bashoRows
     .filter((row) => row.seq === seq && row.division === playerDivision)
     .slice()
     .sort(compareBanzukeRows);
   const bashoLabel = buildBashoLabelFromRows(divisionRows, seq);
+  const focusWindow = Math.max(1, options.focusWindow ?? 4);
+  const focusEntityIds = new Set(options.focusEntityIds ?? []);
+  const focusIndices = divisionRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => {
+      if (focusEntityIds.has(row.entityId)) return true;
+      if (!options.focusRank) return false;
+      const rank = buildRankFromRow(row);
+      return isSameRankSlot(rank, options.focusRank);
+    })
+    .map(({ index }) => index);
+  const visibleRows =
+    focusIndices.length > 0
+      ? divisionRows.slice(
+          Math.max(0, Math.min(...focusIndices) - focusWindow),
+          Math.min(divisionRows.length, Math.max(...focusIndices) + focusWindow + 1),
+        )
+      : divisionRows;
 
   return {
     seq,
     bashoLabel,
     division: playerDivision,
-    rows: divisionRows.map((row) => ({
+    totalRowCount: divisionRows.length,
+    focusRank: options.focusRank,
+    focusWindow: focusIndices.length > 0 ? focusWindow : undefined,
+    entryPoints: options.entryPoints,
+    highlightReason: options.highlightReason,
+    rows: visibleRows.map((row) => ({
       entityId: row.entityId,
       entityType: row.entityType,
       shikona: row.shikona,

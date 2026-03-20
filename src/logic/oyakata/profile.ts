@@ -1,5 +1,5 @@
 import { Oyakata, OyakataProfile, RikishiStatus, StyleArchetype, Trait } from '../models';
-import { STYLE_LABELS } from '../phaseA';
+import { STYLE_LABELS } from '../styleProfile';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));

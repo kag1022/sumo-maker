@@ -59,7 +59,13 @@ export const App: React.FC = () => {
     setActiveSection("career");
   };
 
+  const confirmDiscardUnsavedCareer = React.useCallback(() => {
+    if (!currentCareerId || isCurrentCareerSaved) return true;
+    return window.confirm("この力士情報は保存されませんが、よろしいですか？");
+  }, [currentCareerId, isCurrentCareerSaved]);
+
   const handleReset = async () => {
+    if (!confirmDiscardUnsavedCareer()) return;
     await resetView();
     setActiveSection("scout");
   };
@@ -81,15 +87,15 @@ export const App: React.FC = () => {
       return {
         title: "保存済み記録",
         subtitle:
-          "保存した力士人生を一覧し、右側のプレビューで誰のどんな記録かを素早く読み返します。",
-        statusLine: `${hallOfFame.length}件の保存済み記録`,
+          "読み終えた力士人生を保管し、あとから静かに読み返すための記録庫です。",
+        statusLine: `${hallOfFame.length}件の保存済み人生`,
       };
     }
     if (activeSection === "collection") {
       return {
-        title: "図鑑",
+        title: "資料館",
         subtitle:
-          "記録、偉業、決まり手の解放状況を一覧し、何が埋まったのかを具体的に読み返します。",
+          "記録、偉業、決まり手を蓄積し、相撲世界の資料として読み直すための棚です。",
         statusLine: "記録 / 偉業 / 決まり手",
       };
     }
@@ -102,7 +108,7 @@ export const App: React.FC = () => {
     }
     if (isRunning) {
       return {
-        title: "力士結果",
+        title: "力士記録",
         subtitle:
           "開発用の観測モードです。通常プレイでは見せない途中経過を確認できます。",
         statusLine: progress
@@ -112,33 +118,33 @@ export const App: React.FC = () => {
     }
     if (isSimulating) {
       return {
-        title: "力士結果",
+        title: "力士記録",
         subtitle:
-          "候補から生まれる力士人生を裏で一気に演算し、結果の準備ができたら開封します。",
-        statusLine: "結果を準備中",
+          "新弟子の一生を裏で一気に演算し、読み始められる形まで静かに整えています。",
+        statusLine: "記録を整えています",
       };
     }
     if (isRevealReady) {
       return {
-        title: "力士結果",
+        title: "力士記録",
         subtitle:
-          "演算は完了しています。結果を見るまで中身は伏せたままにし、開封の瞬間を保ちます。",
-        statusLine: "演算完了",
+          "演算は完了しています。ここから先は、その力士がどんな一生を送ったかを記録として読みます。",
+        statusLine: "記録の準備完了",
       };
     }
     if (status && isCompleted) {
       return {
-        title: "力士結果",
+        title: "力士記録",
         subtitle:
-          "四股名、成績、歩み、ライバルを読み返しながら、この力士が何者だったかを一画面で掴みます。",
+          "四股名、番付、通算成績、対戦相手を読み返しながら、この力士が何者だったかを掴みます。",
         statusLine: `${status.shikona} / 最高位 ${formatRankName(status.history.maxRank)}`,
       };
     }
     return {
-      title: "新弟子",
+      title: "新弟子設計",
       subtitle:
-        "候補を引いて、素質の輪郭だけを先に見極め、必要な項目だけを整えて入門させます。",
-      statusLine: `${unshelvedCareers.length}件の未保存キャリア`,
+        "出身、体格、経歴、気質、所属部屋を定め、その一生を読み始めるための出発点を置きます。",
+      statusLine: `${unshelvedCareers.length}件の未保存人生`,
     };
   }, [
     activeSection,
@@ -157,8 +163,19 @@ export const App: React.FC = () => {
     <AppShell
       activeSection={activeSection}
       onSectionChange={(nextSection) => {
+        if (nextSection === activeSection) return;
+        if (nextSection === "scout" && activeSection === "career" && !confirmDiscardUnsavedCareer()) {
+          return;
+        }
+        if (nextSection === "scout") {
+          void (async () => {
+            await resetView();
+            await loadUnshelvedCareers();
+            setActiveSection("scout");
+          })();
+          return;
+        }
         if (nextSection === "archive") void loadHallOfFame();
-        if (nextSection === "scout") void loadUnshelvedCareers();
         if (nextSection === "logicLab" && !isDev) return;
         setActiveSection(nextSection);
       }}
@@ -321,14 +338,14 @@ const CareerSection: React.FC<{
   return (
     <div className="empty-stage">
       <BookOpenText className="h-12 w-12 text-text-faint" />
-      <div className="space-y-2 text-center">
-        <div className="text-xl ui-text-heading text-text">まだ結果がありません</div>
+        <div className="space-y-2 text-center">
+        <div className="text-xl ui-text-heading text-text">まだ記録がありません</div>
         <p className="max-w-xl text-sm leading-relaxed text-text-dim">
-          新弟子から始めるか、保存済み記録を開くと、この画面が力士結果の閲覧画面に切り替わります。
+          新弟子を設計するか、保存済み記録を開くと、この画面が力士記録の閲覧画面に切り替わります。
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        <Button onClick={onReset}>新弟子へ戻る</Button>
+        <Button onClick={onReset}>新弟子設計へ戻る</Button>
         <Button variant="secondary" onClick={onOpenArchive}>
           保存済み記録を開く
         </Button>
@@ -360,24 +377,24 @@ const ResultPreparationPanel: React.FC<{
           <div className="flex items-center justify-center gap-3">
              <div className="h-px w-8 bg-gold/30" />
              <div className="text-[10px] ui-text-label text-gold tracking-widest uppercase">
-                {isReady ? "演算完了" : "運命を記録中"}
+                {isReady ? "演算完了" : "記録を整えています"}
              </div>
              <div className="h-px w-8 bg-gold/30" />
           </div>
           <h2 className="text-4xl ui-text-heading text-text tracking-widest">
-            {isReady ? "一代記が整いました" : "力士人生を演算中"}
+            {isReady ? "力士記録の準備が整いました" : "力士人生を演算中"}
           </h2>
           <p className="mx-auto max-w-md text-sm leading-relaxed text-text-dim/80 font-serif italic">
             {isReady
-              ? "その力士が歩んだ全ての場所、流した汗と涙が今、一つの物語となりました。"
-              : "裏側で力士の一生を高速にシミュレートしています。完了までしばし黙考してお待ちください。"}
+              ? "ここから先は、番付、成績、対戦相手、転機を静かに読み返す時間です。"
+              : "裏側で力士の一生を高速にシミュレートしています。読み始められる形になるまで少しだけ待ちます。"}
           </p>
         </div>
 
         <div className="space-y-4 relative z-10">
           <div className="flex justify-between items-end mb-1">
              <div className="text-[10px] ui-text-label text-gold/60">
-                {isReady ? "SUCCESS" : `${progress?.year || "????"}年 ${progress?.month || "??"}月場所 ${progress?.bashoCount || 0}場所目`}
+                {isReady ? "READY" : `${progress?.year || "????"}年 ${progress?.month || "??"}月場所 ${progress?.bashoCount || 0}場所目`}
              </div>
              <div className="text-xl ui-text-metric text-text">
                 {percent}<span className="text-xs ml-0.5">%</span>
@@ -395,7 +412,7 @@ const ResultPreparationPanel: React.FC<{
           {isReady ? (
             <Button size="lg" onClick={onReveal} className="min-w-[180px] h-14 text-lg">
               <BookOpenText className="w-5 h-5 mr-3" />
-              一代記を開く
+              力士記録を読む
             </Button>
           ) : (
             <Button variant="outline" size="lg" onClick={onStop} className="min-w-[180px] h-14 text-lg border-gold/30 text-gold/80 hover:bg-gold/10 hover:text-gold">

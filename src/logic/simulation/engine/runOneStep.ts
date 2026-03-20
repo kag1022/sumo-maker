@@ -39,11 +39,18 @@ import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVa
 import { updateKataProfileAfterBasho } from '../../style/kata';
 import {
   applySpiritChangeAfterBasho,
+  ensureCareerRecordStatus,
   pushBodyTimelinePoint,
+  pushCareerTurningPoint,
   pushHighlightEvent,
-  resolveRealizedStyleProfile,
   setCareerTurningPoint,
-} from '../../phaseA';
+  withRivalSummary,
+} from '../../careerNarrative';
+import { resolveRealizedStyleProfile } from '../../styleProfile';
+import {
+  appendRuntimeRivalryStep,
+  buildCareerRivalryDigest,
+} from '../../careerRivalry';
 import { buildCareerRealismSnapshot, updateStagnationState } from '../realism';
 import {
   advanceTopDivisionBanzuke,
@@ -58,7 +65,7 @@ import { SimulationDiagnostics } from '../diagnostics';
 import { createPopulationSnapshot, createProgressSnapshot } from './progressSnapshot';
 import { resolvePauseReason } from './pausePolicy';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
-import { SimulationParams, SimulationStepResult } from './types';
+import { RuntimeNarrativeState, SimulationParams, SimulationStepResult } from './types';
 
 const MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
@@ -70,6 +77,7 @@ export interface EngineRuntimeState {
   completed: boolean;
   lastCommitteeWarnings: number;
   lastDiagnostics?: SimulationDiagnostics;
+  runtimeNarrative: RuntimeNarrativeState;
 }
 
 export interface RunOneStepContext {
@@ -85,6 +93,24 @@ export interface RunOneStepContext {
 
 export const cloneStatus = (status: RikishiStatus): RikishiStatus =>
   JSON.parse(JSON.stringify(status)) as RikishiStatus;
+
+const enrichStatusWithRuntimeNarrative = (
+  status: RikishiStatus,
+  runtimeNarrative: RuntimeNarrativeState,
+): RikishiStatus => {
+  const normalized = ensureCareerRecordStatus(status);
+  const rivalryDigest = buildCareerRivalryDigest(
+    normalized,
+    runtimeNarrative.rivalry.headToHeadRows,
+    runtimeNarrative.rivalry.boutsByBasho,
+    runtimeNarrative.rivalry.bashoRowsBySeq,
+  );
+  const next = withRivalSummary(normalized, runtimeNarrative.rivalry.headToHeadRows);
+  return {
+    ...next,
+    careerRivalryDigest: rivalryDigest,
+  };
+};
 
 export const resolveBoundaryAssignedRankForCurrentDivision = (
   currentRank: Rank,
@@ -136,9 +162,10 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   } = context;
 
   if (state.completed) {
+    const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
     return {
       kind: 'COMPLETED',
-      statusSnapshot: cloneStatus(state.status),
+      statusSnapshot: cloneStatus(finalStatus),
       banzukeDecisions: [],
       diagnostics: state.lastDiagnostics,
       events: [],
@@ -163,9 +190,10 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     state.status = finalizeCareer(state.status, state.year, month, retirementCheck.reason);
     state.completed = true;
     const events = state.status.history.events.slice(beforeEvents);
+    const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
     return {
       kind: 'COMPLETED',
-      statusSnapshot: cloneStatus(state.status),
+      statusSnapshot: cloneStatus(finalStatus),
       banzukeDecisions: [],
       diagnostics: state.lastDiagnostics,
       events,
@@ -189,6 +217,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   syncPlayerActorInWorld(world, state.status, deps.random);
 
   const currentRank = { ...state.status.rank };
+  const stagnationPressureBeforeBasho = state.status.stagnation?.pressure ?? 0;
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
 
   if (!playerTopDivision) {
@@ -347,6 +376,18 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       tag: 'YUSHO',
       label: '優勝',
     });
+    pushCareerTurningPoint(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      kind: 'YUSHO',
+      label: currentRank.division === 'Makuuchi' ? '幕内優勝' : '優勝',
+      reason:
+        currentRank.division === 'Makuuchi'
+          ? `${bashoRecord.year}年${bashoRecord.month}月に幕内優勝。力士人生の景色を変えた。`
+          : `${bashoRecord.year}年${bashoRecord.month}月に${currentRank.division}で優勝。番付の流れを一段押し上げた。`,
+      severity: currentRank.division === 'Makuuchi' ? 10 : currentRank.division === 'Juryo' ? 8 : 6,
+    });
   }
   if ((bashoRecord.kinboshi ?? 0) > 0) {
     pushHighlightEvent(state.status.history, {
@@ -377,6 +418,26 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       tag: 'FIRST_SEKITORI',
       label: '初関取',
     });
+    pushCareerTurningPoint(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      kind: 'FIRST_SEKITORI',
+      label: '初関取',
+      reason: `${bashoRecord.year}年${bashoRecord.month}月に関取へ届き、人生の見られ方が変わった。`,
+      severity: 7,
+    });
+  }
+  if (currentRank.division === 'Juryo' && rankChange.nextRank.division === 'Makuuchi') {
+    pushCareerTurningPoint(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      kind: 'MAKUUCHI_PROMOTION',
+      label: '新入幕',
+      reason: `${bashoRecord.year}年${bashoRecord.month}月を越えて新入幕。相撲人生の主戦場が変わった。`,
+      severity: 8,
+    });
   }
   if (currentRank.division === 'Juryo' && rankChange.nextRank.division === 'Makushita') {
     pushHighlightEvent(state.status.history, {
@@ -385,6 +446,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       month: bashoRecord.month,
       tag: 'JURYO_DROP',
       label: '十両陥落',
+    });
+    pushCareerTurningPoint(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      kind: 'JURYO_DROP',
+      label: '十両陥落',
+      reason: `${bashoRecord.year}年${bashoRecord.month}月に関取の座を失い、人生の重心が揺れた。`,
+      severity: 7,
     });
   }
   const majorInjuryEvent = newEvents.find((event) => event.type === 'INJURY' && /重症度 (\d+)/.test(event.description));
@@ -403,6 +473,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
         bashoSeq,
         year: bashoRecord.year,
         month: bashoRecord.month,
+        kind: 'MAJOR_INJURY',
+        label: '大怪我',
         reason: majorInjuryEvent.description,
         severity,
       });
@@ -421,7 +493,24 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       (currentRank.division !== 'Juryo' && currentRank.division !== 'Makuuchi') &&
       (rankChange.nextRank.division === 'Juryo' || rankChange.nextRank.division === 'Makuuchi'),
     careerBand: state.status.careerBand,
+    temperamentBiases: state.status.careerSeed?.biases,
   });
+  if (
+    stagnationPressureBeforeBasho >= 3 &&
+    (state.status.stagnation?.pressure ?? 0) <= 1 &&
+    bashoRecord.wins >= 10 &&
+    bashoRecord.wins > bashoRecord.losses + bashoRecord.absent
+  ) {
+    pushCareerTurningPoint(state.status.history, {
+      bashoSeq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      kind: 'SLUMP_RECOVERY',
+      label: '停滞脱出',
+      reason: `${bashoRecord.year}年${bashoRecord.month}月に勝ち星をまとめ、長い停滞から立て直した。`,
+      severity: 6,
+    });
+  }
   state.status.ratingState = updateAbilityAfterBasho({
     current: state.status.ratingState,
     actualWins: bashoRecord.wins,
@@ -431,6 +520,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     currentRank: state.status.rank,
     careerBand: state.status.careerBand,
     stagnationPressure: state.status.stagnation?.pressure ?? 0,
+    careerSeedBiases: state.status.careerSeed?.biases,
   });
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
@@ -438,6 +528,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
   state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
+  state.status = ensureCareerRecordStatus(state.status);
   state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
   if (true) {
     state.status.currentCondition = updateConditionForV3({
@@ -518,6 +609,38 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     sekitoriNpc,
     currentRank.division === 'Makuuchi' || currentRank.division === 'Juryo' ? [] : sameDivisionNpc,
   );
+  state.runtimeNarrative.rivalry = appendRuntimeRivalryStep(state.runtimeNarrative.rivalry, {
+    bashoSeq: state.seq,
+    year: bashoRecord.year,
+    month: bashoRecord.month,
+    shikona: state.status.shikona,
+    playerRank: currentRank,
+    playerWins: bashoRecord.wins,
+    playerLosses: bashoRecord.losses,
+    playerAbsent: bashoRecord.absent,
+    playerTitles: [
+      ...(bashoRecord.yusho ? ['YUSHO'] : []),
+      ...(bashoRecord.specialPrizes ?? []),
+      ...((bashoRecord.kinboshi ?? 0) > 0 ? [`KINBOSHI_${bashoRecord.kinboshi}`] : []),
+    ],
+    playerBouts: bashoResult.playerBoutDetails,
+    npcRows: npcBashoRecords.map((row) => ({
+      seq: state.seq,
+      year: bashoRecord.year,
+      month: bashoRecord.month,
+      entityId: row.entityId,
+      entityType: 'NPC',
+      shikona: row.shikona,
+      division: row.division,
+      rankName: row.rankName,
+      rankNumber: row.rankNumber,
+      rankSide: row.rankSide,
+      wins: row.wins,
+      losses: row.losses,
+      absent: row.absent,
+      titles: [...row.titles],
+    })),
+  });
 
   state.monthIndex += 1;
   if (state.monthIndex >= MONTHS.length) {

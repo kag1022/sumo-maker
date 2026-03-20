@@ -5,7 +5,7 @@ import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
-import { ensurePhaseAStatus } from '../phaseA';
+import { ensureCareerRecordStatus, pushCareerTurningPoint } from '../careerNarrative';
 import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
 
 const PRIZE_LABEL: Record<string, string> = {
@@ -105,7 +105,7 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (!Number.isFinite(status.spirit)) status.spirit = 70;
   if (!status.stagnation) status.stagnation = createDefaultStagnationState();
   status.history.realismKpi = buildCareerRealismSnapshot(status);
-  return ensurePhaseAStatus(ensureKataProfile(status));
+  return ensureCareerRecordStatus(ensureKataProfile(status));
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
@@ -235,6 +235,15 @@ export const finalizeCareer = (
     month,
     type: 'RETIREMENT',
     description: `引退 (${reason || '理由不明'})`,
+  });
+  pushCareerTurningPoint(status.history, {
+    bashoSeq: Math.max(1, status.history.records.length),
+    year,
+    month,
+    kind: 'RETIREMENT',
+    label: '引退',
+    reason: reason || '土俵を去った',
+    severity: 5,
   });
   status.history.title = generateTitle(status.history);
   status.history.realismKpi = buildCareerRealismSnapshot(status);

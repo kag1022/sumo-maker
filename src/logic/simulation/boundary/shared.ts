@@ -48,6 +48,10 @@ const resolvePressureTargetSlots = <T extends BoundaryCandidate>(
 export const resolveAdaptiveExchangeSlots = <T extends BoundaryCandidate>(
   demotionPool: T[],
   promotionPool: T[],
+  options?: {
+    historicalTargetSlots?: number;
+    historicalToleranceGap?: number;
+  },
 ): { demotions: T[]; promotions: T[]; slots: number } => {
   if (!demotionPool.length || !promotionPool.length) {
     return { demotions: [], promotions: [], slots: 0 };
@@ -69,7 +73,23 @@ export const resolveAdaptiveExchangeSlots = <T extends BoundaryCandidate>(
     slots,
     maxSlots,
   );
+  const historicalTargetSlots = clamp(
+    options?.historicalTargetSlots ?? slots,
+    slots,
+    maxSlots,
+  );
+  const historicalToleranceGap = options?.historicalToleranceGap ?? -1.6;
   let momentum = 0;
+
+  while (slots < historicalTargetSlots) {
+    const promotion = promotionPool[slots];
+    const demotion = demotionPool[slots];
+    if (!promotion || !demotion) break;
+    const gap = promotion.score - demotion.score;
+    if (gap < historicalToleranceGap) break;
+    slots += 1;
+    momentum = clamp(momentum * 0.45 + gap * 0.1, -1.2, 1.8);
+  }
 
   while (slots < maxSlots) {
     const promotion = promotionPool[slots];
