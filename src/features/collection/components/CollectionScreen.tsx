@@ -14,9 +14,9 @@ const COLLECTION_TABS: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: "RECORD", label: "記録図鑑", icon: Award },
-  { id: "ACHIEVEMENT", label: "偉業図鑑", icon: Sparkles },
-  { id: "KIMARITE", label: "決まり手図鑑", icon: ScrollText },
+  { id: "RECORD", label: "記録資料", icon: Award },
+  { id: "ACHIEVEMENT", label: "偉業資料", icon: Sparkles },
+  { id: "KIMARITE", label: "決まり手資料", icon: ScrollText },
 ];
 
 interface CollectionScreenProps {
@@ -99,9 +99,9 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
       <section className="surface-panel space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="panel-title">図鑑の進捗</div>
+            <div className="panel-title">資料館の蓄積</div>
             <p className="panel-caption">
-              何が解放されたのかをカテゴリごとに読み返せる、詳細な図鑑画面です。
+              解放状況を並べるだけでなく、相撲世界の資料として読み返せる棚を目指します。
             </p>
           </div>
           <Button variant="secondary" size="sm" onClick={onOpenArchive}>
@@ -112,7 +112,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 animate-pulse">
             <Activity className="h-8 w-8 text-gold/30 mb-4" />
-            <div className="text-sm text-text-dim ui-text-label uppercase tracking-widest">奏上中 - Loading Library...</div>
+            <div className="text-sm text-text-dim ui-text-label uppercase tracking-widest">資料を整理しています...</div>
           </div>
         ) : (
           <>
@@ -207,7 +207,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                 <div className="surface-panel p-5 border-gold/20 bg-bg-panel/40 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-gold/60 mb-4 border-b border-gold/10 pb-2">
                     <ScrollText className="w-4 h-4" />
-                    <span className="ui-text-label text-[10px] uppercase tracking-widest">詳細録 - DETAILED ARCHIVE</span>
+                    <span className="ui-text-label text-[10px] uppercase tracking-widest">資料詳細 - DETAILED ARCHIVE</span>
                   </div>
 
                   {selectedEntry ? (
@@ -217,7 +217,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                       <BookOpenText className="h-10 w-10 text-gold/20" />
                       <div className="empty-state-title text-text-dim">目録を選択してください</div>
                       <div className="empty-state-text text-text-faint">
-                        力士の人生が刻まれた各項目を読み解くことができます。
+                        記録や偉業や決まり手を、資料として読み解くことができます。
                       </div>
                     </div>
                   )}

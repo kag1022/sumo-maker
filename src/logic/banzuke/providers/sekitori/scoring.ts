@@ -1,6 +1,7 @@
 import { getRankValue } from '../../../ranking/rankScore';
 import { BanzukeCandidate, BashoRecordSnapshot, TopDirective } from './types';
 import { resolveSekitoriPerformanceIndex } from './performanceIndex';
+import { HEISEI_BANZUKE_CALIBRATION } from '../../../calibration/banzukeHeisei';
 
 export const scoreTopDivisionCandidate = (
   snapshot: BashoRecordSnapshot,
@@ -65,6 +66,13 @@ export const scoreTopDivisionCandidate = (
     }
     const m = rank.number || 17;
     const catastrophicMakekoshiPenalty = makekoshi >= 3 ? makekoshi * makekoshi * 0.75 : 0;
+    const bottomMakuuchiBoundaryPenalty =
+      rank.name === '前頭' && m >= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskStart
+        ? (m - (HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskStart - 1)) *
+            HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskWeight +
+          Math.max(0, makekoshi) *
+            HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiMakekoshiWeight
+        : 0;
     return (
       122 +
       Math.max(0, 18 - m) * 6.05 +
@@ -72,6 +80,7 @@ export const scoreTopDivisionCandidate = (
       makekoshi * 4.2 -
       makekoshi * makekoshi * 0.9 -
       catastrophicMakekoshiPenalty -
+      bottomMakuuchiBoundaryPenalty -
       snapshot.absent * 1.4 +
       sosBoost * 0.9 +
       (snapshot.yusho ? 11 : 0) +
@@ -80,17 +89,30 @@ export const scoreTopDivisionCandidate = (
   }
 
   const j = rank.number || 14;
+  const topJuryoBoundaryBonus =
+    j <= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionCeiling &&
+    snapshot.wins >= 8
+      ? HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionBonus +
+        (HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionCeiling - j) * 0.8 +
+        Math.max(0, snapshot.wins - 8) *
+          HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoStrongBonus
+      : j <= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.extendedJuryoPromotionCeiling &&
+          snapshot.wins >= 10
+        ? HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.extendedJuryoPromotionBonus +
+          Math.max(0, snapshot.wins - 10) * 0.9
+        : 0;
   const promotionBurstBonus =
-    snapshot.wins >= 13
-      ? 26 + Math.max(0, snapshot.wins - 13) * 12 + Math.max(0, j - 8) * 1.8
-      : snapshot.wins >= 11
-        ? 10 + Math.max(0, snapshot.wins - 11) * 8 + Math.max(0, j - 8) * 0.9
+    snapshot.wins >= 12
+      ? 24 + Math.max(0, snapshot.wins - 12) * 10 + Math.max(0, j - 8) * 1.6
+      : snapshot.wins >= 10
+        ? 8 + Math.max(0, snapshot.wins - 10) * 6 + Math.max(0, j - 8) * 0.8
         : 0;
   const deepMakekoshiPenalty =
     makekoshi >= 4 ? makekoshi * makekoshi * 0.9 + Math.max(0, j - 10) * 1.1 : 0;
   return (
     72 +
     Math.max(0, 15 - j) * 4.25 +
+    topJuryoBoundaryBonus +
     kachikoshi * 2.85 -
     makekoshi * 3.85 -
     makekoshi * makekoshi * 0.72 -

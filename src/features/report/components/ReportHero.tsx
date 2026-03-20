@@ -167,6 +167,14 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {summary.lifeCards.map((card) => (
+                <span
+                  key={`${card.slot}-${card.label}`}
+                  className="px-3 py-1 bg-brand-line/10 border border-brand-line/20 text-[10px] ui-text-label text-brand-line"
+                >
+                  {card.slot} | {card.label}
+                </span>
+              ))}
               {summary.profileFacts.map((fact) => (
                 <span key={fact} className="px-3 py-1 bg-bg-light/40 border border-gold/10 text-[10px] ui-text-label text-text/60">
                   {fact}

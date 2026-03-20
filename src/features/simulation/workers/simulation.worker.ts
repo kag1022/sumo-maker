@@ -148,13 +148,13 @@ const runLoop = async (): Promise<void> => {
         continue;
       }
 
-      await markCareerCompleted(careerId, step.statusSnapshot);
+      const completedStatus = await markCareerCompleted(careerId, step.statusSnapshot);
       const observation = buildObservation(step);
       post({
         type: 'COMPLETED',
         payload: {
           careerId,
-          status: step.statusSnapshot,
+          status: completedStatus,
           events: step.events,
           progress: step.progress,
           observation,

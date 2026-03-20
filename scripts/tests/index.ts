@@ -1,5 +1,6 @@
 import { assertModuleCoverage, getTestScope } from './_shared/moduleUtils';
 import { banzukeTestModule } from './modules/banzuke';
+import { calibrationTestModule } from './modules/calibration';
 import { gameplayTestModule } from './modules/gameplay';
 import { npcTestModule } from './modules/npc';
 import { persistenceTestModule } from './modules/persistence';
@@ -23,6 +24,7 @@ const parseCommaList = (value: string | undefined): string[] =>
     .filter(Boolean);
 
 export const testModules: TestModule[] = [
+  calibrationTestModule,
   banzukeTestModule,
   simulationTestModule,
   gameplayTestModule,

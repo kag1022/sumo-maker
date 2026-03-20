@@ -83,6 +83,14 @@ const resolveBaseSekitoriBand = (diff: number): { minSlotDelta: number; maxSlotD
   return { minSlotDelta: band.min, maxSlotDelta: band.max };
 };
 
+const scaleSekitoriBand = (
+  base: { minSlotDelta: number; maxSlotDelta: number },
+  factor: number,
+): { minSlotDelta: number; maxSlotDelta: number } => ({
+  minSlotDelta: Math.round(base.minSlotDelta * factor),
+  maxSlotDelta: Math.round(base.maxSlotDelta * factor),
+});
+
 const resolveSekitoriZone = (rank: Rank): SekitoriZone => {
   if (rank.division === 'Juryo') return 'Juryo';
   if (rank.name !== '前頭') return 'MakuuchiTop';
@@ -100,6 +108,15 @@ export const resolveSekitoriDeltaBand = (record: BashoRecordSnapshot): SekitoriD
   }
 
   const base = resolveBaseSekitoriBand(diff);
+
+  if (zone === 'Juryo') {
+    const scaled = scaleSekitoriBand(base, diff > 0 ? 0.72 : diff < 0 ? 0.76 : 1);
+    return {
+      zone,
+      minSlotDelta: scaled.minSlotDelta,
+      maxSlotDelta: scaled.maxSlotDelta,
+    };
+  }
 
   if (zone !== 'MakuuchiTop') {
     return {

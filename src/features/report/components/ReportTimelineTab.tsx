@@ -147,7 +147,7 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
 
   const mergedItems = React.useMemo(() => {
     const entryAge = resolveEntryAge(status);
-    return buildReportTimelineDigest(status.history.events, entryAge, importantDecisions);
+    return buildReportTimelineDigest(status, entryAge, importantDecisions);
   }, [importantDecisions, status]);
 
   const visibleItems = React.useMemo(() => {

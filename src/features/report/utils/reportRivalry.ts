@@ -1,8 +1,10 @@
 export {
   buildCareerRivalryDigest,
-  type CareerRivalryDigest,
-  type EraTitanEntry,
-  type NemesisEntry,
-  type RivalHeadToHeadSummary,
-  type TitleBlockerEntry,
-} from './reportShared';
+} from '../../../logic/careerRivalry';
+export type {
+  CareerRivalryDigest,
+  EraTitanEntry,
+  NemesisEntry,
+  RivalHeadToHeadSummary,
+  TitleBlockerEntry,
+} from '../../../logic/models';

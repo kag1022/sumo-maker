@@ -27,6 +27,12 @@ const isForcedSanyakuLift = (
   );
 };
 
+const isExceptionalSekiwakeLift = (candidate: BanzukeCandidate): boolean =>
+  isForcedSanyakuLift(candidate, 1, 11) || isForcedSanyakuLift(candidate, 2, 12);
+
+const isExceptionalKomusubiLift = (candidate: BanzukeCandidate): boolean =>
+  isForcedSanyakuLift(candidate, 1, 10) || isForcedSanyakuLift(candidate, 2, 11);
+
 const takeCandidates = (
   sortedPool: BanzukeCandidate[],
   targetCount: number,
@@ -57,7 +63,7 @@ const isStrictSekiwakeCandidate = (candidate: BanzukeCandidate): boolean => {
   if (candidate.directive.preferredTopName === '関脇') return true;
   if (rank.division !== 'Makuuchi') return false;
   if (rank.name === '関脇') return candidate.snapshot.wins >= 8;
-  if (rank.name === '小結') return candidate.snapshot.wins >= 9;
+  if (rank.name === '小結') return candidate.snapshot.wins >= 10;
   if (rank.name === '前頭') return (rank.number || 99) <= 2 && candidate.snapshot.wins >= 11;
   return false;
 };
@@ -77,6 +83,31 @@ const isForcedSekiwake = (candidate: BanzukeCandidate): boolean =>
 
 const isForcedKomusubi = (candidate: BanzukeCandidate): boolean =>
   candidate.directive.preferredTopName === '小結';
+
+const hasKachikoshi = (candidate: BanzukeCandidate): boolean =>
+  candidate.snapshot.wins >= candidate.normalizedLosses;
+
+const isConservativeSekiwakeFallback = (candidate: BanzukeCandidate): boolean => {
+  const rank = candidate.snapshot.rank;
+  if (candidate.directive.preferredTopName === '関脇') return true;
+  if (rank.division !== 'Makuuchi') return false;
+  if (rank.name === '関脇') return candidate.snapshot.wins >= 6;
+  if (rank.name === '小結') return candidate.snapshot.wins >= 8;
+  if (rank.name !== '前頭') return false;
+  if (!hasKachikoshi(candidate)) return false;
+  return isExceptionalSekiwakeLift(candidate);
+};
+
+const isConservativeKomusubiFallback = (candidate: BanzukeCandidate): boolean => {
+  const rank = candidate.snapshot.rank;
+  if (candidate.directive.preferredTopName === '小結') return true;
+  if (rank.division !== 'Makuuchi') return false;
+  if (rank.name === '小結') return candidate.snapshot.wins >= 6;
+  if (rank.name === '関脇') return candidate.snapshot.wins >= 5;
+  if (rank.name !== '前頭') return false;
+  if (!hasKachikoshi(candidate)) return false;
+  return isExceptionalKomusubiLift(candidate);
+};
 
 const pickTopCandidates = (
   pool: BanzukeCandidate[],
@@ -105,13 +136,6 @@ const pickTopCandidates = (
         count - picked.length,
         forcedFallback,
       ),
-    );
-  }
-  if (picked.length < count) {
-    picked.push(
-      ...pool
-        .filter((candidate) => !picked.some((row) => row.snapshot.id === candidate.snapshot.id))
-        .slice(0, count - picked.length),
     );
   }
   return uniqueById(picked).slice(0, count);
@@ -193,6 +217,7 @@ export const allocateSekitoriSlots = (
 ): { assignedSlotById: Map<string, number>; nextLayout: MakuuchiLayout } => {
   const assignedSlotById = new Map<string, number>();
   const topPool = sortedOverall.slice();
+  const reservedSanyakuFloor = SANYAKU_MIN.sekiwake + SANYAKU_MIN.komusubi;
 
   const consumeByIds = (ids: Set<string>): void => {
     for (let i = topPool.length - 1; i >= 0; i -= 1) {
@@ -205,7 +230,7 @@ export const allocateSekitoriSlots = (
       (candidate) =>
         candidate.directive.preferredTopName === '横綱' || candidate.snapshot.rank.name === '横綱',
     )
-    .slice(0, makuuchiSlots);
+    .slice(0, Math.max(0, makuuchiSlots - reservedSanyakuFloor));
   consumeByIds(new Set(yokozuna.map((candidate) => candidate.snapshot.id)));
 
   const ozeki = topPool
@@ -214,7 +239,7 @@ export const allocateSekitoriSlots = (
         candidate.directive.preferredTopName === '大関' ||
         (candidate.snapshot.rank.name === '大関' && candidate.snapshot.wins >= 8),
     )
-    .slice(0, Math.max(0, makuuchiSlots - yokozuna.length));
+    .slice(0, Math.max(0, makuuchiSlots - yokozuna.length - reservedSanyakuFloor));
   consumeByIds(new Set(ozeki.map((candidate) => candidate.snapshot.id)));
 
   const remainingForSanyaku = Math.max(0, makuuchiSlots - yokozuna.length - ozeki.length);
@@ -237,7 +262,7 @@ export const allocateSekitoriSlots = (
     targetSekiwake,
     isStrictSekiwakeCandidate,
     isForcedSekiwake,
-    (candidate) => isForcedSanyakuLift(candidate, 4, 8),
+    (candidate) => isConservativeSekiwakeFallback(candidate) || isExceptionalSekiwakeLift(candidate),
   );
   consumeByIds(new Set(sekiwake.map((candidate) => candidate.snapshot.id)));
 
@@ -260,7 +285,7 @@ export const allocateSekitoriSlots = (
     targetKomusubi,
     isStrictKomusubiCandidate,
     isForcedKomusubi,
-    (candidate) => isForcedSanyakuLift(candidate, 5, 8),
+    (candidate) => isConservativeKomusubiFallback(candidate) || isExceptionalKomusubiLift(candidate),
   );
   consumeByIds(new Set(komusubi.map((candidate) => candidate.snapshot.id)));
 

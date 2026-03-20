@@ -7,28 +7,32 @@ const {
   finalizeCareerRateAccumulator,
   pushCareerRateSample,
 } = require('./_shared/career_rate_metrics.cjs');
+const { loadCalibrationBundle } = require('./_shared/calibrationTargets.cjs');
 
 const BASELINE_MODEL_VERSION = 'unified-v2-kimarite';
 const CANDIDATE_MODEL_VERSION = 'unified-v3-variance';
 const BASE_RUNS = Number(process.env.REALISM_MC_BASE_RUNS || 500);
 const FIXED_START_YEAR = 2026;
 const RELATIVE_TOLERANCE = 0.2;
+const CALIBRATION_RATE_TOLERANCE = 0.15;
+const CALIBRATION_ABSOLUTE_TOLERANCE = {
+  avgCareerBashoMean: 8,
+  avgCareerBashoP50: 8,
+  careerWinRateMean: 0.025,
+  careerWinRateMedian: 0.025,
+};
 const RUN_KIND = process.env.REALISM_RUN_KIND || 'acceptance';
 const IS_COMPARE_MODE = process.env.REALISM_COMPARE === '1';
 const COMPILED_AT = process.env.SIMTESTS_COMPILED_AT;
 
-const BASELINE_GATE = {
-  yokozunaMin: 0.004,
-  yokozunaMax: 0.006,
-  sekitoriMin: 0.3,
-  sekitoriMax: 0.4,
-  makuuchiMin: 0.09,
-  makuuchiMax: 0.11,
-  sanyakuMin: 0.018,
-  sanyakuMax: 0.022,
-};
-
 const RELATIVE_METRICS = [
+  { key: 'sekitoriRate', label: '関取率' },
+  { key: 'makuuchiRate', label: '幕内率' },
+  { key: 'sanyakuRate', label: '三役率' },
+  { key: 'yokozunaRate', label: '横綱率' },
+];
+
+const CALIBRATION_RATE_METRICS = [
   { key: 'sekitoriRate', label: '関取率' },
   { key: 'makuuchiRate', label: '幕内率' },
   { key: 'sanyakuRate', label: '三役率' },
@@ -332,26 +336,66 @@ if (!isMainThread) {
     fs.writeFileSync(filePath, text, 'utf8');
   };
 
-  const evaluateBaselineGate = (baseline) => {
-    const yokozunaBandPass =
-      baseline.yokozunaRate >= BASELINE_GATE.yokozunaMin &&
-      baseline.yokozunaRate <= BASELINE_GATE.yokozunaMax;
-    const sekitoriPass =
-      baseline.sekitoriRate >= BASELINE_GATE.sekitoriMin &&
-      baseline.sekitoriRate <= BASELINE_GATE.sekitoriMax;
-    const makuuchiPass =
-      baseline.makuuchiRate >= BASELINE_GATE.makuuchiMin &&
-      baseline.makuuchiRate <= BASELINE_GATE.makuuchiMax;
-    const sanyakuPass =
-      baseline.sanyakuRate >= BASELINE_GATE.sanyakuMin &&
-      baseline.sanyakuRate <= BASELINE_GATE.sanyakuMax;
+  const buildCalibrationGate = (metrics, calibrationTarget) => {
+    const rateChecks = CALIBRATION_RATE_METRICS.map(({ key, label }) => {
+      const target = calibrationTarget.rankRates[key];
+      const actual = metrics[key];
+      const delta = actual - target;
+      const relativeDelta = target === 0 ? (actual === 0 ? 0 : Number.POSITIVE_INFINITY) : delta / target;
+      return {
+        key,
+        label,
+        kind: 'rate',
+        target,
+        actual,
+        delta,
+        tolerance: CALIBRATION_RATE_TOLERANCE,
+        pass: Number.isFinite(relativeDelta) && Math.abs(relativeDelta) <= CALIBRATION_RATE_TOLERANCE,
+      };
+    });
+
+    const continuousChecks = [
+      {
+        key: 'avgCareerBashoMean',
+        label: '平均場所数',
+        target: calibrationTarget.careerLength.mean,
+        actual: metrics.avgCareerBasho,
+        tolerance: CALIBRATION_ABSOLUTE_TOLERANCE.avgCareerBashoMean,
+      },
+      {
+        key: 'avgCareerBashoP50',
+        label: '場所数中央値',
+        target: calibrationTarget.careerLength.p50,
+        actual: metrics.careerBashoP50,
+        tolerance: CALIBRATION_ABSOLUTE_TOLERANCE.avgCareerBashoP50,
+      },
+      {
+        key: 'careerWinRateMean',
+        label: '通算勝率平均',
+        target: calibrationTarget.careerWinRate.mean,
+        actual: metrics.careerWinRate,
+        tolerance: CALIBRATION_ABSOLUTE_TOLERANCE.careerWinRateMean,
+      },
+      {
+        key: 'careerWinRateMedian',
+        label: '通算勝率中央値',
+        target: calibrationTarget.careerWinRate.median,
+        actual: metrics.careerWinRateP50,
+        tolerance: CALIBRATION_ABSOLUTE_TOLERANCE.careerWinRateMedian,
+      },
+    ].map((entry) => ({
+      ...entry,
+      kind: 'continuous',
+      delta: entry.actual - entry.target,
+      pass: Number.isFinite(entry.actual) && Math.abs(entry.actual - entry.target) <= entry.tolerance,
+    }));
 
     return {
-      yokozunaBandPass,
-      sekitoriPass,
-      makuuchiPass,
-      sanyakuPass,
-      allPass: yokozunaBandPass && sekitoriPass && makuuchiPass && sanyakuPass,
+      source: calibrationTarget.meta.source,
+      era: calibrationTarget.meta.era,
+      sampleSize: calibrationTarget.meta.sampleSize,
+      checks: rateChecks.concat(continuousChecks),
+      allPass: rateChecks.concat(continuousChecks).every((entry) => entry.pass),
     };
   };
 
@@ -473,6 +517,8 @@ if (!isMainThread) {
       let totalAbsent = 0;
       let totalBasho = 0;
       const retireAges = [];
+      const careerBashoCounts = [];
+      const officialCareerWinRates = [];
       const nonSekitoriBashoCounts = [];
       const overallCareerRates = createCareerRateAccumulator();
       const sekitoriCareerRates = createCareerRateAccumulator();
@@ -530,11 +576,13 @@ if (!isMainThread) {
           totalAbsent += message.totalAbsent;
           totalBasho += message.bashoCount;
           retireAges.push(message.retireAge);
+          careerBashoCounts.push(message.bashoCount);
           const careerSample = pushCareerRateSample(overallCareerRates, {
             wins: message.totalWins,
             losses: message.totalLosses,
             absent: message.totalAbsent,
           });
+          officialCareerWinRates.push(careerSample.officialWinRate);
 
           if (message.aptitudeTier === 'C' || message.aptitudeTier === 'D') {
             lowTierCount += 1;
@@ -620,6 +668,8 @@ if (!isMainThread) {
 
           if (tasksCompleted >= runs) {
             const sortedRetireAges = retireAges.slice().sort((left, right) => left - right);
+            const sortedCareerBashoCounts = careerBashoCounts.slice().sort((left, right) => left - right);
+            const sortedOfficialCareerWinRates = officialCareerWinRates.slice().sort((left, right) => left - right);
             const sortedNonSekitoriBasho = nonSekitoriBashoCounts.slice().sort((left, right) => left - right);
             const sortedUniqueOfficialKimariteCounts = uniqueOfficialKimariteCounts.slice().sort((left, right) => left - right);
             const sortedTop1MoveShares = top1MoveShares.slice().sort((left, right) => left - right);
@@ -666,7 +716,9 @@ if (!isMainThread) {
               nonSekitoriCareerEffectiveWinRate: nonSekitoriSummary.effectiveWinRate,
               nonSekitoriCareerPooledWinRate: nonSekitoriSummary.pooledWinRate,
               avgCareerBasho: totalBasho / runs,
+              careerBashoP50: percentile(sortedCareerBashoCounts, 0.5),
               losingCareerRate: overallSummary.losingCareerRate,
+              careerWinRateP50: percentile(sortedOfficialCareerWinRates, 0.5),
               allCareerRetireAgeP50: percentile(sortedRetireAges, 0.5),
               nonSekitoriMedianBasho: percentile(sortedNonSekitoriBasho, 0.5),
               lowTierRate: lowTierCount / runs,
@@ -745,6 +797,35 @@ if (!isMainThread) {
   const renderMonitorLine = (label, target, actual) =>
     `- ${label}: target ${target} / actual ${actual} / monitor`;
 
+  const formatCalibrationValue = (entry, value) => {
+    if (!Number.isFinite(value)) return 'n/a';
+    if (entry.kind === 'rate') return toPct(value);
+    return value.toFixed(2);
+  };
+
+  const formatCalibrationTolerance = (entry) =>
+    entry.kind === 'rate'
+      ? `±${(entry.tolerance * 100).toFixed(0)}%`
+      : `±${entry.tolerance.toFixed(2)}`;
+
+  const renderCalibrationSection = (lines, gate) => {
+    lines.push('## Calibration Target');
+    lines.push('');
+    lines.push(`- source: ${gate.source}`);
+    lines.push(`- era: ${gate.era}`);
+    lines.push(`- target sampleSize: ${gate.sampleSize}`);
+    lines.push('');
+    for (const entry of gate.checks) {
+      const deltaText = Number.isFinite(entry.delta)
+        ? (entry.kind === 'rate' ? toPct(entry.delta) : entry.delta.toFixed(2))
+        : 'n/a';
+      lines.push(
+        `- ${entry.label}: target ${formatCalibrationValue(entry, entry.target)} / actual ${formatCalibrationValue(entry, entry.actual)} / delta ${deltaText} / tolerance ${formatCalibrationTolerance(entry)} / ${entry.pass ? 'PASS' : 'FAIL'}`,
+      );
+    }
+    lines.push('');
+  };
+
   const renderModelBlock = (lines, title, modelVersion, data) => {
     lines.push(`## ${title}`);
     lines.push('');
@@ -755,6 +836,7 @@ if (!isMainThread) {
     lines.push(`- 横綱率: ${toPct(data.yokozunaRate)}`);
     lines.push(`- 平均通算: ${data.avgTotalWins.toFixed(1)}勝 ${data.avgTotalLosses.toFixed(1)}敗 ${data.avgTotalAbsent.toFixed(1)}休`);
     lines.push(`- 通算勝率（公式平均）: ${toPct(data.careerWinRate)}`);
+    lines.push(`- 通算勝率（公式中央値）: ${toPctOrNA(data.careerWinRateP50)}`);
     lines.push(`- 通算勝率（有効平均）: ${toPct(data.careerEffectiveWinRate)}`);
     lines.push(`- 通算勝率（legacy pooled）: ${toPct(data.careerPooledWinRate)}`);
     lines.push(`- 通算勝率（関取経験者 / 公式）: ${toPctOrNA(data.sekitoriCareerWinRate)} (n=${data.sekitoriCareerSample})`);
@@ -764,6 +846,7 @@ if (!isMainThread) {
     lines.push(`- 通算勝率（非関取 / 有効）: ${toPctOrNA(data.nonSekitoriCareerEffectiveWinRate)} (n=${data.nonSekitoriCareerSample})`);
     lines.push(`- 通算勝率（非関取 / pooled）: ${toPctOrNA(data.nonSekitoriCareerPooledWinRate)} (n=${data.nonSekitoriCareerSample})`);
     lines.push(`- 平均場所数: ${data.avgCareerBasho.toFixed(1)}`);
+    lines.push(`- 場所数中央値: ${Number.isFinite(data.careerBashoP50) ? data.careerBashoP50.toFixed(1) : 'n/a'}`);
     lines.push(`- 負け越しキャリア率（休場込み）: ${toPct(data.losingCareerRate)}`);
     lines.push(`- 引退年齢中央値: ${Number.isFinite(data.allCareerRetireAgeP50) ? data.allCareerRetireAgeP50.toFixed(1) : 'n/a'}`);
     lines.push(`- 非関取場所数中央値: ${Number.isFinite(data.nonSekitoriMedianBasho) ? data.nonSekitoriMedianBasho.toFixed(1) : 'n/a'}`);
@@ -847,6 +930,11 @@ if (!isMainThread) {
       `- overall gate: ${gateResult.allPass ? 'PASS' : 'FAIL'}`,
       '',
     ];
+    if (payload.calibrationGate) {
+      renderCalibrationSection(lines, payload.calibrationGate);
+      lines.push(`- calibration gate: ${payload.calibrationGate.allPass ? 'PASS' : 'FAIL'}`);
+      lines.push('');
+    }
     return lines.join('\n');
   };
 
@@ -893,10 +981,12 @@ if (!isMainThread) {
       lines.push(`- 開始年: ${FIXED_START_YEAR} 固定`);
       lines.push('');
       renderModelBlock(lines, 'Candidate（無編集ランダムスカウト）', CANDIDATE_MODEL_VERSION, result.candidate);
+      renderCalibrationSection(lines, result.acceptance.calibration);
       renderRealismSection(lines, result.candidate, result.acceptance.realismKpi);
       renderKimariteVarietySection(lines, result.candidate, result.acceptance.kimariteVariety);
       lines.push('## Gate Result');
       lines.push('');
+      lines.push(`- calibration gate: ${result.acceptance.calibration.allPass ? 'PASS' : 'FAIL'}`);
       lines.push(`- realism KPI gate: ${result.acceptance.realismKpi.allPass ? 'PASS' : 'FAIL'}`);
       lines.push(`- kimarite variety gate: ${result.acceptance.kimariteVariety.allPass ? 'PASS' : 'FAIL'}`);
       lines.push('');
@@ -915,6 +1005,7 @@ if (!isMainThread) {
     lines.push('');
     renderModelBlock(lines, 'Baseline（無編集ランダムスカウト）', BASELINE_MODEL_VERSION, result.baseline);
     renderModelBlock(lines, 'Candidate（無編集ランダムスカウト）', CANDIDATE_MODEL_VERSION, result.candidate);
+    renderCalibrationSection(lines, result.acceptance.calibration);
     lines.push('## Relative Diff (Candidate vs Baseline)');
     lines.push('');
     for (const metric of result.acceptance.relative.metrics) {
@@ -928,7 +1019,7 @@ if (!isMainThread) {
     renderKimariteVarietySection(lines, result.candidate, result.acceptance.kimariteVariety);
     lines.push('## Gate Result');
     lines.push('');
-    lines.push(`- baseline absolute gate (${BASELINE_MODEL_VERSION}): ${result.acceptance.baseline.allPass ? 'PASS' : 'FAIL'}`);
+    lines.push(`- calibration gate (${CANDIDATE_MODEL_VERSION}): ${result.acceptance.calibration.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- relative gate (${CANDIDATE_MODEL_VERSION} vs ${BASELINE_MODEL_VERSION}): ${result.acceptance.relative.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- realism KPI gate (${CANDIDATE_MODEL_VERSION}): ${result.acceptance.realismKpi.allPass ? 'PASS' : 'FAIL'}`);
     lines.push(`- kimarite variety gate (${CANDIDATE_MODEL_VERSION}): ${result.acceptance.kimariteVariety.allPass ? 'PASS' : 'FAIL'}`);
@@ -939,6 +1030,7 @@ if (!isMainThread) {
 
   const buildProbeMetrics = (metrics) => ({
     careerWinRate: metrics.careerWinRate,
+    careerWinRateP50: metrics.careerWinRateP50,
     careerEffectiveWinRate: metrics.careerEffectiveWinRate,
     careerPooledWinRate: metrics.careerPooledWinRate,
     sekitoriCareerWinRate: metrics.sekitoriCareerWinRate,
@@ -948,6 +1040,8 @@ if (!isMainThread) {
     nonSekitoriCareerEffectiveWinRate: metrics.nonSekitoriCareerEffectiveWinRate,
     nonSekitoriCareerPooledWinRate: metrics.nonSekitoriCareerPooledWinRate,
     losingCareerRate: metrics.losingCareerRate,
+    avgCareerBasho: metrics.avgCareerBasho,
+    careerBashoP50: metrics.careerBashoP50,
     careerWinRateLe35Rate: metrics.careerWinRateLe35Rate,
     careerWinRateLe30Rate: metrics.careerWinRateLe30Rate,
     allCareerRetireAgeP50: metrics.allCareerRetireAgeP50,
@@ -982,6 +1076,8 @@ if (!isMainThread) {
 
     const generatedAt = new Date().toISOString();
     const { reportPath, jsonPath } = pickOutputPaths();
+    const calibrationBundle = loadCalibrationBundle({ required: RUN_KIND === 'acceptance' });
+    const careerCalibrationTarget = calibrationBundle?.career ?? null;
 
     if (RUN_KIND === 'quick') {
       console.log(`running quick scenario (${BASE_RUNS}): ${CANDIDATE_MODEL_VERSION}`);
@@ -990,6 +1086,9 @@ if (!isMainThread) {
       console.timeEnd(`${CANDIDATE_MODEL_VERSION} quick simulation time`);
       const gateResult = evaluateRealismKpiGate(candidate);
       const kimariteVarietyGate = evaluateKimariteVarietyGate(candidate);
+      const calibrationGate = careerCalibrationTarget
+        ? buildCalibrationGate(candidate, careerCalibrationTarget)
+        : null;
       const probe = {
         runKind: 'quick',
         scenarioId: 'candidate',
@@ -1000,6 +1099,7 @@ if (!isMainThread) {
         metrics: buildProbeMetrics(candidate),
         gateResult: {
           ...gateResult,
+          calibrationPass: calibrationGate?.allPass ?? null,
           kimariteVarietyPass: kimariteVarietyGate.allPass,
         },
       };
@@ -1009,6 +1109,7 @@ if (!isMainThread) {
         compiledAt: COMPILED_AT,
         probe,
         gateResult,
+        calibrationGate,
         kimariteVarietyGate,
       };
       const report = renderQuickReport(payload);
@@ -1066,6 +1167,7 @@ if (!isMainThread) {
     console.time(`${CANDIDATE_MODEL_VERSION} simulation time`);
     const candidate = await runParallelSimulation(BASE_RUNS, CANDIDATE_MODEL_VERSION);
     console.timeEnd(`${CANDIDATE_MODEL_VERSION} simulation time`);
+    const calibrationGate = buildCalibrationGate(candidate, careerCalibrationTarget);
     const realismKpi = evaluateRealismKpiGate(candidate);
     const kimariteVariety = evaluateKimariteVarietyGate(candidate);
 
@@ -1087,9 +1189,10 @@ if (!isMainThread) {
           gateResult: realismKpi,
         },
         acceptance: {
+          calibration: calibrationGate,
           realismKpi,
           kimariteVariety,
-          allPass: realismKpi.allPass && kimariteVariety.allPass,
+          allPass: calibrationGate.allPass && realismKpi.allPass && kimariteVariety.allPass,
         },
       };
       const report = renderAcceptanceReport(result);
@@ -1105,7 +1208,6 @@ if (!isMainThread) {
     console.time(`${BASELINE_MODEL_VERSION} simulation time`);
     const baseline = await runParallelSimulation(BASE_RUNS, BASELINE_MODEL_VERSION);
     console.timeEnd(`${BASELINE_MODEL_VERSION} simulation time`);
-    const baselineGate = evaluateBaselineGate(baseline);
     const relativeGate = evaluateRelativeGate(baseline, candidate);
     const result = {
       runKind: 'acceptance',
@@ -1116,11 +1218,11 @@ if (!isMainThread) {
       baseline,
       candidate,
       acceptance: {
-        baseline: baselineGate,
+        calibration: calibrationGate,
         relative: relativeGate,
         realismKpi,
         kimariteVariety,
-        allPass: baselineGate.allPass && relativeGate.allPass && realismKpi.allPass && kimariteVariety.allPass,
+        allPass: calibrationGate.allPass && relativeGate.allPass && realismKpi.allPass && kimariteVariety.allPass,
       },
       probes: {
         baseline: {
@@ -1131,7 +1233,10 @@ if (!isMainThread) {
           compiledAt: COMPILED_AT,
           generatedAt,
           metrics: buildProbeMetrics(baseline),
-          gateResult: baselineGate,
+          gateResult: {
+            calibrationPass: null,
+            relativePass: relativeGate.allPass,
+          },
         },
         candidate: {
           runKind: 'acceptance',
@@ -1142,6 +1247,7 @@ if (!isMainThread) {
           generatedAt,
           metrics: buildProbeMetrics(candidate),
           gateResult: {
+            calibrationPass: calibrationGate.allPass,
             ...realismKpi,
             kimariteVarietyPass: kimariteVariety.allPass,
           },
