@@ -1,121 +1,93 @@
 import {
-  CONSTANTS,
-  resolveAptitudeFactor,
-  rollAptitudeTier,
-  rollCareerBandForAptitude,
-} from '../constants';
-import { createInitialRikishi } from '../initialization';
-import {
   AptitudeTier,
-  BaseAbilityDNA,
   BasicProfile,
-  BodyMetrics,
-  BodyType,
-  CareerBand,
-  CareerVarianceDNA,
-  DurabilityDNA,
-  EntryDivision,
-  GrowthCurveDNA,
-  InjuryType,
-  PersonalityType,
-  Rank,
-  RikishiGenome,
-  RikishiStatus,
-  TacticsType,
-  TalentArchetype,
-  Trait,
+  BodyConstitution,
+  CareerSeed,
   IchimonId,
-} from '../models';
-import { generateShikona } from '../naming/playerNaming';
-import { listStablesByIchimon, resolveStableById, STABLE_CATALOG } from '../simulation/heya/stableCatalog';
+  PersonalityType,
+  RikishiStatus,
+  StyleArchetype,
+} from "../models";
 import {
-  SCOUT_BACKGROUNDS,
-  SCOUT_PHYSICAL_TRAITS,
-  SCOUT_STYLES,
-  ScoutBackgroundId,
-  ScoutPhysicalTraitId,
-  ScoutStyleId,
-  DNAModifiers,
-} from './choices';
+  STARTER_OYAKATA_BLUEPRINTS,
+  buildCareerSeedSummary,
+  createCareerSeed,
+  estimateCareerBandLabel,
+} from "../careerSeed";
+import { getStyleCompatibility } from "../styleProfile";
+import {
+  buildInitialRikishiFromSpec,
+  BuildPreviewSummaryVNext,
+  buildPreviewSummaryVNext,
+} from "../build/buildLab";
+import { BuildSpecVNext, BodyType } from "../models";
+import { generateShikona } from "../naming/playerNaming";
+import {
+  resolveStableById,
+  STABLE_CATALOG,
+  type StableDefinition,
+} from "../simulation/heya/stableCatalog";
 
 type RandomSource = () => number;
 
-export type ScoutHistory = 'JHS_GRAD' | 'HS_GRAD' | 'HS_YOKOZUNA' | 'UNI_YOKOZUNA';
-
-export interface ScoutHistoryOption {
-  label: string;
-  desc: string;
-  age: number;
-  bonus: number;
-  canTsukedashi?: boolean;
-}
-
-export const SCOUT_HISTORY_OPTIONS: Record<ScoutHistory, ScoutHistoryOption> = {
-  JHS_GRAD: {
-    label: '中学卒業',
-    desc: '15歳で角界入り。時間はたっぷりある。',
-    age: 15,
-    bonus: 0,
-  },
-  HS_GRAD: {
-    label: '高校卒業',
-    desc: '高校で鍛えた体で前相撲から。',
-    age: 18,
-    bonus: 1,
-  },
-  HS_YOKOZUNA: {
-    label: '高校横綱',
-    desc: '高校相撲界の頂点。即戦力候補。',
-    age: 18,
-    bonus: 4,
-  },
-  UNI_YOKOZUNA: {
-    label: '学生横綱',
-    desc: '大学相撲の覇者。幕下付出の権利あり。',
-    age: 22,
-    bonus: 6,
-    canTsukedashi: true,
-  },
-};
+export type ScoutEntryPath = "LOCAL" | "SCHOOL" | "COLLEGE" | "CHAMPION";
+export type ScoutTemperament = "STEADY" | "AMBITION" | "STUBBORN" | "EXPLOSIVE";
+export type ScoutBodySeed = "BALANCED" | "LONG" | "HEAVY" | "SPRING";
 
 export const PERSONALITY_LABELS: Record<PersonalityType, string> = {
-  CALM: '冷静',
-  AGGRESSIVE: '闘争的',
-  SERIOUS: '真面目',
-  WILD: '奔放',
-  CHEERFUL: '陽気',
-  SHY: '人見知り',
+  CALM: "冷静",
+  AGGRESSIVE: "闘争的",
+  SERIOUS: "真面目",
+  WILD: "奔放",
+  CHEERFUL: "陽気",
+  SHY: "人見知り",
+};
+
+export const SCOUT_ENTRY_PATH_LABELS: Record<ScoutEntryPath, string> = {
+  LOCAL: "地元の叩き上げ",
+  SCHOOL: "学校相撲で磨いた",
+  COLLEGE: "学生相撲で名を上げた",
+  CHAMPION: "学生横綱の肩書を持つ",
+};
+
+export const SCOUT_TEMPERAMENT_LABELS: Record<ScoutTemperament, string> = {
+  STEADY: "粘り強い",
+  AMBITION: "上昇志向",
+  STUBBORN: "頑固で崩れにくい",
+  EXPLOSIVE: "感情が表に出やすい",
+};
+
+export const SCOUT_BODY_SEED_LABELS: Record<ScoutBodySeed, string> = {
+  BALANCED: "均整の取れた土台",
+  LONG: "長躯で伸びしろがある",
+  HEAVY: "骨太で重さが乗る",
+  SPRING: "足腰に弾力がある",
 };
 
 export interface ScoutDraft {
   shikona: string;
+  birthplace: string;
   profile: BasicProfile;
-  history: ScoutHistory;
-  entryDivision: EntryDivision;
-  archetype: TalentArchetype;
-  aptitudeTier: AptitudeTier;
-  aptitudeFactor: number;
-  careerBand: CareerBand;
-  tactics: TacticsType;
-  signatureMove: string;
-  bodyType: BodyType;
-  bodyMetrics: BodyMetrics;
-  traitSlots: number;
-  traits: Trait[];
-  traitSlotDrafts: ScoutTraitSlotDraft[];
-  genomeDraft: RikishiGenome;
-  selectedIchimonId: IchimonId | null;
+  entryAge: 15 | 18 | 22;
+  startingHeightCm: number;
+  startingWeightKg: number;
+  entryPath: ScoutEntryPath;
+  temperament: ScoutTemperament;
+  bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
-  // 追加された選択肢
-  selectedBackgroundId: ScoutBackgroundId;
-  selectedPhysicalTraitId: ScoutPhysicalTraitId;
-  selectedStyleId: ScoutStyleId;
+  aptitudeTier: AptitudeTier;
 }
 
-export interface ScoutTraitSlotDraft {
-  slotIndex: number;
-  options: Trait[];
-  selected: Trait | null;
+export interface ScoutResolvedSeed {
+  spec: BuildSpecVNext;
+  preview: BuildPreviewSummaryVNext;
+  careerSeed: CareerSeed;
+  entryPathLabel: string;
+  temperamentLabel: string;
+  bodySeedLabel: string;
+  stableLabel: string;
+  introductionLine: string;
+  growthLine: string;
 }
 
 export interface ScoutOverrideCostBreakdown {
@@ -123,14 +95,12 @@ export interface ScoutOverrideCostBreakdown {
   realName: number;
   birthplace: number;
   personality: number;
-  bodyType: number;
-  traitSlots: number;
-  history: number;
-  tsukedashi: number;
-  // 直接編集コストを廃止し、選択肢変更コスト（一律または無料）に置き換える余地
   background: number;
-  physicalTrait: number;
+  bodyConstitution: number;
   style: number;
+  mental: number;
+  burden: number;
+  stable: number;
 }
 
 export interface ScoutOverrideCost {
@@ -139,658 +109,376 @@ export interface ScoutOverrideCost {
 }
 
 export const SCOUT_COST = {
-  DRAW: 100,
-  SHIKONA: 10,
-  REAL_NAME: 10,
-  BIRTHPLACE: 10,
-  PERSONALITY: 10,
-  BODY_TYPE: 40,
-  TRAIT_SLOTS_BY_COUNT: {
-    0: 0,
-    1: 10,
-    2: 25,
-    3: 45,
-    4: 70,
-    5: 100,
-  },
-  HISTORY: 50,
-  TSUKEDASHI_MAKUSHITA60: 30,
-  TSUKEDASHI_SANDANME90: 60,
-  CHOICE_CHANGE: 20, // 選択肢を変更するコスト（一律）
+  DRAW: 0,
+  SHIKONA: 0,
+  REAL_NAME: 0,
+  BIRTHPLACE: 0,
+  PERSONALITY: 0,
 } as const;
 
-const HISTORY_DRAW_WEIGHTS: Array<{ value: ScoutHistory; weight: number }> = [
-  { value: 'JHS_GRAD', weight: 35 },
-  { value: 'HS_GRAD', weight: 58 },
-  { value: 'HS_YOKOZUNA', weight: 6 },
-  { value: 'UNI_YOKOZUNA', weight: 1 },
-];
-
-const SCOUT_ARCHETYPE_WEIGHTS: Array<{ value: TalentArchetype; weight: number }> = [
-  { value: 'HARD_WORKER', weight: 33 },
-  { value: 'AVG_JOE', weight: 29 },
-  { value: 'STREET_FIGHTER', weight: 14 },
-  { value: 'HIGH_SCHOOL_CHAMP', weight: 10 },
-  { value: 'GENIUS', weight: 7 },
-  { value: 'UNIVERSITY_YOKOZUNA', weight: 4 },
-  { value: 'MONSTER', weight: 3 },
-];
-
-const GENOME_GROWTH_HINT_WEIGHTS: Array<{ value: string; weight: number }> = [
-  { value: 'EARLY', weight: 20 },
-  { value: 'NORMAL', weight: 55 },
-  { value: 'LATE', weight: 22 },
-  { value: 'GENIUS', weight: 3 },
-];
-
-const PICK_LIST = <T>(rng: RandomSource, values: T[]): T =>
-  values[Math.floor(rng() * values.length)];
-
-const WEIGHTED_PICK = <T>(rng: RandomSource, entries: Array<{ value: T; weight: number }>): T => {
-  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
-  let point = rng() * total;
-  for (const entry of entries) {
-    point -= entry.weight;
-    if (point <= 0) return entry.value;
-  }
-  return entries[entries.length - 1].value;
-};
-
 const RANDOM_FAMILY_NAMES = [
-  '佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤',
-  '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '斎藤', '清水',
+  "佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤",
+  "吉田", "山田", "佐々木", "山口", "松本", "井上", "木村", "林", "斎藤", "清水",
 ];
 
 const RANDOM_GIVEN_NAMES = [
-  '太郎', '翔', '大輔', '蓮', '健太', '海斗', '雄大', '拓海', '一輝', '駿',
-  '優斗', '陽太', '亮', '和真', '大和', '隆', '誠', '将', '龍之介', '匠',
+  "太郎", "翔", "大輔", "蓮", "健太", "海斗", "雄大", "拓海", "一輝", "駿",
+  "優斗", "陽太", "亮", "和真", "大和", "隆", "誠", "将", "龍之介", "匠",
 ];
 
 const RANDOM_BIRTHPLACES = [
-  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県', '茨城県',
-  '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県', '新潟県', '富山県',
-  '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県', '三重県',
-  '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県', '鳥取県', '島根県',
-  '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県', '福岡県',
-  '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県",
+  "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県",
+  "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県", "三重県",
+  "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県",
+  "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県",
+  "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
 ];
 
-const BODY_METRIC_RANGE: Record<BodyType, { minH: number; maxH: number; minW: number; maxW: number }> = {
-  NORMAL: { minH: 176, maxH: 190, minW: 120, maxW: 155 },
-  SOPPU: { minH: 182, maxH: 198, minW: 105, maxW: 140 },
-  ANKO: { minH: 170, maxH: 188, minW: 145, maxW: 210 },
-  MUSCULAR: { minH: 176, maxH: 194, minW: 135, maxW: 190 },
-};
+const DEFAULT_SCOUT_STABLE_ID = "stable-001";
 
-const TSUKEDASHI_WEIGHTS: Array<{ value: EntryDivision; weight: number }> = [
-  { value: 'Maezumo', weight: 40 },
-  { value: 'Sandanme90', weight: 50 },
-  { value: 'Makushita60', weight: 10 },
-];
+const PICK_LIST = <T,>(rng: RandomSource, values: readonly T[]): T =>
+  values[Math.floor(rng() * values.length)];
 
-const randomInt = (rng: RandomSource, min: number, max: number): number =>
-  min + Math.floor(rng() * (max - min + 1));
-
-const TRAIT_SLOT_MAX = 5;
-const TRAIT_OPTIONS_PER_SLOT = 5;
-const DEFAULT_SCOUT_STABLE_ID = 'stable-001';
-
-const clampTraitSlots = (slots: number): number => Math.max(0, Math.min(TRAIT_SLOT_MAX, Math.floor(slots)));
-
-const resolveAssignedStable = (draft: Pick<ScoutDraft, 'selectedStableId' | 'selectedIchimonId'>) => {
-  if (draft.selectedStableId) {
-    const explicitStable = resolveStableById(draft.selectedStableId);
-    if (explicitStable) return explicitStable;
-  }
-
-  if (draft.selectedIchimonId) {
-    const ichimonStable = listStablesByIchimon(draft.selectedIchimonId)[0];
-    if (ichimonStable) return ichimonStable;
-  }
-
-  return resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
-};
-
-export const rollBodyMetricsForBodyType = (bodyType: BodyType, rng: RandomSource = Math.random): BodyMetrics => {
-  const range = BODY_METRIC_RANGE[bodyType];
-  return {
-    heightCm: randomInt(rng, range.minH, range.maxH),
-    weightKg: randomInt(rng, range.minW, range.maxW),
-  };
-};
-
-const rollTraitCount = (rng: RandomSource): number =>
-  WEIGHTED_PICK(
-    rng,
-    CONSTANTS.TRAIT_GACHA.COUNT_WEIGHTS.map((entry) => ({
-      value: entry.count,
-      weight: entry.weight,
-    })),
-  );
-
-const resolveTraitByRarity = (
-  rarity: 'N' | 'R' | 'SR' | 'UR',
-  includeNegative: boolean,
-  used: Set<Trait>,
-): Trait[] =>
-  (Object.entries(CONSTANTS.TRAIT_DATA) as Array<[Trait, (typeof CONSTANTS.TRAIT_DATA)[Trait]]>)
-    .filter(([id, data]) => !used.has(id) && data.rarity === rarity && data.isNegative === includeNegative)
-    .map(([id]) => id);
-
-const rollTrait = (rng: RandomSource, used: Set<Trait>): Trait | undefined => {
-  const wantsNegative = rng() < CONSTANTS.TRAIT_GACHA.NEGATIVE_CHANCE;
-  const rarity = WEIGHTED_PICK(
-    rng,
-    (Object.entries(CONSTANTS.TRAIT_GACHA.RARITY_WEIGHTS) as Array<['N' | 'R' | 'SR' | 'UR', number]>).map(
-      ([value, weight]) => ({ value, weight }),
-    ),
-  );
-
-  const strictPool = resolveTraitByRarity(rarity, wantsNegative, used);
-  if (strictPool.length) return PICK_LIST(rng, strictPool);
-
-  const sameSignPool = (Object.entries(CONSTANTS.TRAIT_DATA) as Array<[Trait, (typeof CONSTANTS.TRAIT_DATA)[Trait]]>)
-    .filter(([id, data]) => !used.has(id) && data.isNegative === wantsNegative)
-    .map(([id]) => id);
-  if (sameSignPool.length) return PICK_LIST(rng, sameSignPool);
-
-  const fallbackPool = (Object.keys(CONSTANTS.TRAIT_DATA) as Trait[]).filter((id) => !used.has(id));
-  if (!fallbackPool.length) return undefined;
-  return PICK_LIST(rng, fallbackPool);
-};
-
-export const rollTraits = (rng: RandomSource, slots: number): Trait[] => {
-  const clampedSlots = clampTraitSlots(slots);
-  const used = new Set<Trait>();
-  const traits: Trait[] = [];
-
-  for (let i = 0; i < clampedSlots; i += 1) {
-    const trait = rollTrait(rng, used);
-    if (!trait) break;
-    used.add(trait);
-    traits.push(trait);
-  }
-
-  return traits;
-};
-
-const rollTraitOptionsForSlot = (
-  rng: RandomSource,
-  banned: Set<Trait>,
-): Trait[] => {
-  const used = new Set<Trait>(banned);
-  const options: Trait[] = [];
-  for (let i = 0; i < TRAIT_OPTIONS_PER_SLOT; i += 1) {
-    const trait = rollTrait(rng, used);
-    if (!trait) break;
-    used.add(trait);
-    options.push(trait);
-  }
-  return options;
-};
-
-const normalizeSlotDraft = (
-  slot: ScoutTraitSlotDraft,
-  taken: Set<Trait>,
-  active: boolean,
-): ScoutTraitSlotDraft => {
-  const uniqueOptions: Trait[] = [];
-  for (const option of slot.options) {
-    if (!uniqueOptions.includes(option)) uniqueOptions.push(option);
-    if (uniqueOptions.length >= TRAIT_OPTIONS_PER_SLOT) break;
-  }
-
-  let selected: Trait | null = slot.selected;
-  const selectedValid = Boolean(selected && uniqueOptions.includes(selected));
-  if (!selectedValid || (active && selected && taken.has(selected))) {
-    selected = uniqueOptions.find((option) => !taken.has(option)) ?? null;
-  }
-  if (active && selected) taken.add(selected);
-
-  return {
-    slotIndex: slot.slotIndex,
-    options: uniqueOptions,
-    selected,
-  };
-};
-
-const sortSlotDrafts = (slotDrafts: ScoutTraitSlotDraft[]): ScoutTraitSlotDraft[] =>
-  [...slotDrafts].sort((a, b) => a.slotIndex - b.slotIndex);
-
-export const syncTraitsFromSlotDrafts = (draft: ScoutDraft): ScoutDraft => {
-  const clampedSlots = clampTraitSlots(draft.traitSlots);
-  const taken = new Set<Trait>();
-  const normalized = sortSlotDrafts(draft.traitSlotDrafts).map((slot) =>
-    normalizeSlotDraft(slot, taken, slot.slotIndex < clampedSlots),
-  );
-  const traits = normalized
-    .filter((slot) => slot.slotIndex < clampedSlots && Boolean(slot.selected))
-    .map((slot) => slot.selected as Trait);
-
-  return {
-    ...draft,
-    traitSlots: clampedSlots,
-    traitSlotDrafts: normalized,
-    traits,
-  };
-};
-
-const createTraitSlotDraft = (
-  slotIndex: number,
-  selectedInActiveSlots: Set<Trait>,
-  rng: RandomSource,
-): ScoutTraitSlotDraft => {
-  const options = rollTraitOptionsForSlot(rng, new Set<Trait>());
-  const selected = options.find((option) => !selectedInActiveSlots.has(option)) ?? null;
-  if (selected) selectedInActiveSlots.add(selected);
-  return {
-    slotIndex,
-    options,
-    selected,
-  };
-};
-
-const rollHistory = (rng: RandomSource): ScoutHistory => WEIGHTED_PICK(rng, HISTORY_DRAW_WEIGHTS);
-
-const rollEntryDivision = (history: ScoutHistory, rng: RandomSource): EntryDivision => {
-  if (!SCOUT_HISTORY_OPTIONS[history].canTsukedashi) return 'Maezumo';
-  return WEIGHTED_PICK(rng, TSUKEDASHI_WEIGHTS);
-};
-
-const rollBodyType = (rng: RandomSource): BodyType =>
-  WEIGHTED_PICK(
-    rng,
-    (Object.entries(CONSTANTS.BODY_TYPE_DATA) as Array<[BodyType, (typeof CONSTANTS.BODY_TYPE_DATA)[BodyType]]>).map(
-      ([value, data]) => ({ value, weight: data.weight }),
-    ),
-  );
-
-const rollProfile = (rng: RandomSource): BasicProfile => ({
+const randomProfile = (rng: RandomSource): BasicProfile => ({
   realName: `${PICK_LIST(rng, RANDOM_FAMILY_NAMES)} ${PICK_LIST(rng, RANDOM_GIVEN_NAMES)}`,
   birthplace: PICK_LIST(rng, RANDOM_BIRTHPLACES),
   personality: PICK_LIST(rng, Object.keys(PERSONALITY_LABELS) as PersonalityType[]),
 });
 
-const CAREER_BAND_ORDER: CareerBand[] = ['WASHOUT', 'GRINDER', 'STANDARD', 'STRONG', 'ELITE'];
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
-const shiftCareerBand = (band: CareerBand, shift: number): CareerBand => {
-  const index = CAREER_BAND_ORDER.indexOf(band);
-  const nextIndex = Math.max(0, Math.min(CAREER_BAND_ORDER.length - 1, index + shift));
-  return CAREER_BAND_ORDER[nextIndex];
-};
-
-const resolveScoutCareerBand = (
-  aptitudeTier: AptitudeTier,
-  archetype: TalentArchetype,
-  history: ScoutHistory,
-  rng: RandomSource,
-): CareerBand => {
-  let shift = 0;
-  if (archetype === 'MONSTER' || archetype === 'UNIVERSITY_YOKOZUNA') shift += 2;
-  else if (archetype === 'GENIUS' || archetype === 'HIGH_SCHOOL_CHAMP') shift += 1;
-  else if (archetype === 'AVG_JOE') shift -= 1;
-
-  if (history === 'UNI_YOKOZUNA' || history === 'HS_YOKOZUNA') shift += 1;
-  let band = shiftCareerBand(rollCareerBandForAptitude(aptitudeTier, rng), shift);
-  if (band === 'WASHOUT' && aptitudeTier !== 'D') {
-    band = 'GRINDER';
+const resolveAssignedStable = (draft: Pick<ScoutDraft, "selectedStableId">): StableDefinition => {
+  if (draft.selectedStableId) {
+    const explicitStable = resolveStableById(draft.selectedStableId);
+    if (explicitStable) return explicitStable;
   }
-  if (band === 'ELITE' && archetype === 'AVG_JOE' && aptitudeTier !== 'S') {
-    band = 'STRONG';
+  return resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
+};
+
+const resolveOyakata = (stable: StableDefinition) =>
+  STARTER_OYAKATA_BLUEPRINTS.find((entry) => entry.ichimonId === stable.ichimonId) ??
+  STARTER_OYAKATA_BLUEPRINTS[0];
+
+const resolveBodyConstitution = (bodySeed: ScoutBodySeed): BodyConstitution => {
+  if (bodySeed === "HEAVY") return "HEAVY_BULK";
+  if (bodySeed === "LONG") return "LONG_REACH";
+  if (bodySeed === "SPRING") return "SPRING_LEGS";
+  return "BALANCED_FRAME";
+};
+
+const resolvePotentialFromBodySeed = (
+  bodySeed: ScoutBodySeed,
+  startingHeightCm: number,
+  startingWeightKg: number,
+): Pick<BuildSpecVNext, "heightPotentialCm" | "weightPotentialKg" | "reachDeltaCm"> => {
+  if (bodySeed === "HEAVY") {
+    return {
+      heightPotentialCm: Math.max(startingHeightCm + 3, 186),
+      weightPotentialKg: Math.max(startingWeightKg + 24, 178),
+      reachDeltaCm: -1,
+    };
   }
-
-  return band;
-};
-
-// === 三層DNA 生成 ===
-
-/** Box-Muller変換による正規分布乱数 */
-const gaussianRandom = (rng: RandomSource): number => {
-  const u1 = Math.max(1e-10, rng());
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-};
-
-/** [中央値, 分散] から正規分布サンプリングし、min/max でクランプ */
-const sampleDNA = (
-  rng: RandomSource,
-  dist: [number, number],
-  min: number,
-  max: number,
-): number => {
-  const [mean, std] = dist;
-  const raw = mean + gaussianRandom(rng) * std;
-  return Math.round(Math.max(min, Math.min(max, raw)) * 100) / 100;
-};
-
-/** アーキタイプとGrowthTypeからDNAを乱数生成 */
-export const rollGenomeDraft = (
-  archetype: TalentArchetype,
-  growthType: string,
-  rng: RandomSource = Math.random,
-): RikishiGenome => {
-  const dna = CONSTANTS.GENOME.ARCHETYPE_DNA[archetype];
-  const growthHint = CONSTANTS.GENOME.GROWTH_TYPE_TO_DNA[growthType];
-
-  // BaseAbilityDNA
-  const base: BaseAbilityDNA = {
-    powerCeiling: sampleDNA(rng, dna.base.powerCeiling, 0, 100),
-    techCeiling: sampleDNA(rng, dna.base.techCeiling, 0, 100),
-    speedCeiling: sampleDNA(rng, dna.base.speedCeiling, 0, 100),
-    ringSense: sampleDNA(rng, dna.base.ringSense, 0, 100),
-    styleFit: sampleDNA(rng, dna.base.styleFit, 0, 100),
+  if (bodySeed === "LONG") {
+    return {
+      heightPotentialCm: Math.max(startingHeightCm + 5, 191),
+      weightPotentialKg: Math.max(startingWeightKg + 18, 148),
+      reachDeltaCm: 5,
+    };
+  }
+  if (bodySeed === "SPRING") {
+    return {
+      heightPotentialCm: Math.max(startingHeightCm + 3, 183),
+      weightPotentialKg: Math.max(startingWeightKg + 20, 156),
+      reachDeltaCm: 1,
+    };
+  }
+  return {
+    heightPotentialCm: Math.max(startingHeightCm + 3, 184),
+    weightPotentialKg: Math.max(startingWeightKg + 18, 150),
+    reachDeltaCm: 0,
   };
-
-  // GrowthCurveDNA - growthHintを中心値にして少しブレさせる
-  const growth: GrowthCurveDNA = {
-    maturationAge: sampleDNA(
-      rng,
-      [growthHint?.maturationAge ?? dna.growth.maturationAge[0], dna.growth.maturationAge[1]],
-      18, 35,
-    ),
-    peakLength: sampleDNA(
-      rng,
-      [growthHint?.peakLength ?? dna.growth.peakLength[0], dna.growth.peakLength[1]],
-      1, 12,
-    ),
-    lateCareerDecay: sampleDNA(
-      rng,
-      [growthHint?.lateCareerDecay ?? dna.growth.lateCareerDecay[0], dna.growth.lateCareerDecay[1]],
-      0.1, 2.0,
-    ),
-    adaptability: sampleDNA(rng, dna.growth.adaptability, 0, 100),
-  };
-
-  // DurabilityDNA
-  const injuryTypes: InjuryType[] = ['KNEE', 'BACK', 'SHOULDER', 'ELBOW', 'ANKLE', 'NECK', 'WRIST', 'RIB', 'HAMSTRING', 'HIP'];
-  const partVulnerability: Partial<Record<InjuryType, number>> = {};
-  for (const part of injuryTypes) {
-    // 1/3 の確率で脆弱性を付与
-    if (rng() < 0.33) {
-      partVulnerability[part] = sampleDNA(rng, [1.5, 0.5], 0.5, 3.0);
-    }
-  }
-  const durability: DurabilityDNA = {
-    baseInjuryRisk: sampleDNA(rng, dna.durability.baseInjuryRisk, 0.3, 2.0),
-    partVulnerability,
-    recoveryRate: sampleDNA(rng, dna.durability.recoveryRate, 0.5, 2.0),
-    chronicResistance: sampleDNA(rng, dna.durability.chronicResistance, 0, 100),
-  };
-
-  // CareerVarianceDNA
-  const variance: CareerVarianceDNA = {
-    formVolatility: sampleDNA(rng, dna.variance.formVolatility, 0, 100),
-    clutchBias: sampleDNA(rng, dna.variance.clutchBias, -50, 50),
-    slumpRecovery: sampleDNA(rng, dna.variance.slumpRecovery, 0, 100),
-    streakSensitivity: sampleDNA(rng, dna.variance.streakSensitivity, 0, 100),
-  };
-
-  return { base, growth, durability, variance };
 };
 
-/** 2つのgenome間のDNA差分コストを計算 */
-export const resolveGenomeDiffCost = (
-  original: RikishiGenome,
-  edited: RikishiGenome,
-): number => {
-  let totalDiff = 0;
-  // Base
-  const bKeys = ['powerCeiling', 'techCeiling', 'speedCeiling', 'ringSense', 'styleFit'] as const;
-  for (const k of bKeys) totalDiff += Math.abs(original.base[k] - edited.base[k]);
-  // Growth
-  totalDiff += Math.abs(original.growth.maturationAge - edited.growth.maturationAge) * 5;
-  totalDiff += Math.abs(original.growth.peakLength - edited.growth.peakLength) * 5;
-  totalDiff += Math.abs(original.growth.lateCareerDecay - edited.growth.lateCareerDecay) * 30;
-  totalDiff += Math.abs(original.growth.adaptability - edited.growth.adaptability);
-  // Durability
-  totalDiff += Math.abs(original.durability.baseInjuryRisk - edited.durability.baseInjuryRisk) * 30;
-  totalDiff += Math.abs(original.durability.recoveryRate - edited.durability.recoveryRate) * 30;
-  totalDiff += Math.abs(original.durability.chronicResistance - edited.durability.chronicResistance);
-  // Variance
-  totalDiff += Math.abs(original.variance.formVolatility - edited.variance.formVolatility);
-  totalDiff += Math.abs(original.variance.clutchBias - edited.variance.clutchBias);
-  totalDiff += Math.abs(original.variance.slumpRecovery - edited.variance.slumpRecovery);
-  totalDiff += Math.abs(original.variance.streakSensitivity - edited.variance.streakSensitivity);
-
-  const cost = Math.round(totalDiff * CONSTANTS.GENOME.DNA_OVERRIDE_COST_PER_POINT);
-  return Math.min(cost, CONSTANTS.GENOME.DNA_OVERRIDE_COST_MAX);
+const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): StyleArchetype => {
+  if (draft.bodySeed === "HEAVY") return stable.archetypeId === "TSUKI_OSHI_GROUP" ? "POWER_PRESSURE" : "YOTSU";
+  if (draft.bodySeed === "LONG") return "TSUKI_OSHI";
+  if (draft.bodySeed === "SPRING") return "DOHYOUGIWA";
+  if (stable.archetypeId === "TECHNICAL_SMALL") return "NAGE_TECH";
+  if (stable.archetypeId === "MODERN_SCIENCE") return "TSUKI_OSHI";
+  return "YOTSU";
 };
 
-/** DNAModifiers をゲノムに適用する */
-const applyDNAModifiers = (genome: RikishiGenome, mods: DNAModifiers): RikishiGenome => {
-  const next = JSON.parse(JSON.stringify(genome)) as RikishiGenome;
-
-  if (mods.base) {
-    (Object.entries(mods.base) as [keyof RikishiGenome['base'], number][]).forEach(([k, v]) => {
-      next.base[k] = Math.max(0, Math.min(100, next.base[k] + v));
-    });
-  }
-  if (mods.growth) {
-    (Object.entries(mods.growth) as [keyof RikishiGenome['growth'], number][]).forEach(([k, v]) => {
-      next.growth[k] = Math.max(1, Math.min(100, next.growth[k] + v)); // 年齢や期間なので最小1
-    });
-  }
-  if (mods.durability) {
-    (Object.entries(mods.durability) as [keyof RikishiGenome['durability'], number][]).forEach(([k, v]) => {
-      if (k === 'partVulnerability') return; // 個別部位は一旦除外
-      const val = next.durability[k] as number;
-      next.durability[k] = Math.max(0.1, Math.min(5.0, val + v));
-    });
-  }
-  if (mods.variance) {
-    (Object.entries(mods.variance) as [keyof RikishiGenome['variance'], number][]).forEach(([k, v]) => {
-      next.variance[k] = Math.max(-100, Math.min(100, next.variance[k] + v));
-    });
-  }
-
-  return next;
+const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: StyleArchetype): StyleArchetype => {
+  if (draft.entryPath === "CHAMPION") return primaryStyle === "YOTSU" ? "MOROZASHI" : "NAGE_TECH";
+  if (draft.entryPath === "COLLEGE") return "MOROZASHI";
+  if (draft.temperament === "EXPLOSIVE") return "POWER_PRESSURE";
+  if (draft.temperament === "STEADY") return "DOHYOUGIWA";
+  if (draft.temperament === "AMBITION") return "TSUKI_OSHI";
+  return primaryStyle === "YOTSU" ? "DOHYOUGIWA" : "YOTSU";
 };
 
-/** 選択肢に基づいて最終的なゲノムを確定する */
-export const resolveGenomeFromChoices = (
-  archetype: TalentArchetype,
-  growthType: string,
-  background: ScoutBackgroundId,
-  physicalTrait: ScoutPhysicalTraitId,
-  style: ScoutStyleId,
-  rng: RandomSource = Math.random
-): RikishiGenome => {
-  // 1. アーキタイプ・成長型のベースゲノムを生成
-  let genome = rollGenomeDraft(archetype, growthType, rng);
+const resolveMentalTrait = (temperament: ScoutTemperament) => {
+  if (temperament === "EXPLOSIVE") return "VOLATILE_FIRE" as const;
+  if (temperament === "AMBITION") return "BIG_STAGE" as const;
+  if (temperament === "STUBBORN") return "STONEWALL" as const;
+  return "CALM_ENGINE" as const;
+};
 
-  // 2. 各選択肢の Modifiers を適用
-  genome = applyDNAModifiers(genome, SCOUT_BACKGROUNDS[background].modifiers);
-  genome = applyDNAModifiers(genome, SCOUT_PHYSICAL_TRAITS[physicalTrait].modifiers);
-  genome = applyDNAModifiers(genome, SCOUT_STYLES[style].modifiers);
+const resolveBackground = (draft: ScoutDraft) => {
+  if (draft.entryAge === 15) return "MIDDLE_SCHOOL" as const;
+  if (draft.entryAge === 18) return "HIGH_SCHOOL" as const;
+  return draft.entryPath === "CHAMPION" ? ("COLLEGE_YOKOZUNA" as const) : ("STUDENT_ELITE" as const);
+};
 
-  return genome;
+const resolveAptitudeTier = (draft: ScoutDraft): AptitudeTier => {
+  if (draft.entryPath === "CHAMPION") return "A";
+  if (draft.entryPath === "COLLEGE") return "B";
+  if (draft.entryPath === "SCHOOL") return "B";
+  return "C";
+};
+
+const resolveBodyType = (heightCm: number, weightKg: number): BodyType => {
+  const bmi = weightKg / Math.max(1, (heightCm / 100) * (heightCm / 100));
+  if (bmi >= 38) return "ANKO";
+  if (heightCm >= 188 && bmi <= 31) return "SOPPU";
+  if (bmi >= 33) return "MUSCULAR";
+  return "NORMAL";
+};
+
+const resolvePersonality = (temperament: ScoutTemperament): PersonalityType => {
+  if (temperament === "EXPLOSIVE") return "AGGRESSIVE";
+  if (temperament === "AMBITION") return "SERIOUS";
+  if (temperament === "STUBBORN") return "WILD";
+  return "CALM";
+};
+
+const resolveStableFlavorLine = (stable: StableDefinition): string =>
+  `${stable.displayName}で土台を作り、${stable.flavor.replace(/。$/, "")}。`;
+
+export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => {
+  const stable = resolveAssignedStable(draft);
+  const oyakata = resolveOyakata(stable);
+  const bodyConstitution = resolveBodyConstitution(draft.bodySeed);
+  const primaryStyle = resolvePrimaryStyle(draft, stable);
+  const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
+  const spec: BuildSpecVNext = {
+    oyakataId: oyakata.id,
+    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.startingHeightCm, draft.startingWeightKg),
+    bodyConstitution,
+    amateurBackground: resolveBackground(draft),
+    primaryStyle,
+    secondaryStyle,
+    mentalTrait: resolveMentalTrait(draft.temperament),
+    injuryResistance: draft.bodySeed === "HEAVY" ? "IRON_BODY" : "STANDARD",
+    debtCards: [],
+  };
+  const preview = buildPreviewSummaryVNext(spec, oyakata);
+  const careerSeed = createCareerSeed({
+    birthplace: draft.birthplace,
+    stableId: stable.id,
+    stableName: stable.displayName,
+    entryAge: draft.entryAge,
+    entryPath: draft.entryPath,
+    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[draft.entryPath],
+    temperament: draft.temperament,
+    temperamentLabel: SCOUT_TEMPERAMENT_LABELS[draft.temperament],
+    bodySeed: draft.bodySeed,
+    bodySeedLabel: SCOUT_BODY_SEED_LABELS[draft.bodySeed],
+    initialHeightCm: draft.startingHeightCm,
+    initialWeightKg: draft.startingWeightKg,
+    peakHeightCm: preview.potentialHeightCm,
+    peakWeightKg: preview.potentialWeightKg,
+    primaryStyle,
+    secondaryStyle,
+  });
+  return {
+    spec,
+    preview,
+    careerSeed,
+    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[draft.entryPath],
+    temperamentLabel: SCOUT_TEMPERAMENT_LABELS[draft.temperament],
+    bodySeedLabel: SCOUT_BODY_SEED_LABELS[draft.bodySeed],
+    stableLabel: stable.displayName,
+    introductionLine: `${draft.birthplace}から${stable.displayName}へ入り、${draft.entryAge}歳で土俵に立つ。`,
+    growthLine: `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`,
+  };
 };
 
 export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
-  const history = rollHistory(rng);
-  const entryDivision = rollEntryDivision(history, rng);
-  const bodyType = rollBodyType(rng);
-  const traitSlots = rollTraitCount(rng);
-  const archetype = WEIGHTED_PICK(rng, SCOUT_ARCHETYPE_WEIGHTS);
-  const aptitudeTier = rollAptitudeTier(rng);
-  const aptitudeFactor = resolveAptitudeFactor(aptitudeTier);
-  const defaultStable = resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
+  const profile = randomProfile(rng);
+  const stable = resolveStableById(DEFAULT_SCOUT_STABLE_ID) ?? STABLE_CATALOG[0];
+  const entryAge = PICK_LIST(rng, [15, 18, 22] as const);
+  const entryPath: ScoutEntryPath =
+    entryAge === 22
+      ? PICK_LIST(rng, ["COLLEGE", "CHAMPION"] as const)
+      : entryAge === 18
+        ? "SCHOOL"
+        : "LOCAL";
+  const bodySeed = PICK_LIST(rng, ["BALANCED", "LONG", "HEAVY", "SPRING"] as const);
+  const temperament = PICK_LIST(rng, ["STEADY", "AMBITION", "STUBBORN", "EXPLOSIVE"] as const);
+  const baseHeight = entryAge === 15 ? 178 : entryAge === 18 ? 183 : 186;
+  const baseWeight = entryAge === 15 ? 110 : entryAge === 18 ? 128 : 142;
 
-  const growthType = WEIGHTED_PICK(rng, GENOME_GROWTH_HINT_WEIGHTS);
-  const backgroundId: ScoutBackgroundId = 'CLUB';
-  const physicalTraitId: ScoutPhysicalTraitId = 'POWER';
-  const styleId: ScoutStyleId = 'YOTSU';
-  const careerBand = resolveScoutCareerBand(aptitudeTier, archetype, history, rng);
-
-  const genomeDraft = resolveGenomeFromChoices(
-    archetype,
-    growthType,
-    backgroundId,
-    physicalTraitId,
-    styleId,
-    rng
-  );
-
-  const baseDraft: ScoutDraft = {
+  return {
     shikona: generateShikona(),
-    profile: rollProfile(rng),
-    history,
-    entryDivision,
-    archetype,
-    aptitudeTier,
-    aptitudeFactor,
-    careerBand,
-    tactics: PICK_LIST(rng, Object.keys(CONSTANTS.TACTICAL_GROWTH_MODIFIERS) as TacticsType[]),
-    signatureMove: PICK_LIST(rng, Object.keys(CONSTANTS.SIGNATURE_MOVE_DATA)),
-    bodyType,
-    bodyMetrics: rollBodyMetricsForBodyType(bodyType, rng),
-    traitSlots,
-    traits: [],
-    traitSlotDrafts: [],
-    genomeDraft,
-    selectedIchimonId: defaultStable?.ichimonId ?? null,
-    selectedStableId: defaultStable?.id ?? null,
-    selectedBackgroundId: backgroundId,
-    selectedPhysicalTraitId: physicalTraitId,
-    selectedStyleId: styleId,
+    birthplace: profile.birthplace,
+    profile,
+    entryAge,
+    startingHeightCm: baseHeight + Math.floor(rng() * 7),
+    startingWeightKg: baseWeight + Math.floor(rng() * 18),
+    entryPath,
+    temperament,
+    bodySeed,
+    selectedStableId: stable.id,
+    aptitudeTier: resolveAptitudeTier({
+      shikona: "",
+      birthplace: "",
+      profile,
+      entryAge,
+      startingHeightCm: 0,
+      startingWeightKg: 0,
+      entryPath,
+      temperament,
+      bodySeed,
+      selectedStableId: stable.id,
+      aptitudeTier: "C",
+    }),
   };
-
-  return resizeTraitSlots(baseDraft, traitSlots, rng);
 };
 
-export const resizeTraitSlots = (
-  draft: ScoutDraft,
-  slots: number,
-  rng: RandomSource = Math.random,
-): ScoutDraft => {
-  const clamped = clampTraitSlots(slots);
-  const existing = sortSlotDrafts(draft.traitSlotDrafts);
-  const slotByIndex = new Map<number, ScoutTraitSlotDraft>(existing.map((slot) => [slot.slotIndex, slot]));
-  const nextSlots = [...existing];
-  const selectedInActiveSlots = new Set<Trait>();
-
-  for (const slot of existing) {
-    if (slot.slotIndex >= clamped || !slot.selected) continue;
-    if (!slot.options.includes(slot.selected)) continue;
-    if (selectedInActiveSlots.has(slot.selected)) continue;
-    selectedInActiveSlots.add(slot.selected);
-  }
-
-  for (let i = 0; i < clamped; i += 1) {
-    if (slotByIndex.has(i)) continue;
-    nextSlots.push(createTraitSlotDraft(i, selectedInActiveSlots, rng));
-  }
-
-  return syncTraitsFromSlotDrafts({
-    ...draft,
-    traitSlots: clamped,
-    traitSlotDrafts: nextSlots,
-  });
-};
-
-export const selectTraitForSlot = (
-  draft: ScoutDraft,
-  slotIndex: number,
-  trait: Trait,
-): ScoutDraft => {
-  const clamped = clampTraitSlots(draft.traitSlots);
-  if (slotIndex < 0 || slotIndex >= clamped) return draft;
-
-  const target = draft.traitSlotDrafts.find((slot) => slot.slotIndex === slotIndex);
-  if (!target || !target.options.includes(trait)) return draft;
-
-  const selectedElsewhere = draft.traitSlotDrafts.some(
-    (slot) =>
-      slot.slotIndex < clamped &&
-      slot.slotIndex !== slotIndex &&
-      slot.selected === trait,
+const applyBodyAdjustments = (status: RikishiStatus, draft: ScoutDraft) => {
+  const heightDelta = draft.startingHeightCm - status.bodyMetrics.heightCm;
+  const weightDelta = draft.startingWeightKg - status.bodyMetrics.weightKg;
+  status.bodyMetrics.heightCm = draft.startingHeightCm;
+  status.bodyMetrics.weightKg = draft.startingWeightKg;
+  status.bodyType = resolveBodyType(draft.startingHeightCm, draft.startingWeightKg);
+  status.stats.tsuki = clamp(status.stats.tsuki + heightDelta * 0.35, 20, 120);
+  status.stats.oshi = clamp(status.stats.oshi + weightDelta * 0.22, 20, 120);
+  status.stats.power = clamp(status.stats.power + weightDelta * 0.28, 20, 120);
+  status.stats.deashi = clamp(
+    status.stats.deashi + (draft.bodySeed === "SPRING" ? 6 : draft.bodySeed === "HEAVY" ? -3 : 1),
+    20,
+    120,
   );
-  if (selectedElsewhere) return draft;
-
-  const nextSlots = draft.traitSlotDrafts.map((slot) =>
-    slot.slotIndex === slotIndex ? { ...slot, selected: trait } : slot,
+  status.durability = clamp(
+    status.durability + (draft.bodySeed === "HEAVY" ? 8 : draft.bodySeed === "SPRING" ? 4 : 2),
+    20,
+    120,
   );
-
-  return syncTraitsFromSlotDrafts({
-    ...draft,
-    traitSlotDrafts: nextSlots,
-  });
 };
 
-export const resolveTraitSlotCost = (slots: number): number => {
-  const clamped = clampTraitSlots(slots);
-  return SCOUT_COST.TRAIT_SLOTS_BY_COUNT[clamped as keyof typeof SCOUT_COST.TRAIT_SLOTS_BY_COUNT];
-};
-
-const resolveRankFromHistory = (history: ScoutHistory, entryDivision: EntryDivision): Rank => {
-  const option = SCOUT_HISTORY_OPTIONS[history];
-  if (!option.canTsukedashi || entryDivision === 'Maezumo') {
-    return { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
+const applyTemperamentAdjustments = (status: RikishiStatus, temperament: ScoutTemperament) => {
+  if (temperament === "AMBITION") {
+    status.spirit = clamp(status.spirit + 8, 0, 120);
+    status.currentCondition = clamp(status.currentCondition + 4, 0, 100);
+  } else if (temperament === "STUBBORN") {
+    status.spirit = clamp(status.spirit + 5, 0, 120);
+    status.currentCondition = clamp(status.currentCondition + 2, 0, 100);
+  } else if (temperament === "EXPLOSIVE") {
+    status.spirit = clamp(status.spirit + 6, 0, 120);
+    status.currentCondition = clamp(status.currentCondition + 1, 0, 100);
   }
-  if (entryDivision === 'Makushita60') {
-    return { division: 'Makushita', name: '幕下', side: 'East', number: 60 };
-  }
-  return { division: 'Sandanme', name: '三段目', side: 'East', number: 90 };
 };
 
 export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus => {
-  const history = SCOUT_HISTORY_OPTIONS[draft.history];
   const stable = resolveAssignedStable(draft);
-  if (!stable) {
-    throw new Error(`不明な所属部屋です: ${draft.selectedStableId ?? DEFAULT_SCOUT_STABLE_ID}`);
-  }
-  return createInitialRikishi({
-    shikona: draft.shikona,
-    age: history.age,
-    startingRank: resolveRankFromHistory(draft.history, draft.entryDivision),
-    archetype: draft.archetype,
-    aptitudeTier: draft.aptitudeTier,
-    aptitudeFactor: draft.aptitudeFactor,
-    careerBand: draft.careerBand,
-    tactics: draft.tactics,
-    signatureMove: draft.signatureMove,
-    bodyType: draft.bodyType,
-    traits: draft.traits,
-    historyBonus: history.bonus,
-    entryDivision: history.canTsukedashi ? draft.entryDivision : undefined,
-    profile: draft.profile,
-    bodyMetrics: draft.bodyMetrics,
-    genome: draft.genomeDraft,
-    stableId: stable.id,
-    ichimonId: stable.ichimonId,
-    stableArchetypeId: stable.archetypeId,
-  });
+  const oyakata = resolveOyakata(stable);
+  const seed = buildScoutResolvedSeed(draft);
+  const status = buildInitialRikishiFromSpec(seed.spec, oyakata);
+  const compatibility = getStyleCompatibility(seed.spec.primaryStyle, seed.spec.secondaryStyle);
+
+  status.shikona = draft.shikona;
+  status.profile = {
+    ...draft.profile,
+    birthplace: draft.birthplace,
+    personality: resolvePersonality(draft.temperament),
+  };
+  status.stableId = stable.id;
+  status.ichimonId = stable.ichimonId as IchimonId;
+  status.stableArchetypeId = stable.archetypeId;
+  status.entryAge = draft.entryAge;
+  status.age = draft.entryAge;
+  status.aptitudeTier = draft.aptitudeTier;
+
+  applyBodyAdjustments(status, draft);
+  applyTemperamentAdjustments(status, draft.temperament);
+  status.careerSeed = seed.careerSeed;
+
+  status.buildSummary = {
+    ...buildCareerSeedSummary({
+      oyakataName: oyakata.name,
+      amateurBackground: seed.spec.amateurBackground,
+      bodyConstitution: seed.spec.bodyConstitution,
+      heightPotentialCm: seed.spec.heightPotentialCm,
+      weightPotentialKg: seed.spec.weightPotentialKg,
+      reachDeltaCm: seed.spec.reachDeltaCm,
+      spentPoints: 0,
+      remainingPoints: 0,
+      debtCount: 0,
+      debtCards: [],
+      secretStyle: oyakata.secretStyle,
+      compatibility,
+    }),
+    careerBandLabel: estimateCareerBandLabel({
+      spentPoints: 42,
+      debtCount: 0,
+      compatibility,
+    }),
+    initialConditionSummary: {
+      birthplace: draft.birthplace,
+      stableName: stable.displayName,
+      entryAge: draft.entryAge,
+      entryPathLabel: seed.entryPathLabel,
+      temperamentLabel: seed.temperamentLabel,
+      bodySeedLabel: seed.bodySeedLabel,
+      initialHeightCm: draft.startingHeightCm,
+      initialWeightKg: draft.startingWeightKg,
+    },
+    growthSummary: {
+      peakHeightCm: seed.preview.potentialHeightCm,
+      peakWeightKg: seed.preview.potentialWeightKg,
+      bodyTypeLabel: resolveBodyType(draft.startingHeightCm, draft.startingWeightKg),
+    },
+    lifeCards: [
+      { slot: "経歴", label: seed.entryPathLabel, previewTag: `${draft.entryAge}歳`, reportLine: seed.introductionLine },
+      { slot: "骨格", label: seed.bodySeedLabel, previewTag: `${draft.startingHeightCm}cm`, reportLine: seed.growthLine },
+      { slot: "相撲観", label: "土俵で形になる", previewTag: stable.displayName, reportLine: resolveStableFlavorLine(stable) },
+      { slot: "気質", label: seed.temperamentLabel, previewTag: PERSONALITY_LABELS[status.profile.personality], reportLine: `${seed.temperamentLabel}気質が、停滞や復活の受け止め方に表れる。` },
+      { slot: "背負うもの", label: "まだ白紙", previewTag: "記録で判明", reportLine: "宿敵、怪我、停滞、再浮上は、入門後の一代で初めて輪郭を持つ。" },
+    ],
+    dominantLifeCard: "経歴",
+    lifeCardNarrativeSeeds: {
+      dominant: seed.introductionLine,
+      burden: "この時点では、どこで人生が折れ、どこで踏みとどまるかはまだ分からない。",
+      frameAndInjury: seed.growthLine,
+      designedVsRealized: resolveStableFlavorLine(stable),
+    },
+  };
+  status.bodyMetrics.reachDeltaCm = seed.spec.reachDeltaCm;
+  status.history.maxRank = { ...status.rank };
+  return status;
 };
 
 export const resolveScoutOverrideCost = (
-  base: ScoutDraft,
-  edited: ScoutDraft,
-): ScoutOverrideCost => {
-  const breakdown: ScoutOverrideCostBreakdown = {
-    shikona: base.shikona !== edited.shikona ? SCOUT_COST.SHIKONA : 0,
-    realName: base.profile.realName !== edited.profile.realName ? SCOUT_COST.REAL_NAME : 0,
-    birthplace: base.profile.birthplace !== edited.profile.birthplace ? SCOUT_COST.BIRTHPLACE : 0,
-    personality:
-      base.profile.personality !== edited.profile.personality ? SCOUT_COST.PERSONALITY : 0,
-    bodyType: base.bodyType !== edited.bodyType ? SCOUT_COST.BODY_TYPE : 0,
-    traitSlots: base.traitSlots !== edited.traitSlots ? resolveTraitSlotCost(edited.traitSlots) : 0,
-    history: base.history !== edited.history ? SCOUT_COST.HISTORY : 0,
-    tsukedashi: 0,
-    background: base.selectedBackgroundId !== edited.selectedBackgroundId ? SCOUT_COST.CHOICE_CHANGE : 0,
-    physicalTrait: base.selectedPhysicalTraitId !== edited.selectedPhysicalTraitId ? SCOUT_COST.CHOICE_CHANGE : 0,
-    style: base.selectedStyleId !== edited.selectedStyleId ? SCOUT_COST.CHOICE_CHANGE : 0,
-  };
+  _base: ScoutDraft,
+  _edited: ScoutDraft,
+): ScoutOverrideCost => ({
+  total: 0,
+  breakdown: {
+    shikona: 0,
+    realName: 0,
+    birthplace: 0,
+    personality: 0,
+    background: 0,
+    bodyConstitution: 0,
+    style: 0,
+    mental: 0,
+    burden: 0,
+    stable: 0,
+  },
+});
 
-  if (base.entryDivision !== edited.entryDivision) {
-    if (edited.entryDivision === 'Makushita60') {
-      breakdown.tsukedashi = SCOUT_COST.TSUKEDASHI_MAKUSHITA60;
-    } else if (edited.entryDivision === 'Sandanme90') {
-      breakdown.tsukedashi = SCOUT_COST.TSUKEDASHI_SANDANME90;
-    }
-  }
-
-  return {
-    breakdown,
-    total: Object.values(breakdown).reduce((sum, value) => sum + value, 0),
-  };
-};
+export const getScoutDraftHeadline = (draft: ScoutDraft): string =>
+  `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;

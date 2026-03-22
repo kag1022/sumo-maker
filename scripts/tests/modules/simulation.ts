@@ -10,6 +10,7 @@ export const simulationTestModule = createScopedModule('simulation', legacyTests
   'retirement',
   'simulation',
   'simulation engine',
+  'simulation model normalization',
   'variance',
   'yusho',
 ]);

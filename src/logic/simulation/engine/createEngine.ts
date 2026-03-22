@@ -10,6 +10,7 @@ import {
   createSekitoriBoundaryWorld,
 } from '../sekitoriQuota';
 import { appendEntryEvent, initializeSimulationStatus } from '../career';
+import { createEmptyRuntimeRivalryState } from '../../careerRivalry';
 import { resolveSimulationDependencies, SimulationDependencies } from '../deps';
 import { createSimulationWorld, syncPlayerActorInWorld } from '../world';
 import { SimulationEngine, SimulationParams } from './types';
@@ -40,6 +41,9 @@ export const createSimulationEngine = (
     completed: false,
     lastCommitteeWarnings: 0,
     lastDiagnostics: undefined,
+    runtimeNarrative: {
+      rivalry: createEmptyRuntimeRivalryState(),
+    },
   };
 
   syncPlayerActorInWorld(world, state.status, deps.random);

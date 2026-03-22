@@ -137,15 +137,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       const message = event.data;
 
       if (message.type === 'BASHO_PROGRESS') {
+        const state = get();
         set({
-          phase: 'running',
+          phase: state.phase === 'simulating' ? 'simulating' : 'running',
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
           isCurrentCareerSaved: false,
           latestEvents: toLatestEvents(message.payload.events),
-          observationLog: pushObservation(get().observationLog, message.payload.observation),
-          simulationPacing: 'observe',
+          observationLog: pushObservation(state.observationLog, message.payload.observation),
+          simulationPacing: state.simulationPacing,
           latestPauseReason: undefined,
           errorMessage: undefined,
         });
@@ -252,7 +253,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     if (!careerId) return;
     await shelveCareer(careerId);
     const saved = await isCareerSaved(careerId);
-    set({ isCurrentCareerSaved: saved });
+    const refreshedStatus = await loadCareerStatus(careerId);
+    set({
+      isCurrentCareerSaved: saved,
+      ...(refreshedStatus ? { status: refreshedStatus } : {}),
+    });
     await get().loadHallOfFame();
     await get().loadUnshelvedCareers();
   },
@@ -310,6 +315,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     if (get().phase === 'running') {
       await get().stopSimulation();
       return;
+    }
+    const currentCareerId = get().currentCareerId;
+    if (currentCareerId && !get().isCurrentCareerSaved) {
+      await discardCareer(currentCareerId);
     }
     set({
       phase: 'idle',

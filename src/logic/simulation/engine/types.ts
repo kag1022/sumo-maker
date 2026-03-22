@@ -1,6 +1,7 @@
 import { BanzukeDecisionLog, BanzukePopulationSnapshot, BanzukeMode, BanzukeEngineVersion } from '../../banzuke';
 import { BashoRecord, Division, Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../../models';
 import { ImportantTorikumiNote, NpcBashoAggregate, PlayerBoutDetail } from '../basho';
+import { RuntimeRivalryState } from '../../careerRivalry';
 import { SimulationDiagnostics } from '../diagnostics';
 import { LowerDivisionPlacementTraceRow } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
@@ -84,6 +85,10 @@ export interface CompletedStepResult {
   pauseReason?: PauseReason;
   events: TimelineEvent[];
   progress: SimulationProgressSnapshot;
+}
+
+export interface RuntimeNarrativeState {
+  rivalry: RuntimeRivalryState;
 }
 
 export type SimulationStepResult = BashoStepResult | CompletedStepResult;

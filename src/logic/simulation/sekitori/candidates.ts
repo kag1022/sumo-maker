@@ -1,5 +1,6 @@
 import { clamp, compareBoundaryCandidate, resolveAdaptiveExchangeSlots } from '../boundary/shared';
 import { BoundaryCandidate, BoundarySnapshot } from './types';
+import { HEISEI_BANZUKE_CALIBRATION } from '../../calibration/banzukeHeisei';
 
 const toJuryoNumber = (rankScore: number): number => clamp(Math.ceil(rankScore / 2), 1, 14);
 
@@ -16,13 +17,14 @@ export const buildJuryoDemotionCandidates = (
       const mandatory =
         (number >= 14 && wins <= 6) ||
         (number >= 13 && wins <= 5) ||
-        (number >= 12 && wins <= 4) ||
-        (number >= 10 && wins <= 2);
+        (number >= 11 && wins <= 4) ||
+        (number >= 9 && wins <= 2);
       const bubble =
         mandatory ||
         (number >= 14 && wins === 7) ||
         (number >= 12 && wins === 6) ||
-        (number >= 10 && wins === 5);
+        (number >= 10 && wins === 5) ||
+        (number >= 8 && wins === 4);
       if (!bubble) return null;
 
       let score =
@@ -62,16 +64,17 @@ export const buildMakushitaPromotionCandidates = (
 ): BoundaryCandidate[] =>
   results
     .map((result) => {
+      const tuning = HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita;
       const number = toMakushitaNumber(result.rankScore);
       const wins = result.wins;
       const losses = result.losses;
       if (wins <= losses) return null;
-      const mandatory = (number <= 5 && wins === 7) || (number === 1 && wins >= 4);
+      const mandatory = (number <= 5 && wins === 7) || (number <= 2 && wins >= 4);
       const bubble =
         mandatory ||
-        (number <= 3 && wins >= 5) ||
-        (number <= 6 && wins >= 6) ||
-        (number <= 15 && wins === 7);
+        (number <= 4 && wins >= 5) ||
+        (number <= 10 && wins >= 6) ||
+        (number <= tuning.makushitaSevenWinBubbleMaxRank && wins === 7);
       if (!bubble) return null;
 
       let score =
@@ -92,14 +95,17 @@ export const buildMakushitaFallbackPromotionCandidates = (
   results
     .filter((result) => !excludeIds.has(result.id))
     .map((result) => {
+      const tuning = HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita;
       const number = toMakushitaNumber(result.rankScore);
       const wins = result.wins;
       const losses = result.losses;
       if (wins <= losses) return null;
-      if (wins < 5 || number > 20) return null;
+      if (wins < tuning.makushitaFallbackMinWins || number > tuning.makushitaFallbackMaxRank) {
+        return null;
+      }
       const score =
         Math.max(0, wins - 3) * 2.4 +
-        Math.max(0, 20 - number) * 1.2 +
+        Math.max(0, tuning.makushitaFallbackMaxRank - number) * 0.9 +
         Math.max(0, wins - losses) * 0.7;
       return { id: result.id, score, mandatory: false };
     })
@@ -113,5 +119,10 @@ export const resolveExchangeSlots = (
   demotionPool: BoundaryCandidate[],
   promotionPool: BoundaryCandidate[],
 ): { demotions: BoundaryCandidate[]; promotions: BoundaryCandidate[]; slots: number } => {
-  return resolveAdaptiveExchangeSlots(demotionPool, promotionPool);
+  return resolveAdaptiveExchangeSlots(demotionPool, promotionPool, {
+    historicalTargetSlots:
+      HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita.targetCompetitiveSlots,
+    historicalToleranceGap:
+      HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita.historicalToleranceGap,
+  });
 };

@@ -24,7 +24,7 @@ import {
   resolveKimariteOutcome,
   type KimariteCompetitorProfile,
 } from './kimarite/selection';
-import { getCompatibilityWeight, styleToTactics } from './phaseA';
+import { getCompatibilityWeight, styleToTactics } from './styleProfile';
 
 export { type EnemyStats };
 

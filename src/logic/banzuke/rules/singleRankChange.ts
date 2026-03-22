@@ -4,6 +4,12 @@ import { getRankValue } from '../../ranking/rankScore';
 import { resolveTopDivisionAssignedEvent } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
 import { RankCalculationOptions, RankChangeResult } from '../types';
+import {
+  resolveMaxMakushitaDemotionNumber,
+  resolveMakuuchiPromotionLandingNumber,
+  resolveJuryoLandingNumberFromMakuuchiDemotion,
+  resolveMinJuryoPromotionNumber,
+} from '../../simulation/sekitori/boundaryTuning';
 import { canPromoteToYokozuna } from './yokozunaPromotion';
 import { canPromoteToOzekiBy33Wins } from './sanyakuPromotion';
 import {
@@ -408,8 +414,7 @@ const calculateMakuuchiChange = (
     (num >= 12 && wins <= 4);
   const demotionByQuotaBlocked = options?.topDivisionQuota?.canDemoteToJuryo === false;
   if (shouldDemote && !demotionByQuotaBlocked) {
-    const severity = Math.max(0, losses - wins);
-    const jNumber = clamp((num - 12) + Math.floor(severity / 2), 1, LIMITS.JURYO_MAX);
+    const jNumber = resolveJuryoLandingNumberFromMakuuchiDemotion(num, wins, losses);
     return {
       nextRank: { division: 'Juryo', name: '十両', number: jNumber, side: 'East' },
       event: 'DEMOTION_TO_JURYO',
@@ -441,30 +446,35 @@ const calculateJuryoChange = (
   const demotionByQuotaBlocked = options?.sekitoriQuota?.canDemoteToMakushita === false;
 
   // 十両→幕内（空き枠争いを反映して厳格化）
-  if (!promotionByQuotaBlocked && num === 1 && wins >= 10) {
-    const mNumber = clamp(16 - (wins - 10), 12, LIMITS.MAEGASHIRA_MAX);
+  if (!promotionByQuotaBlocked && num === 1 && wins >= 9) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
     return {
       nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
       event: 'PROMOTION_TO_MAKUUCHI',
     };
   }
-  if (!promotionByQuotaBlocked && num === 2 && wins >= 11) {
-    const mNumber = clamp(15 - (wins - 11), 11, LIMITS.MAEGASHIRA_MAX);
+  if (!promotionByQuotaBlocked && num === 2 && wins >= 10) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
     return {
       nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
       event: 'PROMOTION_TO_MAKUUCHI',
     };
   }
-  if (!promotionByQuotaBlocked && num <= 3 && wins >= 12) {
-    const mNumber = clamp(14 - (wins - 12), 10, LIMITS.MAEGASHIRA_MAX);
+  if (!promotionByQuotaBlocked && num <= 4 && wins >= 11) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
     return {
       nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
       event: 'PROMOTION_TO_MAKUUCHI',
     };
   }
-  if (!promotionByQuotaBlocked && num <= 6 && wins >= 13) {
+  if (!promotionByQuotaBlocked && num <= 7 && wins >= 12) {
     return {
-      nextRank: { division: 'Makuuchi', name: '前頭', number: 12, side: 'East' },
+      nextRank: {
+        division: 'Makuuchi',
+        name: '前頭',
+        number: resolveMakuuchiPromotionLandingNumber(num, wins),
+        side: 'East',
+      },
       event: 'PROMOTION_TO_MAKUUCHI',
     };
   }
@@ -479,10 +489,9 @@ const calculateJuryoChange = (
     options?.sekitoriQuota?.canDemoteToMakushita === true &&
     losses > wins;
   if ((shouldDemote || forcedByQuota) && !demotionByQuotaBlocked) {
-    const makekoshi = Math.max(0, losses - wins);
-    const rankRisk = Math.max(0, num - 10);
-    const severity = Math.max(0, Math.round(Math.pow(makekoshi, 1.15)) - 1);
-    const mkNumber = clamp(1 + rankRisk + severity, 1, LIMITS.MAKUSHITA_MAX);
+    const mkNumber = resolveMaxMakushitaDemotionNumber(num, wins, losses, {
+      fullAbsence: record.absent >= 15,
+    });
     return {
       nextRank: { division: 'Makushita', name: '幕下', number: mkNumber, side: 'East' },
       event: 'DEMOTION_TO_MAKUSHITA',
@@ -520,13 +529,39 @@ const normalizeBoundaryAssignedRank = (
     const losses = totalLosses(currentRecord);
     const diff = scoreDiff(currentRecord);
     const calibrated = calculateJuryoChange(currentRecord, wins, losses, diff, options, rng).nextRank;
+    const cappedNumber = resolveMaxMakushitaDemotionNumber(
+      currentRecord.rank.number ?? LIMITS.JURYO_MAX,
+      wins,
+      losses,
+      { fullAbsence: currentRecord.absent >= 15 },
+    );
     if (calibrated.division === 'Makushita') {
       return {
         ...assignedRank,
-        number: Math.min(assignedRank.number ?? LIMITS.MAKUSHITA_MAX, calibrated.number ?? LIMITS.MAKUSHITA_MAX),
+        number: Math.min(
+          assignedRank.number ?? LIMITS.MAKUSHITA_MAX,
+          calibrated.number ?? LIMITS.MAKUSHITA_MAX,
+          cappedNumber,
+        ),
         side: 'East',
       };
     }
+    return {
+      ...assignedRank,
+      number: Math.min(assignedRank.number ?? LIMITS.MAKUSHITA_MAX, cappedNumber),
+      side: 'East',
+    };
+  }
+  if (currentRecord.rank.division === 'Makushita' && assignedRank.division === 'Juryo') {
+    const minJuryoNumber = resolveMinJuryoPromotionNumber(
+      currentRecord.rank.number ?? LIMITS.MAKUSHITA_MAX,
+      currentRecord.wins,
+    );
+    return {
+      ...assignedRank,
+      number: Math.max(assignedRank.number ?? 1, minJuryoNumber),
+      side: 'East',
+    };
   }
   return assignedRank;
 };

@@ -1,0 +1,178 @@
+import fs from 'fs';
+import path from 'path';
+import { TestCase, TestModule } from '../types';
+
+const ROOT_DIR = process.cwd();
+const CAREER_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'career_calibration_1965plus.json');
+const BANZUKE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'banzuke_calibration_heisei.json');
+const BUNDLE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'calibration_bundle.json');
+const SUMMARY_PATH = path.join(ROOT_DIR, 'docs', 'balance', 'calibration-targets.md');
+const COLLECTION_REPORT_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'heisei_collection_report.json');
+
+const assert = {
+  ok(condition: unknown, message: string): void {
+    if (!condition) {
+      throw new Error(message);
+    }
+  },
+  equal<T>(actual: T, expected: T, message?: string): void {
+    if (actual !== expected) {
+      throw new Error(message ?? `Expected ${String(expected)} but got ${String(actual)}`);
+    }
+  },
+};
+
+const readJson = <T>(filePath: string): T => {
+  assert.ok(fs.existsSync(filePath), `Missing file: ${filePath}`);
+  return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+};
+
+type CareerCalibration = {
+  meta: { sampleSize: number; minDebutYear: number; source: string; era: string; generatedAt: string; cohort?: string };
+  rankRates: Record<string, number>;
+  careerLength: { mean: number; p10: number; p50: number; p90: number };
+  careerWinRate: { mean: number; median: number; bucketRates: Record<string, number> };
+  distributionBuckets: {
+    highestRank: Record<string, number>;
+    careerBasho: Record<string, number>;
+    careerWinRate: Record<string, number>;
+  };
+  longTailSignals: { lowWinLongCareerRate: number };
+};
+
+type BanzukeCalibration = {
+  meta: {
+    sampleSize: number;
+    bashoCount: number;
+    source: string;
+    era: string;
+    divisionScope: string[];
+    note?: string;
+  };
+  divisionMovementQuantiles: Record<
+    string,
+    Record<string, { sampleSize: number; p10Rank: number; p50Rank: number; p90Rank: number } | null>
+  >;
+  boundaryExchangeRates: Record<string, { sampleSize: number; count: number; rate: number }>;
+  recordBucketRules: {
+    supported: boolean;
+    reason: string;
+    fallbackComparisonKeys: string[];
+  };
+};
+
+type CalibrationBundle = {
+  meta?: {
+    cohort: string;
+    includedCount: number;
+    excludedCount: number;
+    pendingCount: number;
+    stabilityStatus: { recommendedStopReason: string };
+  };
+  career: CareerCalibration;
+  banzuke: BanzukeCalibration;
+};
+
+type CollectionReport = {
+  counts: {
+    includedCount: number;
+    excludedCount: number;
+    pendingCount: number;
+  };
+  stabilityStatus: {
+    recommendedStopReason: string;
+  };
+};
+
+const cases: TestCase[] = [
+  {
+    name: 'calibration: calibration bundle is loadable and consistent',
+    run: () => {
+      const career = readJson<CareerCalibration>(CAREER_PATH);
+      const banzuke = readJson<BanzukeCalibration>(BANZUKE_PATH);
+      const bundle = readJson<CalibrationBundle>(BUNDLE_PATH);
+
+      assert.equal(bundle.career.meta.sampleSize, career.meta.sampleSize);
+      assert.equal(bundle.banzuke.meta.bashoCount, banzuke.meta.bashoCount);
+      assert.equal(career.meta.minDebutYear, 1989);
+      assert.equal(career.meta.source, 'rikishi_summary');
+      assert.equal(banzuke.meta.source, 'rank_movement');
+      assert.equal(career.meta.era, 'heisei_debut');
+      assert.equal(career.meta.cohort, 'heisei_debut');
+      assert.ok(career.meta.sampleSize > 0, 'Expected career calibration sample size > 0');
+      assert.ok(banzuke.meta.sampleSize > 0, 'Expected banzuke calibration sample size > 0');
+      assert.ok(Array.isArray(banzuke.meta.divisionScope) && banzuke.meta.divisionScope.length === 3, 'Expected 3 scoped divisions');
+      assert.equal(bundle.meta?.cohort, 'heisei_debut');
+    },
+  },
+  {
+    name: 'calibration: career rates stay internally coherent',
+    run: () => {
+      const career = readJson<CareerCalibration>(CAREER_PATH);
+      assert.ok(career.rankRates.yokozunaRate <= career.rankRates.sanyakuRate, 'Yokozuna rate must not exceed sanyaku rate');
+      assert.ok(career.rankRates.sanyakuRate <= career.rankRates.makuuchiRate, 'Sanyaku rate must not exceed makuuchi rate');
+      assert.ok(career.rankRates.makuuchiRate <= career.rankRates.sekitoriRate, 'Makuuchi rate must not exceed sekitori rate');
+      assert.ok(career.careerLength.p10 <= career.careerLength.p50, 'Career length p10 must be <= p50');
+      assert.ok(career.careerLength.p50 <= career.careerLength.p90, 'Career length p50 must be <= p90');
+      assert.ok(career.careerWinRate.mean >= 0 && career.careerWinRate.mean <= 1, 'Career win rate mean must be a rate');
+      assert.ok(career.careerWinRate.median >= 0 && career.careerWinRate.median <= 1, 'Career win rate median must be a rate');
+      assert.ok(career.longTailSignals.lowWinLongCareerRate >= 0, 'Expected low-win-long-career rate >= 0');
+    },
+  },
+  {
+    name: 'calibration: banzuke fallback mode is explicit',
+    run: () => {
+      const banzuke = readJson<BanzukeCalibration>(BANZUKE_PATH);
+      assert.equal(banzuke.recordBucketRules.supported, false);
+      assert.ok(
+        banzuke.recordBucketRules.reason.includes('per-basho'),
+        'Expected fallback reason to mention missing per-basho records',
+      );
+      assert.ok(
+        banzuke.recordBucketRules.fallbackComparisonKeys.includes('MakuuchiStayed'),
+        'Expected fallback keys to include MakuuchiStayed',
+      );
+      assert.ok(
+        banzuke.recordBucketRules.fallbackComparisonKeys.includes('JuryoToMakuuchi'),
+        'Expected fallback keys to include JuryoToMakuuchi',
+      );
+      assert.ok(
+        (banzuke.divisionMovementQuantiles.Makuuchi?.stayed?.sampleSize ?? 0) > 0,
+        'Expected Makuuchi stayed calibration sample',
+      );
+      assert.ok(
+        (banzuke.divisionMovementQuantiles.Juryo?.promoted?.sampleSize ?? 0) > 0,
+        'Expected Juryo promoted calibration sample',
+      );
+    },
+  },
+  {
+    name: 'calibration: summary markdown reflects bundle metadata',
+    run: () => {
+      const bundle = readJson<CalibrationBundle>(BUNDLE_PATH);
+      assert.ok(fs.existsSync(SUMMARY_PATH), `Missing file: ${SUMMARY_PATH}`);
+      const summary = fs.readFileSync(SUMMARY_PATH, 'utf8');
+      assert.ok(summary.includes('# 校正データサマリー'), 'Expected summary title');
+      assert.ok(summary.includes(bundle.career.meta.source), 'Expected career source in summary');
+      assert.ok(summary.includes(bundle.banzuke.meta.era), 'Expected banzuke era in summary');
+      assert.ok(summary.includes('record bucket support'), 'Expected record bucket support section');
+      assert.ok(summary.includes(bundle.banzuke.recordBucketRules.reason), 'Expected fallback reason in summary');
+    },
+  },
+  {
+    name: 'calibration: heisei collection report matches bundle meta',
+    run: () => {
+      const bundle = readJson<CalibrationBundle>(BUNDLE_PATH);
+      const report = readJson<CollectionReport>(COLLECTION_REPORT_PATH);
+      assert.equal(bundle.meta?.includedCount, report.counts.includedCount);
+      assert.equal(bundle.meta?.excludedCount, report.counts.excludedCount);
+      assert.equal(bundle.meta?.pendingCount, report.counts.pendingCount);
+      assert.equal(bundle.meta?.stabilityStatus.recommendedStopReason, report.stabilityStatus.recommendedStopReason);
+    },
+  },
+];
+
+export const calibrationTestModule: TestModule = {
+  id: 'calibration',
+  cases,
+};

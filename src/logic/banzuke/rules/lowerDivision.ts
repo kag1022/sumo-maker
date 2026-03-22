@@ -56,69 +56,44 @@ const randomIntInclusive = (rng: RandomSource, min: number, max: number): number
   return min + Math.floor(rng() * (max - min + 1));
 };
 
-const MAKUSHITA_BAND_SPREAD_MULTIPLIER = 1.5;
-
-const stretchBandFromCurrent = (
-  currentNum: number,
-  band: { min: number; max: number },
-  multiplier: number,
-): { min: number; max: number } => {
-  const deltaMin = band.min - currentNum;
-  const deltaMax = band.max - currentNum;
-  const scaledMin = currentNum + Math.round(deltaMin * multiplier);
-  const scaledMax = currentNum + Math.round(deltaMax * multiplier);
-  return {
-    min: Math.min(scaledMin, scaledMax),
-    max: Math.max(scaledMin, scaledMax),
-  };
-};
-
 const resolveMakushitaTargetBand = (
   currentNum: number,
   wins: number,
   totalLosses: number,
 ): { min: number; max: number } => {
-  const baseBand = (() => {
   if (wins === 7) {
-      if (currentNum <= 10) return { min: 1, max: 3 };
-      if (currentNum <= 20) return { min: 2, max: 6 };
-      if (currentNum <= 35) return { min: 3, max: 8 };
-      return { min: 5, max: 12 };
-    }
-    if (wins === 6) {
-      if (currentNum <= 12) return { min: 2, max: 6 };
-      if (currentNum <= 25) return { min: 3, max: 8 };
-      if (currentNum <= 40) return { min: 4, max: 10 };
-      return { min: 6, max: 14 };
-    }
-    if (wins === 5) {
-      if (currentNum <= 15) return { min: 6, max: 12 };
-      if (currentNum <= 30) return { min: 8, max: 16 };
-      if (currentNum <= 45) return { min: 10, max: 20 };
-      return { min: 14, max: 28 };
-    }
-    if (wins === 4) {
-      return { min: currentNum - 6, max: currentNum - 3 };
-    }
-    if (wins === 3) {
-      return { min: currentNum + 4, max: currentNum + 8 };
-    }
-    if (wins === 2) {
-      const deficitBoost = Math.max(0, totalLosses - wins);
-      return { min: currentNum + 10 + deficitBoost, max: currentNum + 18 + deficitBoost };
-    }
-    if (wins === 1) {
-      const deficitBoost = Math.max(0, totalLosses - wins);
-      return { min: currentNum + 18 + deficitBoost, max: currentNum + 30 + deficitBoost };
-    }
-    return { min: currentNum + 28, max: currentNum + 42 };
-  })();
-
-  return stretchBandFromCurrent(
-    currentNum,
-    baseBand,
-    MAKUSHITA_BAND_SPREAD_MULTIPLIER,
-  );
+    if (currentNum <= 5) return { min: 1, max: 2 };
+    if (currentNum <= 15) return { min: 1, max: 4 };
+    if (currentNum <= 30) return { min: Math.max(1, currentNum - 14), max: Math.max(3, currentNum - 9) };
+    return { min: Math.max(4, currentNum - 18), max: Math.max(10, currentNum - 12) };
+  }
+  if (wins === 6) {
+    if (currentNum <= 8) return { min: 2, max: 5 };
+    if (currentNum <= 20) return { min: Math.max(2, currentNum - 8), max: Math.max(5, currentNum - 5) };
+    if (currentNum <= 35) return { min: Math.max(4, currentNum - 12), max: Math.max(8, currentNum - 8) };
+    return { min: Math.max(9, currentNum - 14), max: Math.max(13, currentNum - 9) };
+  }
+  if (wins === 5) {
+    if (currentNum <= 10) return { min: Math.max(2, currentNum - 4), max: Math.max(4, currentNum - 2) };
+    if (currentNum <= 25) return { min: Math.max(4, currentNum - 6), max: Math.max(8, currentNum - 4) };
+    if (currentNum <= 40) return { min: Math.max(7, currentNum - 8), max: Math.max(12, currentNum - 5) };
+    return { min: Math.max(11, currentNum - 8), max: Math.max(17, currentNum - 4) };
+  }
+  if (wins === 4) {
+    return { min: Math.max(1, currentNum - 2), max: Math.max(1, currentNum - 1) };
+  }
+  if (wins === 3) {
+    return { min: currentNum + 1, max: currentNum + 4 };
+  }
+  if (wins === 2) {
+    const deficitBoost = Math.max(0, totalLosses - wins);
+    return { min: currentNum + 6 + deficitBoost, max: currentNum + 12 + deficitBoost };
+  }
+  if (wins === 1) {
+    const deficitBoost = Math.max(0, totalLosses - wins);
+    return { min: currentNum + 10 + deficitBoost, max: currentNum + 18 + deficitBoost };
+  }
+  return { min: currentNum + 16, max: currentNum + 28 };
 };
 
 const resolveMakushitaDeltaByScore = (

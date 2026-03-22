@@ -2,7 +2,7 @@ import { RikishiStatus, Oyakata, Injury, BashoRecord } from './models';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
-import { getRetirementSpiritReason } from './phaseA';
+import { getRetirementSpiritReason } from './careerNarrative';
 import {
     computeConsecutiveAbsenceStreak,
     computeConsecutiveMakekoshiStreak,
@@ -114,6 +114,7 @@ export const applyGrowth = (
     const aptitudeGrowthFactor = resolveGrowthFactor(currentStatus);
     const stagnationPenalty = resolveStagnationPenalty(currentStatus.stagnation);
     const careerBandBias = resolveCareerBandBias(currentStatus.careerBand);
+    const seedBiases = currentStatus.careerSeed?.biases;
 
     // --- 1. 怪我の回復・進行処理 ---
     let maxSeverity = 0;
@@ -132,6 +133,9 @@ export const applyGrowth = (
         }
         if (stableTraining) {
             recovery = Math.max(1, Math.round(recovery * stableTraining.recoveryRateMultiplier));
+        }
+        if (seedBiases) {
+            recovery = Math.max(1, Math.round(recovery * Math.max(0.85, 1 + seedBiases.reboundBias * 0.05)));
         }
 
         // 慢性以外は回復
@@ -158,6 +162,9 @@ export const applyGrowth = (
                 }
                 if (stableTraining) {
                     chronicChance *= 1 - (stableTraining.chronicResistanceBonus / 200);
+                }
+                if (seedBiases) {
+                    chronicChance *= Math.max(0.72, 1 - seedBiases.durabilityBias * 0.08 + seedBiases.injuryRiskBias * 0.12);
                 }
                 if (rng() < chronicChance) {
                     injury.status = 'CHRONIC';
@@ -193,6 +200,12 @@ export const applyGrowth = (
         params.peakStart = Math.round(genome.growth.maturationAge - genome.growth.peakLength * 0.3);
         params.peakEnd = Math.round(genome.growth.maturationAge + genome.growth.peakLength * 0.7);
         params.decayStart = params.peakEnd + 1;
+    }
+    if (seedBiases) {
+        params.peakStart += Math.round(seedBiases.peakAgeShift);
+        params.peakEnd += Math.round(seedBiases.peakAgeShift + seedBiases.peakDurationBias);
+        params.decayStart += Math.round(seedBiases.peakAgeShift + seedBiases.peakDurationBias);
+        params.growthRate *= Math.max(0.75, 1 + seedBiases.earlyGrowthBias * 0.08);
     }
 
     // 【鉄人】: 衰退開始を+3年遅らせる
@@ -294,6 +307,9 @@ export const applyGrowth = (
         if (growthRate > 0 && stableTraining) {
             delta *= stableTraining.growth8[statName] ?? 1.0;
         }
+        if (growthRate > 0 && seedBiases) {
+            delta *= Math.max(0.82, 1 + seedBiases.styleBias * 0.03 + seedBiases.earlyGrowthBias * 0.02);
+        }
 
         // --- 体格補正 ---
         if (growthRate > 0) {
@@ -366,19 +382,33 @@ export const applyGrowth = (
     // 耐久力変動
     let durability = currentStatus.durability;
     if (age > 30) durability -= 1;
+    if (seedBiases) durability += seedBiases.durabilityBias * 0.6;
 
     const bodyMetrics = { ...currentStatus.bodyMetrics };
-    const targetHeight = currentStatus.buildSummary?.heightPotentialCm ?? bodyMetrics.heightCm;
-    const baselineWeight = currentStatus.buildSummary?.weightPotentialKg ?? bodyMetrics.weightKg;
+    const targetHeight =
+        currentStatus.careerSeed?.peakHeightCm ??
+        currentStatus.buildSummary?.heightPotentialCm ??
+        bodyMetrics.heightCm;
+    const baselineWeight =
+        currentStatus.careerSeed?.peakWeightKg ??
+        currentStatus.buildSummary?.weightPotentialKg ??
+        bodyMetrics.weightKg;
     if (age <= 23 && bodyMetrics.heightCm < targetHeight) {
-        bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + 0.2 + Math.max(0, (23 - age) * 0.04));
+        const heightGrowthBias = seedBiases ? Math.max(0.85, 1 + seedBiases.earlyGrowthBias * 0.05) : 1;
+        bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + (0.2 + Math.max(0, (23 - age) * 0.04)) * heightGrowthBias);
     }
     growthRate *= aptitudeGrowthFactor;
     if (growthRate > 0) {
         growthRate *= stagnationPenalty.growthPenalty;
         growthRate += careerBandBias.growthBias;
+        if (seedBiases) {
+            growthRate *= Math.max(0.8, 1 + seedBiases.earlyGrowthBias * 0.08 - seedBiases.volatilityBias * 0.03);
+        }
     } else {
         growthRate *= 1 + Math.max(0, stagnationPenalty.formPenalty * 0.15);
+        if (seedBiases) {
+            growthRate *= Math.max(0.8, 1 - seedBiases.slumpResistanceBias * 0.05);
+        }
     }
     bodyMetrics.weightKg = resolveWeightForNextBasho({
         currentWeightKg: bodyMetrics.weightKg,
@@ -451,6 +481,7 @@ export const checkRetirement = (
         careerWinRate,
         stagnationPressure: status.stagnation?.pressure ?? 0,
         careerBand: status.careerBand,
+        careerSeedBiases: status.careerSeed?.biases,
     });
 
     if (chance > 0 && rng() < chance) {

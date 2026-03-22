@@ -60,6 +60,15 @@ const resolveSymbolColor = (bout: PlayerBoutDetail | null): string => {
   return "text-sumi-light";
 };
 
+const resolveOpponentLabel = (bout: PlayerBoutDetail | null): string => {
+  if (!bout) return "";
+  if (bout.opponentShikona) return bout.opponentShikona;
+  if (bout.result === "ABSENT") return "休場で取組なし";
+  if (bout.result === "WIN" && bout.kimarite === "不戦勝") return "不戦勝";
+  if (bout.result === "LOSS" && bout.kimarite === "不戦敗") return "不戦敗";
+  return "記録未詳";
+};
+
 export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }> = ({
   careerRecords,
   shikona,
@@ -178,7 +187,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                       const tooltipId = `${rowKey}-${dayIndex + 1}`;
                       const showTooltip = activeTooltipId === tooltipId && Boolean(bout);
                       const symbol = resolveSymbol(bout);
-                      const opponent = bout?.opponentShikona ?? "";
+                      const opponent = resolveOpponentLabel(bout);
                       const kimarite = bout?.kimarite ?? "-";
 
                       return (

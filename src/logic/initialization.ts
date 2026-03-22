@@ -240,6 +240,7 @@ export const createInitialRikishi = (
       kimariteTotal: {},
       bodyTimeline: [],
       highlightEvents: [],
+      careerTurningPoints: [],
       realismKpi: {
         careerWinRate: 0.5,
         stagnationPressure: 0,

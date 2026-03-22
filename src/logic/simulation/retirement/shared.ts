@@ -1,4 +1,4 @@
-import { BashoRecord, CareerBand, Division, RetirementProfile } from '../../models';
+import { BashoRecord, CareerBand, CareerSeedBiases, Division, RetirementProfile } from '../../models';
 
 const TOP_DIVISIONS: Division[] = ['Makuuchi', 'Juryo'];
 type RetirementHazardGroup =
@@ -21,27 +21,27 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
 const RETIREMENT_HAZARD = {
-  baseChance: 0.002,
+  baseChance: 0.001,
   chanceMax: 0.92,
   earlyCareerGuard: {
-    minCareerBasho: 36,
-    maxAgeExclusive: 30,
+    minCareerBasho: 40,
+    maxAgeExclusive: 31,
   },
   ageByGroup: {
     NON_SEKITORI: [
-      { startAge: 23, slope: 0.003 },
-      { startAge: 29, slope: 0.0075 },
-      { startAge: 34, slope: 0.014 },
+      { startAge: 24, slope: 0.002 },
+      { startAge: 30, slope: 0.0055 },
+      { startAge: 35, slope: 0.01 },
     ] as AgeHazardTier[],
     ACTIVE_SEKITORI: [
-      { startAge: 29, slope: 0.002 },
-      { startAge: 34, slope: 0.006 },
-      { startAge: 39, slope: 0.011 },
+      { startAge: 30, slope: 0.0016 },
+      { startAge: 35, slope: 0.0048 },
+      { startAge: 39, slope: 0.009 },
     ] as AgeHazardTier[],
     FORMER_SEKITORI_LOWER: [
-      { startAge: 30, slope: 0.0035 },
-      { startAge: 35, slope: 0.007 },
-      { startAge: 39, slope: 0.0125 },
+      { startAge: 31, slope: 0.0028 },
+      { startAge: 36, slope: 0.0058 },
+      { startAge: 40, slope: 0.0105 },
     ] as AgeHazardTier[],
   },
   injury: {
@@ -51,36 +51,36 @@ const RETIREMENT_HAZARD = {
   },
   absence: {
     start: 4,
-    base: 0.035,
-    perAdditional: 0.02,
+    base: 0.028,
+    perAdditional: 0.014,
   },
   makekoshiByGroup: {
-    NON_SEKITORI: { start: 4, base: 0.015, perAdditional: 0.01 } as StreakHazard,
-    ACTIVE_SEKITORI: { start: 6, base: 0.008, perAdditional: 0.006 } as StreakHazard,
-    FORMER_SEKITORI_LOWER: { start: 6, base: 0.008, perAdditional: 0.006 } as StreakHazard,
+    NON_SEKITORI: { start: 4, base: 0.011, perAdditional: 0.007 } as StreakHazard,
+    ACTIVE_SEKITORI: { start: 6, base: 0.006, perAdditional: 0.004 } as StreakHazard,
+    FORMER_SEKITORI_LOWER: { start: 6, base: 0.006, perAdditional: 0.004 } as StreakHazard,
   },
   formerSekitoriDrop: {
-    base: 0.003,
-    ageStart: 35,
-    ageScale: 0.0025,
+    base: 0.002,
+    ageStart: 36,
+    ageScale: 0.0018,
   },
   nonSekitoriLowerDivisionPenalty: {
-    makushita: 0.001,
-    lower: 0.003,
+    makushita: 0.0004,
+    lower: 0.0009,
   },
   nonSekitoriLongCareer: [
-    { minCareerBasho: 120, bonus: 0.005 },
-    { minCareerBasho: 180, bonus: 0.011 },
+    { minCareerBasho: 120, bonus: 0.01 },
+    { minCareerBasho: 180, bonus: 0.02 },
   ],
   formerSekitoriLosingProtection: {
     minCareerBasho: 100,
     maxWinRateExclusive: 0.5,
-    multiplier: 0.78,
+    multiplier: 0.9,
   },
   ironmanLosingProtection: {
     minCareerBasho: 100,
     maxWinRateExclusive: 0.5,
-    multiplier: 0.45,
+    multiplier: 0.7,
   },
 } as const;
 
@@ -130,7 +130,7 @@ export const resolveRetirementProfileBias = (profile?: RetirementProfile): numbe
 };
 
 export const clampRetirementBias = (retirementBias?: number): number =>
-  clamp(retirementBias ?? 1, 0.72, 1.08);
+  clamp(retirementBias ?? 1, 0.78, 1.22);
 
 export const computeConsecutiveAbsenceStreak = (
   records: BashoRecord[],
@@ -176,6 +176,7 @@ export interface RetirementChanceInput {
   careerWinRate: number;
   stagnationPressure?: number;
   careerBand?: CareerBand;
+  careerSeedBiases?: CareerSeedBiases;
 }
 
 export const resolveRetirementChance = (input: RetirementChanceInput): number => {
@@ -192,6 +193,7 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
     careerWinRate,
     stagnationPressure,
     careerBand,
+    careerSeedBiases,
   } = input;
 
   if (age >= 50) return 1;
@@ -237,9 +239,9 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
   if (!isCurrentSekitori) {
     chance += Math.max(0, (stagnationPressure ?? 0) - 1.8) * 0.02;
     if (careerBand === 'GRINDER') {
-      chance *= 0.6;
+      chance *= careerBashoCount < 80 ? 1.06 : 1.16;
     } else if (careerBand === 'WASHOUT') {
-      chance *= careerBashoCount < 90 ? 0.52 : 0.78;
+      chance *= careerBashoCount < 90 ? 1.22 : 1.1;
     }
   }
 
@@ -252,6 +254,16 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
   }
 
   let resolved = chance * resolveRetirementProfileBias(profile) * clampRetirementBias(retirementBias);
+  if (careerSeedBiases) {
+    resolved *= clamp(
+      1
+        - careerSeedBiases.reboundBias * 0.04
+        - careerSeedBiases.slumpResistanceBias * 0.03
+        + careerSeedBiases.socialPressureBias * 0.04,
+      0.7,
+      1.25,
+    );
+  }
   if (
     isFormerSekitori &&
     careerBashoCount >= RETIREMENT_HAZARD.formerSekitoriLosingProtection.minCareerBasho &&
