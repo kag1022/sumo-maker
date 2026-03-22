@@ -31,15 +31,14 @@ const evaluateCore = (
   const score = currentScore + prevScore;
   const minEquivalent = BALANCE.yokozuna.yushoEquivalentMinScore;
   const hasEquivalent = currentScore >= minEquivalent && prevScore >= minEquivalent;
-  const prevYushoEquivalent = Boolean(
-    prev.yusho || prev.junYusho || prevScore >= minEquivalent,
-  );
+  // 横綱昇進は「ただの13勝」ではなく、前場所も優勝争いの中心だったことを要求する。
+  const prevYushoEquivalent = Boolean(prev.yusho || prev.junYusho);
   const hasYushoPair = Boolean(current.yusho && prevYushoEquivalent);
   const hasRealisticTotal = score >= BALANCE.yokozuna.yushoEquivalentTotalMinScore;
   const promote = hasEquivalent && hasYushoPair && hasRealisticTotal;
   if (promote) return { promote: true, bonus: 28, score };
-  if (current.yusho && score >= 27) return { promote: false, bonus: 14, score };
-  if (current.yusho) return { promote: false, bonus: 8, score };
+  if (current.yusho && score >= 28) return { promote: false, bonus: 10, score };
+  if (current.yusho) return { promote: false, bonus: 4, score };
   return { promote: false, bonus: 0, score };
 };
 

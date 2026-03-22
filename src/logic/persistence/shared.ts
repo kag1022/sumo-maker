@@ -49,12 +49,13 @@ import {
 } from '../kimarite/catalog';
 import { deriveOyakataProfile } from '../oyakata/profile';
 import { ensureKataProfile, resolveKataDisplay } from '../style/kata';
+import { buildCareerRivalryDigest } from '../careerRivalry';
 import {
   createUnlockedOyakataBlueprint,
-  ensurePhaseAStatus,
-  resolvePhaseARewardPoints,
   STARTER_OYAKATA_BLUEPRINTS,
-} from '../phaseA';
+  resolveCareerRecordRewardPoints,
+} from '../careerSeed';
+import { ensureCareerRecordStatus, withRivalSummary } from '../careerNarrative';
 
 const MAX_SHELVED_CAREERS = 200;
 const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT', 'RECORD'];
@@ -69,6 +70,23 @@ const normalizeBanzukeDecisionLog = (log: BanzukeDecisionLog): BanzukeDecisionLo
 
 const toYearMonth = (year: number, month: number): string =>
   `${year}-${String(month).padStart(2, '0')}`;
+
+const enrichStatusWithPersistenceNarratives = async (
+  careerId: string,
+  status: RikishiStatus,
+): Promise<RikishiStatus> => {
+  const [headToHeadRows, boutsByBasho, bashoRowsBySeq] = await Promise.all([
+    getCareerHeadToHead(careerId),
+    listCareerPlayerBoutsByBasho(careerId),
+    listCareerBashoRecordsBySeq(careerId),
+  ]);
+  const rivalryDigest = buildCareerRivalryDigest(status, headToHeadRows, boutsByBasho, bashoRowsBySeq);
+  const enriched = withRivalSummary(status, headToHeadRows);
+  return {
+    ...enriched,
+    careerRivalryDigest: rivalryDigest,
+  };
+};
 
 const resolveRetirementYearMonth = (status?: RikishiStatus): string | null => {
   if (!status) return null;
@@ -90,7 +108,7 @@ const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => {
     totalAbsent: status.history.totalAbsent,
     yushoCount: status.history.yushoCount,
     bashoCount: status.history.records.length,
-    finalStatus: ensurePhaseAStatus(status),
+    finalStatus: ensureCareerRecordStatus(status),
     clearScore: scoreSummary.clearScore,
     clearScoreVersion: scoreSummary.version,
     recordBadgeKeys: scoreSummary.badges.map((badge) => badge.key),
@@ -533,6 +551,17 @@ export interface CareerImportantTorikumiByBasho {
   notes: ImportantTorikumiRow[];
 }
 
+export interface CareerBashoDetail {
+  bashoSeq: number;
+  year: number;
+  month: number;
+  playerRecord?: BashoRecordRow;
+  rows: BashoRecordRow[];
+  bouts: PlayerBoutDetail[];
+  importantTorikumi: ImportantTorikumiRow[];
+  banzukeDecisions: BanzukeDecisionLog[];
+}
+
 export const createDraftCareer = async ({
   id,
   initialStatus,
@@ -575,7 +604,7 @@ export const createDraftCareer = async ({
     parentCareerId,
     generation,
     careerIndex: nextCareerIndex,
-    finalStatus: initialSummary.finalStatus ?? ensurePhaseAStatus(initialStatus),
+    finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
     clearScore: initialSummary.clearScore,
     clearScoreVersion: initialSummary.clearScoreVersion,
     recordBadgeKeys: initialSummary.recordBadgeKeys,
@@ -674,10 +703,10 @@ export const appendBashoChunk = async ({
 export const markCareerCompleted = async (
   careerId: string,
   finalStatus: RikishiStatus,
-): Promise<void> => {
+): Promise<RikishiStatus> => {
   const db = getDb();
   const now = new Date().toISOString();
-  const normalizedStatus = ensurePhaseAStatus(finalStatus);
+  let normalizedStatus = ensureCareerRecordStatus(finalStatus);
   const breakdown = calculateCareerPrizeBreakdown(normalizedStatus);
   const rewardSummary = buildCareerRewardSummary(breakdown);
   normalizedStatus.history.prizeBreakdown = breakdown;
@@ -694,6 +723,12 @@ export const markCareerCompleted = async (
     pointConversionRuleId: rewardSummary.conversionRuleId,
     rewardGrantedAt: undefined,
   });
+  normalizedStatus = await enrichStatusWithPersistenceNarratives(careerId, normalizedStatus);
+  await db.careers.update(careerId, {
+    finalStatus: normalizedStatus,
+    ...toSummaryPatch(normalizedStatus),
+  });
+  return normalizedStatus;
 };
 
 export const shelveCareer = async (careerId: string): Promise<void> => {
@@ -725,7 +760,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
     if (finalStatus?.history.prizeBreakdown) {
       const rewardSummary = buildCareerRewardSummary(finalStatus.history.prizeBreakdown);
       const existingReward = await db.careerRewardLedger.get(careerId);
-      const grantedPoints = resolvePhaseARewardPoints(rewardSummary.awardedPoints);
+      const grantedPoints = resolveCareerRecordRewardPoints(rewardSummary.awardedPoints);
       if (!existingReward && grantedPoints > 0) {
         const grantedAt = new Date().toISOString();
         await addWalletPoints(grantedPoints, 'CAREER_PRIZE_REWARD', careerId);
@@ -795,7 +830,12 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
 
   const career = await db.careers.get(careerId);
   if (career?.finalStatus) {
-    const collectionDeltaCount = await unlockCollectionsForStatus(careerId, career.finalStatus, true);
+    const enrichedFinalStatus = await enrichStatusWithPersistenceNarratives(careerId, career.finalStatus);
+    await db.careers.update(careerId, {
+      finalStatus: enrichedFinalStatus,
+      ...toSummaryPatch(enrichedFinalStatus),
+    });
+    const collectionDeltaCount = await unlockCollectionsForStatus(careerId, enrichedFinalStatus, true);
     await db.careers.update(careerId, { collectionDeltaCount });
   }
   await refreshBestScoreRanks();
@@ -1056,7 +1096,9 @@ export const loadCareerStatus = async (careerId: string): Promise<RikishiStatus 
   const db = getDb();
   const row = await db.careers.get(careerId);
   if (!row) return null;
-  return row.finalStatus ? ensurePhaseAStatus(ensureKataProfile(row.finalStatus)) : null;
+  if (!row.finalStatus) return null;
+  const status = ensureCareerRecordStatus(ensureKataProfile(row.finalStatus));
+  return enrichStatusWithPersistenceNarratives(careerId, status);
 };
 
 export const deleteCareer = async (careerId: string): Promise<void> => {
@@ -1154,6 +1196,52 @@ export const listCareerImportantTorikumi = async (
     .where('careerId')
     .equals(careerId)
     .sortBy('[careerId+bashoSeq+day]');
+};
+
+export const getCareerBashoDetail = async (
+  careerId: string,
+  bashoSeq: number,
+): Promise<CareerBashoDetail | null> => {
+  const db = getDb();
+  const [rows, bouts, importantTorikumi, banzukeDecisions] = await Promise.all([
+    db.bashoRecords.where('[careerId+seq]').equals([careerId, bashoSeq]).toArray(),
+    db.boutRecords.where('[careerId+bashoSeq]').equals([careerId, bashoSeq]).sortBy('[careerId+bashoSeq+day]'),
+    db.importantTorikumi
+      .where('[careerId+bashoSeq]')
+      .equals([careerId, bashoSeq])
+      .sortBy('[careerId+bashoSeq+day]'),
+    db.banzukeDecisions.where('[careerId+seq]').equals([careerId, bashoSeq]).toArray(),
+  ]);
+
+  if (!rows.length) return null;
+
+  const sortedRows = rows
+    .slice()
+    .sort((a, b) => a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId));
+  const playerRecord = sortedRows.find((row) => row.entityType === 'PLAYER');
+  const sample = playerRecord ?? sortedRows[0];
+
+  return {
+    bashoSeq,
+    year: sample?.year ?? 0,
+    month: sample?.month ?? 0,
+    playerRecord,
+    rows: sortedRows,
+    bouts: bouts.map((row) => ({
+      day: row.day,
+      result: row.result,
+      kimarite: row.kimarite,
+      opponentId: row.opponentId,
+      opponentShikona: row.opponentShikona,
+      opponentRankName: row.opponentRankName,
+      opponentRankNumber: row.opponentRankNumber,
+      opponentRankSide: row.opponentRankSide,
+    })),
+    importantTorikumi,
+    banzukeDecisions: banzukeDecisions
+      .slice()
+      .sort((a, b) => a.rikishiId.localeCompare(b.rikishiId)),
+  };
 };
 
 export const getCareerHeadToHead = async (careerId: string): Promise<HeadToHeadRow[]> => {

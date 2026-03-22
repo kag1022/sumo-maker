@@ -101,22 +101,22 @@ const toCounts = (buckets: Record<LeagueDivision, PersistentNpc[]>): ReconcileCo
 
 const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
   const intakePressure = clamp(maezumoCount, 0, 120);
-  const jonokuchiMin = clamp(20 + Math.floor(intakePressure * 0.45), 20, 64);
-  const jonidanMin = clamp(120 + Math.floor(intakePressure * 0.9), 120, 280);
+  const jonokuchiMin = clamp(18 + Math.floor(intakePressure * 0.25), 18, 48);
+  const jonidanMin = clamp(120 + Math.floor(intakePressure * 0.55), 120, 240);
 
   return DEFAULT_DIVISION_POLICIES.map((policy) => {
     if (policy.division === 'Jonokuchi' && policy.capacityMode === 'VARIABLE') {
       return {
         ...policy,
         minSlots: jonokuchiMin,
-        softMaxSlots: 64,
+        softMaxSlots: 48,
       };
     }
     if (policy.division === 'Jonidan' && policy.capacityMode === 'VARIABLE') {
       return {
         ...policy,
         minSlots: jonidanMin,
-        softMaxSlots: 320,
+        softMaxSlots: 240,
       };
     }
     return policy;

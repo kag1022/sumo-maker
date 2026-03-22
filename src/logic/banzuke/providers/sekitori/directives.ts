@@ -71,7 +71,7 @@ export const resolveTopDirective = (snapshot: BashoRecordSnapshot): TopDirective
     };
   }
 
-  if (snapshot.rank.name === '小結' && snapshot.wins >= 9) {
+  if (snapshot.rank.name === '小結' && snapshot.wins >= 10) {
     return {
       preferredTopName: '関脇',
       nextIsOzekiKadoban: false,

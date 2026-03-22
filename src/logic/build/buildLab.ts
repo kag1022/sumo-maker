@@ -29,15 +29,17 @@ import { generateShikona } from '../naming/playerNaming';
 import { listStablesByIchimon, resolveStableById } from '../simulation/heya/stableCatalog';
 import {
   AMATEUR_BACKGROUND_CONFIG,
-  buildPhaseABuildSummary,
-  createDesignedStyleProfile,
+  buildCareerSeedSummary,
+  CAREER_DESIGN_STARTING_POINTS,
   DEBT_CARD_POINT_BONUS,
   estimateCareerBandLabel,
-  getStyleCompatibility,
-  PHASE_A_STARTING_POINTS,
   STARTER_OYAKATA_BLUEPRINTS,
+} from '../careerSeed';
+import {
+  createDesignedStyleProfile,
+  getStyleCompatibility,
   styleToTactics,
-} from '../phaseA';
+} from '../styleProfile';
 
 export interface BuildCostBreakdown {
   physical: number;
@@ -777,7 +779,7 @@ export const buildInitialRikishiFromSpec = (
   if (spec.bodyConstitution === 'LONG_REACH') traits.push('LONG_REACH');
   if (spec.bodyConstitution === 'HEAVY_BULK') traits.push('HEAVY_PRESSURE');
   if (spec.debtCards.includes('OLD_KNEE')) traits.push('GLASS_KNEE');
-  const buildSummary = buildPhaseABuildSummary({
+  const buildSummary = buildCareerSeedSummary({
     oyakataName: oyakata.name,
     amateurBackground: spec.amateurBackground,
     bodyConstitution: spec.bodyConstitution,
@@ -785,7 +787,7 @@ export const buildInitialRikishiFromSpec = (
     weightPotentialKg: spec.weightPotentialKg,
     reachDeltaCm: spec.reachDeltaCm,
     spentPoints: cost.total,
-    remainingPoints: PHASE_A_STARTING_POINTS - cost.total,
+    remainingPoints: CAREER_DESIGN_STARTING_POINTS - cost.total,
     debtCount: spec.debtCards.length,
     debtCards: spec.debtCards,
     secretStyle: oyakata.secretStyle,

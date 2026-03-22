@@ -1,6 +1,7 @@
 import {
   AptitudeProfile,
   CareerBand,
+  CareerSeedBiases,
   RealismKpiSnapshot,
   RikishiStatus,
   StagnationState,
@@ -91,8 +92,8 @@ export const resolveStagnationPenalty = (
 ): { growthPenalty: number; formPenalty: number; reboundBoost: number } => {
   const pressure = stagnation?.pressure ?? 0;
   return {
-    growthPenalty: clamp(1 - pressure * 0.16, 0.35, 1),
-    formPenalty: clamp(pressure * 0.24, 0, 1.45),
+    growthPenalty: clamp(1 - pressure * 0.12, 0.45, 1),
+    formPenalty: clamp(pressure * 0.18, 0, 1.15),
     reboundBoost: clamp(stagnation?.reboundBoost ?? 0, 0, 0.18),
   };
 };
@@ -106,6 +107,7 @@ export const updateStagnationState = (
     division: RikishiStatus['rank']['division'];
     promotedToSekitori: boolean;
     careerBand?: CareerBand;
+    temperamentBiases?: CareerSeedBiases;
   },
 ): StagnationState => {
   const next = current ? { ...current } : createDefaultStagnationState();
@@ -113,6 +115,7 @@ export const updateStagnationState = (
   const totalBouts = Math.max(1, input.wins + totalLosses);
   const winRate = input.wins / totalBouts;
   const bandBias = resolveCareerBandBias(input.careerBand).stagnationBias;
+  const temperamentBiases = input.temperamentBiases;
   const lowerDivision =
     input.division === 'Makushita' ||
     input.division === 'Sandanme' ||
@@ -120,20 +123,24 @@ export const updateStagnationState = (
     input.division === 'Jonokuchi';
 
   next.makekoshiStreak = input.wins < totalLosses ? next.makekoshiStreak + 1 : 0;
-  next.lowWinRateStreak = winRate <= 0.43 ? next.lowWinRateStreak + 1 : 0;
+  next.lowWinRateStreak = winRate <= 0.47 ? next.lowWinRateStreak + 1 : 0;
   next.stuckBasho = lowerDivision && !input.promotedToSekitori ? next.stuckBasho + 1 : 0;
   if (input.promotedToSekitori || input.wins >= totalLosses + 2) {
-    next.reboundBoost = clamp((next.reboundBoost ?? 0) + 0.04, 0, 0.18);
+    next.reboundBoost = clamp((next.reboundBoost ?? 0) + 0.04 + (temperamentBiases?.reboundBias ?? 0) * 0.01, 0, 0.22);
   } else {
-    next.reboundBoost = clamp((next.reboundBoost ?? 0) - 0.02, 0, 0.18);
+    next.reboundBoost = clamp((next.reboundBoost ?? 0) - 0.02 + (temperamentBiases?.reboundBias ?? 0) * 0.004, 0, 0.22);
   }
 
-  let pressure = next.pressure * 0.78;
-  if (next.makekoshiStreak >= 2) pressure += 0.52 * bandBias;
-  if (next.lowWinRateStreak >= 2) pressure += 0.42 * bandBias;
-  if (lowerDivision && next.stuckBasho >= 4) pressure += 0.3 * bandBias;
-  if (lowerDivision && input.wins <= 2) pressure += 0.18 * bandBias;
-  if (input.wins >= totalLosses + 2) pressure -= 0.26;
+  let pressure = next.pressure * 0.72;
+  if (next.makekoshiStreak >= 2) pressure += 0.4 * bandBias;
+  if (next.lowWinRateStreak >= 2) pressure += 0.3 * bandBias;
+  if (lowerDivision && next.stuckBasho >= 4) pressure += 0.2 * bandBias;
+  if (lowerDivision && input.wins <= 2) pressure += 0.12 * bandBias;
+  if (temperamentBiases) {
+    pressure += Math.max(0, temperamentBiases.volatilityBias) * 0.05;
+    pressure -= Math.max(0, temperamentBiases.slumpResistanceBias) * 0.06;
+  }
+  if (input.wins >= totalLosses + 2) pressure -= 0.32;
   if (input.promotedToSekitori) pressure -= 0.75;
   next.pressure = clamp(pressure, 0, 4.2);
   if (next.pressure < 0.15) next.pressure = 0;

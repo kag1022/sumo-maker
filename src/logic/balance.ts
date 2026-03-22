@@ -47,8 +47,8 @@ export const BALANCE = {
     boundaryLateDayWeight: 12,
   },
   yokozuna: {
-    yushoEquivalentMinScore: 11.5,
-    yushoEquivalentTotalMinScore: 24.0,
+    yushoEquivalentMinScore: 13.0,
+    yushoEquivalentTotalMinScore: 29.0,
     strictTwoBashoGate: true,
   },
 } as const;

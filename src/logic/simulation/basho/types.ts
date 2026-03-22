@@ -89,7 +89,7 @@ export const buildImportantTorikumiNote = ({
     summary = '関取境界の直接評価として組まれた。';
   } else if (pair.crossDivision) {
     trigger = 'CROSS_DIVISION_EVAL';
-    summary = '異例の越境戦として組まれた。';
+    summary = '越境戦として組まれた。';
   } else if (pair.relaxationStage >= 2 || pair.matchReason === 'FALLBACK') {
     trigger = 'LATE_RELAXATION';
     summary = '制約緩和が深い編成で相手が決まった。';
