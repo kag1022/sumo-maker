@@ -100,9 +100,6 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="panel-title">資料館の蓄積</div>
-            <p className="panel-caption">
-              解放状況を並べるだけでなく、相撲世界の資料として読み返せる棚を目指します。
-            </p>
           </div>
           <Button variant="secondary" size="sm" onClick={onOpenArchive}>
             保存済み記録を開く
@@ -216,9 +213,6 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                     <div className="empty-state min-h-[300px] border-dashed border-gold-muted/10">
                       <BookOpenText className="h-10 w-10 text-gold/20" />
                       <div className="empty-state-title text-text-dim">目録を選択してください</div>
-                      <div className="empty-state-text text-text-faint">
-                        記録や偉業や決まり手を、資料として読み解くことができます。
-                      </div>
                     </div>
                   )}
                 </div>
