@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --ui-brand-ink: #0c121b;
-  --ui-brand-panel: #111927;
-  --ui-brand-raised: #182233;
-  --ui-brand-line: #c49a4d;
-  --ui-brand-line-soft: #3a4658;
-  --ui-action: #4c7bff;
-  --ui-state: #49b97b;
-  --ui-warning: #d26b52;
-  --ui-danger: #d26b52;
-  --ui-award: #c49a4d;
-  --ui-text-main: #f5f0e1; 
-  --ui-text-dark: #f5f0e1;   /* Modern crisp text on dark backgrounds */
-  --ui-text-sub: rgba(245, 240, 225, 0.7);
-  --ui-text-faint: rgba(245, 240, 225, 0.45);
+  --ui-brand-ink: #0b1016;
+  --ui-brand-panel: #121820;
+  --ui-brand-raised: #181f28;
+  --ui-brand-line: #b89b68;
+  --ui-brand-line-soft: #303945;
+  --ui-action: #84a7ff;
+  --ui-state: #58b587;
+  --ui-warning: #cb7a5c;
+  --ui-danger: #cb7a5c;
+  --ui-award: #b89b68;
+  --ui-text-main: #eef2f6;
+  --ui-text-dark: #eef2f6;
+  --ui-text-sub: rgba(238, 242, 246, 0.68);
+  --ui-text-faint: rgba(238, 242, 246, 0.42);
 
   /* 和の伝統色追加 */
   --ui-color-shuiro: #d26b52; /* 朱色 */
@@ -54,9 +54,7 @@
   .slide-in-from-bottom-2 { animation-name: slide-in-from-bottom-2; }
   .zoom-in-95 { animation-name: zoom-in-95; }
   body {
-    background:
-      radial-gradient(circle at top left, rgba(76, 123, 255, 0.08), transparent 40%),
-      linear-gradient(180deg, #0b1018 0%, #0d141e 52%, #080c12 100%);
+    background: linear-gradient(180deg, #0a0f14 0%, #0d131a 100%);
     color: var(--ui-text-main);
     font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -136,8 +134,7 @@
     font-family: "DotGothic16", monospace;
     letter-spacing: 0.1em;
     line-height: 1.4;
-    color: #c49a4d; /* Golden labels */
-    text-shadow: 0 0 4px rgba(196, 154, 77, 0.2);
+    color: rgba(184, 155, 104, 0.88);
   }
   .ui-text-metric {
     font-family: "DotGothic16", monospace;
@@ -156,14 +153,11 @@
 
   /* Premium Neo-Japanese Panels */
   .premium-panel {
-    background: linear-gradient(135deg, rgba(17, 25, 39, 0.92) 0%, rgba(8, 12, 21, 0.98) 100%);
+    background: rgba(16, 22, 30, 0.88);
     color: var(--ui-text-main);
-    border: 1px solid rgba(196, 154, 77, 0.3);
-    box-shadow: 
-      0 0 0 1px rgba(196, 154, 77, 0.1),
-      inset 0 0 30px rgba(0, 0, 0, 0.8),
-      0 20px 50px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
   }
@@ -175,7 +169,451 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(196, 154, 77, 0.6), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  }
+
+  @media (max-width: 1100px) {
+    .analysis-summary,
+    .detail-panel-grid,
+    .era-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .era-side-stack {
+      min-height: auto;
+      grid-template-rows: none;
+    }
+  }
+
+  .analysis-section {
+    background: rgba(14, 19, 26, 0.88);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.015);
+    padding: 1rem;
+  }
+
+  .analysis-header-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 0.9rem;
+  }
+
+  .analysis-section-graph {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .analysis-summary {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    flex: 1;
+  }
+
+  .analysis-actions,
+  .window-controls,
+  .era-controls,
+  .era-navigation,
+  .era-toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+  }
+
+  .analysis-actions {
+    justify-content: flex-end;
+  }
+
+  .analysis-subsection {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .analysis-subsection-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 0.5rem;
+  }
+
+  .analysis-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 0.75rem;
+  }
+
+  .analysis-toolbar-primary {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .analysis-subtitle {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(184, 155, 104, 0.9);
+  }
+
+  .analysis-caption {
+    font-size: 0.75rem;
+    color: rgba(245, 240, 225, 0.5);
+  }
+
+  .analysis-metric {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.85rem 0.95rem;
+  }
+
+  .analysis-header-strip .analysis-metric {
+    background: transparent;
+    border: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 0.85rem 0 0;
+  }
+
+  .analysis-header-strip .analysis-metric:last-child {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .analysis-metric-label {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(184, 155, 104, 0.62);
+  }
+
+  .analysis-metric-value {
+    margin-top: 0.5rem;
+    color: var(--ui-text-main);
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .year-band-strip {
+    display: flex;
+    gap: 0.35rem;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .year-band-chip {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.018);
+    padding: 0.5rem 0.65rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.7rem;
+    color: rgba(245, 240, 225, 0.7);
+    min-width: 0;
+  }
+
+  .year-band-chip[data-active="true"] {
+    background: rgba(184, 155, 104, 0.12);
+    border-color: rgba(184, 155, 104, 0.38);
+    color: rgba(245, 240, 225, 0.95);
+  }
+
+  .year-band-chip[data-selected="true"] {
+    box-shadow: inset 0 0 0 1px rgba(245, 240, 225, 0.28);
+  }
+
+  .trajectory-chart {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 0.8rem;
+    align-items: stretch;
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(8, 12, 18, 0.66);
+    padding: 0.8rem;
+  }
+
+  .trajectory-axis {
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .trajectory-axis-label {
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: rgba(245, 240, 225, 0.66);
+  }
+
+  .trajectory-axis-label-current {
+    color: rgba(226, 186, 110, 0.95);
+  }
+
+  .trajectory-canvas-wrap {
+    overflow-x: auto;
+  }
+
+  .trajectory-canvas {
+    display: block;
+    min-width: 720px;
+    height: 300px;
+    width: 100%;
+  }
+
+  .trajectory-grid-line {
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 1;
+  }
+
+  .trajectory-line-shadow {
+    fill: none;
+    stroke: rgba(0,0,0,0.3);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .trajectory-line {
+    fill: none;
+    stroke: rgba(216, 223, 233, 0.92);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .trajectory-point {
+    cursor: pointer;
+    stroke-width: 2;
+    stroke: rgba(8, 12, 18, 0.85);
+    fill: rgba(112, 123, 141, 0.95);
+  }
+
+  .trajectory-point[data-movement="rise"] { fill: rgba(196, 154, 77, 0.96); }
+  .trajectory-point[data-movement="fall"] { fill: rgba(168, 92, 92, 0.96); }
+  .trajectory-point[data-movement="absence"] { fill: rgba(255, 154, 77, 0.96); }
+  .trajectory-point[data-selected="true"] {
+    stroke: rgba(245, 240, 225, 0.92);
+    filter: drop-shadow(0 0 8px rgba(196,154,77,0.28));
+  }
+
+  .trajectory-event-dot {
+    fill: rgba(154, 208, 255, 0.94);
+  }
+
+  .trajectory-tick {
+    fill: rgba(245, 240, 225, 0.48);
+    font-size: 11px;
+  }
+
+  .detail-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 0.8rem;
+  }
+
+  .detail-panel {
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.016);
+    padding: 0.8rem;
+    min-height: 360px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .detail-panel-summary {
+    min-height: auto;
+  }
+
+  .detail-panel-title,
+  .flat-panel-title {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(184, 155, 104, 0.8);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 0.5rem;
+  }
+
+  .detail-summary-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-table-scroll,
+  .detail-bouts-scroll,
+  .flat-table-scroll {
+    overflow: auto;
+    min-height: 0;
+    max-height: 320px;
+  }
+
+  .detail-table {
+    width: 100%;
+    font-size: 0.78rem;
+    border-collapse: collapse;
+  }
+
+  .detail-table thead {
+    background: rgba(255,255,255,0.03);
+  }
+
+  .detail-table th,
+  .detail-table td {
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .detail-table tbody tr[data-player="true"] {
+    background: rgba(184, 155, 104, 0.09);
+  }
+
+  .table-link-button {
+    color: inherit;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 0.14em;
+  }
+
+  .table-link-button:hover {
+    color: rgba(226, 186, 110, 0.96);
+  }
+
+  .table-rikishi-name[data-player="true"]::before {
+    content: "■";
+    color: #e2ba6e;
+    margin-right: 0.45rem;
+  }
+
+  .detail-bout-row {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 130px;
+    gap: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 0.55rem 0;
+    font-size: 0.78rem;
+  }
+
+  .detail-empty {
+    display: grid;
+    place-items: center;
+    color: rgba(245,240,225,0.42);
+    min-height: 220px;
+    border: 1px dashed rgba(255,255,255,0.08);
+  }
+
+  .flat-panel {
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.016);
+    padding: 0.8rem;
+    min-height: 0;
+  }
+
+  .flat-panel-short {
+    min-height: 280px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .era-layout {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+
+  .era-panel-tall {
+    min-height: 640px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .era-side-stack {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    min-height: 640px;
+  }
+
+  .era-current-label {
+    min-width: 110px;
+    text-align: center;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.8rem;
+    color: rgba(245, 240, 225, 0.88);
+  }
+
+  .career-result-page,
+  .era-stats-page {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+
+  .npc-focus-panel {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .npc-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .npc-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: rgba(245, 240, 225, 0.58);
+    font-size: 0.74rem;
+  }
+
+  .npc-summary-meta span {
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+    padding: 0.35rem 0.5rem;
+  }
+
+  .npc-recent-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .npc-recent-item {
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.016);
+    padding: 0.55rem 0.6rem;
+    display: grid;
+    gap: 0.15rem;
+    font-size: 0.72rem;
+    color: rgba(245, 240, 225, 0.74);
+  }
+
+  .npc-recent-item[data-selected="true"] {
+    border-color: rgba(184, 155, 104, 0.4);
+    background: rgba(184, 155, 104, 0.08);
+  }
+
+  .npc-clear-button {
+    color: rgba(245, 240, 225, 0.6);
+    font-size: 0.74rem;
   }
 
   /* Decorative Corner Ornament (隅金) */

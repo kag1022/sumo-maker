@@ -1,38 +1,35 @@
 import React from "react";
-import { AlertTriangle, BookOpenText, FastForward, Square } from "lucide-react";
-import { AppSection, AppShell } from "./AppShell";
-import { ScoutScreen } from "../features/scout/components/ScoutScreen";
-import { ReportScreen } from "../features/report/components/ReportScreen";
-import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
+import { FastForward, Play, Save, Square } from "lucide-react";
+import { AppShell, type AppSection } from "./AppShell";
+import { CareerResultPage } from "../features/careerResult/components/CareerResultPage";
 import { CollectionScreen } from "../features/collection/components/CollectionScreen";
+import { DocsScreen } from "../features/docs/components/DocsScreen";
+import { EraStatsPage } from "../features/eraStats/components/EraStatsPage";
 import { LogicLabScreen } from "../features/logicLab/components/LogicLabScreen";
-import { Oyakata, Rank, RikishiStatus } from "../logic/models";
+import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
+import { ScoutScreen } from "../features/scout/components/ScoutScreen";
 import { useSimulation } from "../features/simulation/hooks/useSimulation";
-import type { SimulationPacing, SimulationPhase } from "../features/simulation/store/simulationStore";
+import {
+  getCareerBashoDetail,
+  listCareerBashoRecordsBySeq,
+  type CareerBashoDetail,
+  type CareerBashoRecordsBySeq,
+} from "../logic/persistence/careerHistory";
+import { formatBashoLabel, formatRankDisplayName } from "../features/report/utils/reportShared";
 import { Button } from "../shared/ui/Button";
-
-const formatRankName = (rank: Rank): string => {
-  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
-  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
-  const number = rank.number || 1;
-  return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
-};
+import { getDefaultDivision, type EraStatsViewState } from "../features/eraStats/utils/eraStatsModel";
+import type { CareerResultViewState } from "../features/careerResult/components/CareerResultPage";
 
 export const App: React.FC = () => {
-  const [activeSection, setActiveSection] = React.useState<AppSection>("scout");
-
   const {
     phase,
     status,
     progress,
     currentCareerId,
-    latestPauseReason,
-    latestEvents,
-    hallOfFame,
-    unshelvedCareers,
-    errorMessage,
     isCurrentCareerSaved,
-    simulationPacing,
+    latestPauseReason,
+    hallOfFame,
+    errorMessage,
     startSimulation,
     skipToEnd,
     revealCurrentResult,
@@ -45,484 +42,503 @@ export const App: React.FC = () => {
     resetView,
   } = useSimulation();
 
+  const [activeSection, setActiveSection] = React.useState<AppSection>("scout");
+  const [careerViewState, setCareerViewState] = React.useState<CareerResultViewState>({
+    selectedBashoSeq: null,
+    visibleWindowStartSeq: 1,
+    visibleWindowEndSeq: 1,
+  });
+  const [eraViewState, setEraViewState] = React.useState<EraStatsViewState>({
+    selectedBashoSeq: 1,
+    selectedDivision: "Makushita",
+    rankingBasis: "rank",
+  });
+  const [detail, setDetail] = React.useState<CareerBashoDetail | null>(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
+  const [bashoRows, setBashoRows] = React.useState<CareerBashoRecordsBySeq[]>([]);
+  const [bashoRowsLoading, setBashoRowsLoading] = React.useState(false);
+
   React.useEffect(() => {
     void loadHallOfFame();
     void loadUnshelvedCareers();
   }, [loadHallOfFame, loadUnshelvedCareers]);
 
-  const handleStart = async (
-    initialStats: RikishiStatus,
-    oyakata: Oyakata | null,
-    initialPacing: SimulationPacing = "skip_to_end",
-  ) => {
-    await startSimulation(initialStats, oyakata, undefined, undefined, initialPacing);
-    setActiveSection("career");
-  };
+  React.useEffect(() => {
+    if (phase === "completed" || phase === "running" || phase === "simulating" || phase === "reveal_ready") {
+      setActiveSection((current) => (current === "logicLab" ? current : "career"));
+    }
+  }, [phase]);
 
-  const confirmDiscardUnsavedCareer = React.useCallback(() => {
-    if (!currentCareerId || isCurrentCareerSaved) return true;
-    return window.confirm("この力士情報は保存されませんが、よろしいですか？");
-  }, [currentCareerId, isCurrentCareerSaved]);
+  React.useEffect(() => {
+    if (!status) {
+      setCareerViewState({
+        selectedBashoSeq: null,
+        visibleWindowStartSeq: 1,
+        visibleWindowEndSeq: 1,
+      });
+      return;
+    }
 
-  const handleReset = async () => {
-    if (!confirmDiscardUnsavedCareer()) return;
-    await resetView();
-    setActiveSection("scout");
-  };
+    const records = status.history.records.filter((record) => record.rank.division !== "Maezumo");
+    const lastSeq = records.length;
+    const selectedSeq = careerViewState.selectedBashoSeq && careerViewState.selectedBashoSeq <= lastSeq
+      ? careerViewState.selectedBashoSeq
+      : lastSeq || null;
+    const windowSize = Math.min(lastSeq || 1, 18);
+    const windowEnd = selectedSeq ?? lastSeq;
+    const windowStart = Math.max(1, windowEnd - windowSize + 1);
+    setCareerViewState({
+      selectedBashoSeq: selectedSeq,
+      visibleWindowStartSeq: windowStart,
+      visibleWindowEndSeq: Math.max(windowStart, windowEnd),
+    });
+    setEraViewState((current) => ({
+      selectedBashoSeq: selectedSeq ?? 1,
+      selectedDivision: getDefaultDivision(records[records.length - 1]?.rank.division),
+      rankingBasis: current.rankingBasis,
+    }));
+  }, [status, currentCareerId]);
 
-  const handleStop = async () => {
-    await stopSimulation();
-    setActiveSection("scout");
-  };
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!currentCareerId) {
+      setBashoRows([]);
+      setBashoRowsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
 
-  const isDev = import.meta.env.DEV;
-  const isRunning = phase === "running";
-  const isSimulating = phase === "simulating";
-  const isRevealReady = phase === "reveal_ready";
-  const isCompleted = phase === "completed";
-  const isInstantMode = simulationPacing === "skip_to_end";
+    setBashoRowsLoading(true);
+    void (async () => {
+      try {
+        const nextRows = await listCareerBashoRecordsBySeq(currentCareerId);
+        if (!cancelled) {
+          setBashoRows(nextRows);
+        }
+      } finally {
+        if (!cancelled) {
+          setBashoRowsLoading(false);
+        }
+      }
+    })();
 
-  const shellCopy = React.useMemo(() => {
-    if (activeSection === "archive") {
-      return {
-        title: "保存済み記録",
-        subtitle:
-          "読み終えた力士人生を保管し、あとから静かに読み返すための記録庫です。",
-        statusLine: `${hallOfFame.length}件の保存済み人生`,
-      };
-    }
-    if (activeSection === "collection") {
-      return {
-        title: "資料館",
-        subtitle:
-          "記録、偉業、決まり手を蓄積し、相撲世界の資料として読み直すための棚です。",
-        statusLine: "記録 / 偉業 / 決まり手",
-      };
-    }
-    if (activeSection === "logicLab" && isDev) {
-      return {
-        title: "ロジック検証",
-        subtitle: "通常プレイとは切り離し、番付や本割の挙動を検証するための画面です。",
-        statusLine: "開発者専用",
-      };
-    }
-    if (isRunning) {
-      return {
-        title: "力士記録",
-        subtitle:
-          "開発用の観測モードです。通常プレイでは見せない途中経過を確認できます。",
-        statusLine: progress
-          ? `${progress.year}年${progress.month}月場所 / ${progress.bashoCount}場所目`
-          : "演算開始準備中",
-      };
-    }
-    if (isSimulating) {
-      return {
-        title: "力士記録",
-        subtitle:
-          "新弟子の一生を裏で一気に演算し、読み始められる形まで静かに整えています。",
-        statusLine: "記録を整えています",
-      };
-    }
-    if (isRevealReady) {
-      return {
-        title: "力士記録",
-        subtitle:
-          "演算は完了しています。ここから先は、その力士がどんな一生を送ったかを記録として読みます。",
-        statusLine: "記録の準備完了",
-      };
-    }
-    if (status && isCompleted) {
-      return {
-        title: "力士記録",
-        subtitle:
-          "四股名、番付、通算成績、対戦相手を読み返しながら、この力士が何者だったかを掴みます。",
-        statusLine: `${status.shikona} / 最高位 ${formatRankName(status.history.maxRank)}`,
-      };
-    }
-    return {
-      title: "新弟子設計",
-      subtitle:
-        "出身、体格、経歴、気質、所属部屋を定め、その一生を読み始めるための出発点を置きます。",
-      statusLine: `${unshelvedCareers.length}件の未保存人生`,
+    return () => {
+      cancelled = true;
     };
-  }, [
-    activeSection,
-    hallOfFame.length,
-    isCompleted,
-    isDev,
-    isRevealReady,
-    isRunning,
-    isSimulating,
+  }, [currentCareerId]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const targetBashoSeq = careerViewState.selectedBashoSeq;
+    if (!currentCareerId || !targetBashoSeq) {
+      setDetail(null);
+      setDetailLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setDetailLoading(true);
+    void (async () => {
+      try {
+        const nextDetail = await getCareerBashoDetail(currentCareerId, targetBashoSeq);
+        if (!cancelled) {
+          setDetail(nextDetail);
+        }
+      } finally {
+        if (!cancelled) {
+          setDetailLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [careerViewState.selectedBashoSeq, currentCareerId]);
+
+  const handleSectionChange = React.useCallback(
+    async (section: AppSection) => {
+      if (section === "scout") {
+        const hasUnsavedCurrent = Boolean(currentCareerId) && !isCurrentCareerSaved;
+        if (hasUnsavedCurrent) {
+          const accepted = window.confirm("未保存のキャリアを破棄して新弟子設計に戻りますか。");
+          if (!accepted) return;
+        }
+        await resetView();
+        setActiveSection("scout");
+        return;
+      }
+      setActiveSection(section);
+    },
+    [currentCareerId, isCurrentCareerSaved, resetView],
+  );
+
+  const handleStart = React.useCallback(
+    async (...args: Parameters<typeof startSimulation>) => {
+      await startSimulation(...args);
+      setActiveSection("career");
+    },
+    [startSimulation],
+  );
+
+  const handleOpenArchivedCareer = React.useCallback(
+    async (careerId: string) => {
+      await openCareer(careerId);
+      setActiveSection("career");
+    },
+    [openCareer],
+  );
+
+  const disableSections = React.useMemo<AppSection[]>(() => {
+    const disabled: AppSection[] = [];
+    if (!status) {
+      disabled.push("career", "era");
+    }
+    if (!currentCareerId || bashoRowsLoading || bashoRows.length === 0) {
+      if (!disabled.includes("era")) disabled.push("era");
+    }
+    return disabled;
+  }, [bashoRows.length, bashoRowsLoading, currentCareerId, status]);
+
+  const shellTitle = getShellTitle(activeSection, status?.shikona);
+  const shellStatusLine = getStatusLine({
+    phase,
     progress,
-    status,
-    unshelvedCareers.length,
-  ]);
+    latestPauseReason,
+    errorMessage,
+    bashoRowsLoading,
+  });
+  const shellActions = getShellActions({
+    phase,
+    isCurrentCareerSaved,
+    onSkipToEnd: skipToEnd,
+    onReveal: revealCurrentResult,
+    onStop: stopSimulation,
+    onSave: saveCurrentCareer,
+  });
 
   return (
     <AppShell
       activeSection={activeSection}
-      onSectionChange={(nextSection) => {
-        if (nextSection === activeSection) return;
-        if (nextSection === "scout" && activeSection === "career" && !confirmDiscardUnsavedCareer()) {
-          return;
-        }
-        if (nextSection === "scout") {
-          void (async () => {
-            await resetView();
-            await loadUnshelvedCareers();
-            setActiveSection("scout");
-          })();
-          return;
-        }
-        if (nextSection === "archive") void loadHallOfFame();
-        if (nextSection === "logicLab" && !isDev) return;
-        setActiveSection(nextSection);
-      }}
-      title={shellCopy.title}
-      subtitle={shellCopy.subtitle}
-      statusLine={shellCopy.statusLine}
-      showLogicLab={isDev}
-      actions={
-        activeSection === "career" && isRunning ? (
-          <div className="flex flex-wrap gap-2">
-            {!isInstantMode && (
-              <Button variant="secondary" size="sm" onClick={skipToEnd}>
-                <FastForward className="mr-1.5 h-4 w-4" />
-                最後まで進める
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => void handleStop()}>
-              <Square className="mr-1.5 h-4 w-4" />
-              演算を中止
-            </Button>
-          </div>
-        ) : activeSection === "career" && (isSimulating || isRevealReady) ? undefined : (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={() => void handleReset()}>
-              初期状態へ戻す
-            </Button>
-          </div>
-        )
-      }
+      onSectionChange={(section) => void handleSectionChange(section)}
+      title={shellTitle}
+      statusLine={shellStatusLine}
+      actions={shellActions}
+      showLogicLab={import.meta.env.DEV}
+      disableSections={disableSections}
     >
-      {activeSection === "logicLab" && isDev ? (
-        <LogicLabScreen />
-      ) : activeSection === "archive" ? (
-        <ArchiveScreen
-          items={hallOfFame as any}
-          onOpen={async (id) => {
-            await openCareer(id);
-            setActiveSection("career");
-          }}
-          onDelete={async (id) => {
-            await deleteCareerById(id);
-            await loadHallOfFame();
-          }}
-        />
-      ) : activeSection === "collection" ? (
-        <CollectionScreen onOpenArchive={() => setActiveSection("archive")} />
-      ) : activeSection === "career" ? (
-        <CareerSection
-          phase={phase}
-          status={status}
-          progress={progress}
-          latestEvents={latestEvents}
-          latestPauseReason={latestPauseReason}
-          errorMessage={errorMessage}
-          isCurrentCareerSaved={isCurrentCareerSaved}
-          currentCareerId={currentCareerId}
-          isInstantMode={isInstantMode}
-          onReset={handleReset}
-          onReveal={revealCurrentResult}
-          onStop={handleStop}
-          onSave={async () => {
-            await saveCurrentCareer();
-            await loadHallOfFame();
-          }}
-          onOpenCollection={() => setActiveSection("collection")}
-          onOpenArchive={() => setActiveSection("archive")}
-        />
-      ) : (
-        <ScoutScreen onStart={handleStart} />
-      )}
+      {renderSection({
+        activeSection,
+        phase,
+        status,
+        progress,
+        hallOfFame,
+        currentCareerId,
+        isCurrentCareerSaved,
+        detail,
+        detailLoading,
+        careerViewState,
+        eraViewState,
+        bashoRows,
+        onStart: handleStart,
+        onCareerViewStateChange: setCareerViewState,
+        onEraViewStateChange: setEraViewState,
+        onSelectBasho: (bashoSeq) => {
+          setCareerViewState((current) => {
+            const size = current.visibleWindowEndSeq - current.visibleWindowStartSeq + 1;
+            let start = current.visibleWindowStartSeq;
+            let end = current.visibleWindowEndSeq;
+            if (bashoSeq < start) {
+              start = bashoSeq;
+              end = bashoSeq + size - 1;
+            } else if (bashoSeq > end) {
+              end = bashoSeq;
+              start = Math.max(1, end - size + 1);
+            }
+            return {
+              selectedBashoSeq: bashoSeq,
+              visibleWindowStartSeq: start,
+              visibleWindowEndSeq: end,
+            };
+          });
+          setEraViewState((current) => ({ ...current, selectedBashoSeq: bashoSeq }));
+        },
+        onOpenEra: () => setActiveSection("era"),
+        onOpenCareer: () => setActiveSection("career"),
+        onSaveCurrentCareer: saveCurrentCareer,
+        onOpenArchiveCareer: handleOpenArchivedCareer,
+        onDeleteCareer: deleteCareerById,
+        onOpenArchive: () => setActiveSection("archive"),
+      })}
     </AppShell>
   );
-}
+};
 
-const CareerSection: React.FC<{
-  phase: SimulationPhase;
-  status: RikishiStatus | null;
-  progress: any;
-  latestEvents: string[];
-  latestPauseReason?: string;
-  errorMessage?: string;
-  isCurrentCareerSaved: boolean;
-  currentCareerId: string | null;
-  isInstantMode: boolean;
-  onReset: () => void;
-  onReveal: () => void;
-  onStop: () => void;
-  onSave: () => void | Promise<void>;
-  onOpenCollection: () => void;
-  onOpenArchive: () => void;
-}> = ({
+const renderSection = ({
+  activeSection,
   phase,
   status,
   progress,
-  latestEvents,
+  hallOfFame,
+  currentCareerId,
+  isCurrentCareerSaved,
+  detail,
+  detailLoading,
+  careerViewState,
+  eraViewState,
+  bashoRows,
+  onStart,
+  onCareerViewStateChange,
+  onEraViewStateChange,
+  onSelectBasho,
+  onOpenEra,
+  onOpenCareer,
+  onSaveCurrentCareer,
+  onOpenArchiveCareer,
+  onDeleteCareer,
+  onOpenArchive,
+}: {
+  activeSection: AppSection;
+  phase: ReturnType<typeof useSimulation>["phase"];
+  status: ReturnType<typeof useSimulation>["status"];
+  progress: ReturnType<typeof useSimulation>["progress"];
+  hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
+  currentCareerId: string | null;
+  isCurrentCareerSaved: boolean;
+  detail: CareerBashoDetail | null;
+  detailLoading: boolean;
+  careerViewState: CareerResultViewState;
+  eraViewState: EraStatsViewState;
+  bashoRows: CareerBashoRecordsBySeq[];
+  onStart: (...args: Parameters<ReturnType<typeof useSimulation>["startSimulation"]>) => Promise<void>;
+  onCareerViewStateChange: React.Dispatch<React.SetStateAction<CareerResultViewState>>;
+  onEraViewStateChange: React.Dispatch<React.SetStateAction<EraStatsViewState>>;
+  onSelectBasho: (bashoSeq: number) => void;
+  onOpenEra: () => void;
+  onOpenCareer: () => void;
+  onSaveCurrentCareer: () => Promise<void>;
+  onOpenArchiveCareer: (careerId: string) => Promise<void>;
+  onDeleteCareer: (careerId: string) => Promise<void>;
+  onOpenArchive: () => void;
+}) => {
+  if (activeSection === "scout") {
+    return (
+      <ScoutScreen
+        onStart={(initialStats, oyakata, initialPacing) =>
+          onStart(initialStats, oyakata, undefined, undefined, initialPacing)}
+      />
+    );
+  }
+
+  if (activeSection === "logicLab") {
+    return <LogicLabScreen />;
+  }
+
+  if (activeSection === "archive") {
+    return (
+      <ArchiveScreen
+        items={hallOfFame.map((item) => ({
+          ...item,
+          title: item.title ?? null,
+        }))}
+        onOpen={(careerId) => void onOpenArchiveCareer(careerId)}
+        onDelete={(careerId) => void onDeleteCareer(careerId)}
+      />
+    );
+  }
+
+  if (activeSection === "collection") {
+    return <CollectionScreen onOpenArchive={onOpenArchive} />;
+  }
+
+  if (activeSection === "docs") {
+    return <DocsScreen />;
+  }
+
+  if (!status) {
+    return <EmptyCareerState />;
+  }
+
+  if (phase === "simulating" || phase === "running") {
+    return <SimulationProgressView progress={progress} />;
+  }
+
+  if (phase === "reveal_ready") {
+    return <RevealReadyView progress={progress} />;
+  }
+
+  if (activeSection === "era") {
+    return (
+      <EraStatsPage
+        status={status}
+        careerId={currentCareerId}
+        bashoRows={bashoRows}
+        hallOfFame={hallOfFame}
+        viewState={eraViewState}
+        onViewStateChange={(next) => {
+          onEraViewStateChange(next);
+          onCareerViewStateChange((current) => ({
+            ...current,
+            selectedBashoSeq: next.selectedBashoSeq,
+          }));
+        }}
+        onOpenCareer={onOpenCareer}
+      />
+    );
+  }
+
+  return (
+    <CareerResultPage
+      status={status}
+      careerId={currentCareerId}
+      isSaved={isCurrentCareerSaved}
+      detail={detail}
+      detailLoading={detailLoading}
+      bashoRows={bashoRows}
+      viewState={careerViewState}
+      onSelectBasho={onSelectBasho}
+      onWindowChange={(window) => onCareerViewStateChange((current) => ({ ...current, ...window }))}
+      onSave={onSaveCurrentCareer}
+      onOpenEra={onOpenEra}
+    />
+  );
+};
+
+const SimulationProgressView: React.FC<{
+  progress: ReturnType<typeof useSimulation>["progress"];
+}> = ({ progress }) => (
+  <div className="mx-auto max-w-3xl">
+    <div className="surface-panel space-y-6">
+      <div className="space-y-3 text-center">
+        <div className="app-kicker">結果を準備中</div>
+        <h2 className="text-3xl ui-text-heading text-text">力士人生を演算中</h2>
+      </div>
+
+      <div className="mx-auto flex max-w-xl items-center gap-2">
+        <div className="h-2 flex-1 overflow-hidden border border-white/10 bg-white/[0.03]">
+          <div className="h-full w-1/3 animate-pulse bg-action/70" />
+        </div>
+        <div className="text-xs ui-text-label text-text-dim">
+          {progress ? `${progress.bashoCount}場所` : "演算中"}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const RevealReadyView: React.FC<{
+  progress: ReturnType<typeof useSimulation>["progress"];
+}> = ({ progress }) => (
+  <div className="mx-auto max-w-3xl">
+    <div className="surface-panel space-y-6">
+      <div className="space-y-3 text-center">
+        <div className="app-kicker">開封の前</div>
+        <h2 className="text-3xl ui-text-heading text-text">結果の準備ができました</h2>
+      </div>
+
+      <div className="mx-auto flex max-w-xl items-center gap-2">
+        <div className="h-2 flex-1 overflow-hidden border border-white/10 bg-white/[0.03]">
+          <div className="h-full w-full bg-action/70" />
+        </div>
+        <div className="text-xs ui-text-label text-text-dim">
+          {progress ? `${progress.bashoCount}場所` : "完了"}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const EmptyCareerState: React.FC = () => (
+  <section className="premium-panel p-5 sm:p-6">
+    <div className="border border-gold/10 bg-bg/20 px-4 py-10 text-center text-sm text-text-dim">
+      キャリア未選択
+    </div>
+  </section>
+);
+
+const getShellTitle = (section: AppSection, shikona?: string | null): string => {
+  if (section === "career") return shikona ? `${shikona} キャリア結果` : "キャリア結果";
+  if (section === "era") return shikona ? `${shikona} 時代統計` : "時代統計";
+  if (section === "archive") return "アーカイブ";
+  if (section === "collection") return "コレクション";
+  if (section === "docs") return "ドキュメント";
+  if (section === "logicLab") return "ロジック検証";
+  return "新弟子設計";
+};
+
+const getStatusLine = ({
+  phase,
+  progress,
   latestPauseReason,
   errorMessage,
+  bashoRowsLoading,
+}: {
+  phase: ReturnType<typeof useSimulation>["phase"];
+  progress: ReturnType<typeof useSimulation>["progress"];
+  latestPauseReason: ReturnType<typeof useSimulation>["latestPauseReason"];
+  errorMessage: string | undefined;
+  bashoRowsLoading: boolean;
+}) => {
+  if (errorMessage) return errorMessage;
+  if (phase === "simulating" || phase === "running") {
+    return `${progress ? formatBashoLabel(progress.year, progress.month) : "-"} / ${progress ? formatRankDisplayName(progress.currentRank) : "-"} / ${progress?.bashoCount ?? 0}場所`;
+  }
+  if (phase === "reveal_ready") {
+    return latestPauseReason ? `停止: ${latestPauseReason}` : "結果待機";
+  }
+  if (bashoRowsLoading) return "時代統計読込中";
+  return undefined;
+};
+
+const getShellActions = ({
+  phase,
   isCurrentCareerSaved,
-  currentCareerId,
-  isInstantMode,
-  onReset,
+  onSkipToEnd,
   onReveal,
   onStop,
   onSave,
-  onOpenCollection,
-  onOpenArchive,
-}) => {
-  if (phase === "error") {
-    return (
-      <div className="surface-panel max-w-3xl space-y-4">
-        <div className="inline-flex items-center gap-2 text-sm text-danger">
-          <AlertTriangle className="h-4 w-4" />
-          演算を完了できませんでした
-        </div>
-        <div className="text-base text-text">{errorMessage || "不明なエラーが発生しました。"}</div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="danger" onClick={onReset}>
-            初期状態へ戻る
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === "running") {
-    return (
-      <RunningDashboard
-        progress={progress}
-        latestEvents={latestEvents}
-        latestPauseReason={latestPauseReason}
-        isInstantMode={isInstantMode}
-      />
-    );
-  }
-
-  if (phase === "simulating" || phase === "reveal_ready") {
-    return (
-      <ResultPreparationPanel
-        phase={phase}
-        progress={progress}
-        onReveal={onReveal}
-        onStop={onStop}
-      />
-    );
-  }
-
-  if (status && phase === "completed") {
-    return (
-      <ReportScreen
-        status={status}
-        careerId={currentCareerId}
-        onReset={onReset}
-        onSave={onSave}
-        isSaved={isCurrentCareerSaved}
-        onOpenCollection={onOpenCollection}
-      />
-    );
-  }
-
-  return (
-    <div className="empty-stage">
-      <BookOpenText className="h-12 w-12 text-text-faint" />
-        <div className="space-y-2 text-center">
-        <div className="text-xl ui-text-heading text-text">まだ記録がありません</div>
-        <p className="max-w-xl text-sm leading-relaxed text-text-dim">
-          新弟子を設計するか、保存済み記録を開くと、この画面が力士記録の閲覧画面に切り替わります。
-        </p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        <Button onClick={onReset}>新弟子設計へ戻る</Button>
-        <Button variant="secondary" onClick={onOpenArchive}>
-          保存済み記録を開く
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const ResultPreparationPanel: React.FC<{
-  phase: "simulating" | "reveal_ready";
-  progress: any;
+}: {
+  phase: ReturnType<typeof useSimulation>["phase"];
+  isCurrentCareerSaved: boolean;
+  onSkipToEnd: () => void;
   onReveal: () => void;
-  onStop: () => void;
-}> = ({ phase, progress, onReveal, onStop }) => {
-  const isReady = phase === "reveal_ready";
-  const bashoCount = progress?.bashoCount || 0;
-  // 推定される進行度 (平均90場所として計算。95%で止めて完了時に100%にする)
-  const percent = isReady ? 100 : Math.min(95, Math.ceil((bashoCount / 90) * 100));
+  onStop: () => Promise<void>;
+  onSave: () => Promise<void>;
+}) => {
+  if (phase === "simulating" || phase === "running") {
+    return (
+      <>
+        <Button variant="secondary" size="sm" onClick={onSkipToEnd}>
+          <FastForward className="mr-2 h-4 w-4" />
+          最後まで進める
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => void onStop()}>
+          <Square className="mr-2 h-4 w-4" />
+          中断
+        </Button>
+      </>
+    );
+  }
 
-  return (
-    <div className="mx-auto max-w-2xl py-12">
-      <div className="premium-panel p-8 sm:p-12 space-y-8 text-center relative overflow-hidden group">
-        <div className="corner-gold corner-top-left" />
-        <div className="corner-gold corner-top-right" />
-        <div className="corner-gold corner-bottom-left" />
-        <div className="corner-gold corner-bottom-right" />
-        
-        <div className="space-y-4 relative z-10">
-          <div className="flex items-center justify-center gap-3">
-             <div className="h-px w-8 bg-gold/30" />
-             <div className="text-[10px] ui-text-label text-gold tracking-widest uppercase">
-                {isReady ? "演算完了" : "記録を整えています"}
-             </div>
-             <div className="h-px w-8 bg-gold/30" />
-          </div>
-          <h2 className="text-4xl ui-text-heading text-text tracking-widest">
-            {isReady ? "力士記録の準備が整いました" : "力士人生を演算中"}
-          </h2>
-          <p className="mx-auto max-w-md text-sm leading-relaxed text-text-dim/80 font-serif italic">
-            {isReady
-              ? "ここから先は、番付、成績、対戦相手、転機を静かに読み返す時間です。"
-              : "裏側で力士の一生を高速にシミュレートしています。読み始められる形になるまで少しだけ待ちます。"}
-          </p>
-        </div>
+  if (phase === "reveal_ready") {
+    return (
+      <Button size="sm" onClick={onReveal}>
+        <Play className="mr-2 h-4 w-4" />
+        結果を開く
+      </Button>
+    );
+  }
 
-        <div className="space-y-4 relative z-10">
-          <div className="flex justify-between items-end mb-1">
-             <div className="text-[10px] ui-text-label text-gold/60">
-                {isReady ? "READY" : `${progress?.year || "????"}年 ${progress?.month || "??"}月場所 ${progress?.bashoCount || 0}場所目`}
-             </div>
-             <div className="text-xl ui-text-metric text-text">
-                {percent}<span className="text-xs ml-0.5">%</span>
-             </div>
-          </div>
-          <div className="h-1.5 w-full bg-gold/10 overflow-hidden relative border border-gold/10">
-            <div
-              className={`h-full bg-gradient-to-r from-gold/5 from-gold/40 via-gold to-gold/40 transition-all duration-700 ease-out ${!isReady ? "animate-pulse" : ""}`}
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-        </div>
+  if (phase === "completed" && !isCurrentCareerSaved) {
+    return (
+      <Button variant="secondary" size="sm" onClick={() => void onSave()}>
+        <Save className="mr-2 h-4 w-4" />
+        保存
+      </Button>
+    );
+  }
 
-        <div className="flex flex-wrap justify-center gap-6 pt-4 relative z-10">
-          {isReady ? (
-            <Button size="lg" onClick={onReveal} className="min-w-[180px] h-14 text-lg">
-              <BookOpenText className="w-5 h-5 mr-3" />
-              力士記録を読む
-            </Button>
-          ) : (
-            <Button variant="outline" size="lg" onClick={onStop} className="min-w-[180px] h-14 text-lg border-gold/30 text-gold/80 hover:bg-gold/10 hover:text-gold">
-              中断して戻る
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 };
-
-const RunningDashboard: React.FC<{
-  progress: any;
-  latestEvents: string[];
-  latestPauseReason?: string;
-  isInstantMode: boolean;
-}> = ({ progress, latestEvents, latestPauseReason, isInstantMode }) => {
-  const observationItems = latestEvents.length > 0 ? latestEvents : ["まだ大きな出来事は記録されていません。"];
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.7fr)]">
-      <section className="surface-panel space-y-5">
-        <div className="flex items-end justify-between gap-4 border-b border-line pb-4">
-          <div>
-            <div className="panel-title">進行監督盤</div>
-            <p className="panel-caption">
-              {isInstantMode
-                ? "開発用に最後まで早送りしています。現在地だけを静かに返します。"
-                : "通常プレイでは見せない途中経過を、開発用に短く観測します。"}
-            </p>
-          </div>
-          <div className="text-right text-sm text-text-dim">
-            {progress
-              ? `${progress.year}年${progress.month}月場所`
-              : "演算を準備中"}
-          </div>
-        </div>
-
-        <div className="metric-strip">
-          <div className="metric-card">
-            <div className="metric-label">現在の場所</div>
-            <div className="metric-value">
-              {progress ? `${progress.year}年${progress.month}月場所` : "初期化中"}
-            </div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">現在番付</div>
-            <div className="metric-value">
-              {progress ? formatRankName(progress.currentRank) : "未確定"}
-            </div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">進行段階</div>
-            <div className="metric-value">
-              {progress ? `${progress.bashoCount}場所目` : "準備中"}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="panel-title">最新の出来事</div>
-          <div className="observation-log">
-            {observationItems.map((eventText, index) => (
-              <div key={`${eventText}-${index}`} className="observation-item">
-                <div className="observation-index">{String(index + 1).padStart(2, "0")}</div>
-                <div className="observation-text">{eventText}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="surface-panel space-y-4">
-        <div>
-          <div className="panel-title">状況の要点</div>
-          <p className="panel-caption">
-            全階級の一覧ではなく、判断に必要な兆しだけを右側に置きます。
-          </p>
-        </div>
-
-        <div className="info-row">
-          <span>幕内の稼働</span>
-          <span>{progress ? `${progress.makuuchiActive}/${progress.makuuchiSlots}` : "不明"}</span>
-        </div>
-        <div className="info-row">
-          <span>十両の稼働</span>
-          <span>{progress ? `${progress.juryoActive}/${progress.juryoSlots}` : "不明"}</span>
-        </div>
-        <div className="info-row">
-          <span>三賞</span>
-          <span>
-            {progress
-              ? `${progress.sanshoTotal}回（殊${progress.shukunCount} / 敢${progress.kantoCount} / 技${progress.ginoCount}）`
-              : "不明"}
-          </span>
-        </div>
-        <div className="info-row">
-          <span>警告件数</span>
-          <span>{progress ? `${progress.lastCommitteeWarnings}件` : "0件"}</span>
-        </div>
-
-        {latestPauseReason && (
-          <div className="status-callout" data-tone="attention">
-            <div className="status-callout-title">直近の停止理由</div>
-            <div className="status-callout-text">{latestPauseReason}</div>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-};
-
-

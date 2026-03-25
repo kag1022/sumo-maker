@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-19T10:09:15Z",
+    "source": "rank_movement",
+    "era": "heisei_banzuke",
+    "cohort": "heisei_banzuke",
+    "sampleSize": 20621,
+    "bashoCount": 182,
+    "divisionScope": [
+      "Makuuchi",
+      "Juryo",
+      "Makushita"
+    ],
+    "note": "Per-basho win/loss records are unavailable in the current sumo-db snapshot."
+  },
+  "divisionMovementQuantiles": {
+    "Makuuchi": {
+      "stayed": {
+        "sampleSize": 4116,
+        "p10HalfStep": -10.0,
+        "p50HalfStep": 0.0,
+        "p90HalfStep": 11.0,
+        "p10Rank": -5.0,
+        "p50Rank": 0.0,
+        "p90Rank": 5.5
+      },
+      "promoted": null,
+      "demoted": {
+        "sampleSize": 424,
+        "p10HalfStep": -27.7,
+        "p50HalfStep": -15.0,
+        "p90HalfStep": -8.0,
+        "p10Rank": -13.85,
+        "p50Rank": -7.5,
+        "p90Rank": -4.0
+      }
+    },
+    "Juryo": {
+      "stayed": {
+        "sampleSize": 2113,
+        "p10HalfStep": -9.0,
+        "p50HalfStep": 0.0,
+        "p90HalfStep": 11.0,
+        "p10Rank": -4.5,
+        "p50Rank": 0.0,
+        "p90Rank": 5.5
+      },
+      "promoted": {
+        "sampleSize": 460,
+        "p10HalfStep": 7.0,
+        "p50HalfStep": 13.0,
+        "p90HalfStep": 25.1,
+        "p10Rank": 3.5,
+        "p50Rank": 6.5,
+        "p90Rank": 12.55
+      },
+      "demoted": {
+        "sampleSize": 397,
+        "p10HalfStep": -31.0,
+        "p50HalfStep": -14.0,
+        "p90HalfStep": -6.0,
+        "p10Rank": -15.5,
+        "p50Rank": -7.0,
+        "p90Rank": -3.0
+      }
+    },
+    "Makushita": {
+      "stayed": {
+        "sampleSize": 10505,
+        "p10HalfStep": -33.0,
+        "p50HalfStep": 7.0,
+        "p90HalfStep": 32.0,
+        "p10Rank": -16.5,
+        "p50Rank": 3.5,
+        "p90Rank": 16.0
+      },
+      "promoted": {
+        "sampleSize": 499,
+        "p10HalfStep": 5.0,
+        "p50HalfStep": 10.0,
+        "p90HalfStep": 30.0,
+        "p10Rank": 2.5,
+        "p50Rank": 5.0,
+        "p90Rank": 15.0
+      },
+      "demoted": null
+    }
+  },
+  "boundaryExchangeRates": {
+    "JuryoToMakuuchi": {
+      "sampleSize": 2971,
+      "count": 460,
+      "rate": 0.15483
+    },
+    "MakuuchiToJuryo": {
+      "sampleSize": 4540,
+      "count": 421,
+      "rate": 0.092731
+    },
+    "MakushitaToJuryo": {
+      "sampleSize": 13110,
+      "count": 494,
+      "rate": 0.037681
+    },
+    "JuryoToMakushita": {
+      "sampleSize": 2971,
+      "count": 397,
+      "rate": 0.133625
+    }
+  },
+  "recordBucketRules": {
+    "supported": false,
+    "reason": "Historical per-basho win/loss records are not available in the current sumo-db snapshot.",
+    "fallbackComparisonKeys": [
+      "MakuuchiStayed",
+      "JuryoStayed",
+      "MakushitaStayed",
+      "JuryoToMakuuchi",
+      "MakuuchiToJuryo",
+      "MakushitaToJuryo",
+      "JuryoToMakushita"
+    ]
+  }
+}
