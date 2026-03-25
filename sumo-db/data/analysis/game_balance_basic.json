@@ -1,0 +1,161 @@
+{
+  "meta": {
+    "source": "rikishi_summary",
+    "min_debut_year": 1965,
+    "sample_size": 1000
+  },
+  "summary": {
+    "sample_size": 1000,
+    "min_debut_year": 1965,
+    "win_rate": {
+      "mean": 0.493022,
+      "median": 0.5,
+      "min": 0.0,
+      "max": 0.888889
+    },
+    "career_bashos": {
+      "mean": 62.801,
+      "median": 61,
+      "min": 1,
+      "max": 214
+    },
+    "low_win_long_career_count": 18,
+    "low_win_long_career_ratio": 0.018
+  },
+  "win_rate_distribution": [
+    {
+      "bucket": "0.50-0.54",
+      "count": 415,
+      "ratio": 0.415
+    },
+    {
+      "bucket": "0.45-0.49",
+      "count": 366,
+      "ratio": 0.366
+    },
+    {
+      "bucket": "0.40-0.44",
+      "count": 69,
+      "ratio": 0.069
+    },
+    {
+      "bucket": "0.55-0.59",
+      "count": 61,
+      "ratio": 0.061
+    },
+    {
+      "bucket": ">=0.65",
+      "count": 28,
+      "ratio": 0.028
+    },
+    {
+      "bucket": "<0.35",
+      "count": 26,
+      "ratio": 0.026
+    },
+    {
+      "bucket": "0.35-0.39",
+      "count": 26,
+      "ratio": 0.026
+    },
+    {
+      "bucket": "0.60-0.64",
+      "count": 9,
+      "ratio": 0.009
+    }
+  ],
+  "career_bashos_distribution": [
+    {
+      "bucket": "60-89",
+      "count": 287,
+      "ratio": 0.287
+    },
+    {
+      "bucket": "36-59",
+      "count": 219,
+      "ratio": 0.219
+    },
+    {
+      "bucket": "90-119",
+      "count": 162,
+      "ratio": 0.162
+    },
+    {
+      "bucket": "<12",
+      "count": 109,
+      "ratio": 0.109
+    },
+    {
+      "bucket": "24-35",
+      "count": 84,
+      "ratio": 0.084
+    },
+    {
+      "bucket": "12-23",
+      "count": 73,
+      "ratio": 0.073
+    },
+    {
+      "bucket": ">=120",
+      "count": 66,
+      "ratio": 0.066
+    }
+  ],
+  "highest_rank_distribution": [
+    {
+      "rank_name": "横綱",
+      "count": 5,
+      "ratio": 0.005
+    },
+    {
+      "rank_name": "大関",
+      "count": 8,
+      "ratio": 0.008
+    },
+    {
+      "rank_name": "関脇",
+      "count": 17,
+      "ratio": 0.017
+    },
+    {
+      "rank_name": "小結",
+      "count": 18,
+      "ratio": 0.018
+    },
+    {
+      "rank_name": "前頭",
+      "count": 58,
+      "ratio": 0.058
+    },
+    {
+      "rank_name": "十両",
+      "count": 56,
+      "ratio": 0.056
+    },
+    {
+      "rank_name": "幕下",
+      "count": 251,
+      "ratio": 0.251
+    },
+    {
+      "rank_name": "三段目",
+      "count": 303,
+      "ratio": 0.303
+    },
+    {
+      "rank_name": "序二段",
+      "count": 222,
+      "ratio": 0.222
+    },
+    {
+      "rank_name": "序ノ口",
+      "count": 60,
+      "ratio": 0.06
+    },
+    {
+      "rank_name": "前相撲",
+      "count": 2,
+      "ratio": 0.002
+    }
+  ]
+}

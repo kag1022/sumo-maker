@@ -119,9 +119,6 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
       <section className="surface-panel space-y-4">
         <div>
           <div className="panel-title">絞り込み</div>
-          <p className="panel-caption">
-            見届けた人生を探しやすくし、あとから静かに読み返せる保管庫にします。
-          </p>
         </div>
 
         <div className="search-field">
@@ -186,9 +183,6 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="panel-title">保存済み記録</div>
-            <p className="panel-caption">
-              強さの順位表ではなく、どの人生を読み返すか選ぶための一覧です。
-            </p>
           </div>
           <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
         </div>
@@ -197,9 +191,6 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           <div className="empty-state min-h-[320px]">
             <Archive className="h-10 w-10" />
             <div className="empty-state-title">条件に合う保存済み記録はありません</div>
-            <div className="empty-state-text">
-              絞り込みを戻すか、新しい力士人生を保存するとここに並びます。
-            </div>
           </div>
         ) : (
           <div className="archive-table-wrap">
@@ -250,9 +241,6 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
       <section className="surface-panel space-y-4">
         <div>
           <div className="panel-title">プレビュー</div>
-          <p className="panel-caption">
-            一覧を開かなくても、誰のどんな記録かを右側で静かに掴める構成にします。
-          </p>
         </div>
 
         {selectedItem ? (
@@ -337,9 +325,6 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           <div className="empty-state min-h-[240px]">
             <Archive className="h-10 w-10" />
             <div className="empty-state-title">まだ保存済み記録がありません</div>
-            <div className="empty-state-text">
-              力士人生を最後まで読み、保存するとここに記録が残ります。
-            </div>
           </div>
         )}
       </section>

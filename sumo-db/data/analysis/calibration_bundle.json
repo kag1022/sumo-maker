@@ -1,0 +1,445 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-19T10:09:15Z",
+    "cohort": "heisei_debut",
+    "sampleSize": 2877,
+    "includedCount": 2877,
+    "excludedCount": 278,
+    "pendingCount": 0,
+    "stabilityStatus": {
+      "reachedMinimumSample": true,
+      "stableRunLength": 1,
+      "isStable": false,
+      "recommendedStopReason": "discovery_exhausted"
+    }
+  },
+  "career": {
+    "meta": {
+      "generatedAt": "2026-03-19T10:09:15Z",
+      "source": "rikishi_summary",
+      "era": "heisei_debut",
+      "cohort": "heisei_debut",
+      "sampleSize": 2877,
+      "minDebutYear": 1989
+    },
+    "rankRates": {
+      "sekitoriRate": 0.106361,
+      "makuuchiRate": 0.075078,
+      "sanyakuRate": 0.03163,
+      "ozekiRate": 0.009037,
+      "yokozunaRate": 0.002781
+    },
+    "careerLength": {
+      "mean": 43.568,
+      "p10": 4.0,
+      "p50": 38.0,
+      "p90": 92.0
+    },
+    "careerWinRate": {
+      "mean": 0.482007,
+      "median": 0.499629,
+      "bucketRates": {
+        "<0.35": 0.062218,
+        "0.35-0.39": 0.047967,
+        "0.40-0.44": 0.107751,
+        "0.45-0.49": 0.282586,
+        "0.50-0.54": 0.384776,
+        "0.55-0.59": 0.076469,
+        "0.60-0.64": 0.019117,
+        ">=0.65": 0.019117
+      }
+    },
+    "distributionBuckets": {
+      "highestRank": {
+        "三段目": 0.261036,
+        "前頭": 0.043448,
+        "十両": 0.031283,
+        "大関": 0.006257,
+        "小結": 0.01147,
+        "幕下": 0.199166,
+        "序ノ口": 0.118874,
+        "序二段": 0.314564,
+        "横綱": 0.002781,
+        "関脇": 0.011123
+      },
+      "careerBasho": {
+        "<12": 0.241223,
+        "12-23": 0.127216,
+        "24-35": 0.114008,
+        "36-59": 0.210636,
+        "60-89": 0.196385,
+        "90-119": 0.084115,
+        ">=120": 0.026416
+      },
+      "careerWinRate": {
+        "<0.35": 0.062218,
+        "0.35-0.39": 0.047967,
+        "0.40-0.44": 0.107751,
+        "0.45-0.49": 0.282586,
+        "0.50-0.54": 0.384776,
+        "0.55-0.59": 0.076469,
+        "0.60-0.64": 0.019117,
+        ">=0.65": 0.019117
+      }
+    },
+    "longTailSignals": {
+      "lowWinLongCareerRate": 0.01877
+    }
+  },
+  "banzuke": {
+    "meta": {
+      "generatedAt": "2026-03-19T10:09:15Z",
+      "source": "rank_movement",
+      "era": "heisei_banzuke",
+      "cohort": "heisei_banzuke",
+      "sampleSize": 20621,
+      "bashoCount": 182,
+      "divisionScope": [
+        "Makuuchi",
+        "Juryo",
+        "Makushita"
+      ],
+      "note": "Per-basho win/loss records are unavailable in the current sumo-db snapshot."
+    },
+    "divisionMovementQuantiles": {
+      "Makuuchi": {
+        "stayed": {
+          "sampleSize": 4116,
+          "p10HalfStep": -10.0,
+          "p50HalfStep": 0.0,
+          "p90HalfStep": 11.0,
+          "p10Rank": -5.0,
+          "p50Rank": 0.0,
+          "p90Rank": 5.5
+        },
+        "promoted": null,
+        "demoted": {
+          "sampleSize": 424,
+          "p10HalfStep": -27.7,
+          "p50HalfStep": -15.0,
+          "p90HalfStep": -8.0,
+          "p10Rank": -13.85,
+          "p50Rank": -7.5,
+          "p90Rank": -4.0
+        }
+      },
+      "Juryo": {
+        "stayed": {
+          "sampleSize": 2113,
+          "p10HalfStep": -9.0,
+          "p50HalfStep": 0.0,
+          "p90HalfStep": 11.0,
+          "p10Rank": -4.5,
+          "p50Rank": 0.0,
+          "p90Rank": 5.5
+        },
+        "promoted": {
+          "sampleSize": 460,
+          "p10HalfStep": 7.0,
+          "p50HalfStep": 13.0,
+          "p90HalfStep": 25.1,
+          "p10Rank": 3.5,
+          "p50Rank": 6.5,
+          "p90Rank": 12.55
+        },
+        "demoted": {
+          "sampleSize": 397,
+          "p10HalfStep": -31.0,
+          "p50HalfStep": -14.0,
+          "p90HalfStep": -6.0,
+          "p10Rank": -15.5,
+          "p50Rank": -7.0,
+          "p90Rank": -3.0
+        }
+      },
+      "Makushita": {
+        "stayed": {
+          "sampleSize": 10505,
+          "p10HalfStep": -33.0,
+          "p50HalfStep": 7.0,
+          "p90HalfStep": 32.0,
+          "p10Rank": -16.5,
+          "p50Rank": 3.5,
+          "p90Rank": 16.0
+        },
+        "promoted": {
+          "sampleSize": 499,
+          "p10HalfStep": 5.0,
+          "p50HalfStep": 10.0,
+          "p90HalfStep": 30.0,
+          "p10Rank": 2.5,
+          "p50Rank": 5.0,
+          "p90Rank": 15.0
+        },
+        "demoted": null
+      }
+    },
+    "boundaryExchangeRates": {
+      "JuryoToMakuuchi": {
+        "sampleSize": 2971,
+        "count": 460,
+        "rate": 0.15483
+      },
+      "MakuuchiToJuryo": {
+        "sampleSize": 4540,
+        "count": 421,
+        "rate": 0.092731
+      },
+      "MakushitaToJuryo": {
+        "sampleSize": 13110,
+        "count": 494,
+        "rate": 0.037681
+      },
+      "JuryoToMakushita": {
+        "sampleSize": 2971,
+        "count": 397,
+        "rate": 0.133625
+      }
+    },
+    "recordBucketRules": {
+      "supported": false,
+      "reason": "Historical per-basho win/loss records are not available in the current sumo-db snapshot.",
+      "fallbackComparisonKeys": [
+        "MakuuchiStayed",
+        "JuryoStayed",
+        "MakushitaStayed",
+        "JuryoToMakuuchi",
+        "MakuuchiToJuryo",
+        "MakushitaToJuryo",
+        "JuryoToMakushita"
+      ]
+    }
+  },
+  "collection": {
+    "meta": {
+      "generatedAt": "2026-03-19T09:54:28Z",
+      "cohort": "heisei_debut",
+      "discoverySource": "heisei_banzuke",
+      "checkpointInterval": 250,
+      "minimumIncludedCount": 2500,
+      "stabilityThresholds": {
+        "sekitoriRate": 0.005,
+        "makuuchiRate": 0.004,
+        "sanyakuRate": 0.0025,
+        "careerBashoP50": 1.0,
+        "careerWinRateMean": 0.003
+      }
+    },
+    "counts": {
+      "discoveredCount": 3162,
+      "pendingCount": 0,
+      "fetchedCount": 3155,
+      "errorCount": 7,
+      "includedCount": 2877,
+      "excludedCount": 278
+    },
+    "metrics": {
+      "includedCount": 2877,
+      "sekitoriRate": 0.10636079249217935,
+      "makuuchiRate": 0.07507820646506778,
+      "sanyakuRate": 0.031630170316301706,
+      "careerBashoP50": 38.0,
+      "careerWinRateMean": 0.4820068157144045
+    },
+    "checkpoints": [
+      {
+        "includedCount": 250,
+        "sekitoriRate": 0.268,
+        "makuuchiRate": 0.184,
+        "sanyakuRate": 0.068,
+        "careerBashoP50": 72.0,
+        "careerWinRateMean": 0.5141067354735046,
+        "generatedAt": "2026-03-19T07:16:05Z",
+        "deltaFromPrevious": null,
+        "stableVsPrevious": null,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 500,
+        "sekitoriRate": 0.142,
+        "makuuchiRate": 0.094,
+        "sanyakuRate": 0.034,
+        "careerBashoP50": 55.0,
+        "careerWinRateMean": 0.49963796186727893,
+        "generatedAt": "2026-03-19T07:39:06Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.12600000000000003,
+          "makuuchiRate": 0.09,
+          "sanyakuRate": 0.034,
+          "careerBashoP50": 17.0,
+          "careerWinRateMean": 0.014468773606225671
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 750,
+        "sekitoriRate": 0.11333333333333333,
+        "makuuchiRate": 0.07466666666666667,
+        "sanyakuRate": 0.028,
+        "careerBashoP50": 47.0,
+        "careerWinRateMean": 0.4930885641309736,
+        "generatedAt": "2026-03-19T07:53:22Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.02866666666666666,
+          "makuuchiRate": 0.019333333333333327,
+          "sanyakuRate": 0.006000000000000002,
+          "careerBashoP50": 8.0,
+          "careerWinRateMean": 0.006549397736305362
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 1000,
+        "sekitoriRate": 0.097,
+        "makuuchiRate": 0.061,
+        "sanyakuRate": 0.024,
+        "careerBashoP50": 41.5,
+        "careerWinRateMean": 0.4844933128560799,
+        "generatedAt": "2026-03-19T08:07:36Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.016333333333333325,
+          "makuuchiRate": 0.013666666666666674,
+          "sanyakuRate": 0.004,
+          "careerBashoP50": 5.5,
+          "careerWinRateMean": 0.00859525127489369
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 1250,
+        "sekitoriRate": 0.0928,
+        "makuuchiRate": 0.0624,
+        "sanyakuRate": 0.0256,
+        "careerBashoP50": 38.0,
+        "careerWinRateMean": 0.4830119872673171,
+        "generatedAt": "2026-03-19T08:21:51Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.004200000000000009,
+          "makuuchiRate": 0.0013999999999999985,
+          "sanyakuRate": 0.0016000000000000007,
+          "careerBashoP50": 3.5,
+          "careerWinRateMean": 0.001481325588762794
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 1500,
+        "sekitoriRate": 0.1,
+        "makuuchiRate": 0.068,
+        "sanyakuRate": 0.03,
+        "careerBashoP50": 37.0,
+        "careerWinRateMean": 0.4823905565222924,
+        "generatedAt": "2026-03-19T08:35:58Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.007200000000000012,
+          "makuuchiRate": 0.005600000000000008,
+          "sanyakuRate": 0.004399999999999998,
+          "careerBashoP50": 1.0,
+          "careerWinRateMean": 0.000621430745024687
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 1750,
+        "sekitoriRate": 0.10114285714285715,
+        "makuuchiRate": 0.06971428571428571,
+        "sanyakuRate": 0.030285714285714287,
+        "careerBashoP50": 37.0,
+        "careerWinRateMean": 0.48174332483329213,
+        "generatedAt": "2026-03-19T08:50:28Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.00114285714285714,
+          "makuuchiRate": 0.0017142857142857099,
+          "sanyakuRate": 0.00028571428571428845,
+          "careerBashoP50": 0.0,
+          "careerWinRateMean": 0.0006472316890002716
+        },
+        "stableVsPrevious": true,
+        "stableRunLength": 1
+      },
+      {
+        "includedCount": 2000,
+        "sekitoriRate": 0.105,
+        "makuuchiRate": 0.073,
+        "sanyakuRate": 0.031,
+        "careerBashoP50": 37.0,
+        "careerWinRateMean": 0.4817763804172539,
+        "generatedAt": "2026-03-19T09:04:51Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.0038571428571428507,
+          "makuuchiRate": 0.0032857142857142807,
+          "sanyakuRate": 0.0007142857142857124,
+          "careerBashoP50": 0.0,
+          "careerWinRateMean": 3.3055583961771884e-05
+        },
+        "stableVsPrevious": true,
+        "stableRunLength": 2
+      },
+      {
+        "includedCount": 2250,
+        "sekitoriRate": 0.10444444444444445,
+        "makuuchiRate": 0.07377777777777778,
+        "sanyakuRate": 0.030222222222222223,
+        "careerBashoP50": 36.0,
+        "careerWinRateMean": 0.481036845347426,
+        "generatedAt": "2026-03-19T09:19:09Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.0005555555555555453,
+          "makuuchiRate": 0.00077777777777778,
+          "sanyakuRate": 0.0007777777777777765,
+          "careerBashoP50": 1.0,
+          "careerWinRateMean": 0.0007395350698278791
+        },
+        "stableVsPrevious": true,
+        "stableRunLength": 3
+      },
+      {
+        "includedCount": 2500,
+        "sekitoriRate": 0.108,
+        "makuuchiRate": 0.076,
+        "sanyakuRate": 0.0316,
+        "careerBashoP50": 38.0,
+        "careerWinRateMean": 0.4812736891042052,
+        "generatedAt": "2026-03-19T09:33:14Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.003555555555555548,
+          "makuuchiRate": 0.0022222222222222227,
+          "sanyakuRate": 0.0013777777777777798,
+          "careerBashoP50": 2.0,
+          "careerWinRateMean": 0.00023684375677918146
+        },
+        "stableVsPrevious": false,
+        "stableRunLength": 0
+      },
+      {
+        "includedCount": 2750,
+        "sekitoriRate": 0.10690909090909091,
+        "makuuchiRate": 0.07527272727272727,
+        "sanyakuRate": 0.032363636363636365,
+        "careerBashoP50": 38.0,
+        "careerWinRateMean": 0.48175047927589715,
+        "generatedAt": "2026-03-19T09:47:17Z",
+        "deltaFromPrevious": {
+          "sekitoriRate": 0.0010909090909090868,
+          "makuuchiRate": 0.0007272727272727292,
+          "sanyakuRate": 0.0007636363636363622,
+          "careerBashoP50": 0.0,
+          "careerWinRateMean": 0.00047679017169194315
+        },
+        "stableVsPrevious": true,
+        "stableRunLength": 1
+      }
+    ],
+    "stabilityStatus": {
+      "reachedMinimumSample": true,
+      "stableRunLength": 1,
+      "isStable": false,
+      "recommendedStopReason": "discovery_exhausted"
+    }
+  }
+}

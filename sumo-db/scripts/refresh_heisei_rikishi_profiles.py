@@ -1,0 +1,718 @@
+import argparse
+import hashlib
+import json
+import re
+import sqlite3
+import time
+import unicodedata
+from datetime import datetime, timezone
+from statistics import median
+from typing import Optional
+
+import requests
+from bs4 import BeautifulSoup
+
+from _paths import ANALYSIS_DIR, DB_PATH, RAW_HTML_DIR
+
+RAW_DIR = RAW_HTML_DIR / "rikishi"
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+
+BASE_URL = "https://sumodb.sumogames.de/Rikishi.aspx?r={}&l=j&t=1"
+CHECKPOINT_INTERVAL = 250
+MIN_INCLUDED_FOR_STABILITY = 2500
+STABILITY_THRESHOLDS = {
+    "sekitoriRate": 0.005,
+    "makuuchiRate": 0.004,
+    "sanyakuRate": 0.0025,
+    "careerBashoP50": 1.0,
+    "careerWinRateMean": 0.003,
+}
+CHECKPOINT_STATE_KEY = "heisei_collection_checkpoints"
+STOP_STATE_KEY = "heisei_collection_stop_reason"
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/146.0 Safari/537.36"
+    )
+}
+
+CAREER_RE = re.compile(
+    r"生涯戦歴\s*([0-9]+)勝([0-9]+)敗(?:([0-9]+)休)?[／/]([0-9]+)出\(([0-9]+)場所\)"
+)
+LABEL_VALUE_PATTERNS = {
+    "highest_rank_raw": re.compile(r"最高位\s+(.+)"),
+    "debut_basho": re.compile(r"初土俵\s+((?:昭和|平成|令和)[0-9元]+年[0-9]+月)"),
+    "last_basho": re.compile(r"最終場所\s+((?:昭和|平成|令和)[0-9元]+年[0-9]+月)"),
+}
+NOISE_SUFFIXES = ["力士情報", "テキスト力士情報"]
+NOISE_EXACT = {
+    "力士情報",
+    "テキスト力士情報",
+    "生涯戦歴",
+    "初土俵",
+    "最終場所",
+    "最高位",
+    "年寄名跡",
+    "改名歴",
+    "戦歴",
+    "幕内戦歴",
+    "十両戦歴",
+    "優勝",
+    "三賞",
+    "金星",
+}
+SEKITORI_RANKS = {"横綱", "大関", "関脇", "小結", "前頭", "十両"}
+MAKUUCHI_RANKS = {"横綱", "大関", "関脇", "小結", "前頭"}
+SANYAKU_RANKS = {"横綱", "大関", "関脇", "小結"}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="平成初土俵の力士プロフィールを補完する")
+    parser.add_argument("--max-fetch", type=int, default=None, help="今回の取得件数上限")
+    parser.add_argument("--sleep-seconds", type=float, default=2.0, help="各取得間隔")
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="fetch_state=error の catalog も再試行する",
+    )
+    return parser.parse_args()
+
+
+def normalize_line(line: str) -> str:
+    value = unicodedata.normalize("NFKC", line)
+    return re.sub(r"\s+", " ", value.strip())
+
+
+def html_to_text(html: str) -> str:
+    soup = BeautifulSoup(html, "lxml")
+    return soup.get_text("\n")
+
+
+def extract_shikona(text: str) -> Optional[str]:
+    lines = [normalize_line(line) for line in text.splitlines() if line.strip()]
+    for line in lines[:30]:
+        candidate = line
+        for suffix in NOISE_SUFFIXES:
+            if candidate.endswith(suffix):
+                candidate = candidate[: -len(suffix)].strip()
+        if not candidate:
+            continue
+        if candidate in NOISE_EXACT:
+            continue
+        if any(token in candidate for token in ("初土俵", "最終場所", "生涯戦歴", "最高位")):
+            continue
+        if re.search(r"[0-9]", candidate):
+            continue
+        if len(candidate) > 24:
+            continue
+        return candidate
+    return None
+
+
+def extract_label_value(text: str, field_name: str) -> Optional[str]:
+    normalized_text = "\n".join(normalize_line(line) for line in text.splitlines())
+    match = LABEL_VALUE_PATTERNS[field_name].search(normalized_text)
+    return normalize_line(match.group(1)) if match else None
+
+
+def extract_career(text: str) -> Optional[dict]:
+    normalized_text = "\n".join(normalize_line(line) for line in text.splitlines())
+    match = CAREER_RE.search(normalized_text)
+    if not match:
+        return None
+    return {
+        "career_wins": int(match.group(1)),
+        "career_losses": int(match.group(2)),
+        "career_absences": int(match.group(3) or 0),
+        "career_appearances": int(match.group(4)),
+        "career_bashos": int(match.group(5)),
+    }
+
+
+def parse_highest_rank_name(highest_rank_raw: Optional[str]) -> Optional[str]:
+    if not highest_rank_raw:
+        return None
+    match = re.match(r"^(横綱|大関|関脇|小結|前頭|十両|幕下|三段目|序二段|序ノ口)", highest_rank_raw)
+    return match.group(1) if match else highest_rank_raw
+
+
+def is_heisei_debut(basho: Optional[str]) -> bool:
+    return bool(basho and normalize_line(basho).startswith("平成"))
+
+
+def quantile(sorted_values: list[float], ratio: float) -> float:
+    if not sorted_values:
+        return float("nan")
+    if len(sorted_values) == 1:
+        return float(sorted_values[0])
+    pos = (len(sorted_values) - 1) * ratio
+    lo = int(pos)
+    hi = min(len(sorted_values) - 1, lo + 1)
+    if lo == hi:
+        return float(sorted_values[lo])
+    frac = pos - lo
+    return float(sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * frac)
+
+
+def get_catalog_ids(con: sqlite3.Connection, retry_errors: bool) -> list[int]:
+    states = ("pending", "error") if retry_errors else ("pending",)
+    placeholders = ",".join("?" for _ in states)
+    rows = con.execute(
+        f"""
+        SELECT rikishi_id
+        FROM rikishi_discovery_catalog
+        WHERE discovery_source = 'heisei_banzuke'
+          AND fetch_state IN ({placeholders})
+        ORDER BY first_seen_basho_code, rikishi_id
+        """,
+        states,
+    ).fetchall()
+    return [int(rikishi_id) for (rikishi_id,) in rows]
+
+
+def upsert_summary(
+    con: sqlite3.Connection,
+    rikishi_id: int,
+    shikona: Optional[str],
+    highest_rank_raw: Optional[str],
+    debut_basho: Optional[str],
+    last_basho: Optional[str],
+    career: dict,
+) -> None:
+    con.execute(
+        """
+        INSERT INTO rikishi_summary (
+            rikishi_id, cohort, shikona, highest_rank_raw, highest_rank_name,
+            debut_basho, last_basho,
+            career_wins, career_losses, career_absences, career_appearances, career_bashos,
+            status, error_message, updated_at
+        ) VALUES (?, 'heisei_debut', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ok', NULL, CURRENT_TIMESTAMP)
+        ON CONFLICT(rikishi_id) DO UPDATE SET
+            cohort='heisei_debut',
+            shikona=excluded.shikona,
+            highest_rank_raw=excluded.highest_rank_raw,
+            highest_rank_name=excluded.highest_rank_name,
+            debut_basho=excluded.debut_basho,
+            last_basho=excluded.last_basho,
+            career_wins=excluded.career_wins,
+            career_losses=excluded.career_losses,
+            career_absences=excluded.career_absences,
+            career_appearances=excluded.career_appearances,
+            career_bashos=excluded.career_bashos,
+            status='ok',
+            error_message=NULL,
+            updated_at=CURRENT_TIMESTAMP
+        """,
+        (
+            rikishi_id,
+            shikona,
+            highest_rank_raw,
+            parse_highest_rank_name(highest_rank_raw),
+            debut_basho,
+            last_basho,
+            career["career_wins"],
+            career["career_losses"],
+            career["career_absences"],
+            career["career_appearances"],
+            career["career_bashos"],
+        ),
+    )
+
+
+def remove_summary(con: sqlite3.Connection, rikishi_id: int) -> None:
+    con.execute("DELETE FROM rikishi_summary WHERE rikishi_id = ?", (rikishi_id,))
+
+
+def update_catalog(
+    con: sqlite3.Connection,
+    rikishi_id: int,
+    *,
+    fetch_state: str,
+    cohort_state: str,
+    cohort_reason: str,
+    source_url: str,
+    raw_html_path: Optional[str],
+    http_status: Optional[int],
+    content_hash: Optional[str],
+    shikona: Optional[str],
+    highest_rank_raw: Optional[str],
+    debut_basho: Optional[str],
+    last_basho: Optional[str],
+    career: Optional[dict],
+    error_message: Optional[str],
+) -> None:
+    con.execute(
+        """
+        UPDATE rikishi_discovery_catalog
+        SET fetch_state = ?,
+            cohort_state = ?,
+            cohort_reason = ?,
+            source_url = ?,
+            raw_html_path = ?,
+            http_status = ?,
+            content_hash = ?,
+            debut_basho = ?,
+            last_basho = ?,
+            highest_rank_raw = ?,
+            highest_rank_name = ?,
+            career_wins = ?,
+            career_losses = ?,
+            career_absences = ?,
+            career_appearances = ?,
+            career_bashos = ?,
+            error_message = ?,
+            attempt_count = attempt_count + 1,
+            last_attempted_at = CURRENT_TIMESTAMP,
+            included_at = CASE
+                WHEN ? = 'included' AND included_at IS NULL THEN CURRENT_TIMESTAMP
+                ELSE included_at
+            END,
+            excluded_at = CASE
+                WHEN ? = 'excluded' AND excluded_at IS NULL THEN CURRENT_TIMESTAMP
+                ELSE excluded_at
+            END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE rikishi_id = ?
+        """,
+        (
+            fetch_state,
+            cohort_state,
+            cohort_reason,
+            source_url,
+            raw_html_path,
+            http_status,
+            content_hash,
+            debut_basho,
+            last_basho,
+            highest_rank_raw,
+            parse_highest_rank_name(highest_rank_raw),
+            career["career_wins"] if career else None,
+            career["career_losses"] if career else None,
+            career["career_absences"] if career else None,
+            career["career_appearances"] if career else None,
+            career["career_bashos"] if career else None,
+            error_message,
+            cohort_state,
+            cohort_state,
+            rikishi_id,
+        ),
+    )
+
+
+def upsert_etl_state(con: sqlite3.Connection, key: str, value: str) -> None:
+    con.execute(
+        """
+        INSERT INTO etl_state(key, value, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+            value=excluded.value,
+            updated_at=CURRENT_TIMESTAMP
+        """,
+        (key, value),
+    )
+
+
+def load_checkpoints(con: sqlite3.Connection) -> list[dict]:
+    row = con.execute("SELECT value FROM etl_state WHERE key = ?", (CHECKPOINT_STATE_KEY,)).fetchone()
+    if not row:
+        return []
+    try:
+        return json.loads(row[0])
+    except json.JSONDecodeError:
+        return []
+
+
+def save_checkpoints(con: sqlite3.Connection, checkpoints: list[dict]) -> None:
+    upsert_etl_state(con, CHECKPOINT_STATE_KEY, json.dumps(checkpoints, ensure_ascii=False))
+
+
+def compute_metrics(con: sqlite3.Connection) -> Optional[dict]:
+    rows = con.execute(
+        """
+        SELECT highest_rank_name, career_bashos, career_wins, career_losses
+        FROM rikishi_summary
+        WHERE cohort = 'heisei_debut' AND status = 'ok'
+        """
+    ).fetchall()
+    if not rows:
+        return None
+
+    career_bashos: list[float] = []
+    win_rates: list[float] = []
+    sekitori = 0
+    makuuchi = 0
+    sanyaku = 0
+
+    for highest_rank_name, basho_count, wins, losses in rows:
+        rank_name = highest_rank_name or "不明"
+        career_bashos.append(float(basho_count or 0))
+        total = (wins or 0) + (losses or 0)
+        win_rates.append(((wins or 0) / total) if total > 0 else 0.5)
+        if rank_name in SEKITORI_RANKS:
+            sekitori += 1
+        if rank_name in MAKUUCHI_RANKS:
+            makuuchi += 1
+        if rank_name in SANYAKU_RANKS:
+            sanyaku += 1
+
+    sample_size = len(rows)
+    career_bashos.sort()
+    win_rates.sort()
+    return {
+        "includedCount": sample_size,
+        "sekitoriRate": sekitori / sample_size,
+        "makuuchiRate": makuuchi / sample_size,
+        "sanyakuRate": sanyaku / sample_size,
+        "careerBashoP50": quantile(career_bashos, 0.5),
+        "careerWinRateMean": sum(win_rates) / sample_size,
+    }
+
+
+def checkpoint_delta(left: dict, right: dict) -> dict:
+    return {
+        key: abs(float(right[key]) - float(left[key]))
+        for key in STABILITY_THRESHOLDS
+    }
+
+
+def is_stable_delta(delta: dict) -> bool:
+    return all(delta[key] <= threshold for key, threshold in STABILITY_THRESHOLDS.items())
+
+
+def enrich_checkpoints(checkpoints: list[dict]) -> tuple[list[dict], int]:
+    stable_run_length = 0
+    enriched: list[dict] = []
+    previous = None
+    for checkpoint in checkpoints:
+        current = dict(checkpoint)
+        if previous is None:
+            current["deltaFromPrevious"] = None
+            current["stableVsPrevious"] = None
+            stable_run_length = 0
+        else:
+            delta = checkpoint_delta(previous, checkpoint)
+            stable = is_stable_delta(delta)
+            current["deltaFromPrevious"] = delta
+            current["stableVsPrevious"] = stable
+            stable_run_length = stable_run_length + 1 if stable else 0
+        current["stableRunLength"] = stable_run_length
+        enriched.append(current)
+        previous = checkpoint
+    return enriched, stable_run_length
+
+
+def build_collection_report(con: sqlite3.Connection) -> dict:
+    counts = {
+        "discoveredCount": con.execute("SELECT COUNT(*) FROM rikishi_discovery_catalog").fetchone()[0],
+        "pendingCount": con.execute(
+            "SELECT COUNT(*) FROM rikishi_discovery_catalog WHERE fetch_state = 'pending'"
+        ).fetchone()[0],
+        "fetchedCount": con.execute(
+            "SELECT COUNT(*) FROM rikishi_discovery_catalog WHERE fetch_state = 'fetched'"
+        ).fetchone()[0],
+        "errorCount": con.execute(
+            "SELECT COUNT(*) FROM rikishi_discovery_catalog WHERE fetch_state = 'error'"
+        ).fetchone()[0],
+        "includedCount": con.execute(
+            "SELECT COUNT(*) FROM rikishi_discovery_catalog WHERE cohort_state = 'included'"
+        ).fetchone()[0],
+        "excludedCount": con.execute(
+            "SELECT COUNT(*) FROM rikishi_discovery_catalog WHERE cohort_state = 'excluded'"
+        ).fetchone()[0],
+    }
+
+    metrics = compute_metrics(con)
+    checkpoints, stable_run_length = enrich_checkpoints(load_checkpoints(con))
+    reached_minimum = counts["includedCount"] >= MIN_INCLUDED_FOR_STABILITY
+    is_stable = reached_minimum and stable_run_length >= 3
+    if counts["pendingCount"] == 0:
+        stop_reason = "discovery_exhausted"
+    elif is_stable:
+        stop_reason = "distribution_stable"
+    else:
+        stop_reason = "continue"
+
+    return {
+        "meta": {
+            "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "cohort": "heisei_debut",
+            "discoverySource": "heisei_banzuke",
+            "checkpointInterval": CHECKPOINT_INTERVAL,
+            "minimumIncludedCount": MIN_INCLUDED_FOR_STABILITY,
+            "stabilityThresholds": STABILITY_THRESHOLDS,
+        },
+        "counts": counts,
+        "metrics": metrics,
+        "checkpoints": checkpoints,
+        "stabilityStatus": {
+            "reachedMinimumSample": reached_minimum,
+            "stableRunLength": stable_run_length,
+            "isStable": is_stable,
+            "recommendedStopReason": stop_reason,
+        },
+    }
+
+
+def write_collection_report(con: sqlite3.Connection) -> dict:
+    report = build_collection_report(con)
+    json_path = ANALYSIS_DIR / "heisei_collection_report.json"
+    md_path = ANALYSIS_DIR / "heisei_collection_report.md"
+    json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    lines = [
+        "# 平成初土俵収集レポート",
+        "",
+        f"- generatedAt: {report['meta']['generatedAt']}",
+        f"- cohort: {report['meta']['cohort']}",
+        f"- discoverySource: {report['meta']['discoverySource']}",
+        f"- discovered: {report['counts']['discoveredCount']}",
+        f"- included: {report['counts']['includedCount']}",
+        f"- excluded: {report['counts']['excludedCount']}",
+        f"- pending: {report['counts']['pendingCount']}",
+        f"- errors: {report['counts']['errorCount']}",
+        f"- stopReason: {report['stabilityStatus']['recommendedStopReason']}",
+        "",
+        "## Stability",
+        "",
+        f"- reachedMinimumSample: {'yes' if report['stabilityStatus']['reachedMinimumSample'] else 'no'}",
+        f"- stableRunLength: {report['stabilityStatus']['stableRunLength']}",
+        f"- isStable: {'yes' if report['stabilityStatus']['isStable'] else 'no'}",
+        "",
+    ]
+    if report["metrics"]:
+        lines.extend(
+            [
+                "## Metrics",
+                "",
+                f"- sekitoriRate: {report['metrics']['sekitoriRate']:.4f}",
+                f"- makuuchiRate: {report['metrics']['makuuchiRate']:.4f}",
+                f"- sanyakuRate: {report['metrics']['sanyakuRate']:.4f}",
+                f"- careerBashoP50: {report['metrics']['careerBashoP50']:.2f}",
+                f"- careerWinRateMean: {report['metrics']['careerWinRateMean']:.4f}",
+                "",
+            ]
+        )
+    if report["checkpoints"]:
+        lines.extend(["## Checkpoints", ""])
+        for checkpoint in report["checkpoints"][-6:]:
+            lines.append(
+                f"- included={checkpoint['includedCount']} stableRun={checkpoint['stableRunLength']} "
+                f"sekitori={checkpoint['sekitoriRate']:.4f} makuuchi={checkpoint['makuuchiRate']:.4f} "
+                f"sanyaku={checkpoint['sanyakuRate']:.4f} p50={checkpoint['careerBashoP50']:.2f} "
+                f"winMean={checkpoint['careerWinRateMean']:.4f}"
+            )
+        lines.append("")
+
+    md_path.write_text("\n".join(lines), encoding="utf-8")
+    return report
+
+
+def maybe_checkpoint(con: sqlite3.Connection) -> dict:
+    metrics = compute_metrics(con)
+    if not metrics:
+        return write_collection_report(con)
+
+    if metrics["includedCount"] >= CHECKPOINT_INTERVAL and metrics["includedCount"] % CHECKPOINT_INTERVAL == 0:
+        checkpoints = load_checkpoints(con)
+        if not checkpoints or checkpoints[-1]["includedCount"] != metrics["includedCount"]:
+            checkpoint = {
+                "includedCount": metrics["includedCount"],
+                "sekitoriRate": metrics["sekitoriRate"],
+                "makuuchiRate": metrics["makuuchiRate"],
+                "sanyakuRate": metrics["sanyakuRate"],
+                "careerBashoP50": metrics["careerBashoP50"],
+                "careerWinRateMean": metrics["careerWinRateMean"],
+                "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            }
+            checkpoints.append(checkpoint)
+            save_checkpoints(con, checkpoints)
+    return write_collection_report(con)
+
+
+def fetch_one(con: sqlite3.Connection, rikishi_id: int) -> tuple[str, str]:
+    url = BASE_URL.format(rikishi_id)
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=20)
+        status_code = resp.status_code
+        if status_code != 200:
+            update_catalog(
+                con,
+                rikishi_id,
+                fetch_state="error",
+                cohort_state="unknown",
+                cohort_reason="http_error",
+                source_url=url,
+                raw_html_path=None,
+                http_status=status_code,
+                content_hash=None,
+                shikona=None,
+                highest_rank_raw=None,
+                debut_basho=None,
+                last_basho=None,
+                career=None,
+                error_message=f"HTTP {status_code}",
+            )
+            remove_summary(con, rikishi_id)
+            con.commit()
+            return "error", "http_error"
+
+        resp.encoding = resp.apparent_encoding
+        html = resp.text
+        content_hash = hashlib.sha256(html.encode("utf-8")).hexdigest()
+        raw_path = RAW_DIR / f"{rikishi_id}.html"
+        raw_path.write_text(html, encoding="utf-8")
+
+        text = html_to_text(html)
+        if "生涯戦歴" not in text:
+            update_catalog(
+                con,
+                rikishi_id,
+                fetch_state="error",
+                cohort_state="unknown",
+                cohort_reason="parse_error",
+                source_url=url,
+                raw_html_path=str(raw_path),
+                http_status=status_code,
+                content_hash=content_hash,
+                shikona=None,
+                highest_rank_raw=None,
+                debut_basho=None,
+                last_basho=None,
+                career=None,
+                error_message="生涯戦歴が見つからない",
+            )
+            remove_summary(con, rikishi_id)
+            con.commit()
+            return "error", "parse_error"
+
+        shikona = extract_shikona(text)
+        highest_rank_raw = extract_label_value(text, "highest_rank_raw")
+        debut_basho = extract_label_value(text, "debut_basho")
+        last_basho = extract_label_value(text, "last_basho")
+        career = extract_career(text)
+        if not career or not debut_basho:
+            update_catalog(
+                con,
+                rikishi_id,
+                fetch_state="error",
+                cohort_state="unknown",
+                cohort_reason="parse_error",
+                source_url=url,
+                raw_html_path=str(raw_path),
+                http_status=status_code,
+                content_hash=content_hash,
+                shikona=shikona,
+                highest_rank_raw=highest_rank_raw,
+                debut_basho=debut_basho,
+                last_basho=last_basho,
+                career=career,
+                error_message="必要項目のパース失敗",
+            )
+            remove_summary(con, rikishi_id)
+            con.commit()
+            return "error", "parse_error"
+
+        if is_heisei_debut(debut_basho):
+            upsert_summary(con, rikishi_id, shikona, highest_rank_raw, debut_basho, last_basho, career)
+            update_catalog(
+                con,
+                rikishi_id,
+                fetch_state="fetched",
+                cohort_state="included",
+                cohort_reason="heisei_debut",
+                source_url=url,
+                raw_html_path=str(raw_path),
+                http_status=status_code,
+                content_hash=content_hash,
+                shikona=shikona,
+                highest_rank_raw=highest_rank_raw,
+                debut_basho=debut_basho,
+                last_basho=last_basho,
+                career=career,
+                error_message=None,
+            )
+            con.commit()
+            return "included", "heisei_debut"
+
+        remove_summary(con, rikishi_id)
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="fetched",
+            cohort_state="excluded",
+            cohort_reason="pre_heisei_debut",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=content_hash,
+            shikona=shikona,
+            highest_rank_raw=highest_rank_raw,
+            debut_basho=debut_basho,
+            last_basho=last_basho,
+            career=career,
+            error_message=None,
+        )
+        con.commit()
+        return "excluded", "pre_heisei_debut"
+    except Exception as exc:
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="error",
+            cohort_state="unknown",
+            cohort_reason="parse_error",
+            source_url=url,
+            raw_html_path=None,
+            http_status=None,
+            content_hash=None,
+            shikona=None,
+            highest_rank_raw=None,
+            debut_basho=None,
+            last_basho=None,
+            career=None,
+            error_message=str(exc),
+        )
+        remove_summary(con, rikishi_id)
+        con.commit()
+        return "error", "parse_error"
+
+
+def main() -> None:
+    args = parse_args()
+    con = sqlite3.connect(DB_PATH)
+    try:
+        candidate_ids = get_catalog_ids(con, args.retry_errors)
+        print(f"pending rikishi ids: {len(candidate_ids)}")
+        processed = 0
+        report = write_collection_report(con)
+        for rikishi_id in candidate_ids:
+            if args.max_fetch is not None and processed >= args.max_fetch:
+                break
+            status, reason = fetch_one(con, rikishi_id)
+            processed += 1
+            print(f"[{status}] rikishi_id={rikishi_id} reason={reason}")
+            report = maybe_checkpoint(con)
+            upsert_etl_state(con, STOP_STATE_KEY, report["stabilityStatus"]["recommendedStopReason"])
+            con.commit()
+
+            if report["stabilityStatus"]["recommendedStopReason"] != "continue":
+                print(f"stop reason reached: {report['stabilityStatus']['recommendedStopReason']}")
+                break
+            time.sleep(args.sleep_seconds)
+
+        report = write_collection_report(con)
+        upsert_etl_state(con, STOP_STATE_KEY, report["stabilityStatus"]["recommendedStopReason"])
+        con.commit()
+        print(
+            f"completed processed={processed} included={report['counts']['includedCount']} "
+            f"pending={report['counts']['pendingCount']} stop={report['stabilityStatus']['recommendedStopReason']}"
+        )
+    finally:
+        con.close()
+
+
+if __name__ == "__main__":
+    main()
