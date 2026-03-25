@@ -8,4 +8,5 @@ sumosim/
 output/
 progress.md
 deep-research-report.md
-sumo-db/
+sumo-db/data/raw_html
+sumo/
