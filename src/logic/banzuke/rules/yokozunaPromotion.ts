@@ -2,10 +2,28 @@ import { BALANCE } from '../../balance';
 import { BashoRecord } from '../../models';
 import { BashoRecordSnapshot } from '../providers/sekitori/types';
 
+export type YokozunaPromotionDecisionBand = 'AUTO_PROMOTE' | 'BORDERLINE' | 'REJECT';
+
+export interface YokozunaPromotionEvidence {
+  isCurrentOzeki: boolean;
+  isPrevOzeki: boolean;
+  currentEquivalent: number;
+  prevEquivalent: number;
+  combinedEquivalent: number;
+  currentYusho: boolean;
+  currentJunYusho: boolean;
+  prevYushoEquivalent: boolean;
+  hasEquivalentPair: boolean;
+  hasYushoPair: boolean;
+  hasRealisticTotal: boolean;
+}
+
 export interface YokozunaPromotionResult {
   promote: boolean;
   bonus: number;
   score: number;
+  decisionBand: YokozunaPromotionDecisionBand;
+  evidence: YokozunaPromotionEvidence;
 }
 
 const toEquivalentScore = (wins: number, yusho?: boolean, junYusho?: boolean): number => {
@@ -14,32 +32,88 @@ const toEquivalentScore = (wins: number, yusho?: boolean, junYusho?: boolean): n
   return wins;
 };
 
+const buildYokozunaEvidence = (
+  current: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean },
+  prev: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean } | undefined,
+): YokozunaPromotionEvidence => {
+  const currentEquivalent = toEquivalentScore(current.wins, current.yusho, current.junYusho);
+  const prevEquivalent = prev
+    ? toEquivalentScore(prev.wins, prev.yusho, prev.junYusho)
+    : 0;
+  const combinedEquivalent = currentEquivalent + prevEquivalent;
+  const isCurrentOzeki = current.rankName === '大関';
+  const isPrevOzeki = prev?.rankName === '大関';
+  const minEquivalent = BALANCE.yokozuna.yushoEquivalentMinScore;
+  const hasEquivalentPair = Boolean(isCurrentOzeki && isPrevOzeki && currentEquivalent >= minEquivalent && prevEquivalent >= minEquivalent);
+  const prevYushoEquivalent = Boolean(prev?.yusho || prev?.junYusho);
+  const hasYushoPair = Boolean(current.yusho && prevYushoEquivalent);
+  const hasRealisticTotal = combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore;
+
+  return {
+    isCurrentOzeki,
+    isPrevOzeki: Boolean(isPrevOzeki),
+    currentEquivalent,
+    prevEquivalent,
+    combinedEquivalent,
+    currentYusho: Boolean(current.yusho),
+    currentJunYusho: Boolean(current.junYusho),
+    prevYushoEquivalent,
+    hasEquivalentPair,
+    hasYushoPair,
+    hasRealisticTotal,
+  };
+};
+
+const evaluateYokozunaDecisionBand = (
+  evidence: YokozunaPromotionEvidence,
+): YokozunaPromotionDecisionBand => {
+  if (!evidence.isCurrentOzeki || !evidence.isPrevOzeki) return 'REJECT';
+  if (evidence.hasEquivalentPair && evidence.hasYushoPair && evidence.hasRealisticTotal) {
+    return 'AUTO_PROMOTE';
+  }
+  if (
+    evidence.currentYusho &&
+    evidence.currentEquivalent >= BALANCE.yokozuna.yushoEquivalentMinScore &&
+    evidence.combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore - 1
+  ) {
+    return 'BORDERLINE';
+  }
+  return 'REJECT';
+};
+
 const evaluateCore = (
   current: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean },
   prev: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean } | undefined,
 ): YokozunaPromotionResult => {
-  if (current.rankName !== '大関') {
-    return { promote: false, bonus: 0, score: 0 };
-  }
-  if (!prev || prev.rankName !== '大関') {
-    const score = toEquivalentScore(current.wins, current.yusho, current.junYusho);
-    return { promote: false, bonus: current.yusho ? 8 : 0, score };
+  const evidence = buildYokozunaEvidence(current, prev);
+  const decisionBand = evaluateYokozunaDecisionBand(evidence);
+  if (decisionBand === 'AUTO_PROMOTE') {
+    return {
+      promote: true,
+      bonus: 28,
+      score: evidence.combinedEquivalent,
+      decisionBand,
+      evidence,
+    };
   }
 
-  const currentScore = toEquivalentScore(current.wins, current.yusho, current.junYusho);
-  const prevScore = toEquivalentScore(prev.wins, prev.yusho, prev.junYusho);
-  const score = currentScore + prevScore;
-  const minEquivalent = BALANCE.yokozuna.yushoEquivalentMinScore;
-  const hasEquivalent = currentScore >= minEquivalent && prevScore >= minEquivalent;
-  // 横綱昇進は「ただの13勝」ではなく、前場所も優勝争いの中心だったことを要求する。
-  const prevYushoEquivalent = Boolean(prev.yusho || prev.junYusho);
-  const hasYushoPair = Boolean(current.yusho && prevYushoEquivalent);
-  const hasRealisticTotal = score >= BALANCE.yokozuna.yushoEquivalentTotalMinScore;
-  const promote = hasEquivalent && hasYushoPair && hasRealisticTotal;
-  if (promote) return { promote: true, bonus: 28, score };
-  if (current.yusho && score >= 28) return { promote: false, bonus: 10, score };
-  if (current.yusho) return { promote: false, bonus: 4, score };
-  return { promote: false, bonus: 0, score };
+  if (decisionBand === 'BORDERLINE') {
+    return {
+      promote: false,
+      bonus: 10,
+      score: evidence.combinedEquivalent,
+      decisionBand,
+      evidence,
+    };
+  }
+
+  return {
+    promote: false,
+    bonus: current.yusho ? 4 : 0,
+    score: evidence.combinedEquivalent,
+    decisionBand,
+    evidence,
+  };
 };
 
 export const evaluateYokozunaPromotion = (
@@ -81,4 +155,4 @@ export const canPromoteToYokozuna = (
         junYusho: false,
       }
       : undefined,
-  ).promote;
+  ).decisionBand === 'AUTO_PROMOTE';

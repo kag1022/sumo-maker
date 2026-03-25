@@ -1,7 +1,7 @@
 import { BashoRecord, Rank } from '../../models';
 import { RandomSource } from '../../simulation/deps';
 import { getRankValue } from '../../ranking/rankScore';
-import { resolveTopDivisionAssignedEvent } from './topDivisionRules';
+import { resolveTopDivisionAssignedEventDetail } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
 import { RankCalculationOptions, RankChangeResult } from '../types';
 import {
@@ -703,9 +703,10 @@ export const calculateNextRank = (
       assignedTopRank.name === '横綱' &&
       !canPromoteToYokozuna(currentRecord, pastRecords);
     if (!blockedAssignedOzeki && !blockedAssignedYokozuna) {
+      const assignmentDetail = resolveTopDivisionAssignedEventDetail(currentRank, assignedTopRank);
       return finalize({
         nextRank: assignedTopRank,
-        event: resolveTopDivisionAssignedEvent(currentRank, assignedTopRank),
+        event: assignmentDetail.eventCode,
       });
     }
   }

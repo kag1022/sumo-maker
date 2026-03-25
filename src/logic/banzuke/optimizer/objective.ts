@@ -1,7 +1,7 @@
 import { ExpectedPlacementCandidate } from '../providers/expected/types';
 import { OPTIMIZER_CONFIG } from './config';
 import { resolveQuantileTarget } from './quantileTargets';
-import { OptimizerPressureSnapshot, OptimizerRow } from './types';
+import { OptimizerCostBreakdown, OptimizerPressureSnapshot, OptimizerRow } from './types';
 
 const INF = Number.POSITIVE_INFINITY;
 
@@ -20,49 +20,69 @@ const resolveCandidatePriority = (candidate: ExpectedPlacementCandidate): number
   return mandatoryBias + score * 1.2 + diff * 140 - candidate.currentSlot * 0.38;
 };
 
-const resolveSlotCost = (
+const resolveSlotCostBreakdown = (
   candidate: ExpectedPlacementCandidate,
   slot: number,
   quantiles: { p10: number; p50: number; p90: number },
   pressure: number,
-): number => {
-  if (slot < candidate.minSlot || slot > candidate.maxSlot) return INF;
+): OptimizerCostBreakdown | null => {
+  if (slot < candidate.minSlot || slot > candidate.maxSlot) return null;
 
-  let cost = 0;
+  const breakdown: OptimizerCostBreakdown = {
+    quantileOutside: 0,
+    quantileCenter: 0,
+    expectedSlotDrift: 0,
+    currentSlotDrift: 0,
+    directionViolation: 0,
+    mandatoryViolation: 0,
+    pressure: 0,
+    scoreTieBreak: 0,
+  };
+
   if (slot < quantiles.p10) {
-    cost += (quantiles.p10 - slot) * OPTIMIZER_CONFIG.quantileOutsidePenalty;
+    breakdown.quantileOutside += (quantiles.p10 - slot) * OPTIMIZER_CONFIG.quantileOutsidePenalty;
   } else if (slot > quantiles.p90) {
-    cost += (slot - quantiles.p90) * OPTIMIZER_CONFIG.quantileOutsidePenalty;
+    breakdown.quantileOutside += (slot - quantiles.p90) * OPTIMIZER_CONFIG.quantileOutsidePenalty;
   }
 
-  cost += Math.abs(slot - quantiles.p50) * OPTIMIZER_CONFIG.quantileCenterPenalty;
-  cost += Math.abs(slot - candidate.expectedSlot) * OPTIMIZER_CONFIG.expectedSlotPenalty;
-  cost += Math.abs(slot - candidate.currentSlot) * OPTIMIZER_CONFIG.currentSlotDriftPenalty;
+  breakdown.quantileCenter += Math.abs(slot - quantiles.p50) * OPTIMIZER_CONFIG.quantileCenterPenalty;
+  breakdown.expectedSlotDrift += Math.abs(slot - candidate.expectedSlot) * OPTIMIZER_CONFIG.expectedSlotPenalty;
+  breakdown.currentSlotDrift += Math.abs(slot - candidate.currentSlot) * OPTIMIZER_CONFIG.currentSlotDriftPenalty;
 
   const effectiveLosses = resolveEffectiveLosses(candidate);
   const diff = candidate.wins - effectiveLosses;
   const delta = slot - candidate.currentSlot;
   if (diff > 0 && delta > 0) {
-    cost += delta * OPTIMIZER_CONFIG.directionViolationPenalty;
+    breakdown.directionViolation += delta * OPTIMIZER_CONFIG.directionViolationPenalty;
   }
   if (diff < 0 && delta < 0) {
-    cost += Math.abs(delta) * OPTIMIZER_CONFIG.directionViolationPenalty;
+    breakdown.directionViolation += Math.abs(delta) * OPTIMIZER_CONFIG.directionViolationPenalty;
   }
   if (candidate.mandatoryPromotion && delta >= 0) {
-    cost += OPTIMIZER_CONFIG.mandatoryViolationPenalty + delta * 200;
+    breakdown.mandatoryViolation += OPTIMIZER_CONFIG.mandatoryViolationPenalty + delta * 200;
   }
   if (candidate.mandatoryDemotion && delta <= 0) {
-    cost += OPTIMIZER_CONFIG.mandatoryViolationPenalty + Math.abs(delta) * 200;
+    breakdown.mandatoryViolation += OPTIMIZER_CONFIG.mandatoryViolationPenalty + Math.abs(delta) * 200;
   }
 
   if (diff !== 0) {
-    cost += OPTIMIZER_CONFIG.pressureLinearPenalty * pressure * delta * Math.sign(diff);
+    breakdown.pressure += OPTIMIZER_CONFIG.pressureLinearPenalty * pressure * delta * Math.sign(diff);
   }
 
   const normalizedScore = clamp(candidate.score, -2500, 2500);
-  cost += (1000 - normalizedScore) * OPTIMIZER_CONFIG.scoreTieBreakScale;
-  return cost;
+  breakdown.scoreTieBreak += (1000 - normalizedScore) * OPTIMIZER_CONFIG.scoreTieBreakScale;
+  return breakdown;
 };
+
+const resolveSlotCostFromBreakdown = (breakdown: OptimizerCostBreakdown): number =>
+  breakdown.quantileOutside +
+  breakdown.quantileCenter +
+  breakdown.expectedSlotDrift +
+  breakdown.currentSlotDrift +
+  breakdown.directionViolation +
+  breakdown.mandatoryViolation +
+  breakdown.pressure +
+  breakdown.scoreTieBreak;
 
 export const buildOptimizerRows = (
   candidates: ExpectedPlacementCandidate[],
@@ -79,7 +99,22 @@ export const buildOptimizerRows = (
       maxSlot: Math.max(candidate.minSlot, candidate.maxSlot),
       priority: resolveCandidatePriority(candidate),
       quantiles,
-      costAt: (slot: number) => resolveSlotCost(candidate, slot, quantiles, pressure),
+      costAt: (slot: number) => {
+        const breakdown = resolveSlotCostBreakdown(candidate, slot, quantiles, pressure);
+        if (!breakdown) return INF;
+        return resolveSlotCostFromBreakdown(breakdown);
+      },
+      costBreakdownAt: (slot: number) =>
+        resolveSlotCostBreakdown(candidate, slot, quantiles, pressure) ?? {
+          quantileOutside: INF,
+          quantileCenter: 0,
+          expectedSlotDrift: 0,
+          currentSlotDrift: 0,
+          directionViolation: 0,
+          mandatoryViolation: 0,
+          pressure: 0,
+          scoreTieBreak: 0,
+        },
     };
   })
   .sort((a, b) => {
@@ -89,4 +124,3 @@ export const buildOptimizerRows = (
     }
     return a.id.localeCompare(b.id);
   });
-
