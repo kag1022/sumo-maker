@@ -6,6 +6,11 @@ import {
   summarizeKimariteUsage,
 } from '../../../src/logic/kimarite/selection';
 import { reviewBoard } from '../../../src/logic/banzuke/committee/reviewBoard';
+import {
+  evaluateYokozunaPromotion,
+} from '../../../src/logic/banzuke/rules/yokozunaPromotion';
+import { evaluateSnapshotOzekiPromotion } from '../../../src/logic/banzuke/rules/sanyakuPromotion';
+import { resolveTopDivisionAssignedEventDetail } from '../../../src/logic/banzuke/rules/topDivisionRules';
 import { BanzukeCommitteeCase } from '../../../src/logic/banzuke/types';
 
 const assert = {
@@ -64,6 +69,68 @@ const cases: TestCase[] = [
       const decision = result.decisions[0];
       assert.ok((decision.appliedRules?.length ?? 0) >= 1, 'expected applied rules to be recorded');
       assert.ok(decision.reasons.includes('AUDIT_CONSTRAINT_HIT'), 'expected constraint reason');
+    },
+  },
+
+  {
+    name: 'experience: yokozuna promotion exposes decision band and evidence',
+    run: () => {
+      const result = evaluateYokozunaPromotion({
+        id: 'player',
+        shikona: '検証山',
+        rank: { division: 'Makuuchi', name: '大関', side: 'East' },
+        wins: 14,
+        losses: 1,
+        absent: 0,
+        yusho: true,
+        junYusho: false,
+        pastRecords: [
+          {
+            rank: { division: 'Makuuchi', name: '大関', side: 'West' },
+            wins: 13,
+            losses: 2,
+            absent: 0,
+            yusho: false,
+            junYusho: true,
+          },
+        ],
+      });
+      assert.equal(result.decisionBand, 'AUTO_PROMOTE');
+      assert.ok(result.evidence.hasEquivalentPair, 'expected equivalent pair evidence');
+      assert.ok(result.evidence.hasYushoPair, 'expected yusho pair evidence');
+    },
+  },
+  {
+    name: 'experience: ozeki promotion evaluates formal and quality gates',
+    run: () => {
+      const result = evaluateSnapshotOzekiPromotion({
+        id: 'player',
+        shikona: '検証山',
+        rank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+        wins: 11,
+        losses: 4,
+        absent: 0,
+        yusho: false,
+        junYusho: false,
+        pastRecords: [
+          { rank: { division: 'Makuuchi', name: '関脇', side: 'West' }, wins: 11, losses: 4, absent: 0, yusho: false, junYusho: false },
+          { rank: { division: 'Makuuchi', name: '小結', side: 'East' }, wins: 11, losses: 4, absent: 0, yusho: false, junYusho: false },
+        ],
+      });
+      assert.ok(result.passedFormal, 'expected formal criteria pass');
+      assert.ok(result.recommended, 'expected recommendation pass');
+      assert.ok(result.qualityScore >= 34, 'expected quality score threshold');
+    },
+  },
+  {
+    name: 'experience: top-division assignment detail includes reason tags',
+    run: () => {
+      const detail = resolveTopDivisionAssignedEventDetail(
+        { division: 'Makuuchi', name: '関脇', side: 'East' },
+        { division: 'Makuuchi', name: '小結', side: 'West' },
+      );
+      assert.equal(detail.eventCode, 'DEMOTION_TO_KOMUSUBI');
+      assert.ok(detail.reasonTags.includes('SANYAKU_SLOT_PRESSURE'), 'expected sanyaku reason tag');
     },
   },
   {

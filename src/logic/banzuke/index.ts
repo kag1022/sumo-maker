@@ -34,7 +34,11 @@ export {
 export { composeNextBanzuke } from './committee/composeNextBanzuke';
 export { reviewBoard } from './committee/reviewBoard';
 export { resolveConstraintHits } from './rules/constraints';
-export { normalizeSekitoriLosses, resolveTopDivisionAssignedEvent } from './rules/topDivisionRules';
+export {
+  normalizeSekitoriLosses,
+  resolveTopDivisionAssignedEvent,
+  resolveTopDivisionAssignedEventDetail,
+} from './rules/topDivisionRules';
 export { evaluateYokozunaPromotion, canPromoteToYokozuna } from './rules/yokozunaPromotion';
 export { calculateNextRank } from './rules/singleRankChange';
 export { calculateLowerDivisionRankChange, resolveLowerRangeDeltaByScore } from './rules/lowerDivision';

@@ -6,27 +6,52 @@ type OzekiPromotionRecord = {
   wins: number;
 };
 
+export interface OzekiPromotionEvaluation {
+  passedFormal: boolean;
+  qualityScore: number;
+  recommended: boolean;
+  totalWins: number;
+}
+
 export const isSanyakuName = (name: string): boolean =>
   name === '関脇' || name === '小結';
 
-const canPromoteToOzekiBy33WinsCore = (
+const evaluateOzekiPromotionCore = (
   current: OzekiPromotionRecord,
   prev1?: OzekiPromotionRecord,
   prev2?: OzekiPromotionRecord,
-): boolean => {
-  if (!isSanyakuName(current.rankName)) return false;
-  if (!prev1 || !prev2) return false;
+): OzekiPromotionEvaluation => {
+  if (!isSanyakuName(current.rankName) || !prev1 || !prev2) {
+    return { passedFormal: false, qualityScore: 0, recommended: false, totalWins: 0 };
+  }
+
   const chain = [current, prev1, prev2];
-  if (!chain.every((record) => isSanyakuName(record.rankName))) return false;
+  if (!chain.every((record) => isSanyakuName(record.rankName))) {
+    return { passedFormal: false, qualityScore: 0, recommended: false, totalWins: 0 };
+  }
+
   const totalWins = chain.reduce((sum, record) => sum + record.wins, 0);
-  return totalWins >= 33 && current.wins >= 10;
+  const passedFormal = totalWins >= 33 && current.wins >= 10;
+
+  const currentWeight = current.rankName === '関脇' ? 1.05 : 1;
+  const consistencyBonus = Math.max(0, Math.min(prev1.wins, prev2.wins) - 10) * 0.35;
+  const explosiveBonus = current.wins >= 12 ? 1.25 : current.wins >= 11 ? 0.6 : 0;
+  const qualityScore = totalWins * currentWeight + consistencyBonus + explosiveBonus;
+  const recommended = passedFormal && qualityScore >= 34;
+
+  return {
+    passedFormal,
+    qualityScore,
+    recommended,
+    totalWins,
+  };
 };
 
-export const canPromoteToOzekiBy33Wins = (
+export const evaluateOzekiPromotion = (
   currentRecord: BashoRecord,
   historyWindow: BashoRecord[],
-): boolean =>
-  canPromoteToOzekiBy33WinsCore(
+): OzekiPromotionEvaluation =>
+  evaluateOzekiPromotionCore(
     {
       rankName: currentRecord.rank.name,
       wins: currentRecord.wins,
@@ -45,10 +70,10 @@ export const canPromoteToOzekiBy33Wins = (
       : undefined,
   );
 
-export const canPromoteSnapshotToOzekiBy33Wins = (
+export const evaluateSnapshotOzekiPromotion = (
   snapshot: BashoRecordSnapshot,
-): boolean =>
-  canPromoteToOzekiBy33WinsCore(
+): OzekiPromotionEvaluation =>
+  evaluateOzekiPromotionCore(
     {
       rankName: snapshot.rank.name,
       wins: snapshot.wins,
@@ -66,3 +91,14 @@ export const canPromoteSnapshotToOzekiBy33Wins = (
       }
       : undefined,
   );
+
+export const canPromoteToOzekiBy33Wins = (
+  currentRecord: BashoRecord,
+  historyWindow: BashoRecord[],
+): boolean =>
+  evaluateOzekiPromotion(currentRecord, historyWindow).recommended;
+
+export const canPromoteSnapshotToOzekiBy33Wins = (
+  snapshot: BashoRecordSnapshot,
+): boolean =>
+  evaluateSnapshotOzekiPromotion(snapshot).recommended;
