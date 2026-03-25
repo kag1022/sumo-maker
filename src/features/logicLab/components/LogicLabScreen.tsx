@@ -180,7 +180,7 @@ export const LogicLabScreen: React.FC = () => {
               </div>
               
               <div className="p-3 bg-bg/40 border border-gold-muted/10 text-[10px] text-text-faint leading-tight italic">
-                反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} [seed:${runConfig.seed}]` : '未構成'}
+                反映中: {runConfig ? `${resolveLogicLabPresetLabel(runConfig.presetId)} [seed:${runConfig.seed}] [kimarite:${runConfig.kimariteTuningPresetId}]` : '未構成'}
               </div>
             </div>
           </div>
