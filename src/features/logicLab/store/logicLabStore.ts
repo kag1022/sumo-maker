@@ -50,7 +50,7 @@ let activeRun: LogicLabRunHandle | null = null;
 
 const parseRunConfig = (
   store: Pick<LogicLabStore, 'presetId' | 'seedInput' | 'maxBashoInput'>,
-): LogicLabRunConfig => ({
+): Partial<LogicLabRunConfig> => ({
   presetId: store.presetId,
   seed: normalizeLogicLabSeed(store.seedInput),
   maxBasho: normalizeLogicLabMaxBasho(store.maxBashoInput),

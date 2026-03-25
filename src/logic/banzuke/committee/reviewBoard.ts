@@ -68,56 +68,86 @@ const toRankScore = (rank: Rank): number => {
 };
 
 const compareRank = (a: Rank, b: Rank): number => toRankScore(a) - toRankScore(b);
-
 const sameDivision = (a: Rank, b: Rank): boolean => a.division === b.division;
+
+interface ReviewRule {
+  id: string;
+  priority: number;
+  predicate: (input: BanzukeCommitteeCase, corrected: Rank) => boolean;
+  apply: (input: BanzukeCommitteeCase, corrected: Rank) => {
+    rank: Rank;
+    reasons: BanzukeDecisionReasonCode[];
+  };
+}
+
+const REVIEW_RULES: ReviewRule[] = [
+  {
+    id: 'KACHIKOSHI_DEMOTION_GUARD',
+    priority: 100,
+    predicate: (input: BanzukeCommitteeCase, corrected: Rank) =>
+      input.flags.includes('KACHIKOSHI_DEMOTION_RISK') &&
+      compareRank(corrected, input.currentRank) > 0,
+    apply: (input: BanzukeCommitteeCase) => ({
+      rank: { ...input.currentRank },
+      reasons: ['REVIEW_REVERT_KACHIKOSHI_DEMOTION', 'AUDIT_CONSTRAINT_HIT'] as BanzukeDecisionReasonCode[],
+    }),
+  },
+  {
+    id: 'LIGHT_MAKEKOSHI_CAP',
+    priority: 80,
+    predicate: (input: BanzukeCommitteeCase, corrected: Rank) =>
+      input.flags.includes('LIGHT_MAKEKOSHI_OVER_DEMOTION') &&
+      corrected.division === 'Makushita' &&
+      (corrected.number ?? 999) > 10,
+    apply: (_input: BanzukeCommitteeCase, corrected: Rank) => ({
+      rank: { ...corrected, number: 10, side: 'East' as const },
+      reasons: ['REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION', 'AUDIT_CONSTRAINT_HIT'] as BanzukeDecisionReasonCode[],
+    }),
+  },
+  {
+    id: 'MAKUSHITA_ZENSHO_JOI',
+    priority: 70,
+    predicate: (input: BanzukeCommitteeCase, corrected: Rank) =>
+      input.flags.includes('MAKUSHITA_ZENSHO_UNDER_PROMOTION') &&
+      corrected.division === 'Makushita' &&
+      (corrected.number ?? 999) > 15,
+    apply: (_input: BanzukeCommitteeCase, corrected: Rank) => ({
+      rank: { ...corrected, number: 15, side: 'East' as const },
+      reasons: ['REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI', 'AUDIT_CONSTRAINT_HIT'] as BanzukeDecisionReasonCode[],
+    }),
+  },
+  {
+    id: 'BOUNDARY_JAM_NOTE',
+    priority: 10,
+    predicate: (input: BanzukeCommitteeCase, corrected: Rank) =>
+      input.flags.includes('BOUNDARY_SLOT_JAM') && sameDivision(corrected, input.currentRank),
+    apply: (_input: BanzukeCommitteeCase, corrected: Rank) => ({
+      rank: { ...corrected },
+      reasons: ['REVIEW_BOUNDARY_SLOT_JAM_NOTED'] as BanzukeDecisionReasonCode[],
+    }),
+  },
+].sort((a, b) => b.priority - a.priority);
 
 const applyAuditCorrection = (
   input: BanzukeCommitteeCase,
-): { rank: Rank; reasons: BanzukeDecisionReasonCode[] } => {
+): { rank: Rank; reasons: BanzukeDecisionReasonCode[]; appliedRules: string[] } => {
   let corrected = { ...input.proposalRank };
   const reasons: BanzukeDecisionReasonCode[] = [];
+  const appliedRules: string[] = [];
 
-  if (
-    input.flags.includes('KACHIKOSHI_DEMOTION_RISK') &&
-    compareRank(corrected, input.currentRank) > 0
-  ) {
-    corrected = { ...input.currentRank };
-    reasons.push('REVIEW_REVERT_KACHIKOSHI_DEMOTION');
-    reasons.push('AUDIT_CONSTRAINT_HIT');
-  }
-
-  if (
-    input.flags.includes('LIGHT_MAKEKOSHI_OVER_DEMOTION') &&
-    corrected.division === 'Makushita' &&
-    (corrected.number ?? 999) > 10
-  ) {
-    corrected = { ...corrected, number: 10, side: 'East' };
-    reasons.push('REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION');
-    reasons.push('AUDIT_CONSTRAINT_HIT');
-  }
-
-  if (
-    input.flags.includes('MAKUSHITA_ZENSHO_UNDER_PROMOTION') &&
-    corrected.division === 'Makushita' &&
-    (corrected.number ?? 999) > 15
-  ) {
-    corrected = { ...corrected, number: 15, side: 'East' };
-    reasons.push('REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI');
-    reasons.push('AUDIT_CONSTRAINT_HIT');
-  }
-
-  if (
-    input.flags.includes('BOUNDARY_SLOT_JAM') &&
-    sameDivision(corrected, input.currentRank)
-  ) {
-    reasons.push('REVIEW_BOUNDARY_SLOT_JAM_NOTED');
+  for (const rule of REVIEW_RULES) {
+    if (!rule.predicate(input, corrected)) continue;
+    const result = rule.apply(input, corrected);
+    corrected = { ...result.rank };
+    reasons.push(...result.reasons);
+    appliedRules.push(rule.id);
   }
 
   if (!reasons.length) {
     reasons.push('AUDIT_PASS');
   }
 
-  return { rank: corrected, reasons: [...new Set(reasons)] };
+  return { rank: corrected, reasons: [...new Set(reasons)], appliedRules };
 };
 
 export interface ReviewBoardDecision {
@@ -125,6 +155,7 @@ export interface ReviewBoardDecision {
   finalRank: Rank;
   reasons: BanzukeDecisionReasonCode[];
   votes: BanzukeDecisionVote[];
+  appliedRules?: string[];
 }
 
 export const reviewBoard = (
@@ -140,6 +171,7 @@ export const reviewBoard = (
         finalRank: { ...input.proposalRank },
         reasons: ['AUTO_ACCEPTED'],
         votes: [],
+        appliedRules: [],
       });
       continue;
     }
@@ -150,6 +182,7 @@ export const reviewBoard = (
       finalRank: corrected.rank,
       reasons: corrected.reasons,
       votes: [],
+      appliedRules: corrected.appliedRules,
     });
   }
 
