@@ -1,4 +1,5 @@
 import { InjuryStatusType, Rank, RealismKpiSnapshot } from '../../logic/models';
+import { KimariteTuningPresetId } from '../../logic/kimarite/selection';
 import { PauseReason } from '../../logic/simulation/engine';
 
 
@@ -22,6 +23,7 @@ export interface LogicLabRunConfig {
   presetId: LogicLabPresetId;
   seed: number;
   maxBasho: number;
+  kimariteTuningPresetId: KimariteTuningPresetId;
 }
 
 export interface LogicLabBashoRecordView {
@@ -86,6 +88,7 @@ export interface LogicLabBashoLogRow {
 export interface LogicLabSummary {
   bashoCount: number;
   simulationModelVersion: 'v3';
+  kimariteTuningPresetId: KimariteTuningPresetId;
   currentRank: Rank;
   maxRank: Rank;
   age: number;

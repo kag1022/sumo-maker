@@ -7,6 +7,11 @@ import {
 import { NpcBashoAggregate } from '../../logic/simulation/basho';
 
 import { normalizeKimariteName } from '../../logic/kimarite/catalog';
+import {
+  getActiveKimariteTuningPreset,
+  KimariteTuningPresetId,
+  setActiveKimariteTuningPreset,
+} from '../../logic/kimarite/selection';
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from './presets';
 import {
   LogicLabBashoLogRow,
@@ -24,6 +29,11 @@ export const LOGIC_LAB_DEFAULT_SEED = 7331;
 export const LOGIC_LAB_DEFAULT_MAX_BASHO = 240;
 export const LOGIC_LAB_MAX_BASHO_LIMIT = 300;
 const LOGIC_LAB_FIXED_START_YEAR = 2026;
+
+const resolveDefaultKimariteTuningPreset = (presetId: LogicLabRunConfig['presetId']): KimariteTuningPresetId =>
+  presetId === 'STANDARD_B_GRINDER' || presetId === 'HIGH_TALENT_AS'
+    ? 'VARIETY_PLUS'
+    : 'DEFAULT';
 
 const hasPrize = (
   prizes: string[],
@@ -75,12 +85,14 @@ const buildInjurySummary = (status: RikishiStatus): LogicLabInjurySummary => {
 const buildSummary = (
   status: RikishiStatus,
   committeeWarnings: number,
-  stopReason?: LogicLabStopReason,
+  stopReason: LogicLabStopReason | undefined,
+  kimariteTuningPresetId: KimariteTuningPresetId,
 ): LogicLabSummary => {
   const sansho = summarizeSansho(status);
   return {
     bashoCount: status.history.records.length,
     simulationModelVersion: 'v3',
+    kimariteTuningPresetId,
     currentRank: { ...status.rank },
     maxRank: { ...status.history.maxRank },
     age: status.age,
@@ -356,9 +368,13 @@ export const createLogicLabRun = (
     presetId: partialConfig.presetId ?? LOGIC_LAB_DEFAULT_PRESET,
     seed: normalizeLogicLabSeed(partialConfig.seed),
     maxBasho: normalizeLogicLabMaxBasho(partialConfig.maxBasho),
+    kimariteTuningPresetId:
+      partialConfig.kimariteTuningPresetId ??
+      resolveDefaultKimariteTuningPreset(partialConfig.presetId ?? LOGIC_LAB_DEFAULT_PRESET),
   };
 
   const initialRng = createSeededRandom(config.seed ^ 0x9e3779b9);
+  setActiveKimariteTuningPreset(config.kimariteTuningPresetId);
   const simRng = createSeededRandom(config.seed ^ 0x85ebca6b);
   const initialStatus = createLogicLabInitialStatus(config.presetId, initialRng);
   const engine = createSimulationEngine(
@@ -382,7 +398,7 @@ export const createLogicLabRun = (
   let stopReason: LogicLabStopReason | undefined;
 
   const getSummary = (): LogicLabSummary =>
-    buildSummary(currentStatus, currentWarnings, stopReason);
+    buildSummary(currentStatus, currentWarnings, stopReason, getActiveKimariteTuningPreset());
 
   const step = async (): Promise<LogicLabRunStep> => {
     if (completed || currentStatus.history.records.length >= config.maxBasho) {

@@ -153,6 +153,7 @@ node scripts/tests/run_sim_tests.cjs --list-scopes
 node scripts/tests/run_sim_tests.cjs --scope calibration --jobs 1
 node scripts/tests/run_sim_tests.cjs --scope retirement --jobs 1
 node scripts/tests/run_sim_tests.cjs --scope rating --jobs 1
+node scripts/tests/run_sim_tests.cjs --scope experience --jobs 1
 node scripts/tests/run_sim_tests.cjs --grep yokozuna
 ```
 
@@ -169,6 +170,7 @@ node scripts/tests/run_sim_tests.cjs --grep yokozuna
 - `scripts/tests/modules/calibration.ts`
 - `scripts/tests/modules/simulation.ts`
 - `scripts/tests/modules/gameplay.ts`
+- `scripts/tests/modules/experience.ts`
 - `scripts/tests/modules/persistence.ts`
 - `scripts/tests/modules/npc.ts`
 - `scripts/tests/legacy/allCases.ts`

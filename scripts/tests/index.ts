@@ -2,6 +2,7 @@ import { assertModuleCoverage, getTestScope } from './_shared/moduleUtils';
 import { banzukeTestModule } from './modules/banzuke';
 import { calibrationTestModule } from './modules/calibration';
 import { gameplayTestModule } from './modules/gameplay';
+import { experienceTestModule } from './modules/experience';
 import { npcTestModule } from './modules/npc';
 import { persistenceTestModule } from './modules/persistence';
 import { tests as legacyTests } from './legacy/allCases';
@@ -28,6 +29,7 @@ export const testModules: TestModule[] = [
   banzukeTestModule,
   simulationTestModule,
   gameplayTestModule,
+  experienceTestModule,
   persistenceTestModule,
   npcTestModule,
 ];
