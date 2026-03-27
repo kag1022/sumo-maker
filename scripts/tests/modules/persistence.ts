@@ -4,6 +4,7 @@ import { createScopedModule } from '../_shared/moduleUtils';
 export const persistenceTestModule = createScopedModule('persistence', legacyTests, [
   'collection',
   'compat',
+  'persistence',
   'report',
   'storage',
   'wallet',

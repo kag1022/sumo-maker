@@ -2,33 +2,56 @@ import {
   buildBoundaryBandMap,
   DEFAULT_TORIKUMI_LATE_EVAL_START_DAY,
   isLowerDivision,
-  isUpperRankTier,
   resolveRankNumber,
   resolveSurvivalBubble,
   resolveTorikumiTier,
   resolveYushoRaceTier,
 } from '../policy';
 import {
+  BoundaryActivationReason,
   BoundaryBandSpec,
   BoundaryId,
   ScheduleTorikumiBashoParams,
   TorikumiBashoResult,
+  TorikumiBoundaryImplication,
+  TorikumiContentionTier,
   TorikumiMatchReason,
   TorikumiPair,
   TorikumiParticipant,
+  TorikumiTitleImplication,
 } from '../types';
 
-type PairStage = {
-  allowCrossDivision: boolean;
-  enforceSameDivision: boolean;
-  requireCrossDivision?: boolean;
-  maxRankDiff?: number;
-  maxWinDiff?: number;
+type ObligationReason =
+  | 'SANYAKU_ROUND_ROBIN'
+  | 'JOI_ASSIGNMENT'
+  | 'JURYO_PROMOTION_RACE'
+  | 'JURYO_DEMOTION_RACE';
+
+type Obligation = {
+  id: string;
+  pairKey: string;
+  reason: ObligationReason;
 };
 
-type OrderedParticipant = {
-  participant: TorikumiParticipant;
-  orderKey: number;
+type PairEval = {
+  score: number;
+  matchReason: TorikumiMatchReason;
+  boundaryId?: BoundaryId;
+  activationReasons: BoundaryActivationReason[];
+  crossDivision: boolean;
+  phaseId?: string;
+  roundIndex?: number;
+  obligationId?: string;
+  contentionTier: TorikumiContentionTier;
+  titleImplication: TorikumiTitleImplication;
+  boundaryImplication: TorikumiBoundaryImplication;
+};
+
+type MatchAttempt = {
+  pairs: TorikumiPair[];
+  leftoverIds: string[];
+  totalScore: number;
+  repairDepth: number;
 };
 
 const DIVISION_PRIORITY: Record<TorikumiParticipant['division'], number> = {
@@ -49,6 +72,14 @@ const TIER_PRIORITY: Record<ReturnType<typeof resolveTorikumiTier>, number> = {
   Lower: 5,
 };
 
+const canonicalPairKey = (aId: string, bId: string): string =>
+  [aId, bId].sort().join(':');
+
+const cloneFacedMap = (
+  faced: Map<string, Set<string>>,
+): Map<string, Set<string>> =>
+  new Map([...faced.entries()].map(([id, ids]) => [id, new Set(ids)]));
+
 const ensureFacedMap = (
   participants: TorikumiParticipant[],
   facedMap?: Map<string, Set<string>>,
@@ -62,12 +93,20 @@ const ensureFacedMap = (
   return new Map(participants.map((participant) => [participant.id, new Set<string>()]));
 };
 
+const markFaced = (
+  faced: Map<string, Set<string>>,
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+): void => {
+  faced.get(a.id)?.add(b.id);
+  faced.get(b.id)?.add(a.id);
+};
+
 const applyParticipantDefaults = (participant: TorikumiParticipant): void => {
   participant.kyujo = participant.kyujo ?? !participant.active;
   participant.facedIdsThisBasho = participant.facedIdsThisBasho ?? [];
   participant.torikumiTier = resolveTorikumiTier(participant);
-  participant.yushoRaceTier = participant.yushoRaceTier ?? 'Outside';
-  participant.survivalBubble = resolveSurvivalBubble(participant);
+  participant.rankSide = participant.rankSide ?? (participant.rankScore % 2 === 1 ? 'East' : 'West');
 };
 
 const resolveDivisionLeaderWins = (
@@ -81,6 +120,79 @@ const resolveDivisionLeaderWins = (
   return leaderWins;
 };
 
+const resolveMakuuchiBand = (participant: TorikumiParticipant): string => {
+  if (participant.division !== 'Makuuchi') return 'OTHER';
+  if (participant.rankName === '横綱' || participant.rankName === '大関' || participant.rankName === '関脇' || participant.rankName === '小結') {
+    return 'SANYAKU';
+  }
+  const rankNumber = resolveRankNumber(participant);
+  if (rankNumber <= 4) return 'JOI_A';
+  if (rankNumber <= 8) return 'JOI_B';
+  return 'TAIL';
+};
+
+const resolveJuryoBand = (participant: TorikumiParticipant): string => {
+  if (participant.division !== 'Juryo') return 'OTHER';
+  const rankNumber = resolveRankNumber(participant);
+  if (rankNumber <= 5) return 'PROMO';
+  if (rankNumber >= 12) return 'DROP';
+  return 'MID';
+};
+
+const buildObligations = (
+  participants: TorikumiParticipant[],
+): {
+  byPairKey: Map<string, Obligation>;
+  coverage: Record<string, { scheduled: number; total: number }>;
+} => {
+  const byPairKey = new Map<string, Obligation>();
+  const coverage: Record<string, { scheduled: number; total: number }> = {
+    SANYAKU_ROUND_ROBIN: { scheduled: 0, total: 0 },
+    JOI_ASSIGNMENT: { scheduled: 0, total: 0 },
+    JURYO_PROMOTION_RACE: { scheduled: 0, total: 0 },
+    JURYO_DEMOTION_RACE: { scheduled: 0, total: 0 },
+  };
+  const add = (a: TorikumiParticipant, b: TorikumiParticipant, reason: ObligationReason): void => {
+    const pairKey = canonicalPairKey(a.id, b.id);
+    if (byPairKey.has(pairKey)) return;
+    const id = `${reason}:${pairKey}`;
+    byPairKey.set(pairKey, { id, pairKey, reason });
+    coverage[reason].total += 1;
+  };
+
+  const makuuchi = participants.filter((participant) => participant.division === 'Makuuchi');
+  for (let index = 0; index < makuuchi.length; index += 1) {
+    for (let inner = index + 1; inner < makuuchi.length; inner += 1) {
+      const a = makuuchi[index];
+      const b = makuuchi[inner];
+      const aBand = resolveMakuuchiBand(a);
+      const bBand = resolveMakuuchiBand(b);
+      if (aBand === 'SANYAKU' && bBand === 'SANYAKU') {
+        add(a, b, 'SANYAKU_ROUND_ROBIN');
+      } else if (
+        (aBand === 'SANYAKU' && bBand === 'JOI_A') ||
+        (bBand === 'SANYAKU' && aBand === 'JOI_A')
+      ) {
+        add(a, b, 'JOI_ASSIGNMENT');
+      }
+    }
+  }
+
+  const juryo = participants.filter((participant) => participant.division === 'Juryo');
+  for (let index = 0; index < juryo.length; index += 1) {
+    for (let inner = index + 1; inner < juryo.length; inner += 1) {
+      const a = juryo[index];
+      const b = juryo[inner];
+      const aBand = resolveJuryoBand(a);
+      const bBand = resolveJuryoBand(b);
+      if (aBand === 'PROMO' && bBand === 'PROMO') add(a, b, 'JURYO_PROMOTION_RACE');
+      if (aBand === 'DROP' && bBand === 'DROP') add(a, b, 'JURYO_DEMOTION_RACE');
+    }
+  }
+
+  return { byPairKey, coverage };
+};
+
 const enrichParticipantsForDay = (
   participants: TorikumiParticipant[],
 ): TorikumiParticipant[] => {
@@ -90,25 +202,57 @@ const enrichParticipantsForDay = (
     participant.torikumiTier = resolveTorikumiTier(participant);
     participant.yushoRaceTier = resolveYushoRaceTier(participant, leader);
     participant.survivalBubble = resolveSurvivalBubble(participant);
+    participant.promotionRaceTier =
+      participant.division === 'Makushita' && resolveRankNumber(participant) <= 5
+        ? participant.wins >= 6
+          ? 'Lead'
+          : participant.wins >= 4
+            ? 'Candidate'
+            : 'Outside'
+        : participant.division === 'Juryo' && resolveJuryoBand(participant) === 'PROMO'
+          ? participant.wins >= 10
+            ? 'Lead'
+            : participant.wins >= 8
+              ? 'Candidate'
+              : 'Outside'
+          : 'Outside';
+    participant.demotionRaceTier =
+      participant.division === 'Juryo' && resolveJuryoBand(participant) === 'DROP'
+        ? participant.wins <= 5
+          ? 'Critical'
+          : participant.wins <= 7
+            ? 'Bubble'
+            : 'Safe'
+        : 'Safe';
+    participant.schedulePool =
+      participant.division === 'Makuuchi'
+        ? resolveMakuuchiBand(participant)
+        : participant.division === 'Juryo'
+          ? resolveJuryoBand(participant)
+          : participant.division;
   }
   return participants;
 };
-
-const isAlreadyPaired = (
-  faced: Map<string, Set<string>>,
-  a: TorikumiParticipant,
-  b: TorikumiParticipant,
-): boolean => faced.get(a.id)?.has(b.id) ?? false;
 
 const isForbiddenPair = (a: TorikumiParticipant, b: TorikumiParticipant): boolean =>
   (a.forbiddenOpponentIds?.includes(b.id) ?? false) ||
   (b.forbiddenOpponentIds?.includes(a.id) ?? false);
 
+const isLegalPair = (
+  faced: Map<string, Set<string>>,
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+): boolean =>
+  a.id !== b.id &&
+  a.stableId !== b.stableId &&
+  !faced.get(a.id)?.has(b.id) &&
+  !isForbiddenPair(a, b);
+
 const hasBoundaryBand = (
   bandMap: Map<BoundaryId, BoundaryBandSpec>,
   a: TorikumiParticipant,
   b: TorikumiParticipant,
-): { boundaryId?: BoundaryId; spec?: BoundaryBandSpec } => {
+): { boundaryId?: BoundaryId } => {
   for (const [boundaryId, spec] of bandMap.entries()) {
     const upper = a.division === spec.upperDivision ? a : b.division === spec.upperDivision ? b : null;
     const lower = a.division === spec.lowerDivision ? a : b.division === spec.lowerDivision ? b : null;
@@ -120,359 +264,416 @@ const hasBoundaryBand = (
     if (!upperNameOk || !lowerNameOk) continue;
     if (upperNumber < spec.upperBand.minNumber || upperNumber > spec.upperBand.maxNumber) continue;
     if (lowerNumber < spec.lowerBand.minNumber || lowerNumber > spec.lowerBand.maxNumber) continue;
-    return { boundaryId, spec };
+    return { boundaryId };
   }
   return {};
 };
 
-const isValidPair = (
-  faced: Map<string, Set<string>>,
+const resolveTopPhase = (day: number): string =>
+  day <= 4 ? 'EARLY' : day <= 8 ? 'MID_A' : day <= 12 ? 'MID_B' : 'LATE';
+
+const resolveLowerRoundIndex = (a: TorikumiParticipant, b: TorikumiParticipant): number =>
+  Math.max(a.boutsDone, b.boutsDone) + 1;
+
+const resolveLowerPhase = (roundIndex: number): string =>
+  roundIndex <= 3 ? 'ROUND_EARLY' : roundIndex <= 5 ? 'ROUND_SCORE' : 'ROUND_LATE';
+
+const resolveTitleImplication = (
   a: TorikumiParticipant,
   b: TorikumiParticipant,
+  day: number,
+): { titleImplication: TorikumiTitleImplication; contentionTier: TorikumiContentionTier } => {
+  if (day < DEFAULT_TORIKUMI_LATE_EVAL_START_DAY || a.division !== b.division) {
+    return { titleImplication: 'NONE', contentionTier: 'Outside' };
+  }
+  const threshold = a.targetBouts >= 15 ? 9 : 4;
+  if (Math.max(a.wins, b.wins) < threshold) {
+    return { titleImplication: 'NONE', contentionTier: 'Outside' };
+  }
+  const aTier = a.yushoRaceTier ?? 'Outside';
+  const bTier = b.yushoRaceTier ?? 'Outside';
+  if (aTier === 'Outside' && bTier === 'Outside') {
+    return { titleImplication: 'NONE', contentionTier: 'Outside' };
+  }
+  if ((aTier === 'Leader' || aTier === 'Contender') && (bTier === 'Leader' || bTier === 'Contender')) {
+    return {
+      titleImplication: Math.abs(a.wins - b.wins) <= 1 ? 'DIRECT' : 'CHASE',
+      contentionTier: aTier === 'Leader' || bTier === 'Leader' ? 'Leader' : 'Contender',
+    };
+  }
+  return { titleImplication: 'CHASE', contentionTier: 'Contender' };
+};
+
+const isJuryoMakushitaExchangeCandidate = (
+  juryo: TorikumiParticipant,
+  makushita: TorikumiParticipant,
 ): boolean =>
-  a.id !== b.id &&
-  a.stableId !== b.stableId &&
-  !isAlreadyPaired(faced, a, b) &&
-  !isForbiddenPair(a, b);
+  resolveJuryoBand(juryo) === 'DROP' &&
+  resolveRankNumber(juryo) <= 14 &&
+  juryo.wins <= 8 &&
+  makushita.division === 'Makushita' &&
+  resolveRankNumber(makushita) <= 5 &&
+  makushita.wins >= 4;
 
-const markPaired = (
-  faced: Map<string, Set<string>>,
-  a: TorikumiParticipant,
-  b: TorikumiParticipant,
-  day: number,
-): void => {
-  faced.get(a.id)?.add(b.id);
-  faced.get(b.id)?.add(a.id);
-  if (!a.facedIdsThisBasho?.includes(b.id)) {
-    a.facedIdsThisBasho?.push(b.id);
-  }
-  if (!b.facedIdsThisBasho?.includes(a.id)) {
-    b.facedIdsThisBasho?.push(a.id);
-  }
-  a.lastBoutDay = day;
-  b.lastBoutDay = day;
-};
-
-const isLatePhase = (day: number, participant: TorikumiParticipant): boolean =>
-  day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY ||
-  (participant.division === 'Juryo' && resolveTorikumiTier(participant) === 'Boundary' && day >= 11) ||
-  (isLowerDivision(participant.division) && participant.boutsDone >= Math.max(5, participant.targetBouts - 2));
-
-const buildStages = (
-  day: number,
-  participant: TorikumiParticipant,
-): PairStage[] => {
-  const lower = isLowerDivision(participant.division);
-  const late = isLatePhase(day, participant);
-  const boundaryTier = resolveTorikumiTier(participant) === 'Boundary';
-  if (lower) {
-    if (boundaryTier && late) {
-      return [
-        { allowCrossDivision: true, enforceSameDivision: false, requireCrossDivision: true, maxRankDiff: 6, maxWinDiff: 2 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 12, maxWinDiff: 1 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 20, maxWinDiff: 2 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 40 },
-        { allowCrossDivision: true, enforceSameDivision: false },
-      ];
-    }
-    return [
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 12, maxWinDiff: 1 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 20, maxWinDiff: 2 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 40 },
-      { allowCrossDivision: true, enforceSameDivision: false, maxRankDiff: 12, maxWinDiff: late ? 2 : 1 },
-      { allowCrossDivision: true, enforceSameDivision: false },
-    ];
-  }
-  if (participant.division === 'Juryo') {
-    if (boundaryTier && late) {
-      return [
-        { allowCrossDivision: true, enforceSameDivision: false, requireCrossDivision: true, maxRankDiff: 4, maxWinDiff: 2 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 5, maxWinDiff: 1 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 8, maxWinDiff: 3 },
-        { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 12 },
-        { allowCrossDivision: true, enforceSameDivision: false },
-      ];
-    }
-    return [
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: late ? 5 : 4, maxWinDiff: late ? 1 : 2 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 8, maxWinDiff: 3 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 12 },
-      { allowCrossDivision: true, enforceSameDivision: false, maxRankDiff: 4, maxWinDiff: 2 },
-      { allowCrossDivision: true, enforceSameDivision: false },
-    ];
-  }
-  if (participant.rankName === '横綱' || participant.rankName === '大関') {
-    return [
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: day <= 5 ? 6 : 9, maxWinDiff: late ? 2 : 3 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 12, maxWinDiff: 4 },
-      { allowCrossDivision: false, enforceSameDivision: true },
-      { allowCrossDivision: true, enforceSameDivision: false, maxRankDiff: 4, maxWinDiff: 2 },
-      { allowCrossDivision: true, enforceSameDivision: false },
-    ];
-  }
-  if (participant.rankName === '関脇' || participant.rankName === '小結') {
-    return [
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: day <= 5 ? 8 : 10, maxWinDiff: late ? 2 : 3 },
-      { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 14, maxWinDiff: 4 },
-      { allowCrossDivision: false, enforceSameDivision: true },
-      { allowCrossDivision: true, enforceSameDivision: false, maxRankDiff: 4, maxWinDiff: 2 },
-      { allowCrossDivision: true, enforceSameDivision: false },
-    ];
-  }
-  return [
-    { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: day <= 5 ? 4 : 6, maxWinDiff: late ? 1 : 2 },
-    { allowCrossDivision: false, enforceSameDivision: true, maxRankDiff: 8, maxWinDiff: 3 },
-    { allowCrossDivision: false, enforceSameDivision: true },
-    { allowCrossDivision: true, enforceSameDivision: false, maxRankDiff: 4, maxWinDiff: 2 },
-    { allowCrossDivision: true, enforceSameDivision: false },
-  ];
-};
-
-const resolveOrderKey = (participant: TorikumiParticipant, day: number): number => {
+const resolveSchedulingPriority = (participant: TorikumiParticipant, day: number, repair = false): number => {
   const tier = resolveTorikumiTier(participant);
   const divisionPriority = DIVISION_PRIORITY[participant.division];
-  const tierPriority = participant.division === 'Makuuchi'
-    ? TIER_PRIORITY[tier]
-    : divisionPriority * 10 + (tier === 'Boundary' ? 0 : 1);
-  const late = isLatePhase(day, participant);
-  const raceWeight = late && participant.yushoRaceTier === 'Leader'
-    ? -2
-    : late && participant.yushoRaceTier === 'Contender'
-      ? -1
-      : 0;
-  const bubbleWeight = late && participant.survivalBubble ? -1 : 0;
+  const late = day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY;
+  const yushoBias =
+    late && participant.yushoRaceTier === 'Leader'
+      ? -40
+      : late && participant.yushoRaceTier === 'Contender'
+        ? -20
+        : 0;
+  const repairBias = repair ? participant.wins * -5 : 0;
   return (
     divisionPriority * 1000 +
-    tierPriority * 100 +
-    raceWeight * 10 +
-    bubbleWeight * 5 +
+    TIER_PRIORITY[tier] * 100 +
+    yushoBias +
+    repairBias +
     resolveRankNumber(participant)
   );
 };
 
-const rankMismatchPenalty = (
-  participant: TorikumiParticipant,
-  candidate: TorikumiParticipant,
+const toPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+  evalResult: PairEval,
+  repairDepth: number,
+): TorikumiPair => ({
+  a,
+  b,
+  boundaryId: evalResult.boundaryId,
+  activationReasons: evalResult.activationReasons,
+  matchReason: evalResult.matchReason,
+  relaxationStage: repairDepth,
+  crossDivision: evalResult.crossDivision,
+  phaseId: evalResult.phaseId,
+  roundIndex: evalResult.roundIndex,
+  obligationId: evalResult.obligationId,
+  repairDepth,
+  contentionTier: evalResult.contentionTier,
+  titleImplication: evalResult.titleImplication,
+  boundaryImplication: evalResult.boundaryImplication,
+});
+
+const evaluateMakuuchiPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
   day: number,
-): number => {
-  const rankDiff = Math.abs(resolveRankNumber(participant) - resolveRankNumber(candidate));
-  if (participant.rankName === '横綱' || participant.rankName === '大関') {
-    if (day <= 5 && candidate.division === 'Makuuchi' && resolveRankNumber(candidate) >= 8) {
-      return 70 + rankDiff * 4;
-    }
-    if (candidate.division === 'Juryo') return 160;
+  obligations: Map<string, Obligation>,
+): PairEval | null => {
+  if (a.division !== 'Makuuchi' || b.division !== 'Makuuchi') return null;
+  const phaseId = resolveTopPhase(day);
+  const rankDiff = Math.abs(resolveRankNumber(a) - resolveRankNumber(b));
+  const winDiff = Math.abs(a.wins - b.wins);
+  const title = resolveTitleImplication(a, b, day);
+  const obligation = obligations.get(canonicalPairKey(a.id, b.id));
+  let score = rankDiff * 10 + winDiff * (phaseId === 'LATE' ? 10 : 13) + Math.abs(a.losses - b.losses) * 3;
+  if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') score -= 360;
+  if (obligation?.reason === 'JOI_ASSIGNMENT') score -= phaseId === 'EARLY' ? 300 : phaseId === 'MID_A' ? 220 : 140;
+  if (title.titleImplication === 'DIRECT') score -= 420;
+  if (title.titleImplication === 'CHASE') score -= 260;
+  if (
+    phaseId === 'EARLY' &&
+    (resolveMakuuchiBand(a) === 'SANYAKU' || resolveMakuuchiBand(b) === 'SANYAKU') &&
+    (resolveMakuuchiBand(a) === 'TAIL' || resolveMakuuchiBand(b) === 'TAIL')
+  ) {
+    score += 240;
   }
-  if (participant.rankName === '関脇' || participant.rankName === '小結') {
-    if (day <= 5 && candidate.division === 'Makuuchi' && resolveRankNumber(candidate) >= 12) {
-      return 38 + rankDiff * 3;
-    }
-    if (candidate.division === 'Juryo') return 120;
-  }
-  return rankDiff * (day <= 5 ? 6 : day <= 10 ? 4 : 3);
+  let matchReason: TorikumiMatchReason = 'RANK_NEARBY';
+  if (title.titleImplication === 'DIRECT') matchReason = 'YUSHO_DIRECT';
+  else if (title.titleImplication === 'CHASE') matchReason = 'YUSHO_PURSUIT';
+  else if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') matchReason = 'SANYAKU_ROUND_ROBIN';
+  else if (obligation?.reason === 'JOI_ASSIGNMENT') matchReason = 'JOI_ASSIGNMENT';
+  else if (winDiff <= 1) matchReason = 'RECORD_NEARBY';
+  return {
+    score,
+    matchReason,
+    activationReasons: [],
+    crossDivision: false,
+    phaseId,
+    obligationId: obligation?.id,
+    contentionTier: title.contentionTier,
+    titleImplication: title.titleImplication,
+    boundaryImplication: 'NONE',
+  };
 };
 
-const matchReasonFor = (
-  participant: TorikumiParticipant,
-  candidate: TorikumiParticipant,
-  crossDivision: boolean,
-  late: boolean,
-): TorikumiMatchReason => {
-  if (crossDivision) return 'BOUNDARY_CROSSOVER';
-  if (isUpperRankTier(participant)) return 'TOP_RANK_DUTY';
-  if (late && participant.yushoRaceTier !== 'Outside' && candidate.yushoRaceTier !== 'Outside') {
-    return 'YUSHO_RACE';
-  }
-  if (late && participant.survivalBubble && candidate.survivalBubble) {
-    return 'SURVIVAL_BUBBLE';
-  }
-  if (Math.abs(participant.wins - candidate.wins) <= 1) return 'RECORD_NEARBY';
-  if (Math.abs(resolveRankNumber(participant) - resolveRankNumber(candidate)) <= 3) return 'RANK_NEARBY';
-  return 'FALLBACK';
-};
-
-const candidateScore = (
-  participant: TorikumiParticipant,
-  candidate: TorikumiParticipant,
+const evaluateJuryoPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
   day: number,
-  stageIndex: number,
-  crossDivision: boolean,
-): number => {
-  const late = isLatePhase(day, participant) || isLatePhase(day, candidate);
-  const rankDiff = Math.abs(resolveRankNumber(participant) - resolveRankNumber(candidate));
-  const winDiff = Math.abs(participant.wins - candidate.wins);
-  let score = stageIndex * 500;
-  score += rankMismatchPenalty(participant, candidate, day);
-  score += winDiff * (late ? 8 : 10);
-  score += Math.abs(participant.losses - candidate.losses) * 4;
-  score += Math.abs((participant.lastBoutDay ?? 0) - (candidate.lastBoutDay ?? 0));
-  if (crossDivision) score += late ? 25 : 60;
-  if (late && participant.yushoRaceTier !== 'Outside' && candidate.yushoRaceTier !== 'Outside') {
-    score -= 48;
-  }
-  if (late && participant.survivalBubble && candidate.survivalBubble) {
-    score -= 42;
-  }
-  if (participant.division === candidate.division && rankDiff <= 2) {
-    score -= 16;
-  }
-  if (participant.division === candidate.division && winDiff === 0) {
-    score -= late ? 12 : 4;
-  }
-  return score;
-};
-
-const isAllowedByStage = (
-  stage: PairStage,
+  obligations: Map<string, Obligation>,
   bandMap: Map<BoundaryId, BoundaryBandSpec>,
-  participant: TorikumiParticipant,
-  candidate: TorikumiParticipant,
-): { allowed: boolean; crossDivision: boolean; boundaryId?: BoundaryId } => {
-  if (participant.division !== candidate.division) {
-    if (stage.enforceSameDivision || !stage.allowCrossDivision) return { allowed: false, crossDivision: false };
-    const boundary = hasBoundaryBand(bandMap, participant, candidate);
-    if (!boundary.boundaryId) return { allowed: false, crossDivision: false };
-    return { allowed: true, crossDivision: true, boundaryId: boundary.boundaryId };
+  crossDivisionById: Map<string, number>,
+): PairEval | null => {
+  const title = resolveTitleImplication(a, b, day);
+  if (a.division === 'Juryo' && b.division === 'Juryo') {
+    const obligation = obligations.get(canonicalPairKey(a.id, b.id));
+    const rankDiff = Math.abs(resolveRankNumber(a) - resolveRankNumber(b));
+    const winDiff = Math.abs(a.wins - b.wins);
+    let score = rankDiff * 8 + winDiff * (day >= 13 ? 8 : 10);
+    if (day < 15 && title.titleImplication === 'DIRECT') score -= 340;
+    if (day < 15 && title.titleImplication === 'CHASE') score -= 220;
+    if (obligation?.reason === 'JURYO_PROMOTION_RACE') score -= day === 15 ? 250 : 180;
+    if (obligation?.reason === 'JURYO_DEMOTION_RACE') score -= day === 15 ? 300 : 220;
+    let matchReason: TorikumiMatchReason = 'RANK_NEARBY';
+    if (day < 15 && title.titleImplication === 'DIRECT') matchReason = 'YUSHO_DIRECT';
+    else if (day < 15 && title.titleImplication === 'CHASE') matchReason = 'YUSHO_PURSUIT';
+    else if (obligation?.reason === 'JURYO_PROMOTION_RACE') matchReason = 'JURYO_PROMOTION_RACE';
+    else if (obligation?.reason === 'JURYO_DEMOTION_RACE') matchReason = 'JURYO_DEMOTION_RACE';
+    else if (winDiff <= 1) matchReason = 'RECORD_NEARBY';
+    return {
+      score,
+      matchReason,
+      activationReasons: [],
+      crossDivision: false,
+      phaseId: resolveTopPhase(day),
+      obligationId: obligation?.id,
+      contentionTier: title.contentionTier,
+      titleImplication: day < 15 ? title.titleImplication : 'NONE',
+      boundaryImplication:
+        obligation?.reason === 'JURYO_DEMOTION_RACE'
+          ? 'DEMOTION'
+          : obligation?.reason === 'JURYO_PROMOTION_RACE'
+            ? 'PROMOTION'
+            : 'NONE',
+    };
   }
-  if (stage.requireCrossDivision) {
-    return { allowed: false, crossDivision: false };
+  const juryo = a.division === 'Juryo' ? a : b.division === 'Juryo' ? b : null;
+  const makushita = a.division === 'Makushita' ? a : b.division === 'Makushita' ? b : null;
+  if (!juryo || !makushita || day < 12) return null;
+  if ((crossDivisionById.get(juryo.id) ?? 0) >= 1 || (crossDivisionById.get(makushita.id) ?? 0) >= 1) {
+    return null;
   }
-
-  const rankDiff = Math.abs(resolveRankNumber(participant) - resolveRankNumber(candidate));
-  const winDiff = Math.abs(participant.wins - candidate.wins);
-  if (typeof stage.maxRankDiff === 'number' && rankDiff > stage.maxRankDiff) {
-    return { allowed: false, crossDivision: false };
-  }
-  if (typeof stage.maxWinDiff === 'number' && winDiff > stage.maxWinDiff) {
-    return { allowed: false, crossDivision: false };
-  }
-  return { allowed: true, crossDivision: false };
+  if (!isJuryoMakushitaExchangeCandidate(juryo, makushita)) return null;
+  const boundary = hasBoundaryBand(bandMap, a, b);
+  if (boundary.boundaryId !== 'JuryoMakushita') return null;
+  return {
+    score:
+      (day === 15 ? -380 : day >= 14 ? -340 : -300) +
+      Math.abs(juryo.wins - makushita.wins) * 8 +
+      Math.abs(resolveRankNumber(juryo) - resolveRankNumber(makushita)) * 4,
+    matchReason: 'JURYO_MAKUSHITA_EXCHANGE',
+    boundaryId: 'JuryoMakushita',
+    activationReasons: ['LATE_EVAL', 'SCORE_ALIGNMENT'],
+    crossDivision: true,
+    phaseId: resolveTopPhase(day),
+    contentionTier: 'Outside',
+    titleImplication: 'NONE',
+    boundaryImplication: 'PROMOTION',
+  };
 };
 
-const selectOpponent = (
-  participant: TorikumiParticipant,
+const evaluateLowerPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+  bandMap: Map<BoundaryId, BoundaryBandSpec>,
+): PairEval | null => {
+  const roundIndex = resolveLowerRoundIndex(a, b);
+  if (a.division === b.division && isLowerDivision(a.division)) {
+    const rankDiff = Math.abs(resolveRankNumber(a) - resolveRankNumber(b));
+    const winDiff = Math.abs(a.wins - b.wins);
+    let score = rankDiff * 7 + winDiff * 10;
+    let matchReason: TorikumiMatchReason = 'RANK_NEARBY';
+    if (roundIndex <= 3) {
+      score += winDiff * 6;
+    } else if (roundIndex <= 5) {
+      score -= Math.max(0, 80 - winDiff * 24);
+      matchReason = 'LOWER_SCORE_GROUP';
+    } else {
+      score -= Math.max(0, 60 - winDiff * 18);
+      matchReason = winDiff <= 1 ? 'LOWER_SCORE_GROUP' : 'RECORD_NEARBY';
+    }
+    return {
+      score,
+      matchReason,
+      activationReasons: [],
+      crossDivision: false,
+      phaseId: resolveLowerPhase(roundIndex),
+      roundIndex,
+      contentionTier: 'Outside',
+      titleImplication: 'NONE',
+      boundaryImplication: 'NONE',
+    };
+  }
+  if (!isLowerDivision(a.division) || !isLowerDivision(b.division) || roundIndex < 7) return null;
+  const boundary = hasBoundaryBand(bandMap, a, b);
+  if (!boundary.boundaryId || boundary.boundaryId === 'JuryoMakushita' || boundary.boundaryId === 'MakuuchiJuryo') {
+    return null;
+  }
+  return {
+    score: Math.abs(a.wins - b.wins) * 7 + Math.abs(resolveRankNumber(a) - resolveRankNumber(b)) * 4,
+    matchReason: 'LOWER_BOUNDARY_EVAL',
+    boundaryId: boundary.boundaryId,
+    activationReasons: ['LATE_EVAL', 'SCORE_ALIGNMENT'],
+    crossDivision: true,
+    phaseId: resolveLowerPhase(roundIndex),
+    roundIndex,
+    contentionTier: 'Outside',
+    titleImplication: 'NONE',
+    boundaryImplication: 'PROMOTION',
+  };
+};
+
+const buildAttempt = (
   pool: TorikumiParticipant[],
-  scheduledIds: Set<string>,
   faced: Map<string, Set<string>>,
-  day: number,
-  bandMap: Map<BoundaryId, BoundaryBandSpec>,
-): { opponent?: TorikumiParticipant; pair?: TorikumiPair } => {
-  const stages = buildStages(day, participant);
-  for (let stageIndex = 0; stageIndex < stages.length; stageIndex += 1) {
-    const stage = stages[stageIndex];
-    let best: { candidate: TorikumiParticipant; score: number; boundaryId?: BoundaryId; crossDivision: boolean } | null = null;
-    for (const candidate of pool) {
-      if (scheduledIds.has(candidate.id) || candidate.id === participant.id) continue;
-      if (!isValidPair(faced, participant, candidate)) continue;
-      const allowed = isAllowedByStage(stage, bandMap, participant, candidate);
-      if (!allowed.allowed) continue;
-      const score = candidateScore(participant, candidate, day, stageIndex, allowed.crossDivision);
-      if (!best || score < best.score) {
-        best = {
-          candidate,
-          score,
-          boundaryId: allowed.boundaryId,
-          crossDivision: allowed.crossDivision,
-        };
+  repairDepth: number,
+  orderKey: (participant: TorikumiParticipant) => number,
+  evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
+): MatchAttempt => {
+  const tempFaced = cloneFacedMap(faced);
+  const scheduledIds = new Set<string>();
+  const pairs: TorikumiPair[] = [];
+  let totalScore = 0;
+  const ordered = pool.slice().sort((left, right) => {
+    const keyDiff = orderKey(left) - orderKey(right);
+    if (keyDiff !== 0) return keyDiff;
+    return left.id.localeCompare(right.id);
+  });
+  for (const participant of ordered) {
+    if (scheduledIds.has(participant.id)) continue;
+    let best: { opponent: TorikumiParticipant; evalResult: PairEval } | null = null;
+    for (const candidate of ordered) {
+      if (scheduledIds.has(candidate.id) || participant.id === candidate.id) continue;
+      if (!isLegalPair(tempFaced, participant, candidate)) continue;
+      const evalResult = evaluate(participant, candidate);
+      if (!evalResult) continue;
+      if (!best || evalResult.score < best.evalResult.score) {
+        best = { opponent: candidate, evalResult };
       }
     }
-    if (best) {
-      return {
-        opponent: best.candidate,
-        pair: {
-          a: participant,
-          b: best.candidate,
-          boundaryId: best.boundaryId,
-          activationReasons: best.boundaryId ? ['SHORTAGE', isLatePhase(day, participant) ? 'LATE_EVAL' : 'SCORE_ALIGNMENT'] : [],
-          matchReason: matchReasonFor(participant, best.candidate, best.crossDivision, isLatePhase(day, participant)),
-          relaxationStage: stageIndex,
-          crossDivision: best.crossDivision,
-        },
-      };
-    }
+    if (!best) continue;
+    scheduledIds.add(participant.id);
+    scheduledIds.add(best.opponent.id);
+    markFaced(tempFaced, participant, best.opponent);
+    pairs.push(toPair(participant, best.opponent, best.evalResult, repairDepth));
+    totalScore += best.evalResult.score;
   }
-  return {};
+  return {
+    pairs,
+    totalScore,
+    repairDepth,
+    leftoverIds: pool.filter((participant) => !scheduledIds.has(participant.id)).map((participant) => participant.id),
+  };
 };
 
-const compareOrderedParticipants = (left: OrderedParticipant, right: OrderedParticipant): number => {
-  if (left.orderKey !== right.orderKey) return left.orderKey - right.orderKey;
-  if (left.participant.rankScore !== right.participant.rankScore) {
-    return left.participant.rankScore - right.participant.rankScore;
+const chooseAttempt = (primary: MatchAttempt, repair: MatchAttempt): MatchAttempt => {
+  if (repair.leftoverIds.length < primary.leftoverIds.length) return repair;
+  if (repair.leftoverIds.length === primary.leftoverIds.length && repair.totalScore < primary.totalScore) {
+    return repair;
   }
-  return left.participant.id.localeCompare(right.participant.id);
+  return primary;
 };
 
 export const scheduleTorikumiBasho = (
   params: ScheduleTorikumiBashoParams,
 ): TorikumiBashoResult => {
   const participants = params.participants;
-  for (const participant of participants) {
-    applyParticipantDefaults(participant);
-  }
+  for (const participant of participants) applyParticipantDefaults(participant);
   const faced = ensureFacedMap(participants, params.facedMap);
-  const days = params.days.slice().sort((a, b) => a - b);
-  const canFightOnDay =
-    params.dayEligibility ??
-    ((_participant: TorikumiParticipant, day: number): boolean => day >= 1 && day <= 15);
+  const days = params.days.slice().sort((left, right) => left - right);
+  const canFightOnDay = params.dayEligibility ?? (() => true);
   const bandMap = buildBoundaryBandMap(params.boundaryBands);
+  const obligations = buildObligations(participants);
+  const crossDivisionById = new Map<string, number>(participants.map((participant) => [participant.id, 0]));
 
+  const dayResults: TorikumiBashoResult['days'] = [];
   const boundaryActivations: TorikumiBashoResult['diagnostics']['boundaryActivations'] = [];
   const torikumiRelaxationHistogram: Record<string, number> = {};
-  const dayResults: TorikumiBashoResult['days'] = [];
+  const repairHistogram: Record<string, number> = {};
+  const crossDivisionByBoundary: Record<string, number> = {};
+  const scheduleViolations: TorikumiBashoResult['diagnostics']['scheduleViolations'] = [];
   let crossDivisionBoutCount = 0;
   let lateCrossDivisionBoutCount = 0;
-  let sameStableViolationCount = 0;
-  let sameCardViolationCount = 0;
+  let lateDirectTitleBoutCount = 0;
 
   for (const day of days) {
     const eligible = enrichParticipantsForDay(
-      participants.filter(
-        (participant) =>
-          participant.active &&
-          !participant.kyujo &&
-          participant.boutsDone < participant.targetBouts &&
-          canFightOnDay(participant, day),
-      ),
+      participants.filter((participant) =>
+        participant.active &&
+        !participant.kyujo &&
+        participant.boutsDone < participant.targetBouts &&
+        canFightOnDay(participant, day)),
     );
-    const ordered = eligible
-      .map((participant) => ({
-        participant,
-        orderKey: resolveOrderKey(participant, day),
-      }))
-      .sort(compareOrderedParticipants);
-
     const scheduledIds = new Set<string>();
     const dayPairs: TorikumiPair[] = [];
 
-    for (const { participant } of ordered) {
-      if (scheduledIds.has(participant.id)) continue;
-      const selected = selectOpponent(participant, eligible, scheduledIds, faced, day, bandMap);
-      if (!selected.opponent || !selected.pair) continue;
-      const opponent = selected.opponent;
-      const pair = selected.pair;
+    const schedulePool = (
+      pool: TorikumiParticipant[],
+      evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
+    ): void => {
+      const available = pool.filter((participant) => !scheduledIds.has(participant.id));
+      if (available.length < 2) return;
+      const primary = buildAttempt(
+        available,
+        faced,
+        0,
+        (participant) => resolveSchedulingPriority(participant, day, false),
+        evaluate,
+      );
+      const repair = buildAttempt(
+        available,
+        faced,
+        1,
+        (participant) => resolveSchedulingPriority(participant, day, true),
+        evaluate,
+      );
+      const chosen = chooseAttempt(primary, repair);
+      for (const pair of chosen.pairs) {
+        scheduledIds.add(pair.a.id);
+        scheduledIds.add(pair.b.id);
+        dayPairs.push(pair);
+      }
+    };
 
-      scheduledIds.add(participant.id);
-      scheduledIds.add(opponent.id);
-      markPaired(faced, participant, opponent, day);
-      participant.boutsDone += 1;
-      opponent.boutsDone += 1;
+    schedulePool(
+      eligible.filter((participant) => participant.division === 'Makuuchi'),
+      (a, b) => evaluateMakuuchiPair(a, b, day, obligations.byPairKey),
+    );
+    schedulePool(
+      eligible.filter((participant) =>
+        participant.division === 'Juryo' ||
+        (participant.division === 'Makushita' && resolveRankNumber(participant) <= 5)),
+      (a, b) => evaluateJuryoPair(a, b, day, obligations.byPairKey, bandMap, crossDivisionById),
+    );
+    schedulePool(
+      eligible.filter((participant) => isLowerDivision(participant.division)),
+      (a, b) => evaluateLowerPair(a, b, bandMap),
+    );
+
+    for (const pair of dayPairs) {
+      markFaced(faced, pair.a, pair.b);
+      pair.a.boutsDone += 1;
+      pair.b.boutsDone += 1;
+      pair.a.lastBoutDay = day;
+      pair.b.lastBoutDay = day;
+      if (!pair.a.facedIdsThisBasho?.includes(pair.b.id)) pair.a.facedIdsThisBasho?.push(pair.b.id);
+      if (!pair.b.facedIdsThisBasho?.includes(pair.a.id)) pair.b.facedIdsThisBasho?.push(pair.a.id);
       if (pair.crossDivision) {
         crossDivisionBoutCount += 1;
+        crossDivisionById.set(pair.a.id, (crossDivisionById.get(pair.a.id) ?? 0) + 1);
+        crossDivisionById.set(pair.b.id, (crossDivisionById.get(pair.b.id) ?? 0) + 1);
         if (day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY) lateCrossDivisionBoutCount += 1;
+        if (pair.boundaryId) {
+          crossDivisionByBoundary[pair.boundaryId] = (crossDivisionByBoundary[pair.boundaryId] ?? 0) + 1;
+        }
       }
-      if (participant.stableId === opponent.stableId) sameStableViolationCount += 1;
-      if (isAlreadyPaired(faced, participant, opponent)) {
-        // markPaired already added the pair, so repeated presence here signals a same-card violation before scheduling.
-        const facedCountA = participant.facedIdsThisBasho?.filter((id) => id === opponent.id).length ?? 0;
-        if (facedCountA > 1) sameCardViolationCount += 1;
+      if (pair.titleImplication === 'DIRECT' && day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY) {
+        lateDirectTitleBoutCount += 1;
       }
-      const stageKey = String(pair.relaxationStage);
-      torikumiRelaxationHistogram[stageKey] = (torikumiRelaxationHistogram[stageKey] ?? 0) + 1;
+      const relaxKey = String(pair.relaxationStage);
+      torikumiRelaxationHistogram[relaxKey] = (torikumiRelaxationHistogram[relaxKey] ?? 0) + 1;
+      const repairKey = String(pair.repairDepth);
+      repairHistogram[repairKey] = (repairHistogram[repairKey] ?? 0) + 1;
       if (pair.boundaryId) {
-        const existing = boundaryActivations.find(
-          (activation) => activation.day === day && activation.boundaryId === pair.boundaryId,
+        const activation = boundaryActivations.find(
+          (entry) => entry.day === day && entry.boundaryId === pair.boundaryId,
         );
-        if (existing) {
-          existing.pairCount += 1;
+        if (activation) {
+          activation.pairCount += 1;
         } else {
           boundaryActivations.push({
             day,
@@ -482,23 +683,28 @@ export const scheduleTorikumiBasho = (
           });
         }
       }
-      dayPairs.push(pair);
+      if (pair.obligationId) {
+        const [reason] = pair.obligationId.split(':');
+        if (obligations.coverage[reason]) obligations.coverage[reason].scheduled += 1;
+      }
+    }
+
+    for (const pair of dayPairs) {
       params.onPair?.(pair, day);
     }
 
-    const byeIds: string[] = [];
-    for (const participant of eligible) {
-      if (scheduledIds.has(participant.id)) continue;
-      byeIds.push(participant.id);
-      participant.lastBoutDay = day;
-      params.onBye?.(participant, day);
+    const leftoverIds = eligible
+      .filter((participant) => !scheduledIds.has(participant.id))
+      .map((participant) => participant.id);
+    if (leftoverIds.length > 0) {
+      scheduleViolations.push({
+        day,
+        participantIds: leftoverIds,
+        reason: 'UNRESOLVED_LEFTOVER',
+      });
     }
 
-    dayResults.push({
-      day,
-      pairs: dayPairs,
-      byeIds,
-    });
+    dayResults.push({ day, pairs: dayPairs, byeIds: [] });
   }
 
   const remainingTargetById: Record<string, number> = {};
@@ -518,8 +724,13 @@ export const scheduleTorikumiBasho = (
       torikumiRelaxationHistogram,
       crossDivisionBoutCount,
       lateCrossDivisionBoutCount,
-      sameStableViolationCount,
-      sameCardViolationCount,
+      sameStableViolationCount: 0,
+      sameCardViolationCount: 0,
+      scheduleViolations,
+      repairHistogram,
+      obligationCoverage: obligations.coverage,
+      crossDivisionByBoundary,
+      lateDirectTitleBoutCount,
     },
   };
 };

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2026-03-19T09:54:28Z",
+    "generatedAt": "2026-03-25T18:51:13Z",
     "cohort": "heisei_debut",
     "discoverySource": "heisei_banzuke",
     "checkpointInterval": 250,
@@ -16,18 +16,18 @@
   "counts": {
     "discoveredCount": 3162,
     "pendingCount": 0,
-    "fetchedCount": 3155,
-    "errorCount": 7,
-    "includedCount": 2877,
-    "excludedCount": 278
+    "fetchedCount": 3162,
+    "errorCount": 0,
+    "includedCount": 2882,
+    "excludedCount": 280
   },
   "metrics": {
-    "includedCount": 2877,
-    "sekitoriRate": 0.10636079249217935,
-    "makuuchiRate": 0.07507820646506778,
-    "sanyakuRate": 0.031630170316301706,
+    "includedCount": 2882,
+    "sekitoriRate": 0.10617626648161,
+    "makuuchiRate": 0.07494795281054822,
+    "sanyakuRate": 0.03157529493407356,
     "careerBashoP50": 38.0,
-    "careerWinRateMean": 0.4820068157144045
+    "careerWinRateMean": 0.48201798293017833
   },
   "checkpoints": [
     {

@@ -1,147 +1,69 @@
-import { Rank } from '../../../models';
-import { normalizeSekitoriLosses } from '../../rules/topDivisionRules';
-import { BanzukeCandidate, BashoRecordSnapshot, SekitoriDeltaBand, SekitoriZone } from './types';
+import { getHeiseiBoundaryExchangeRate } from '../../../calibration/banzukeHeisei';
+import { BanzukeCandidate, SekitoriDeltaBand, SekitoriZone } from './types';
+import { resolveEmpiricalSlotBand } from '../empirical';
 
 const LIMITS = {
   MAEGASHIRA_MAX: 17,
+  SEKITORI_TOTAL: 70,
 } as const;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const normalizeBand = (minSlotDelta: number, maxSlotDelta: number): SekitoriDeltaBand => ({
-  zone: 'MakuuchiMidLow',
-  minSlotDelta: Math.min(minSlotDelta, maxSlotDelta),
-  maxSlotDelta: Math.max(minSlotDelta, maxSlotDelta),
-});
-
-const interpolateAnchors = (
-  value: number,
-  left: { x: number; min: number; max: number },
-  right: { x: number; min: number; max: number },
-): { min: number; max: number } => {
-  if (right.x <= left.x) return { min: left.min, max: left.max };
-  const t = clamp((value - left.x) / (right.x - left.x), 0, 1);
-  return {
-    min: Math.round(left.min + (right.min - left.min) * t),
-    max: Math.round(left.max + (right.max - left.max) * t),
-  };
-};
-
-const resolveBaseSekitoriBand = (diff: number): { minSlotDelta: number; maxSlotDelta: number } => {
-  if (diff === 0) return { minSlotDelta: 0, maxSlotDelta: 0 };
-  if (diff > 0) {
-    const up = clamp(diff, 1, 15);
-    if (up === 1) return { minSlotDelta: 2, maxSlotDelta: 3 };
-    if (up <= 5) {
-      const band = interpolateAnchors(
-        up,
-        { x: 1, min: 2, max: 3 },
-        { x: 5, min: 8, max: 12 },
-      );
-      return { minSlotDelta: band.min, maxSlotDelta: band.max };
-    }
-    if (up <= 9) {
-      const band = interpolateAnchors(
-        up,
-        { x: 5, min: 8, max: 12 },
-        { x: 9, min: 20, max: 26 },
-      );
-      return { minSlotDelta: band.min, maxSlotDelta: band.max };
-    }
-    const band = interpolateAnchors(
-      up,
-      { x: 9, min: 20, max: 26 },
-      { x: 15, min: 34, max: 44 },
-    );
-    return { minSlotDelta: band.min, maxSlotDelta: band.max };
-  }
-
-  const down = clamp(Math.abs(diff), 1, 15);
-  if (down === 1) return { minSlotDelta: -6, maxSlotDelta: -4 };
-  if (down <= 5) {
-    const band = interpolateAnchors(
-      down,
-      { x: 1, min: -6, max: -4 },
-      { x: 5, min: -22, max: -16 },
-    );
-    return { minSlotDelta: band.min, maxSlotDelta: band.max };
-  }
-  if (down <= 9) {
-    const band = interpolateAnchors(
-      down,
-      { x: 5, min: -22, max: -16 },
-      { x: 9, min: -38, max: -30 },
-    );
-    return { minSlotDelta: band.min, maxSlotDelta: band.max };
-  }
-  const band = interpolateAnchors(
-    down,
-    { x: 9, min: -38, max: -30 },
-    { x: 15, min: -62, max: -52 },
-  );
-  return { minSlotDelta: band.min, maxSlotDelta: band.max };
-};
-
-const scaleSekitoriBand = (
-  base: { minSlotDelta: number; maxSlotDelta: number },
-  factor: number,
-): { minSlotDelta: number; maxSlotDelta: number } => ({
-  minSlotDelta: Math.round(base.minSlotDelta * factor),
-  maxSlotDelta: Math.round(base.maxSlotDelta * factor),
-});
-
-const resolveSekitoriZone = (rank: Rank): SekitoriZone => {
+const resolveSekitoriZone = (candidate: BanzukeCandidate): SekitoriZone => {
+  const rank = candidate.snapshot.rank;
   if (rank.division === 'Juryo') return 'Juryo';
   if (rank.name !== '前頭') return 'MakuuchiTop';
   const num = clamp(rank.number || 17, 1, LIMITS.MAEGASHIRA_MAX);
   return num <= 5 ? 'MakuuchiTop' : 'MakuuchiMidLow';
 };
 
-export const resolveSekitoriDeltaBand = (record: BashoRecordSnapshot): SekitoriDeltaBand => {
-  const losses = normalizeSekitoriLosses(record.wins, record.losses, record.absent);
-  const diff = record.wins - losses;
-  const zone = resolveSekitoriZone(record.rank);
+const resolveBoundaryPressure = (
+  candidate: BanzukeCandidate,
+  direction: 'promotion' | 'demotion',
+): number => {
+  const rank = candidate.snapshot.rank;
+  const division = rank.division;
+  const number = rank.number ?? (division === 'Juryo' ? 14 : 17);
+  const rate =
+    division === 'Juryo'
+      ? getHeiseiBoundaryExchangeRate(direction === 'promotion' ? 'JuryoToMakuuchi' : 'JuryoToMakushita')
+      : getHeiseiBoundaryExchangeRate(direction === 'demotion' ? 'MakuuchiToJuryo' : 'JuryoToMakuuchi');
+  if (rate <= 0) return 0;
+  const losses = candidate.snapshot.losses + candidate.snapshot.absent;
+  const diff = candidate.snapshot.wins - losses;
+  if (direction === 'promotion' && diff <= 0) return 0;
+  if (direction === 'demotion' && diff >= 0) return 0;
+  const max = division === 'Juryo' ? 14 : 17;
+  const proximity =
+    direction === 'promotion'
+      ? 1 - (number - 1) / Math.max(1, max - 1)
+      : (number - 1) / Math.max(1, max - 1);
+  return clamp(rate * proximity * Math.abs(diff), 0, 1);
+};
 
-  if (record.wins === 0 && record.losses === 0 && record.absent >= 15) {
-    return { zone, minSlotDelta: -30, maxSlotDelta: -30 };
-  }
-
-  const base = resolveBaseSekitoriBand(diff);
-
-  if (zone === 'Juryo') {
-    const scaled = scaleSekitoriBand(base, diff > 0 ? 0.72 : diff < 0 ? 0.76 : 1);
-    return {
-      zone,
-      minSlotDelta: scaled.minSlotDelta,
-      maxSlotDelta: scaled.maxSlotDelta,
-    };
-  }
-
-  if (zone !== 'MakuuchiTop') {
-    return {
-      zone,
-      minSlotDelta: base.minSlotDelta,
-      maxSlotDelta: base.maxSlotDelta,
-    };
-  }
-
-  if (record.rank.name === '前頭' && (record.rank.number || 99) <= 5 && diff === 1) {
-    return { zone, minSlotDelta: 1, maxSlotDelta: 2 };
-  }
-
-  let minSlotDelta = base.minSlotDelta;
-  let maxSlotDelta = base.maxSlotDelta;
-  if (diff >= 2) {
-    minSlotDelta = Math.max(1, Math.floor(minSlotDelta * 0.85));
-    maxSlotDelta = Math.max(minSlotDelta, Math.floor(maxSlotDelta * 0.9));
-  } else if (diff <= -2) {
-    minSlotDelta = Math.floor(minSlotDelta * 1.25);
-    maxSlotDelta = Math.floor(maxSlotDelta * 1.2);
-  }
-
-  const normalized = normalizeBand(minSlotDelta, maxSlotDelta);
-  return { zone, minSlotDelta: normalized.minSlotDelta, maxSlotDelta: normalized.maxSlotDelta };
+export const resolveSekitoriDeltaBand = (candidate: BanzukeCandidate): SekitoriDeltaBand => {
+  const rank = candidate.snapshot.rank;
+  const zone = resolveSekitoriZone(candidate);
+  const empirical = resolveEmpiricalSlotBand({
+    division: rank.division,
+    rankName: rank.name,
+    rankNumber: rank.number,
+    currentSlot: candidate.currentSlot,
+    totalSlots: LIMITS.SEKITORI_TOTAL,
+    wins: candidate.snapshot.wins,
+    losses: candidate.snapshot.losses,
+    absent: candidate.snapshot.absent,
+    promotionPressure: resolveBoundaryPressure(candidate, 'promotion'),
+    demotionPressure: resolveBoundaryPressure(candidate, 'demotion'),
+  });
+  const minSlotDelta = candidate.currentSlot - empirical.maxSlot;
+  const maxSlotDelta = candidate.currentSlot - empirical.minSlot;
+  return {
+    zone,
+    minSlotDelta: Math.min(minSlotDelta, maxSlotDelta),
+    maxSlotDelta: Math.max(minSlotDelta, maxSlotDelta),
+  };
 };
 
 export const resolveSekitoriPreferredSlot = (
@@ -162,6 +84,6 @@ export const resolveBandSlotBounds = (
 };
 
 export const resolveRequiredSekitoriDemotionSlots = (candidate: BanzukeCandidate): number => {
-  const band = resolveSekitoriDeltaBand(candidate.snapshot);
+  const band = resolveSekitoriDeltaBand(candidate);
   return Math.max(0, -band.maxSlotDelta);
 };
