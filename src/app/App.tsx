@@ -4,7 +4,6 @@ import { AppShell, type AppSection } from "./AppShell";
 import { BashoTheaterScreen } from "../features/bashoHub/components/BashoTheaterScreen";
 import { CareerResultPage } from "../features/careerResult/components/CareerResultPage";
 import { CollectionScreen } from "../features/collection/components/CollectionScreen";
-import { DocsScreen } from "../features/docs/components/DocsScreen";
 import { EraStatsPage } from "../features/eraStats/components/EraStatsPage";
 import { LogicLabScreen } from "../features/logicLab/components/LogicLabScreen";
 import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
@@ -422,10 +421,6 @@ const renderSection = ({
     return <CollectionScreen onOpenArchive={onOpenArchive} />;
   }
 
-  if (activeSection === "docs") {
-    return <DocsScreen />;
-  }
-
   if (!status) {
     return <EmptyCareerState />;
   }
@@ -541,7 +536,6 @@ const getShellTitle = (section: AppSection, shikona?: string | null): string => 
   if (section === "era") return shikona ? `${shikona} 時代統計` : "時代統計";
   if (section === "archive") return "アーカイブ";
   if (section === "collection") return "コレクション";
-  if (section === "docs") return "ドキュメント";
   if (section === "logicLab") return "ロジック検証";
   return "新弟子設計";
 };

@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Archive,
-  BookOpenText,
   FlaskConical,
   LibraryBig,
   MonitorPlay,
@@ -18,7 +17,6 @@ export type AppSection =
   | "era"
   | "archive"
   | "collection"
-  | "docs"
   | "logicLab";
 
 interface AppShellProps {
@@ -45,7 +43,6 @@ const NAV_ITEMS: Array<{
   { id: "era", label: "時代統計", icon: TableProperties },
   { id: "archive", label: "アーカイブ", icon: Archive },
   { id: "collection", label: "コレクション", icon: LibraryBig },
-  { id: "docs", label: "ドキュメント", icon: BookOpenText },
   { id: "logicLab", label: "ロジック検証", icon: FlaskConical },
 ];
 
