@@ -95,7 +95,11 @@ const validateBanzukeTarget = (target) => {
   for (const [key, row] of Object.entries(target.boundaryExchangeRates)) {
     ensureKeys(row, ['sampleSize', 'count', 'rate'], `banzuke.boundaryExchangeRates.${key}`);
   }
-  ensureKeys(target.recordBucketRules, ['supported', 'reason', 'fallbackComparisonKeys'], 'banzuke.recordBucketRules');
+  ensureKeys(
+    target.recordBucketRules,
+    ['supported', 'source', 'recordLinkMeaning', 'lowerDivisionScope', 'rankBands', 'recordAwareQuantiles'],
+    'banzuke.recordBucketRules',
+  );
   return target;
 };
 
@@ -181,8 +185,9 @@ const buildCalibrationSummaryMarkdown = (bundle) => {
   lines.push('### record bucket support');
   lines.push('');
   lines.push(`- supported: ${bundle.banzuke.recordBucketRules.supported ? 'yes' : 'no'}`);
-  lines.push(`- reason: ${bundle.banzuke.recordBucketRules.reason}`);
-  lines.push(`- fallback: ${bundle.banzuke.recordBucketRules.fallbackComparisonKeys.join(', ')}`);
+  lines.push(`- source: ${bundle.banzuke.recordBucketRules.source}`);
+  lines.push(`- link: ${bundle.banzuke.recordBucketRules.recordLinkMeaning}`);
+  lines.push(`- lower divisions: ${bundle.banzuke.recordBucketRules.lowerDivisionScope.join(', ')}`);
   lines.push('');
   return lines.join('\n');
 };

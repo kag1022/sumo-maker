@@ -6,6 +6,7 @@ import {
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
+import { buildLiveBashoView } from '../../bashoHub/utils/liveBashoView';
 import {
   appendBashoChunk,
   discardDraftCareer,
@@ -130,6 +131,15 @@ const runLoop = async (): Promise<void> => {
         });
 
         const observation = buildObservation(step);
+        const latestBashoView = buildLiveBashoView({
+          seq: step.seq,
+          year: step.year,
+          month: step.month,
+          playerRecord: step.playerRecord,
+          playerBouts: step.playerBouts,
+          importantTorikumiNotes: step.importantTorikumiNotes,
+          diagnostics: step.diagnostics,
+        });
         post({
           type: 'BASHO_PROGRESS',
           payload: {
@@ -142,6 +152,7 @@ const runLoop = async (): Promise<void> => {
             events: step.events,
             progress: step.progress,
             observation,
+            latestBashoView,
           },
         });
 

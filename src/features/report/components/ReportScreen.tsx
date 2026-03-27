@@ -1,12 +1,20 @@
 import React from "react";
-import { Archive, BookOpenText, Save, ScrollText, Swords, UserRound } from "lucide-react";
+import { Archive, BookOpenText, Save, Scale, ScrollText, Swords, UserRound } from "lucide-react";
+import {
+  getCareerBashoDetail,
+  listCareerBashoRecordsBySeq,
+  type CareerBashoDetail,
+  type CareerBashoRecordsBySeq,
+} from "../../../logic/persistence/careerHistory";
 import { RikishiStatus } from "../../../logic/models";
 import {
   getCareerSaveIncentiveSummary,
   type CareerSaveIncentiveSummary,
 } from "../../../logic/persistence/careers";
 import { Button } from "../../../shared/ui/Button";
+import { BanzukeReviewTab } from "./BanzukeReviewTab";
 import { formatRankDisplayName } from "../utils/reportFormatters";
+import { buildBanzukeReviewTabModel } from "../utils/banzukeReview";
 import { RankTrajectoryTab } from "./RankTrajectoryTab";
 import { RecordTab } from "./RecordTab";
 import { RivalryTab } from "./RivalryTab";
@@ -21,6 +29,7 @@ const PERSONALITY_LABELS: Record<string, string> = {
 };
 
 const TABS = [
+  { id: "review", label: "番付審議", icon: Scale },
   { id: "profile", label: "プロフィール", icon: UserRound },
   { id: "records", label: "戦績", icon: BookOpenText },
   { id: "rank", label: "番付推移", icon: ScrollText },
@@ -59,9 +68,12 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
   isSaved = false,
   careerId = null,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<TabId>("profile");
+  const [activeTab, setActiveTab] = React.useState<TabId>("review");
   const [saveIncentive, setSaveIncentive] = React.useState<CareerSaveIncentiveSummary | null>(null);
   const [saveState, setSaveState] = React.useState<"idle" | "saving" | "saved" | "error">(isSaved ? "saved" : "idle");
+  const [bashoRows, setBashoRows] = React.useState<CareerBashoRecordsBySeq[]>([]);
+  const [detail, setDetail] = React.useState<CareerBashoDetail | null>(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
 
   const initial = status.buildSummary?.initialConditionSummary;
   const growth = status.buildSummary?.growthSummary;
@@ -100,6 +112,53 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       cancelled = true;
     };
   }, [careerId, isSaved, status]);
+
+  const latestBashoSeq = React.useMemo(
+    () => status.history.records.filter((record) => record.rank.division !== "Maezumo").length,
+    [status.history.records],
+  );
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!careerId || activeTab !== "review") {
+      if (!careerId) {
+        setBashoRows([]);
+        setDetail(null);
+      }
+      if (!careerId || activeTab !== "review") {
+        setDetailLoading(false);
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void (async () => {
+      const [nextRows, nextDetail] = await Promise.all([
+        listCareerBashoRecordsBySeq(careerId),
+        latestBashoSeq ? getCareerBashoDetail(careerId, latestBashoSeq) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      setBashoRows(nextRows);
+      setDetail(nextDetail);
+      setDetailLoading(false);
+    })().catch(() => {
+      if (!cancelled) {
+        setDetail(null);
+        setDetailLoading(false);
+      }
+    });
+
+    setDetailLoading(true);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, careerId, latestBashoSeq]);
+
+  const reviewModel = React.useMemo(
+    () => buildBanzukeReviewTabModel({ detail, bashoRows }),
+    [bashoRows, detail],
+  );
 
   const handleSave = async () => {
     if (!onSave || isSaved || saveState === "saving") return;
@@ -211,7 +270,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       </section>
 
       <section className={`${surface} p-2`}>
-        <nav className="grid gap-2 sm:grid-cols-4" aria-label="力士記録タブ">
+        <nav className="grid gap-2 sm:grid-cols-5" aria-label="力士記録タブ">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -232,7 +291,15 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 <span className="flex flex-col">
                   <span className="text-sm">{tab.label}</span>
                   <span className="text-[10px] ui-text-label tracking-[0.2em] text-gold/45 uppercase">
-                    {tab.id === "profile" ? "Identity" : tab.id === "records" ? "Records" : tab.id === "rank" ? "Trajectory" : "Rivalry"}
+                    {tab.id === "review"
+                      ? "Review"
+                      : tab.id === "profile"
+                        ? "Identity"
+                        : tab.id === "records"
+                          ? "Records"
+                          : tab.id === "rank"
+                            ? "Trajectory"
+                            : "Rivalry"}
                   </span>
                 </span>
               </button>
@@ -240,6 +307,16 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
           })}
         </nav>
       </section>
+
+      {activeTab === "review" && (
+        <section className={`${surface} p-4 sm:p-5`}>
+          <BanzukeReviewTab
+            model={reviewModel}
+            isLoading={detailLoading}
+            emptyLabel={careerId ? "このキャリアには保存済みの番付審議がありません。" : "保存済みキャリアを開くと番付審議が読めます。"}
+          />
+        </section>
+      )}
 
       {activeTab === "profile" && (
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">

@@ -1,4 +1,4 @@
-import { BanzukeEngineVersion } from '../../banzuke';
+import { BanzukeEngineVersion, normalizeBanzukeEngineVersion } from '../../banzuke';
 import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   normalizeNewRunModelVersion,
@@ -25,7 +25,7 @@ export const createSimulationEngine = (
     params.simulationModelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
   );
   const banzukeEngineVersion: BanzukeEngineVersion =
-    params.banzukeEngineVersion ?? 'optimizer-v1';
+    normalizeBanzukeEngineVersion(params.banzukeEngineVersion);
   const world = createSimulationWorld(deps.random);
   const sekitoriBoundaryWorld = createSekitoriBoundaryWorld(deps.random);
   const lowerDivisionQuotaWorld = createLowerDivisionQuotaWorld(deps.random, world);

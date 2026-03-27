@@ -1,6 +1,7 @@
 import React from "react";
 import { FastForward, Play, Save, Square } from "lucide-react";
 import { AppShell, type AppSection } from "./AppShell";
+import { BashoTheaterScreen } from "../features/bashoHub/components/BashoTheaterScreen";
 import { CareerResultPage } from "../features/careerResult/components/CareerResultPage";
 import { CollectionScreen } from "../features/collection/components/CollectionScreen";
 import { DocsScreen } from "../features/docs/components/DocsScreen";
@@ -20,6 +21,18 @@ import { Button } from "../shared/ui/Button";
 import { getDefaultDivision, type EraStatsViewState } from "../features/eraStats/utils/eraStatsModel";
 import type { CareerResultViewState } from "../features/careerResult/components/CareerResultPage";
 
+const isMaezumoBashoRow = (row: CareerBashoRecordsBySeq) =>
+  row.rows.find((entry) => entry.entityType === "PLAYER")?.division === "Maezumo";
+
+const normalizeCareerBashoRows = (rows: CareerBashoRecordsBySeq[]): CareerBashoRecordsBySeq[] =>
+  rows
+    .filter((row) => !isMaezumoBashoRow(row))
+    .map((row, index) => ({
+      ...row,
+      bashoSeq: index + 1,
+      sourceBashoSeq: row.sourceBashoSeq ?? row.bashoSeq,
+    }));
+
 export const App: React.FC = () => {
   const {
     phase,
@@ -27,6 +40,8 @@ export const App: React.FC = () => {
     progress,
     currentCareerId,
     isCurrentCareerSaved,
+    simulationPacing,
+    latestBashoView,
     latestPauseReason,
     hallOfFame,
     errorMessage,
@@ -57,6 +72,8 @@ export const App: React.FC = () => {
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [bashoRows, setBashoRows] = React.useState<CareerBashoRecordsBySeq[]>([]);
   const [bashoRowsLoading, setBashoRowsLoading] = React.useState(false);
+  const previousCareerIdRef = React.useRef<string | null>(null);
+  const previousPhaseRef = React.useRef(phase);
 
   React.useEffect(() => {
     void loadHallOfFame();
@@ -64,12 +81,24 @@ export const App: React.FC = () => {
   }, [loadHallOfFame, loadUnshelvedCareers]);
 
   React.useEffect(() => {
+    const showBashoSection =
+      simulationPacing === "observe" &&
+      (phase === "simulating" || phase === "running" || phase === "reveal_ready");
+    if (showBashoSection) {
+      setActiveSection((current) => (current === "logicLab" ? current : "basho"));
+      return;
+    }
     if (phase === "completed" || phase === "running" || phase === "simulating" || phase === "reveal_ready") {
       setActiveSection((current) => (current === "logicLab" ? current : "career"));
     }
-  }, [phase]);
+  }, [phase, simulationPacing]);
 
   React.useEffect(() => {
+    const previousCareerId = previousCareerIdRef.current;
+    const previousPhase = previousPhaseRef.current;
+    previousCareerIdRef.current = currentCareerId;
+    previousPhaseRef.current = phase;
+
     if (!status) {
       setCareerViewState({
         selectedBashoSeq: null,
@@ -81,9 +110,12 @@ export const App: React.FC = () => {
 
     const records = status.history.records.filter((record) => record.rank.division !== "Maezumo");
     const lastSeq = records.length;
-    const selectedSeq = careerViewState.selectedBashoSeq && careerViewState.selectedBashoSeq <= lastSeq
-      ? careerViewState.selectedBashoSeq
-      : lastSeq || null;
+    const shouldSnapToLatest =
+      currentCareerId !== previousCareerId ||
+      (phase === "completed" && previousPhase !== "completed");
+    const selectedSeq = shouldSnapToLatest || !careerViewState.selectedBashoSeq || careerViewState.selectedBashoSeq > lastSeq
+      ? lastSeq || null
+      : careerViewState.selectedBashoSeq;
     const windowSize = Math.min(lastSeq || 1, 18);
     const windowEnd = selectedSeq ?? lastSeq;
     const windowStart = Math.max(1, windowEnd - windowSize + 1);
@@ -97,12 +129,16 @@ export const App: React.FC = () => {
       selectedDivision: getDefaultDivision(records[records.length - 1]?.rank.division),
       rankingBasis: current.rankingBasis,
     }));
-  }, [status, currentCareerId]);
+  }, [careerViewState.selectedBashoSeq, currentCareerId, phase, status]);
 
   React.useEffect(() => {
     let cancelled = false;
-    if (!currentCareerId) {
-      setBashoRows([]);
+    const shouldLoadBashoRows =
+      Boolean(currentCareerId) && (phase === "reveal_ready" || phase === "completed");
+    if (!shouldLoadBashoRows) {
+      if (!currentCareerId) {
+        setBashoRows([]);
+      }
       setBashoRowsLoading(false);
       return () => {
         cancelled = true;
@@ -110,11 +146,18 @@ export const App: React.FC = () => {
     }
 
     setBashoRowsLoading(true);
+    const activeCareerId = currentCareerId;
+    if (!activeCareerId) {
+      setBashoRowsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
     void (async () => {
       try {
-        const nextRows = await listCareerBashoRecordsBySeq(currentCareerId);
+        const nextRows = await listCareerBashoRecordsBySeq(activeCareerId);
         if (!cancelled) {
-          setBashoRows(nextRows);
+          setBashoRows(normalizeCareerBashoRows(nextRows));
         }
       } finally {
         if (!cancelled) {
@@ -126,14 +169,16 @@ export const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentCareerId]);
+  }, [currentCareerId, phase]);
 
   React.useEffect(() => {
     let cancelled = false;
     const targetBashoSeq = careerViewState.selectedBashoSeq;
-    if (!currentCareerId || !targetBashoSeq) {
+    const selectedBashoRow = bashoRows.find((row) => row.bashoSeq === targetBashoSeq);
+    const sourceBashoSeq = selectedBashoRow?.sourceBashoSeq ?? targetBashoSeq;
+    if (!currentCareerId || !targetBashoSeq || !sourceBashoSeq) {
       setDetail(null);
-      setDetailLoading(false);
+      setDetailLoading(Boolean(currentCareerId && targetBashoSeq && bashoRowsLoading));
       return () => {
         cancelled = true;
       };
@@ -142,9 +187,17 @@ export const App: React.FC = () => {
     setDetailLoading(true);
     void (async () => {
       try {
-        const nextDetail = await getCareerBashoDetail(currentCareerId, targetBashoSeq);
+        const nextDetail = await getCareerBashoDetail(currentCareerId, sourceBashoSeq);
         if (!cancelled) {
-          setDetail(nextDetail);
+          setDetail(
+            nextDetail
+              ? {
+                ...nextDetail,
+                bashoSeq: targetBashoSeq,
+                sourceBashoSeq: sourceBashoSeq,
+              }
+              : null,
+          );
         }
       } finally {
         if (!cancelled) {
@@ -156,7 +209,7 @@ export const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [careerViewState.selectedBashoSeq, currentCareerId]);
+  }, [bashoRows, bashoRowsLoading, careerViewState.selectedBashoSeq, currentCareerId]);
 
   const handleSectionChange = React.useCallback(
     async (section: AppSection) => {
@@ -178,7 +231,7 @@ export const App: React.FC = () => {
   const handleStart = React.useCallback(
     async (...args: Parameters<typeof startSimulation>) => {
       await startSimulation(...args);
-      setActiveSection("career");
+      setActiveSection(args[4] === "observe" ? "basho" : "career");
     },
     [startSimulation],
   );
@@ -193,14 +246,20 @@ export const App: React.FC = () => {
 
   const disableSections = React.useMemo<AppSection[]>(() => {
     const disabled: AppSection[] = [];
+    const showBashoSection =
+      simulationPacing === "observe" &&
+      (phase === "simulating" || phase === "running" || phase === "reveal_ready");
     if (!status) {
-      disabled.push("career", "era");
+      disabled.push("career", "era", "basho");
     }
     if (!currentCareerId || bashoRowsLoading || bashoRows.length === 0) {
       if (!disabled.includes("era")) disabled.push("era");
     }
+    if (!showBashoSection && !disabled.includes("basho")) {
+      disabled.push("basho");
+    }
     return disabled;
-  }, [bashoRows.length, bashoRowsLoading, currentCareerId, status]);
+  }, [bashoRows.length, bashoRowsLoading, currentCareerId, phase, simulationPacing, status]);
 
   const shellTitle = getShellTitle(activeSection, status?.shikona);
   const shellStatusLine = getStatusLine({
@@ -227,13 +286,19 @@ export const App: React.FC = () => {
       statusLine={shellStatusLine}
       actions={shellActions}
       showLogicLab={import.meta.env.DEV}
+      showBasho={
+        simulationPacing === "observe" &&
+        (phase === "simulating" || phase === "running" || phase === "reveal_ready")
+      }
       disableSections={disableSections}
     >
       {renderSection({
         activeSection,
         phase,
+        simulationPacing,
         status,
         progress,
+        latestBashoView,
         hallOfFame,
         currentCareerId,
         isCurrentCareerSaved,
@@ -279,8 +344,10 @@ export const App: React.FC = () => {
 const renderSection = ({
   activeSection,
   phase,
+  simulationPacing,
   status,
   progress,
+  latestBashoView,
   hallOfFame,
   currentCareerId,
   isCurrentCareerSaved,
@@ -302,8 +369,10 @@ const renderSection = ({
 }: {
   activeSection: AppSection;
   phase: ReturnType<typeof useSimulation>["phase"];
+  simulationPacing: ReturnType<typeof useSimulation>["simulationPacing"];
   status: ReturnType<typeof useSimulation>["status"];
   progress: ReturnType<typeof useSimulation>["progress"];
+  latestBashoView: ReturnType<typeof useSimulation>["latestBashoView"];
   hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
@@ -359,6 +428,14 @@ const renderSection = ({
 
   if (!status) {
     return <EmptyCareerState />;
+  }
+
+  if (
+    activeSection === "basho" &&
+    simulationPacing === "observe" &&
+    (phase === "simulating" || phase === "running" || phase === "reveal_ready")
+  ) {
+    return <BashoTheaterScreen view={latestBashoView} />;
   }
 
   if (phase === "simulating" || phase === "running") {
@@ -459,6 +536,7 @@ const EmptyCareerState: React.FC = () => (
 );
 
 const getShellTitle = (section: AppSection, shikona?: string | null): string => {
+  if (section === "basho") return shikona ? `${shikona} 場所中枢` : "場所中枢";
   if (section === "career") return shikona ? `${shikona} キャリア結果` : "キャリア結果";
   if (section === "era") return shikona ? `${shikona} 時代統計` : "時代統計";
   if (section === "archive") return "アーカイブ";

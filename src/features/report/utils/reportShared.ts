@@ -289,9 +289,14 @@ export interface ImportantBanzukeDecisionDigest {
 
 export type ImportantTorikumiTrigger =
   | 'YUSHO_RACE'
+  | 'YUSHO_DIRECT'
+  | 'YUSHO_PURSUIT'
   | 'JOI_DUTY'
+  | 'JOI_ASSIGNMENT'
   | 'SEKITORI_BOUNDARY'
+  | 'JURYO_BOUNDARY'
   | 'CROSS_DIVISION_EVAL'
+  | 'LOWER_BOUNDARY'
   | 'LATE_RELAXATION';
 
 export interface ImportantTorikumiDigest {
@@ -520,14 +525,26 @@ const resolveBanzukeHighlightTitle = (trigger: ImportantBanzukeDecisionTrigger):
 
 const resolveTorikumiHighlightTitle = (trigger: ImportantTorikumiTrigger): string => {
   if (trigger === 'YUSHO_RACE') return '優勝争いの割';
+  if (trigger === 'YUSHO_DIRECT') return '優勝直接対決';
+  if (trigger === 'YUSHO_PURSUIT') return '優勝追走戦';
   if (trigger === 'JOI_DUTY') return '上位総当たり';
+  if (trigger === 'JOI_ASSIGNMENT') return '上位義務戦';
   if (trigger === 'SEKITORI_BOUNDARY') return '関取境界戦';
+  if (trigger === 'JURYO_BOUNDARY') return '十両昇降戦';
   if (trigger === 'CROSS_DIVISION_EVAL') return '越境評価戦';
+  if (trigger === 'LOWER_BOUNDARY') return '下位境界戦';
   return '異例編成';
 };
 
 const resolveTorikumiTone = (trigger: ImportantTorikumiTrigger): Exclude<ReportTone, 'action'> => {
-  if (trigger === 'YUSHO_RACE' || trigger === 'SEKITORI_BOUNDARY') return 'state';
+  if (
+    trigger === 'YUSHO_RACE' ||
+    trigger === 'YUSHO_DIRECT' ||
+    trigger === 'YUSHO_PURSUIT' ||
+    trigger === 'SEKITORI_BOUNDARY' ||
+    trigger === 'JURYO_BOUNDARY' ||
+    trigger === 'LOWER_BOUNDARY'
+  ) return 'state';
   if (trigger === 'LATE_RELAXATION') return 'warning';
   return 'brand';
 };
@@ -1024,7 +1041,13 @@ export const buildImportantDecisionDigest = (
       age: 0,
       label: '重要取組',
       tone: resolveTorikumiTone(entry.trigger),
-      isMajor: entry.trigger === 'YUSHO_RACE' || entry.trigger === 'SEKITORI_BOUNDARY',
+      isMajor:
+        entry.trigger === 'YUSHO_RACE' ||
+        entry.trigger === 'YUSHO_DIRECT' ||
+        entry.trigger === 'YUSHO_PURSUIT' ||
+        entry.trigger === 'SEKITORI_BOUNDARY' ||
+        entry.trigger === 'JURYO_BOUNDARY' ||
+        entry.trigger === 'LOWER_BOUNDARY',
       items: [entry.summary, entry.detailLine],
       entryType: 'TORIKUMI',
       bashoSeq: entry.bashoSeq,

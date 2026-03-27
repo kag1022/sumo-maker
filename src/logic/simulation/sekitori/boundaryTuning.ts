@@ -1,5 +1,3 @@
-import { HEISEI_BANZUKE_CALIBRATION } from '../../calibration/banzukeHeisei';
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
@@ -7,30 +5,32 @@ export const resolveMaxMakushitaDemotionNumber = (
   juryoNumber: number,
   wins: number,
   losses: number,
-  options?: { fullAbsence?: boolean },
+  _options?: { fullAbsence?: boolean },
 ): number => {
-  const config = HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita;
-  const makekoshi = Math.max(1, losses - wins);
-  const cap = options?.fullAbsence
-    ? config.fullAbsenceDemotionMaxMakushitaRank
-    : config.demotionMaxMakushitaRank;
-  const candidate =
-    config.demotionBaseMakushitaRank +
-    Math.max(0, juryoNumber - 14) +
-    Math.floor(Math.max(0, makekoshi - 1) / 3);
-  return clamp(candidate, config.demotionBaseMakushitaRank, cap);
+  const boundedJuryo = clamp(juryoNumber, 1, 14);
+  const deficit = Math.max(1, losses - wins);
+  const base =
+    boundedJuryo >= 14 ? 1 :
+      boundedJuryo >= 12 ? 3 :
+        boundedJuryo >= 10 ? 6 :
+      boundedJuryo >= 8 ? 10 :
+            14;
+  const depth = Math.floor(Math.max(0, deficit - 1) / 2);
+  return clamp(base + depth, 1, 15);
 };
 
 export const resolveMinJuryoPromotionNumber = (
   makushitaNumber: number,
   wins: number,
 ): number => {
-  const config = HEISEI_BANZUKE_CALIBRATION.boundaryExchange.juryoMakushita;
-  const candidate =
-    config.promotionBestJuryoNumber +
-    Math.floor(Math.max(0, makushitaNumber - 1) / 3) -
-    (wins >= 7 ? 1 : 0);
-  return clamp(candidate, config.promotionBestJuryoNumber, config.promotionWorstJuryoNumber);
+  const boundedMakushita = clamp(makushitaNumber, 1, 15);
+  if (boundedMakushita <= 5) {
+    return wins >= 7 ? 12 : 13;
+  }
+  if (boundedMakushita <= 10) {
+    return wins >= 7 ? 13 : 14;
+  }
+  return 14;
 };
 
 export const resolveMakuuchiPromotionLandingNumber = (
@@ -65,16 +65,16 @@ export const resolveJuryoLandingNumberFromMakuuchiDemotion = (
   losses: number,
 ): number => {
   const boundedMaegashira = clamp(maegashiraNumber, 1, 17);
-  const makekoshi = Math.max(1, losses - wins);
+  const deficit = Math.max(1, losses - wins);
   const base =
     boundedMaegashira >= 16 ? 1 :
       boundedMaegashira >= 14 ? 2 :
         boundedMaegashira >= 12 ? 3 :
           4;
   const severity =
-    makekoshi >= 10 ? 3 :
-      makekoshi >= 7 ? 2 :
-        makekoshi >= 4 ? 1 :
+    deficit >= 10 ? 3 :
+      deficit >= 7 ? 2 :
+        deficit >= 4 ? 1 :
           0;
   return clamp(base + severity, 1, 8);
 };

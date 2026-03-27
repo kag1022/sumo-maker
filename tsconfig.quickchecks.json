@@ -11,5 +11,9 @@
     "rootDir": ".",
     "lib": ["ES2020", "DOM"]
   },
-  "include": ["scripts/reports/quick_banzuke_checks.ts", "src/logic/**/*.ts"]
+  "include": [
+    "scripts/reports/quick_banzuke_checks.ts",
+    "scripts/reports/quick_torikumi_checks.ts",
+    "src/logic/**/*.ts"
+  ]
 }

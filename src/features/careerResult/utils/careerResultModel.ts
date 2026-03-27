@@ -31,8 +31,8 @@ export type MovementType = "rise" | "flat" | "fall" | "absence";
 
 export const getCareerValueForFlow = (status: RikishiStatus): CareerRankFlowPoint[] => {
   const records = status.history.records
-    .map((record, index) => ({ ...record, bashoSeq: index + 1 }))
-    .filter((record) => record.rank.division !== "Maezumo");
+    .filter((record) => record.rank.division !== "Maezumo")
+    .map((record, index) => ({ ...record, bashoSeq: index + 1 }));
 
   return records.map((record, index) => {
     const prev = records[index - 1];

@@ -4,6 +4,7 @@ import {
   RankChangeResult,
   composeNextBanzuke,
 } from '../../banzuke';
+import { resolveEmpiricalRankBand, resolveEmpiricalRecordBucket } from '../../banzuke/providers/empirical';
 import { applyGrowth, checkRetirement } from '../../growth';
 import { Rank, RikishiStatus } from '../../models';
 import {
@@ -296,6 +297,18 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     ...(sekitoriQuota ? { sekitoriQuota } : {}),
     ...(lowerDivisionQuota ? { lowerDivisionQuota } : {}),
     ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
+    empiricalContext: {
+      recordBucket: resolveEmpiricalRecordBucket(
+        bashoRecord.wins,
+        bashoRecord.losses,
+        bashoRecord.absent,
+      ),
+      rankBand: resolveEmpiricalRankBand(
+        currentRank.division,
+        currentRank.name,
+        currentRank.number,
+      ),
+    },
     scaleSlots,
     simulationModelVersion,
     banzukeEngineVersion,
@@ -592,6 +605,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lateCrossDivisionBoutCount: bashoResult.torikumiDiagnostics?.lateCrossDivisionBoutCount,
     sameStableViolationCount: bashoResult.torikumiDiagnostics?.sameStableViolationCount,
     sameCardViolationCount: bashoResult.torikumiDiagnostics?.sameCardViolationCount,
+    torikumiRepairHistogram: bashoResult.torikumiDiagnostics?.repairHistogram,
+    torikumiScheduleViolations: bashoResult.torikumiDiagnostics?.scheduleViolations.length,
+    torikumiLateDirectTitleBoutCount: bashoResult.torikumiDiagnostics?.lateDirectTitleBoutCount,
     ...(true
       ? {
         bashoVariance: {

@@ -14,6 +14,9 @@ export interface ExpectedPlacementCandidate {
   mandatoryPromotion: boolean;
   sourceDivision: string;
   score: number;
+  rankBand?: string;
+  recordBucket?: string;
+  proposalBasis?: 'EMPIRICAL' | 'RULE_OVERRIDE';
 }
 
 export interface ExpectedPlacementAssignment {
