@@ -12,6 +12,7 @@ import {
 import { resolveConstraintHits } from '../rules/constraints';
 import { reviewBoard } from './reviewBoard';
 import { DEFAULT_SIMULATION_MODEL_VERSION } from '../../simulation/modelVersion';
+import { normalizeBanzukeEngineVersion } from '../types';
 
 const compareRank = (a: Rank, b: Rank): number => {
   const av = getRankValue(a);
@@ -113,6 +114,29 @@ const resolveProposalSource = (
 
 const normalizeReasons = (reasons: BanzukeDecisionReasonCode[] | undefined): BanzukeDecisionReasonCode[] =>
   reasons?.length ? reasons : ['AUTO_ACCEPTED'];
+
+const resolveOverrideNames = (
+  proposalRank: Rank,
+  finalRank: Rank,
+  constraintHits: string[],
+  reasons: BanzukeDecisionReasonCode[],
+): string[] => {
+  const names = new Set<string>();
+  for (const hit of constraintHits) names.add(hit);
+  if (compareRank(proposalRank, finalRank) !== 0) {
+    names.add('REVIEW_OVERRIDE');
+  }
+  if (reasons.includes('REVIEW_FORCE_MAKUSHITA_ZENSHO_JOI')) {
+    names.add('MAKUSHITA_ZENSHO_JOI');
+  }
+  if (reasons.includes('REVIEW_REVERT_KACHIKOSHI_DEMOTION')) {
+    names.add('KACHIKOSHI_DIRECTION_GUARD');
+  }
+  if (reasons.includes('REVIEW_CAP_LIGHT_MAKEKOSHI_DEMOTION')) {
+    names.add('LIGHT_MAKEKOSHI_CAP');
+  }
+  return [...names];
+};
 
 const resolveRuleBucket = (
   rank: Rank,
@@ -220,6 +244,10 @@ export const composeNextBanzuke = (
         proposalSource,
         reasons,
         constraintHits,
+        proposalBasis: compareRank(committeeCase.proposalRank, finalRank) === 0 ? 'EMPIRICAL' : 'RULE_OVERRIDE',
+        recordBucket: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.recordBucket,
+        rankBand: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.rankBand,
+        overrideNames: resolveOverrideNames(committeeCase.proposalRank, finalRank, constraintHits, reasons),
       },
     });
 
@@ -231,14 +259,19 @@ export const composeNextBanzuke = (
         input.entries.find((entry) => entry.id === committeeCase.id)?.options?.simulationModelVersion ??
         DEFAULT_SIMULATION_MODEL_VERSION,
       banzukeEngineVersion:
-        input.entries.find((entry) => entry.id === committeeCase.id)?.options?.banzukeEngineVersion ??
-        'optimizer-v1',
+        normalizeBanzukeEngineVersion(
+          input.entries.find((entry) => entry.id === committeeCase.id)?.options?.banzukeEngineVersion,
+        ),
       proposalSource,
       fromRank: committeeCase.currentRank,
       proposedRank: committeeCase.proposalRank,
       finalRank,
       reasons,
       constraintHits,
+      proposalBasis: compareRank(committeeCase.proposalRank, finalRank) === 0 ? 'EMPIRICAL' : 'RULE_OVERRIDE',
+      recordBucket: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.recordBucket,
+      rankBand: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.rankBand,
+      overrideNames: resolveOverrideNames(committeeCase.proposalRank, finalRank, constraintHits, reasons),
       ruleBucket: resolveRuleBucket(committeeCase.currentRank),
       usedBoundaryPressure:
         proposalSource === 'TOP_DIVISION' ||

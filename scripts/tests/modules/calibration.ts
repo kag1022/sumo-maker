@@ -48,6 +48,7 @@ type BanzukeCalibration = {
     era: string;
     divisionScope: string[];
     note?: string;
+    dataQuality?: Record<string, number>;
   };
   divisionMovementQuantiles: Record<
     string,
@@ -56,8 +57,11 @@ type BanzukeCalibration = {
   boundaryExchangeRates: Record<string, { sampleSize: number; count: number; rate: number }>;
   recordBucketRules: {
     supported: boolean;
-    reason: string;
-    fallbackComparisonKeys: string[];
+    source: string;
+    recordLinkMeaning: string;
+    lowerDivisionScope: string[];
+    rankBands: Record<string, Array<[number, number | null, string]>>;
+    recordAwareQuantiles: Record<string, Record<string, Record<string, { sampleSize: number } | null>>>;
   };
 };
 
@@ -101,7 +105,7 @@ const cases: TestCase[] = [
       assert.equal(career.meta.cohort, 'heisei_debut');
       assert.ok(career.meta.sampleSize > 0, 'Expected career calibration sample size > 0');
       assert.ok(banzuke.meta.sampleSize > 0, 'Expected banzuke calibration sample size > 0');
-      assert.ok(Array.isArray(banzuke.meta.divisionScope) && banzuke.meta.divisionScope.length === 3, 'Expected 3 scoped divisions');
+      assert.ok(Array.isArray(banzuke.meta.divisionScope) && banzuke.meta.divisionScope.length === 6, 'Expected 6 scoped divisions');
       assert.equal(bundle.meta?.cohort, 'heisei_debut');
     },
   },
@@ -120,21 +124,25 @@ const cases: TestCase[] = [
     },
   },
   {
-    name: 'calibration: banzuke fallback mode is explicit',
+    name: 'calibration: banzuke record buckets are available',
     run: () => {
       const banzuke = readJson<BanzukeCalibration>(BANZUKE_PATH);
-      assert.equal(banzuke.recordBucketRules.supported, false);
-      assert.ok(
-        banzuke.recordBucketRules.reason.includes('per-basho'),
-        'Expected fallback reason to mention missing per-basho records',
+      assert.equal(banzuke.recordBucketRules.supported, true);
+      assert.equal(
+        banzuke.recordBucketRules.source,
+        'rank_movement_with_record.from_basho_code',
       );
       assert.ok(
-        banzuke.recordBucketRules.fallbackComparisonKeys.includes('MakuuchiStayed'),
-        'Expected fallback keys to include MakuuchiStayed',
+        banzuke.recordBucketRules.recordLinkMeaning.includes('from_basho_code'),
+        'Expected record link meaning to mention from_basho_code',
       );
       assert.ok(
-        banzuke.recordBucketRules.fallbackComparisonKeys.includes('JuryoToMakuuchi'),
-        'Expected fallback keys to include JuryoToMakuuchi',
+        banzuke.recordBucketRules.lowerDivisionScope.includes('Makushita'),
+        'Expected lower division scope to include Makushita',
+      );
+      assert.ok(
+        (banzuke.recordBucketRules.recordAwareQuantiles.Makushita?.['1-5']?.['4-3']?.sampleSize ?? 0) > 0,
+        'Expected Makushita 1-5 4-3 sample',
       );
       assert.ok(
         (banzuke.divisionMovementQuantiles.Makuuchi?.stayed?.sampleSize ?? 0) > 0,
@@ -156,7 +164,7 @@ const cases: TestCase[] = [
       assert.ok(summary.includes(bundle.career.meta.source), 'Expected career source in summary');
       assert.ok(summary.includes(bundle.banzuke.meta.era), 'Expected banzuke era in summary');
       assert.ok(summary.includes('record bucket support'), 'Expected record bucket support section');
-      assert.ok(summary.includes(bundle.banzuke.recordBucketRules.reason), 'Expected fallback reason in summary');
+      assert.ok(summary.includes(bundle.banzuke.recordBucketRules.source), 'Expected record source in summary');
     },
   },
   {

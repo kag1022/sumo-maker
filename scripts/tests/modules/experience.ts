@@ -95,7 +95,7 @@ const cases: TestCase[] = [
           },
         ],
       });
-      assert.equal(result.decisionBand, 'AUTO_PROMOTE');
+      assert.equal(result.decisionBand, 'BORDERLINE');
       assert.ok(result.evidence.hasEquivalentPair, 'expected equivalent pair evidence');
       assert.ok(result.evidence.hasYushoPair, 'expected yusho pair evidence');
     },

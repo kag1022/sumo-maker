@@ -179,6 +179,12 @@
       grid-template-columns: 1fr;
     }
 
+    .basho-theater-stage,
+    .basho-theater-footer,
+    .banzuke-review-lane-strip {
+      grid-template-columns: 1fr;
+    }
+
     .era-side-stack {
       min-height: auto;
       grid-template-rows: none;
@@ -564,6 +570,344 @@
   .era-stats-page {
     display: grid;
     gap: 0.9rem;
+  }
+
+  .career-result-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .career-result-tab-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    padding: 0.65rem 0.9rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 0.78rem;
+    color: rgba(245, 240, 225, 0.68);
+  }
+
+  .career-result-tab-button[data-active="true"] {
+    border-color: rgba(184, 155, 104, 0.42);
+    background: rgba(184, 155, 104, 0.12);
+    color: rgba(245, 240, 225, 0.96);
+  }
+
+  .banzuke-review-layout {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .banzuke-review-lane,
+  .banzuke-review-panel {
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.016);
+    padding: 0.9rem;
+  }
+
+  .banzuke-review-kicker,
+  .basho-theater-kicker {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(184, 155, 104, 0.75);
+  }
+
+  .banzuke-review-headline {
+    margin-top: 0.35rem;
+    font-family: "DotGothic16", monospace;
+    font-size: 1rem;
+    color: rgba(245, 240, 225, 0.96);
+  }
+
+  .banzuke-review-lane-strip {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+    margin-top: 0.9rem;
+  }
+
+  .banzuke-review-lane-node,
+  .banzuke-review-lane-band {
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(8, 12, 18, 0.55);
+    min-height: 88px;
+    padding: 0.8rem;
+    display: grid;
+    align-content: center;
+    gap: 0.35rem;
+  }
+
+  .banzuke-review-lane-band {
+    background:
+      linear-gradient(180deg, rgba(184, 155, 104, 0.12), rgba(8, 12, 18, 0.55)),
+      rgba(8, 12, 18, 0.55);
+  }
+
+  .banzuke-review-lane-band[data-basis="RULE_OVERRIDE"] {
+    background:
+      linear-gradient(180deg, rgba(210, 107, 82, 0.16), rgba(8, 12, 18, 0.55)),
+      rgba(8, 12, 18, 0.55);
+  }
+
+  .banzuke-review-lane-label {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.66rem;
+    color: rgba(245, 240, 225, 0.56);
+  }
+
+  .banzuke-review-summary {
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.84rem;
+    line-height: 1.65;
+    color: rgba(245, 240, 225, 0.82);
+  }
+
+  .banzuke-review-log-list {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .banzuke-review-log-item {
+    border-left: 3px solid rgba(255,255,255,0.08);
+    background: rgba(8, 12, 18, 0.5);
+    padding: 0.75rem 0.8rem;
+    display: grid;
+    gap: 0.3rem;
+    color: rgba(245, 240, 225, 0.74);
+    line-height: 1.6;
+    font-size: 0.8rem;
+  }
+
+  .banzuke-review-log-item[data-tone="empirical"] {
+    border-left-color: rgba(88, 181, 135, 0.72);
+  }
+
+  .banzuke-review-log-item[data-tone="override"] {
+    border-left-color: rgba(210, 107, 82, 0.72);
+  }
+
+  .banzuke-review-log-item[data-tone="info"] {
+    border-left-color: rgba(22, 94, 131, 0.72);
+  }
+
+  .banzuke-review-log-title {
+    font-family: "DotGothic16", monospace;
+    font-size: 0.72rem;
+    color: rgba(245, 240, 225, 0.92);
+  }
+
+  .banzuke-review-log-sub {
+    color: rgba(245, 240, 225, 0.52);
+  }
+
+  .basho-theater {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .basho-theater-stage {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.35fr) minmax(280px, 0.95fr);
+    align-items: stretch;
+  }
+
+  .basho-theater-rail,
+  .basho-theater-feature,
+  .basho-theater-slate,
+  .basho-theater-footer-block {
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(14, 19, 26, 0.88);
+  }
+
+  .basho-theater-rail,
+  .basho-theater-slate {
+    padding: 0.95rem;
+  }
+
+  .basho-theater-feature {
+    position: relative;
+    overflow: hidden;
+    padding: 1.2rem;
+    display: grid;
+    align-content: space-between;
+    gap: 0.9rem;
+    min-height: 420px;
+    background:
+      radial-gradient(circle at top left, rgba(184, 155, 104, 0.14), transparent 32%),
+      rgba(14, 19, 26, 0.88);
+  }
+
+  .basho-theater-feature[data-tone="title"] {
+    background:
+      radial-gradient(circle at top left, rgba(184, 138, 62, 0.26), transparent 32%),
+      rgba(14, 19, 26, 0.92);
+  }
+
+  .basho-theater-feature[data-tone="promotion"] {
+    background:
+      radial-gradient(circle at top left, rgba(22, 94, 131, 0.24), transparent 32%),
+      rgba(14, 19, 26, 0.92);
+  }
+
+  .basho-theater-feature[data-tone="demotion"] {
+    background:
+      radial-gradient(circle at top left, rgba(210, 107, 82, 0.22), transparent 32%),
+      rgba(14, 19, 26, 0.92);
+  }
+
+  .basho-theater-basho,
+  .basho-theater-rank,
+  .basho-theater-record,
+  .basho-theater-feature-label,
+  .basho-theater-footer-value {
+    font-family: "DotGothic16", monospace;
+  }
+
+  .basho-theater-basho {
+    margin-top: 0.45rem;
+    color: rgba(245, 240, 225, 0.65);
+  }
+
+  .basho-theater-rank {
+    margin-top: 1rem;
+    font-size: 1.15rem;
+    color: rgba(245, 240, 225, 0.96);
+  }
+
+  .basho-theater-record {
+    margin-top: 0.25rem;
+    color: rgba(184, 155, 104, 0.92);
+  }
+
+  .basho-theater-summary-list {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 1rem;
+  }
+
+  .basho-theater-summary-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 0.45rem;
+    font-size: 0.76rem;
+    color: rgba(245, 240, 225, 0.72);
+  }
+
+  .basho-theater-summary-item strong {
+    color: rgba(245, 240, 225, 0.94);
+  }
+
+  .basho-theater-feature-label {
+    font-size: 0.84rem;
+    color: rgba(184, 155, 104, 0.92);
+  }
+
+  .basho-theater-feature h2 {
+    font-family: "DotGothic16", monospace;
+    font-size: clamp(1.6rem, 2.3vw, 2.5rem);
+    line-height: 1.3;
+    color: rgba(245, 240, 225, 0.98);
+  }
+
+  .basho-theater-feature p {
+    max-width: 36rem;
+    font-size: 0.94rem;
+    line-height: 1.75;
+    color: rgba(245, 240, 225, 0.78);
+  }
+
+  .basho-theater-feature-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    color: rgba(245, 240, 225, 0.62);
+    font-size: 0.74rem;
+  }
+
+  .basho-theater-feature-meta span {
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.025);
+    padding: 0.35rem 0.55rem;
+  }
+
+  .basho-theater-slate-list {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.7rem;
+  }
+
+  .basho-theater-slate-item {
+    border-left: 3px solid rgba(255,255,255,0.08);
+    background: rgba(8, 12, 18, 0.46);
+    padding: 0.75rem 0.8rem;
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .basho-theater-slate-item[data-tone="title"] {
+    border-left-color: rgba(184, 138, 62, 0.8);
+  }
+
+  .basho-theater-slate-item[data-tone="promotion"] {
+    border-left-color: rgba(22, 94, 131, 0.82);
+  }
+
+  .basho-theater-slate-item[data-tone="demotion"] {
+    border-left-color: rgba(210, 107, 82, 0.82);
+  }
+
+  .basho-theater-slate-item[data-tone="duty"] {
+    border-left-color: rgba(76, 123, 255, 0.8);
+  }
+
+  .basho-theater-slate-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    color: rgba(245, 240, 225, 0.56);
+  }
+
+  .basho-theater-slate-item strong {
+    color: rgba(245, 240, 225, 0.92);
+    font-size: 0.82rem;
+  }
+
+  .basho-theater-slate-item p {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: rgba(245, 240, 225, 0.68);
+  }
+
+  .basho-theater-footer {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .basho-theater-footer-block {
+    padding: 0.85rem 0.95rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .basho-theater-footer-value {
+    font-size: 0.94rem;
+    color: rgba(245, 240, 225, 0.96);
+  }
+
+  .basho-theater-footer-note {
+    font-size: 0.74rem;
+    color: rgba(245, 240, 225, 0.58);
   }
 
 

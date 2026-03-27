@@ -1,6 +1,9 @@
 import sqlite3
+from datetime import datetime, timezone
 
 from _paths import DB_PATH
+
+OFFICIAL_BASHO_MONTHS = (1, 3, 5, 7, 9, 11)
 
 
 def movement_label(steps: float) -> str:
@@ -9,6 +12,32 @@ def movement_label(steps: float) -> str:
     if steps > 0:
         return f"+{steps:.1f}枚"
     return f"{steps:.1f}枚"
+
+
+def next_official_basho_code(basho_code: str) -> str:
+    year = int(basho_code[:4])
+    month = int(basho_code[4:])
+    month_index = OFFICIAL_BASHO_MONTHS.index(month)
+    if month_index == len(OFFICIAL_BASHO_MONTHS) - 1:
+        return f"{year + 1}01"
+    return f"{year}{OFFICIAL_BASHO_MONTHS[month_index + 1]:02d}"
+
+
+def upsert_etl_state(cur: sqlite3.Cursor, key: str, value: str) -> None:
+    cur.execute(
+        """
+        INSERT INTO etl_state(key, value, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+            value=excluded.value,
+            updated_at=CURRENT_TIMESTAMP
+        """,
+        (key, value),
+    )
+
+
+def iso_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def main() -> None:
@@ -62,11 +91,17 @@ def main() -> None:
         )
 
     movement_count = 0
+    candidate_pair_count = 0
+    skipped_non_consecutive_count = 0
     for rikishi_id, items in by_rikishi.items():
         items.sort(key=lambda item: item["basho_code"])
         for index in range(1, len(items)):
             prev_row = items[index - 1]
             curr_row = items[index]
+            candidate_pair_count += 1
+            if curr_row["basho_code"] != next_official_basho_code(prev_row["basho_code"]):
+                skipped_non_consecutive_count += 1
+                continue
             steps = prev_row["slot_rank_value"] - curr_row["slot_rank_value"]
             display_shikona = curr_row["shikona"] or prev_row["shikona"] or f"rikishi_{rikishi_id}"
 
@@ -112,21 +147,18 @@ def main() -> None:
             )
             movement_count += 1
 
-    cur.execute(
-        """
-        INSERT INTO etl_state(key, value, updated_at)
-        VALUES ('rank_movement_last_build', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET
-            value=excluded.value,
-            updated_at=CURRENT_TIMESTAMP
-        """
-    )
+    upsert_etl_state(cur, "rank_movement_last_build", iso_now())
+    upsert_etl_state(cur, "rank_movement_candidate_pairs", str(candidate_pair_count))
+    upsert_etl_state(cur, "rank_movement_non_consecutive_pairs", str(skipped_non_consecutive_count))
+    upsert_etl_state(cur, "rank_movement_consecutive_pairs", str(movement_count))
 
     con.commit()
     con.close()
     print(
         "rank_movement built: "
         f"rikishi={len(by_rikishi)} movements={movement_count} "
+        f"candidate_pairs={candidate_pair_count} "
+        f"skipped_non_consecutive={skipped_non_consecutive_count} "
         f"source_rows_without_rikishi_id={missing_rikishi_id_rows}"
     )
 

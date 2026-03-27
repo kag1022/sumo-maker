@@ -11,6 +11,61 @@ export interface SimulationObservationEntry {
   detail: string;
 }
 
+export type LiveBashoTone = 'title' | 'promotion' | 'demotion' | 'duty' | 'normal';
+
+export interface FeaturedBoutModel {
+  day: number | null;
+  kindLabel: string;
+  summary: string;
+  matchup: string;
+  phaseLabel: string;
+  tone: LiveBashoTone;
+}
+
+export interface TorikumiSlateItemModel {
+  id: string;
+  day: number;
+  kindLabel: string;
+  summary: string;
+  matchup: string;
+  phaseLabel: string;
+  tone: LiveBashoTone;
+  isFeatured?: boolean;
+}
+
+export interface LiveBashoRaceSummaryItem {
+  id: string;
+  label: string;
+  value: string;
+  tone: LiveBashoTone;
+}
+
+export interface LiveBashoDiagnosticsSummary {
+  scheduleViolations: number;
+  repairCount: number;
+  crossDivisionBoutCount: number;
+  lateDirectTitleBoutCount: number;
+}
+
+export interface LiveBashoViewModel {
+  seq: number;
+  year: number;
+  month: number;
+  day: number | null;
+  playerDivision: string;
+  currentRank: string;
+  currentRecord: string;
+  phaseId: string;
+  contentionTier: 'Leader' | 'Contender' | 'Outside';
+  titleImplication: 'DIRECT' | 'CHASE' | 'NONE';
+  boundaryImplication: 'PROMOTION' | 'DEMOTION' | 'NONE';
+  featuredBout: FeaturedBoutModel | null;
+  torikumiSlate: TorikumiSlateItemModel[];
+  raceSummary: LiveBashoRaceSummaryItem[];
+  plannedNextPlayerDay: number | null;
+  latestDiagnosticsSummary: LiveBashoDiagnosticsSummary;
+}
+
 export interface StartSimulationMessage {
   type: 'START';
   payload: {
@@ -51,6 +106,7 @@ export interface WorkerProgressMessage {
     events: TimelineEvent[];
     progress: SimulationProgressSnapshot;
     observation: SimulationObservationEntry;
+    latestBashoView: LiveBashoViewModel;
   };
 }
 

@@ -1,127 +1,71 @@
 import { getRankValue } from '../../../ranking/rankScore';
 import { BanzukeCandidate, BashoRecordSnapshot, TopDirective } from './types';
 import { resolveSekitoriPerformanceIndex } from './performanceIndex';
-import { HEISEI_BANZUKE_CALIBRATION } from '../../../calibration/banzukeHeisei';
+import { resolveEmpiricalSlotBand } from '../empirical';
+import { getHeiseiBoundaryExchangeRate } from '../../../calibration/banzukeHeisei';
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const resolveBoundaryPressure = (
+  snapshot: BashoRecordSnapshot,
+  currentSlot: number,
+  direction: 'promotion' | 'demotion',
+): number => {
+  const division = snapshot.rank.division;
+  const number = snapshot.rank.number ?? (division === 'Juryo' ? 14 : 17);
+  const rate =
+    division === 'Juryo'
+      ? getHeiseiBoundaryExchangeRate(direction === 'promotion' ? 'JuryoToMakuuchi' : 'JuryoToMakushita')
+      : getHeiseiBoundaryExchangeRate(direction === 'demotion' ? 'MakuuchiToJuryo' : 'JuryoToMakuuchi');
+  if (rate <= 0) return 0;
+  const diff = snapshot.wins - (snapshot.losses + snapshot.absent);
+  if (direction === 'promotion' && diff <= 0) return 0;
+  if (direction === 'demotion' && diff >= 0) return 0;
+  const max = division === 'Juryo' ? 14 : 17;
+  const proximity =
+    direction === 'promotion'
+      ? 1 - (number - 1) / Math.max(1, max - 1)
+      : (number - 1) / Math.max(1, max - 1);
+  return clamp(rate * proximity * Math.abs(diff), 0, 1) + Math.max(0, 40 - currentSlot) * 0.001;
+};
 
 export const scoreTopDivisionCandidate = (
   snapshot: BashoRecordSnapshot,
   directive: TopDirective,
+  currentSlot: number,
 ): number => {
   const index = resolveSekitoriPerformanceIndex(snapshot);
-  const performanceOverExpected = index.performanceOverExpected;
-  const sosBoost = (index.sos - 100) * 0.22;
-  const kachikoshi = Math.max(0, performanceOverExpected);
-  const makekoshi = Math.max(0, -performanceOverExpected);
-  const rank = snapshot.rank;
-
-  if (rank.division === 'Makuuchi') {
-    if (rank.name === '横綱') {
-      return (
-        242 +
-        kachikoshi * 3.0 -
-        makekoshi * 4.8 -
-        makekoshi * makekoshi * 1.0 -
-        snapshot.absent * 1.8 +
-        sosBoost +
-        (snapshot.yusho ? 14 : 0) +
-        (snapshot.junYusho ? 7 : 0)
-      );
-    }
-    if (rank.name === '大関') {
-      return (
-        224 +
-        kachikoshi * 3.15 -
-        makekoshi * 4.85 -
-        makekoshi * makekoshi * 1.02 -
-        snapshot.absent * 1.8 +
-        sosBoost +
-        (snapshot.yusho ? 14 : 0) +
-        (snapshot.junYusho ? 7 : 0) +
-        directive.yokozunaPromotionBonus
-      );
-    }
-    if (rank.name === '関脇') {
-      return (
-        194 +
-        kachikoshi * 3.35 -
-        makekoshi * 4.65 -
-        makekoshi * makekoshi * 0.95 -
-        snapshot.absent * 1.5 +
-        sosBoost +
-        (snapshot.yusho ? 12 : 0) +
-        (snapshot.junYusho ? 6 : 0)
-      );
-    }
-    if (rank.name === '小結') {
-      return (
-        174 +
-        kachikoshi * 3.35 -
-        makekoshi * 4.65 -
-        makekoshi * makekoshi * 0.95 -
-        snapshot.absent * 1.5 +
-        sosBoost +
-        (snapshot.yusho ? 12 : 0) +
-        (snapshot.junYusho ? 6 : 0)
-      );
-    }
-    const m = rank.number || 17;
-    const catastrophicMakekoshiPenalty = makekoshi >= 3 ? makekoshi * makekoshi * 0.75 : 0;
-    const bottomMakuuchiBoundaryPenalty =
-      rank.name === '前頭' && m >= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskStart
-        ? (m - (HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskStart - 1)) *
-            HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiRiskWeight +
-          Math.max(0, makekoshi) *
-            HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.bottomMakuuchiMakekoshiWeight
-        : 0;
-    return (
-      122 +
-      Math.max(0, 18 - m) * 6.05 +
-      kachikoshi * 2.45 -
-      makekoshi * 4.2 -
-      makekoshi * makekoshi * 0.9 -
-      catastrophicMakekoshiPenalty -
-      bottomMakuuchiBoundaryPenalty -
-      snapshot.absent * 1.4 +
-      sosBoost * 0.9 +
-      (snapshot.yusho ? 11 : 0) +
-      (snapshot.junYusho ? 5.5 : 0)
-    );
-  }
-
-  const j = rank.number || 14;
-  const topJuryoBoundaryBonus =
-    j <= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionCeiling &&
-    snapshot.wins >= 8
-      ? HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionBonus +
-        (HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoPromotionCeiling - j) * 0.8 +
-        Math.max(0, snapshot.wins - 8) *
-          HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.topJuryoStrongBonus
-      : j <= HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.extendedJuryoPromotionCeiling &&
-          snapshot.wins >= 10
-        ? HEISEI_BANZUKE_CALIBRATION.topDivisionBoundary.extendedJuryoPromotionBonus +
-          Math.max(0, snapshot.wins - 10) * 0.9
-        : 0;
-  const promotionBurstBonus =
-    snapshot.wins >= 12
-      ? 24 + Math.max(0, snapshot.wins - 12) * 10 + Math.max(0, j - 8) * 1.6
-      : snapshot.wins >= 10
-        ? 8 + Math.max(0, snapshot.wins - 10) * 6 + Math.max(0, j - 8) * 0.8
-        : 0;
-  const deepMakekoshiPenalty =
-    makekoshi >= 4 ? makekoshi * makekoshi * 0.9 + Math.max(0, j - 10) * 1.1 : 0;
+  const empirical = resolveEmpiricalSlotBand({
+    division: snapshot.rank.division,
+    rankName: snapshot.rank.name,
+    rankNumber: snapshot.rank.number,
+    currentSlot,
+    totalSlots: 70,
+    wins: snapshot.wins,
+    losses: snapshot.losses,
+    absent: snapshot.absent,
+    promotionPressure: resolveBoundaryPressure(snapshot, currentSlot, 'promotion'),
+    demotionPressure: resolveBoundaryPressure(snapshot, currentSlot, 'demotion'),
+  });
+  const topRankBonus =
+    directive.preferredTopName === '横綱'
+      ? 60
+      : directive.preferredTopName === '大関'
+        ? 42
+        : directive.preferredTopName === '関脇'
+          ? 22
+          : directive.preferredTopName === '小結'
+            ? 14
+            : 0;
   return (
-    72 +
-    Math.max(0, 15 - j) * 4.25 +
-    topJuryoBoundaryBonus +
-    kachikoshi * 2.85 -
-    makekoshi * 3.85 -
-    makekoshi * makekoshi * 0.72 -
-    deepMakekoshiPenalty +
-    snapshot.absent * -1.3 +
-    sosBoost * 0.85 +
-    promotionBurstBonus +
-    (snapshot.yusho ? 10 : 0) +
-    (snapshot.junYusho ? 4.5 : 0)
+    empirical.score +
+    index.performanceOverExpected * 22 +
+    (index.sos - 100) * 0.5 +
+    (snapshot.yusho ? 40 : 0) +
+    (snapshot.junYusho ? 16 : 0) +
+    directive.yokozunaPromotionBonus * 2 +
+    topRankBonus
   );
 };
 

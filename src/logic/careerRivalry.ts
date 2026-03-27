@@ -47,6 +47,8 @@ export interface PlayerBoutDetailLike {
 
 interface CareerBashoRecordsBySeqLike {
   bashoSeq: number;
+  year?: number;
+  month?: number;
   rows: BashoRecordRowLike[];
 }
 
@@ -156,6 +158,7 @@ export const buildCareerRivalryDigest = (
   headToHeadRows: HeadToHeadRowLike[],
   boutsByBasho: Array<{ bashoSeq: number; bouts: PlayerBoutDetailLike[] }>,
   bashoRowsBySeq: CareerBashoRecordsBySeqLike[],
+  _legacyEpisodes?: unknown[],
 ): CareerRivalryDigest => {
   if (!status.history.records.length || !bashoRowsBySeq.length) return EMPTY_RIVALRY_DIGEST;
 

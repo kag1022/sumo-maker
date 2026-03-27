@@ -37,6 +37,20 @@ export const applySekitoriSafetyGuard = (
     proposedSlot = Math.max(proposedSlot, minimumDemotedSlot);
   }
 
+  const maegashiraNumber = current.number ?? 99;
+  const severeMakuuchiDemotion =
+    current.division === 'Makuuchi' &&
+    current.name === '前頭' &&
+    maegashiraNumber >= 12 &&
+    (
+      candidate.snapshot.absent >= 8 ||
+      wins === 0 ||
+      (maegashiraNumber >= 15 && losses - wins >= 8)
+    );
+  if (severeMakuuchiDemotion) {
+    proposedSlot = Math.max(proposedSlot, SEKITORI_CAPACITY.Makuuchi + 1);
+  }
+
   if (
     current.division === 'Makuuchi' &&
     current.name === '前頭' &&

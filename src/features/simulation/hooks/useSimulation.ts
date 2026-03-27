@@ -7,6 +7,7 @@ export const useSimulation = () => ({
   currentCareerId: useSimulationStore((state) => state.currentCareerId),
   isCurrentCareerSaved: useSimulationStore((state) => state.isCurrentCareerSaved),
   simulationPacing: useSimulationStore((state) => state.simulationPacing),
+  latestBashoView: useSimulationStore((state) => state.latestBashoView),
   latestEvents: useSimulationStore((state) => state.latestEvents),
   observationLog: useSimulationStore((state) => state.observationLog),
   latestPauseReason: useSimulationStore((state) => state.latestPauseReason),

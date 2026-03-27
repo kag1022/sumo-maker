@@ -7,6 +7,7 @@ import { npcTestModule } from './modules/npc';
 import { persistenceTestModule } from './modules/persistence';
 import { tests as legacyTests } from './legacy/allCases';
 import { simulationTestModule } from './modules/simulation';
+import { uiTestModule } from './modules/ui';
 import { TestCase, TestModule } from './types';
 
 const nodeProcess = (globalThis as {
@@ -32,6 +33,7 @@ export const testModules: TestModule[] = [
   experienceTestModule,
   persistenceTestModule,
   npcTestModule,
+  uiTestModule,
 ];
 
 assertModuleCoverage(testModules, legacyTests);

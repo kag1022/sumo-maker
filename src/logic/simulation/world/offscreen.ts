@@ -1,6 +1,5 @@
 import { RandomSource } from '../deps';
 import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../matchmaking';
-import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from '../torikumi/policy';
 import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { toDivisionParticipants, toTorikumiParticipant } from './shared';
 import { evolveDivisionAfterBasho } from './evolveDivision';
@@ -41,7 +40,7 @@ export const simulateOffscreenSekitoriBasho = (
   scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
-    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    boundaryBands: [],
     rng,
     facedMap: createFacedMap(participants),
     onPair: ({ a, b }) => {

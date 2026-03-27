@@ -20,6 +20,7 @@ import {
   shouldCaptureObservations,
 } from '../../../logic/simulation/appFlow';
 import {
+  LiveBashoViewModel,
   SimulationObservationEntry,
   SimulationWorkerRequest,
   SimulationWorkerResponse,
@@ -41,6 +42,7 @@ interface SimulationStore {
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
   simulationPacing: SimulationPacing;
+  latestBashoView: LiveBashoViewModel | null;
   latestEvents: string[];
   observationLog: SimulationObservationEntry[];
   latestPauseReason?: PauseReason;
@@ -94,6 +96,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   currentCareerId: null,
   isCurrentCareerSaved: false,
   simulationPacing: 'skip_to_end',
+  latestBashoView: null,
   latestEvents: [],
   observationLog: [],
   latestPauseReason: undefined,
@@ -144,6 +147,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
           isCurrentCareerSaved: false,
+          latestBashoView: message.payload.latestBashoView,
           latestEvents: toLatestEvents(message.payload.events),
           observationLog: pushObservation(state.observationLog, message.payload.observation),
           simulationPacing: state.simulationPacing,
@@ -160,6 +164,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
+          latestBashoView: get().latestBashoView,
           latestEvents: completedWithObserve ? toLatestEvents(message.payload.events) : [],
           observationLog: completedWithObserve
             ? pushObservation(get().observationLog, message.payload.observation)
@@ -176,6 +181,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       if (message.type === 'ERROR') {
         set({
           phase: 'error',
+          latestBashoView: null,
           errorMessage: message.payload.message,
         });
         terminateWorker();
@@ -185,6 +191,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     worker.onerror = (event) => {
       set({
         phase: 'error',
+        latestBashoView: null,
         errorMessage: event.message || 'Worker error',
       });
       terminateWorker();
@@ -197,6 +204,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
       simulationPacing: initialPacing,
+      latestBashoView: null,
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -240,6 +248,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: null,
       isCurrentCareerSaved: false,
       simulationPacing: 'skip_to_end',
+      latestBashoView: null,
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -284,6 +293,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: careerId,
       isCurrentCareerSaved: saved,
       simulationPacing: 'skip_to_end',
+      latestBashoView: null,
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
@@ -302,6 +312,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         progress: null,
         isCurrentCareerSaved: false,
         simulationPacing: 'skip_to_end',
+        latestBashoView: null,
         latestEvents: [],
         observationLog: [],
         latestPauseReason: undefined,
@@ -327,6 +338,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: null,
       isCurrentCareerSaved: false,
       simulationPacing: 'skip_to_end',
+      latestBashoView: null,
       latestEvents: [],
       observationLog: [],
       latestPauseReason: undefined,
