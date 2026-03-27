@@ -4,6 +4,7 @@ import {
   BookOpenText,
   FlaskConical,
   LibraryBig,
+  MonitorPlay,
   ScrollText,
   TableProperties,
   Waypoints,
@@ -12,6 +13,7 @@ import { Button } from "../shared/ui/Button";
 
 export type AppSection =
   | "scout"
+  | "basho"
   | "career"
   | "era"
   | "archive"
@@ -28,6 +30,7 @@ interface AppShellProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   showLogicLab?: boolean;
+  showBasho?: boolean;
   disableSections?: AppSection[];
 }
 
@@ -37,6 +40,7 @@ const NAV_ITEMS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { id: "scout", label: "新弟子設計", icon: ScrollText },
+  { id: "basho", label: "場所中枢", icon: MonitorPlay },
   { id: "career", label: "キャリア結果", icon: Waypoints },
   { id: "era", label: "時代統計", icon: TableProperties },
   { id: "archive", label: "アーカイブ", icon: Archive },
@@ -54,9 +58,14 @@ export const AppShell: React.FC<AppShellProps> = ({
   actions,
   children,
   showLogicLab = false,
+  showBasho = false,
   disableSections = [],
 }) => {
-  const visibleItems = NAV_ITEMS.filter((item) => item.id !== "logicLab" || showLogicLab);
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.id === "logicLab" && !showLogicLab) return false;
+    if (item.id === "basho" && !showBasho) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-bg text-text">

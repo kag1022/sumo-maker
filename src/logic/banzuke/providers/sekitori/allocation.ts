@@ -159,7 +159,7 @@ const pickNearestSlot = (
   candidate: BanzukeCandidate,
   openSlots: number[],
 ): number => {
-  const band = resolveSekitoriDeltaBand(candidate.snapshot);
+  const band = resolveSekitoriDeltaBand(candidate);
   const preferredSlot = resolveSekitoriPreferredSlot(candidate, band);
   const { minSlot, maxSlot } = resolveBandSlotBounds(candidate.currentSlot, band);
 

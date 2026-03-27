@@ -66,6 +66,8 @@ const normalizeBanzukeDecisionLog = (log: BanzukeDecisionLog): BanzukeDecisionLo
   modelVersion: log.modelVersion ?? DEFAULT_SIMULATION_MODEL_VERSION,
   proposalSource: log.proposalSource ?? 'COMMITTEE_MODEL',
   constraintHits: log.constraintHits ?? [],
+  proposalBasis: log.proposalBasis ?? 'EMPIRICAL',
+  overrideNames: log.overrideNames ?? [],
 });
 
 const toYearMonth = (year: number, month: number): string =>
@@ -435,7 +437,7 @@ const toImportantTorikumiRows = (
   trigger: note.trigger,
   summary: note.summary,
   matchReason: note.matchReason,
-  relaxationStage: note.relaxationStage,
+  relaxationStage: note.repairDepth ?? note.relaxationStage,
 }));
 
 const removeCareerRows = async (careerId: string): Promise<void> => {
@@ -541,6 +543,7 @@ export interface CareerPlayerBoutsByBasho {
 
 export interface CareerBashoRecordsBySeq {
   bashoSeq: number;
+  sourceBashoSeq?: number;
   year: number;
   month: number;
   rows: BashoRecordRow[];
@@ -553,6 +556,7 @@ export interface CareerImportantTorikumiByBasho {
 
 export interface CareerBashoDetail {
   bashoSeq: number;
+  sourceBashoSeq?: number;
   year: number;
   month: number;
   playerRecord?: BashoRecordRow;
@@ -560,6 +564,7 @@ export interface CareerBashoDetail {
   bouts: PlayerBoutDetail[];
   importantTorikumi: ImportantTorikumiRow[];
   banzukeDecisions: BanzukeDecisionLog[];
+  diagnostics?: SimulationDiagnostics;
 }
 
 export const createDraftCareer = async ({
@@ -1181,6 +1186,7 @@ export const listCareerBashoRecordsBySeq = async (
       const sample = sortedRows[0];
       return {
         bashoSeq,
+        sourceBashoSeq: bashoSeq,
         year: sample?.year ?? 0,
         month: sample?.month ?? 0,
         rows: sortedRows,
@@ -1203,7 +1209,7 @@ export const getCareerBashoDetail = async (
   bashoSeq: number,
 ): Promise<CareerBashoDetail | null> => {
   const db = getDb();
-  const [rows, bouts, importantTorikumi, banzukeDecisions] = await Promise.all([
+  const [rows, bouts, importantTorikumi, banzukeDecisions, diagnostics] = await Promise.all([
     db.bashoRecords.where('[careerId+seq]').equals([careerId, bashoSeq]).toArray(),
     db.boutRecords.where('[careerId+bashoSeq]').equals([careerId, bashoSeq]).sortBy('[careerId+bashoSeq+day]'),
     db.importantTorikumi
@@ -1211,6 +1217,7 @@ export const getCareerBashoDetail = async (
       .equals([careerId, bashoSeq])
       .sortBy('[careerId+bashoSeq+day]'),
     db.banzukeDecisions.where('[careerId+seq]').equals([careerId, bashoSeq]).toArray(),
+    db.simulationDiagnostics.where('[careerId+seq]').equals([careerId, bashoSeq]).first(),
   ]);
 
   if (!rows.length) return null;
@@ -1223,6 +1230,7 @@ export const getCareerBashoDetail = async (
 
   return {
     bashoSeq,
+    sourceBashoSeq: bashoSeq,
     year: sample?.year ?? 0,
     month: sample?.month ?? 0,
     playerRecord,
@@ -1241,6 +1249,7 @@ export const getCareerBashoDetail = async (
     banzukeDecisions: banzukeDecisions
       .slice()
       .sort((a, b) => a.rikishiId.localeCompare(b.rikishiId)),
+    diagnostics,
   };
 };
 

@@ -30,9 +30,6 @@ import {
   syncPlayerActorInWorld,
   TopDivision,
 } from '../world';
-import {
-  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
-} from '../torikumi/policy';
 import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { TorikumiParticipant } from '../torikumi/types';
 import { resolvePerformanceMetrics } from './shared';
@@ -154,7 +151,7 @@ export const runTopDivisionBasho = (
   const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
-    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+    boundaryBands: [],
     simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),
@@ -284,7 +281,10 @@ export const runTopDivisionBasho = (
       };
 
       const isLastDay = day === numBouts;
-      const isYushoContention = isLastDay && wins >= numBouts - 2;
+      const isYushoContention =
+        pair.titleImplication === 'DIRECT' ||
+        pair.titleImplication === 'CHASE' ||
+        (isLastDay && wins >= numBouts - 2);
       const boutContext: BoutContext = {
         day,
         currentWins: wins,
@@ -296,6 +296,10 @@ export const runTopDivisionBasho = (
         opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay,
         isYushoContention,
+        contentionTier: pair.contentionTier,
+        titleImplication: pair.titleImplication,
+        boundaryImplication: pair.boundaryImplication,
+        schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
       };

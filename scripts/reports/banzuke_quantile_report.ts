@@ -183,8 +183,15 @@ const loadCalibrationBundle = (): CalibrationBundle => {
   return JSON.parse(fs.readFileSync(BUNDLE_PATH, 'utf8')) as CalibrationBundle;
 };
 
-const buildComparisonKeys = (target: BanzukeCalibrationTarget): ComparisonKey[] =>
-  (target.recordBucketRules.fallbackComparisonKeys as ComparisonKey[]).filter(Boolean);
+const buildComparisonKeys = (_target: BanzukeCalibrationTarget): ComparisonKey[] => [
+  'MakuuchiStayed',
+  'JuryoStayed',
+  'MakushitaStayed',
+  'JuryoToMakuuchi',
+  'MakuuchiToJuryo',
+  'MakushitaToJuryo',
+  'JuryoToMakushita',
+];
 
 const toActualQuantiles = (values: number[]) => {
   if (!values.length) return null;
@@ -267,7 +274,7 @@ const run = async (): Promise<void> => {
         {
           initialStats: JSON.parse(JSON.stringify(scenario.initial)) as RikishiStatus,
           oyakata: null,
-          banzukeEngineVersion: 'optimizer-v1',
+          banzukeEngineVersion: 'optimizer-v2',
         },
         {
           random,
@@ -327,7 +334,7 @@ const run = async (): Promise<void> => {
       transitions,
       scenarioCount: scenarios.length,
       generatedAt: new Date().toISOString(),
-      engineVersion: 'optimizer-v1',
+      engineVersion: 'optimizer-v2',
       calibrationSource: banzukeTarget.meta.source,
       calibrationEra: banzukeTarget.meta.era,
       recordBucketSupported: banzukeTarget.recordBucketRules.supported,
@@ -372,8 +379,9 @@ const run = async (): Promise<void> => {
   lines.push('## 注記');
   lines.push('');
   lines.push(`- record bucket support: ${banzukeTarget.recordBucketRules.supported ? 'yes' : 'no'}`);
-  lines.push(`- reason: ${banzukeTarget.recordBucketRules.reason}`);
-  lines.push(`- fallback keys: ${banzukeTarget.recordBucketRules.fallbackComparisonKeys.join(', ')}`);
+  lines.push(`- source: ${banzukeTarget.recordBucketRules.source}`);
+  lines.push(`- link: ${banzukeTarget.recordBucketRules.recordLinkMeaning}`);
+  lines.push(`- lower scope: ${banzukeTarget.recordBucketRules.lowerDivisionScope.join(', ')}`);
   lines.push('');
 
   const markdown = lines.join('\n');

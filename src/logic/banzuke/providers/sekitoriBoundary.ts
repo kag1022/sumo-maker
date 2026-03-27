@@ -1,21 +1,17 @@
 import { Rank } from '../../models';
+import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
 import { BanzukeEngineVersion } from '../types';
 import { clamp } from '../../simulation/boundary/shared';
 import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
-import {
-  resolveMaxMakushitaDemotionNumber,
-  resolveMinJuryoPromotionNumber,
-} from '../../simulation/sekitori/boundaryTuning';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
-import { resolveExpectedPlacementScore } from './expected/scoring';
-import { resolveExpectedSlotBand } from './expected/slotBands';
 import { ExpectedPlacementCandidate } from './expected/types';
 import { optimizeExpectedPlacements } from '../optimizer';
+import { resolveEmpiricalSlotBand } from './empirical';
 
 const JURYO_OFFSET = 0;
 const MAKUSHITA_OFFSET = JURYO_SIZE;
 const TOTAL_SLOTS = JURYO_SIZE + MAKUSHITA_POOL_SIZE;
-const JURYO_FULL_ABSENCE_MIN_DEMOTION_SLOTS = 22;
+
 const toJuryoNumber = (rankScore: number): number => Math.floor((clamp(rankScore, 1, JURYO_SIZE) - 1) / 2) + 1;
 const toMakushitaNumber = (rankScore: number): number =>
   Math.floor((clamp(rankScore, 1, MAKUSHITA_POOL_SIZE) - 1) / 2) + 1;
@@ -63,61 +59,67 @@ const toCurrentRank = (division: 'Juryo' | 'Makushita', rankScore: number): Rank
   };
 };
 
+const resolveBoundaryPressure = (
+  direction: 'promotion' | 'demotion',
+  division: 'Juryo' | 'Makushita',
+  rankScore: number,
+  wins: number,
+  losses: number,
+  absent: number,
+): number => {
+  const key =
+    division === 'Juryo'
+      ? direction === 'promotion'
+        ? 'JuryoToMakuuchi'
+        : 'JuryoToMakushita'
+      : direction === 'promotion'
+        ? 'MakushitaToJuryo'
+        : 'MakushitaToSandanme';
+  const rate = getHeiseiBoundaryExchangeRate(key);
+  if (rate <= 0) return 0;
+  const effectiveLosses = losses + absent;
+  const diff = wins - effectiveLosses;
+  if (direction === 'promotion' && diff <= 0) return 0;
+  if (direction === 'demotion' && diff >= 0) return 0;
+  const size = division === 'Juryo' ? JURYO_SIZE : 60;
+  const number = division === 'Juryo' ? toJuryoNumber(rankScore) : toMakushitaNumber(rankScore);
+  const proximity =
+    direction === 'promotion'
+      ? 1 - (number - 1) / Math.max(1, size - 1)
+      : (number - 1) / Math.max(1, size - 1);
+  return clamp(rate * proximity * Math.abs(diff), 0, 1);
+};
+
 export const resolveSekitoriBoundaryAssignedRank = (
   juryoResults: BoundarySnapshot[],
   makushitaResults: BoundarySnapshot[],
   exchange: SekitoriExchange,
   playerFullAbsence: boolean,
-  banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v1',
+  _banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v2',
 ): Rank | undefined => {
   const candidates: ExpectedPlacementCandidate[] = [];
+
   for (const row of juryoResults) {
     const currentSlot = toGlobalSlot('Juryo', row.rankScore);
     const currentRank = toCurrentRank('Juryo', row.rankScore);
-    const isMakekoshi = row.wins < row.losses;
-    const isKachikoshi = row.wins > row.losses;
     const absent = row.id === 'PLAYER' && playerFullAbsence ? 15 : 0;
-    const mandatoryDemotion =
-      row.id === 'PLAYER' &&
-      (playerFullAbsence || (exchange.playerDemotedToMakushita && isMakekoshi));
-    const band = resolveExpectedSlotBand({
+    const mandatoryDemotion = row.id === 'PLAYER' && (
+      playerFullAbsence ||
+      (exchange.playerDemotedToMakushita && row.wins < row.losses)
+    );
+    const empirical = resolveEmpiricalSlotBand({
+      division: 'Juryo',
+      rankName: currentRank.name,
+      rankNumber: currentRank.number,
       currentSlot,
+      totalSlots: TOTAL_SLOTS,
       wins: row.wins,
       losses: row.losses,
       absent,
-      totalSlots: TOTAL_SLOTS,
       mandatoryDemotion,
-      mandatoryPromotion: false,
+      promotionPressure: resolveBoundaryPressure('promotion', 'Juryo', row.rankScore, row.wins, row.losses, absent),
+      demotionPressure: resolveBoundaryPressure('demotion', 'Juryo', row.rankScore, row.wins, row.losses, absent),
     });
-    let expectedSlot = band.expectedSlot;
-    let minSlot = band.minSlot;
-    let maxSlot = band.maxSlot;
-    if (row.id === 'PLAYER') {
-      if (isMakekoshi) {
-        const minDemotionSlots = playerFullAbsence ? JURYO_FULL_ABSENCE_MIN_DEMOTION_SLOTS : 1;
-        const demotionFloor = clamp(currentSlot + minDemotionSlots, 1, TOTAL_SLOTS);
-        const demotionCap = toGlobalSlot(
-          'Makushita',
-          resolveMaxMakushitaDemotionNumber(
-            toJuryoNumber(row.rankScore),
-            row.wins,
-            row.losses,
-            { fullAbsence: playerFullAbsence },
-          ) * 2,
-        );
-        expectedSlot = Math.max(expectedSlot, demotionFloor);
-        expectedSlot = Math.min(expectedSlot, demotionCap);
-        minSlot = Math.max(minSlot, clamp(currentSlot + 1, 1, TOTAL_SLOTS));
-        maxSlot = Math.min(maxSlot, demotionCap);
-      } else if (isKachikoshi) {
-        const promotionCeiling = clamp(currentSlot - 1, 1, TOTAL_SLOTS);
-        expectedSlot = Math.min(expectedSlot, promotionCeiling);
-        maxSlot = Math.min(maxSlot, promotionCeiling);
-      }
-    }
-    minSlot = clamp(Math.min(minSlot, maxSlot), 1, TOTAL_SLOTS);
-    maxSlot = clamp(Math.max(minSlot, maxSlot), 1, TOTAL_SLOTS);
-    expectedSlot = clamp(expectedSlot, minSlot, maxSlot);
     candidates.push({
       id: row.id,
       currentRank,
@@ -125,59 +127,40 @@ export const resolveSekitoriBoundaryAssignedRank = (
       losses: row.losses,
       absent,
       currentSlot,
-      expectedSlot,
-      minSlot,
-      maxSlot,
+      expectedSlot: empirical.expectedSlot,
+      minSlot: empirical.minSlot,
+      maxSlot: empirical.maxSlot,
       mandatoryDemotion,
       mandatoryPromotion: false,
       sourceDivision: 'Juryo',
-      score: resolveExpectedPlacementScore(currentRank, row.wins, row.losses, absent, mandatoryDemotion, false),
+      score: empirical.score,
+      rankBand: empirical.rankBand,
+      recordBucket: empirical.recordBucket,
+      proposalBasis: empirical.proposalBasis,
     });
   }
+
   for (const row of makushitaResults) {
-    if (row.rankScore > 30) {
-      continue;
-    }
+    if (row.rankScore > 30) continue;
     const currentSlot = toGlobalSlot('Makushita', row.rankScore);
     const currentRank = toCurrentRank('Makushita', row.rankScore);
-    const isMakekoshi = row.wins < row.losses;
-    const isKachikoshi = row.wins > row.losses;
     const mandatoryPromotion =
       row.id === 'PLAYER' &&
       exchange.playerPromotedToJuryo &&
-      isKachikoshi;
-    const band = resolveExpectedSlotBand({
+      row.wins > row.losses;
+    const empirical = resolveEmpiricalSlotBand({
+      division: 'Makushita',
+      rankName: currentRank.name,
+      rankNumber: currentRank.number,
       currentSlot,
+      totalSlots: TOTAL_SLOTS,
       wins: row.wins,
       losses: row.losses,
       absent: 0,
-      totalSlots: TOTAL_SLOTS,
-      mandatoryDemotion: false,
       mandatoryPromotion,
+      promotionPressure: resolveBoundaryPressure('promotion', 'Makushita', row.rankScore, row.wins, row.losses, 0),
+      demotionPressure: resolveBoundaryPressure('demotion', 'Makushita', row.rankScore, row.wins, row.losses, 0),
     });
-    let expectedSlot = band.expectedSlot;
-    let minSlot = band.minSlot;
-    let maxSlot = band.maxSlot;
-    if (row.id === 'PLAYER') {
-      if (isMakekoshi) {
-        const demotionFloor = clamp(currentSlot + 1, 1, TOTAL_SLOTS);
-        expectedSlot = Math.max(expectedSlot, demotionFloor);
-        minSlot = Math.max(minSlot, demotionFloor);
-      } else if (isKachikoshi) {
-        const promotionCeiling = clamp(currentSlot - 1, 1, TOTAL_SLOTS);
-        const promotionFloor = toGlobalSlot(
-          'Juryo',
-          Math.max(1, resolveMinJuryoPromotionNumber(toMakushitaNumber(row.rankScore), row.wins) * 2 - 1),
-        );
-        expectedSlot = Math.min(expectedSlot, promotionCeiling);
-        expectedSlot = Math.max(expectedSlot, promotionFloor);
-        minSlot = Math.max(minSlot, promotionFloor);
-        maxSlot = Math.min(maxSlot, promotionCeiling);
-      }
-    }
-    minSlot = clamp(Math.min(minSlot, maxSlot), 1, TOTAL_SLOTS);
-    maxSlot = clamp(Math.max(minSlot, maxSlot), 1, TOTAL_SLOTS);
-    expectedSlot = clamp(expectedSlot, minSlot, maxSlot);
     candidates.push({
       id: row.id,
       currentRank,
@@ -185,22 +168,23 @@ export const resolveSekitoriBoundaryAssignedRank = (
       losses: row.losses,
       absent: 0,
       currentSlot,
-      expectedSlot,
-      minSlot,
-      maxSlot,
+      expectedSlot: empirical.expectedSlot,
+      minSlot: empirical.minSlot,
+      maxSlot: empirical.maxSlot,
       mandatoryDemotion: false,
       mandatoryPromotion,
       sourceDivision: 'Makushita',
-      score: resolveExpectedPlacementScore(currentRank, row.wins, row.losses, 0, false, mandatoryPromotion),
+      score: empirical.score,
+      rankBand: empirical.rankBand,
+      recordBucket: empirical.recordBucket,
+      proposalBasis: empirical.proposalBasis,
     });
   }
 
   if (!candidates.some((candidate) => candidate.id === 'PLAYER')) return undefined;
   const assignments =
-    banzukeEngineVersion === 'optimizer-v1'
-      ? optimizeExpectedPlacements(candidates, TOTAL_SLOTS) ??
-        reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS)
-      : reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS);
+    optimizeExpectedPlacements(candidates, TOTAL_SLOTS) ??
+    reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS);
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
   if (!player) return undefined;
   return toRank(player.slot);

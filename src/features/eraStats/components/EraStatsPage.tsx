@@ -38,8 +38,8 @@ export const EraStatsPage: React.FC<EraStatsPageProps> = ({
   void careerId;
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
   const records = status.history.records
-    .map((record, index) => ({ ...record, bashoSeq: index + 1 }))
-    .filter((record) => record.rank.division !== "Maezumo");
+    .filter((record) => record.rank.division !== "Maezumo")
+    .map((record, index) => ({ ...record, bashoSeq: index + 1 }));
   const selectedRecord =
     records.find((record) => record.bashoSeq === viewState.selectedBashoSeq) ??
     records[records.length - 1] ??

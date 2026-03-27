@@ -11,9 +11,9 @@ def main():
     print("=== table counts ===")
     for table_name in [
         "rikishi_summary",
-        "rikishi_source_page",
         "basho_metadata",
         "basho_banzuke_entry",
+        "rikishi_basho_record",
         "rank_movement",
         "etl_state",
     ]:
@@ -43,6 +43,15 @@ def main():
     SELECT shikona, from_basho_code, to_basho_code, from_banzuke_label, to_banzuke_label, movement_label
     FROM rank_movement
     ORDER BY shikona, from_basho_code
+    LIMIT 20
+    """):
+        print(row)
+
+    print("\n=== rikishi_basho_record sample ===")
+    for row in cur.execute("""
+    SELECT rikishi_id, basho_code, shikona, division, banzuke_label, wins, losses, absences
+    FROM rikishi_basho_record
+    ORDER BY rikishi_id, basho_code
     LIMIT 20
     """):
         print(row)

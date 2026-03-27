@@ -23,6 +23,9 @@ export interface SimulationDiagnostics {
   lateCrossDivisionBoutCount?: number;
   sameStableViolationCount?: number;
   sameCardViolationCount?: number;
+  torikumiRepairHistogram?: Record<string, number>;
+  torikumiScheduleViolations?: number;
+  torikumiLateDirectTitleBoutCount?: number;
   bashoVariance?: {
     playerBashoFormDelta: number;
     conditionBefore: number;

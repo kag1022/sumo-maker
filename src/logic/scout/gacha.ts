@@ -75,7 +75,15 @@ export interface ScoutDraft {
   temperament: ScoutTemperament;
   bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
+  selectedIchimonId?: string | null;
   aptitudeTier: AptitudeTier;
+  amateurBackground?: string;
+  bodyConstitution?: string;
+  primaryStyle?: string;
+  secondaryStyle?: string;
+  mentalTrait?: string;
+  debtCardIds?: string[];
+  injuryResistance?: string;
 }
 
 export interface ScoutResolvedSeed {

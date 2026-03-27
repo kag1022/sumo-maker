@@ -1,35 +1,14 @@
-export const HEISEI_BANZUKE_CALIBRATION = {
-  boundaryExchange: {
-    makuuchiJuryo: {
-      averagePromotionsPerBasho: 3.52,
-      averageDemotionsPerBasho: 3.28,
-      targetCompetitiveSlots: 4,
-    },
-    juryoMakushita: {
-      averagePromotionsPerBasho: 3.35,
-      averageDemotionsPerBasho: 3.18,
-      targetCompetitiveSlots: 4,
-      historicalToleranceGap: -0.45,
-      makushitaSevenWinBubbleMaxRank: 18,
-      makushitaFallbackMaxRank: 20,
-      makushitaFallbackMinWins: 6,
-      demotionBaseMakushitaRank: 1,
-      demotionMaxMakushitaRank: 3,
-      fullAbsenceDemotionMaxMakushitaRank: 6,
-      promotionBestJuryoNumber: 13,
-      promotionWorstJuryoNumber: 14,
-    },
-  },
-  topDivisionBoundary: {
-    bottomMakuuchiRiskStart: 12,
-    bottomMakuuchiRiskWeight: 0.55,
-    bottomMakuuchiMakekoshiWeight: 1.05,
-    topJuryoPromotionCeiling: 4,
-    topJuryoPromotionBonus: 5.5,
-    topJuryoStrongBonus: 1.25,
-    extendedJuryoPromotionCeiling: 7,
-    extendedJuryoPromotionBonus: 2.25,
-  },
-} as const;
+import rawCalibration from '../../../sumo-db/data/analysis/banzuke_calibration_heisei.json';
+import { BanzukeCalibrationTarget, BanzukeMovementQuantiles } from './types';
 
-export type HeiseiBanzukeCalibration = typeof HEISEI_BANZUKE_CALIBRATION;
+export const HEISEI_BANZUKE_CALIBRATION =
+  rawCalibration as unknown as BanzukeCalibrationTarget;
+
+export const getHeiseiBoundaryExchangeRate = (key: string): number =>
+  HEISEI_BANZUKE_CALIBRATION.boundaryExchangeRates[key]?.rate ?? 0;
+
+export const getHeiseiDivisionQuantiles = (
+  division: string,
+  movement: 'stayed' | 'promoted' | 'demoted',
+): BanzukeMovementQuantiles | null =>
+  HEISEI_BANZUKE_CALIBRATION.divisionMovementQuantiles[division]?.[movement] ?? null;
