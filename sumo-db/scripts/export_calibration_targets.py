@@ -13,11 +13,15 @@ BUNDLE_PATH = ANALYSIS_DIR / "calibration_bundle.json"
 COLLECTION_REPORT_PATH = ANALYSIS_DIR / "heisei_collection_report.json"
 
 HEISEI_MAX_BASHO_CODE = "201903"
-DIVISION_SCOPE = ("Makuuchi", "Juryo", "Makushita")
+DIVISION_SCOPE = ("Makuuchi", "Juryo", "Makushita", "Sandanme", "Jonidan", "Jonokuchi")
+LOWER_DIVISION_SCOPE = ("Makushita", "Sandanme", "Jonidan", "Jonokuchi")
 DIVISION_LABELS = {
     "幕内": "Makuuchi",
     "十両": "Juryo",
     "幕下": "Makushita",
+    "三段目": "Sandanme",
+    "序二段": "Jonidan",
+    "序ノ口": "Jonokuchi",
 }
 RANK_LABELS = {"横綱", "大関", "関脇", "小結", "前頭", "十両"}
 WIN_RATE_BUCKETS = [
@@ -31,6 +35,13 @@ WIN_RATE_BUCKETS = [
     ">=0.65",
 ]
 CAREER_BASHO_BUCKETS = ["<12", "12-23", "24-35", "36-59", "60-89", "90-119", ">=120"]
+OFFICIAL_BASHO_MONTHS = (1, 3, 5, 7, 9, 11)
+LOWER_RANK_BANDS = {
+    "Makushita": [(1, 5, "1-5"), (6, 15, "6-15"), (16, 30, "16-30"), (31, 45, "31-45"), (46, None, "46+")],
+    "Sandanme": [(1, 10, "1-10"), (11, 30, "11-30"), (31, 60, "31-60"), (61, 90, "61-90"), (91, None, "91+")],
+    "Jonidan": [(1, 20, "1-20"), (21, 50, "21-50"), (51, 100, "51-100"), (101, 150, "101-150"), (151, None, "151+")],
+    "Jonokuchi": [(1, 10, "1-10"), (11, 20, "11-20"), (21, 30, "21-30"), (31, None, "31+")],
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,6 +75,97 @@ def quantile(sorted_values: list[float], ratio: float) -> float:
 
 def round_num(value: float, digits: int = 6) -> float:
     return round(float(value), digits)
+
+
+def summarize_quantiles(values: list[float]) -> dict | None:
+    if not values:
+        return None
+    values = sorted(values)
+    return {
+        "sampleSize": len(values),
+        "p10HalfStep": round_num(quantile(values, 0.1), 3),
+        "p50HalfStep": round_num(quantile(values, 0.5), 3),
+        "p90HalfStep": round_num(quantile(values, 0.9), 3),
+        "p10Rank": round_num(quantile(values, 0.1) / 2, 3),
+        "p50Rank": round_num(quantile(values, 0.5) / 2, 3),
+        "p90Rank": round_num(quantile(values, 0.9) / 2, 3),
+    }
+
+
+def next_official_basho_code(basho_code: str) -> str:
+    year = int(basho_code[:4])
+    month = int(basho_code[4:])
+    month_index = OFFICIAL_BASHO_MONTHS.index(month)
+    if month_index == len(OFFICIAL_BASHO_MONTHS) - 1:
+        return f"{year + 1}01"
+    return f"{year}{OFFICIAL_BASHO_MONTHS[month_index + 1]:02d}"
+
+
+def resolve_lower_rank_band(division: str, rank_number: int | None) -> str:
+    if rank_number is None:
+        return "unknown"
+    for lower, upper, label in LOWER_RANK_BANDS[division]:
+        if rank_number >= lower and (upper is None or rank_number <= upper):
+            return label
+    return "other"
+
+
+def resolve_record_bucket(wins: int | None, losses: int | None, absences: int | None) -> str:
+    wins_value = int(wins or 0)
+    losses_value = int(losses or 0)
+    absences_value = int(absences or 0)
+    if absences_value == 0 and wins_value + losses_value in (7, 15):
+        return f"{wins_value}-{losses_value}"
+    return f"{wins_value}-{losses_value}-{absences_value}"
+
+
+def compute_banzuke_alignment_rate(con: sqlite3.Connection) -> tuple[int, int]:
+    row = con.execute(
+        """
+        SELECT
+            SUM(
+                CASE
+                    WHEN b.id IS NOT NULL
+                     AND r.division = b.division
+                     AND COALESCE(r.rank_name, '') = COALESCE(b.rank_name, '')
+                     AND COALESCE(r.rank_number, -1) = COALESCE(b.rank_number, -1)
+                     AND COALESCE(r.side, '') = COALESCE(b.side, '')
+                     AND COALESCE(r.is_haridashi, 0) = COALESCE(b.is_haridashi, 0)
+                    THEN 1 ELSE 0
+                END
+            ) AS matched,
+            COUNT(*) AS total
+        FROM rikishi_basho_record r
+        JOIN basho_banzuke_entry b
+            ON b.rikishi_id = r.rikishi_id
+           AND b.basho_code = r.basho_code
+        WHERE r.parse_status = 'ok'
+          AND r.division != 'Maezumo'
+        """
+    ).fetchone()
+    return int(row[0] or 0), int(row[1] or 0)
+
+
+def compute_candidate_pair_counts(con: sqlite3.Connection) -> tuple[int, int]:
+    rows = con.execute(
+        """
+        SELECT rikishi_id, basho_code
+        FROM basho_banzuke_entry
+        WHERE rikishi_id IS NOT NULL
+        ORDER BY rikishi_id, basho_code
+        """
+    ).fetchall()
+    candidate_pairs = 0
+    consecutive_pairs = 0
+    previous_by_rikishi: dict[int, str] = {}
+    for rikishi_id, basho_code in rows:
+        prev = previous_by_rikishi.get(int(rikishi_id))
+        if prev is not None:
+            candidate_pairs += 1
+            if basho_code == next_official_basho_code(prev):
+                consecutive_pairs += 1
+        previous_by_rikishi[int(rikishi_id)] = basho_code
+    return candidate_pairs, consecutive_pairs
 
 
 def load_collection_report() -> dict:
@@ -225,6 +327,12 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
         "MakuuchiToJuryo": {"count": 0, "sampleSize": 0},
         "MakushitaToJuryo": {"count": 0, "sampleSize": 0},
         "JuryoToMakushita": {"count": 0, "sampleSize": 0},
+        "SandanmeToMakushita": {"count": 0, "sampleSize": 0},
+        "MakushitaToSandanme": {"count": 0, "sampleSize": 0},
+        "JonidanToSandanme": {"count": 0, "sampleSize": 0},
+        "SandanmeToJonidan": {"count": 0, "sampleSize": 0},
+        "JonokuchiToJonidan": {"count": 0, "sampleSize": 0},
+        "JonidanToJonokuchi": {"count": 0, "sampleSize": 0},
     }
 
     for from_division_ja, to_division_ja, movement_steps in rows:
@@ -245,6 +353,24 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
         elif from_division == "Juryo" and to_division == "Makushita":
             buckets[from_division]["demoted"].append(steps * 2)
             boundary_counts["JuryoToMakushita"]["count"] += 1
+        elif from_division == "Sandanme" and to_division == "Makushita":
+            buckets[from_division]["promoted"].append(steps * 2)
+            boundary_counts["SandanmeToMakushita"]["count"] += 1
+        elif from_division == "Makushita" and to_division == "Sandanme":
+            buckets[from_division]["demoted"].append(steps * 2)
+            boundary_counts["MakushitaToSandanme"]["count"] += 1
+        elif from_division == "Jonidan" and to_division == "Sandanme":
+            buckets[from_division]["promoted"].append(steps * 2)
+            boundary_counts["JonidanToSandanme"]["count"] += 1
+        elif from_division == "Sandanme" and to_division == "Jonidan":
+            buckets[from_division]["demoted"].append(steps * 2)
+            boundary_counts["SandanmeToJonidan"]["count"] += 1
+        elif from_division == "Jonokuchi" and to_division == "Jonidan":
+            buckets[from_division]["promoted"].append(steps * 2)
+            boundary_counts["JonokuchiToJonidan"]["count"] += 1
+        elif from_division == "Jonidan" and to_division == "Jonokuchi":
+            buckets[from_division]["demoted"].append(steps * 2)
+            boundary_counts["JonidanToJonokuchi"]["count"] += 1
         elif to_division in DIVISION_SCOPE:
             if DIVISION_SCOPE.index(to_division) < DIVISION_SCOPE.index(from_division):
                 buckets[from_division]["promoted"].append(steps * 2)
@@ -258,20 +384,79 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
             boundary_counts["MakuuchiToJuryo"]["sampleSize"] += 1
         elif from_division == "Makushita":
             boundary_counts["MakushitaToJuryo"]["sampleSize"] += 1
+            boundary_counts["MakushitaToSandanme"]["sampleSize"] += 1
+        elif from_division == "Sandanme":
+            boundary_counts["SandanmeToMakushita"]["sampleSize"] += 1
+            boundary_counts["SandanmeToJonidan"]["sampleSize"] += 1
+        elif from_division == "Jonidan":
+            boundary_counts["JonidanToSandanme"]["sampleSize"] += 1
+            boundary_counts["JonidanToJonokuchi"]["sampleSize"] += 1
+        elif from_division == "Jonokuchi":
+            boundary_counts["JonokuchiToJonidan"]["sampleSize"] += 1
 
-    def summarize(values: list[float]) -> dict | None:
-        if not values:
-            return None
-        values = sorted(values)
-        return {
-            "sampleSize": len(values),
-            "p10HalfStep": round_num(quantile(values, 0.1), 3),
-            "p50HalfStep": round_num(quantile(values, 0.5), 3),
-            "p90HalfStep": round_num(quantile(values, 0.9), 3),
-            "p10Rank": round_num(quantile(values, 0.1) / 2, 3),
-            "p50Rank": round_num(quantile(values, 0.5) / 2, 3),
-            "p90Rank": round_num(quantile(values, 0.9) / 2, 3),
+    lower_rows = con.execute(
+        """
+        SELECT
+            from_division,
+            source_rank_number,
+            source_wins,
+            source_losses,
+            source_absences,
+            movement_steps
+        FROM rank_movement_with_record
+        WHERE from_basho_code <= ?
+          AND to_basho_code <= ?
+          AND from_division IN ('幕下', '三段目', '序二段', '序ノ口')
+          AND source_wins IS NOT NULL
+        """,
+        (HEISEI_MAX_BASHO_CODE, HEISEI_MAX_BASHO_CODE),
+    ).fetchall()
+
+    record_aware_quantiles: dict[str, dict[str, dict[str, dict | None]]] = {
+        division: {} for division in LOWER_DIVISION_SCOPE
+    }
+    grouped_lower: dict[str, dict[str, dict[str, list[float]]]] = {
+        division: {} for division in LOWER_DIVISION_SCOPE
+    }
+    for from_division_ja, rank_number, wins, losses, absences, movement_steps in lower_rows:
+        division = DIVISION_LABELS[from_division_ja]
+        rank_band = resolve_lower_rank_band(division, rank_number)
+        record_bucket = resolve_record_bucket(wins, losses, absences)
+        grouped_lower.setdefault(division, {}).setdefault(rank_band, {}).setdefault(record_bucket, []).append(
+            float(movement_steps) * 2
+        )
+
+    for division, rank_bands in grouped_lower.items():
+        record_aware_quantiles[division] = {
+            rank_band: {
+                record_bucket: summarize_quantiles(values)
+                for record_bucket, values in sorted(record_bands.items())
+            }
+            for rank_band, record_bands in sorted(rank_bands.items())
         }
+
+    candidate_pairs, consecutive_pairs = compute_candidate_pair_counts(con)
+    rikishi_basho_record_count = con.execute(
+        "SELECT COUNT(*) FROM rikishi_basho_record WHERE parse_status = 'ok'"
+    ).fetchone()[0]
+    movement_join_count = con.execute(
+        """
+        SELECT COUNT(*)
+        FROM rank_movement_with_record
+        WHERE source_wins IS NOT NULL
+        """
+    ).fetchone()[0]
+    movement_total = con.execute("SELECT COUNT(*) FROM rank_movement").fetchone()[0]
+    valid_day_count, total_day_count = con.execute(
+        """
+        SELECT
+            SUM(CASE WHEN wins + losses + absences IN (0, 7, 15) THEN 1 ELSE 0 END),
+            COUNT(*)
+        FROM rikishi_basho_record
+        WHERE parse_status = 'ok'
+        """
+    ).fetchone()
+    aligned_rows, aligned_total = compute_banzuke_alignment_rate(con)
 
     return {
         "meta": {
@@ -282,10 +467,19 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
             "sampleSize": len(rows),
             "bashoCount": basho_count,
             "divisionScope": list(DIVISION_SCOPE),
-            "note": "Per-basho win/loss records are unavailable in the current sumo-db snapshot.",
+            "note": "Per-basho win/loss records are joined from rikishi_basho_record.",
+            "dataQuality": {
+                "rikishiBashoRecordCount": int(rikishi_basho_record_count),
+                "candidatePairCount": int(candidate_pairs),
+                "consecutivePairCount": int(consecutive_pairs),
+                "consecutiveMovementRate": round_num(consecutive_pairs / candidate_pairs) if candidate_pairs else 0.0,
+                "rankMovementJoinSuccessRate": round_num(movement_join_count / movement_total) if movement_total else 0.0,
+                "validBoutLengthRate": round_num((valid_day_count or 0) / total_day_count) if total_day_count else 0.0,
+                "banzukeAlignmentRate": round_num(aligned_rows / aligned_total) if aligned_total else 0.0,
+            },
         },
         "divisionMovementQuantiles": {
-            division: {key: summarize(values) for key, values in bucket.items()}
+            division: {key: summarize_quantiles(values) for key, values in bucket.items()}
             for division, bucket in buckets.items()
         },
         "boundaryExchangeRates": {
@@ -297,17 +491,12 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
             for key, value in boundary_counts.items()
         },
         "recordBucketRules": {
-            "supported": False,
-            "reason": "Historical per-basho win/loss records are not available in the current sumo-db snapshot.",
-            "fallbackComparisonKeys": [
-                "MakuuchiStayed",
-                "JuryoStayed",
-                "MakushitaStayed",
-                "JuryoToMakuuchi",
-                "MakuuchiToJuryo",
-                "MakushitaToJuryo",
-                "JuryoToMakushita",
-            ],
+            "supported": True,
+            "source": "rank_movement_with_record.from_basho_code",
+            "recordLinkMeaning": "movement is linked to the source basho record on from_basho_code",
+            "lowerDivisionScope": list(LOWER_DIVISION_SCOPE),
+            "rankBands": LOWER_RANK_BANDS,
+            "recordAwareQuantiles": record_aware_quantiles,
         },
     }
 

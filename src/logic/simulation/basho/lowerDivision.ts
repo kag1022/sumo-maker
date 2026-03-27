@@ -85,6 +85,33 @@ const LOWER_DIVISIONS: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi'>
   'Jonokuchi',
 ];
 
+const DIVISION_ORDER: Record<TorikumiParticipant['division'], number> = {
+  Makuuchi: 0,
+  Juryo: 1,
+  Makushita: 2,
+  Sandanme: 3,
+  Jonidan: 4,
+  Jonokuchi: 5,
+};
+
+const resolvePlayerBoundaryImplication = (
+  pair: { a: TorikumiParticipant; b: TorikumiParticipant; boundaryId?: string; matchReason: string; boundaryImplication?: BoutContext['boundaryImplication'] },
+  playerId: string,
+): BoutContext['boundaryImplication'] => {
+  const self = pair.a.id === playerId ? pair.a : pair.b.id === playerId ? pair.b : null;
+  const opponent = self ? (self.id === pair.a.id ? pair.b : pair.a) : null;
+  if (!self || !opponent) return pair.boundaryImplication ?? 'NONE';
+  if (pair.boundaryId === 'JuryoMakushita') {
+    return self.division === 'Makushita' ? 'PROMOTION' : 'DEMOTION';
+  }
+  if (pair.matchReason === 'JURYO_PROMOTION_RACE') return 'PROMOTION';
+  if (pair.matchReason === 'JURYO_DEMOTION_RACE') return 'DEMOTION';
+  if (pair.matchReason === 'LOWER_BOUNDARY_EVAL' || pair.boundaryId) {
+    return DIVISION_ORDER[self.division] < DIVISION_ORDER[opponent.division] ? 'DEMOTION' : 'PROMOTION';
+  }
+  return pair.boundaryImplication ?? 'NONE';
+};
+
 export const syncPlayerToLowerDivisionRoster = (
   status: RikishiStatus,
   lowerWorld: LowerDivisionQuotaWorld,
@@ -449,7 +476,10 @@ export const runLowerDivisionBasho = (
       }
 
       const isLastBout = player.boutsDone >= numBouts;
-      const isYushoContention = isLastBout && wins >= numBouts - 1;
+      const isYushoContention =
+        pair.titleImplication === 'DIRECT' ||
+        pair.titleImplication === 'CHASE' ||
+        (isLastBout && wins >= numBouts - 1);
       const boutContext: BoutContext = {
         day,
         currentWins: wins,
@@ -461,6 +491,10 @@ export const runLowerDivisionBasho = (
         opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay: isLastBout,
         isYushoContention,
+        contentionTier: pair.contentionTier,
+        titleImplication: pair.titleImplication,
+        boundaryImplication: resolvePlayerBoundaryImplication(pair, player.id),
+        schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
       };

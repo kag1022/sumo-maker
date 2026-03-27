@@ -31,16 +31,17 @@ export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllo
       snapshot.absent,
     );
     const directive = resolveTopDirective(snapshot);
+    const currentSlot = toSekitoriSlot(snapshot.rank, currentLayout);
     const historyScore = (snapshot.pastRecords ?? [])
       .slice(0, 2)
       .reduce((sum, record, index) => sum + toHistoryScore(record) * (index === 0 ? 0.75 : 0.45), 0);
-    const score = scoreTopDivisionCandidate(snapshot, directive) + historyScore;
+    const score = scoreTopDivisionCandidate(snapshot, directive, currentSlot) + historyScore;
     return {
       snapshot,
       sourceDivision,
       normalizedLosses,
       score,
-      currentSlot: toSekitoriSlot(snapshot.rank, currentLayout),
+      currentSlot,
       directive,
     };
   });

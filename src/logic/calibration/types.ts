@@ -14,6 +14,16 @@ export interface CalibrationMeta {
   cohort?: string;
 }
 
+export interface BanzukeDataQuality {
+  rikishiBashoRecordCount: number;
+  candidatePairCount: number;
+  consecutivePairCount: number;
+  consecutiveMovementRate: number;
+  rankMovementJoinSuccessRate: number;
+  validBoutLengthRate: number;
+  banzukeAlignmentRate: number;
+}
+
 export interface CareerCalibrationTarget {
   meta: CalibrationMeta & {
     minDebutYear: number;
@@ -56,10 +66,21 @@ export interface BoundaryExchangeRate {
   rate: number;
 }
 
+export type BanzukeRankBandTuple = [number, number | null, string];
+
+export interface RecordAwareQuantileMap {
+  [division: string]: {
+    [rankBand: string]: {
+      [recordBucket: string]: BanzukeMovementQuantiles | null;
+    };
+  };
+}
+
 export interface BanzukeCalibrationTarget {
   meta: CalibrationMeta & {
     divisionScope: string[];
     note?: string;
+    dataQuality?: BanzukeDataQuality;
   };
   divisionMovementQuantiles: Record<
     string,
@@ -68,8 +89,11 @@ export interface BanzukeCalibrationTarget {
   boundaryExchangeRates: Record<string, BoundaryExchangeRate>;
   recordBucketRules: {
     supported: boolean;
-    reason: string;
-    fallbackComparisonKeys: string[];
+    source: string;
+    recordLinkMeaning: string;
+    lowerDivisionScope: string[];
+    rankBands: Record<string, BanzukeRankBandTuple[]>;
+    recordAwareQuantiles: RecordAwareQuantileMap;
   };
 }
 

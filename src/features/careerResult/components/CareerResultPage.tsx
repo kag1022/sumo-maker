@@ -1,9 +1,11 @@
 import React from "react";
-import { Save, TableProperties } from "lucide-react";
+import { Save, Scale, ScrollText, TableProperties } from "lucide-react";
 import { Button } from "../../../shared/ui/Button";
 import { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import { Division, RikishiStatus } from "../../../logic/models";
+import { BanzukeReviewTab } from "../../report/components/BanzukeReviewTab";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
+import { buildBanzukeReviewTabModel } from "../../report/utils/banzukeReview";
 import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import {
@@ -33,6 +35,11 @@ interface CareerResultPageProps {
 }
 
 const VISIBLE_COLUMNS_MIN = 14;
+const PAGE_TABS = [
+  { id: "review", label: "番付審議", icon: Scale },
+  { id: "rank", label: "番付推移", icon: ScrollText },
+] as const;
+type CareerResultTabId = (typeof PAGE_TABS)[number]["id"];
 
 export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   status,
@@ -48,6 +55,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   onOpenEra,
 }) => {
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<CareerResultTabId>("review");
   const flow = React.useMemo(() => getCareerValueForFlow(status), [status]);
   const selectedPoint = flow.find((point) => point.bashoSeq === viewState.selectedBashoSeq) ?? flow[flow.length - 1] ?? null;
   const careerPeriod = flow.length > 0 ? `${flow[0].bashoLabel} - ${flow[flow.length - 1].bashoLabel}` : "-";
@@ -64,6 +72,10 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   const selectedNpc = React.useMemo(
     () => (selectedNpcId ? buildNpcCareerDetail(bashoRows, selectedNpcId, viewState.selectedBashoSeq) : null),
     [bashoRows, selectedNpcId, viewState.selectedBashoSeq],
+  );
+  const reviewModel = React.useMemo(
+    () => buildBanzukeReviewTabModel({ detail, bashoRows }),
+    [bashoRows, detail],
   );
 
   return (
@@ -92,67 +104,99 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         </div>
       </section>
 
-      <section className="analysis-section analysis-section-graph">
-        <div className="analysis-toolbar">
-          <div className="analysis-toolbar-primary">
-            <span className="analysis-subtitle">番付変動</span>
-            <span className="analysis-caption">
-              {visibleFlow[0]?.bashoLabel ?? "-"} - {visibleFlow[visibleFlow.length - 1]?.bashoLabel ?? "-"}
-            </span>
-          </div>
-          <WindowControls totalCount={flow.length} viewState={viewState} onWindowChange={onWindowChange} />
-        </div>
-        <div className="year-band-strip">
-          {yearBands.map((band) => {
-            const active =
-              band.startSeq <= viewState.visibleWindowEndSeq && band.endSeq >= viewState.visibleWindowStartSeq;
-            const hasSelected =
-              viewState.selectedBashoSeq != null &&
-              viewState.selectedBashoSeq >= band.startSeq &&
-              viewState.selectedBashoSeq <= band.endSeq;
+      <section className="analysis-section">
+        <div className="career-result-tabs" role="tablist" aria-label="キャリア結果タブ">
+          {PAGE_TABS.map((tab) => {
+            const Icon = tab.icon;
             return (
               <button
-                key={band.year}
+                key={tab.id}
                 type="button"
-                className="year-band-chip"
-                data-active={active}
-                data-selected={hasSelected}
-                style={{ flexGrow: Math.max(1, band.size) }}
-                onClick={() => {
-                  onWindowChange({
-                    visibleWindowStartSeq: band.startSeq,
-                    visibleWindowEndSeq: band.endSeq,
-                  });
-                  onSelectBasho(hasSelected && viewState.selectedBashoSeq ? viewState.selectedBashoSeq : band.endSeq);
-                }}
+                className="career-result-tab-button"
+                data-active={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
               >
-                <span>{band.label}</span>
-                <span>{band.size}</span>
+                <Icon className="h-4 w-4" />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
-        <div className="analysis-subsection">
-          <RankBandChart
-            flow={visibleFlow}
-            selectedBashoSeq={viewState.selectedBashoSeq}
-            onSelectBasho={onSelectBasho}
-          />
-        </div>
-
       </section>
 
-      <section className="analysis-section analysis-section-detail">
-        {selectedPoint ? (
-          <BashoDetailPanel
-            point={selectedPoint}
-            detail={detail}
+      {activeTab === "review" ? (
+        <section className="analysis-section analysis-section-detail">
+          <BanzukeReviewTab
+            model={reviewModel}
             isLoading={detailLoading}
-            hasPersistence={Boolean(careerId)}
+            emptyLabel={careerId ? "この場所の番付審議はまだ保存されていません。" : "保存後に番付審議を開けます。"}
             onSelectNpc={setSelectedNpcId}
           />
-        ) : null}
-      </section>
+        </section>
+      ) : (
+        <>
+          <section className="analysis-section analysis-section-graph">
+            <div className="analysis-toolbar">
+              <div className="analysis-toolbar-primary">
+                <span className="analysis-subtitle">番付変動</span>
+                <span className="analysis-caption">
+                  {visibleFlow[0]?.bashoLabel ?? "-"} - {visibleFlow[visibleFlow.length - 1]?.bashoLabel ?? "-"}
+                </span>
+              </div>
+              <WindowControls totalCount={flow.length} viewState={viewState} onWindowChange={onWindowChange} />
+            </div>
+            <div className="year-band-strip">
+              {yearBands.map((band) => {
+                const active =
+                  band.startSeq <= viewState.visibleWindowEndSeq && band.endSeq >= viewState.visibleWindowStartSeq;
+                const hasSelected =
+                  viewState.selectedBashoSeq != null &&
+                  viewState.selectedBashoSeq >= band.startSeq &&
+                  viewState.selectedBashoSeq <= band.endSeq;
+                return (
+                  <button
+                    key={band.year}
+                    type="button"
+                    className="year-band-chip"
+                    data-active={active}
+                    data-selected={hasSelected}
+                    style={{ flexGrow: Math.max(1, band.size) }}
+                    onClick={() => {
+                      onWindowChange({
+                        visibleWindowStartSeq: band.startSeq,
+                        visibleWindowEndSeq: band.endSeq,
+                      });
+                      onSelectBasho(hasSelected && viewState.selectedBashoSeq ? viewState.selectedBashoSeq : band.endSeq);
+                    }}
+                  >
+                    <span>{band.label}</span>
+                    <span>{band.size}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="analysis-subsection">
+              <RankBandChart
+                flow={visibleFlow}
+                selectedBashoSeq={viewState.selectedBashoSeq}
+                onSelectBasho={onSelectBasho}
+              />
+            </div>
+          </section>
+
+          <section className="analysis-section analysis-section-detail">
+            {selectedPoint ? (
+              <BashoDetailPanel
+                point={selectedPoint}
+                detail={detail}
+                isLoading={detailLoading}
+                hasPersistence={Boolean(careerId)}
+                onSelectNpc={setSelectedNpcId}
+              />
+            ) : null}
+          </section>
+        </>
+      )}
       {selectedNpc ? <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} /> : null}
     </div>
   );

@@ -189,6 +189,7 @@ export const pairAcrossBoundary = (
       matchReason: 'BOUNDARY_CROSSOVER',
       relaxationStage: 3,
       crossDivision: true,
+      repairDepth: 0,
     });
   }
 

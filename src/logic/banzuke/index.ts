@@ -12,6 +12,7 @@ export type {
   ComposeNextBanzukeInput,
   ComposeNextBanzukeOutput,
 } from './types';
+export { normalizeBanzukeEngineVersion } from './types';
 export { DEFAULT_DIVISION_POLICIES, resolveTargetHeadcount, resolveVariableHeadcountByFlow } from './population/flow';
 export { maxNumber, resolveDivisionSlots, rankNumberSideToSlot, slotToRankNumberSide, clampRankToSlots } from './scale/rankScale';
 export {

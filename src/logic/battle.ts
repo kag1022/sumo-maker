@@ -42,6 +42,10 @@ export interface BoutContext {
   opponentLossStreak?: number; // 相手の現在連敗数
   isLastDay: boolean;   // 千秋楽かどうか
   isYushoContention: boolean; // 優勝がかかっているか
+  contentionTier?: 'Leader' | 'Contender' | 'Outside';
+  titleImplication?: 'DIRECT' | 'CHASE' | 'NONE';
+  boundaryImplication?: 'PROMOTION' | 'DEMOTION' | 'NONE';
+  schedulePhase?: string;
   previousResult?: 'WIN' | 'LOSS' | 'ABSENT';
   bashoFormDelta?: number;
 }
@@ -261,10 +265,24 @@ const resolveBattleResult = (
   }
   if (traits.includes('KINBOSHI_HUNTER') && enemy.rankValue <= 2) myPower *= 1.25;
   if (traits.includes('NOMI_NO_SHINZOU')) {
-    const isImportantMatch = context && (context.currentWins === 7 || (context.isLastDay && context.isYushoContention));
+    const isImportantMatch = context && (
+      context.currentWins === 7 ||
+      context.titleImplication === 'DIRECT' ||
+      context.titleImplication === 'CHASE' ||
+      (context.isLastDay && context.isYushoContention)
+    );
     if (enemy.rankValue <= 2 || isImportantMatch) myPower *= 0.8;
   }
-  if (traits.includes('OOBUTAI_NO_ONI') && context?.isLastDay && context.isYushoContention) myPower *= 1.2;
+  if (
+    traits.includes('OOBUTAI_NO_ONI') &&
+    context &&
+    (
+      (context.isLastDay && context.isYushoContention) ||
+      context.titleImplication === 'DIRECT'
+    )
+  ) {
+    myPower *= 1.2;
+  }
   if (traits.includes('RENSHOU_KAIDOU') && currentWinStreak >= 3) myPower += Math.min(8, currentWinStreak * 1.2);
   if (traits.includes('SLOW_STARTER') && context) myPower *= context.day <= Math.ceil(numBouts / 2) ? 0.94 : 1.06;
   if (traits.includes('KYOJIN_GOROSHI') && enemy.power > myAverage * 1.2) myPower *= 1.2;
@@ -286,7 +304,14 @@ const resolveBattleResult = (
     const gv = rikishi.genome.variance;
     let dnaBonus = 0;
     if (context) {
-      const isImportant = context.currentWins === 7 || (context.isLastDay && context.isYushoContention) || context.currentWins >= 10;
+      const isImportant =
+        context.currentWins === 7 ||
+        (context.isLastDay && context.isYushoContention) ||
+        context.currentWins >= 10 ||
+        context.titleImplication === 'DIRECT' ||
+        context.titleImplication === 'CHASE' ||
+        context.boundaryImplication === 'PROMOTION' ||
+        context.boundaryImplication === 'DEMOTION';
       if (isImportant) dnaBonus += gv.clutchBias * 0.1;
     }
     const volatilityFactor = 1 + (gv.formVolatility - 50) / 200;

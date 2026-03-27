@@ -3,7 +3,7 @@ import { SimulationModelVersion } from '../simulation/modelVersion';
 import { RankScaleSlots } from './scale/rankLimits';
 
 export type BanzukeMode = 'SIMULATE' | 'REPLAY';
-export type BanzukeEngineVersion = 'legacy-v1' | 'optimizer-v1';
+export type BanzukeEngineVersion = 'legacy-v1' | 'optimizer-v1' | 'optimizer-v2';
 
 export type BanzukeProposalSource =
   | 'COMMITTEE_MODEL'
@@ -63,6 +63,10 @@ export interface RankCalculationOptions {
     assignedNextRank?: Rank;
   };
   boundaryAssignedNextRank?: Rank;
+  empiricalContext?: {
+    recordBucket?: string;
+    rankBand?: string;
+  };
   isOzekiReturn?: boolean;
   scaleSlots?: RankScaleSlots;
   simulationModelVersion?: SimulationModelVersion;
@@ -107,13 +111,14 @@ export interface BanzukeDecisionVote {
 }
 
 export interface BanzukeDecisionLog {
-  careerId: string;
+  careerId?: string;
   seq: number;
   rikishiId: string;
   modelVersion?: SimulationModelVersion;
   banzukeEngineVersion?: BanzukeEngineVersion;
   proposalSource?: BanzukeProposalSource;
   fromRank: Rank;
+  candidateRank?: Rank;
   proposedRank: Rank;
   finalRank: Rank;
   reasons: BanzukeDecisionReasonCode[];
@@ -121,6 +126,13 @@ export interface BanzukeDecisionLog {
   ruleBucket?: 'YOKOZUNA' | 'OZEKI' | 'SANYAKU' | 'MAEGASHIRA' | 'JURYO' | 'LOWER';
   usedBoundaryPressure?: boolean;
   usedDiscretion?: boolean;
+  proposalBasis?: 'EMPIRICAL' | 'RULE_OVERRIDE';
+  recordBucket?: string;
+  rankBand?: string;
+  overrideNames?: string[];
+  wins?: number;
+  losses?: number;
+  absent?: number;
   shadowDiff?: {
     rankChanged: boolean;
     eventChanged: boolean;
@@ -132,6 +144,10 @@ export interface BanzukeDecisionResult extends RankChangeResult {
   proposalSource: BanzukeProposalSource;
   reasons: BanzukeDecisionReasonCode[];
   constraintHits: BanzukeConstraintCode[];
+  proposalBasis?: 'EMPIRICAL' | 'RULE_OVERRIDE';
+  recordBucket?: string;
+  rankBand?: string;
+  overrideNames?: string[];
 }
 
 export interface BanzukeComposeEntry {
@@ -177,3 +193,10 @@ export interface ComposeNextBanzukeOutput {
   decisionLogs: BanzukeDecisionLog[];
   warnings: string[];
 }
+
+export const normalizeBanzukeEngineVersion = (
+  version?: BanzukeEngineVersion,
+): BanzukeEngineVersion => {
+  if (version === 'optimizer-v2') return version;
+  return 'optimizer-v2';
+};
