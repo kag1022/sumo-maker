@@ -602,11 +602,18 @@ const pearsonCorrelation = (xs: number[], ys: number[]): number => {
 const createScoutDraft = (overrides: Partial<ScoutDraft> = {}): ScoutDraft => {
   const baseDraft: ScoutDraft = {
     shikona: '雷ノ海',
+    birthplace: '東京都',
     profile: {
       realName: '山田 太郎',
       birthplace: '東京都',
       personality: 'CALM',
     },
+    entryAge: 18,
+    startingHeightCm: 183,
+    startingWeightKg: 132,
+    entryPath: 'SCHOOL',
+    temperament: 'STEADY',
+    bodySeed: 'BALANCED',
     amateurBackground: 'HIGH_SCHOOL',
     bodyConstitution: 'BALANCED_FRAME',
     primaryStyle: 'YOTSU',
@@ -742,7 +749,7 @@ export const tests: TestCase[] = [
       const summary = buildReportHeroSummary(status);
       assert.equal(summary.lifeCards.length, 5);
       assert.equal(summary.lifeCards[4]?.label, '古傷の膝');
-      assert.equal(summary.narrative, '古傷の膝が、勝ち方まで変える人生の重さになった。');
+      assert.equal(summary.narrative, '大舞台よりも、一場所ごとの積み上げが印象に残る力士人生です。');
     },
   },
   {
@@ -2935,10 +2942,12 @@ export const tests: TestCase[] = [
       const baseScore = scoreTopDivisionCandidate(
         baseSnapshot,
         resolveTopDirective(baseSnapshot),
+        52,
       );
       const absentScore = scoreTopDivisionCandidate(
         absentSnapshot,
         resolveTopDirective(absentSnapshot),
+        52,
       );
       assert.ok(
         absentScore <= baseScore,
@@ -3964,28 +3973,51 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: sekitori full absence uses fixed -15-rank band',
+    name: 'ranking: sekitori full absence always resolves as a demotion band',
     run: () => {
       const m = resolveSekitoriDeltaBand({
-        id: 'M',
-        shikona: '幕内',
-        rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 12 },
-        wins: 0,
-        losses: 0,
-        absent: 15,
+        snapshot: {
+          id: 'M',
+          shikona: '幕内',
+          rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 12 },
+          wins: 0,
+          losses: 0,
+          absent: 15,
+        },
+        sourceDivision: 'Makuuchi',
+        normalizedLosses: 15,
+        score: 0,
+        currentSlot: 31,
+        directive: {
+          nextIsOzekiKadoban: false,
+          nextIsOzekiReturn: false,
+          yokozunaPromotionBonus: 0,
+        },
       });
       const j = resolveSekitoriDeltaBand({
-        id: 'J',
-        shikona: '十両',
-        rank: { division: 'Juryo', name: '十両', side: 'East', number: 5 },
-        wins: 0,
-        losses: 0,
-        absent: 15,
+        snapshot: {
+          id: 'J',
+          shikona: '十両',
+          rank: { division: 'Juryo', name: '十両', side: 'East', number: 5 },
+          wins: 0,
+          losses: 0,
+          absent: 15,
+        },
+        sourceDivision: 'Juryo',
+        normalizedLosses: 15,
+        score: 0,
+        currentSlot: 50,
+        directive: {
+          nextIsOzekiKadoban: false,
+          nextIsOzekiReturn: false,
+          yokozunaPromotionBonus: 0,
+        },
       });
-      assert.equal(m.minSlotDelta, -30);
-      assert.equal(m.maxSlotDelta, -30);
-      assert.equal(j.minSlotDelta, -30);
-      assert.equal(j.maxSlotDelta, -30);
+      assert.ok(m.minSlotDelta < 0);
+      assert.ok(m.maxSlotDelta < 0);
+      assert.ok(j.minSlotDelta < 0);
+      assert.ok(j.maxSlotDelta < 0);
+      assert.ok(m.maxSlotDelta <= j.maxSlotDelta);
     },
   },
   {
@@ -6720,13 +6752,13 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'torikumi: makuuchi-juryo boundary uses maegashira tail vs juryo top band',
+    name: 'torikumi: regular sekitori schedule keeps makuuchi and juryo separate',
     run: () => {
       const participants: TorikumiParticipant[] = [
-        createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-stable'),
-        createTorikumiParticipant('M17E', 'Makuuchi', '前頭', 17, 'm-stable'),
-        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-stable'),
-        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-stable'),
+        createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-a'),
+        createTorikumiParticipant('M17E', 'Makuuchi', '前頭', 17, 'm-b'),
+        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-a'),
+        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-b'),
       ];
       const result = scheduleTorikumiBasho({
         participants,
@@ -6737,14 +6769,10 @@ export const tests: TestCase[] = [
       });
       const pairs = result.days[0].pairs;
       assert.equal(pairs.length, 2);
-      assert.ok(pairs.every((pair) => pair.boundaryId === 'MakuuchiJuryo'));
-      for (const pair of pairs) {
-        const top = pair.a.division === 'Makuuchi' ? pair.a : pair.b;
-        const low = pair.a.division === 'Juryo' ? pair.a : pair.b;
-        assert.equal(top.rankName, '前頭');
-        assert.ok((top.rankNumber ?? 0) >= 14);
-        assert.ok((low.rankNumber ?? 99) <= 3);
-      }
+      assert.ok(pairs.every((pair) => !pair.boundaryId));
+      assert.ok(pairs.every((pair) => pair.a.division === pair.b.division));
+      assert.ok(pairs.some((pair) => pair.a.division === 'Makuuchi' && pair.b.division === 'Makuuchi'));
+      assert.ok(pairs.some((pair) => pair.a.division === 'Juryo' && pair.b.division === 'Juryo'));
     },
   },
   {
@@ -6798,14 +6826,14 @@ export const tests: TestCase[] = [
       const participants: TorikumiParticipant[] = [
         {
           ...createTorikumiParticipant('J13E', 'Juryo', '十両', 13, 'j-a'),
-          wins: 7,
-          losses: 6,
+          wins: 5,
+          losses: 8,
           boutsDone: 13,
         },
         {
           ...createTorikumiParticipant('J14W', 'Juryo', '十両', 14, 'j-b'),
-          wins: 6,
-          losses: 7,
+          wins: 4,
+          losses: 9,
           boutsDone: 13,
         },
         {
@@ -6840,7 +6868,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'torikumi: makushita 6th/7th bout stage is treated as late for Juryo-Makushita boundary',
+    name: 'torikumi: Juryo-Makushita exchange is blocked before day 12 and opens on day 12+',
     run: () => {
       const participants: TorikumiParticipant[] = [
         {
@@ -6869,18 +6897,33 @@ export const tests: TestCase[] = [
         },
       ];
 
-      const result = scheduleTorikumiBasho({
+      const earlyResult = scheduleTorikumiBasho({
         participants,
         days: [11],
         boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
         facedMap: createFacedMap(participants),
         dayEligibility: () => true,
       });
+      const lateParticipants = participants.map((participant) => ({
+        ...participant,
+        facedIdsThisBasho: [],
+      }));
+      const lateResult = scheduleTorikumiBasho({
+        participants: lateParticipants,
+        days: [12],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
+        facedMap: createFacedMap(lateParticipants),
+        dayEligibility: () => true,
+      });
 
-      const boundaryPairs = result.days[0].pairs.filter(
-        (pair) => pair.boundaryId === 'JuryoMakushita',
+      assert.equal(
+        earlyResult.days[0].pairs.filter((pair) => pair.boundaryId === 'JuryoMakushita').length,
+        0,
       );
-      assert.equal(boundaryPairs.length, 2);
+      assert.equal(
+        lateResult.days[0].pairs.filter((pair) => pair.boundaryId === 'JuryoMakushita').length,
+        2,
+      );
     },
   },
   {
@@ -6918,18 +6961,27 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'torikumi: makuuchi-juryo boundary never pairs sanyaku with juryo',
+    name: 'torikumi: late makuuchi title race produces direct bout metadata',
     run: () => {
       const participants: TorikumiParticipant[] = [
         {
-          ...createTorikumiParticipant('O1', 'Makuuchi', '大関', 1, 'm-stable'),
+          ...createTorikumiParticipant('Y1', 'Makuuchi', '横綱', 1, 'm-a'),
+          rankName: '横綱',
+          rankNumber: undefined,
+          rankScore: 1,
+          wins: 12,
+          losses: 1,
+        },
+        {
+          ...createTorikumiParticipant('O1', 'Makuuchi', '大関', 1, 'm-b'),
           rankName: '大関',
           rankNumber: undefined,
           rankScore: 2,
+          wins: 12,
+          losses: 1,
         },
-        createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-stable'),
-        createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'j-stable'),
-        createTorikumiParticipant('J2E', 'Juryo', '十両', 2, 'j-stable'),
+        createTorikumiParticipant('M1E', 'Makuuchi', '前頭', 1, 'm-c'),
+        createTorikumiParticipant('M2W', 'Makuuchi', '前頭', 2, 'm-d'),
       ];
       const result = scheduleTorikumiBasho({
         participants,
@@ -6938,30 +6990,29 @@ export const tests: TestCase[] = [
         facedMap: createFacedMap(participants),
         dayEligibility: () => true,
       });
-      const boundaryPairs = result.days[0].pairs.filter((pair) => pair.boundaryId === 'MakuuchiJuryo');
-      assert.ok(boundaryPairs.length >= 1);
-      assert.ok(
-        boundaryPairs.every((pair) => pair.a.rankName === '前頭' || pair.b.rankName === '前頭'),
-      );
-      assert.ok(
-        boundaryPairs.every((pair) => pair.a.id !== 'O1' && pair.b.id !== 'O1'),
-      );
+      const directPair = result.days[0].pairs.find((pair) =>
+        (pair.a.id === 'Y1' || pair.b.id === 'Y1') &&
+        (pair.a.id === 'O1' || pair.b.id === 'O1'));
+      assert.ok(Boolean(directPair), 'Expected leader direct bout');
+      assert.equal(directPair?.matchReason, 'YUSHO_DIRECT');
+      assert.equal(directPair?.titleImplication, 'DIRECT');
+      assert.equal(directPair?.phaseId, 'LATE');
     },
   },
   {
-    name: 'torikumi: diagnostics track hard-constraint violations and late boundary distribution',
+    name: 'torikumi: diagnostics expose repair histogram and boundary distribution',
     run: () => {
       const participants: TorikumiParticipant[] = [
         {
           ...createTorikumiParticipant('J13E', 'Juryo', '十両', 13, 'j-a'),
-          wins: 7,
-          losses: 6,
+          wins: 5,
+          losses: 8,
           boutsDone: 13,
         },
         {
           ...createTorikumiParticipant('J14W', 'Juryo', '十両', 14, 'j-b'),
-          wins: 6,
-          losses: 7,
+          wins: 4,
+          losses: 9,
           boutsDone: 13,
         },
         {
@@ -6989,6 +7040,9 @@ export const tests: TestCase[] = [
       assert.equal(result.diagnostics.sameCardViolationCount, 0);
       assert.equal(result.diagnostics.crossDivisionBoutCount, 2);
       assert.equal(result.diagnostics.lateCrossDivisionBoutCount, 2);
+      assert.equal(result.diagnostics.scheduleViolations.length, 0);
+      assert.equal(result.diagnostics.crossDivisionByBoundary.JuryoMakushita, 2);
+      assert.equal(result.diagnostics.repairHistogram['0'], 2);
       assert.equal(result.diagnostics.boundaryActivations[0]?.boundaryId, 'JuryoMakushita');
     },
   },

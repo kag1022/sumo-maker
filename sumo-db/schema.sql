@@ -145,6 +145,80 @@ CREATE INDEX IF NOT EXISTS idx_rank_movement_from_to
 CREATE INDEX IF NOT EXISTS idx_rank_movement_steps
     ON rank_movement(movement_steps);
 
+CREATE TABLE IF NOT EXISTS rikishi_basho_record (
+    rikishi_id            INTEGER NOT NULL,
+    basho_code            TEXT NOT NULL,
+    shikona               TEXT,
+    division              TEXT NOT NULL,
+    rank_name             TEXT,
+    rank_number           INTEGER,
+    side                  TEXT,
+    is_haridashi          INTEGER NOT NULL DEFAULT 0,
+    banzuke_label         TEXT,
+    record_raw            TEXT,
+    wins                  INTEGER NOT NULL DEFAULT 0,
+    losses                INTEGER NOT NULL DEFAULT 0,
+    absences              INTEGER NOT NULL DEFAULT 0,
+    yusho_text            TEXT,
+    sansho_text           TEXT,
+    kinboshi_count        INTEGER NOT NULL DEFAULT 0,
+    source_url            TEXT,
+    raw_html_path         TEXT,
+    parse_status          TEXT NOT NULL DEFAULT 'ok',
+    error_message         TEXT,
+    updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (rikishi_id, basho_code),
+    FOREIGN KEY (basho_code) REFERENCES basho_metadata(basho_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rikishi_basho_record_basho
+    ON rikishi_basho_record(basho_code);
+
+CREATE INDEX IF NOT EXISTS idx_rikishi_basho_record_division
+    ON rikishi_basho_record(division, rank_name, rank_number);
+
+CREATE INDEX IF NOT EXISTS idx_rikishi_basho_record_status
+    ON rikishi_basho_record(parse_status);
+
+CREATE VIEW IF NOT EXISTS rank_movement_with_record AS
+SELECT
+    rm.id,
+    rm.rikishi_id,
+    rm.shikona,
+    rm.from_basho_code,
+    rm.to_basho_code,
+    rm.from_division,
+    rm.to_division,
+    rm.from_banzuke_label,
+    rm.to_banzuke_label,
+    rm.from_basho_rank_index,
+    rm.to_basho_rank_index,
+    rm.from_basho_rank_value,
+    rm.to_basho_rank_value,
+    rm.from_slot_rank_value,
+    rm.to_slot_rank_value,
+    rm.movement_steps,
+    rm.movement_label,
+    rbr.division AS source_record_division,
+    rbr.rank_name AS source_rank_name,
+    rbr.rank_number AS source_rank_number,
+    rbr.side AS source_side,
+    rbr.is_haridashi AS source_is_haridashi,
+    rbr.banzuke_label AS source_banzuke_label,
+    rbr.record_raw AS source_record_raw,
+    rbr.wins AS source_wins,
+    rbr.losses AS source_losses,
+    rbr.absences AS source_absences,
+    rbr.yusho_text AS source_yusho_text,
+    rbr.sansho_text AS source_sansho_text,
+    rbr.kinboshi_count AS source_kinboshi_count,
+    rbr.parse_status AS source_parse_status,
+    rbr.error_message AS source_error_message
+FROM rank_movement rm
+LEFT JOIN rikishi_basho_record rbr
+    ON rbr.rikishi_id = rm.rikishi_id
+   AND rbr.basho_code = rm.from_basho_code;
+
 CREATE TABLE IF NOT EXISTS etl_state (
     key                  TEXT PRIMARY KEY,
     value                TEXT NOT NULL,

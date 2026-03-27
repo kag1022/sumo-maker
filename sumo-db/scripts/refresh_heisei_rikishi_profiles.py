@@ -6,6 +6,7 @@ import sqlite3
 import time
 import unicodedata
 from datetime import datetime, timezone
+from pathlib import Path
 from statistics import median
 from typing import Optional
 
@@ -40,7 +41,7 @@ HEADERS = {
 }
 
 CAREER_RE = re.compile(
-    r"生涯戦歴\s*([0-9]+)勝([0-9]+)敗(?:([0-9]+)休)?[／/]([0-9]+)出\(([0-9]+)場所\)"
+    r"生涯戦歴\s*([0-9]+)勝([0-9]+)敗(?:([0-9]+)休)?(?:([0-9]+)分)?[／/]([0-9]+)出\(([0-9]+)場所\)"
 )
 LABEL_VALUE_PATTERNS = {
     "highest_rank_raw": re.compile(r"最高位\s+(.+)"),
@@ -67,6 +68,25 @@ NOISE_EXACT = {
 SEKITORI_RANKS = {"横綱", "大関", "関脇", "小結", "前頭", "十両"}
 MAKUUCHI_RANKS = {"横綱", "大関", "関脇", "小結", "前頭"}
 SANYAKU_RANKS = {"横綱", "大関", "関脇", "小結"}
+ERA_BASE_YEAR = {"昭和": 1925, "平成": 1988, "令和": 2018}
+STAR_RECORD_RE = re.compile(r"^[O0o\-\*#%xX=]+$")
+BASHO_RECORD_LINE_RE = re.compile(
+    r"^(昭和|平成|令和)([0-9元]+)年([0-9]+)月\s+(.+?)\s+([0-9]+)勝([0-9]+)敗(?:([0-9]+)休)?(?:([0-9]+)分)?\s*(.*)$"
+)
+RANK_TOKEN_RE = re.compile(r"^(東|西)(横綱|大関|関脇|小結|前|十|下|三|二|口)([0-9]+)(張出)?$")
+RANK_TOKEN_LABELS = {
+    "横綱": ("幕内", "横綱"),
+    "大関": ("幕内", "大関"),
+    "関脇": ("幕内", "関脇"),
+    "小結": ("幕内", "小結"),
+    "前": ("幕内", "前頭"),
+    "十": ("十両", "十両"),
+    "下": ("幕下", "幕下"),
+    "三": ("三段目", "三段目"),
+    "二": ("序二段", "序二段"),
+    "口": ("序ノ口", "序ノ口"),
+}
+SANSHO_TOKENS = ("殊勲賞", "敢闘賞", "技能賞")
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,6 +97,11 @@ def parse_args() -> argparse.Namespace:
         "--retry-errors",
         action="store_true",
         help="fetch_state=error の catalog も再試行する",
+    )
+    parser.add_argument(
+        "--reparse-cached",
+        action="store_true",
+        help="既存 raw_html を再解析して summary と場所別成績を再生成する",
     )
     return parser.parse_args()
 
@@ -89,6 +114,29 @@ def normalize_line(line: str) -> str:
 def html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "lxml")
     return soup.get_text("\n")
+
+
+def extract_profile_text(html: str) -> str:
+    soup = BeautifulSoup(html, "lxml")
+    pre_blocks = [block.get_text("\n") for block in soup.find_all("pre")]
+    if pre_blocks:
+        return "\n".join(pre_blocks)
+    return soup.get_text("\n")
+
+
+def extract_page_shikona(html: str) -> Optional[str]:
+    soup = BeautifulSoup(html, "lxml")
+    title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    title = normalize_line(title.replace("力士情報", ""))
+    if title:
+        return title
+    heading = soup.find("h2")
+    if not heading:
+        return None
+    text = normalize_line(heading.get_text(" ", strip=True))
+    text = re.sub(r"^第[0-9]+代(横綱|大関|関脇|小結)\s+", "", text)
+    text = re.sub(r"[（(].*$", "", text).strip()
+    return text or None
 
 
 def extract_shikona(text: str) -> Optional[str]:
@@ -127,9 +175,133 @@ def extract_career(text: str) -> Optional[dict]:
         "career_wins": int(match.group(1)),
         "career_losses": int(match.group(2)),
         "career_absences": int(match.group(3) or 0),
-        "career_appearances": int(match.group(4)),
-        "career_bashos": int(match.group(5)),
+        "career_appearances": int(match.group(5)),
+        "career_bashos": int(match.group(6)),
     }
+
+
+def parse_era_year(value: str) -> int:
+    return 1 if value == "元" else int(value)
+
+
+def to_basho_code(era: str, era_year: str, month: str) -> str:
+    year = ERA_BASE_YEAR[era] + parse_era_year(era_year)
+    return f"{year}{int(month):02d}"
+
+
+def is_shikona_heading_line(line: str) -> bool:
+    if not line or line.startswith(("昭和", "平成", "令和")):
+        return False
+    if re.search(r"[0-9]", line):
+        return False
+    if any(token in line for token in ("最高位", "本名", "生涯戦歴", "戦歴", "場所", "勝", "敗", "休")):
+        return False
+    return "（" in line or "(" in line
+
+
+def normalize_heading_shikona(line: str) -> str:
+    value = re.sub(r"[（(].*$", "", line).strip()
+    return value
+
+
+def split_rank_and_record(body: str) -> tuple[str, Optional[str]]:
+    parts = body.split()
+    if len(parts) >= 2 and STAR_RECORD_RE.fullmatch(parts[-1]):
+        return " ".join(parts[:-1]), parts[-1]
+    return body, None
+
+
+def parse_rank_token(rank_token: str) -> Optional[dict]:
+    token = rank_token.strip()
+    if token == "前相":
+        return {
+            "division": "Maezumo",
+            "rank_name": "前相撲",
+            "rank_number": None,
+            "side": None,
+            "is_haridashi": 0,
+            "banzuke_label": "前相",
+        }
+    match = RANK_TOKEN_RE.fullmatch(token)
+    if not match:
+        return None
+    side, rank_key, rank_number, haridashi = match.groups()
+    division, rank_name = RANK_TOKEN_LABELS[rank_key]
+    label = f"{side}{rank_name if rank_key in {'横綱', '大関', '関脇', '小結'} else rank_key}{rank_number}"
+    if haridashi:
+        label += haridashi
+    return {
+        "division": division,
+        "rank_name": rank_name,
+        "rank_number": int(rank_number),
+        "side": side,
+        "is_haridashi": 1 if haridashi else 0,
+        "banzuke_label": label,
+    }
+
+
+def parse_kinboshi_count(notes: str) -> int:
+    total = 0
+    for match in re.finditer(r"(?:(\d+))?金星", notes):
+        total += int(match.group(1) or 1)
+    return total
+
+
+def extract_basho_record_notes(notes: str) -> tuple[Optional[str], Optional[str], int]:
+    note_text = normalize_line(notes)
+    if not note_text:
+        return None, None, 0
+    yusho_parts = [part for part in re.split(r"\s+", note_text) if "優勝" in part]
+    sansho_parts = [part for part in re.split(r"\s+", note_text) if any(token in part for token in SANSHO_TOKENS)]
+    kinboshi_count = parse_kinboshi_count(note_text)
+    return (
+        " ".join(yusho_parts) if yusho_parts else None,
+        " ".join(sansho_parts) if sansho_parts else None,
+        kinboshi_count,
+    )
+
+
+def extract_basho_records(text: str, default_shikona: Optional[str]) -> list[dict]:
+    records: list[dict] = []
+    current_shikona = default_shikona
+    for raw_line in text.splitlines():
+        line = normalize_line(raw_line)
+        if not line:
+            continue
+        if is_shikona_heading_line(line):
+            heading_shikona = normalize_heading_shikona(line)
+            if heading_shikona:
+                current_shikona = heading_shikona
+            continue
+        match = BASHO_RECORD_LINE_RE.match(line)
+        if not match:
+            continue
+        era, era_year, month, body, wins, losses, absences, _draws, notes = match.groups()
+        rank_token, record_raw = split_rank_and_record(body)
+        rank = parse_rank_token(rank_token)
+        if not rank:
+            continue
+        yusho_text, sansho_text, kinboshi_count = extract_basho_record_notes(notes)
+        records.append(
+            {
+                "basho_code": to_basho_code(era, era_year, month),
+                "shikona": current_shikona or default_shikona,
+                "division": rank["division"],
+                "rank_name": rank["rank_name"],
+                "rank_number": rank["rank_number"],
+                "side": rank["side"],
+                "is_haridashi": rank["is_haridashi"],
+                "banzuke_label": rank["banzuke_label"],
+                "record_raw": record_raw,
+                "wins": int(wins),
+                "losses": int(losses),
+                "absences": int(absences or 0),
+                "yusho_text": yusho_text,
+                "sansho_text": sansho_text,
+                "kinboshi_count": kinboshi_count,
+            }
+        )
+    return records
 
 
 def parse_highest_rank_name(highest_rank_raw: Optional[str]) -> Optional[str]:
@@ -157,7 +329,17 @@ def quantile(sorted_values: list[float], ratio: float) -> float:
     return float(sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * frac)
 
 
-def get_catalog_ids(con: sqlite3.Connection, retry_errors: bool) -> list[int]:
+def get_catalog_ids(con: sqlite3.Connection, retry_errors: bool, reparse_cached: bool) -> list[int]:
+    if reparse_cached:
+        rows = con.execute(
+            """
+            SELECT rikishi_id
+            FROM rikishi_discovery_catalog
+            WHERE raw_html_path IS NOT NULL
+            ORDER BY first_seen_basho_code, rikishi_id
+            """
+        ).fetchall()
+        return [int(rikishi_id) for (rikishi_id,) in rows]
     states = ("pending", "error") if retry_errors else ("pending",)
     placeholders = ",".join("?" for _ in states)
     rows = con.execute(
@@ -224,6 +406,72 @@ def upsert_summary(
 
 def remove_summary(con: sqlite3.Connection, rikishi_id: int) -> None:
     con.execute("DELETE FROM rikishi_summary WHERE rikishi_id = ?", (rikishi_id,))
+
+
+def replace_basho_records(
+    con: sqlite3.Connection,
+    rikishi_id: int,
+    source_url: str,
+    raw_html_path: str,
+    records: list[dict],
+) -> None:
+    con.execute("DELETE FROM rikishi_basho_record WHERE rikishi_id = ?", (rikishi_id,))
+    if not records:
+        return
+    con.executemany(
+        """
+        INSERT INTO rikishi_basho_record (
+            rikishi_id,
+            basho_code,
+            shikona,
+            division,
+            rank_name,
+            rank_number,
+            side,
+            is_haridashi,
+            banzuke_label,
+            record_raw,
+            wins,
+            losses,
+            absences,
+            yusho_text,
+            sansho_text,
+            kinboshi_count,
+            source_url,
+            raw_html_path,
+            parse_status,
+            error_message,
+            updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ok', NULL, CURRENT_TIMESTAMP)
+        """,
+        [
+            (
+                rikishi_id,
+                record["basho_code"],
+                record["shikona"],
+                record["division"],
+                record["rank_name"],
+                record["rank_number"],
+                record["side"],
+                record["is_haridashi"],
+                record["banzuke_label"],
+                record["record_raw"],
+                record["wins"],
+                record["losses"],
+                record["absences"],
+                record["yusho_text"],
+                record["sansho_text"],
+                record["kinboshi_count"],
+                source_url,
+                raw_html_path,
+            )
+            for record in records
+        ],
+    )
+
+
+def remove_basho_records(con: sqlite3.Connection, rikishi_id: int) -> None:
+    con.execute("DELETE FROM rikishi_basho_record WHERE rikishi_id = ?", (rikishi_id,))
 
 
 def update_catalog(
@@ -532,6 +780,118 @@ def maybe_checkpoint(con: sqlite3.Connection) -> dict:
     return write_collection_report(con)
 
 
+def ingest_profile_html(
+    con: sqlite3.Connection,
+    rikishi_id: int,
+    url: str,
+    html: str,
+    *,
+    status_code: Optional[int],
+    raw_path: Path,
+    persist_html: bool,
+) -> tuple[str, str]:
+    if persist_html:
+        raw_path.write_text(html, encoding="utf-8")
+
+    content_hash = hashlib.sha256(html.encode("utf-8")).hexdigest()
+    text = extract_profile_text(html)
+    if "生涯戦歴" not in text:
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="error",
+            cohort_state="unknown",
+            cohort_reason="parse_error",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=content_hash,
+            shikona=None,
+            highest_rank_raw=None,
+            debut_basho=None,
+            last_basho=None,
+            career=None,
+            error_message="生涯戦歴が見つからない",
+        )
+        remove_summary(con, rikishi_id)
+        remove_basho_records(con, rikishi_id)
+        con.commit()
+        return "error", "parse_error"
+
+    shikona = extract_page_shikona(html) or extract_shikona(text)
+    highest_rank_raw = extract_label_value(text, "highest_rank_raw")
+    debut_basho = extract_label_value(text, "debut_basho")
+    last_basho = extract_label_value(text, "last_basho")
+    career = extract_career(text)
+    basho_records = extract_basho_records(text, shikona)
+    if not career or not debut_basho or not basho_records:
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="error",
+            cohort_state="unknown",
+            cohort_reason="parse_error",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=content_hash,
+            shikona=shikona,
+            highest_rank_raw=highest_rank_raw,
+            debut_basho=debut_basho,
+            last_basho=last_basho,
+            career=career,
+            error_message="必要項目のパース失敗",
+        )
+        remove_summary(con, rikishi_id)
+        remove_basho_records(con, rikishi_id)
+        con.commit()
+        return "error", "parse_error"
+
+    replace_basho_records(con, rikishi_id, url, str(raw_path), basho_records)
+    if is_heisei_debut(debut_basho):
+        upsert_summary(con, rikishi_id, shikona, highest_rank_raw, debut_basho, last_basho, career)
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="fetched",
+            cohort_state="included",
+            cohort_reason="heisei_debut",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=content_hash,
+            shikona=shikona,
+            highest_rank_raw=highest_rank_raw,
+            debut_basho=debut_basho,
+            last_basho=last_basho,
+            career=career,
+            error_message=None,
+        )
+        con.commit()
+        return "included", "heisei_debut"
+
+    remove_summary(con, rikishi_id)
+    update_catalog(
+        con,
+        rikishi_id,
+        fetch_state="fetched",
+        cohort_state="excluded",
+        cohort_reason="pre_heisei_debut",
+        source_url=url,
+        raw_html_path=str(raw_path),
+        http_status=status_code,
+        content_hash=content_hash,
+        shikona=shikona,
+        highest_rank_raw=highest_rank_raw,
+        debut_basho=debut_basho,
+        last_basho=last_basho,
+        career=career,
+        error_message=None,
+    )
+    con.commit()
+    return "excluded", "pre_heisei_debut"
+
+
 def fetch_one(con: sqlite3.Connection, rikishi_id: int) -> tuple[str, str]:
     url = BASE_URL.format(rikishi_id)
     try:
@@ -556,107 +916,20 @@ def fetch_one(con: sqlite3.Connection, rikishi_id: int) -> tuple[str, str]:
                 error_message=f"HTTP {status_code}",
             )
             remove_summary(con, rikishi_id)
+            remove_basho_records(con, rikishi_id)
             con.commit()
             return "error", "http_error"
 
         resp.encoding = resp.apparent_encoding
-        html = resp.text
-        content_hash = hashlib.sha256(html.encode("utf-8")).hexdigest()
-        raw_path = RAW_DIR / f"{rikishi_id}.html"
-        raw_path.write_text(html, encoding="utf-8")
-
-        text = html_to_text(html)
-        if "生涯戦歴" not in text:
-            update_catalog(
-                con,
-                rikishi_id,
-                fetch_state="error",
-                cohort_state="unknown",
-                cohort_reason="parse_error",
-                source_url=url,
-                raw_html_path=str(raw_path),
-                http_status=status_code,
-                content_hash=content_hash,
-                shikona=None,
-                highest_rank_raw=None,
-                debut_basho=None,
-                last_basho=None,
-                career=None,
-                error_message="生涯戦歴が見つからない",
-            )
-            remove_summary(con, rikishi_id)
-            con.commit()
-            return "error", "parse_error"
-
-        shikona = extract_shikona(text)
-        highest_rank_raw = extract_label_value(text, "highest_rank_raw")
-        debut_basho = extract_label_value(text, "debut_basho")
-        last_basho = extract_label_value(text, "last_basho")
-        career = extract_career(text)
-        if not career or not debut_basho:
-            update_catalog(
-                con,
-                rikishi_id,
-                fetch_state="error",
-                cohort_state="unknown",
-                cohort_reason="parse_error",
-                source_url=url,
-                raw_html_path=str(raw_path),
-                http_status=status_code,
-                content_hash=content_hash,
-                shikona=shikona,
-                highest_rank_raw=highest_rank_raw,
-                debut_basho=debut_basho,
-                last_basho=last_basho,
-                career=career,
-                error_message="必要項目のパース失敗",
-            )
-            remove_summary(con, rikishi_id)
-            con.commit()
-            return "error", "parse_error"
-
-        if is_heisei_debut(debut_basho):
-            upsert_summary(con, rikishi_id, shikona, highest_rank_raw, debut_basho, last_basho, career)
-            update_catalog(
-                con,
-                rikishi_id,
-                fetch_state="fetched",
-                cohort_state="included",
-                cohort_reason="heisei_debut",
-                source_url=url,
-                raw_html_path=str(raw_path),
-                http_status=status_code,
-                content_hash=content_hash,
-                shikona=shikona,
-                highest_rank_raw=highest_rank_raw,
-                debut_basho=debut_basho,
-                last_basho=last_basho,
-                career=career,
-                error_message=None,
-            )
-            con.commit()
-            return "included", "heisei_debut"
-
-        remove_summary(con, rikishi_id)
-        update_catalog(
+        return ingest_profile_html(
             con,
             rikishi_id,
-            fetch_state="fetched",
-            cohort_state="excluded",
-            cohort_reason="pre_heisei_debut",
-            source_url=url,
-            raw_html_path=str(raw_path),
-            http_status=status_code,
-            content_hash=content_hash,
-            shikona=shikona,
-            highest_rank_raw=highest_rank_raw,
-            debut_basho=debut_basho,
-            last_basho=last_basho,
-            career=career,
-            error_message=None,
+            url,
+            resp.text,
+            status_code=status_code,
+            raw_path=RAW_DIR / f"{rikishi_id}.html",
+            persist_html=True,
         )
-        con.commit()
-        return "excluded", "pre_heisei_debut"
     except Exception as exc:
         update_catalog(
             con,
@@ -676,6 +949,76 @@ def fetch_one(con: sqlite3.Connection, rikishi_id: int) -> tuple[str, str]:
             error_message=str(exc),
         )
         remove_summary(con, rikishi_id)
+        remove_basho_records(con, rikishi_id)
+        con.commit()
+        return "error", "parse_error"
+
+
+def reparse_cached_one(con: sqlite3.Connection, rikishi_id: int) -> tuple[str, str]:
+    row = con.execute(
+        """
+        SELECT source_url, raw_html_path, http_status
+        FROM rikishi_discovery_catalog
+        WHERE rikishi_id = ?
+        """,
+        (rikishi_id,),
+    ).fetchone()
+    url = row[0] if row and row[0] else BASE_URL.format(rikishi_id)
+    raw_path = Path(row[1]) if row and row[1] else RAW_DIR / f"{rikishi_id}.html"
+    status_code = int(row[2]) if row and row[2] is not None else 200
+    if not raw_path.exists():
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="error",
+            cohort_state="unknown",
+            cohort_reason="missing_cache",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=None,
+            shikona=None,
+            highest_rank_raw=None,
+            debut_basho=None,
+            last_basho=None,
+            career=None,
+            error_message="cached raw_html not found",
+        )
+        remove_summary(con, rikishi_id)
+        remove_basho_records(con, rikishi_id)
+        con.commit()
+        return "error", "missing_cache"
+    html = raw_path.read_text(encoding="utf-8", errors="ignore")
+    try:
+        return ingest_profile_html(
+            con,
+            rikishi_id,
+            url,
+            html,
+            status_code=status_code,
+            raw_path=raw_path,
+            persist_html=False,
+        )
+    except Exception as exc:
+        update_catalog(
+            con,
+            rikishi_id,
+            fetch_state="error",
+            cohort_state="unknown",
+            cohort_reason="parse_error",
+            source_url=url,
+            raw_html_path=str(raw_path),
+            http_status=status_code,
+            content_hash=None,
+            shikona=None,
+            highest_rank_raw=None,
+            debut_basho=None,
+            last_basho=None,
+            career=None,
+            error_message=str(exc),
+        )
+        remove_summary(con, rikishi_id)
+        remove_basho_records(con, rikishi_id)
         con.commit()
         return "error", "parse_error"
 
@@ -684,24 +1027,29 @@ def main() -> None:
     args = parse_args()
     con = sqlite3.connect(DB_PATH)
     try:
-        candidate_ids = get_catalog_ids(con, args.retry_errors)
+        candidate_ids = get_catalog_ids(con, args.retry_errors, args.reparse_cached)
         print(f"pending rikishi ids: {len(candidate_ids)}")
         processed = 0
         report = write_collection_report(con)
         for rikishi_id in candidate_ids:
             if args.max_fetch is not None and processed >= args.max_fetch:
                 break
-            status, reason = fetch_one(con, rikishi_id)
+            status, reason = (
+                reparse_cached_one(con, rikishi_id)
+                if args.reparse_cached
+                else fetch_one(con, rikishi_id)
+            )
             processed += 1
             print(f"[{status}] rikishi_id={rikishi_id} reason={reason}")
             report = maybe_checkpoint(con)
             upsert_etl_state(con, STOP_STATE_KEY, report["stabilityStatus"]["recommendedStopReason"])
             con.commit()
 
-            if report["stabilityStatus"]["recommendedStopReason"] != "continue":
+            if not args.reparse_cached and report["stabilityStatus"]["recommendedStopReason"] != "continue":
                 print(f"stop reason reached: {report['stabilityStatus']['recommendedStopReason']}")
                 break
-            time.sleep(args.sleep_seconds)
+            if not args.reparse_cached:
+                time.sleep(args.sleep_seconds)
 
         report = write_collection_report(con)
         upsert_etl_state(con, STOP_STATE_KEY, report["stabilityStatus"]["recommendedStopReason"])
