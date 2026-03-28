@@ -8,6 +8,7 @@ export {
   discardCareer,
   discardDraftCareer,
   getCareerSaveIncentiveSummary,
+  getCareerYokozunaOrdinal,
   isCareerSaved,
   listCommittedCareers,
   listShelvedCareers,

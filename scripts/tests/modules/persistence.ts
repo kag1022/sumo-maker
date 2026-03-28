@@ -1,9 +1,8 @@
-import { tests as legacyTests } from '../legacy/allCases';
-import { createScopedModule } from '../_shared/moduleUtils';
+import { tests as currentTests } from '../current/persistence';
+import { createScopedModule } from '../shared/moduleUtils';
 
-export const persistenceTestModule = createScopedModule('persistence', legacyTests, [
+export const persistenceTestModule = createScopedModule('persistence', currentTests, [
   'collection',
-  'compat',
   'persistence',
   'report',
   'storage',

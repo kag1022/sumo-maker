@@ -1,7 +1,7 @@
-import { tests as legacyTests } from '../legacy/allCases';
-import { createScopedModule } from '../_shared/moduleUtils';
+import { tests as currentTests } from '../current/npc';
+import { createScopedModule } from '../shared/moduleUtils';
 
-export const npcTestModule = createScopedModule('npc', legacyTests, [
+export const npcTestModule = createScopedModule('npc', currentTests, [
   'league',
   'npc intake',
   'npc pipeline',

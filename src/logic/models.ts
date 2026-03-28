@@ -629,7 +629,6 @@ export interface BuildSpecV4 {
   genome: RikishiGenome;
   aptitudeBaseTier: AptitudeTier;
   aptitudePlan: AptitudePlan;
-  selectedIchimonId: IchimonId | null;
   selectedStableId: string | null;
   selectedOyakataId: string | null;
   abstractAxes: {

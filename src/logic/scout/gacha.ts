@@ -67,6 +67,7 @@ export const SCOUT_BODY_SEED_LABELS: Record<ScoutBodySeed, string> = {
 export interface ScoutDraft {
   shikona: string;
   birthplace: string;
+  personaLine?: string;
   profile: BasicProfile;
   entryAge: 15 | 18 | 22;
   startingHeightCm: number;
@@ -75,15 +76,7 @@ export interface ScoutDraft {
   temperament: ScoutTemperament;
   bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
-  selectedIchimonId?: string | null;
   aptitudeTier: AptitudeTier;
-  amateurBackground?: string;
-  bodyConstitution?: string;
-  primaryStyle?: string;
-  secondaryStyle?: string;
-  mentalTrait?: string;
-  debtCardIds?: string[];
-  injuryResistance?: string;
 }
 
 export interface ScoutResolvedSeed {
@@ -97,32 +90,6 @@ export interface ScoutResolvedSeed {
   introductionLine: string;
   growthLine: string;
 }
-
-export interface ScoutOverrideCostBreakdown {
-  shikona: number;
-  realName: number;
-  birthplace: number;
-  personality: number;
-  background: number;
-  bodyConstitution: number;
-  style: number;
-  mental: number;
-  burden: number;
-  stable: number;
-}
-
-export interface ScoutOverrideCost {
-  total: number;
-  breakdown: ScoutOverrideCostBreakdown;
-}
-
-export const SCOUT_COST = {
-  DRAW: 0,
-  SHIKONA: 0,
-  REAL_NAME: 0,
-  BIRTHPLACE: 0,
-  PERSONALITY: 0,
-} as const;
 
 const RANDOM_FAMILY_NAMES = [
   "佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤",
@@ -332,6 +299,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   return {
     shikona: generateShikona(),
     birthplace: profile.birthplace,
+    personaLine: `${entryAge === 15 ? "早い入口" : entryAge === 22 ? "完成に近い入口" : "土台のある入口"}から角界へ入る。`,
     profile,
     entryAge,
     startingHeightCm: baseHeight + Math.floor(rng() * 7),
@@ -343,6 +311,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     aptitudeTier: resolveAptitudeTier({
       shikona: "",
       birthplace: "",
+      personaLine: "",
       profile,
       entryAge,
       startingHeightCm: 0,
@@ -468,25 +437,6 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   status.history.maxRank = { ...status.rank };
   return status;
 };
-
-export const resolveScoutOverrideCost = (
-  _base: ScoutDraft,
-  _edited: ScoutDraft,
-): ScoutOverrideCost => ({
-  total: 0,
-  breakdown: {
-    shikona: 0,
-    realName: 0,
-    birthplace: 0,
-    personality: 0,
-    background: 0,
-    bodyConstitution: 0,
-    style: 0,
-    mental: 0,
-    burden: 0,
-    stable: 0,
-  },
-});
 
 export const getScoutDraftHeadline = (draft: ScoutDraft): string =>
   `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;

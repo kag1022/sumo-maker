@@ -523,7 +523,17 @@ export interface CareerListItem {
   recordBadgeKeys: string[];
   bestScoreRank?: number;
   collectionDeltaCount?: number;
+  yokozunaOrdinal?: number;
 }
+
+const resolveNextYokozunaOrdinal = async (careerId: string): Promise<number> => {
+  const db = getDb();
+  const rows = await db.careers.toArray();
+  const current = rows.find((row) => row.id === careerId);
+  if (current?.yokozunaOrdinal) return current.yokozunaOrdinal;
+  const maxOrdinal = rows.reduce((max, row) => Math.max(max, row.yokozunaOrdinal ?? 0), 0);
+  return maxOrdinal + 1;
+};
 
 export interface HeadToHeadRow {
   opponentId: string;
@@ -762,6 +772,10 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       ? deriveOyakataProfile(careerId, career.finalStatus)
       : undefined;
     let finalStatus = career.finalStatus;
+    const yokozunaOrdinal =
+      finalStatus?.history.maxRank.name === '横綱'
+        ? await resolveNextYokozunaOrdinal(careerId)
+        : career.yokozunaOrdinal;
     if (finalStatus?.history.prizeBreakdown) {
       const rewardSummary = buildCareerRewardSummary(finalStatus.history.prizeBreakdown);
       const existingReward = await db.careerRewardLedger.get(careerId);
@@ -817,6 +831,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       lifetimePrizeYen: finalStatus?.history.prizeBreakdown?.totalYen ?? career.lifetimePrizeYen,
       earnedPointsFromPrize: finalStatus?.history.rewardSummary?.convertedPoints ?? career.earnedPointsFromPrize,
       rewardGrantedAt: finalStatus?.history.rewardSummary?.grantedAt,
+      yokozunaOrdinal,
     });
 
     const savedRows = await db.careers.where('state').equals('shelved').toArray();
@@ -897,6 +912,7 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   recordBadgeKeys: row.recordBadgeKeys ?? [],
   bestScoreRank: row.bestScoreRank,
   collectionDeltaCount: row.collectionDeltaCount,
+  yokozunaOrdinal: row.yokozunaOrdinal,
 });
 
 export const listShelvedCareers = async (): Promise<CareerListItem[]> => {
@@ -1129,6 +1145,12 @@ export const isCareerSaved = async (careerId: string): Promise<boolean> => {
   const db = getDb();
   const row = await db.careers.get(careerId);
   return row?.state === 'shelved';
+};
+
+export const getCareerYokozunaOrdinal = async (careerId: string): Promise<number | null> => {
+  const db = getDb();
+  const row = await db.careers.get(careerId);
+  return row?.yokozunaOrdinal ?? null;
 };
 
 export const buildCareerStartYearMonth = (year: number, month: number): string =>
