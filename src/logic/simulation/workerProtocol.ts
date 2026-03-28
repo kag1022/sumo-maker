@@ -7,9 +7,19 @@ export interface SimulationObservationEntry {
   year: number;
   month: number;
   kind: 'milestone' | 'result' | 'danger' | 'closing';
+  chapterKind: SimulationChapterKind | null;
   headline: string;
   detail: string;
 }
+
+export type SimulationChapterKind =
+  | 'DEBUT'
+  | 'SEKITORI'
+  | 'SANYAKU'
+  | 'TITLE_RACE'
+  | 'INJURY'
+  | 'RETIREMENT'
+  | 'EPILOGUE';
 
 export type LiveBashoTone = 'title' | 'promotion' | 'demotion' | 'duty' | 'normal';
 
@@ -52,10 +62,16 @@ export interface LiveBashoViewModel {
   year: number;
   month: number;
   day: number | null;
+  currentAge: number | null;
   playerDivision: string;
   currentRank: string;
   currentRecord: string;
   phaseId: string;
+  chapterKind: SimulationChapterKind | null;
+  chapterTitle: string;
+  chapterReason: string;
+  heroMoment: string;
+  nextBeatLabel: string;
   contentionTier: 'Leader' | 'Contender' | 'Outside';
   titleImplication: 'DIRECT' | 'CHASE' | 'NONE';
   boundaryImplication: 'PROMOTION' | 'DEMOTION' | 'NONE';
@@ -74,7 +90,7 @@ export interface StartSimulationMessage {
     oyakata: Oyakata | null;
     runOptions?: SimulationRunOptions;
     simulationModelVersion?: SimulationModelVersion;
-    initialPacing: 'observe' | 'skip_to_end';
+    initialPacing: 'chaptered' | 'observe' | 'skip_to_end';
   };
 }
 
@@ -85,14 +101,19 @@ export interface StopSimulationMessage {
 export interface SetPacingMessage {
   type: 'SET_PACING';
   payload: {
-    pacing: 'observe' | 'skip_to_end';
+    pacing: 'chaptered' | 'observe' | 'skip_to_end';
   };
+}
+
+export interface ResumeSimulationMessage {
+  type: 'RESUME';
 }
 
 export type SimulationWorkerRequest =
   | StartSimulationMessage
   | StopSimulationMessage
-  | SetPacingMessage;
+  | SetPacingMessage
+  | ResumeSimulationMessage;
 
 export interface WorkerProgressMessage {
   type: 'BASHO_PROGRESS';
@@ -107,6 +128,7 @@ export interface WorkerProgressMessage {
     progress: SimulationProgressSnapshot;
     observation: SimulationObservationEntry;
     latestBashoView: LiveBashoViewModel;
+    pauseForChapter?: boolean;
   };
 }
 
@@ -119,6 +141,8 @@ export interface WorkerCompletedMessage {
     progress: SimulationProgressSnapshot;
     observation: SimulationObservationEntry;
     pauseReason?: PauseReason;
+    latestBashoView?: LiveBashoViewModel | null;
+    pauseForChapter?: boolean;
   };
 }
 

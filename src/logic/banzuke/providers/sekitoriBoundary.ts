@@ -1,6 +1,5 @@
 import { Rank } from '../../models';
 import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
-import { BanzukeEngineVersion } from '../types';
 import { clamp } from '../../simulation/boundary/shared';
 import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
@@ -95,7 +94,6 @@ export const resolveSekitoriBoundaryAssignedRank = (
   makushitaResults: BoundarySnapshot[],
   exchange: SekitoriExchange,
   playerFullAbsence: boolean,
-  _banzukeEngineVersion: BanzukeEngineVersion = 'optimizer-v2',
 ): Rank | undefined => {
   const candidates: ExpectedPlacementCandidate[] = [];
 

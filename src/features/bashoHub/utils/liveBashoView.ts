@@ -1,10 +1,12 @@
-import type { BashoRecord, Rank } from "../../../logic/models";
+import type { BashoRecord, Rank, RikishiStatus } from "../../../logic/models";
 import type { ImportantTorikumiNote, PlayerBoutDetail } from "../../../logic/simulation/basho";
 import type { SimulationDiagnostics } from "../../../logic/simulation/diagnostics";
+import type { SimulationProgressSnapshot } from "../../../logic/simulation/engine";
 import type {
   FeaturedBoutModel,
   LiveBashoDiagnosticsSummary,
   LiveBashoRaceSummaryItem,
+  SimulationChapterKind,
   LiveBashoTone,
   LiveBashoViewModel,
   TorikumiSlateItemModel,
@@ -72,6 +74,9 @@ const formatOpponentRank = (
 
 const formatRecordText = (record: Pick<BashoRecord, "wins" | "losses" | "absent">): string =>
   `${record.wins}勝${record.losses}敗${record.absent > 0 ? `${record.absent}休` : ""}`;
+
+const formatCareerRecordText = (status: RikishiStatus): string =>
+  `${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`;
 
 export const resolveBashoStakeLabel = (trigger?: string): string => {
   if (trigger === "YUSHO_DIRECT") return "優勝直接戦";
@@ -190,18 +195,34 @@ export const buildLiveBashoView = ({
   seq,
   year,
   month,
+  currentAge = null,
   playerRecord,
   playerBouts,
   importantTorikumiNotes,
   diagnostics,
+  chapter = {
+    chapterKind: null,
+    chapterTitle: "場所の観測",
+    chapterReason: "この場所で何が起きたかを読みます。",
+    heroMoment: "その場所の主役取組を抜き出しました。",
+    nextBeatLabel: "次の流れへ進む",
+  },
 }: {
   seq: number;
   year: number;
   month: number;
+  currentAge?: number | null;
   playerRecord: BashoRecord;
   playerBouts: PlayerBoutDetail[];
   importantTorikumiNotes?: ImportantTorikumiNote[];
   diagnostics?: SimulationDiagnostics;
+  chapter?: {
+    chapterKind: SimulationChapterKind | null;
+    chapterTitle: string;
+    chapterReason: string;
+    heroMoment: string;
+    nextBeatLabel: string;
+  };
 }): LiveBashoViewModel => {
   const sortedNotes = (importantTorikumiNotes ?? [])
     .slice()
@@ -239,10 +260,16 @@ export const buildLiveBashoView = ({
     year,
     month,
     day: featuredBout?.day ?? null,
+    currentAge,
     playerDivision: playerRecord.rank.division,
     currentRank: formatRankDisplayName(playerRecord.rank),
     currentRecord: formatRecordText(playerRecord),
     phaseId: featuredNote?.phaseId ?? "BASHO_END",
+    chapterKind: chapter.chapterKind,
+    chapterTitle: chapter.chapterTitle,
+    chapterReason: chapter.chapterReason,
+    heroMoment: chapter.heroMoment,
+    nextBeatLabel: chapter.nextBeatLabel,
     contentionTier: featuredNote?.contentionTier ?? "Outside",
     titleImplication: featuredNote?.titleImplication ?? "NONE",
     boundaryImplication: featuredNote?.boundaryImplication ?? "NONE",
@@ -251,5 +278,90 @@ export const buildLiveBashoView = ({
     raceSummary: buildRaceSummary(playerRecord, featuredNote, diagnosticsSummary),
     plannedNextPlayerDay: null,
     latestDiagnosticsSummary: diagnosticsSummary,
+  };
+};
+
+export const buildCareerEpilogueView = ({
+  status,
+  progress,
+  chapterKind,
+  chapterTitle,
+  chapterReason,
+  nextBeatLabel,
+}: {
+  status: RikishiStatus;
+  progress: SimulationProgressSnapshot;
+  chapterKind: SimulationChapterKind;
+  chapterTitle: string;
+  chapterReason: string;
+  nextBeatLabel: string;
+}): LiveBashoViewModel => {
+  const lastRecord = status.history.records[status.history.records.length - 1] ?? null;
+  const highestRank = formatRankDisplayName(status.history.maxRank);
+  const careerIdentity =
+    status.careerNarrative?.careerIdentity ??
+    `${highestRank}まで届き、${formatCareerRecordText(status)}を残した。`;
+  const retirementDigest =
+    status.careerNarrative?.retirementDigest ??
+    `${status.age}歳で土俵を去った。`;
+
+  const featuredBout: FeaturedBoutModel | null = {
+    day: null,
+    kindLabel: chapterKind === "RETIREMENT" ? "引退" : "最終総括",
+    summary: retirementDigest,
+    matchup: `${status.shikona} / ${highestRank}`,
+    phaseLabel: "生涯",
+    tone: chapterKind === "RETIREMENT" ? "demotion" : "title",
+  };
+
+  const raceSummary: LiveBashoRaceSummaryItem[] = [
+    {
+      id: "highest-rank",
+      label: "最高位",
+      value: highestRank,
+      tone: status.history.maxRank.name === "横綱" ? "title" : "promotion",
+    },
+    {
+      id: "career-record",
+      label: "通算成績",
+      value: formatCareerRecordText(status),
+      tone: "normal",
+    },
+    {
+      id: "career-identity",
+      label: "人物像",
+      value: careerIdentity,
+      tone: "duty",
+    },
+  ];
+
+  return {
+    seq: progress.bashoCount,
+    year: progress.year,
+    month: progress.month,
+    day: null,
+    currentAge: status.age,
+    playerDivision: lastRecord?.rank.division ?? status.rank.division,
+    currentRank: highestRank,
+    currentRecord: lastRecord ? formatRecordText(lastRecord) : formatCareerRecordText(status),
+    phaseId: "CAREER_END",
+    chapterKind,
+    chapterTitle,
+    chapterReason,
+    heroMoment: careerIdentity,
+    nextBeatLabel,
+    contentionTier: "Outside",
+    titleImplication: "NONE",
+    boundaryImplication: "NONE",
+    featuredBout,
+    torikumiSlate: [],
+    raceSummary,
+    plannedNextPlayerDay: null,
+    latestDiagnosticsSummary: {
+      scheduleViolations: 0,
+      repairCount: 0,
+      crossDivisionBoutCount: 0,
+      lateDirectTitleBoutCount: 0,
+    },
   };
 };

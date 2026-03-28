@@ -1,7 +1,7 @@
-import { tests as legacyTests } from '../legacy/allCases';
-import { createScopedModule } from '../_shared/moduleUtils';
+import { tests as currentTests } from '../current/gameplay';
+import { createScopedModule } from '../shared/moduleUtils';
 
-export const gameplayTestModule = createScopedModule('gameplay', legacyTests, [
+export const gameplayTestModule = createScopedModule('gameplay', currentTests, [
   'build vnext',
   'build-lab',
   'career',

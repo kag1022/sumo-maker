@@ -326,7 +326,6 @@ export const createDefaultBuildSpec = (): BuildSpecV4 => ({
     reveal: false,
     tuneStep: 0,
   },
-  selectedIchimonId: null,
   selectedStableId: null,
   selectedOyakataId: null,
   abstractAxes: {
