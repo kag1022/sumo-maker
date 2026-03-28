@@ -1,7 +1,7 @@
-import { tests as legacyTests } from '../legacy/allCases';
-import { createScopedModule } from '../_shared/moduleUtils';
+import { tests as currentTests } from '../current/simulation';
+import { createScopedModule } from '../shared/moduleUtils';
 
-export const simulationTestModule = createScopedModule('simulation', legacyTests, [
+export const simulationTestModule = createScopedModule('simulation', currentTests, [
   'battle',
   'engine',
   'growth',

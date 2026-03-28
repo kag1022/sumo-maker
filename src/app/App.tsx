@@ -1,5 +1,5 @@
 import React from "react";
-import { FastForward, Play, Save, Square } from "lucide-react";
+import { FastForward, Play, Square } from "lucide-react";
 import { AppShell, type AppSection } from "./AppShell";
 import { BashoTheaterScreen } from "../features/bashoHub/components/BashoTheaterScreen";
 import { CareerResultPage } from "../features/careerResult/components/CareerResultPage";
@@ -15,6 +15,7 @@ import {
   type CareerBashoDetail,
   type CareerBashoRecordsBySeq,
 } from "../logic/persistence/careerHistory";
+import { getCareerYokozunaOrdinal } from "../logic/persistence/careers";
 import { formatBashoLabel, formatRankDisplayName } from "../features/report/utils/reportShared";
 import { Button } from "../shared/ui/Button";
 import { getDefaultDivision, type EraStatsViewState } from "../features/eraStats/utils/eraStatsModel";
@@ -41,9 +42,11 @@ export const App: React.FC = () => {
     isCurrentCareerSaved,
     simulationPacing,
     latestBashoView,
+    latestObservation,
     latestPauseReason,
     hallOfFame,
     errorMessage,
+    continueChapter,
     startSimulation,
     skipToEnd,
     revealCurrentResult,
@@ -61,6 +64,8 @@ export const App: React.FC = () => {
     selectedBashoSeq: null,
     visibleWindowStartSeq: 1,
     visibleWindowEndSeq: 1,
+    activeChapter: "overview",
+    placeTab: "banzuke",
   });
   const [eraViewState, setEraViewState] = React.useState<EraStatsViewState>({
     selectedBashoSeq: 1,
@@ -71,6 +76,7 @@ export const App: React.FC = () => {
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [bashoRows, setBashoRows] = React.useState<CareerBashoRecordsBySeq[]>([]);
   const [bashoRowsLoading, setBashoRowsLoading] = React.useState(false);
+  const [currentYokozunaOrdinal, setCurrentYokozunaOrdinal] = React.useState<number | null>(null);
   const previousCareerIdRef = React.useRef<string | null>(null);
   const previousPhaseRef = React.useRef(phase);
 
@@ -81,13 +87,13 @@ export const App: React.FC = () => {
 
   React.useEffect(() => {
     const showBashoSection =
-      simulationPacing === "observe" &&
-      (phase === "simulating" || phase === "running" || phase === "reveal_ready");
+      (simulationPacing === "observe" || simulationPacing === "chaptered") &&
+      (phase === "running" || phase === "chapter_ready");
     if (showBashoSection) {
       setActiveSection((current) => (current === "logicLab" ? current : "basho"));
       return;
     }
-    if (phase === "completed" || phase === "running" || phase === "simulating" || phase === "reveal_ready") {
+    if (phase === "completed" || phase === "simulating" || phase === "reveal_ready") {
       setActiveSection((current) => (current === "logicLab" ? current : "career"));
     }
   }, [phase, simulationPacing]);
@@ -103,6 +109,8 @@ export const App: React.FC = () => {
         selectedBashoSeq: null,
         visibleWindowStartSeq: 1,
         visibleWindowEndSeq: 1,
+        activeChapter: "overview",
+        placeTab: "banzuke",
       });
       return;
     }
@@ -112,28 +120,54 @@ export const App: React.FC = () => {
     const shouldSnapToLatest =
       currentCareerId !== previousCareerId ||
       (phase === "completed" && previousPhase !== "completed");
-    const selectedSeq = shouldSnapToLatest || !careerViewState.selectedBashoSeq || careerViewState.selectedBashoSeq > lastSeq
-      ? lastSeq || null
-      : careerViewState.selectedBashoSeq;
-    const windowSize = Math.min(lastSeq || 1, 18);
-    const windowEnd = selectedSeq ?? lastSeq;
-    const windowStart = Math.max(1, windowEnd - windowSize + 1);
-    setCareerViewState({
-      selectedBashoSeq: selectedSeq,
-      visibleWindowStartSeq: windowStart,
-      visibleWindowEndSeq: Math.max(windowStart, windowEnd),
+    let nextSelectedSeq: number | null = lastSeq || null;
+    setCareerViewState((current) => {
+      const selectedSeq =
+        shouldSnapToLatest || !current.selectedBashoSeq || current.selectedBashoSeq > lastSeq
+          ? lastSeq || null
+          : current.selectedBashoSeq;
+      nextSelectedSeq = selectedSeq;
+      const windowSize = Math.min(lastSeq || 1, 18);
+      const windowEnd = selectedSeq ?? lastSeq;
+      const windowStart = Math.max(1, windowEnd - windowSize + 1);
+      return {
+        selectedBashoSeq: selectedSeq,
+        visibleWindowStartSeq: windowStart,
+        visibleWindowEndSeq: Math.max(windowStart, windowEnd),
+        activeChapter: shouldSnapToLatest ? "overview" : current.activeChapter,
+        placeTab: shouldSnapToLatest ? "banzuke" : current.placeTab,
+      };
     });
     setEraViewState((current) => ({
-      selectedBashoSeq: selectedSeq ?? 1,
+      selectedBashoSeq: nextSelectedSeq ?? 1,
       selectedDivision: getDefaultDivision(records[records.length - 1]?.rank.division),
       rankingBasis: current.rankingBasis,
     }));
-  }, [careerViewState.selectedBashoSeq, currentCareerId, phase, status]);
+  }, [currentCareerId, phase, status]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!currentCareerId) {
+      setCurrentYokozunaOrdinal(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void (async () => {
+      const nextOrdinal = await getCareerYokozunaOrdinal(currentCareerId);
+      if (!cancelled) {
+        setCurrentYokozunaOrdinal(nextOrdinal);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentCareerId, isCurrentCareerSaved, phase]);
 
   React.useEffect(() => {
     let cancelled = false;
     const shouldLoadBashoRows =
-      Boolean(currentCareerId) && (phase === "reveal_ready" || phase === "completed");
+      Boolean(currentCareerId) && (phase === "reveal_ready" || phase === "completed" || phase === "chapter_ready");
     if (!shouldLoadBashoRows) {
       if (!currentCareerId) {
         setBashoRows([]);
@@ -230,7 +264,7 @@ export const App: React.FC = () => {
   const handleStart = React.useCallback(
     async (...args: Parameters<typeof startSimulation>) => {
       await startSimulation(...args);
-      setActiveSection(args[4] === "observe" ? "basho" : "career");
+      setActiveSection(args[4] === "skip_to_end" ? "career" : "basho");
     },
     [startSimulation],
   );
@@ -246,8 +280,8 @@ export const App: React.FC = () => {
   const disableSections = React.useMemo<AppSection[]>(() => {
     const disabled: AppSection[] = [];
     const showBashoSection =
-      simulationPacing === "observe" &&
-      (phase === "simulating" || phase === "running" || phase === "reveal_ready");
+      (simulationPacing === "observe" || simulationPacing === "chaptered") &&
+      (phase === "running" || phase === "chapter_ready");
     if (!status) {
       disabled.push("career", "era", "basho");
     }
@@ -265,16 +299,15 @@ export const App: React.FC = () => {
     phase,
     progress,
     latestPauseReason,
+    latestObservation,
     errorMessage,
     bashoRowsLoading,
   });
   const shellActions = getShellActions({
     phase,
-    isCurrentCareerSaved,
     onSkipToEnd: skipToEnd,
     onReveal: revealCurrentResult,
     onStop: stopSimulation,
-    onSave: saveCurrentCareer,
   });
 
   return (
@@ -286,8 +319,8 @@ export const App: React.FC = () => {
       actions={shellActions}
       showLogicLab={import.meta.env.DEV}
       showBasho={
-        simulationPacing === "observe" &&
-        (phase === "simulating" || phase === "running" || phase === "reveal_ready")
+        (simulationPacing === "observe" || simulationPacing === "chaptered") &&
+        (phase === "running" || phase === "chapter_ready")
       }
       disableSections={disableSections}
     >
@@ -306,7 +339,10 @@ export const App: React.FC = () => {
         careerViewState,
         eraViewState,
         bashoRows,
+        currentYokozunaOrdinal,
         onStart: handleStart,
+        onContinueChapter: continueChapter,
+        onSkipToEnd: skipToEnd,
         onCareerViewStateChange: setCareerViewState,
         onEraViewStateChange: setEraViewState,
         onSelectBasho: (bashoSeq) => {
@@ -322,6 +358,7 @@ export const App: React.FC = () => {
               start = Math.max(1, end - size + 1);
             }
             return {
+              ...current,
               selectedBashoSeq: bashoSeq,
               visibleWindowStartSeq: start,
               visibleWindowEndSeq: end,
@@ -332,6 +369,7 @@ export const App: React.FC = () => {
         onOpenEra: () => setActiveSection("era"),
         onOpenCareer: () => setActiveSection("career"),
         onSaveCurrentCareer: saveCurrentCareer,
+        onReturnToScout: () => void handleSectionChange("scout"),
         onOpenArchiveCareer: handleOpenArchivedCareer,
         onDeleteCareer: deleteCareerById,
         onOpenArchive: () => setActiveSection("archive"),
@@ -355,13 +393,17 @@ const renderSection = ({
   careerViewState,
   eraViewState,
   bashoRows,
+  currentYokozunaOrdinal,
   onStart,
+  onContinueChapter,
+  onSkipToEnd,
   onCareerViewStateChange,
   onEraViewStateChange,
   onSelectBasho,
   onOpenEra,
   onOpenCareer,
   onSaveCurrentCareer,
+  onReturnToScout,
   onOpenArchiveCareer,
   onDeleteCareer,
   onOpenArchive,
@@ -380,13 +422,17 @@ const renderSection = ({
   careerViewState: CareerResultViewState;
   eraViewState: EraStatsViewState;
   bashoRows: CareerBashoRecordsBySeq[];
+  currentYokozunaOrdinal: number | null;
   onStart: (...args: Parameters<ReturnType<typeof useSimulation>["startSimulation"]>) => Promise<void>;
+  onContinueChapter: () => void;
+  onSkipToEnd: () => void;
   onCareerViewStateChange: React.Dispatch<React.SetStateAction<CareerResultViewState>>;
   onEraViewStateChange: React.Dispatch<React.SetStateAction<EraStatsViewState>>;
   onSelectBasho: (bashoSeq: number) => void;
   onOpenEra: () => void;
   onOpenCareer: () => void;
   onSaveCurrentCareer: () => Promise<void>;
+  onReturnToScout: () => void;
   onOpenArchiveCareer: (careerId: string) => Promise<void>;
   onDeleteCareer: (careerId: string) => Promise<void>;
   onOpenArchive: () => void;
@@ -427,10 +473,24 @@ const renderSection = ({
 
   if (
     activeSection === "basho" &&
-    simulationPacing === "observe" &&
-    (phase === "simulating" || phase === "running" || phase === "reveal_ready")
+    (simulationPacing === "observe" || simulationPacing === "chaptered") &&
+    (phase === "running" || phase === "chapter_ready")
   ) {
-    return <BashoTheaterScreen view={latestBashoView} />;
+    return (
+      <BashoTheaterScreen
+        view={latestBashoView}
+        primaryActionLabel={
+          phase === "chapter_ready"
+            ? latestBashoView?.chapterKind === "RETIREMENT" || latestBashoView?.chapterKind === "EPILOGUE"
+              ? "記録を見る"
+              : "続きを読む"
+            : null
+        }
+        secondaryActionLabel={phase === "chapter_ready" ? "最後まで進める" : null}
+        onPrimaryAction={phase === "chapter_ready" ? onContinueChapter : undefined}
+        onSecondaryAction={phase === "chapter_ready" ? onSkipToEnd : undefined}
+      />
+    );
   }
 
   if (phase === "simulating" || phase === "running") {
@@ -466,14 +526,16 @@ const renderSection = ({
       status={status}
       careerId={currentCareerId}
       isSaved={isCurrentCareerSaved}
+      yokozunaOrdinal={currentYokozunaOrdinal}
       detail={detail}
       detailLoading={detailLoading}
       bashoRows={bashoRows}
       viewState={careerViewState}
       onSelectBasho={onSelectBasho}
-      onWindowChange={(window) => onCareerViewStateChange((current) => ({ ...current, ...window }))}
+      onViewStateChange={(patch) => onCareerViewStateChange((current) => ({ ...current, ...patch }))}
       onSave={onSaveCurrentCareer}
       onOpenEra={onOpenEra}
+      onReturnToScout={onReturnToScout}
     />
   );
 };
@@ -531,11 +593,11 @@ const EmptyCareerState: React.FC = () => (
 );
 
 const getShellTitle = (section: AppSection, shikona?: string | null): string => {
-  if (section === "basho") return shikona ? `${shikona} 場所中枢` : "場所中枢";
-  if (section === "career") return shikona ? `${shikona} キャリア結果` : "キャリア結果";
+  if (section === "basho") return shikona ? `${shikona} 節目劇場` : "節目劇場";
+  if (section === "career") return shikona ? `${shikona} 力士記録` : "力士記録";
   if (section === "era") return shikona ? `${shikona} 時代統計` : "時代統計";
-  if (section === "archive") return "アーカイブ";
-  if (section === "collection") return "コレクション";
+  if (section === "archive") return "保存済み記録";
+  if (section === "collection") return "資料館";
   if (section === "logicLab") return "ロジック検証";
   return "新弟子設計";
 };
@@ -544,18 +606,23 @@ const getStatusLine = ({
   phase,
   progress,
   latestPauseReason,
+  latestObservation,
   errorMessage,
   bashoRowsLoading,
 }: {
   phase: ReturnType<typeof useSimulation>["phase"];
   progress: ReturnType<typeof useSimulation>["progress"];
   latestPauseReason: ReturnType<typeof useSimulation>["latestPauseReason"];
+  latestObservation: ReturnType<typeof useSimulation>["latestObservation"];
   errorMessage: string | undefined;
   bashoRowsLoading: boolean;
 }) => {
   if (errorMessage) return errorMessage;
   if (phase === "simulating" || phase === "running") {
     return `${progress ? formatBashoLabel(progress.year, progress.month) : "-"} / ${progress ? formatRankDisplayName(progress.currentRank) : "-"} / ${progress?.bashoCount ?? 0}場所`;
+  }
+  if (phase === "chapter_ready") {
+    return latestObservation?.headline ?? "節目待機";
   }
   if (phase === "reveal_ready") {
     return latestPauseReason ? `停止: ${latestPauseReason}` : "結果待機";
@@ -566,19 +633,19 @@ const getStatusLine = ({
 
 const getShellActions = ({
   phase,
-  isCurrentCareerSaved,
   onSkipToEnd,
   onReveal,
   onStop,
-  onSave,
 }: {
   phase: ReturnType<typeof useSimulation>["phase"];
-  isCurrentCareerSaved: boolean;
   onSkipToEnd: () => void;
   onReveal: () => void;
   onStop: () => Promise<void>;
-  onSave: () => Promise<void>;
 }) => {
+  if (phase === "chapter_ready") {
+    return null;
+  }
+
   if (phase === "simulating" || phase === "running") {
     return (
       <>
@@ -599,15 +666,6 @@ const getShellActions = ({
       <Button size="sm" onClick={onReveal}>
         <Play className="mr-2 h-4 w-4" />
         結果を開く
-      </Button>
-    );
-  }
-
-  if (phase === "completed" && !isCurrentCareerSaved) {
-    return (
-      <Button variant="secondary" size="sm" onClick={() => void onSave()}>
-        <Save className="mr-2 h-4 w-4" />
-        保存
       </Button>
     );
   }

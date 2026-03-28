@@ -274,7 +274,6 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     deps.random,
     undefined,
     lowerDivisionQuotaWorld,
-    banzukeEngineVersion,
   );
 
   state.status.history.records.push(bashoRecord);

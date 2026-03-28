@@ -1,14 +1,16 @@
-import { assertModuleCoverage, getTestScope } from './_shared/moduleUtils';
+import { assertModuleCoverage, getTestScope } from './shared/moduleUtils';
+import { tests as compatTests } from './compat';
+import { tests as currentTests } from './current';
 import { banzukeTestModule } from './modules/banzuke';
 import { calibrationTestModule } from './modules/calibration';
+import { compatTestModule } from './modules/compat';
 import { gameplayTestModule } from './modules/gameplay';
 import { experienceTestModule } from './modules/experience';
 import { npcTestModule } from './modules/npc';
 import { persistenceTestModule } from './modules/persistence';
-import { tests as legacyTests } from './legacy/allCases';
 import { simulationTestModule } from './modules/simulation';
 import { uiTestModule } from './modules/ui';
-import { TestCase, TestModule } from './types';
+import { TestCase, TestModule, TestSuite } from './types';
 
 const nodeProcess = (globalThis as {
   process?: { argv?: string[]; env?: Record<string, string | undefined>; exitCode?: number };
@@ -25,8 +27,25 @@ const parseCommaList = (value: string | undefined): string[] =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+const TEST_SUITES: readonly TestSuite[] = ['unit', 'verification', 'docs'];
+
+export const getTestSuite = (test: TestCase): TestSuite => test.suite ?? 'unit';
+
+const normalizeSuites = (values: string[]): TestSuite[] => {
+  const normalized = values
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .flatMap((value) => (value === 'all' ? [] : [value]));
+  const invalid = normalized.filter((value): value is string => !TEST_SUITES.includes(value as TestSuite));
+  if (invalid.length > 0) {
+    throw new Error(`Unknown test suite: ${invalid.join(', ')}`);
+  }
+  return [...new Set(normalized as TestSuite[])];
+};
+
 export const testModules: TestModule[] = [
   calibrationTestModule,
+  compatTestModule,
   banzukeTestModule,
   simulationTestModule,
   gameplayTestModule,
@@ -36,7 +55,7 @@ export const testModules: TestModule[] = [
   uiTestModule,
 ];
 
-assertModuleCoverage(testModules, legacyTests);
+assertModuleCoverage(testModules, [...compatTests, ...currentTests]);
 
 export const tests: TestCase[] = testModules.flatMap((module) => module.cases);
 
@@ -50,12 +69,17 @@ export const listScopesForTests = (selectedTests: TestCase[]): string[] =>
     .filter(Boolean)
     .sort();
 
+export const listSuitesForTests = (selectedTests: TestCase[]): TestSuite[] =>
+  [...new Set(selectedTests.map((test) => getTestSuite(test)))]
+    .sort() as TestSuite[];
+
 export const selectTests = (
   cliArgs: string[],
   envVars: Record<string, string | undefined>,
 ): { selectedTests: TestCase[]; listScopesOnly: boolean } => {
   const grepPatterns: string[] = [...parseCommaList(envVars.TEST_GREP)];
   const scopes: string[] = [...parseCommaList(envVars.TEST_SCOPE).map((scope) => scope.toLowerCase())];
+  const suites: TestSuite[] = normalizeSuites(parseCommaList(envVars.TEST_SUITE));
   let listScopesOnly = false;
 
   for (let i = 0; i < cliArgs.length; i += 1) {
@@ -78,6 +102,15 @@ export const selectTests = (
       i += 1;
       continue;
     }
+    if (arg === '--suite') {
+      const suite = readArgValue(cliArgs, i);
+      if (!suite) {
+        throw new Error('Missing value for --suite');
+      }
+      suites.push(...normalizeSuites([suite]));
+      i += 1;
+      continue;
+    }
     if (arg === '--list-scopes') {
       listScopesOnly = true;
     }
@@ -87,8 +120,9 @@ export const selectTests = (
   const selectedTests = tests.filter((test) => {
     const scope = getTestScope(test.name);
     const scopeOk = scopes.length === 0 || scopes.includes(scope);
+    const suiteOk = suites.length === 0 || suites.includes(getTestSuite(test));
     const grepOk = grepRegexes.length === 0 || grepRegexes.some((regex) => regex.test(test.name));
-    return scopeOk && grepOk;
+    return scopeOk && suiteOk && grepOk;
   });
 
   return {
@@ -130,7 +164,9 @@ export const runFromCli = async (): Promise<void> => {
   }
 
   if (!listScopesOnly && selectedTests.length !== tests.length) {
-    console.log(`Running filtered tests: ${selectedTests.length}/${tests.length}`);
+    const selectedSuites = listSuitesForTests(selectedTests);
+    const suiteLabel = selectedSuites.length > 0 ? ` [${selectedSuites.join(', ')}]` : '';
+    console.log(`Running filtered tests${suiteLabel}: ${selectedTests.length}/${tests.length}`);
   }
 
   if (listScopesOnly) {

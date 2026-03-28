@@ -113,6 +113,8 @@ npm run dev
 ```bash
 npm run dev
 npm test
+npm run test:verification
+npm run test:docs
 npm run build
 npm run report:calibration
 npm run report:banzuke:quick
@@ -126,8 +128,15 @@ npm run report:realism:acceptance
 補足:
 
 - `npm test`
-  - `scripts/tests/index.ts` を入口に sim tests を実行
+  - unit suite の sim tests を実行
+  - `scripts/tests/index.ts` を入口に `--suite unit` で起動
   - `scripts/shared/ensure_simtests_build.cjs` で `.tmp/sim-tests` を再利用
+- `npm run test:verification`
+  - 校正 JSON や収集レポートの静的整合チェックを実行
+- `npm run test:docs`
+  - `docs/balance/` 配下の生成物が存在し、内容が期待に合うかを監査
+- `npm run test:all`
+  - `unit / verification / docs` をまとめて対象にする
 - `npm run report:realism:quick`
   - candidate 単独の quick realism probe
 - `npm run report:calibration`
@@ -146,21 +155,26 @@ npm run report:realism:acceptance
 
 ## テスト運用
 
-sim tests は scope 単位で絞れます。
+sim tests は suite と scope の両方で絞れます。
 
 ```bash
 node scripts/tests/run_sim_tests.cjs --list-scopes
-node scripts/tests/run_sim_tests.cjs --scope calibration --jobs 1
-node scripts/tests/run_sim_tests.cjs --scope retirement --jobs 1
-node scripts/tests/run_sim_tests.cjs --scope rating --jobs 1
-node scripts/tests/run_sim_tests.cjs --scope experience --jobs 1
+node scripts/tests/run_sim_tests.cjs --suite unit --scope retirement --workers 1
+node scripts/tests/run_sim_tests.cjs --suite unit --scope rating --workers 1
+node scripts/tests/run_sim_tests.cjs --suite unit --scope experience --workers 1
+node scripts/tests/run_sim_tests.cjs --suite verification
+node scripts/tests/run_sim_tests.cjs --suite docs --workers 1
 node scripts/tests/run_sim_tests.cjs --grep yokozuna
 ```
 
 ポイント:
 
+- `npm test` は `--suite unit` の省略形
+- `verification` は校正データの整合、`docs` は生成済み Markdown の監査
 - `--scope` と `--grep` を併用可能
-- `--jobs N` で scope 並列数を指定
+- `--suite unit|verification|docs|all` で対象スイートを切り替え可能
+- `--workers N` で scope 並列数を指定
+- `--jobs N` も互換のため残しているが、新規利用は `--workers` を優先
 - 既定では CPU 数に応じて自動並列
 - tests は module registry 化されているが、命名規約 `scope: detail` は維持
 
@@ -173,9 +187,19 @@ node scripts/tests/run_sim_tests.cjs --grep yokozuna
 - `scripts/tests/modules/experience.ts`
 - `scripts/tests/modules/persistence.ts`
 - `scripts/tests/modules/npc.ts`
-- `scripts/tests/legacy/allCases.ts`
+- `scripts/tests/modules/ui.ts`
+- `scripts/tests/current/index.ts`
+- `scripts/tests/current/banzuke.ts`
+- `scripts/tests/current/simulation.ts`
+- `scripts/tests/current/gameplay.ts`
+- `scripts/tests/current/persistence.ts`
+- `scripts/tests/current/npc.ts`
+- `scripts/tests/compat/index.ts`
+- `scripts/tests/shared/currentHelpers.ts`
+- `scripts/tests/shared/moduleUtils.ts`
 
-`legacy/allCases.ts` は既存ケース群の温存層です。新規テストは module 側へ追加してください。
+`current/` は現行仕様の sim tests、`compat/` は互換確認だけを置く層です。新規テストは `current/` か `modules/` 側へ追加し、`compat/` は既存互換の保全に限定してください。
+`shared/currentHelpers.ts` には旧 `allCases.ts` 由来の共通 helper とテスト用初期化だけを残しています。
 
 ## リアリズム検証フロー
 
@@ -183,7 +207,7 @@ node scripts/tests/run_sim_tests.cjs --grep yokozuna
 
 推奨フロー:
 
-1. `npm test -- --scope <関連scope>`
+1. `node scripts/tests/run_sim_tests.cjs --suite unit --scope <関連scope> --workers 1`
 2. `npm run report:realism:quick`
 3. `npm run report:realism:retire`
 4. 必要時のみ `npm run report:realism:aptitude`
