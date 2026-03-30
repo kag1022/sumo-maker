@@ -10,3 +10,4 @@ progress.md
 deep-research-report.md
 sumo-db/data/raw_html
 sumo/
+.playwright-cli/

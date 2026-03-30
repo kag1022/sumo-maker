@@ -1,5 +1,6 @@
 export {
   appendBashoChunk,
+  appendBashoChunksBulk,
   buildCareerStartYearMonth,
   buildGenealogyTree,
   commitCareer,
@@ -15,6 +16,8 @@ export {
   listTopCareerClearScores,
   listUnshelvedCareers,
   loadCareerStatus,
+  finalizeCareerDetails,
+  markCareerReadyForReveal,
   markCareerCompleted,
   shelveCareer,
   type AppendBashoChunkParams,

@@ -627,9 +627,9 @@ export const tests: TestCase[] = [
         careerId,
         seq: step.seq,
         playerRecord: step.playerRecord,
+        playerShikona: initial.shikona,
         playerBouts: step.playerBouts,
         npcRecords: step.npcBashoRecords,
-        statusSnapshot: step.statusSnapshot,
       });
 
       const storedBouts = await getDb().boutRecords.where('[careerId+bashoSeq]').equals([careerId, step.seq]).toArray();
@@ -662,9 +662,9 @@ export const tests: TestCase[] = [
         careerId,
         seq: 1,
         playerRecord,
+        playerShikona: initial.shikona,
         playerBouts: [],
         npcRecords: [],
-        statusSnapshot: initial,
       });
 
       const row = await getDb().bashoRecords.get([careerId, 1, 'PLAYER']);
@@ -722,8 +722,8 @@ export const tests: TestCase[] = [
             relaxationStage: 0,
           },
         ],
+        playerShikona: initial.shikona,
         npcRecords: [],
-        statusSnapshot: initial,
       });
 
       const rows = await listCareerImportantTorikumi(careerId);
@@ -758,6 +758,7 @@ export const tests: TestCase[] = [
           yusho: false,
           specialPrizes: [],
         },
+        playerShikona: initial.shikona,
         playerBouts: [],
         npcRecords: [
           {
@@ -773,7 +774,6 @@ export const tests: TestCase[] = [
             titles: [],
           },
         ],
-        statusSnapshot: initial,
       });
 
       const rows = await listCareerBashoRecordsBySeq(careerId);
@@ -809,6 +809,7 @@ export const tests: TestCase[] = [
           yusho: false,
           specialPrizes: ['敢闘賞'],
         },
+        playerShikona: initial.shikona,
         playerBouts: [
           {
             day: 1,
@@ -863,7 +864,6 @@ export const tests: TestCase[] = [
             reasons: ['AUTO_ACCEPTED'],
           },
         ],
-        statusSnapshot: initial,
       });
 
       const detail = await getCareerBashoDetail(careerId, 1);
@@ -904,6 +904,7 @@ export const tests: TestCase[] = [
           yusho: false,
           specialPrizes: [],
         },
+        playerShikona: initial.shikona,
         playerBouts: [
           {
             day: 1,
@@ -950,7 +951,6 @@ export const tests: TestCase[] = [
             titles: [],
           },
         ],
-        statusSnapshot: initial,
       });
 
       await appendBashoChunk({
@@ -966,6 +966,7 @@ export const tests: TestCase[] = [
           yusho: false,
           specialPrizes: [],
         },
+        playerShikona: initial.shikona,
         playerBouts: [
           {
             day: 1,
@@ -991,7 +992,6 @@ export const tests: TestCase[] = [
             titles: [],
           },
         ],
-        statusSnapshot: initial,
       });
 
       const rows = await getCareerHeadToHead(careerId);

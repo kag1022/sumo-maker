@@ -6,6 +6,7 @@ import { SimulationDiagnostics } from '../diagnostics';
 import { resolveTopDivisionRank } from '../topDivision/rank';
 import { SimulationWorld, TopDivision } from '../world';
 import { BanzukeEntry, SimulationProgressSnapshot } from './types';
+import { SimulationProgressLite } from '../workerProtocol';
 
 const toTopDivisionBanzuke = (
   division: TopDivision,
@@ -158,3 +159,14 @@ export const createProgressSnapshot = (
     lastDiagnostics,
   };
 };
+
+export const createProgressLite = (
+  status: RikishiStatus,
+  year: number,
+  month: number,
+): SimulationProgressLite => ({
+  year,
+  month,
+  bashoCount: status.history.records.length,
+  currentRank: { ...status.rank },
+});

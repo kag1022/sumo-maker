@@ -63,6 +63,7 @@ export interface CareerRow {
   recordBadgeKeys?: string[];
   bestScoreRank?: number;
   yokozunaOrdinal?: number;
+  detailState?: 'building' | 'ready' | 'error';
 }
 
 export type BashoEntityType = 'PLAYER' | 'NPC';
@@ -584,6 +585,36 @@ class SumoMakerDatabase extends Dexie {
           const row = yokozunaRows[index];
           await table.update(row.id, {
             yokozunaOrdinal: row.yokozunaOrdinal ?? index + 1,
+          });
+        }
+      });
+
+    this.version(16)
+      .stores({
+        careers:
+          '&id, state, detailState, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex, clearScore, bestScoreRank',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        importantTorikumi:
+          '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq], trigger',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<CareerRow, string>('careers');
+        const rows = await table.toArray();
+        for (const row of rows) {
+          await table.update(row.id, {
+            detailState: row.detailState ?? 'ready',
           });
         }
       });

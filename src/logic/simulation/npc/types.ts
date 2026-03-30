@@ -77,8 +77,8 @@ export const TOP_DIVISION_SLOTS: Record<TopDivision, number> = {
 export const LOWER_DIVISION_SLOTS: Record<LowerDivision, number> = {
   Makushita: 120,
   Sandanme: 180,
-  Jonidan: 200,
-  Jonokuchi: 64,
+  Jonidan: 240,
+  Jonokuchi: 80,
 };
 
 export const ACTIVE_DIVISIONS: ActiveDivision[] = [

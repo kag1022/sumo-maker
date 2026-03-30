@@ -12,6 +12,8 @@ export interface EmpiricalSlotBandResolverInput {
   rankNumber?: number;
   currentSlot: number;
   totalSlots: number;
+  divisionTotalSlots?: number;
+  baselineDivisionTotalSlots?: number;
   wins: number;
   losses: number;
   absent: number;
@@ -261,6 +263,64 @@ const resolveMinimumDemotionSlots = (
   return 0;
 };
 
+export const resolveBottomTailReliefSlots = ({
+  division,
+  rankNumber,
+  divisionTotalSlots,
+  baselineDivisionTotalSlots,
+  wins,
+  losses,
+  absent,
+}: Pick<
+  EmpiricalSlotBandResolverInput,
+  'division' | 'rankNumber' | 'divisionTotalSlots' | 'baselineDivisionTotalSlots' | 'wins' | 'losses' | 'absent'
+>): number => {
+  if ((division !== 'Jonidan' && division !== 'Jonokuchi') || typeof rankNumber !== 'number') {
+    return 0;
+  }
+
+  const effectiveLosses = resolveEffectiveLosses(losses, absent);
+  const deficit = effectiveLosses - wins;
+  if (deficit <= 0 || absent >= 7) return 0;
+
+  const totalDivisionSlots = Math.max(2, divisionTotalSlots ?? 0);
+  const divisionMaxNumber = Math.max(1, Math.ceil(totalDivisionSlots / 2));
+  const boundedRankNumber = clamp(rankNumber, 1, divisionMaxNumber);
+  const distanceFromBottom = divisionMaxNumber - boundedRankNumber;
+  const bottomBand =
+    division === 'Jonokuchi'
+      ? Math.max(4, Math.ceil(divisionMaxNumber * 0.22))
+      : Math.max(8, Math.ceil(divisionMaxNumber * 0.16));
+  if (distanceFromBottom > bottomBand) return 0;
+
+  const baselineSlots = Math.max(2, baselineDivisionTotalSlots ?? totalDivisionSlots);
+  const expansionSlots = Math.max(0, totalDivisionSlots - baselineSlots);
+  const expansionRelief =
+    division === 'Jonokuchi'
+      ? Math.floor(expansionSlots * 0.35)
+      : Math.floor(expansionSlots * 0.2);
+  const deficitRelief =
+    deficit <= 1
+      ? division === 'Jonokuchi'
+        ? 8
+        : 6
+      : deficit === 2
+        ? division === 'Jonokuchi'
+          ? 6
+          : 4
+        : deficit === 3
+          ? 2
+          : 0;
+  const proximityRatio = 1 - distanceFromBottom / Math.max(1, bottomBand);
+  const proximityRelief = Math.max(
+    0,
+    Math.round((division === 'Jonokuchi' ? 4 : 3) * proximityRatio),
+  );
+  const reliefCap = division === 'Jonokuchi' ? 12 : 10;
+
+  return clamp(deficitRelief + proximityRelief + expansionRelief, 0, reliefCap);
+};
+
 export const resolveEmpiricalSlotBand = (
   input: EmpiricalSlotBandResolverInput,
 ): EmpiricalSlotBandResolverResult => {
@@ -270,6 +330,8 @@ export const resolveEmpiricalSlotBand = (
     rankNumber,
     currentSlot,
     totalSlots,
+    divisionTotalSlots,
+    baselineDivisionTotalSlots,
     wins,
     losses,
     absent,
@@ -308,6 +370,15 @@ export const resolveEmpiricalSlotBand = (
   }
 
   const pressureHalfStep = clamp((promotionPressure - demotionPressure) * 6, -12, 12);
+  const bottomTailReliefSlots = resolveBottomTailReliefSlots({
+    division,
+    rankNumber,
+    divisionTotalSlots,
+    baselineDivisionTotalSlots,
+    wins,
+    losses,
+    absent,
+  });
   const p10Slot = currentSlot - quantiles.p10HalfStep;
   const p50Slot = currentSlot - (quantiles.p50HalfStep + pressureHalfStep);
   const p90Slot = currentSlot - quantiles.p90HalfStep;
@@ -324,7 +395,15 @@ export const resolveEmpiricalSlotBand = (
     minSlot = Math.max(minSlot, currentSlot + 1);
   }
 
-  const minimumDemotionSlots = resolveMinimumDemotionSlots(division, wins, losses, absent);
+  if (bottomTailReliefSlots > 0) {
+    expectedSlot = clamp(expectedSlot - bottomTailReliefSlots, 1, totalSlots);
+    minSlot = Math.min(minSlot, expectedSlot);
+  }
+
+  const minimumDemotionSlots = Math.max(
+    0,
+    resolveMinimumDemotionSlots(division, wins, losses, absent) - bottomTailReliefSlots,
+  );
   if (minimumDemotionSlots > 0) {
     const forcedFloor = clamp(currentSlot + minimumDemotionSlots, 1, totalSlots);
     minSlot = Math.max(minSlot, forcedFloor);

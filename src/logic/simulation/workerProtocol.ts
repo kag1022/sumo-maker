@@ -1,4 +1,4 @@
-import { BashoRecord, Oyakata, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
+import { BashoRecord, Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
 import { PauseReason, SimulationProgressSnapshot } from './engine';
 import { SimulationModelVersion } from './modelVersion';
 
@@ -82,6 +82,22 @@ export interface LiveBashoViewModel {
   latestDiagnosticsSummary: LiveBashoDiagnosticsSummary;
 }
 
+export type SimulationDetailPolicy = 'buffered' | 'eager';
+
+export interface SimulationProgressLite {
+  year: number;
+  month: number;
+  bashoCount: number;
+  currentRank: Rank;
+}
+
+export type SimulationProgressState = SimulationProgressSnapshot | SimulationProgressLite;
+
+export interface DetailBuildProgress {
+  flushedBashoCount: number;
+  totalBashoCount: number;
+}
+
 export interface StartSimulationMessage {
   type: 'START';
   payload: {
@@ -91,6 +107,7 @@ export interface StartSimulationMessage {
     runOptions?: SimulationRunOptions;
     simulationModelVersion?: SimulationModelVersion;
     initialPacing: 'chaptered' | 'observe' | 'skip_to_end';
+    detailPolicy: SimulationDetailPolicy;
   };
 }
 
@@ -118,16 +135,17 @@ export type SimulationWorkerRequest =
 export interface WorkerProgressMessage {
   type: 'BASHO_PROGRESS';
   payload: {
+    mode: 'full' | 'lite';
     careerId: string;
-    seq: number;
-    year: number;
-    month: number;
-    playerRecord: BashoRecord;
-    status: RikishiStatus;
-    events: TimelineEvent[];
-    progress: SimulationProgressSnapshot;
-    observation: SimulationObservationEntry;
-    latestBashoView: LiveBashoViewModel;
+    progress: SimulationProgressState;
+    seq?: number;
+    year?: number;
+    month?: number;
+    playerRecord?: BashoRecord;
+    status?: RikishiStatus;
+    events?: TimelineEvent[];
+    observation?: SimulationObservationEntry;
+    latestBashoView?: LiveBashoViewModel;
     pauseForChapter?: boolean;
   };
 }
@@ -138,11 +156,29 @@ export interface WorkerCompletedMessage {
     careerId: string;
     status: RikishiStatus;
     events: TimelineEvent[];
-    progress: SimulationProgressSnapshot;
-    observation: SimulationObservationEntry;
+    progress: SimulationProgressState;
+    observation?: SimulationObservationEntry;
     pauseReason?: PauseReason;
     latestBashoView?: LiveBashoViewModel | null;
     pauseForChapter?: boolean;
+    detailState: 'building' | 'ready';
+  };
+}
+
+export interface WorkerDetailBuildProgressMessage {
+  type: 'DETAIL_BUILD_PROGRESS';
+  payload: {
+    careerId: string;
+    progress: DetailBuildProgress;
+  };
+}
+
+export interface WorkerDetailBuildCompletedMessage {
+  type: 'DETAIL_BUILD_COMPLETED';
+  payload: {
+    careerId: string;
+    status: RikishiStatus;
+    progress: DetailBuildProgress;
   };
 }
 
@@ -157,4 +193,6 @@ export interface WorkerErrorMessage {
 export type SimulationWorkerResponse =
   | WorkerProgressMessage
   | WorkerCompletedMessage
+  | WorkerDetailBuildProgressMessage
+  | WorkerDetailBuildCompletedMessage
   | WorkerErrorMessage;

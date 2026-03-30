@@ -295,7 +295,7 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'npc universe: initial active total is 634 and stable headcounts stay near targets',
+    name: 'npc universe: initial active total is 690 and stable headcounts stay near targets',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(2026));
       const counts = countActiveByStable(universe.registry);
@@ -312,7 +312,7 @@ export const tests: TestCase[] = [
         }
       }
 
-      assert.equal(total, 634);
+      assert.equal(total, 690);
     },
   },
 {

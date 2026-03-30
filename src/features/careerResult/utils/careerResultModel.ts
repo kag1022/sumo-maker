@@ -141,11 +141,17 @@ const resolveMilestoneTags = (
   prev: BashoRecord | undefined,
   seenBestRankValue: number,
   lastSeq: number,
+  hasSeenJuryo: boolean,
+  hasSeenMakuuchi: boolean,
 ): string[] => {
   const tags: string[] = [];
 
-  if (prev && prev.rank.division !== "Juryo" && record.rank.division === "Juryo") tags.push("新十両");
-  if (prev && prev.rank.division !== "Makuuchi" && record.rank.division === "Makuuchi") tags.push("新入幕");
+  if (prev && prev.rank.division !== "Juryo" && record.rank.division === "Juryo") {
+    tags.push(hasSeenJuryo ? "再十両" : "新十両");
+  }
+  if (prev && prev.rank.division !== "Makuuchi" && record.rank.division === "Makuuchi") {
+    tags.push(hasSeenMakuuchi ? "再入幕" : "新入幕");
+  }
   if (record.rank.name === "横綱") tags.push("横綱");
   else if (record.rank.name === "大関") tags.push("大関");
   else if (SANYAKU_NAMES.has(record.rank.name)) tags.push("三役");
@@ -158,8 +164,11 @@ const resolveMilestoneTags = (
 };
 
 const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined): { deltaValue: number; deltaLabel: string } => {
+  if (!next) {
+    return { deltaValue: 0, deltaLabel: "-" };
+  }
   const currentValue = getRankValueForChart(current.rank);
-  const nextValue = next ? getRankValueForChart(next.rank) : currentValue;
+  const nextValue = getRankValueForChart(next.rank);
   const deltaValue = Math.round((currentValue - nextValue) * 10) / 10;
   if (Math.abs(deltaValue) < 0.01) {
     return { deltaValue, deltaLabel: "据え置き" };
@@ -193,13 +202,28 @@ export const buildCareerLedgerModel = (
     .map((record, index) => ({ ...record, bashoSeq: index + 1 }));
   const lastSeq = records.length;
   let seenBestRankValue = Number.POSITIVE_INFINITY;
+  let hasSeenJuryo = false;
+  let hasSeenMakuuchi = false;
 
   const rawPoints = records.map((record, index) => {
     const prev = records[index - 1];
     const next = records[index + 1];
-    const milestoneTags = resolveMilestoneTags(record, prev, seenBestRankValue, lastSeq);
+    const milestoneTags = resolveMilestoneTags(
+      record,
+      prev,
+      seenBestRankValue,
+      lastSeq,
+      hasSeenJuryo,
+      hasSeenMakuuchi,
+    );
     const currentRankValue = getRankValueForChart(record.rank);
     seenBestRankValue = Math.min(seenBestRankValue, currentRankValue);
+    if (record.rank.division === "Juryo" || record.rank.division === "Makuuchi") {
+      hasSeenJuryo = true;
+    }
+    if (record.rank.division === "Makuuchi") {
+      hasSeenMakuuchi = true;
+    }
     const bandKey = toBandKey(record.rank);
     const { deltaValue, deltaLabel } = computeDeltaLabel(record, next);
     return {

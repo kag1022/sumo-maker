@@ -3,6 +3,7 @@ import {
   BashoStepResult,
   createSeededRandom,
   createSimulationEngine,
+  type SimulationProgressSnapshot,
 } from '../../logic/simulation/engine';
 import { NpcBashoAggregate } from '../../logic/simulation/basho';
 
@@ -111,6 +112,8 @@ const buildSummary = (
 };
 
 const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
+  const statusSnapshot = step.statusSnapshot as RikishiStatus;
+  const progress = step.progress as SimulationProgressSnapshot;
   const playerDecision = step.banzukeDecisions.find(
     (decision) => decision.rikishiId === 'PLAYER',
   );
@@ -208,8 +211,8 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     if (!sameDivision.length) return undefined;
 
     const afterEntries = [
-      ...step.progress.makuuchi,
-      ...step.progress.juryo,
+      ...progress.makuuchi,
+      ...progress.juryo,
     ];
     const afterById = new Map(afterEntries.map((entry) => [entry.id, entry]));
 
@@ -223,12 +226,12 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
       });
     })();
     const playerAfterSlot =
-      step.statusSnapshot.rank.division === division
+      statusSnapshot.rank.division === division
         ? toEntrySlot({
           division,
-          rankName: step.statusSnapshot.rank.name,
-          rankNumber: step.statusSnapshot.rank.number,
-          rankSide: step.statusSnapshot.rank.side,
+          rankName: statusSnapshot.rank.name,
+          rankNumber: statusSnapshot.rank.number,
+          rankSide: statusSnapshot.rank.side,
         })
         : playerSlot;
 
@@ -288,7 +291,7 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     return {
       division,
       playerBeforeRankLabel: playerRankLabel,
-      playerAfterRankLabel: formatRank(step.statusSnapshot.rank),
+      playerAfterRankLabel: formatRank(statusSnapshot.rank),
       playerGlobalMove: playerSlot - playerAfterSlot,
       playerScoreDiff,
       outperformedByLowerCount,
@@ -309,7 +312,7 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
   year: step.year,
   month: step.month,
   rankBefore: { ...step.playerRecord.rank },
-  rankAfter: { ...step.statusSnapshot.rank },
+  rankAfter: { ...statusSnapshot.rank },
   banzukeReasons: (playerDecision?.reasons ?? []).slice(0, 3),
   record: {
     wins: step.playerRecord.wins,
@@ -318,9 +321,9 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     yusho: step.playerRecord.yusho,
   },
   events: step.events.map((event) => event.description),
-  injurySummary: buildInjurySummary(step.statusSnapshot),
+  injurySummary: buildInjurySummary(statusSnapshot),
   ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
-  committeeWarnings: step.progress.lastCommitteeWarnings,
+  committeeWarnings: progress.lastCommitteeWarnings,
   npcContext: buildNpcContext(),
   kimariteCount,
   };
@@ -415,8 +418,8 @@ export const createLogicLabRun = (
 
     const result = await engine.runNextBasho();
     if (result.kind === 'BASHO') {
-      currentStatus = result.statusSnapshot;
-      currentWarnings = result.progress.lastCommitteeWarnings;
+      currentStatus = result.statusSnapshot as RikishiStatus;
+      currentWarnings = (result.progress as SimulationProgressSnapshot).lastCommitteeWarnings;
       const reachedLimit = currentStatus.history.records.length >= config.maxBasho;
       if (reachedLimit) {
         completed = true;
@@ -431,7 +434,7 @@ export const createLogicLabRun = (
     }
 
     currentStatus = result.statusSnapshot;
-    currentWarnings = result.progress.lastCommitteeWarnings;
+    currentWarnings = (result.progress as SimulationProgressSnapshot).lastCommitteeWarnings;
     stopReason = result.pauseReason;
     completed = true;
     return {
