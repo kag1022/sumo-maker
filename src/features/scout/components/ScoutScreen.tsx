@@ -152,22 +152,22 @@ const SectionCard: React.FC<{
 }> = ({ step, activeStep, summary, children, onActivate, onNext, onBack }) => {
   const active = step === activeStep;
   return (
-    <section className="scout-section-card" data-active={active}>
-      <div className="scout-section-head">
+    <section className="scout-ritual-section" data-active={active}>
+      <div className="scout-ritual-section-head">
         <div>
-          <div className="scout-section-step">STEP {STEP_ORDER.indexOf(step) + 1}</div>
-          <h2 className="scout-section-title">{STEP_COPY[step].title}</h2>
-          <p className="scout-section-copy">{active ? STEP_COPY[step].body : summary}</p>
+          <div className="scout-ritual-section-step">STEP {STEP_ORDER.indexOf(step) + 1}</div>
+          <h2 className="scout-ritual-section-title">{STEP_COPY[step].title}</h2>
+          <p className="scout-ritual-section-copy">{active ? STEP_COPY[step].body : summary}</p>
         </div>
         <Button variant={active ? "secondary" : "outline"} size="sm" onClick={() => onActivate(step)}>
-          {active ? "入力中" : "ここを入力"}
+          {active ? "入力中" : "開く"}
         </Button>
       </div>
 
       {active ? (
-        <div className="scout-section-body">
+        <div className="scout-ritual-section-body">
           {children}
-          <div className="scout-section-footer">
+          <div className="scout-ritual-section-footer">
             {onBack ? (
               <Button variant="ghost" onClick={onBack}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -225,7 +225,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const handleRegister = React.useCallback(async () => {
     setIsRegistering(true);
     try {
-      await onStart(buildInitialRikishiFromDraft(draft), null, "chaptered");
+      await onStart(buildInitialRikishiFromDraft(draft), null, "skip_to_end");
     } finally {
       setIsRegistering(false);
     }
@@ -236,18 +236,38 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const bodySummary = `${draft.startingHeightCm}cm / ${draft.startingWeightKg}kg / ${activeStable.displayName}`;
 
   return (
-    <div className="space-y-6">
-      <section className="analysis-header-strip">
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="text-xl ui-text-heading text-text">新弟子設計</div>
-          <div className="text-sm text-text-dim">
-            3つの区画を順番に埋めるだけで始められます。最後に押すのは、いちばん下の大きなボタンです。
-          </div>
+    <div className="scout-ritual-shell">
+      <section className="scout-ritual-hero">
+        <div className="scout-ritual-hero-copy">
+          <div className="scout-ritual-kicker">新弟子設計</div>
+          <h1 className="scout-ritual-title">入門の帳面を整える</h1>
+          <p className="scout-ritual-description">
+            入口の条件だけを決めます。相撲人生そのものは、このあと静かに立ち上がります。
+          </p>
+        </div>
+        <div className="scout-ritual-progress" aria-label="設計の進行状況">
+          {STEP_ORDER.map((step) => {
+            const stepIndex = STEP_ORDER.indexOf(step);
+            const activeIndex = STEP_ORDER.indexOf(activeStep);
+            return (
+              <button
+                key={step}
+                type="button"
+                className="scout-ritual-progress-step"
+                data-active={step === activeStep}
+                data-complete={stepIndex < activeIndex}
+                onClick={() => setActiveStep(step)}
+              >
+                <span className="scout-ritual-progress-number">〇{stepIndex + 1}</span>
+                <span className="scout-ritual-progress-label">{STEP_COPY[step].title}</span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="space-y-4">
+      <div className="scout-ritual-layout">
+        <main className="scout-ritual-main">
           <SectionCard
             step="identity"
             activeStep={activeStep}
@@ -398,30 +418,12 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             </div>
           </SectionCard>
 
-          <section className="scout-side-tools">
-            <div className="scout-side-tools-copy">
-              <div className="career-decision-kicker">サブ操作</div>
-              <div className="text-sm text-text-dim">
-                迷ったら別案を巡回できます。ここは主ルートではないので、始める前の補助として扱います。
-              </div>
-            </div>
-            <div className="scout-side-tools-actions">
-              <Button variant="outline" onClick={handleCycleAlternative}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                別案 {activeAlternativeIndex + 1}/3
-              </Button>
-              <Button variant="ghost" onClick={handleRefreshAlternatives}>
-                三案を作り直す
-              </Button>
-            </div>
-          </section>
-
-          <section className="scout-main-cta-bar">
+          <section className="scout-ritual-decision">
             <div>
-              <p className={SECTION_TITLE}>最後に押す場所</p>
+              <p className={SECTION_TITLE}>決裁</p>
               <h2 className="mt-2 text-2xl ui-text-heading text-text">この新弟子で始める</h2>
               <p className="mt-2 text-sm text-text-dim">
-                標準モードでは全場所を追わず、節目だけが表示されます。
+                標準モードでは全場所を追わず、節目だけを読みます。
               </p>
             </div>
             <Button size="lg" onClick={() => void handleRegister()} disabled={isRegistering}>
@@ -431,41 +433,71 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           </section>
         </main>
 
-        <aside className="space-y-5 self-start xl:sticky xl:top-24">
-          <section className="scout-preview-panel">
-            <div className="mb-4">
-              <p className={SECTION_TITLE}>観測対象</p>
+        <aside className="scout-ritual-aside">
+          <section className="scout-candidate-shelf">
+            <div className="scout-candidate-shelf-head">
+              <div>
+                <p className={SECTION_TITLE}>候補札</p>
+                <h2 className="mt-2 text-xl ui-text-heading text-text">別案を巡る</h2>
+              </div>
+              <span className="scout-candidate-index">{activeAlternativeIndex + 1} / {draftAlternatives.length}</span>
+            </div>
+            <div className="scout-candidate-actions">
+              <Button variant="outline" size="sm" onClick={handleCycleAlternative}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                次の候補
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleRefreshAlternatives}>
+                三案を作り直す
+              </Button>
+            </div>
+          </section>
+
+          <section className="scout-preview-panel scout-entry-ledger">
+            <div className="scout-entry-ledger-head">
+              <p className={SECTION_TITLE}>入門帳</p>
               <h2 className="mt-2 text-4xl ui-text-heading text-text">{draft.shikona}</h2>
               <p className="mt-2 text-sm text-text/65">
                 {draft.birthplace} / {activeStable.displayName}
               </p>
             </div>
-            <div className="mx-auto h-[320px] w-full max-w-[260px] border-y border-gold/10 bg-gradient-to-b from-transparent via-gold/5 to-transparent">
+            <div className="scout-entry-ledger-portrait">
               <RikishiPortrait
                 bodyType={previewStatus.bodyType}
                 className="h-full w-full"
                 innerClassName="bg-transparent border-none p-0 shadow-none"
               />
             </div>
-            <div className="mt-4 rounded-none border border-gold/10 bg-black/10 px-4 py-3 text-sm text-text-dim">
+            <div className="scout-entry-ledger-note">
               {draft.personaLine ?? "どこで人生の輪郭が立つかは、まだ白紙です。"}
             </div>
-            <div className="mt-4 space-y-2 text-left">
+            <div className="scout-entry-ledger-rows">
               {[
                 ["四股名", draft.shikona],
                 ["出身", draft.birthplace],
                 ["所属部屋", activeStable.displayName],
                 ["入口", `${draft.entryAge}歳 / ${resolvedSeed.entryPathLabel}`],
               ].map(([label, value]) => (
-                <div key={label} className="flex items-start justify-between gap-4 border-b border-gold/10 py-2 text-sm">
+                <div key={label} className="scout-entry-ledger-row">
                   <span className="ui-text-label text-gold/60">{label}</span>
-                  <span className="max-w-[180px] text-right text-text">{value ?? "-"}</span>
+                  <span className="text-right text-text">{value ?? "-"}</span>
                 </div>
               ))}
             </div>
           </section>
         </aside>
       </div>
+
+      <section className="scout-mobile-cta">
+        <div>
+          <div className="career-decision-kicker">最後に押す場所</div>
+          <div className="text-sm text-text-dim">節目だけを読む標準モードで開始します。</div>
+        </div>
+        <Button size="lg" onClick={() => void handleRegister()} disabled={isRegistering}>
+          <ScrollText className="mr-3 h-5 w-5" />
+          {isRegistering ? "準備中..." : "この新弟子で始める"}
+        </Button>
+      </section>
     </div>
   );
 };

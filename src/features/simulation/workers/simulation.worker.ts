@@ -3,6 +3,8 @@
 import { createSimulationEngine } from '../../../logic/simulation/engine';
 import type { BashoStepResult, CompletedStepResult } from '../../../logic/simulation/engine';
 import {
+  DetailBuildProgress,
+  SimulationDetailPolicy,
   SimulationChapterKind,
   SimulationObservationEntry,
   SimulationWorkerRequest,
@@ -11,18 +13,31 @@ import {
 import { buildCareerEpilogueView, buildLiveBashoView } from '../../bashoHub/utils/liveBashoView';
 import {
   appendBashoChunk,
+  appendBashoChunksBulk,
   discardDraftCareer,
+  finalizeCareerDetails,
+  markCareerReadyForReveal,
   markCareerCompleted,
 } from '../../../logic/persistence/careers';
 import { normalizeNewRunModelVersion } from '../../../logic/simulation/modelVersion';
+import { defaultSimulationDependencies } from '../../../logic/simulation/deps';
+import type { AppendBashoChunkParams } from '../../../logic/persistence/careers';
 
 let engine: ReturnType<typeof createSimulationEngine> | null = null;
 let activeCareerId: string | null = null;
 let stopped = false;
 let loopRunning = false;
 let pacing: 'chaptered' | 'observe' | 'skip_to_end' = 'chaptered';
+let detailPolicy: SimulationDetailPolicy = 'eager';
 let pausedForChapter = false;
 let seenChapterKinds = new Set<SimulationChapterKind>();
+let pendingChunks: AppendBashoChunkParams[] = [];
+let flushedBashoCount = 0;
+let bufferedYieldCount = 0;
+let currentShikona = '力士';
+
+const BUFFER_FLUSH_INTERVAL = 12;
+const BUFFERED_YIELD_INTERVAL = 3;
 
 const post = (message: SimulationWorkerResponse): void => {
   self.postMessage(message);
@@ -213,6 +228,49 @@ const buildChapterCopy = (
 const shouldPauseForChapter = (chapterKind: SimulationChapterKind | null): boolean =>
   pacing === 'chaptered' && chapterKind !== null;
 
+const buildPendingChunk = (step: BashoStepResult): AppendBashoChunkParams => ({
+  careerId: activeCareerId ?? '',
+  seq: step.seq,
+  playerRecord: step.playerRecord,
+  playerShikona: currentShikona,
+  playerBouts: step.playerBouts,
+  importantTorikumiNotes: step.importantTorikumiNotes,
+  npcRecords: step.npcBashoRecords,
+  banzukePopulation: step.banzukePopulation,
+  banzukeDecisions: step.banzukeDecisions,
+  diagnostics: step.diagnostics,
+});
+
+const buildDetailBuildProgress = (totalBashoCount: number): DetailBuildProgress => ({
+  flushedBashoCount,
+  totalBashoCount,
+});
+
+const flushPendingChunks = async (
+  options?: {
+    summaryStatus?: import('../../../logic/models').RikishiStatus;
+    totalBashoCount?: number;
+  },
+): Promise<void> => {
+  if (!activeCareerId || pendingChunks.length === 0) return;
+  const chunks = pendingChunks;
+  pendingChunks = [];
+  await appendBashoChunksBulk(chunks, {
+    summaryStatus: options?.summaryStatus,
+    detailState: 'building',
+  });
+  flushedBashoCount += chunks.length;
+  if (typeof options?.totalBashoCount === 'number') {
+    post({
+      type: 'DETAIL_BUILD_PROGRESS',
+      payload: {
+        careerId: activeCareerId,
+        progress: buildDetailBuildProgress(options.totalBashoCount),
+      },
+    });
+  }
+};
+
 const resumeLoop = (): void => {
   if (pausedForChapter) {
     pausedForChapter = false;
@@ -231,14 +289,40 @@ const runLoop = async (): Promise<void> => {
       if (!careerId) break;
 
       if (step.kind === 'BASHO') {
+        if (detailPolicy === 'buffered') {
+          pendingChunks.push(buildPendingChunk(step));
+          if (pendingChunks.length >= BUFFER_FLUSH_INTERVAL) {
+            await flushPendingChunks({
+              summaryStatus: engine?.getStatus(),
+              totalBashoCount: step.progress.bashoCount,
+            });
+          }
+          if (step.seq === 1 || step.seq % BUFFERED_YIELD_INTERVAL === 0) {
+            post({
+              type: 'BASHO_PROGRESS',
+              payload: {
+                mode: 'lite',
+                careerId,
+                progress: step.progress,
+              },
+            });
+          }
+          continue;
+        }
+
+        const statusSnapshot = step.statusSnapshot ?? engine?.getStatus();
+        if (!statusSnapshot) {
+          throw new Error('Missing status snapshot for eager simulation progress');
+        }
         await appendBashoChunk({
           careerId,
           seq: step.seq,
           playerRecord: step.playerRecord,
+          playerShikona: statusSnapshot.shikona,
+          summaryStatus: statusSnapshot,
           playerBouts: step.playerBouts,
           importantTorikumiNotes: step.importantTorikumiNotes,
           npcRecords: step.npcBashoRecords,
-          statusSnapshot: step.statusSnapshot,
           banzukePopulation: step.banzukePopulation,
           banzukeDecisions: step.banzukeDecisions,
           diagnostics: step.diagnostics,
@@ -257,7 +341,7 @@ const runLoop = async (): Promise<void> => {
           seq: step.seq,
           year: step.year,
           month: step.month,
-          currentAge: step.statusSnapshot.age,
+          currentAge: statusSnapshot.age,
           playerRecord: step.playerRecord,
           playerBouts: step.playerBouts,
           importantTorikumiNotes: step.importantTorikumiNotes,
@@ -274,12 +358,13 @@ const runLoop = async (): Promise<void> => {
         post({
           type: 'BASHO_PROGRESS',
           payload: {
+            mode: 'full',
             careerId,
             seq: step.seq,
             year: step.year,
             month: step.month,
             playerRecord: step.playerRecord,
-            status: step.statusSnapshot,
+            status: statusSnapshot,
             events: step.events,
             progress: step.progress,
             observation,
@@ -292,6 +377,37 @@ const runLoop = async (): Promise<void> => {
           break;
         }
         continue;
+      }
+
+      if (detailPolicy === 'buffered') {
+        const completedStatus = await markCareerReadyForReveal(careerId, step.statusSnapshot);
+        post({
+          type: 'COMPLETED',
+          payload: {
+            careerId,
+            status: completedStatus,
+            events: step.events,
+            progress: step.progress,
+            pauseReason: step.pauseReason,
+            latestBashoView: null,
+            detailState: 'building',
+          },
+        });
+        await flushPendingChunks({
+          totalBashoCount: step.progress.bashoCount,
+        });
+        const finalizedStatus = await finalizeCareerDetails(careerId, completedStatus);
+        post({
+          type: 'DETAIL_BUILD_COMPLETED',
+          payload: {
+            careerId,
+            status: finalizedStatus,
+            progress: buildDetailBuildProgress(step.progress.bashoCount),
+          },
+        });
+        engine = null;
+        activeCareerId = null;
+        break;
       }
 
       const completedStatus = await markCareerCompleted(careerId, step.statusSnapshot);
@@ -322,6 +438,7 @@ const runLoop = async (): Promise<void> => {
           pauseReason: step.pauseReason,
           latestBashoView,
           pauseForChapter,
+          detailState: 'ready',
         },
       });
       engine = null;
@@ -352,14 +469,20 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
       runOptions,
       simulationModelVersion,
       initialPacing,
+      detailPolicy: nextDetailPolicy,
     } = message.payload;
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
 
     stopped = false;
     pacing = initialPacing;
+    detailPolicy = nextDetailPolicy;
     pausedForChapter = false;
     seenChapterKinds = new Set();
     activeCareerId = careerId;
+    pendingChunks = [];
+    flushedBashoCount = 0;
+    bufferedYieldCount = 0;
+    currentShikona = initialStats.shikona;
     engine = createSimulationEngine({
       initialStats,
       oyakata,
@@ -367,7 +490,19 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
       careerId,
       banzukeMode: 'SIMULATE',
       simulationModelVersion: normalizedModelVersion,
-    });
+      progressSnapshotMode: nextDetailPolicy === 'buffered' ? 'lite' : 'full',
+      bashoSnapshotMode: nextDetailPolicy === 'buffered' ? 'none' : 'full',
+    }, nextDetailPolicy === 'buffered'
+      ? {
+        yieldControl: async () => {
+          bufferedYieldCount += 1;
+          if (bufferedYieldCount % BUFFERED_YIELD_INTERVAL !== 0) {
+            return;
+          }
+          await defaultSimulationDependencies.yieldControl();
+        },
+      }
+      : undefined);
     void runLoop();
     return;
   }
@@ -378,6 +513,9 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
     pausedForChapter = false;
     engine = null;
     activeCareerId = null;
+    pendingChunks = [];
+    flushedBashoCount = 0;
+    currentShikona = '力士';
     if (careerId) {
       void discardDraftCareer(careerId);
     }

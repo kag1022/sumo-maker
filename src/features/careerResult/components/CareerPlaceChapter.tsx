@@ -1,8 +1,10 @@
 import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type Division } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
 import type {
+  CareerLedgerModel,
   CareerLedgerPoint,
   CareerPlaceSummaryModel,
   CareerPlaceTabId,
@@ -10,23 +12,27 @@ import type {
 import { groupNearbyRanks } from "../utils/careerResultModel";
 
 interface CareerPlaceChapterProps {
+  ledger: CareerLedgerModel;
   point: CareerLedgerPoint | null;
   detail: CareerBashoDetail | null;
   summary: CareerPlaceSummaryModel | null;
   placeTab: CareerPlaceTabId;
   isLoading: boolean;
   hasPersistence: boolean;
+  onSelectBasho: (bashoSeq: number) => void;
   onSelectNpc: (entityId: string | null) => void;
   onPlaceTabChange: (tab: CareerPlaceTabId) => void;
 }
 
 export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
+  ledger,
   point,
   detail,
   summary,
   placeTab,
   isLoading,
   hasPersistence,
+  onSelectBasho,
   onSelectNpc,
   onPlaceTabChange,
 }) => {
@@ -38,6 +44,20 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
     () => new Map((detail?.importantTorikumi ?? []).map((note) => [note.day, note])),
     [detail?.importantTorikumi],
   );
+  const selectedIndex = React.useMemo(
+    () => ledger.points.findIndex((entry) => entry.bashoSeq === point?.bashoSeq),
+    [ledger.points, point?.bashoSeq],
+  );
+  const nearbyPoints = React.useMemo(() => {
+    if (selectedIndex < 0) {
+      return ledger.points.slice(Math.max(0, ledger.points.length - 8));
+    }
+    const start = Math.max(0, selectedIndex - 3);
+    const end = Math.min(ledger.points.length, selectedIndex + 4);
+    return ledger.points.slice(start, end);
+  }, [ledger.points, selectedIndex]);
+  const previousPoint = selectedIndex > 0 ? ledger.points[selectedIndex - 1] : null;
+  const nextPoint = selectedIndex >= 0 && selectedIndex < ledger.points.length - 1 ? ledger.points[selectedIndex + 1] : null;
 
   return (
     <section className="career-archive-shell">
@@ -46,16 +66,75 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         <h2 className="career-archive-title">{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
       </div>
 
-      <div className="career-archive-summaryband">
-        <div className="career-archive-summaryrow">
-          <span>{summary?.bashoLabel ?? "-"}</span>
-          <span>{summary?.rankLabel ?? "-"}</span>
-          <span>{summary?.recordLabel ?? "-"}</span>
-          <span>{summary?.deltaLabel ?? "-"}</span>
+      <div className="career-place-selector">
+        <div className="career-place-selector-head">
+          <div>
+            <div className="career-place-selector-kicker">場所選択</div>
+            <div className="career-place-selector-copy">この章の中で前後の場所を切り替えられます。</div>
+          </div>
+          <div className="career-place-selector-actions">
+            <button
+              type="button"
+              className="career-place-stepper"
+              onClick={() => previousPoint && onSelectBasho(previousPoint.bashoSeq)}
+              disabled={!previousPoint}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              前の場所
+            </button>
+            <button
+              type="button"
+              className="career-place-stepper"
+              onClick={() => nextPoint && onSelectBasho(nextPoint.bashoSeq)}
+              disabled={!nextPoint}
+            >
+              次の場所
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <div className="career-archive-tagrow">
+
+        <div className="career-place-selector-track" role="list" aria-label="場所一覧">
+          {nearbyPoints.map((entry) => (
+            <button
+              key={entry.bashoSeq}
+              type="button"
+              role="listitem"
+              className="career-place-selector-chip"
+              data-selected={entry.bashoSeq === point?.bashoSeq}
+              data-event={entry.milestoneTags.length > 0 || entry.eventFlags.length > 0}
+              onClick={() => onSelectBasho(entry.bashoSeq)}
+            >
+              <span className="career-place-selector-chiplabel">{entry.bashoLabel}</span>
+              <strong className="career-place-selector-chiprank">{entry.rankShortLabel}</strong>
+              <span className="career-place-selector-chiprecord">{entry.recordCompactLabel}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="career-place-overview">
+        <div className="career-place-summaryboard" role="list" aria-label="場所の要約">
+          <article className="career-place-metric" role="listitem">
+            <span className="career-place-metric-label">場所</span>
+            <strong className="career-place-metric-value">{summary?.bashoLabel ?? "-"}</strong>
+          </article>
+          <article className="career-place-metric" role="listitem">
+            <span className="career-place-metric-label">番付</span>
+            <strong className="career-place-metric-value">{summary?.rankLabel ?? "-"}</strong>
+          </article>
+          <article className="career-place-metric" role="listitem">
+            <span className="career-place-metric-label">成績</span>
+            <strong className="career-place-metric-value">{summary?.recordLabel ?? "-"}</strong>
+          </article>
+          <article className="career-place-metric" role="listitem">
+            <span className="career-place-metric-label">昇降幅</span>
+            <strong className="career-place-metric-value">{summary?.deltaLabel ?? "-"}</strong>
+          </article>
+        </div>
+        <div className="career-place-notechips">
           {(summary?.milestoneTags.length ? summary.milestoneTags : ["節目記録なし"]).map((tag) => (
-            <span key={tag} className="career-archive-tag">
+            <span key={tag} className="career-place-notechip">
               {tag}
             </span>
           ))}

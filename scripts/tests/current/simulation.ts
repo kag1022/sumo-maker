@@ -4,7 +4,7 @@ import { runSimulation } from '../../../src/logic/simulation/runner';
 import { runBasho, runBashoDetailed } from '../../../src/logic/simulation/basho';
 import { normalizeNewRunModelVersion, normalizeSimulationModelVersion } from '../../../src/logic/simulation/modelVersion';
 import { resolveYushoResolution } from '../../../src/logic/simulation/yusho';
-import { createSimulationEngine, resolveBoundaryAssignedRankForCurrentDivision } from '../../../src/logic/simulation/engine';
+import { createSimulationEngine, resolveBoundaryAssignedRankForCurrentDivision, type SimulationProgressSnapshot } from '../../../src/logic/simulation/engine';
 import { intakeNewNpcRecruits } from '../../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
@@ -1457,23 +1457,24 @@ export const tests: TestCase[] = [
       let observedSteps = 0;
       for (let i = 0; i < 40; i += 1) {
         const step = await engine.runNextBasho();
+        const progress = step.progress as SimulationProgressSnapshot;
         observedSteps += 1;
-        assert.equal(step.progress.makuuchi.length, 42);
-        assert.equal(step.progress.juryo.length, 28);
-        assert.equal(step.progress.makuuchiSlots, 42);
-        assert.equal(step.progress.juryoSlots, 28);
-        assert.equal(step.progress.makuuchiActive, 42);
-        assert.equal(step.progress.juryoActive, 28);
-        assert.ok(step.progress.sanshoTotal >= 0);
-        assert.ok(step.progress.shukunCount >= 0);
-        assert.ok(step.progress.kantoCount >= 0);
-        assert.ok(step.progress.ginoCount >= 0);
-        assert.ok(step.progress.lastCommitteeWarnings >= 0);
-        assert.ok(step.progress.divisionHeadcount.Jonokuchi >= 0);
-        assert.ok(step.progress.divisionActiveHeadcount.Jonidan >= 0);
+        assert.equal(progress.makuuchi.length, 42);
+        assert.equal(progress.juryo.length, 28);
+        assert.equal(progress.makuuchiSlots, 42);
+        assert.equal(progress.juryoSlots, 28);
+        assert.equal(progress.makuuchiActive, 42);
+        assert.equal(progress.juryoActive, 28);
+        assert.ok(progress.sanshoTotal >= 0);
+        assert.ok(progress.shukunCount >= 0);
+        assert.ok(progress.kantoCount >= 0);
+        assert.ok(progress.ginoCount >= 0);
+        assert.ok(progress.lastCommitteeWarnings >= 0);
+        assert.ok(progress.divisionHeadcount.Jonokuchi >= 0);
+        assert.ok(progress.divisionActiveHeadcount.Jonidan >= 0);
         assert.equal(
-          step.progress.sanshoTotal,
-          step.progress.shukunCount + step.progress.kantoCount + step.progress.ginoCount,
+          progress.sanshoTotal,
+          progress.shukunCount + progress.kantoCount + progress.ginoCount,
         );
         if (step.kind === 'COMPLETED') break;
       }

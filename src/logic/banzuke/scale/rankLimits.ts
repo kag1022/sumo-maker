@@ -17,8 +17,8 @@ export const DEFAULT_SCALE_SLOTS: Record<RankedDivision, number> = {
   Juryo: 28,
   Makushita: 120,
   Sandanme: 180,
-  Jonidan: 200,
-  Jonokuchi: 64,
+  Jonidan: 240,
+  Jonokuchi: 80,
 };
 
 const clamp = (value: number, min: number, max: number): number =>

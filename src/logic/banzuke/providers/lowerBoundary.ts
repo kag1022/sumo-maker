@@ -4,7 +4,7 @@ import { BanzukeEngineVersion } from '../types';
 import { optimizeExpectedPlacements } from '../optimizer';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { ExpectedPlacementCandidate } from './expected/types';
-import { resolveEmpiricalSlotBand } from './empirical';
+import { resolveBottomTailReliefSlots, resolveEmpiricalSlotBand } from './empirical';
 import {
   BoundarySnapshot,
   LowerBoundaryExchange,
@@ -206,6 +206,8 @@ export const resolveLowerDivisionPlacements = (
         rankNumber: currentRank.number,
         currentSlot,
         totalSlots,
+        divisionTotalSlots: divisionSizes[division],
+        baselineDivisionTotalSlots: DIVISION_SIZE[division],
         wins: row.wins,
         losses: row.losses,
         absent,
@@ -264,6 +266,26 @@ export const resolveLowerDivisionPlacements = (
     };
   });
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
+  const playerCurrentDivision =
+    resolvedPlayerRecord?.rank.division && ORDERED_DIVISIONS.includes(resolvedPlayerRecord.rank.division as LowerDivision)
+      ? (resolvedPlayerRecord.rank.division as LowerDivision)
+      : undefined;
+  const playerCurrentRow =
+    playerCurrentDivision
+      ? (results[playerCurrentDivision] ?? []).find((candidate) => candidate.id === 'PLAYER')
+      : undefined;
+  const playerTailRelief =
+    resolvedPlayerRecord && playerCurrentDivision
+      ? resolveBottomTailReliefSlots({
+        division: playerCurrentDivision,
+        rankNumber: resolvedPlayerRecord.rank.number,
+        divisionTotalSlots: divisionSizes[playerCurrentDivision],
+        baselineDivisionTotalSlots: DIVISION_SIZE[playerCurrentDivision],
+        wins: resolvedPlayerRecord.wins,
+        losses: resolvedPlayerRecord.losses,
+        absent: resolvedPlayerRecord.absent,
+      })
+      : 0;
 
   if (
     player &&
@@ -287,6 +309,27 @@ export const resolveLowerDivisionPlacements = (
   }
 
   const resolved = fromGlobalSlot(player.slot, divisionOffsets, divisionSizes, totalSlots);
+  if (
+    resolvedPlayerRecord &&
+    playerCurrentDivision === 'Jonokuchi' &&
+    playerCurrentRow &&
+    playerTailRelief > 0 &&
+    resolved.division === 'Jonokuchi'
+  ) {
+    const protectedRankScore = Math.max(1, playerCurrentRow.rankScore - playerTailRelief);
+    if (resolved.rankScore > protectedRankScore) {
+      return {
+        placements,
+        playerAssignedRank: toRank(
+          'Jonokuchi',
+          protectedRankScore,
+          divisionSizes,
+          divisionMaxNumbers,
+        ),
+      };
+    }
+  }
+
   return {
     placements,
     playerAssignedRank: toRank(

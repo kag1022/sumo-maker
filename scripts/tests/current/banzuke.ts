@@ -1,7 +1,7 @@
 import { calculateNextRank } from '../../../src/logic/banzuke/rules/singleRankChange';
 import { generateNextBanzuke } from '../../../src/logic/banzuke/providers/topDivision';
 import { BashoRecordSnapshot } from '../../../src/logic/banzuke/providers/sekitori/types';
-import { resolveLowerRangeDeltaByScore } from '../../../src/logic/banzuke/rules/lowerDivision';
+import { calculateLowerDivisionRankChange, resolveLowerRangeDeltaByScore } from '../../../src/logic/banzuke/rules/lowerDivision';
 import { resolveSekitoriDeltaBand } from '../../../src/logic/banzuke/providers/sekitori/bands';
 import { resolveTopDirective } from '../../../src/logic/banzuke/providers/sekitori/directives';
 import { scoreTopDivisionCandidate } from '../../../src/logic/banzuke/providers/sekitori/scoring';
@@ -234,7 +234,39 @@ export const tests: TestCase[] = [
       const result = calculateNextRank(createBashoRecord(jonokuchi, 2, 5), [], false, () => 0.5);
       assert.equal(result.nextRank.division, 'Jonokuchi');
       assert.equal(result.nextRank.name, '序ノ口');
-      assert.equal(result.nextRank.number, LIMITS.JONOKUCHI_MAX);
+    },
+  },
+{
+    name: 'ranking: jonokuchi bottom makekoshi can rise when lower tail is wide',
+    run: () => {
+      const result = calculateLowerDivisionRankChange(
+        createBashoRecord(
+          {
+            division: 'Jonokuchi',
+            name: '序ノ口',
+            side: 'West',
+            number: 48,
+          },
+          3,
+          4,
+        ),
+        {
+          scaleSlots: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 180,
+            Jonidan: 280,
+            Jonokuchi: 96,
+          },
+        },
+        () => 0.5,
+      );
+      assert.equal(result.nextRank.division, 'Jonokuchi');
+      assert.ok(
+        (result.nextRank.number ?? 999) < 48,
+        `Expected bottom makekoshi to improve inside Jonokuchi, got ${result.nextRank.number}${result.nextRank.side ?? ''}`,
+      );
     },
   },
 {
@@ -2080,6 +2112,54 @@ export const tests: TestCase[] = [
       if (assigned?.division === 'Sandanme') {
         assert.ok((assigned.number ?? 0) >= 31, 'Full absence should not improve rank number');
       }
+    },
+  },
+{
+    name: 'quota: lower committee can lift bottom jonokuchi makekoshi when tail expands',
+    run: () => {
+      const lowerWorld = createLowerDivisionQuotaWorld(() => 0.5);
+      for (let i = 0; i < 24; i += 1) {
+        lowerWorld.maezumoPool.push({
+          id: `TEST-MAE-${i + 1}`,
+          seedId: `seed-${i + 1}`,
+          shikona: `新弟子${i + 1}`,
+          division: 'Maezumo',
+          currentDivision: 'Maezumo',
+          stableId: `mae-${i % 6}`,
+          basePower: 40,
+          ability: 40,
+          uncertainty: 4,
+          rankScore: 1,
+          volatility: 1,
+          form: 1,
+          styleBias: 'PUSH',
+          heightCm: 180,
+          weightKg: 130,
+          active: true,
+          entryAge: 18,
+          age: 18,
+          careerBashoCount: 0,
+          entrySeq: 1,
+          recentBashoResults: [],
+        });
+      }
+
+      runLowerDivisionQuotaStep(lowerWorld, () => 0.5, {
+        rank: { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 40 },
+        shikona: '試験山',
+        wins: 3,
+        losses: 4,
+        absent: 0,
+      });
+
+      const assigned = lowerWorld.lastPlayerAssignedRank;
+      assert.ok(Boolean(assigned), 'Expected assigned lower rank');
+      assert.equal(assigned?.division, 'Jonokuchi');
+      assert.ok(
+        rankNumberSideToSlot(assigned?.number ?? 40, assigned?.side ?? 'West', lowerWorld.rosters.Jonokuchi.length) <
+          rankNumberSideToSlot(40, 'West', lowerWorld.rosters.Jonokuchi.length),
+        `Expected tail expansion to lift bottom makekoshi, got ${assigned?.number}${assigned?.side ?? ''}`,
+      );
     },
   },
 {

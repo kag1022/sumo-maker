@@ -23,6 +23,7 @@ import {
   type CareerPlaceTabId,
   type CareerWindowState,
 } from "../utils/careerResultModel";
+import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 
 export interface CareerResultViewState extends CareerWindowState {
   selectedBashoSeq: number | null;
@@ -38,6 +39,8 @@ interface CareerResultPageProps {
   detail: CareerBashoDetail | null;
   detailLoading: boolean;
   bashoRows: CareerBashoRecordsBySeq[];
+  detailState: "idle" | "building" | "ready" | "error";
+  detailBuildProgress: DetailBuildProgress | null;
   viewState: CareerResultViewState;
   onSelectBasho: (bashoSeq: number) => void;
   onViewStateChange: (patch: Partial<CareerResultViewState>) => void;
@@ -72,6 +75,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   detail,
   detailLoading,
   bashoRows,
+  detailState,
+  detailBuildProgress,
   viewState,
   onSelectBasho,
   onViewStateChange,
@@ -106,6 +111,15 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
     status.history.maxRank.name === "横綱" && yokozunaOrdinal
       ? `第${yokozunaOrdinal}代横綱`
       : formatRankDisplayName(status.history.maxRank);
+  const activeChapterLabel = CHAPTERS.find((chapter) => chapter.id === viewState.activeChapter)?.label ?? "総見";
+  const selectedMeta = selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel;
+  const canReadDetails = detailState === "ready";
+  const detailLoadingLabel =
+    detailState === "building"
+      ? `詳細記録を整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? bashoRows.length}`
+      : detailState === "error"
+        ? "詳細記録の整理に失敗しました。"
+        : "詳細記録はまだ準備されていません。";
 
   const scrollToHero = React.useCallback(() => {
     heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -117,6 +131,9 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
 
   const setChapter = React.useCallback(
     (chapter: CareerChapterId) => {
+      if (!canReadDetails && chapter !== "overview") {
+        return;
+      }
       onViewStateChange({ activeChapter: chapter });
       setMobileNavOpen(false);
       window.requestAnimationFrame(() => {
@@ -127,7 +144,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         scrollToChapterBody();
       });
     },
-    [onViewStateChange, scrollToChapterBody, scrollToHero],
+    [canReadDetails, onViewStateChange, scrollToChapterBody, scrollToHero],
   );
 
   const openChapterWithPoint = React.useCallback(
@@ -140,11 +157,9 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
     [onSelectBasho, setChapter],
   );
 
-  const activeChapterLabel = CHAPTERS.find((chapter) => chapter.id === viewState.activeChapter)?.label ?? "総見";
-
   return (
-    <div className="career-result-page career-poster-page">
-      <div ref={heroRef}>
+    <div className="career-ledger-page">
+      <div ref={heroRef} className="career-ledger-cover">
         <CareerOverviewChapter
           status={status}
           overview={overview}
@@ -152,6 +167,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
           highestRankLabel={highestRankLabel}
           selectedPoint={selectedPoint}
           isSaved={isSaved}
+          detailState={detailState}
+          detailBuildProgress={detailBuildProgress}
           onSave={onSave}
           onOpenEra={onOpenEra}
           onReturnToScout={onReturnToScout}
@@ -160,24 +177,25 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         />
       </div>
 
-      <div className="career-ribbon-shell">
-        <div className="career-ribbon">
-          <div className="career-ribbon-current">
-            <div className="career-ribbon-current-label">{activeChapterLabel}</div>
-            <div className="career-ribbon-current-meta">
-              {selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel}
+      <div className="career-ledger-ribbon-shell">
+        <div className="career-ledger-ribbon">
+          <div className="career-ledger-ribbon-current">
+            <div className="career-ledger-ribbon-label">{activeChapterLabel}</div>
+            <div className="career-ledger-ribbon-meta">
+              {selectedMeta}
             </div>
           </div>
 
-          <div className="career-ribbon-track" role="tablist" aria-label="キャリア結果ナビゲーション">
+          <div className="career-ledger-ribbon-track" role="tablist" aria-label="キャリア結果ナビゲーション">
             {CHAPTERS.map((chapter) => {
               const Icon = chapter.icon;
               return (
                 <button
                   key={chapter.id}
                   type="button"
-                  className="career-ribbon-tab"
+                  className="career-ledger-ribbon-tab disabled:cursor-not-allowed disabled:opacity-40"
                   data-active={viewState.activeChapter === chapter.id}
+                  disabled={!canReadDetails && chapter.id !== "overview"}
                   onClick={() => setChapter(chapter.id)}
                 >
                   <Icon className="h-4 w-4" />
@@ -190,7 +208,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="career-ribbon-mobile-toggle"
+            className="career-ledger-ribbon-mobile-toggle"
             onClick={() => setMobileNavOpen((current) => !current)}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -200,25 +218,26 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         <AnimatePresence initial={false}>
           {mobileNavOpen ? (
             <motion.div
-              className="career-ribbon-drawer"
+              className="career-ledger-ribbon-drawer"
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.16, ease: "easeOut" }}
             >
-              <div className="career-ribbon-drawer-current">
+              <div className="career-ledger-ribbon-drawer-current">
                 <div>{selectedPoint?.bashoLabel ?? "-"}</div>
                 <div>{selectedPoint?.rankLabel ?? highestRankLabel}</div>
               </div>
-              <div className="career-ribbon-drawer-list">
+              <div className="career-ledger-ribbon-drawer-list">
                 {CHAPTERS.map((chapter) => {
                   const Icon = chapter.icon;
                   return (
                     <button
                       key={`mobile-${chapter.id}`}
                       type="button"
-                      className="career-ribbon-drawer-tab"
+                      className="career-ledger-ribbon-drawer-tab disabled:cursor-not-allowed disabled:opacity-40"
                       data-active={viewState.activeChapter === chapter.id}
+                      disabled={!canReadDetails && chapter.id !== "overview"}
                       onClick={() => setChapter(chapter.id)}
                     >
                       <Icon className="h-4 w-4" />
@@ -232,13 +251,31 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         </AnimatePresence>
       </div>
 
-      <div ref={chapterRef} className="career-stage">
+      <div ref={chapterRef} className="career-ledger-body">
         <AnimatePresence mode="wait" initial={false}>
-          {viewState.activeChapter === "trajectory" ? (
+          {viewState.activeChapter === "overview" ? (
+            <motion.section key="overview" className="career-ledger-reading-note" {...chapterTransition}>
+              <div className="career-ledger-reading-kicker">本文の入口</div>
+              <div className="career-ledger-reading-title">
+                {canReadDetails ? "表紙を読み終えたら、下の章から掘り下げます。" : "表紙は開けますが、詳細章は記録整理後に開きます。"}
+              </div>
+              <p className="career-ledger-reading-copy">
+                {canReadDetails
+                  ? "番付推移で時系列を掴み、場所別でその場所を読み、審議録で昇降の判断を確かめる構成です。"
+                  : detailLoadingLabel}
+              </p>
+            </motion.section>
+          ) : null}
+
+          {viewState.activeChapter === "trajectory" && canReadDetails ? (
             <motion.div key="trajectory" {...chapterTransition}>
               <CareerTrajectoryChapter
                 ledger={ledger}
                 selectedPoint={selectedPoint}
+                selectionSummary={placeSummary}
+                detail={detail}
+                detailLoading={detailLoading}
+                hasPersistence={Boolean(careerId)}
                 viewState={viewState}
                 onSelectBasho={onSelectBasho}
                 onWindowChange={(window) => onViewStateChange(window)}
@@ -247,35 +284,69 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
             </motion.div>
           ) : null}
 
-          {viewState.activeChapter === "place" ? (
-            <motion.div key="place" {...chapterTransition}>
-              <CareerPlaceChapter
-                point={selectedPoint}
-                detail={detail}
-                summary={placeSummary}
-                placeTab={viewState.placeTab}
-                isLoading={detailLoading}
-                hasPersistence={Boolean(careerId)}
-                onSelectNpc={setSelectedNpcId}
-                onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
-              />
+          {viewState.activeChapter === "place" && canReadDetails ? (
+            <motion.div key="place" className="career-ledger-split" {...chapterTransition}>
+              <div className="career-ledger-mainpane">
+                <CareerPlaceChapter
+                  ledger={ledger}
+                  point={selectedPoint}
+                  detail={detail}
+                  summary={placeSummary}
+                  placeTab={viewState.placeTab}
+                  isLoading={detailLoading}
+                  hasPersistence={Boolean(careerId)}
+                  onSelectBasho={onSelectBasho}
+                  onSelectNpc={setSelectedNpcId}
+                  onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
+                />
+              </div>
+              <aside className="career-ledger-sidepane">
+                {selectedNpc ? (
+                  <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
+                ) : (
+                  <div className="career-ledger-sideempty">
+                    <div className="career-ledger-sideempty-kicker">補助欄</div>
+                    <div className="career-ledger-sideempty-title">近傍力士を開く</div>
+                    <p>番付や取組に表示される力士名を選ぶと、この場所で接していた相手の略歴を右側に表示します。</p>
+                  </div>
+                )}
+              </aside>
             </motion.div>
           ) : null}
 
-          {viewState.activeChapter === "review" ? (
-            <motion.div key="review" {...chapterTransition}>
-              <CareerReviewChapter
-                model={reviewModel}
-                isLoading={detailLoading}
-                emptyLabel={careerId ? "この場所の番付審議はまだ保存されていません。" : "保存後に番付審議を開けます。"}
-                onSelectNpc={setSelectedNpcId}
-              />
+          {viewState.activeChapter === "review" && canReadDetails ? (
+            <motion.div key="review" className="career-ledger-split" {...chapterTransition}>
+              <div className="career-ledger-mainpane">
+                <CareerReviewChapter
+                  model={reviewModel}
+                  isLoading={detailLoading}
+                  emptyLabel={careerId ? "この場所の番付審議はまだ保存されていません。" : "保存後に番付審議を開けます。"}
+                  onSelectNpc={setSelectedNpcId}
+                />
+              </div>
+              <aside className="career-ledger-sidepane">
+                {selectedNpc ? (
+                  <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
+                ) : (
+                  <div className="career-ledger-sideempty">
+                    <div className="career-ledger-sideempty-kicker">補助欄</div>
+                    <div className="career-ledger-sideempty-title">周辺事情</div>
+                    <p>近傍番付から他力士を選ぶと、審議の前後でどんな顔ぶれが並んでいたかを補助欄で確認できます。</p>
+                  </div>
+                )}
+              </aside>
             </motion.div>
+          ) : null}
+
+          {viewState.activeChapter !== "overview" && !canReadDetails ? (
+            <motion.section key="detail-lock" className="career-ledger-reading-note" {...chapterTransition}>
+              <div className="career-ledger-reading-kicker">記録整理中</div>
+              <div className="career-ledger-reading-title">詳細章はまだ開けません。</div>
+              <p className="career-ledger-reading-copy">{detailLoadingLabel}</p>
+            </motion.section>
           ) : null}
         </AnimatePresence>
       </div>
-
-      {selectedNpc ? <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} /> : null}
     </div>
   );
 };
