@@ -1,8 +1,8 @@
 import type { BashoRecord, Rank, RikishiStatus } from "../../../logic/models";
 import type { ImportantTorikumiNote, PlayerBoutDetail } from "../../../logic/simulation/basho";
 import type { SimulationDiagnostics } from "../../../logic/simulation/diagnostics";
-import type { SimulationProgressSnapshot } from "../../../logic/simulation/engine";
 import type {
+  SimulationProgressState,
   FeaturedBoutModel,
   LiveBashoDiagnosticsSummary,
   LiveBashoRaceSummaryItem,
@@ -290,7 +290,7 @@ export const buildCareerEpilogueView = ({
   nextBeatLabel,
 }: {
   status: RikishiStatus;
-  progress: SimulationProgressSnapshot;
+  progress: SimulationProgressState;
   chapterKind: SimulationChapterKind;
   chapterTitle: string;
   chapterReason: string;

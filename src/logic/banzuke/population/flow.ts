@@ -18,8 +18,8 @@ export const DEFAULT_DIVISION_POLICIES: BanzukeDivisionPolicy[] = [
   { division: 'Juryo', capacityMode: 'FIXED', fixedSlots: 28 },
   { division: 'Makushita', capacityMode: 'FIXED', fixedSlots: 120 },
   { division: 'Sandanme', capacityMode: 'FIXED', fixedSlots: 180 },
-  { division: 'Jonidan', capacityMode: 'VARIABLE', minSlots: 120, softMaxSlots: 240 },
-  { division: 'Jonokuchi', capacityMode: 'VARIABLE', minSlots: 18, softMaxSlots: 48 },
+  { division: 'Jonidan', capacityMode: 'VARIABLE', minSlots: 140, softMaxSlots: 320 },
+  { division: 'Jonokuchi', capacityMode: 'VARIABLE', minSlots: 24, softMaxSlots: 96 },
   { division: 'Maezumo', capacityMode: 'VARIABLE', minSlots: 0, softMaxSlots: Number.MAX_SAFE_INTEGER },
 ];
 

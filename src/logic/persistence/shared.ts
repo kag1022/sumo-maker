@@ -99,7 +99,12 @@ const resolveRetirementYearMonth = (status?: RikishiStatus): string | null => {
   return toYearMonth(retirement.year, retirement.month);
 };
 
-const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => {
+const toSummaryPatch = (
+  status: RikishiStatus,
+  options?: {
+    includeFinalStatus?: boolean;
+  },
+): Partial<CareerRow> => {
   const scoreSummary = buildCareerClearScoreSummary(status);
   return {
     shikona: status.shikona,
@@ -110,7 +115,9 @@ const toSummaryPatch = (status: RikishiStatus): Partial<CareerRow> => {
     totalAbsent: status.history.totalAbsent,
     yushoCount: status.history.yushoCount,
     bashoCount: status.history.records.length,
-    finalStatus: ensureCareerRecordStatus(status),
+    ...(options?.includeFinalStatus === false
+      ? {}
+      : { finalStatus: ensureCareerRecordStatus(status) }),
     clearScore: scoreSummary.clearScore,
     clearScoreVersion: scoreSummary.version,
     recordBadgeKeys: scoreSummary.badges.map((badge) => badge.key),
@@ -487,10 +494,11 @@ export interface AppendBashoChunkParams {
   careerId: string;
   seq: number;
   playerRecord: BashoRecord;
+  playerShikona: string;
+  summaryStatus?: RikishiStatus;
   playerBouts: PlayerBoutDetail[];
   importantTorikumiNotes?: ImportantTorikumiNote[];
   npcRecords: NpcBashoAggregate[];
-  statusSnapshot: RikishiStatus;
   banzukePopulation?: BanzukePopulationSnapshot;
   banzukeDecisions?: BanzukeDecisionLog[];
   diagnostics?: SimulationDiagnostics;
@@ -524,6 +532,7 @@ export interface CareerListItem {
   bestScoreRank?: number;
   collectionDeltaCount?: number;
   yokozunaOrdinal?: number;
+  detailState: NonNullable<CareerRow['detailState']>;
 }
 
 const resolveNextYokozunaOrdinal = async (careerId: string): Promise<number> => {
@@ -620,6 +629,7 @@ export const createDraftCareer = async ({
     generation,
     careerIndex: nextCareerIndex,
     finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
+    detailState: 'building',
     clearScore: initialSummary.clearScore,
     clearScoreVersion: initialSummary.clearScoreVersion,
     recordBadgeKeys: initialSummary.recordBadgeKeys,
@@ -629,30 +639,67 @@ export const createDraftCareer = async ({
   return careerId;
 };
 
-export const appendBashoChunk = async ({
-  careerId,
-  seq,
-  playerRecord,
-  playerBouts,
-  importantTorikumiNotes,
-  npcRecords,
-  statusSnapshot,
-  banzukePopulation,
-  banzukeDecisions,
-  diagnostics,
-}: AppendBashoChunkParams): Promise<void> => {
+const appendBashoChunksInternal = async (
+  chunks: AppendBashoChunkParams[],
+  options?: {
+    summaryStatus?: RikishiStatus;
+    detailState?: CareerRow['detailState'];
+  },
+): Promise<void> => {
+  if (chunks.length === 0) return;
   const db = getDb();
-  const playerRow = toPlayerBashoRow(careerId, seq, playerRecord, statusSnapshot.shikona);
-  const npcRows = toNpcBashoRows(careerId, seq, playerRecord.year, playerRecord.month, npcRecords);
-  const boutRows = toBoutRows(
-    careerId,
-    seq,
-    playerRecord.year,
-    playerRecord.month,
-    playerRecord.rank,
-    playerBouts,
-  );
-  const importantTorikumiRows = toImportantTorikumiRows(careerId, seq, importantTorikumiNotes ?? []);
+  const bashoRows: BashoRecordRow[] = [];
+  const boutRows: BoutRecordRow[] = [];
+  const importantTorikumiRows: ImportantTorikumiRow[] = [];
+  const populationRows: BanzukePopulationRow[] = [];
+  const decisionRows: BanzukeDecisionRow[] = [];
+  const diagnosticRows: SimulationDiagnosticsRow[] = [];
+
+  for (const chunk of chunks) {
+    bashoRows.push(toPlayerBashoRow(chunk.careerId, chunk.seq, chunk.playerRecord, chunk.playerShikona));
+    bashoRows.push(...toNpcBashoRows(
+      chunk.careerId,
+      chunk.seq,
+      chunk.playerRecord.year,
+      chunk.playerRecord.month,
+      chunk.npcRecords,
+    ));
+    boutRows.push(...toBoutRows(
+      chunk.careerId,
+      chunk.seq,
+      chunk.playerRecord.year,
+      chunk.playerRecord.month,
+      chunk.playerRecord.rank,
+      chunk.playerBouts,
+    ));
+    importantTorikumiRows.push(...toImportantTorikumiRows(
+      chunk.careerId,
+      chunk.seq,
+      chunk.importantTorikumiNotes ?? [],
+    ));
+    if (chunk.banzukePopulation) {
+      populationRows.push({
+        ...chunk.banzukePopulation,
+        careerId: chunk.careerId,
+        seq: chunk.seq,
+      });
+    }
+    if (chunk.banzukeDecisions?.length) {
+      decisionRows.push(...chunk.banzukeDecisions.map((rawLog) => ({
+        ...normalizeBanzukeDecisionLog(rawLog),
+        careerId: chunk.careerId,
+        seq: chunk.seq,
+      })));
+    }
+    if (chunk.diagnostics) {
+      diagnosticRows.push({
+        ...chunk.diagnostics,
+        careerId: chunk.careerId,
+        seq: chunk.seq,
+      });
+    }
+  }
+
   const writableTables = [
     db.careers,
     db.bashoRecords,
@@ -665,57 +712,61 @@ export const appendBashoChunk = async ({
     db.collectionEntries,
   ];
 
-  await db.transaction(
-    'rw',
-    writableTables,
-    async () => {
-      const career = await db.careers.get(careerId);
-      if (!career) {
-        throw new Error(`Career not found: ${careerId}`);
-      }
+  await db.transaction('rw', writableTables, async () => {
+    const careerId = chunks[0]?.careerId;
+    const career = careerId ? await db.careers.get(careerId) : null;
+    if (!career || !careerId) {
+      throw new Error(`Career not found: ${careerId}`);
+    }
 
-      await db.bashoRecords.bulkPut([playerRow, ...npcRows]);
-      await db.boutRecords.bulkPut(boutRows);
-      if (importantTorikumiRows.length) {
-        await db.importantTorikumi.bulkPut(importantTorikumiRows);
-      }
-      if (banzukePopulation) {
-        const row: BanzukePopulationRow = {
-          ...banzukePopulation,
-          careerId,
-          seq,
-        };
-        await db.banzukePopulation.put(row);
-      }
-      if (banzukeDecisions?.length) {
-        const rows: BanzukeDecisionRow[] = banzukeDecisions.map((rawLog) => ({
-          ...normalizeBanzukeDecisionLog(rawLog),
-          careerId,
-          seq,
-        }));
-        await db.banzukeDecisions.bulkPut(rows);
-      }
-      if (diagnostics) {
-        const row: SimulationDiagnosticsRow = {
-          ...diagnostics,
-          careerId,
-          seq,
-        };
-        await db.simulationDiagnostics.put(row);
-      }
+    await db.bashoRecords.bulkPut(bashoRows);
+    await db.boutRecords.bulkPut(boutRows);
+    if (importantTorikumiRows.length) {
+      await db.importantTorikumi.bulkPut(importantTorikumiRows);
+    }
+    if (populationRows.length) {
+      await db.banzukePopulation.bulkPut(populationRows);
+    }
+    if (decisionRows.length) {
+      await db.banzukeDecisions.bulkPut(decisionRows);
+    }
+    if (diagnosticRows.length) {
+      await db.simulationDiagnostics.bulkPut(diagnosticRows);
+    }
 
+    if (options?.summaryStatus) {
       const now = new Date().toISOString();
-      const retirementYm = resolveRetirementYearMonth(statusSnapshot);
       await db.careers.update(careerId, {
-        ...toSummaryPatch(statusSnapshot),
+        ...toSummaryPatch(options.summaryStatus, { includeFinalStatus: false }),
         updatedAt: now,
-        careerEndYearMonth: retirementYm,
+        careerEndYearMonth: resolveRetirementYearMonth(options.summaryStatus),
+        ...(options.detailState ? { detailState: options.detailState } : {}),
       });
-    },
-  );
+      return;
+    }
+
+    if (options?.detailState) {
+      await db.careers.update(careerId, { detailState: options.detailState });
+    }
+  });
 };
 
-export const markCareerCompleted = async (
+export const appendBashoChunksBulk = async (
+  chunks: AppendBashoChunkParams[],
+  options?: {
+    summaryStatus?: RikishiStatus;
+    detailState?: CareerRow['detailState'];
+  },
+): Promise<void> => appendBashoChunksInternal(chunks, options);
+
+export const appendBashoChunk = async ({
+  summaryStatus,
+  ...chunk
+}: AppendBashoChunkParams): Promise<void> => {
+  await appendBashoChunksInternal([chunk], { summaryStatus });
+};
+
+export const markCareerReadyForReveal = async (
   careerId: string,
   finalStatus: RikishiStatus,
 ): Promise<RikishiStatus> => {
@@ -732,18 +783,37 @@ export const markCareerCompleted = async (
     state: 'unshelved',
     updatedAt: now,
     careerEndYearMonth: resolveRetirementYearMonth(normalizedStatus),
+    detailState: 'building',
     lifetimePrizeYen: breakdown.totalYen,
     prizeBreakdown: breakdown,
     earnedPointsFromPrize: 0,
     pointConversionRuleId: rewardSummary.conversionRuleId,
     rewardGrantedAt: undefined,
   });
+  return normalizedStatus;
+};
+
+export const finalizeCareerDetails = async (
+  careerId: string,
+  finalStatus: RikishiStatus,
+): Promise<RikishiStatus> => {
+  const db = getDb();
+  let normalizedStatus = ensureCareerRecordStatus(finalStatus);
   normalizedStatus = await enrichStatusWithPersistenceNarratives(careerId, normalizedStatus);
   await db.careers.update(careerId, {
     finalStatus: normalizedStatus,
     ...toSummaryPatch(normalizedStatus),
+    detailState: 'ready',
   });
   return normalizedStatus;
+};
+
+export const markCareerCompleted = async (
+  careerId: string,
+  finalStatus: RikishiStatus,
+): Promise<RikishiStatus> => {
+  const summaryReadyStatus = await markCareerReadyForReveal(careerId, finalStatus);
+  return finalizeCareerDetails(careerId, summaryReadyStatus);
 };
 
 export const shelveCareer = async (careerId: string): Promise<void> => {
@@ -913,6 +983,7 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   bestScoreRank: row.bestScoreRank,
   collectionDeltaCount: row.collectionDeltaCount,
   yokozunaOrdinal: row.yokozunaOrdinal,
+  detailState: row.detailState ?? 'ready',
 });
 
 export const listShelvedCareers = async (): Promise<CareerListItem[]> => {
@@ -1119,6 +1190,9 @@ export const loadCareerStatus = async (careerId: string): Promise<RikishiStatus 
   if (!row) return null;
   if (!row.finalStatus) return null;
   const status = ensureCareerRecordStatus(ensureKataProfile(row.finalStatus));
+  if ((row.detailState ?? 'ready') !== 'ready') {
+    return status;
+  }
   return enrichStatusWithPersistenceNarratives(careerId, status);
 };
 

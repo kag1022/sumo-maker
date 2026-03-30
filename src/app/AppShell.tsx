@@ -3,6 +3,7 @@ import {
   Archive,
   FlaskConical,
   LibraryBig,
+  Menu,
   MoreHorizontal,
   MonitorPlay,
   ScrollText,
@@ -66,6 +67,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     return true;
   });
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -88,87 +90,136 @@ export const AppShell: React.FC<AppShellProps> = ({
     (item) => item.tier === "secondary" && !disableSections.includes(item.id),
   );
 
-  return (
-    <div className="min-h-screen bg-bg text-text">
-      <header className="sticky top-0 z-50 border-b border-white/6 bg-[#0b1118]/92 backdrop-blur-xl">
-        <div className="mx-auto max-w-[1680px] px-4 py-3 sm:px-8">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] ui-text-label tracking-[0.28em] text-text-faint uppercase">
-                Sumo Career Database
-              </div>
-              <h1 className="mt-1.5 text-xl sm:text-3xl ui-text-heading text-text">{title}</h1>
-              {subtitle ? <div className="mt-1 text-sm text-text/62">{subtitle}</div> : null}
-            </div>
+  React.useEffect(() => {
+    setMobileNavOpen(false);
+  }, [activeSection]);
 
-            <div className="flex flex-col gap-2 xl:items-end">
-              <div className="flex flex-wrap gap-1.5">
-                {primaryItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Button
-                      key={item.id}
-                      variant={activeSection === item.id ? "primary" : "ghost"}
-                      size="sm"
-                      disabled={disableSections.includes(item.id)}
-                      onClick={() => onSectionChange(item.id)}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  );
-                })}
-              </div>
-              {secondaryItems.length > 0 ? (
-                <div ref={menuRef} className="supplementary-menu">
+  return (
+    <div className="app-shell">
+      <header className="app-shell-header">
+        <div className="app-shell-header-inner">
+          <div className="app-shell-titleblock">
+            <div className="app-shell-overline">Sumo Career Records</div>
+            <h1 className="app-shell-title">{title}</h1>
+            {subtitle ? <div className="app-shell-subtitle">{subtitle}</div> : null}
+          </div>
+
+          <div className="app-shell-actioncluster">
+            {actions ? <div className="app-shell-actions">{actions}</div> : null}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="app-shell-mobile-navtoggle"
+              onClick={() => setMobileNavOpen((current) => !current)}
+              aria-expanded={mobileNavOpen}
+              aria-controls="app-shell-navdrawer"
+            >
+              <Menu className="h-4 w-4" />
+              導線
+            </Button>
+          </div>
+        </div>
+
+        <div className="app-shell-navband">
+          <div className="app-shell-navband-inner">
+            <nav className="app-shell-primarynav" aria-label="主要導線">
+              {primaryItems.map((item) => {
+                const Icon = item.icon;
+                return (
                   <Button
-                    variant={secondaryItems.some((item) => item.id === activeSection) ? "outline" : "ghost"}
+                    key={item.id}
+                    variant={activeSection === item.id ? "primary" : "ghost"}
                     size="sm"
-                    onClick={() => setMenuOpen((current) => !current)}
-                    aria-expanded={menuOpen}
-                    aria-haspopup="menu"
+                    className="app-shell-navbutton"
+                    disabled={disableSections.includes(item.id)}
+                    onClick={() => onSectionChange(item.id)}
                   >
-                    <MoreHorizontal className="mr-2 h-4 w-4" />
-                    もっと見る
+                    <Icon className="h-4 w-4" />
+                    {item.label}
                   </Button>
-                  {menuOpen ? (
-                    <div className="supplementary-menu-panel" role="menu" aria-label="補助メニュー">
-                      {secondaryItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="supplementary-menu-item"
-                            data-active={activeSection === item.id}
-                            onClick={() => {
-                              setMenuOpen(false);
-                              onSectionChange(item.id);
-                            }}
-                          >
-                            <Icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-2">
-                {statusLine ? (
-                  <div className="border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] ui-text-label text-text-dim">
-                    {statusLine}
+                );
+              })}
+            </nav>
+
+            {secondaryItems.length > 0 ? (
+              <div ref={menuRef} className="app-shell-secondarynav">
+                <Button
+                  variant={secondaryItems.some((item) => item.id === activeSection) ? "outline" : "ghost"}
+                  size="sm"
+                  className="app-shell-navbutton"
+                  onClick={() => setMenuOpen((current) => !current)}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                  しおり
+                </Button>
+                {menuOpen ? (
+                  <div className="app-shell-secondarypanel" role="menu" aria-label="補助導線">
+                    {secondaryItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="app-shell-secondaryitem"
+                          data-active={activeSection === item.id}
+                          onClick={() => {
+                            setMenuOpen(false);
+                            onSectionChange(item.id);
+                          }}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : null}
-                {actions}
               </div>
-            </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          id="app-shell-navdrawer"
+          className="app-shell-navdrawer"
+          data-open={mobileNavOpen}
+          aria-hidden={!mobileNavOpen}
+        >
+          <div className="app-shell-navdrawer-list">
+            {visibleItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={`mobile-${item.id}`}
+                  type="button"
+                  className="app-shell-navdrawer-item"
+                  data-active={activeSection === item.id}
+                  disabled={disableSections.includes(item.id)}
+                  onClick={() => onSectionChange(item.id)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1680px] px-4 pb-16 pt-6 sm:px-8">{children}</main>
+      {statusLine ? (
+        <div className="app-shell-statusband">
+          <div className="app-shell-statusband-inner">
+            <div className="app-shell-statuslabel">状況</div>
+            <div className="app-shell-statusline">{statusLine}</div>
+          </div>
+        </div>
+      ) : null}
+
+      <main className="app-shell-main">
+        <div className="app-shell-main-inner">{children}</div>
+      </main>
     </div>
   );
 };

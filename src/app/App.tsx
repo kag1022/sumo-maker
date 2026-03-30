@@ -41,6 +41,8 @@ export const App: React.FC = () => {
     currentCareerId,
     isCurrentCareerSaved,
     simulationPacing,
+    detailState,
+    detailBuildProgress,
     latestBashoView,
     latestObservation,
     latestPauseReason,
@@ -167,11 +169,11 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     let cancelled = false;
     const shouldLoadBashoRows =
-      Boolean(currentCareerId) && (phase === "reveal_ready" || phase === "completed" || phase === "chapter_ready");
+      Boolean(currentCareerId) &&
+      detailState === "ready" &&
+      (phase === "reveal_ready" || phase === "completed" || phase === "chapter_ready");
     if (!shouldLoadBashoRows) {
-      if (!currentCareerId) {
-        setBashoRows([]);
-      }
+      setBashoRows([]);
       setBashoRowsLoading(false);
       return () => {
         cancelled = true;
@@ -202,16 +204,16 @@ export const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentCareerId, phase]);
+  }, [currentCareerId, detailState, phase]);
 
   React.useEffect(() => {
     let cancelled = false;
     const targetBashoSeq = careerViewState.selectedBashoSeq;
     const selectedBashoRow = bashoRows.find((row) => row.bashoSeq === targetBashoSeq);
     const sourceBashoSeq = selectedBashoRow?.sourceBashoSeq ?? targetBashoSeq;
-    if (!currentCareerId || !targetBashoSeq || !sourceBashoSeq) {
+    if (detailState !== "ready" || !currentCareerId || !targetBashoSeq || !sourceBashoSeq) {
       setDetail(null);
-      setDetailLoading(Boolean(currentCareerId && targetBashoSeq && bashoRowsLoading));
+      setDetailLoading(Boolean(detailState === "ready" && currentCareerId && targetBashoSeq && bashoRowsLoading));
       return () => {
         cancelled = true;
       };
@@ -242,7 +244,7 @@ export const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [bashoRows, bashoRowsLoading, careerViewState.selectedBashoSeq, currentCareerId]);
+  }, [bashoRows, bashoRowsLoading, careerViewState.selectedBashoSeq, currentCareerId, detailState]);
 
   const handleSectionChange = React.useCallback(
     async (section: AppSection) => {
@@ -264,7 +266,7 @@ export const App: React.FC = () => {
   const handleStart = React.useCallback(
     async (...args: Parameters<typeof startSimulation>) => {
       await startSimulation(...args);
-      setActiveSection(args[4] === "skip_to_end" ? "career" : "basho");
+      setActiveSection(args[4] === "observe" || args[4] === "chaptered" ? "basho" : "career");
     },
     [startSimulation],
   );
@@ -330,6 +332,8 @@ export const App: React.FC = () => {
         simulationPacing,
         status,
         progress,
+        detailState,
+        detailBuildProgress,
         latestBashoView,
         hallOfFame,
         currentCareerId,
@@ -369,6 +373,7 @@ export const App: React.FC = () => {
         onOpenEra: () => setActiveSection("era"),
         onOpenCareer: () => setActiveSection("career"),
         onSaveCurrentCareer: saveCurrentCareer,
+        onRevealCurrentResult: revealCurrentResult,
         onReturnToScout: () => void handleSectionChange("scout"),
         onOpenArchiveCareer: handleOpenArchivedCareer,
         onDeleteCareer: deleteCareerById,
@@ -384,6 +389,8 @@ const renderSection = ({
   simulationPacing,
   status,
   progress,
+  detailState,
+  detailBuildProgress,
   latestBashoView,
   hallOfFame,
   currentCareerId,
@@ -403,6 +410,7 @@ const renderSection = ({
   onOpenEra,
   onOpenCareer,
   onSaveCurrentCareer,
+  onRevealCurrentResult,
   onReturnToScout,
   onOpenArchiveCareer,
   onDeleteCareer,
@@ -413,6 +421,8 @@ const renderSection = ({
   simulationPacing: ReturnType<typeof useSimulation>["simulationPacing"];
   status: ReturnType<typeof useSimulation>["status"];
   progress: ReturnType<typeof useSimulation>["progress"];
+  detailState: ReturnType<typeof useSimulation>["detailState"];
+  detailBuildProgress: ReturnType<typeof useSimulation>["detailBuildProgress"];
   latestBashoView: ReturnType<typeof useSimulation>["latestBashoView"];
   hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
   currentCareerId: string | null;
@@ -432,6 +442,7 @@ const renderSection = ({
   onOpenEra: () => void;
   onOpenCareer: () => void;
   onSaveCurrentCareer: () => Promise<void>;
+  onRevealCurrentResult: () => void;
   onReturnToScout: () => void;
   onOpenArchiveCareer: (careerId: string) => Promise<void>;
   onDeleteCareer: (careerId: string) => Promise<void>;
@@ -494,11 +505,19 @@ const renderSection = ({
   }
 
   if (phase === "simulating" || phase === "running") {
-    return <SimulationProgressView progress={progress} />;
+    return <SimulationProgressView progress={progress} status={status} />;
   }
 
   if (phase === "reveal_ready") {
-    return <RevealReadyView progress={progress} />;
+    return (
+      <RevealReadyView
+        status={status}
+        progress={progress}
+        detailState={detailState}
+        detailBuildProgress={detailBuildProgress}
+        onReveal={onRevealCurrentResult}
+      />
+    );
   }
 
   if (activeSection === "era") {
@@ -530,6 +549,8 @@ const renderSection = ({
       detail={detail}
       detailLoading={detailLoading}
       bashoRows={bashoRows}
+      detailState={detailState}
+      detailBuildProgress={detailBuildProgress}
       viewState={careerViewState}
       onSelectBasho={onSelectBasho}
       onViewStateChange={(patch) => onCareerViewStateChange((current) => ({ ...current, ...patch }))}
@@ -542,20 +563,46 @@ const renderSection = ({
 
 const SimulationProgressView: React.FC<{
   progress: ReturnType<typeof useSimulation>["progress"];
-}> = ({ progress }) => (
-  <div className="mx-auto max-w-3xl">
-    <div className="surface-panel space-y-6">
-      <div className="space-y-3 text-center">
-        <div className="app-kicker">結果を準備中</div>
-        <h2 className="text-3xl ui-text-heading text-text">力士人生を演算中</h2>
+  status: ReturnType<typeof useSimulation>["status"];
+}> = ({ progress, status }) => (
+  <div className="mx-auto max-w-5xl">
+    <div className="surface-panel grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="space-y-5">
+        <div className="space-y-3">
+          <div className="app-kicker">結果を準備中</div>
+          <h2 className="text-3xl ui-text-heading text-text">力士人生を演算中</h2>
+          <p className="max-w-2xl text-sm text-text-dim">
+            節目は伏せたまま、表紙を開くための記録だけ先に整えています。
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs ui-text-label text-text-dim">
+            <span>経過場所</span>
+            <span>{progress ? `${progress.bashoCount}場所` : "演算中"}</span>
+          </div>
+          <div className="h-2 overflow-hidden border border-white/10 bg-white/[0.03]">
+            <div className="h-full w-1/3 animate-pulse bg-action/70" />
+          </div>
+        </div>
       </div>
 
-      <div className="mx-auto flex max-w-xl items-center gap-2">
-        <div className="h-2 flex-1 overflow-hidden border border-white/10 bg-white/[0.03]">
-          <div className="h-full w-1/3 animate-pulse bg-action/70" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="border border-gold/15 bg-bg/20 px-4 py-4">
+          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">四股名</div>
+          <div className="mt-2 text-2xl ui-text-heading text-text">{status?.shikona ?? "記録編集中"}</div>
         </div>
-        <div className="text-xs ui-text-label text-text-dim">
-          {progress ? `${progress.bashoCount}場所` : "演算中"}
+        <div className="border border-gold/15 bg-bg/20 px-4 py-4">
+          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">現在年月</div>
+          <div className="mt-2 text-xl text-text">{progress ? formatBashoLabel(progress.year, progress.month) : "-"}</div>
+        </div>
+        <div className="border border-gold/15 bg-bg/20 px-4 py-4">
+          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">現在番付</div>
+          <div className="mt-2 text-xl text-text">{progress ? formatRankDisplayName(progress.currentRank) : "-"}</div>
+        </div>
+        <div className="border border-gold/15 bg-bg/20 px-4 py-4">
+          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">経過</div>
+          <div className="mt-2 text-xl text-text">{progress ? `${progress.bashoCount}場所` : "-"}</div>
         </div>
       </div>
     </div>
@@ -563,26 +610,60 @@ const SimulationProgressView: React.FC<{
 );
 
 const RevealReadyView: React.FC<{
+  status: ReturnType<typeof useSimulation>["status"];
   progress: ReturnType<typeof useSimulation>["progress"];
-}> = ({ progress }) => (
-  <div className="mx-auto max-w-3xl">
-    <div className="surface-panel space-y-6">
-      <div className="space-y-3 text-center">
-        <div className="app-kicker">開封の前</div>
-        <h2 className="text-3xl ui-text-heading text-text">結果の準備ができました</h2>
-      </div>
+  detailState: ReturnType<typeof useSimulation>["detailState"];
+  detailBuildProgress: ReturnType<typeof useSimulation>["detailBuildProgress"];
+  onReveal: () => void;
+}> = ({ status, progress, detailState, detailBuildProgress, onReveal }) => {
+  const totalRecordLabel = status
+    ? `${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`
+    : "-";
+  const detailMessage = detailState === "building"
+    ? `詳細記録を整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? progress?.bashoCount ?? 0}`
+    : "詳細章もすぐ読めます。";
 
-      <div className="mx-auto flex max-w-xl items-center gap-2">
-        <div className="h-2 flex-1 overflow-hidden border border-white/10 bg-white/[0.03]">
-          <div className="h-full w-full bg-action/70" />
+  return (
+    <div className="mx-auto max-w-5xl">
+      <div className="surface-panel space-y-8">
+        <div className="space-y-3 text-center">
+          <div className="app-kicker">開封の前</div>
+          <h2 className="text-3xl ui-text-heading text-text">結果の準備ができました</h2>
+          <p className="mx-auto max-w-2xl text-sm text-text-dim">
+            表紙はすぐ開けます。細部の帳面は裏で整理を続けています。
+          </p>
         </div>
-        <div className="text-xs ui-text-label text-text-dim">
-          {progress ? `${progress.bashoCount}場所` : "完了"}
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="border border-gold/15 bg-bg/20 px-5 py-5">
+            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">最高位</div>
+            <div className="mt-2 text-2xl ui-text-heading text-text">
+              {status ? formatRankDisplayName(status.history.maxRank) : "-"}
+            </div>
+          </div>
+          <div className="border border-gold/15 bg-bg/20 px-5 py-5">
+            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">通算</div>
+            <div className="mt-2 text-2xl ui-text-heading text-text">{totalRecordLabel}</div>
+          </div>
+          <div className="border border-gold/15 bg-bg/20 px-5 py-5">
+            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">在位</div>
+            <div className="mt-2 text-2xl ui-text-heading text-text">
+              {progress ? `${progress.bashoCount}場所` : "-"}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-3 border border-white/10 bg-white/[0.02] px-5 py-6 text-center">
+          <Button size="lg" onClick={onReveal}>
+            <Play className="mr-2 h-4 w-4" />
+            結果を見る
+          </Button>
+          <div className="text-sm text-text-dim">{detailMessage}</div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const EmptyCareerState: React.FC = () => (
   <section className="premium-panel p-5 sm:p-6">

@@ -115,10 +115,11 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
   }, [selectedId, selectedItem]);
 
   return (
-    <div className="archive-layout">
-      <section className="surface-panel space-y-4">
+    <div className="archive-ledger-layout">
+      <section className="archive-ledger-filter surface-panel space-y-4">
         <div>
-          <div className="panel-title">絞り込み</div>
+          <div className="record-page-kicker">私設書架</div>
+          <div className="panel-title">書架の索引</div>
         </div>
 
         <div className="search-field">
@@ -179,10 +180,12 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         </div>
       </section>
 
-      <section className="surface-panel min-w-0">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <section className="archive-ledger-shelf surface-panel min-w-0">
+        <div className="archive-ledger-shelf-head">
           <div>
+            <div className="record-page-kicker">保存した人生</div>
             <div className="panel-title">保存済み記録</div>
+            <div className="text-sm text-text-dim">書架から一冊選ぶと、右側に開きかけの記録帳を表示します。</div>
           </div>
           <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
         </div>
@@ -193,89 +196,75 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             <div className="empty-state-title">条件に合う保存済み記録はありません</div>
           </div>
         ) : (
-          <div className="archive-table-wrap">
-            <table className="archive-table">
-              <thead>
-                <tr>
-                  <th>四股名</th>
-                  <th>総評点</th>
-                  <th>最高位</th>
-                  <th>幕内優勝</th>
-                  <th>通算成績</th>
-                  <th>在位期間</th>
-                  <th>保存日</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    data-active={selectedItem?.id === item.id}
-                    onClick={() => setSelectedId(item.id)}
-                  >
-                    <td>
-                      <div className="font-medium text-text">{item.shikona}</div>
-                      <div className="text-xs text-text-dim">{resolveArchiveLabel(item)}</div>
-                    </td>
-                    <td>{item.clearScore ?? 0}</td>
-                    <td>{formatRankName(item.maxRank)}</td>
-                    <td>{item.yushoCount.makuuchi}回</td>
-                    <td>
-                      {item.totalWins}勝 {item.totalLosses}敗
-                      {item.totalAbsent > 0 ? ` ${item.totalAbsent}休` : ""}
-                    </td>
-                    <td>
-                      {item.careerStartYearMonth}
-                      <span className="mx-1 text-text-faint">〜</span>
-                      {item.careerEndYearMonth || "現在"}
-                    </td>
-                    <td>{toDateText(item.savedAt || item.updatedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="archive-ledger-shelf-list">
+            {filteredItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="archive-ledger-card"
+                data-active={selectedItem?.id === item.id}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <div className="archive-ledger-card-head">
+                  <div>
+                    <div className="archive-ledger-card-title">{item.shikona}</div>
+                    <div className="archive-ledger-card-label">{resolveArchiveLabel(item)}</div>
+                  </div>
+                  <div className="archive-ledger-card-date">{toDateText(item.savedAt || item.updatedAt)}</div>
+                </div>
+                <div className="archive-ledger-card-meta">
+                  <span>{formatRankName(item.maxRank)}</span>
+                  <span>{item.yushoCount.makuuchi}回</span>
+                  <span>{item.clearScore ?? 0}点</span>
+                </div>
+                <div className="archive-ledger-card-record">
+                  {item.totalWins}勝 {item.totalLosses}敗{item.totalAbsent > 0 ? ` ${item.totalAbsent}休` : ""}
+                </div>
+              </button>
+            ))}
           </div>
         )}
       </section>
 
-      <section className="surface-panel space-y-4">
+      <section className="archive-ledger-detail surface-panel space-y-4">
         <div>
-          <div className="panel-title">プレビュー</div>
+          <div className="record-page-kicker">閲覧面</div>
+          <div className="panel-title">開きかけの記録帳</div>
         </div>
 
         {selectedItem ? (
           <>
-            <div className="space-y-2 border-b border-line pb-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-award/25 bg-award/8 px-3 py-1 text-xs text-award">
+            <div className="archive-ledger-detail-head">
+              <div className="archive-ledger-detail-chip">
                 <Star className="h-3.5 w-3.5" />
                 {resolveArchiveLabel(selectedItem)}
               </div>
-              <div className="text-2xl ui-text-heading text-text">{selectedItem.shikona}</div>
-              <div className="text-sm text-text-dim">
+              <div className="archive-ledger-detail-title">{selectedItem.shikona}</div>
+              <div className="archive-ledger-detail-subtitle">
                 最高位 {formatRankName(selectedItem.maxRank)}
                 {selectedItem.title ? ` / ${selectedItem.title}` : ""}
               </div>
             </div>
 
-            <div className="metric-strip">
-              <div className="metric-card">
-                <div className="metric-label">総評点</div>
-                <div className="metric-value">{selectedItem.clearScore ?? 0}</div>
+            <div className="archive-ledger-metrics">
+              <div className="archive-ledger-metric">
+                <div className="archive-ledger-metric-label">総評点</div>
+                <div className="archive-ledger-metric-value">{selectedItem.clearScore ?? 0}</div>
               </div>
-              <div className="metric-card">
-                <div className="metric-label">通算成績</div>
-                <div className="metric-value">
+              <div className="archive-ledger-metric">
+                <div className="archive-ledger-metric-label">通算成績</div>
+                <div className="archive-ledger-metric-value">
                   {selectedItem.totalWins}勝 {selectedItem.totalLosses}敗
                 </div>
               </div>
-              <div className="metric-card">
-                <div className="metric-label">幕内優勝</div>
-                <div className="metric-value">{selectedItem.yushoCount.makuuchi}回</div>
+              <div className="archive-ledger-metric">
+                <div className="archive-ledger-metric-label">幕内優勝</div>
+                <div className="archive-ledger-metric-value">{selectedItem.yushoCount.makuuchi}回</div>
               </div>
             </div>
 
             {!!selectedItem.recordBadgeKeys?.length && (
-              <div className="flex flex-wrap gap-2">
+              <div className="archive-ledger-badges">
                 {selectedItem.recordBadgeKeys.slice(0, 3).map((badgeKey) => (
                   <span key={badgeKey} className="report-pill" data-tone="state">
                     {resolveCareerRecordBadgeLabel(
@@ -286,7 +275,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               </div>
             )}
 
-            <div className="space-y-2 text-sm text-text-dim">
+            <div className="archive-ledger-detail-rows">
               <div className="info-row">
                 <span>在位期間</span>
                 <span>
@@ -303,7 +292,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2 pt-2">
+            <div className="archive-ledger-detail-actions">
               <Button className="w-full" onClick={() => onOpen(selectedItem.id)}>
                 この記録を開く
               </Button>

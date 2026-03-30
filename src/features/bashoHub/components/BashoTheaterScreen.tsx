@@ -17,13 +17,20 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
   onPrimaryAction,
   onSecondaryAction,
 }) => {
+  const theaterTone =
+    view?.chapterKind === "RETIREMENT" || view?.chapterKind === "EPILOGUE"
+      ? "ending"
+      : view?.chapterKind === "SANYAKU" || view?.chapterKind === "SEKITORI" || view?.chapterKind === "DEBUT" || view?.chapterKind === "TITLE_RACE"
+        ? "rise"
+        : "still";
+
   if (!view) {
     return (
-      <section className="chapter-stage-shell">
-        <div className="chapter-stage-card chapter-stage-card-compact">
-          <div className="chapter-stage-kicker">節目を見る</div>
-          <h2 className="chapter-stage-title">次の節目を待っています</h2>
-          <p className="chapter-stage-reason">
+      <section className="basho-theater-shell">
+        <div className="basho-theater-card" data-tone="still">
+          <div className="basho-theater-kicker">節目を見る</div>
+          <h2 className="basho-theater-title">次の節目を待っています</h2>
+          <p className="basho-theater-summary">
             まだ止めるべき場面は来ていません。相撲人生の流れを裏で進めています。
           </p>
         </div>
@@ -32,14 +39,11 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
   }
 
   return (
-    <section className="chapter-stage-shell">
-      <div className="chapter-stage-card chapter-stage-card-linear">
-        <div className="chapter-stage-head">
-          <div>
-            <div className="chapter-stage-kicker">節目を見る</div>
-            <h2 className="chapter-stage-title">{view.chapterTitle}</h2>
-          </div>
-          <div className="chapter-stage-meta">
+    <section className="basho-theater-shell">
+      <article className="basho-theater-card" data-tone={theaterTone}>
+        <div className="basho-theater-meta">
+          <div className="basho-theater-kicker">節目を見る</div>
+          <div className="basho-theater-metaband">
             <span>{view.year}年{view.month}月場所</span>
             <span>{view.currentRank}</span>
             <span>{view.currentAge ? `${view.currentAge}歳` : "年齢不詳"}</span>
@@ -47,31 +51,32 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
           </div>
         </div>
 
-        <div className="chapter-stage-flow">
-          <section className="chapter-stage-panel">
-            <div className="chapter-stage-label">今読む場面</div>
-            <p className="chapter-stage-reason">{view.chapterReason}</p>
-          </section>
+        <div className="basho-theater-body">
+          <header className="basho-theater-headline">
+            <h2 className="basho-theater-title">{view.chapterTitle}</h2>
+            <p className="basho-theater-summary">{view.chapterReason}</p>
+          </header>
 
-          <section className="chapter-stage-panel">
-            <div className="chapter-stage-label">主役場面</div>
-            <h3>{view.featuredBout?.kindLabel ?? "代表的な一番または転機"}</h3>
-            <div className="chapter-stage-highlight">
+          <section className="basho-theater-feature">
+            <div className="basho-theater-sectionlabel">
+              {view.featuredBout?.kindLabel ?? "代表的な一番または転機"}
+            </div>
+            <div className="basho-theater-highlight">
               {view.featuredBout?.matchup ?? `${view.currentRank} / ${view.currentRecord}`}
             </div>
-            <p className="chapter-stage-panel-copy">{view.featuredBout?.summary ?? view.heroMoment}</p>
+            <p className="basho-theater-featurecopy">{view.featuredBout?.summary ?? view.heroMoment}</p>
           </section>
 
-          <section className="chapter-stage-panel">
-            <div className="chapter-stage-label">次にすること</div>
-            <strong className="chapter-stage-next-copy">{view.nextBeatLabel}</strong>
-          </section>
+          <div className="basho-theater-nextbeat">
+            <span className="basho-theater-sectionlabel">次にすること</span>
+            <strong>{view.nextBeatLabel}</strong>
+          </div>
 
-          <details className="chapter-stage-disclosure">
+          <details className="basho-theater-disclosure">
             <summary>補足を見る</summary>
-            <div className="chapter-stage-summary">
+            <div className="basho-theater-disclosure-grid">
               {view.raceSummary.slice(0, 3).map((item) => (
-                <div key={item.id} className="chapter-stage-summary-item">
+                <div key={item.id} className="basho-theater-disclosure-item">
                   <span>{item.label}</span>
                   <strong>{item.value}</strong>
                 </div>
@@ -81,7 +86,7 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
         </div>
 
         {(primaryActionLabel || secondaryActionLabel) ? (
-          <div className="chapter-stage-cta">
+          <div className="basho-theater-cta">
             {primaryActionLabel && onPrimaryAction ? (
               <Button size="lg" onClick={onPrimaryAction}>
                 {primaryActionLabel}
@@ -94,7 +99,7 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
             ) : null}
           </div>
         ) : null}
-      </div>
+      </article>
     </section>
   );
 };

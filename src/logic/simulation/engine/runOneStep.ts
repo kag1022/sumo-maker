@@ -63,7 +63,7 @@ import {
   SimulationWorld,
 } from '../world';
 import { SimulationDiagnostics } from '../diagnostics';
-import { createPopulationSnapshot, createProgressSnapshot } from './progressSnapshot';
+import { createPopulationSnapshot, createProgressLite, createProgressSnapshot } from './progressSnapshot';
 import { resolvePauseReason } from './pausePolicy';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RuntimeNarrativeState, SimulationParams, SimulationStepResult } from './types';
@@ -150,6 +150,25 @@ const resolveCurrentScaleSlots = (
   Jonokuchi: lowerDivisionQuotaWorld.rosters.Jonokuchi.length,
 });
 
+const buildProgressSnapshot = (
+  context: Pick<RunOneStepContext, 'params' | 'world' | 'lowerDivisionQuotaWorld' | 'state'>,
+  year: number,
+  month: number,
+) => {
+  const { params, world, lowerDivisionQuotaWorld, state } = context;
+  return params.progressSnapshotMode === 'lite'
+    ? createProgressLite(state.status, year, month)
+    : createProgressSnapshot(
+      state.status,
+      world,
+      lowerDivisionQuotaWorld,
+      year,
+      month,
+      state.lastCommitteeWarnings,
+      state.lastDiagnostics,
+    );
+};
+
 export const runOneStep = async (context: RunOneStepContext): Promise<SimulationStepResult> => {
   const {
     params,
@@ -170,14 +189,10 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       banzukeDecisions: [],
       diagnostics: state.lastDiagnostics,
       events: [],
-      progress: createProgressSnapshot(
-        state.status,
-        world,
-        lowerDivisionQuotaWorld,
+      progress: buildProgressSnapshot(
+        context,
         state.year,
         MONTHS[Math.min(state.monthIndex, MONTHS.length - 1)],
-        state.lastCommitteeWarnings,
-        state.lastDiagnostics,
       ),
     };
   }
@@ -199,15 +214,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       diagnostics: state.lastDiagnostics,
       events,
       pauseReason: 'RETIREMENT',
-      progress: createProgressSnapshot(
-        state.status,
-        world,
-        lowerDivisionQuotaWorld,
-        state.year,
-        month,
-        state.lastCommitteeWarnings,
-        state.lastDiagnostics,
-      ),
+      progress: buildProgressSnapshot(context, state.year, month),
     };
   }
 
@@ -670,15 +677,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   await deps.yieldControl();
 
-  const progress = createProgressSnapshot(
-    state.status,
-    world,
-    lowerDivisionQuotaWorld,
-    state.year,
-    MONTHS[state.monthIndex],
-    state.lastCommitteeWarnings,
-    state.lastDiagnostics,
-  );
+  const progress = buildProgressSnapshot(context, state.year, MONTHS[state.monthIndex]);
   const eventPauseReason = resolvePauseReason(newEvents);
 
   return {
@@ -700,7 +699,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     })),
     events: newEvents,
     pauseReason: eventPauseReason,
-    statusSnapshot: cloneStatus(state.status),
+    statusSnapshot: context.params.bashoSnapshotMode === 'none' ? undefined : cloneStatus(state.status),
     progress,
   };
 };
