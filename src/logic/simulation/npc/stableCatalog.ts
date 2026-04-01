@@ -23,9 +23,14 @@ const compareStableId = (a: StableDefinition, b: StableDefinition): number =>
 const selectStableForInitialAssignment = (
   assigned: Map<string, number>,
 ): StableDefinition => {
-  let best = STABLE_CATALOG[0];
+  const eligible = STABLE_CATALOG.filter((candidate) => {
+    if (typeof candidate.hardCap !== 'number') return true;
+    return getAssignedCount(assigned, candidate.id) < candidate.hardCap;
+  });
+  const pool = eligible.length > 0 ? eligible : STABLE_CATALOG;
+  let best = pool[0];
 
-  for (const candidate of STABLE_CATALOG) {
+  for (const candidate of pool) {
     const candidateAssigned = getAssignedCount(assigned, candidate.id);
     const bestAssigned = getAssignedCount(assigned, best.id);
     const candidateRemaining = candidate.targetHeadcount - candidateAssigned;

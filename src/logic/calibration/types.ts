@@ -24,6 +24,15 @@ export interface BanzukeDataQuality {
   banzukeAlignmentRate: number;
 }
 
+export interface DistributionCalibrationStats {
+  sampleSize: number;
+  min: number;
+  p10: number;
+  p50: number;
+  p90: number;
+  max: number;
+}
+
 export interface CareerCalibrationTarget {
   meta: CalibrationMeta & {
     minDebutYear: number;
@@ -97,6 +106,29 @@ export interface BanzukeCalibrationTarget {
   };
 }
 
+export interface PopulationCalibrationTarget {
+  meta: CalibrationMeta & {
+    divisionScope: string[];
+    countMeaning: string;
+    monthlyIntakeMeaning: string;
+  };
+  annualTotalHeadcount: DistributionCalibrationStats;
+  annualTotalDelta: DistributionCalibrationStats;
+  annualTotalSwing: DistributionCalibrationStats;
+  annualJonidanHeadcount: DistributionCalibrationStats;
+  annualJonidanDelta: DistributionCalibrationStats;
+  annualJonidanSwing: DistributionCalibrationStats;
+  annualJonokuchiHeadcount: DistributionCalibrationStats;
+  annualJonokuchiDelta: DistributionCalibrationStats;
+  annualJonokuchiSwing: DistributionCalibrationStats;
+  monthlyIntakeByMonth: Record<string, DistributionCalibrationStats | null>;
+  bashoLevelReference: {
+    totalHeadcount: DistributionCalibrationStats;
+    jonidanHeadcount: DistributionCalibrationStats;
+    jonokuchiHeadcount: DistributionCalibrationStats;
+  };
+}
+
 export interface CalibrationBundle {
   meta?: {
     generatedAt: string;
@@ -114,5 +146,6 @@ export interface CalibrationBundle {
   };
   career: CareerCalibrationTarget;
   banzuke: BanzukeCalibrationTarget;
+  population?: PopulationCalibrationTarget;
   collection?: Record<string, unknown>;
 }

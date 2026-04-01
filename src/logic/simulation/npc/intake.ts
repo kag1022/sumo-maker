@@ -1,40 +1,46 @@
 import { RandomSource } from '../deps';
 import { createMaezumoRecruit } from './factory';
+import { resolveMonthlyIntakePulse, resolveMonthlyPopulationBaseIntake } from './populationPlan';
+import { PopulationPlan } from './populationPlanTypes';
 import { resolveStableForRecruit } from './stableCatalog';
 import { NpcUniverse, PersistentNpc } from './types';
-
-const ACTIVE_SOFT_MIN = 630;
-const ACTIVE_HARD_MAX = 900;
-
-const randomInt = (rng: RandomSource, min: number, max: number): number =>
-  min + Math.floor(rng() * (max - min + 1));
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
 export const resolveMonthlyBaseIntake = (month: number, rng: RandomSource): number => {
-  if (month === 3) return randomInt(rng, 50, 80);
-  if (month === 5) return randomInt(rng, 10, 20);
-  return randomInt(rng, 3, 8);
+  return resolveMonthlyPopulationBaseIntake(month, rng);
 };
 
 export const resolveIntakeCount = (
   month: number,
-  activeCount: number,
+  currentBanzukeHeadcount: number,
+  populationPlan: PopulationPlan | undefined,
   rng: RandomSource,
 ): number => {
-  if (activeCount >= ACTIVE_HARD_MAX) return 0;
+  if (!populationPlan) return resolveMonthlyBaseIntake(month, rng);
   const base = resolveMonthlyBaseIntake(month, rng);
-  const recovery = activeCount < ACTIVE_SOFT_MIN ? Math.ceil((ACTIVE_SOFT_MIN - activeCount) / 2) : 0;
-  const raw = base + recovery;
-  return Math.max(0, Math.min(raw, ACTIVE_HARD_MAX - activeCount));
+  const seasonalPulse = resolveMonthlyIntakePulse(month);
+  const multiplier = clamp(
+    1 +
+      populationPlan.annualIntakeShock +
+      seasonalPulse * 0.18 * populationPlan.lowerDivisionElasticity,
+    0.25,
+    2.2,
+  );
+  const noise = Math.round(populationPlan.sampledTotalSwing * 0.025 * (rng() * 2 - 1));
+  const residualCap = Math.max(0, populationPlan.annualIntakeHardCap - currentBanzukeHeadcount);
+  return clamp(Math.round(base * multiplier + noise), 0, residualCap);
 };
 
 export const intakeNewNpcRecruits = (
   universe: Pick<NpcUniverse, 'registry' | 'maezumoPool' | 'nameContext' | 'nextNpcSerial'>,
   seq: number,
   month: number,
-  activeCount: number,
+  currentBanzukeHeadcount: number,
+  populationPlan: PopulationPlan | undefined,
   rng: RandomSource,
 ): { recruits: PersistentNpc[]; nextNpcSerial: number } => {
-  const count = resolveIntakeCount(month, activeCount, rng);
+  const count = resolveIntakeCount(month, currentBanzukeHeadcount, populationPlan, rng);
   if (count <= 0) {
     return { recruits: [], nextNpcSerial: universe.nextNpcSerial };
   }

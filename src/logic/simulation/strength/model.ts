@@ -58,9 +58,9 @@ const DIVISION_ABILITY_BANDS: Record<Rank['division'], DivisionAbilityBand> = {
   Makuuchi: { top: 156, bottom: 112, slots: 42 },
   Juryo: { top: 120, bottom: 90, slots: 28 },
   Makushita: { top: 96, bottom: 78, slots: 120 },
-  Sandanme: { top: 80, bottom: 64, slots: 180 },
-  Jonidan: { top: 68, bottom: 54, slots: 200 },
-  Jonokuchi: { top: 58, bottom: 46, slots: 64 },
+  Sandanme: { top: 80, bottom: 64, slots: 200 },
+  Jonidan: { top: 68, bottom: 54, slots: 250 },
+  Jonokuchi: { top: 58, bottom: 46, slots: 78 },
   Maezumo: { top: 44, bottom: 44, slots: 1 },
 };
 

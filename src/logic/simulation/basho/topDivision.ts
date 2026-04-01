@@ -272,12 +272,18 @@ export const runTopDivisionBasho = (
           opponent.rankScore,
           world.makuuchiLayout,
         ),
+        stableId: opponent.stableId,
         power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
         ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? (opponentDivision === 'Makuuchi' ? 188 : 186),
         weightKg: opponent.weightKg ?? (opponentDivision === 'Makuuchi' ? 160 : 152),
+        aptitudeTier: opponent.aptitudeTier,
+        aptitudeProfile: opponent.aptitudeProfile,
         aptitudeFactor: opponent.aptitudeFactor,
+        careerBand: opponent.careerBand,
+        stagnation: opponent.stagnation,
+        bashoFormDelta: opponent.bashoFormDelta,
       };
 
       const isLastDay = day === numBouts;

@@ -11,6 +11,7 @@ import {
   calculateMomentumBonus,
   resolveBoutWinProb,
   resolvePlayerAbility,
+  resolveUnifiedNpcStrength,
 } from './simulation/strength/model';
 import {
   resolveCompetitiveFactor,
@@ -24,9 +25,21 @@ import {
   resolveKimariteOutcome,
   type KimariteCompetitorProfile,
 } from './kimarite/selection';
+import { resolveStableById } from './simulation/heya/stableCatalog';
+import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
 import { getCompatibilityWeight, styleToTactics } from './styleProfile';
 
 export { type EnemyStats };
+
+export interface BattleOpponent extends EnemyStats {
+  stableId?: string;
+  aptitudeTier?: RikishiStatus['aptitudeTier'];
+  aptitudeProfile?: RikishiStatus['aptitudeProfile'];
+  aptitudeFactor?: RikishiStatus['aptitudeFactor'];
+  careerBand?: RikishiStatus['careerBand'];
+  stagnation?: RikishiStatus['stagnation'];
+  bashoFormDelta?: number;
+}
 
 /**
  * 取組コンテキスト（スキル判定に使用）
@@ -55,6 +68,18 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const resolveSignedStreak = (winStreak: number, lossStreak: number): number =>
   winStreak > 0 ? winStreak : lossStreak > 0 ? -lossStreak : 0;
+
+const resolveStablePerformanceFactor = (stableId?: string): number => {
+  if (!stableId) return 1;
+  const stable = resolveStableById(stableId);
+  if (!stable) return 1;
+  const training = STABLE_ARCHETYPE_BY_ID[stable.archetypeId]?.training;
+  if (!training) return 1;
+  const growth = training.growth8;
+  const avg =
+    (growth.tsuki + growth.oshi + growth.kumi + growth.nage + growth.koshi + growth.deashi + growth.waza + growth.power) / 8;
+  return Math.max(0.9, Math.min(1.1, avg));
+};
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
@@ -120,7 +145,7 @@ const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
 
 
 const buildEnemyKimariteStats = (
-  enemy: EnemyStats,
+  enemy: BattleOpponent,
 ): Partial<Record<keyof RikishiStatus['stats'], number>> => {
   const base = clamp((enemy.ability ?? enemy.power) * 1.05, 35, 120);
   if (enemy.styleBias === 'PUSH') {
@@ -172,7 +197,7 @@ const buildEnemyKimariteStats = (
 };
 
 const buildEnemyKimariteProfile = (
-  enemy: EnemyStats,
+  enemy: BattleOpponent,
 ): KimariteCompetitorProfile => {
   const bodyType = inferBodyTypeFromMetrics(enemy.heightCm, enemy.weightKg);
   const traits: RikishiStatus['traits'] = [];
@@ -211,9 +236,28 @@ const buildPlayerKimariteProfile = (
   historyCounts: rikishi.history.kimariteTotal ?? {},
 });
 
+const isSeventhWinMatch = (context?: BoutContext): boolean =>
+  (context?.currentWins ?? 0) === 6;
+
+const isHighPressureBout = (context?: BoutContext): boolean =>
+  Boolean(
+    context && (
+      context.isLastDay ||
+      context.titleImplication === 'DIRECT' ||
+      context.titleImplication === 'CHASE' ||
+      context.boundaryImplication === 'PROMOTION' ||
+      context.boundaryImplication === 'DEMOTION'
+    ),
+  );
+
+const canTriggerEdgeReversal = (
+  winProbability: number,
+  context?: BoutContext,
+): boolean => winProbability >= 0.28 && isHighPressureBout(context);
+
 const resolveBattleResult = (
   rikishi: RikishiStatus,
-  enemy: EnemyStats,
+  enemy: BattleOpponent,
   context?: BoutContext,
   rng: RandomSource = Math.random,
 ): { isWin: boolean; kimarite: string; winProbability: number; opponentAbility: number } => {
@@ -227,7 +271,8 @@ const resolveBattleResult = (
   const myTotal = Object.values(rikishi.stats).reduce((a, b) => a + b, 0);
   const myAverage = myTotal / 8;
   const conditionMod = 1.0 + ((rikishi.currentCondition - 50) / 200);
-  let myPower = myAverage * conditionMod;
+  const basePower = myAverage * conditionMod;
+  let myPower = basePower;
 
   const baseMetrics = rikishi.bodyMetrics ?? DEFAULT_BODY_METRICS[rikishi.bodyType];
   const metricMod = resolveBodyMetricModifiers(rikishi.bodyType);
@@ -240,7 +285,6 @@ const resolveBattleResult = (
   myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
   myPower *= resolveKataBattleModifier(rikishi);
   myPower *= resolveDesignedStyleBattleModifier(rikishi);
-  const baselinePower = myPower;
 
   let usedSignatureMove: string | null = null;
   if (rikishi.signatureMoves && rikishi.signatureMoves.length > 0) {
@@ -257,18 +301,39 @@ const resolveBattleResult = (
     }
   }
 
-  if (traits.includes('KYOUSHINZOU')) {
-    const isMakuuchi = rikishi.rank.division === 'Makuuchi';
-    const isKachiKoshiMatch = context && context.currentWins === 7 && context.currentLosses <= 7;
-    const isNijuuShouMatch = context && context.currentWins === 9 && context.currentLosses <= 5;
-    if (isMakuuchi || isKachiKoshiMatch || isNijuuShouMatch) myPower *= 1.1;
-  }
   if (traits.includes('KINBOSHI_HUNTER') && enemy.rankValue <= 2) myPower *= 1.25;
+  if (traits.includes('KYOJIN_GOROSHI') && enemy.power > myAverage * 1.2) myPower *= 1.2;
+  if (traits.includes('KOHEI_KILLER') && enemy.power < myAverage * 0.9) myPower *= 1.15;
+  if (traits.includes('YOTSU_NO_ONI') && rikishi.tactics === 'GRAPPLE') myPower *= 1.1;
+  if (traits.includes('TSUPPARI_TOKKA') && rikishi.tactics === 'PUSH') myPower *= 1.1;
+  if (traits.includes('LONG_REACH') && myHeight >= 190) myPower += 6;
+  if (traits.includes('HEAVY_PRESSURE') && myWeight - enemyWeight >= 15) myPower *= 1.12;
+  if (traits.includes('BELT_COUNTER') && rikishi.tactics === 'GRAPPLE' && enemyWeight - myWeight >= 10) myPower *= 1.15;
+  if (rikishi.bodyType === 'ANKO') myPower += 3;
+  if (rikishi.genome) {
+    const volatilityFactor = 1 + (rikishi.genome.variance.formVolatility - 50) / 200;
+    const conditionDelta = myPower * (conditionMod - 1);
+    myPower += conditionDelta * (volatilityFactor - 1);
+  }
+  const intrinsicPower = myPower;
+
+  if (traits.includes('KYOUSHINZOU')) {
+    const isClutchSpot =
+      isSeventhWinMatch(context) ||
+      (context?.isLastDay && context.isYushoContention) ||
+      context?.titleImplication === 'DIRECT' ||
+      context?.titleImplication === 'CHASE' ||
+      context?.boundaryImplication === 'PROMOTION' ||
+      context?.boundaryImplication === 'DEMOTION';
+    if (isClutchSpot) myPower *= 1.1;
+  }
   if (traits.includes('NOMI_NO_SHINZOU')) {
     const isImportantMatch = context && (
-      context.currentWins === 7 ||
+      isSeventhWinMatch(context) ||
       context.titleImplication === 'DIRECT' ||
       context.titleImplication === 'CHASE' ||
+      context.boundaryImplication === 'PROMOTION' ||
+      context.boundaryImplication === 'DEMOTION' ||
       (context.isLastDay && context.isYushoContention)
     );
     if (enemy.rankValue <= 2 || isImportantMatch) myPower *= 0.8;
@@ -285,18 +350,11 @@ const resolveBattleResult = (
   }
   if (traits.includes('RENSHOU_KAIDOU') && currentWinStreak >= 3) myPower += Math.min(8, currentWinStreak * 1.2);
   if (traits.includes('SLOW_STARTER') && context) myPower *= context.day <= Math.ceil(numBouts / 2) ? 0.94 : 1.06;
-  if (traits.includes('KYOJIN_GOROSHI') && enemy.power > myAverage * 1.2) myPower *= 1.2;
-  if (traits.includes('KOHEI_KILLER') && enemy.power < myAverage * 0.9) myPower *= 1.15;
-  if (traits.includes('YOTSU_NO_ONI') && rikishi.tactics === 'GRAPPLE') myPower *= 1.1;
-  if (traits.includes('TSUPPARI_TOKKA') && rikishi.tactics === 'PUSH') myPower *= 1.1;
-  if (traits.includes('LONG_REACH') && myHeight >= 190) myPower += 6;
-  if (traits.includes('HEAVY_PRESSURE') && myWeight - enemyWeight >= 15) myPower *= 1.12;
   if (traits.includes('WEAK_LOWER_BACK') && context && context.currentLosses > context.currentWins) myPower *= 0.92;
   if (traits.includes('OPENING_DASH') && context && context.day <= 3) myPower *= 1.12;
   if (traits.includes('SENSHURAKU_KISHITSU') && context?.isLastDay) myPower *= 1.15;
   if (traits.includes('TRAILING_FIRE') && context && context.currentLosses > context.currentWins) myPower *= 1.18;
   if (traits.includes('PROTECT_LEAD') && context && context.currentWins - context.currentLosses >= 3) myPower *= 1.10;
-  if (traits.includes('BELT_COUNTER') && rikishi.tactics === 'GRAPPLE' && enemyWeight - myWeight >= 10) myPower *= 1.15;
   if (traits.includes('THRUST_RUSH') && rikishi.tactics === 'PUSH' && context && context.day <= 5) myPower *= 1.12;
   if (traits.includes('READ_THE_BOUT') && context?.previousResult === 'LOSS') myPower += 4;
 
@@ -305,7 +363,7 @@ const resolveBattleResult = (
     let dnaBonus = 0;
     if (context) {
       const isImportant =
-        context.currentWins === 7 ||
+        isSeventhWinMatch(context) ||
         (context.isLastDay && context.isYushoContention) ||
         context.currentWins >= 10 ||
         context.titleImplication === 'DIRECT' ||
@@ -314,20 +372,15 @@ const resolveBattleResult = (
         context.boundaryImplication === 'DEMOTION';
       if (isImportant) dnaBonus += gv.clutchBias * 0.1;
     }
-    const volatilityFactor = 1 + (gv.formVolatility - 50) / 200;
-    const conditionDelta = myPower * (conditionMod - 1);
-    myPower += conditionDelta * (volatilityFactor - 1);
     if (context) {
       const streakFactor = (gv.streakSensitivity - 50) / 100;
       if (currentWinStreak >= 2) dnaBonus += currentWinStreak * streakFactor * 0.5;
       else if (currentLossStreak >= 2) dnaBonus -= currentLossStreak * streakFactor * 0.35;
     }
-    const maxDnaMod = baselinePower * 0.15;
+    const maxDnaMod = intrinsicPower * 0.15;
     dnaBonus = clamp(dnaBonus, -maxDnaMod, maxDnaMod);
     myPower += dnaBonus;
   }
-
-  if (rikishi.bodyType === 'ANKO') myPower += 3;
 
   const playerStyle = toKimariteStyle(rikishi.tactics);
   const playerProfile = buildPlayerKimariteProfile(
@@ -338,15 +391,19 @@ const resolveBattleResult = (
   );
   const enemyProfile = buildEnemyKimariteProfile(enemy);
 
-  const bonus = myPower - baselinePower;
+  const bonus = myPower - basePower;
   const playerCompetitiveFactor = resolveCompetitiveFactor(rikishi);
   const enemyCompetitiveFactor = resolveCompetitiveFactor(
-    enemy as EnemyStats & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
+    enemy as BattleOpponent & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
   );
-  const enemyAbilityRaw =
-    (enemy.ability ?? enemy.power) +
-    ((enemy as EnemyStats & { bashoFormDelta?: number }).bashoFormDelta ?? 0);
-  const enemyAbility = enemyAbilityRaw * enemyCompetitiveFactor;
+  const enemyAbilityRaw = (enemy.ability ?? enemy.power) + (enemy.bashoFormDelta ?? 0);
+  const enemyAbility =
+    resolveUnifiedNpcStrength({
+      ability: enemyAbilityRaw,
+      power: enemy.power,
+    }) *
+    resolveStablePerformanceFactor(enemy.stableId) *
+    enemyCompetitiveFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
   const myAbilityBase =
     resolvePlayerAbility(rikishi, baseMetrics, bonus) + (context?.bashoFormDelta ?? 0);
@@ -366,7 +423,7 @@ const resolveBattleResult = (
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;
 
-  if (!isWin) {
+  if (!isWin && canTriggerEdgeReversal(winProbability, context)) {
     const hasDohyogiwa = traits.includes('DOHYOUGIWA_MAJUTSU') && rng() < 0.06;
     const hasClutchReversal = traits.includes('CLUTCH_REVERSAL') && rng() < 0.04;
     if (hasDohyogiwa || hasClutchReversal) {
@@ -402,7 +459,7 @@ const resolveBattleResult = (
 
 export const calculateBattleResult = (
   rikishi: RikishiStatus,
-  enemy: EnemyStats,
+  enemy: BattleOpponent,
   context?: BoutContext,
   rng: RandomSource = Math.random,
 ): { isWin: boolean; kimarite: string; winProbability: number; opponentAbility: number } =>
@@ -427,8 +484,8 @@ export const generateEnemy = (
       Juryo: 28,
       Makushita: 120,
       Sandanme: 200,
-      Jonidan: 200,
-      Jonokuchi: 64,
+      Jonidan: 250,
+      Jonokuchi: 78,
       Maezumo: 2,
     };
     const slot = division === 'Maezumo' ? 1 : (index % poolDisplaySize[division]) + 1;

@@ -6,6 +6,7 @@ export const simulationTestModule = createScopedModule('simulation', currentTest
   'engine',
   'growth',
   'matchmaking',
+  'population realism',
   'rating',
   'retirement',
   'simulation',

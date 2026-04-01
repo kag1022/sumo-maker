@@ -1047,6 +1047,15 @@ export const tests: TestCase[] = [
           Jonokuchi: 58,
           Maezumo: 12,
         },
+        banzukeHeadcountExcludingMaezumo: 624,
+        maezumoHeadcount: 12,
+        intakeCountThisBasho: 7,
+        retiredCountThisBasho: 4,
+        populationPlanIntakeShock: 0.14,
+        populationPlanRetirementShock: -0.06,
+        populationPlanJonidanShock: 0.35,
+        populationPlanJonokuchiShock: -0.12,
+        populationPlanLowerDivisionElasticity: 1.08,
       });
       await appendBanzukeDecisionLogs([
         {
