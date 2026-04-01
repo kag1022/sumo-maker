@@ -506,12 +506,18 @@ export const runLowerDivisionBasho = (
         rankName,
         rankNumber,
         rankSide,
+        stableId: opponent.stableId,
         power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
         ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 180,
         weightKg: opponent.weightKg ?? 130,
+        aptitudeTier: opponent.aptitudeTier,
+        aptitudeProfile: opponent.aptitudeProfile,
         aptitudeFactor: opponent.aptitudeFactor,
+        careerBand: opponent.careerBand,
+        stagnation: opponent.stagnation,
+        bashoFormDelta: opponent.bashoFormDelta,
       };
       const result = calculateBattleResult(
         withInjuryBattlePenalty(status),

@@ -7,10 +7,15 @@ import { resolveYushoResolution } from '../../../src/logic/simulation/yusho';
 import { createSimulationEngine, resolveBoundaryAssignedRankForCurrentDivision, type SimulationProgressSnapshot } from '../../../src/logic/simulation/engine';
 import { intakeNewNpcRecruits } from '../../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
+import { ensurePopulationPlan } from '../../../src/logic/simulation/npc/populationPlan';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
 import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../../../src/logic/simulation/matchmaking';
 import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from '../../../src/logic/simulation/lowerQuota';
-import { advanceTopDivisionBanzuke, countActiveNpcInWorld, createSimulationWorld } from '../../../src/logic/simulation/world';
+import {
+  advanceTopDivisionBanzuke,
+  countActiveBanzukeHeadcountExcludingMaezumo,
+  createSimulationWorld,
+} from '../../../src/logic/simulation/world';
 import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
 import { resolveRetirementChance } from '../../../src/logic/simulation/retirement/shared';
 import { Rank } from '../../../src/logic/models';
@@ -102,31 +107,58 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'battle: dohyougiwa reversal can flip a loss',
+    name: 'battle: dohyougiwa reversal requires close high-pressure context',
     run: () => {
       const rikishi = createStatus({
         traits: ['DOHYOUGIWA_MAJUTSU'],
-        stats: {
-          tsuki: 1,
-          oshi: 1,
-          kumi: 1,
-          nage: 1,
-          koshi: 1,
-          deashi: 1,
-          waza: 1,
-          power: 1,
-        },
       });
       const enemy: EnemyStats = {
-        shikona: '強敵',
-        rankValue: 1,
-        power: 200,
-        heightCm: 192,
-        weightKg: 178,
+        shikona: '五分敵',
+        rankValue: 2,
+        power: 96,
+        ability: 96,
+        heightCm: 186,
+        weightKg: 149,
       };
-      const rng = sequenceRng([0.99, 0.05, 0.0]);
-      const result = calculateBattleResult(rikishi, enemy, undefined, rng);
-      assert.equal(result.isWin, true);
+      const normal = calculateBattleResult(
+        rikishi,
+        enemy,
+        {
+          day: 10,
+          currentWins: 4,
+          currentLosses: 5,
+          consecutiveWins: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 1,
+          opponentWinStreak: 1,
+          opponentLossStreak: 0,
+          isLastDay: false,
+          isYushoContention: false,
+          previousResult: 'LOSS',
+        },
+        sequenceRng([0.55, 0.0, 0.0]),
+      );
+      const highPressure = calculateBattleResult(
+        rikishi,
+        enemy,
+        {
+          day: 15,
+          currentWins: 6,
+          currentLosses: 8,
+          consecutiveWins: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 1,
+          opponentWinStreak: 1,
+          opponentLossStreak: 0,
+          isLastDay: true,
+          isYushoContention: true,
+          titleImplication: 'DIRECT',
+          previousResult: 'LOSS',
+        },
+        sequenceRng([0.55, 0.05, 0.0]),
+      );
+      assert.equal(normal.isWin, false);
+      assert.equal(highPressure.isWin, true);
     },
   },
 {
@@ -567,7 +599,7 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'battle: clutch reversal can flip a loss at 4%',
+    name: 'battle: clutch reversal does not flip overwhelming underdog losses',
     run: () => {
       const rikishi = createStatus({
         traits: ['CLUTCH_REVERSAL'],
@@ -586,12 +618,137 @@ export const tests: TestCase[] = [
         shikona: '強敵',
         rankValue: 1,
         power: 220,
+        ability: 220,
         heightCm: 194,
         weightKg: 185,
       };
       const rng = sequenceRng([0.99, 0.03, 0.0]);
-      const result = calculateBattleResult(rikishi, enemy, undefined, rng);
-      assert.equal(result.isWin, true);
+      const result = calculateBattleResult(
+        rikishi,
+        enemy,
+        {
+          day: 15,
+          currentWins: 6,
+          currentLosses: 8,
+          consecutiveWins: 0,
+          currentWinStreak: 0,
+          currentLossStreak: 2,
+          opponentWinStreak: 3,
+          opponentLossStreak: 0,
+          isLastDay: true,
+          isYushoContention: true,
+          titleImplication: 'DIRECT',
+          previousResult: 'LOSS',
+        },
+        rng,
+      );
+      assert.equal(result.isWin, false);
+    },
+  },
+{
+    name: 'battle: opponent metadata affects player-side win probability',
+    run: () => {
+      const rikishi = createStatus({
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 6 },
+        ratingState: {
+          ability: 102,
+          form: 0,
+          uncertainty: 1.1,
+        },
+      });
+      const baseEnemy: EnemyStats = {
+        shikona: '同格敵',
+        rankValue: 6,
+        power: 96,
+        ability: 96,
+        heightCm: 184,
+        weightKg: 148,
+      };
+      const favorable = calculateBattleResult(
+        rikishi,
+        {
+          ...baseEnemy,
+          aptitudeProfile: { initialFactor: 0.7, growthFactor: 0.72, boutFactor: 0.7, longevityFactor: 0.85 },
+          careerBand: 'WASHOUT',
+          stagnation: { pressure: 2.6, makekoshiStreak: 3, lowWinRateStreak: 3, stuckBasho: 5, reboundBoost: 0 },
+        },
+        { day: 7, currentWins: 3, currentLosses: 3, consecutiveWins: 0, isLastDay: false, isYushoContention: false },
+        () => 0.5,
+      );
+      const dangerous = calculateBattleResult(
+        rikishi,
+        {
+          ...baseEnemy,
+          aptitudeProfile: { initialFactor: 1.08, growthFactor: 1.1, boutFactor: 1.12, longevityFactor: 1.02 },
+          careerBand: 'ELITE',
+          stagnation: { pressure: 0, makekoshiStreak: 0, lowWinRateStreak: 0, stuckBasho: 0, reboundBoost: 0.1 },
+        },
+        { day: 7, currentWins: 3, currentLosses: 3, consecutiveWins: 0, isLastDay: false, isYushoContention: false },
+        () => 0.5,
+      );
+      assert.ok(favorable.winProbability > dangerous.winProbability);
+    },
+  },
+{
+    name: 'battle: kyoushinzou only applies in clutch contexts',
+    run: () => {
+      const base = createStatus({
+        rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 4 },
+      });
+      const clutch = createStatus({
+        rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 4 },
+        traits: ['KYOUSHINZOU'],
+      });
+      const enemy: EnemyStats = {
+        shikona: '上位敵',
+        rankValue: 2,
+        power: 108,
+        ability: 108,
+        heightCm: 188,
+        weightKg: 158,
+      };
+      const regularBase = calculateBattleResult(
+        base,
+        enemy,
+        { day: 4, currentWins: 1, currentLosses: 2, consecutiveWins: 0, isLastDay: false, isYushoContention: false },
+        () => 0.5,
+      );
+      const regularClutch = calculateBattleResult(
+        clutch,
+        enemy,
+        { day: 4, currentWins: 1, currentLosses: 2, consecutiveWins: 0, isLastDay: false, isYushoContention: false },
+        () => 0.5,
+      );
+      const titleBase = calculateBattleResult(
+        base,
+        enemy,
+        {
+          day: 15,
+          currentWins: 6,
+          currentLosses: 7,
+          consecutiveWins: 0,
+          isLastDay: true,
+          isYushoContention: true,
+          titleImplication: 'DIRECT',
+        },
+        () => 0.5,
+      );
+      const titleClutch = calculateBattleResult(
+        clutch,
+        enemy,
+        {
+          day: 15,
+          currentWins: 6,
+          currentLosses: 7,
+          consecutiveWins: 0,
+          isLastDay: true,
+          isYushoContention: true,
+          titleImplication: 'DIRECT',
+        },
+        () => 0.5,
+      );
+      assert.equal(regularClutch.winProbability, regularBase.winProbability);
+      assert.ok(titleClutch.winProbability > titleBase.winProbability);
     },
   },
 {
@@ -1521,7 +1678,8 @@ export const tests: TestCase[] = [
       for (let i = 0; i < 360; i += 1) {
         const month = months[i % months.length];
         const year = 2026 + Math.floor(i / 6);
-        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month);
+        const populationPlan = ensurePopulationPlan(world, year, rng);
+        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
 
         runBashoDetailed(status, year, month, rng, world, lowerWorld);
         advanceTopDivisionBanzuke(world);
@@ -1529,7 +1687,12 @@ export const tests: TestCase[] = [
         runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
 
         seq += 1;
-        runNpcRetirementStep(world.npcRegistry.values(), seq, rng);
+        runNpcRetirementStep(
+          world.npcRegistry.values(),
+          seq,
+          rng,
+          populationPlan,
+        );
 
         const intake = intakeNewNpcRecruits(
           {
@@ -1540,7 +1703,8 @@ export const tests: TestCase[] = [
           },
           seq,
           month,
-          countActiveNpcInWorld(world),
+          countActiveBanzukeHeadcountExcludingMaezumo(world),
+          populationPlan,
           rng,
         );
         world.nextNpcSerial = intake.nextNpcSerial;
@@ -1553,7 +1717,7 @@ export const tests: TestCase[] = [
           );
         }
 
-        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month);
+        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
 
         const activeMakuuchi = world.rosters.Makuuchi.filter(
           (row) => world.npcRegistry.get(row.id)?.active !== false,
@@ -1567,6 +1731,119 @@ export const tests: TestCase[] = [
         assert.equal(activeJuryo, 28);
         assertActiveShikonaUnique(world.npcRegistry, `simulation-loop-${i}`);
       }
+    },
+  },
+{
+    name: 'population realism: 5 seed x 20 year heisei band stays in range',
+    suite: 'verification',
+    run: () => {
+      const months = [1, 3, 5, 7, 9, 11] as const;
+      const median = (values: number[]): number => {
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      };
+      const quantile = (values: number[], ratio: number): number => {
+        const sorted = [...values].sort((a, b) => a - b);
+        const pos = (sorted.length - 1) * ratio;
+        const lo = Math.floor(pos);
+        const hi = Math.ceil(pos);
+        if (lo === hi) return sorted[lo];
+        return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+      };
+
+      const annualTotals: number[] = [];
+      const annualAbsDeltas: number[] = [];
+      const annualSwings: number[] = [];
+      const annualJonidanSwings: number[] = [];
+      const annualJonokuchiSwings: number[] = [];
+
+      for (let seed = 1; seed <= 5; seed += 1) {
+        const rng = lcg(9600 + seed);
+        const world = createSimulationWorld(rng);
+        const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
+        const boundaryWorld = createSekitoriBoundaryWorld(rng);
+        boundaryWorld.npcRegistry = world.npcRegistry;
+        boundaryWorld.makushitaPool =
+          lowerWorld.rosters.Makushita as unknown as typeof boundaryWorld.makushitaPool;
+        const status = createStatus({
+          rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
+        });
+        let seq = 0;
+        let year = 2026;
+        let yearTotals: number[] = [];
+        let yearJonidan: number[] = [];
+        let yearJonokuchi: number[] = [];
+
+        for (let bashoIndex = 0; bashoIndex < 120; bashoIndex += 1) {
+          const month = months[bashoIndex % months.length];
+          const populationPlan = ensurePopulationPlan(world, year, rng);
+          reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+
+          runBashoDetailed(status, year, month, rng, world, lowerWorld);
+          advanceTopDivisionBanzuke(world);
+          runLowerDivisionQuotaStep(lowerWorld, rng);
+          runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
+
+          seq += 1;
+          runNpcRetirementStep(
+            world.npcRegistry.values(),
+            seq,
+            rng,
+            populationPlan,
+          );
+
+          const intake = intakeNewNpcRecruits(
+            {
+              registry: world.npcRegistry,
+              maezumoPool: world.maezumoPool,
+              nameContext: world.npcNameContext,
+              nextNpcSerial: world.nextNpcSerial,
+            },
+            seq,
+            month,
+            countActiveBanzukeHeadcountExcludingMaezumo(world),
+            populationPlan,
+            rng,
+          );
+          world.nextNpcSerial = intake.nextNpcSerial;
+          lowerWorld.nextNpcSerial = intake.nextNpcSerial;
+          if (lowerWorld.maezumoPool !== world.maezumoPool) {
+            lowerWorld.maezumoPool.push(
+              ...intake.recruits.map((npc) => ({
+                ...(npc as unknown as typeof lowerWorld.maezumoPool[number]),
+              })),
+            );
+          }
+
+          reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+          yearTotals.push(countActiveBanzukeHeadcountExcludingMaezumo(world));
+          yearJonidan.push(lowerWorld.rosters.Jonidan.length);
+          yearJonokuchi.push(lowerWorld.rosters.Jonokuchi.length);
+
+          if (month === 11) {
+            annualTotals.push(...yearTotals);
+            annualAbsDeltas.push(Math.abs(yearTotals[yearTotals.length - 1] - yearTotals[0]));
+            annualSwings.push(Math.max(...yearTotals) - Math.min(...yearTotals));
+            annualJonidanSwings.push(Math.max(...yearJonidan) - Math.min(...yearJonidan));
+            annualJonokuchiSwings.push(Math.max(...yearJonokuchi) - Math.min(...yearJonokuchi));
+            yearTotals = [];
+            yearJonidan = [];
+            yearJonokuchi = [];
+            year += 1;
+          }
+        }
+      }
+
+      assert.ok(median(annualTotals) >= 690 && median(annualTotals) <= 740, `Unexpected total median: ${median(annualTotals)}`);
+      assert.ok(median(annualAbsDeltas) >= 10 && median(annualAbsDeltas) <= 18, `Unexpected abs(delta) median: ${median(annualAbsDeltas)}`);
+      assert.ok(quantile(annualAbsDeltas, 0.9) >= 30 && quantile(annualAbsDeltas, 0.9) <= 50, `Unexpected abs(delta) p90: ${quantile(annualAbsDeltas, 0.9)}`);
+      assert.ok(median(annualSwings) >= 40 && median(annualSwings) <= 60, `Unexpected annual swing median: ${median(annualSwings)}`);
+      assert.ok(quantile(annualSwings, 0.9) >= 60 && quantile(annualSwings, 0.9) <= 80, `Unexpected annual swing p90: ${quantile(annualSwings, 0.9)}`);
+      assert.ok(median(annualJonidanSwings) >= 24 && median(annualJonidanSwings) <= 34, `Unexpected Jonidan swing median: ${median(annualJonidanSwings)}`);
+      assert.ok(median(annualJonokuchiSwings) >= 16 && median(annualJonokuchiSwings) <= 24, `Unexpected Jonokuchi swing median: ${median(annualJonokuchiSwings)}`);
+      assert.ok(annualAbsDeltas.some((value) => value >= 25), 'Expected at least one |delta| >= 25');
+      assert.ok(annualSwings.some((value) => value >= 45), 'Expected at least one annual swing >= 45');
     },
   },
 {

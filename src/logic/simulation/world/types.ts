@@ -4,6 +4,7 @@ import { EnemyStyleBias } from '../../catalog/enemyData';
 import { AptitudeProfile, AptitudeTier, CareerBand, Rank, StagnationState } from '../../models';
 import { SpecialPrizeCode } from '../topDivision/specialPrizes';
 import { ActorRegistry, NpcNameContext, NpcRegistry, PersistentNpc } from '../npc/types';
+import type { PopulationPlan } from '../npc/populationPlanTypes';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
 export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
@@ -87,4 +88,5 @@ export interface SimulationWorld {
   lastPlayerAssignedRank?: Rank;
   lastPlayerAllocation?: BanzukeAllocation;
   makuuchiLayout: MakuuchiLayout;
+  populationPlan?: PopulationPlan;
 }

@@ -1,14 +1,14 @@
 # 平成初土俵収集レポート
 
-- generatedAt: 2026-03-25T18:51:13Z
+- generatedAt: 2026-03-31T17:28:42Z
 - cohort: heisei_debut
 - discoverySource: heisei_banzuke
-- discovered: 3162
+- discovered: 4058
 - included: 2882
 - excluded: 280
-- pending: 0
+- pending: 896
 - errors: 0
-- stopReason: discovery_exhausted
+- stopReason: continue
 
 ## Stability
 

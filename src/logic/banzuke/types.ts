@@ -79,6 +79,7 @@ export interface BanzukeDivisionPolicy {
   fixedSlots?: number;
   minSlots?: number;
   softMaxSlots?: number;
+  targetSlots?: number;
 }
 
 export interface BanzukePopulationSnapshot {
@@ -87,6 +88,15 @@ export interface BanzukePopulationSnapshot {
   month: number;
   headcount: Record<Division, number>;
   activeHeadcount: Record<Division, number>;
+  banzukeHeadcountExcludingMaezumo: number;
+  maezumoHeadcount: number;
+  intakeCountThisBasho: number;
+  retiredCountThisBasho: number;
+  populationPlanIntakeShock?: number;
+  populationPlanRetirementShock?: number;
+  populationPlanJonidanShock?: number;
+  populationPlanJonokuchiShock?: number;
+  populationPlanLowerDivisionElasticity?: number;
 }
 
 export interface BanzukeCommitteeCase {
