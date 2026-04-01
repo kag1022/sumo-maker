@@ -167,6 +167,10 @@ export type TorikumiDiagnostics = {
   obligationCoverage: Record<string, { scheduled: number; total: number }>;
   crossDivisionByBoundary: Record<string, number>;
   lateDirectTitleBoutCount: number;
+  playerHealthyUnresolvedDays: number[];
+  unresolvedByDivisionAndDay: Record<string, Partial<Record<TorikumiDivision, number>>>;
+  repairAttempts: number;
+  repairSuccessCount: number;
 };
 
 export type TorikumiBashoResult = {

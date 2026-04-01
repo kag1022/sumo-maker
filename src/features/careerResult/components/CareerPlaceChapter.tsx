@@ -228,10 +228,10 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                       <div className="career-archive-boutopponent">
                         {bout.opponentId ? (
                           <button type="button" className="table-link-button" onClick={() => onSelectNpc(bout.opponentId ?? null)}>
-                            {bout.opponentShikona ?? "対戦相手なし"}
+                            {bout.opponentShikona ?? (bout.result === "ABSENT" ? "休場で取組なし" : "記録未詳")}
                           </button>
                         ) : (
-                          bout.opponentShikona ?? "対戦相手なし"
+                          bout.opponentShikona ?? (bout.result === "ABSENT" ? "休場で取組なし" : "記録未詳")
                         )}
                         {bout.opponentRankName && point
                           ? ` / ${formatRankDisplayName({

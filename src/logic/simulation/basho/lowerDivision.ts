@@ -579,8 +579,12 @@ export const runLowerDivisionBasho = (
   });
 
   const recordedDays = new Set(playerBoutDetails.map((detail) => detail.day));
+  const healthyUnresolvedDays = new Set(
+    torikumiResult.diagnostics.playerHealthyUnresolvedDays,
+  );
   for (const day of playerPlannedDays) {
     if (recordedDays.has(day)) continue;
+    if (healthyUnresolvedDays.has(day)) continue;
     absent += 1;
     currentWinStreak = 0;
     currentLossStreak = 0;
