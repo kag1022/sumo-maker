@@ -11,4 +11,5 @@ export const gameplayTestModule = createScopedModule('gameplay', currentTests, [
   'kimarite',
   'logic-lab',
   'scout',
+  'traits',
 ]);

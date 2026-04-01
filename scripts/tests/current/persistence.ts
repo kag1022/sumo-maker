@@ -3,7 +3,7 @@ import { createSimulationEngine } from '../../../src/logic/simulation/engine';
 import { BashoRecord } from '../../../src/logic/models';
 import { getDb } from '../../../src/logic/persistence/db';
 import { ACHIEVEMENT_CATALOG, evaluateAchievements } from '../../../src/logic/achievements';
-import { appendBashoChunk, buildCareerStartYearMonth, commitCareer, createDraftCareer, getCareerSaveIncentiveSummary, isCareerSaved, listCommittedCareers, markCareerCompleted } from '../../../src/logic/persistence/careers';
+import { appendBashoChunk, buildCareerStartYearMonth, commitCareer, createDraftCareer, getCareerSaveIncentiveSummary, isCareerSaved, listCommittedCareers, loadCareerStatus, markCareerCompleted } from '../../../src/logic/persistence/careers';
 import { appendBanzukeDecisionLogs, appendBanzukePopulation, getCareerBashoDetail, getCareerHeadToHead, listBanzukeDecisions, listBanzukePopulation, listCareerBashoRecordsBySeq, listCareerImportantTorikumi } from '../../../src/logic/persistence/careerHistory';
 import { getCollectionDashboardSummary, getRecordCollectionSummary, listCollectionCatalogEntries, listCollectionSummary, listRecentCollectionUnlocks, listUnlockedCollectionEntries } from '../../../src/logic/persistence/collections';
 import { buildCareerClearScoreSummary, buildCareerRecordBadges } from '../../../src/logic/career/clearScore';
@@ -1154,6 +1154,46 @@ export const tests: TestCase[] = [
         '西十両2枚目へ昇進 (12勝3敗)',
         '技能賞を受賞',
       ]);
+    },
+  },
+{
+    name: 'report: timeline labels trait awakening separately',
+    run: () => {
+      const groups = buildTimelineEventGroups([
+        { year: 2026, month: 7, type: 'TRAIT_AWAKENING', description: '特性「長身長腕」が開花: 188cm到達' },
+      ]);
+
+      assert.equal(groups.length, 1);
+      assert.equal(groups[0]?.tagLabel, '特性開花');
+      assert.deepEqual(groups[0]?.descriptions, ['特性「長身長腕」が開花: 188cm到達']);
+    },
+  },
+{
+    name: 'persistence: loading legacy career migrates traits into learned journey entries',
+    run: async () => {
+      await resetDb();
+      const status = createStatus({
+        traits: ['KYOUSHINZOU'],
+        traitJourney: undefined,
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: status,
+        careerStartYearMonth: buildCareerStartYearMonth(2026, 1),
+      });
+      const db = getDb();
+      await db.careers.update(careerId, {
+        finalStatus: {
+          ...status,
+          traitJourney: undefined,
+        },
+      });
+
+      const loaded = await loadCareerStatus(careerId);
+      assert.ok(Boolean(loaded), 'Expected legacy career to load');
+      assert.deepEqual(loaded?.traits, ['KYOUSHINZOU']);
+      assert.equal(loaded?.traitJourney?.[0]?.state, 'LEARNED');
+      assert.equal(loaded?.traitJourney?.[0]?.legacy, true);
+      assert.equal(loaded?.traitJourney?.[0]?.triggerLabel, '旧仕様で初期付与');
     },
   },
 {

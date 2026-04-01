@@ -14,6 +14,7 @@ import {
   TacticsType,
   TalentArchetype,
   Trait,
+  TraitJourneyEntry,
   IchimonId,
   StableArchetypeId,
 } from './models';
@@ -41,6 +42,7 @@ export interface CreateInitialRikishiParams {
   signatureMove: string;
   bodyType: BodyType;
   traits: Trait[];
+  traitJourney?: TraitJourneyEntry[];
   historyBonus: number;
   entryDivision?: EntryDivision;
   growthType?: GrowthType;
@@ -200,6 +202,7 @@ export const createInitialRikishi = (
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
     traits: [...params.traits],
+    traitJourney: params.traitJourney ? params.traitJourney.map((entry) => ({ ...entry })) : [],
     durability: Math.max(40, Math.min(160, durability)),
     currentCondition: 50,
     ratingState: {
@@ -240,6 +243,7 @@ export const createInitialRikishi = (
       kimariteTotal: {},
       bodyTimeline: [],
       highlightEvents: [],
+      traitAwakenings: [],
       careerTurningPoints: [],
       realismKpi: {
         careerWinRate: 0.5,

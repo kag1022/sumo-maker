@@ -72,6 +72,36 @@ export type Trait =
   | 'READ_THE_BOUT'
   | 'CLUTCH_REVERSAL';
 
+export type TraitJourneyState = 'LOCKED' | 'LEARNED';
+export type TraitJourneySource =
+  | 'MENTAL_TRAIT'
+  | 'INJURY_RESISTANCE'
+  | 'BODY_CONSTITUTION'
+  | 'DEBT_CARD'
+  | 'LEGACY';
+
+export interface TraitJourneyEntry {
+  trait: Trait;
+  state: TraitJourneyState;
+  source: TraitJourneySource;
+  learnedAtBashoSeq?: number;
+  learnedYear?: number;
+  learnedMonth?: number;
+  triggerLabel?: string;
+  triggerDetail?: string;
+  legacy?: boolean;
+}
+
+export interface TraitAwakening {
+  trait: Trait;
+  bashoSeq: number;
+  year: number;
+  month: number;
+  triggerLabel: string;
+  triggerDetail: string;
+  legacy?: boolean;
+}
+
 export interface BasicProfile {
   realName: string;
   birthplace: string;
@@ -213,6 +243,7 @@ export interface RikishiStatus {
   profile: BasicProfile;       // 基本プロフィール
   bodyMetrics: BodyMetrics;    // 身長・体重
   traits: Trait[];             // スキル（特性）リスト
+  traitJourney?: TraitJourneyEntry[];
   durability: number;      // 基礎耐久力
   currentCondition: number; // 現在の調子 (0-100)
   ratingState: RatingState; // 連続実力モデル状態
@@ -681,6 +712,7 @@ export interface CareerHistory {
   rewardSummary?: CareerRewardSummary;
   bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
   highlightEvents?: HighlightEvent[];
+  traitAwakenings?: TraitAwakening[];
   careerTurningPoints?: CareerTurningPoint[];
   careerTurningPoint?: CareerTurningPoint;
   realismKpi?: RealismKpiSnapshot;
@@ -798,6 +830,6 @@ export interface RealismProbeResult {
 export interface TimelineEvent {
   year: number;
   month: number;
-  type: 'ENTRY' | 'PROMOTION' | 'DEMOTION' | 'YUSHO' | 'INJURY' | 'RETIREMENT' | 'OTHER';
+  type: 'ENTRY' | 'PROMOTION' | 'DEMOTION' | 'YUSHO' | 'INJURY' | 'RETIREMENT' | 'TRAIT_AWAKENING' | 'OTHER';
   description: string;
 }

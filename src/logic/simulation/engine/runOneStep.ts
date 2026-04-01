@@ -48,6 +48,7 @@ import {
   setCareerTurningPoint,
   withRivalSummary,
 } from '../../careerNarrative';
+import { applyTraitAwakeningsForBasho } from '../../traits';
 import { resolveRealizedStyleProfile } from '../../styleProfile';
 import {
   appendRuntimeRivalryStep,
@@ -374,7 +375,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const beforeEvents = state.status.history.events.length;
   appendBashoEvents(state.status, state.year, month, bashoRecord, rankChange, currentRank);
-  const newEvents = state.status.history.events.slice(beforeEvents);
+  let newEvents = state.status.history.events.slice(beforeEvents);
 
   const spiritDelta = applySpiritChangeAfterBasho({
     status: state.status,
@@ -554,6 +555,18 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
   state.status = applyGrowth(state.status, params.oyakata, isNewInjury, deps.random);
+  const traitAwakeningResult = applyTraitAwakeningsForBasho({
+    status: state.status,
+    bashoSeq,
+    bashoRecord,
+    playerBouts: bashoResult.playerBoutDetails,
+    importantTorikumiNotes: bashoResult.importantTorikumiNotes,
+    currentRank,
+    nextRank: rankChange.nextRank,
+  });
+  if (traitAwakeningResult.events.length > 0) {
+    newEvents = [...newEvents, ...traitAwakeningResult.events];
+  }
   bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
   state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
