@@ -39,5 +39,7 @@ export {
 } from './offscreen';
 export {
   countActiveNpcInWorld,
+  countActiveBanzukeHeadcountExcludingMaezumo,
+  countActiveMaezumoHeadcount,
   pruneRetiredTopDivisionRosters,
 } from './maintenance';

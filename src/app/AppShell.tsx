@@ -9,8 +9,10 @@ import {
   ScrollText,
   TableProperties,
   Waypoints,
+  X,
 } from "lucide-react";
 import { Button } from "../shared/ui/Button";
+import { useViewportMode } from "../shared/hooks/useViewportMode";
 
 export type AppSection =
   | "scout"
@@ -61,6 +63,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   showBasho = false,
   disableSections = [],
 }) => {
+  const { isMobileViewport } = useViewportMode();
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.id === "logicLab" && !showLogicLab) return false;
     if (item.id === "basho" && !showBasho) return false;
@@ -94,8 +97,103 @@ export const AppShell: React.FC<AppShellProps> = ({
     setMobileNavOpen(false);
   }, [activeSection]);
 
+  React.useEffect(() => {
+    setMenuOpen(false);
+  }, [activeSection, isMobileViewport]);
+
+  const allPrimaryItems = visibleItems.filter((item) => item.tier === "primary");
+
+  if (isMobileViewport) {
+    return (
+      <div className="app-shell app-shell-mobile" data-layout="mobile">
+        <header className="app-shell-mobile-header">
+          <div className="app-shell-mobile-header-inner">
+            <div className="app-shell-titleblock">
+              <div className="app-shell-overline">Sumo Career Records</div>
+              <h1 className="app-shell-title">{title}</h1>
+              {subtitle ? <div className="app-shell-subtitle">{subtitle}</div> : null}
+            </div>
+
+            <div className="app-shell-mobile-toolbar">
+              {actions ? <div className="app-shell-mobile-actions">{actions}</div> : null}
+              <div ref={menuRef} className="app-shell-mobile-menublock">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="app-shell-mobile-menubutton"
+                  onClick={() => setMenuOpen((current) => !current)}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                >
+                  {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                  全導線
+                </Button>
+                {menuOpen ? (
+                  <div className="app-shell-mobile-sheet" role="menu" aria-label="全導線">
+                    <div className="app-shell-mobile-sheet-title">行き先を選ぶ</div>
+                    <div className="app-shell-mobile-sheet-list">
+                      {visibleItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={`sheet-${item.id}`}
+                            type="button"
+                            className="app-shell-mobile-sheet-item"
+                            data-active={activeSection === item.id}
+                            disabled={disableSections.includes(item.id)}
+                            onClick={() => {
+                              setMenuOpen(false);
+                              onSectionChange(item.id);
+                            }}
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {statusLine ? (
+            <div className="app-shell-mobile-statusband">
+              <div className="app-shell-statuslabel">状況</div>
+              <div className="app-shell-mobile-statusline">{statusLine}</div>
+            </div>
+          ) : null}
+        </header>
+
+        <main className="app-shell-main app-shell-main-mobile">
+          <div className="app-shell-main-inner">{children}</div>
+        </main>
+
+        <nav className="app-shell-mobile-bottomnav" aria-label="主要導線">
+          {allPrimaryItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={`bottom-${item.id}`}
+                type="button"
+                className="app-shell-mobile-bottomitem"
+                data-active={activeSection === item.id}
+                disabled={disableSections.includes(item.id)}
+                onClick={() => onSectionChange(item.id)}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  }
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-layout="desktop">
       <header className="app-shell-header">
         <div className="app-shell-header-inner">
           <div className="app-shell-titleblock">

@@ -76,9 +76,10 @@ export const TOP_DIVISION_SLOTS: Record<TopDivision, number> = {
 
 export const LOWER_DIVISION_SLOTS: Record<LowerDivision, number> = {
   Makushita: 120,
-  Sandanme: 180,
-  Jonidan: 240,
-  Jonokuchi: 80,
+  // Heisei-wide lower-division centerline used for initial world seeding.
+  Sandanme: 200,
+  Jonidan: 250,
+  Jonokuchi: 78,
 };
 
 export const ACTIVE_DIVISIONS: ActiveDivision[] = [

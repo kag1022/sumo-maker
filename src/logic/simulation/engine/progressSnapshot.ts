@@ -4,7 +4,12 @@ import { BashoRecord, Division, RikishiStatus } from '../../models';
 import { LowerDivisionQuotaWorld } from '../lowerQuota';
 import { SimulationDiagnostics } from '../diagnostics';
 import { resolveTopDivisionRank } from '../topDivision/rank';
-import { SimulationWorld, TopDivision } from '../world';
+import {
+  countActiveBanzukeHeadcountExcludingMaezumo,
+  countActiveMaezumoHeadcount,
+  SimulationWorld,
+  TopDivision,
+} from '../world';
 import { BanzukeEntry, SimulationProgressSnapshot } from './types';
 import { SimulationProgressLite } from '../workerProtocol';
 
@@ -96,6 +101,10 @@ export const createPopulationSnapshot = (
   seq: number,
   year: number,
   month: number,
+  detail?: {
+    intakeCountThisBasho?: number;
+    retiredCountThisBasho?: number;
+  },
 ): BanzukePopulationSnapshot => {
   const counts = buildDivisionHeadcount(world);
   return {
@@ -104,6 +113,15 @@ export const createPopulationSnapshot = (
     month,
     headcount: counts.headcount,
     activeHeadcount: counts.activeHeadcount,
+    banzukeHeadcountExcludingMaezumo: countActiveBanzukeHeadcountExcludingMaezumo(world),
+    maezumoHeadcount: countActiveMaezumoHeadcount(world),
+    intakeCountThisBasho: detail?.intakeCountThisBasho ?? 0,
+    retiredCountThisBasho: detail?.retiredCountThisBasho ?? 0,
+    populationPlanIntakeShock: world.populationPlan?.annualIntakeShock,
+    populationPlanRetirementShock: world.populationPlan?.annualRetirementShock,
+    populationPlanJonidanShock: world.populationPlan?.jonidanShock,
+    populationPlanJonokuchiShock: world.populationPlan?.jonokuchiShock,
+    populationPlanLowerDivisionElasticity: world.populationPlan?.lowerDivisionElasticity,
   };
 };
 

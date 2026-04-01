@@ -1,9 +1,12 @@
 import { RandomSource } from '../deps';
 import { LowerDivisionQuotaWorld, LowerNpc } from '../lower/types';
 import { intakeNewNpcRecruits } from './intake';
+import { resolveMonthlyIntakePulse } from './populationPlan';
+import { PopulationPlan } from './populationPlanTypes';
 import { PersistentNpc } from './types';
 import { SekitoriBoundaryWorld } from '../sekitori/types';
 import { SimulationWorld } from '../world';
+import { countActiveBanzukeHeadcountExcludingMaezumo } from '../world';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../../banzuke/population/flow';
 
 type LeagueDivision =
@@ -80,15 +83,6 @@ const takeWorst = (bucket: PersistentNpc[]): PersistentNpc | undefined => {
   return bucket.pop();
 };
 
-const countActive = (world: SimulationWorld): number => {
-  let total = 0;
-  for (const npc of world.npcRegistry.values()) {
-    if (npc.actorType === 'PLAYER') continue;
-    if (npc.active) total += 1;
-  }
-  return total;
-};
-
 const toCounts = (buckets: Record<LeagueDivision, PersistentNpc[]>): ReconcileCounts => ({
   Makuuchi: buckets.Makuuchi.length,
   Juryo: buckets.Juryo.length,
@@ -99,12 +93,53 @@ const toCounts = (buckets: Record<LeagueDivision, PersistentNpc[]>): ReconcileCo
   Maezumo: buckets.Maezumo.length,
 });
 
-const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
-  const intakePressure = clamp(maezumoCount, 0, 180);
-  const jonokuchiMin = clamp(24 + Math.floor(intakePressure * 0.35), 24, 72);
-  const jonokuchiSoftMax = clamp(96 + Math.floor(intakePressure * 0.18), 96, 128);
-  const jonidanMin = clamp(140 + Math.floor(intakePressure * 0.7), 140, 260);
-  const jonidanSoftMax = clamp(320 + Math.floor(intakePressure * 0.55), 320, 420);
+const resolvePopulationDrivenPolicies = (
+  populationPlan: PopulationPlan | undefined,
+  month: number,
+) => {
+  if (!populationPlan) {
+    return DEFAULT_DIVISION_POLICIES;
+  }
+  const intakePulse = resolveMonthlyIntakePulse(month);
+  const elasticity = populationPlan.lowerDivisionElasticity;
+  const jonidanCenter = clamp(
+    250 +
+      Math.round(populationPlan.jonidanShock * populationPlan.sampledJonidanSwing * 0.65) +
+      Math.round(intakePulse * populationPlan.sampledJonidanSwing * 0.45 * elasticity),
+    200,
+    320,
+  );
+  const jonokuchiCenter = clamp(
+    78 +
+      Math.round(populationPlan.jonokuchiShock * populationPlan.sampledJonokuchiSwing * 0.75) +
+      Math.round(intakePulse * populationPlan.sampledJonokuchiSwing * 0.42 * elasticity),
+    45,
+    120,
+  );
+  const jonidanMargin = clamp(
+    Math.round(populationPlan.sampledJonidanSwing * 0.42 * elasticity),
+    12,
+    60,
+  );
+  const jonokuchiMargin = clamp(
+    Math.round(populationPlan.sampledJonokuchiSwing * 0.45 * elasticity),
+    8,
+    28,
+  );
+  const jonidanMin = clamp(jonidanCenter - jonidanMargin, 180, 320);
+  const jonidanSoftMax = clamp(jonidanCenter + jonidanMargin, 200, 340);
+  const jonokuchiMin = clamp(jonokuchiCenter - jonokuchiMargin, 45, 120);
+  const jonokuchiSoftMax = clamp(jonokuchiCenter + jonokuchiMargin, 45, 120);
+  const jonidanTarget = clamp(
+    jonidanCenter,
+    jonidanMin,
+    jonidanSoftMax,
+  );
+  const jonokuchiTarget = clamp(
+    jonokuchiCenter,
+    jonokuchiMin,
+    jonokuchiSoftMax,
+  );
 
   return DEFAULT_DIVISION_POLICIES.map((policy) => {
     if (policy.division === 'Jonokuchi' && policy.capacityMode === 'VARIABLE') {
@@ -112,6 +147,7 @@ const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
         ...policy,
         minSlots: jonokuchiMin,
         softMaxSlots: jonokuchiSoftMax,
+        targetSlots: jonokuchiTarget,
       };
     }
     if (policy.division === 'Jonidan' && policy.capacityMode === 'VARIABLE') {
@@ -119,6 +155,7 @@ const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
         ...policy,
         minSlots: jonidanMin,
         softMaxSlots: jonidanSoftMax,
+        targetSlots: jonidanTarget,
       };
     }
     return policy;
@@ -214,6 +251,7 @@ export const reconcileNpcLeague = (
   rng: RandomSource,
   seq: number,
   month: number,
+  populationPlan?: PopulationPlan,
 ): ReconcileReport => {
   const buckets = createEmptyBuckets();
   const moves: ReconcileMove[] = [];
@@ -227,7 +265,7 @@ export const reconcileNpcLeague = (
   }
 
   const before = toCounts(buckets);
-  const policyMap = resolveDivisionPolicyMap(resolveIntakeDrivenPolicies(buckets.Maezumo.length));
+  const policyMap = resolveDivisionPolicyMap(resolvePopulationDrivenPolicies(populationPlan, month));
 
   const recruitToMaezumo = (): boolean => {
     const intake = intakeNewNpcRecruits(
@@ -239,7 +277,8 @@ export const reconcileNpcLeague = (
       },
       seq,
       month,
-      countActive(world),
+      countActiveBanzukeHeadcountExcludingMaezumo(world),
+      populationPlan,
       rng,
     );
     world.nextNpcSerial = intake.nextNpcSerial;
@@ -306,6 +345,19 @@ export const reconcileNpcLeague = (
     }
 
     while (buckets[division].length < target.min) {
+      if (!ensureSource(i + 1)) break;
+      const promoted = takeBest(buckets[lowerDivision]);
+      if (!promoted) break;
+      moveNpc(promoted, lowerDivision, division, 'PROMOTE');
+    }
+
+    while (buckets[division].length > target.target) {
+      const demoted = takeWorst(buckets[division]);
+      if (!demoted) break;
+      moveNpc(demoted, division, lowerDivision, 'DEMOTE');
+    }
+
+    while (buckets[division].length < target.target) {
       if (!ensureSource(i + 1)) break;
       const promoted = takeBest(buckets[lowerDivision]);
       if (!promoted) break;

@@ -5,6 +5,7 @@ import { TestCase, TestModule } from '../types';
 const ROOT_DIR = process.cwd();
 const CAREER_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'career_calibration_1965plus.json');
 const BANZUKE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'banzuke_calibration_heisei.json');
+const POPULATION_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'population_calibration_heisei.json');
 const BUNDLE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'calibration_bundle.json');
 const SUMMARY_PATH = path.join(ROOT_DIR, 'docs', 'balance', 'calibration-targets.md');
 const COLLECTION_REPORT_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'heisei_collection_report.json');
@@ -87,6 +88,23 @@ type CalibrationBundle = {
   };
   career: CareerCalibration;
   banzuke: BanzukeCalibration;
+  population?: PopulationCalibration;
+};
+
+type PopulationCalibration = {
+  meta: {
+    sampleSize: number;
+    bashoCount: number;
+    source: string;
+    era: string;
+    divisionScope: string[];
+  };
+  annualTotalHeadcount: { sampleSize: number; p10: number; p50: number; p90: number; min: number; max: number };
+  annualTotalDelta: { sampleSize: number; p10: number; p50: number; p90: number; min: number; max: number };
+  annualTotalSwing: { sampleSize: number; p10: number; p50: number; p90: number; min: number; max: number };
+  annualJonidanSwing: { sampleSize: number; p10: number; p50: number; p90: number; min: number; max: number };
+  annualJonokuchiSwing: { sampleSize: number; p10: number; p50: number; p90: number; min: number; max: number };
+  monthlyIntakeByMonth: Record<string, { sampleSize: number; p10: number; p50: number; p90: number } | null>;
 };
 
 type CollectionReport = {
@@ -106,6 +124,7 @@ const cases: TestCase[] = [
     () => {
       const career = readJson<CareerCalibration>(CAREER_PATH);
       const banzuke = readJson<BanzukeCalibration>(BANZUKE_PATH);
+      const population = readJson<PopulationCalibration>(POPULATION_PATH);
       const bundle = readJson<CalibrationBundle>(BUNDLE_PATH);
 
       assert.equal(bundle.career.meta.sampleSize, career.meta.sampleSize);
@@ -115,10 +134,14 @@ const cases: TestCase[] = [
       assert.equal(banzuke.meta.source, 'rank_movement');
       assert.equal(career.meta.era, 'heisei_debut');
       assert.equal(career.meta.cohort, 'heisei_debut');
+      assert.equal(population.meta.source, 'basho_banzuke_entry');
+      assert.equal(population.meta.era, 'heisei_population');
       assert.ok(career.meta.sampleSize > 0, 'Expected career calibration sample size > 0');
       assert.ok(banzuke.meta.sampleSize > 0, 'Expected banzuke calibration sample size > 0');
+      assert.ok(population.meta.sampleSize > 0, 'Expected population calibration sample size > 0');
       assert.ok(Array.isArray(banzuke.meta.divisionScope) && banzuke.meta.divisionScope.length === 6, 'Expected 6 scoped divisions');
       assert.equal(bundle.meta?.cohort, 'heisei_debut');
+      assert.equal(bundle.population?.meta.bashoCount, population.meta.bashoCount);
     },
   ),
   createVerificationCase(
@@ -164,6 +187,19 @@ const cases: TestCase[] = [
         (banzuke.divisionMovementQuantiles.Juryo?.promoted?.sampleSize ?? 0) > 0,
         'Expected Juryo promoted calibration sample',
       );
+    },
+  ),
+  createVerificationCase(
+    'calibration: population annual swings and monthly intake are available',
+    () => {
+      const population = readJson<PopulationCalibration>(POPULATION_PATH);
+      assert.ok(population.annualTotalDelta.sampleSize > 0, 'Expected annual total delta samples');
+      assert.ok(population.annualTotalSwing.p50 > 0, 'Expected annual total swing median > 0');
+      assert.ok(population.annualJonidanSwing.p50 > 0, 'Expected Jonidan swing median > 0');
+      assert.ok(population.annualJonokuchiSwing.p50 > 0, 'Expected Jonokuchi swing median > 0');
+      for (const month of ['1', '3', '5', '7', '9', '11']) {
+        assert.ok(population.monthlyIntakeByMonth[month] != null, `Expected monthly intake stats for ${month}`);
+      }
     },
   ),
   createDocsCase(

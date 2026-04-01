@@ -5,6 +5,10 @@ import {
   resolveRetirementChance,
 } from '../retirement/shared';
 import { updateStagnationState } from '../realism';
+import { PopulationPlan } from './populationPlanTypes';
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
 export const pushNpcBashoResult = (
   npc: PersistentNpc,
@@ -33,8 +37,14 @@ export const runNpcRetirementStep = (
   npcs: Iterable<PersistentNpc>,
   seq: number,
   rng: RandomSource,
+  populationPlan?: PopulationPlan,
 ): string[] => {
   const retiredIds: string[] = [];
+  const populationMultiplier = clamp(
+    1 + (populationPlan?.annualRetirementShock ?? 0),
+    0.35,
+    1.6,
+  );
   for (const npc of npcs) {
     if (npc.actorType === 'PLAYER') continue;
     if (!npc.active) continue;
@@ -48,7 +58,7 @@ export const runNpcRetirementStep = (
       ? recentWins / (recentWins + recentLosses)
       : 0.5;
     const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(npc.recentBashoResults, 10);
-    const chance = resolveRetirementChance({
+    const baseChance = resolveRetirementChance({
       age: npc.age,
       injuryLevel: Math.max(0, Math.round((72 - npc.basePower * npc.form) / 8)),
       currentDivision: npc.currentDivision,
@@ -62,6 +72,7 @@ export const runNpcRetirementStep = (
       stagnationPressure: npc.stagnation?.pressure ?? 0,
       careerBand: npc.careerBand,
     });
+    const chance = clamp(baseChance * populationMultiplier, 0, 1);
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
       npc.retiredAtSeq = seq;

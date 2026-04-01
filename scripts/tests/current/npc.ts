@@ -1,6 +1,7 @@
 import { createInitialNpcUniverse } from '../../../src/logic/simulation/npc/factory';
-import { intakeNewNpcRecruits } from '../../../src/logic/simulation/npc/intake';
+import { intakeNewNpcRecruits, resolveIntakeCount } from '../../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
+import { ensurePopulationPlan } from '../../../src/logic/simulation/npc/populationPlan';
 import { countActiveByStable, NPC_STABLE_CATALOG, resolveIchimonByStableId } from '../../../src/logic/simulation/npc/stableCatalog';
 import { createNpcNameContext, generateUniqueNpcShikona, isSurnameShikona } from '../../../src/logic/simulation/npc/npcShikonaGenerator';
 import { ActorRegistry } from '../../../src/logic/simulation/npc/types';
@@ -36,6 +37,63 @@ import {
 
 export const tests: TestCase[] = [
 {
+    name: 'population plan: same year reuses plan and next year resamples',
+    run: () => {
+      const world = createSimulationWorld(lcg(20260401));
+      const plan2026 = ensurePopulationPlan(world, 2026, lcg(20260402));
+      const plan2026Again = ensurePopulationPlan(world, 2026, lcg(20260403));
+      const plan2027 = ensurePopulationPlan(world, 2027, lcg(20260404));
+
+      assert.equal(plan2026.sampledAtYear, 2026);
+      assert.equal(plan2026Again.sampledAtYear, 2026);
+      assert.equal(plan2026, plan2026Again);
+      assert.equal(plan2027.sampledAtYear, 2027);
+      assert.ok(plan2027 !== plan2026, 'Expected population plan to resample on a new year');
+    },
+  },
+{
+    name: 'npc intake: positive intake shock yields more recruits than negative shock',
+    run: () => {
+      const currentBanzukeHeadcount = 700;
+      const positive = resolveIntakeCount(
+        3,
+        currentBanzukeHeadcount,
+        {
+          sampledAtYear: 2026,
+          annualIntakeShock: 0.24,
+          annualRetirementShock: -0.04,
+          annualIntakeHardCap: 820,
+          jonidanShock: 0.4,
+          jonokuchiShock: 0.5,
+          lowerDivisionElasticity: 1.15,
+          sampledTotalSwing: 50,
+          sampledJonidanSwing: 28,
+          sampledJonokuchiSwing: 20,
+        },
+        lcg(11),
+      );
+      const negative = resolveIntakeCount(
+        3,
+        currentBanzukeHeadcount,
+        {
+          sampledAtYear: 2026,
+          annualIntakeShock: -0.18,
+          annualRetirementShock: 0.08,
+          annualIntakeHardCap: 760,
+          jonidanShock: -0.3,
+          jonokuchiShock: -0.2,
+          lowerDivisionElasticity: 0.92,
+          sampledTotalSwing: 40,
+          sampledJonidanSwing: 24,
+          sampledJonokuchiSwing: 18,
+        },
+        lcg(11),
+      );
+
+      assert.ok(positive > negative, `Expected positive shock intake > negative shock, got ${positive} <= ${negative}`);
+    },
+  },
+{
     name: 'npc pipeline: aptitudeFactor persists through league reconcile outputs',
     run: () => {
       const rng = lcg(20260304);
@@ -66,6 +124,42 @@ export const tests: TestCase[] = [
       assert.equal(lowerSeed?.aptitudeFactor, 0.68);
       assert.equal(boundarySeed?.aptitudeTier, 'D');
       assert.equal(boundarySeed?.aptitudeFactor, 0.68);
+    },
+  },
+{
+    name: 'league: reconcile follows lower-division shocks for jonidan and jonokuchi',
+    run: () => {
+      const rng = lcg(20260405);
+      const world = createSimulationWorld(rng);
+      const lower = createLowerDivisionQuotaWorld(rng, world);
+      const boundary = createSekitoriBoundaryWorld(rng);
+      boundary.npcRegistry = world.npcRegistry;
+      boundary.makushitaPool =
+        lower.rosters.Makushita as unknown as typeof boundary.makushitaPool;
+
+      reconcileNpcLeague(
+        world,
+        lower,
+        boundary,
+        lcg(20260406),
+        1,
+        3,
+        {
+          sampledAtYear: 2026,
+          annualIntakeShock: 0.22,
+          annualRetirementShock: -0.05,
+          annualIntakeHardCap: 840,
+          jonidanShock: 0.85,
+          jonokuchiShock: 0.9,
+          lowerDivisionElasticity: 1.25,
+          sampledTotalSwing: 54,
+          sampledJonidanSwing: 32,
+          sampledJonokuchiSwing: 24,
+        },
+      );
+
+      assert.ok(lower.rosters.Jonidan.length >= 260, `Expected Jonidan shock expansion, got ${lower.rosters.Jonidan.length}`);
+      assert.ok(lower.rosters.Jonokuchi.length >= 88, `Expected Jonokuchi shock expansion, got ${lower.rosters.Jonokuchi.length}`);
     },
   },
 {
@@ -295,7 +389,7 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'npc universe: initial active total is 690 and stable headcounts stay near targets',
+    name: 'npc universe: initial active total is 718 and stable headcounts stay near targets',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(2026));
       const counts = countActiveByStable(universe.registry);
@@ -312,7 +406,7 @@ export const tests: TestCase[] = [
         }
       }
 
-      assert.equal(total, 690);
+      assert.equal(total, 718);
     },
   },
 {
@@ -365,11 +459,10 @@ export const tests: TestCase[] = [
       for (let i = 0; i < 120; i += 1) {
         const activeCount = [...universe.registry.values()].filter((npc) => npc.active).length;
         const month = months[i % months.length];
-        const intake = intakeNewNpcRecruits(universe, seq + 1, month, activeCount, lcg(5000 + i));
+        const intake = intakeNewNpcRecruits(universe, seq + 1, month, activeCount, undefined, lcg(5000 + i));
         universe.nextNpcSerial = intake.nextNpcSerial;
         seq += 1;
         assertActiveShikonaUnique(universe.registry, `intake-loop-${i}`);
-        if (activeCount >= 900) break;
       }
 
       const counts = countActiveByStable(universe.registry);

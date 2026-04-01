@@ -2118,7 +2118,9 @@ export const tests: TestCase[] = [
     name: 'quota: lower committee can lift bottom jonokuchi makekoshi when tail expands',
     run: () => {
       const lowerWorld = createLowerDivisionQuotaWorld(() => 0.5);
-      for (let i = 0; i < 24; i += 1) {
+      const jonokuchiSlotsBefore = lowerWorld.rosters.Jonokuchi.length;
+      const jonokuchiBottomNumber = Math.ceil(jonokuchiSlotsBefore / 2);
+      for (let i = 0; i < 48; i += 1) {
         lowerWorld.maezumoPool.push({
           id: `TEST-MAE-${i + 1}`,
           seedId: `seed-${i + 1}`,
@@ -2145,7 +2147,7 @@ export const tests: TestCase[] = [
       }
 
       runLowerDivisionQuotaStep(lowerWorld, () => 0.5, {
-        rank: { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 40 },
+        rank: { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: jonokuchiBottomNumber },
         shikona: '試験山',
         wins: 3,
         losses: 4,
@@ -2155,9 +2157,20 @@ export const tests: TestCase[] = [
       const assigned = lowerWorld.lastPlayerAssignedRank;
       assert.ok(Boolean(assigned), 'Expected assigned lower rank');
       assert.equal(assigned?.division, 'Jonokuchi');
+      const beforeRelativeTailPosition =
+        rankNumberSideToSlot(
+          jonokuchiBottomNumber,
+          'West',
+          jonokuchiSlotsBefore,
+        ) / Math.max(1, jonokuchiSlotsBefore);
+      const afterRelativeTailPosition =
+        rankNumberSideToSlot(
+          assigned?.number ?? jonokuchiBottomNumber,
+          assigned?.side ?? 'West',
+          lowerWorld.rosters.Jonokuchi.length,
+        ) / Math.max(1, lowerWorld.rosters.Jonokuchi.length);
       assert.ok(
-        rankNumberSideToSlot(assigned?.number ?? 40, assigned?.side ?? 'West', lowerWorld.rosters.Jonokuchi.length) <
-          rankNumberSideToSlot(40, 'West', lowerWorld.rosters.Jonokuchi.length),
+        afterRelativeTailPosition < beforeRelativeTailPosition,
         `Expected tail expansion to lift bottom makekoshi, got ${assigned?.number}${assigned?.side ?? ''}`,
       );
     },

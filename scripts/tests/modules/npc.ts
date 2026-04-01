@@ -8,5 +8,6 @@ export const npcTestModule = createScopedModule('npc', currentTests, [
   'npc shikona',
   'npc stable catalog',
   'npc universe',
+  'population plan',
   'player name collision',
 ]);

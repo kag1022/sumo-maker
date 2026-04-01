@@ -3,10 +3,16 @@ import hashlib
 import re
 import sqlite3
 import time
+from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from typing import Optional
 
 import requests
-from bs4 import BeautifulSoup, Tag
+try:
+    from bs4 import BeautifulSoup, Tag
+except ImportError:
+    BeautifulSoup = None
+    Tag = None
 
 from _paths import DB_PATH, RAW_HTML_DIR
 
@@ -74,6 +80,108 @@ RANK_CELL_RE = re.compile(r"^(横綱|大関|関脇|小結|前|十|下|三|二|�
 RIKISHI_HREF_RE = re.compile(r"Rikishi\.aspx\?r=([0-9]+)")
 
 
+@dataclass
+class HtmlCell:
+    attrs: dict[str, str]
+    text_parts: list[str] = field(default_factory=list)
+    hrefs: list[str] = field(default_factory=list)
+
+    def text(self) -> str:
+        return "".join(self.text_parts).strip()
+
+
+@dataclass
+class HtmlRow:
+    cells: list[HtmlCell] = field(default_factory=list)
+
+
+@dataclass
+class HtmlTable:
+    attrs: dict[str, str]
+    caption_parts: list[str] = field(default_factory=list)
+    rows: list[HtmlRow] = field(default_factory=list)
+
+    def caption(self) -> str:
+        return "".join(self.caption_parts).strip()
+
+
+class BanzukeHtmlParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.tables: list[HtmlTable] = []
+        self._table_stack: list[HtmlTable] = []
+        self._capture_table: Optional[HtmlTable] = None
+        self._current_row: Optional[HtmlRow] = None
+        self._current_cell: Optional[HtmlCell] = None
+        self._in_caption = False
+        self._anchor_href: Optional[str] = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, Optional[str]]]) -> None:
+        attr_map = {key: (value or "") for key, value in attrs}
+        if tag == "table":
+            table = HtmlTable(attrs=attr_map)
+            self._table_stack.append(table)
+            classes = set(attr_map.get("class", "").split())
+            if "banzuke" in classes:
+                self._capture_table = table
+                self.tables.append(table)
+            return
+
+        if self._capture_table is None:
+            return
+
+        if tag == "caption":
+            self._in_caption = True
+        elif tag == "tr":
+            self._current_row = HtmlRow()
+            self._capture_table.rows.append(self._current_row)
+        elif tag in ("td", "th") and self._current_row is not None:
+            self._current_cell = HtmlCell(attrs=attr_map)
+            self._current_row.cells.append(self._current_cell)
+        elif tag == "a":
+            self._anchor_href = attr_map.get("href")
+            if self._current_cell is not None and self._anchor_href:
+                self._current_cell.hrefs.append(self._anchor_href)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "table":
+            table = self._table_stack.pop() if self._table_stack else None
+            if table is not None and table is self._capture_table:
+                self._capture_table = None
+                self._current_row = None
+                self._current_cell = None
+                self._in_caption = False
+                self._anchor_href = None
+            return
+
+        if self._capture_table is None:
+            return
+
+        if tag == "caption":
+            self._in_caption = False
+        elif tag == "tr":
+            self._current_row = None
+            self._current_cell = None
+        elif tag in ("td", "th"):
+            self._current_cell = None
+        elif tag == "a":
+            self._anchor_href = None
+
+    def handle_data(self, data: str) -> None:
+        if self._capture_table is None:
+            return
+        if self._in_caption:
+            self._capture_table.caption_parts.append(data)
+        if self._current_cell is not None:
+            self._current_cell.text_parts.append(data)
+
+    def handle_entityref(self, name: str) -> None:
+        self.handle_data(f"&{name};")
+
+    def handle_charref(self, name: str) -> None:
+        self.handle_data(f"&#{name};")
+
+
 def parse_basho_code(basho_code: str) -> tuple[int, int]:
     return int(basho_code[:4]), int(basho_code[4:6])
 
@@ -128,6 +236,53 @@ def extract_rikishi_id(cell: Tag) -> Optional[int]:
 
     match = RIKISHI_HREF_RE.search(anchor.get("href", ""))
     return int(match.group(1)) if match else None
+
+
+def find_rikishi_cell_html(cells: list[HtmlCell], reverse: bool = False) -> Optional[HtmlCell]:
+    sequence = reversed(cells) if reverse else cells
+    for cell in sequence:
+        if any(RIKISHI_HREF_RE.search(href) for href in cell.hrefs):
+            return cell
+    return None
+
+
+def extract_rikishi_id_html(cell: HtmlCell) -> Optional[int]:
+    for href in cell.hrefs:
+        match = RIKISHI_HREF_RE.search(href)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def build_entry_html(
+    basho_code: str,
+    division: str,
+    side: str,
+    rank_meta: dict,
+    rikishi_cell: HtmlCell,
+) -> dict:
+    shikona = " ".join(rikishi_cell.text().split()) or None
+    rank_name = rank_meta["rank_name"]
+    rank_number = rank_meta["rank_number"]
+    is_haridashi = rank_meta["is_haridashi"]
+
+    banzuke_label = f"{side}{rank_name}{rank_number}枚目"
+    if is_haridashi:
+        banzuke_label += "張出"
+
+    raw_line = f"{basho_code} {division} {banzuke_label} {shikona or ''}".strip()
+
+    return {
+        "rikishi_id": extract_rikishi_id_html(rikishi_cell),
+        "division": division,
+        "side": side,
+        "rank_name": rank_name,
+        "rank_number": rank_number,
+        "is_haridashi": is_haridashi,
+        "banzuke_label": banzuke_label,
+        "shikona": shikona,
+        "raw_line": raw_line,
+    }
 
 
 def build_entry(
@@ -191,7 +346,98 @@ def parse_division_table(basho_code: str, division: str, table: Tag) -> list[dic
     return entries
 
 
+def parse_division_table_html(basho_code: str, division: str, table: HtmlTable) -> list[dict]:
+    entries: list[dict] = []
+    implicit_rank_counts: dict[str, int] = {}
+    division_rank_name = {
+        "幕内": "前頭",
+        "十両": "十両",
+        "幕下": "幕下",
+        "三段目": "三段目",
+        "序二段": "序二段",
+        "序ノ口": "序ノ口",
+    }[division]
+
+    for row in table.rows:
+        cells = row.cells
+        if not cells:
+            continue
+
+        rank_indices = [index for index, cell in enumerate(cells) if "short_rank" in cell.attrs.get("class", "").split()]
+        if not rank_indices:
+            continue
+
+        rank_index = rank_indices[0]
+        rank_text = cells[rank_index].text()
+        if rank_text == "張出":
+            if entries:
+                rank_meta = {
+                    "rank_name": entries[-1]["rank_name"],
+                    "rank_number": entries[-1]["rank_number"],
+                    "is_haridashi": 1,
+                }
+            else:
+                rank_meta = {
+                    "rank_name": "横綱" if division == "幕内" else division_rank_name,
+                    "rank_number": 1,
+                    "is_haridashi": 1,
+                }
+        elif rank_text == "付出":
+            rank_meta = {
+                "rank_name": division_rank_name,
+                "rank_number": max(1, implicit_rank_counts.get(division_rank_name, 1)),
+                "is_haridashi": 1,
+            }
+        else:
+            rank_meta = parse_rank_cell(rank_text, implicit_rank_counts)
+
+        left_cells = cells[:rank_index]
+        right_cells = cells[rank_index + 1 :]
+
+        east_cell = find_rikishi_cell_html(left_cells, reverse=True)
+        if east_cell is not None:
+            entries.append(build_entry_html(basho_code, division, "東", rank_meta, east_cell))
+
+        west_cell = find_rikishi_cell_html(right_cells, reverse=False)
+        if west_cell is not None:
+            entries.append(build_entry_html(basho_code, division, "西", rank_meta, west_cell))
+
+    return entries
+
+
 def parse_banzuke_html(basho_code: str, html: str) -> list[dict]:
+    if BeautifulSoup is None:
+        parser = BanzukeHtmlParser()
+        parser.feed(html)
+        entries: list[dict] = []
+        for table in parser.tables:
+            division = table.caption()
+            if division not in DIVISION_ORDER:
+                continue
+            entries.extend(parse_division_table_html(basho_code, division, table))
+
+        entries.sort(
+            key=lambda entry: (
+                DIVISION_ORDER[entry["division"]],
+                RANK_ORDER[entry["rank_name"]],
+                entry["rank_number"],
+                SIDE_ORDER[entry["side"]],
+                entry["is_haridashi"],
+            )
+        )
+
+        division_counts: dict[str, int] = {}
+        for index, entry in enumerate(entries, start=1):
+            division = entry["division"]
+            division_counts[division] = division_counts.get(division, 0) + 1
+            entry["basho_rank_index"] = index
+            entry["division_rank_index"] = division_counts[division]
+            entry["basho_rank_value"] = calc_basho_rank_value(index)
+            entry["slot_rank_value"] = calc_slot_rank_value(
+                entry["rank_name"], entry["rank_number"], entry["side"]
+            )
+        return entries
+
     soup = BeautifulSoup(html, "lxml")
     entries: list[dict] = []
 
@@ -333,6 +579,28 @@ def fetch_one(con: sqlite3.Connection, basho_code: str) -> None:
         con.commit()
 
 
+def reparse_cached_one(con: sqlite3.Connection, basho_code: str) -> None:
+    url = f"https://sumodb.sumogames.de/Banzuke.aspx?l=j&b={basho_code}"
+    raw_path = RAW_DIR / f"banzuke_{basho_code}.html"
+    if not raw_path.exists():
+        upsert_basho_metadata(con, basho_code, url, None, None, "error", "cached raw_html not found")
+        con.commit()
+        return
+
+    try:
+        html = raw_path.read_text(encoding="utf-8", errors="ignore")
+        entries = parse_banzuke_html(basho_code, html)
+        parse_status = "ok" if entries else "parse_error"
+        error_message = None if entries else "番付行が抽出できない"
+        upsert_basho_metadata(con, basho_code, url, str(raw_path), 200, parse_status, error_message)
+        if entries:
+            replace_banzuke_entries(con, basho_code, entries)
+        con.commit()
+    except Exception as exc:
+        upsert_basho_metadata(con, basho_code, url, str(raw_path), None, "error", str(exc))
+        con.commit()
+
+
 def generate_heisei_basho_codes(start_year: int = 1989, end_year: int = 2019) -> list[str]:
     basho_codes: list[str] = []
     for year in range(start_year, end_year + 1):
@@ -363,6 +631,11 @@ def parse_args() -> argparse.Namespace:
         default=2.0,
         help="各リクエスト間隔",
     )
+    parser.add_argument(
+        "--reparse-cached",
+        action="store_true",
+        help="既存 raw_html を再解析して DB を更新する",
+    )
     return parser.parse_args()
 
 
@@ -389,7 +662,10 @@ def main() -> None:
 
         for basho_code in basho_codes[start_index:]:
             print(f"[banzuke] {basho_code}")
-            fetch_one(con, basho_code)
+            if args.reparse_cached:
+                reparse_cached_one(con, basho_code)
+            else:
+                fetch_one(con, basho_code)
 
             cur.execute(
                 """
@@ -403,7 +679,8 @@ def main() -> None:
             )
             con.commit()
 
-            time.sleep(args.sleep_seconds)
+            if not args.reparse_cached:
+                time.sleep(args.sleep_seconds)
     finally:
         con.close()
 

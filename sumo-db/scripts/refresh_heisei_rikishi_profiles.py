@@ -6,12 +6,16 @@ import sqlite3
 import time
 import unicodedata
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from statistics import median
 from typing import Optional
 
 import requests
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 from _paths import ANALYSIS_DIR, DB_PATH, RAW_HTML_DIR
 
@@ -89,6 +93,51 @@ RANK_TOKEN_LABELS = {
 SANSHO_TOKENS = ("殊勲賞", "敢闘賞", "技能賞")
 
 
+class PreBlockParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.pre_blocks: list[str] = []
+        self._in_pre = False
+        self._parts: list[str] = []
+        self._text_parts: list[str] = []
+        self._in_title = False
+        self.title_text = ""
+        self._heading_level: Optional[str] = None
+        self.headings: list[tuple[str, str]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, Optional[str]]]) -> None:
+        if tag == "pre":
+            self._in_pre = True
+            self._parts = []
+        elif tag == "title":
+            self._in_title = True
+        elif tag in ("h1", "h2", "h3"):
+            self._heading_level = tag
+            self._parts = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "pre" and self._in_pre:
+            self.pre_blocks.append("".join(self._parts))
+            self._in_pre = False
+            self._parts = []
+        elif tag == "title":
+            self._in_title = False
+        elif tag == self._heading_level and self._heading_level is not None:
+            self.headings.append((self._heading_level, "".join(self._parts)))
+            self._heading_level = None
+            self._parts = []
+
+    def handle_data(self, data: str) -> None:
+        self._text_parts.append(data)
+        if self._in_pre or self._heading_level is not None:
+            self._parts.append(data)
+        if self._in_title:
+            self.title_text += data
+
+    def text(self) -> str:
+        return "".join(self._text_parts)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="平成初土俵の力士プロフィールを補完する")
     parser.add_argument("--max-fetch", type=int, default=None, help="今回の取得件数上限")
@@ -112,11 +161,21 @@ def normalize_line(line: str) -> str:
 
 
 def html_to_text(html: str) -> str:
+    if BeautifulSoup is None:
+        parser = PreBlockParser()
+        parser.feed(html)
+        return parser.text()
     soup = BeautifulSoup(html, "lxml")
     return soup.get_text("\n")
 
 
 def extract_profile_text(html: str) -> str:
+    if BeautifulSoup is None:
+        parser = PreBlockParser()
+        parser.feed(html)
+        if parser.pre_blocks:
+            return "\n".join(parser.pre_blocks)
+        return parser.text()
     soup = BeautifulSoup(html, "lxml")
     pre_blocks = [block.get_text("\n") for block in soup.find_all("pre")]
     if pre_blocks:
@@ -125,6 +184,19 @@ def extract_profile_text(html: str) -> str:
 
 
 def extract_page_shikona(html: str) -> Optional[str]:
+    if BeautifulSoup is None:
+        parser = PreBlockParser()
+        parser.feed(html)
+        title = normalize_line(parser.title_text.replace("力士情報", ""))
+        if title:
+            return title
+        for level, heading in parser.headings:
+            if level == "h2":
+                text = normalize_line(heading)
+                text = re.sub(r"^第[0-9]+代(横綱|大関|関脇|小結)\s+", "", text)
+                text = re.sub(r"[（(].*$", "", text).strip()
+                return text or None
+        return None
     soup = BeautifulSoup(html, "lxml")
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     title = normalize_line(title.replace("力士情報", ""))

@@ -101,5 +101,6 @@ export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
     lastPlayerAssignedRank: undefined,
     lastPlayerAllocation: undefined,
     makuuchiLayout: { ...DEFAULT_MAKUUCHI_LAYOUT },
+    populationPlan: undefined,
   };
 };
