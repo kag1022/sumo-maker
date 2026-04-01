@@ -3408,6 +3408,9 @@ export const tests: TestCase[] = [
       assert.equal(result.diagnostics.crossDivisionByBoundary.JuryoMakushita, 2);
       assert.equal(result.diagnostics.repairHistogram['0'], 2);
       assert.equal(result.diagnostics.boundaryActivations[0]?.boundaryId, 'JuryoMakushita');
+      assert.equal(result.diagnostics.playerHealthyUnresolvedDays.length, 0);
+      assert.equal(result.diagnostics.repairAttempts >= 0, true);
+      assert.equal(result.diagnostics.repairSuccessCount >= 0, true);
     },
   },
 {
