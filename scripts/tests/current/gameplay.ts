@@ -13,6 +13,7 @@ import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from '../../../src/features/logicLab/presets';
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 import { resolveSimulationPhaseOnCompletion, resolveSimulationPhaseOnStart, shouldCaptureObservations } from '../../../src/logic/simulation/appFlow';
+import { applyTraitAwakeningsForBasho, buildLockedTraitJourney } from '../../../src/logic/traits';
 
 import type { TestCase } from '../types';
 import {
@@ -278,6 +279,80 @@ export const tests: TestCase[] = [
       assert.equal(status.designedStyleProfile?.dominant, starter.secretStyle);
       assert.equal(status.buildSummary?.debtCount, 1);
       assert.equal(status.spirit > 0, true);
+    },
+  },
+{
+    name: 'traits: build vnext starts with locked trait journey and no active traits',
+    run: () => {
+      const starter = getStarterOyakataBlueprints()[0];
+      const status = buildInitialRikishiFromSpec({
+        ...createDefaultBuildSpecVNext(starter.id),
+        bodyConstitution: 'LONG_REACH',
+        injuryResistance: 'IRON_BODY',
+        mentalTrait: 'BIG_STAGE',
+      }, starter);
+
+      assert.deepEqual(status.traits, []);
+      assert.ok((status.traitJourney?.length ?? 0) >= 5, 'Expected locked trait journey entries');
+      assert.ok(status.traitJourney?.every((entry) => entry.state === 'LOCKED'));
+      assert.ok(status.traitJourney?.some((entry) => entry.trait === 'LONG_REACH' && entry.source === 'BODY_CONSTITUTION'));
+      assert.ok(status.traitJourney?.some((entry) => entry.trait === 'BUJI_KORE_MEIBA' && entry.source === 'INJURY_RESISTANCE'));
+      assert.ok(status.traitJourney?.some((entry) => entry.trait === 'OOBUTAI_NO_ONI' && entry.source === 'MENTAL_TRAIT'));
+    },
+  },
+{
+    name: 'traits: basho awakening learns once and records a dedicated timeline event',
+    run: () => {
+      const status = createStatus({
+        bodyMetrics: { heightCm: 189, weightKg: 148 },
+        traits: [],
+        traitJourney: buildLockedTraitJourney([
+          { source: 'BODY_CONSTITUTION', traits: ['LONG_REACH'] },
+        ]),
+        history: {
+          records: [
+            {
+              ...createBashoRecord({ division: 'Makushita', name: '幕下', number: 3, side: 'East' }, 5, 2),
+              year: 2026,
+              month: 1,
+            },
+          ],
+          events: [],
+          maxRank: { division: 'Makushita', name: '幕下', number: 3, side: 'East' },
+          totalWins: 5,
+          totalLosses: 2,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: {},
+          bodyTimeline: [],
+          highlightEvents: [],
+          traitAwakenings: [],
+        },
+      });
+
+      const first = applyTraitAwakeningsForBasho({
+        status,
+        bashoSeq: 1,
+        bashoRecord: status.history.records[0],
+        playerBouts: [],
+        currentRank: { division: 'Makushita', name: '幕下', number: 3, side: 'East' },
+        nextRank: { division: 'Makushita', name: '幕下', number: 1, side: 'East' },
+      });
+      const second = applyTraitAwakeningsForBasho({
+        status,
+        bashoSeq: 1,
+        bashoRecord: status.history.records[0],
+        playerBouts: [],
+        currentRank: { division: 'Makushita', name: '幕下', number: 3, side: 'East' },
+        nextRank: { division: 'Makushita', name: '幕下', number: 1, side: 'East' },
+      });
+
+      assert.equal(first.awakenings.length, 1);
+      assert.equal(first.events[0]?.type, 'TRAIT_AWAKENING');
+      assert.deepEqual(status.traits, ['LONG_REACH']);
+      assert.equal(status.history.traitAwakenings?.length, 1);
+      assert.equal(second.awakenings.length, 0);
+      assert.equal(status.history.events.filter((event) => event.type === 'TRAIT_AWAKENING').length, 1);
     },
   },
 {
