@@ -7,6 +7,7 @@ import {
   resolveTorikumiTier,
   resolveYushoRaceTier,
 } from '../policy';
+import { pairWithinDivision } from './intraDivision';
 import {
   BoundaryActivationReason,
   BoundaryBandSpec,
@@ -74,7 +75,6 @@ type NeighborhoodResult = {
 
 const LOCAL_REPAIR_CANDIDATE_LIMIT = 6;
 const LOCAL_REPAIR_NEIGHBORHOOD_LIMIT = 12;
-
 const DIVISION_PRIORITY: Record<TorikumiParticipant['division'], number> = {
   Makuuchi: 0,
   Juryo: 1,
@@ -83,6 +83,12 @@ const DIVISION_PRIORITY: Record<TorikumiParticipant['division'], number> = {
   Jonidan: 4,
   Jonokuchi: 5,
 };
+const LOWER_DIVISION_ORDER: Array<'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi'> = [
+  'Makushita',
+  'Sandanme',
+  'Jonidan',
+  'Jonokuchi',
+];
 
 const TIER_PRIORITY: Record<ReturnType<typeof resolveTorikumiTier>, number> = {
   Yokozuna: 0,
@@ -284,6 +290,25 @@ const hasBoundaryBand = (
   }
   return {};
 };
+
+const matchesBoundaryBandParticipant = (
+  participant: TorikumiParticipant,
+  band: BoundaryBandSpec['upperBand'] | BoundaryBandSpec['lowerBand'],
+): boolean => {
+  const rankNumber = resolveRankNumber(participant);
+  if (rankNumber < band.minNumber || rankNumber > band.maxNumber) return false;
+  if (band.rankName && participant.rankName !== band.rankName) return false;
+  return true;
+};
+
+const collectLateLowerBoundaryPool = (
+  participants: TorikumiParticipant[],
+  spec: BoundaryBandSpec,
+): TorikumiParticipant[] => participants.filter((participant) =>
+  participant.boutsDone >= participant.targetBouts - 1 && (
+    (participant.division === spec.upperDivision && matchesBoundaryBandParticipant(participant, spec.upperBand)) ||
+    (participant.division === spec.lowerDivision && matchesBoundaryBandParticipant(participant, spec.lowerBand))
+  ));
 
 const resolveTopPhase = (day: number): string =>
   day <= 4 ? 'EARLY' : day <= 8 ? 'MID_A' : day <= 12 ? 'MID_B' : 'LATE';
@@ -531,6 +556,15 @@ const evaluateLowerPair = (
     titleImplication: 'NONE',
     boundaryImplication: 'PROMOTION',
   };
+};
+
+const evaluateLateLowerBoundaryPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+  bandMap: Map<BoundaryId, BoundaryBandSpec>,
+): PairEval | null => {
+  if (a.division === b.division) return null;
+  return evaluateLowerPair(a, b, bandMap);
 };
 
 const buildPairGraph = (
@@ -992,6 +1026,7 @@ export const scheduleTorikumiBasho = (
       evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
       options?: {
         optimizeLocally?: boolean;
+        allowRepairAttempt?: boolean;
       },
     ): void => {
       const available = pool.filter((participant) => !scheduledIds.has(participant.id));
@@ -1004,15 +1039,19 @@ export const scheduleTorikumiBasho = (
         evaluate,
         options,
       );
-      const repair = buildAttempt(
-        available,
-        faced,
-        1,
-        (participant) => resolveSchedulingPriority(participant, day, true),
-        evaluate,
-        options,
-      );
-      const chosen = chooseAttempt(primary, repair);
+      const chosen = options?.allowRepairAttempt === false
+        ? primary
+        : chooseAttempt(
+          primary,
+          buildAttempt(
+            available,
+            faced,
+            1,
+            (participant) => resolveSchedulingPriority(participant, day, true),
+            evaluate,
+            options,
+          ),
+        );
       repairAttempts += chosen.repairAttempts;
       repairSuccessCount += chosen.repairSuccessCount;
       for (const pair of chosen.pairs) {
@@ -1033,11 +1072,58 @@ export const scheduleTorikumiBasho = (
       (a, b) => evaluateJuryoPair(a, b, day, obligations.byPairKey, bandMap, crossDivisionById),
       { optimizeLocally: true },
     );
-    schedulePool(
-      eligible.filter((participant) => isLowerDivision(participant.division)),
-      (a, b) => evaluateLowerPair(a, b, bandMap),
-      { optimizeLocally: true },
-    );
+    const lowerEligible = eligible.filter((participant) => isLowerDivision(participant.division));
+    for (const spec of params.boundaryBands) {
+      if (
+        spec.id === 'MakuuchiJuryo' ||
+        spec.id === 'JuryoMakushita'
+      ) {
+        continue;
+      }
+      const boundaryPool = collectLateLowerBoundaryPool(
+        lowerEligible.filter((participant) => !scheduledIds.has(participant.id)),
+        spec,
+      );
+      if (boundaryPool.length < 2) continue;
+      schedulePool(
+        boundaryPool,
+        (a, b) => evaluateLateLowerBoundaryPair(a, b, bandMap),
+        { optimizeLocally: true },
+      );
+    }
+    for (const division of LOWER_DIVISION_ORDER) {
+      const divisionPool = lowerEligible.filter((participant) =>
+        participant.division === division && !scheduledIds.has(participant.id));
+      if (divisionPool.length < 2) continue;
+      const paired = pairWithinDivision(
+        divisionPool,
+        faced,
+        day,
+        DEFAULT_TORIKUMI_LATE_EVAL_START_DAY,
+        params.rng,
+      );
+      for (const pair of paired.pairs) {
+        pair.phaseId = resolveLowerPhase(resolveLowerRoundIndex(pair.a, pair.b));
+        pair.roundIndex = resolveLowerRoundIndex(pair.a, pair.b);
+        pair.contentionTier = 'Outside';
+        pair.titleImplication = 'NONE';
+        pair.boundaryImplication = 'NONE';
+        scheduledIds.add(pair.a.id);
+        scheduledIds.add(pair.b.id);
+        dayPairs.push(pair);
+      }
+      const leftoverPool = paired.leftovers.filter((participant) => !scheduledIds.has(participant.id));
+      if (leftoverPool.length >= 2) {
+        schedulePool(
+          leftoverPool,
+          (a, b) => evaluateLowerPair(a, b, bandMap),
+          {
+            optimizeLocally: true,
+            allowRepairAttempt: true,
+          },
+        );
+      }
+    }
 
     for (const pair of dayPairs) {
       markFaced(faced, pair.a, pair.b);

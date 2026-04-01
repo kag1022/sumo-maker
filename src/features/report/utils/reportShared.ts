@@ -18,10 +18,11 @@ const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
   PROMOTION: 1,
   DEMOTION: 2,
-  OTHER: 3,
-  INJURY: 4,
-  ENTRY: 5,
-  RETIREMENT: 6,
+  TRAIT_AWAKENING: 3,
+  OTHER: 4,
+  INJURY: 5,
+  ENTRY: 6,
+  RETIREMENT: 7,
 };
 
 const TIMELINE_EVENT_LABEL: Record<TimelineEvent['type'], string> = {
@@ -31,6 +32,7 @@ const TIMELINE_EVENT_LABEL: Record<TimelineEvent['type'], string> = {
   YUSHO: '優勝',
   INJURY: '休場',
   RETIREMENT: '引退',
+  TRAIT_AWAKENING: '特性開花',
   OTHER: '出来事',
 };
 
@@ -416,6 +418,7 @@ const truncateReportLabel = (value: string, max = 13): string =>
 const resolveTimelineTone = (type: TimelineEvent['type']): Exclude<ReportTone, 'action'> => {
   if (type === 'YUSHO' || type === 'PROMOTION') return 'state';
   if (type === 'INJURY' || type === 'DEMOTION' || type === 'RETIREMENT') return 'warning';
+  if (type === 'TRAIT_AWAKENING') return 'brand';
   if (type === 'ENTRY') return 'brand';
   return 'neutral';
 };

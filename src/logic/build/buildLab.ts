@@ -27,6 +27,7 @@ import {
 } from '../models';
 import { generateShikona } from '../naming/playerNaming';
 import { listStablesByIchimon, resolveStableById } from '../simulation/heya/stableCatalog';
+import { buildLockedTraitJourney } from '../traits';
 import {
   AMATEUR_BACKGROUND_CONFIG,
   buildCareerSeedSummary,
@@ -771,13 +772,21 @@ export const buildInitialRikishiFromSpec = (
     secondary: spec.secondaryStyle,
     secret: oyakata.secretStyle,
   });
-  const traits = [
-    ...resolveMentalTraits(spec.mentalTrait),
-    ...resolveInjuryTraits(spec.injuryResistance),
-  ];
-  if (spec.bodyConstitution === 'LONG_REACH') traits.push('LONG_REACH');
-  if (spec.bodyConstitution === 'HEAVY_BULK') traits.push('HEAVY_PRESSURE');
-  if (spec.debtCards.includes('OLD_KNEE')) traits.push('GLASS_KNEE');
+  const traitJourney = buildLockedTraitJourney([
+    { source: 'MENTAL_TRAIT', traits: resolveMentalTraits(spec.mentalTrait) },
+    { source: 'INJURY_RESISTANCE', traits: resolveInjuryTraits(spec.injuryResistance) },
+    {
+      source: 'BODY_CONSTITUTION',
+      traits: [
+        ...(spec.bodyConstitution === 'LONG_REACH' ? ['LONG_REACH' as const] : []),
+        ...(spec.bodyConstitution === 'HEAVY_BULK' ? ['HEAVY_PRESSURE' as const] : []),
+      ],
+    },
+    {
+      source: 'DEBT_CARD',
+      traits: spec.debtCards.includes('OLD_KNEE') ? ['GLASS_KNEE' as const] : [],
+    },
+  ]);
   const buildSummary = buildCareerSeedSummary({
     oyakataName: oyakata.name,
     amateurBackground: spec.amateurBackground,
@@ -803,7 +812,8 @@ export const buildInitialRikishiFromSpec = (
     tactics: styleToTactics(designedStyleProfile.dominant),
     signatureMove: '',
     bodyType: resolveBodyTypeFromConstitution(spec.bodyConstitution),
-    traits: [...new Set(traits)].slice(0, 5),
+    traits: [],
+    traitJourney,
     historyBonus: resolveBackgroundBonus(spec.amateurBackground) - (spec.debtCards.includes('LATE_START') ? 4 : 0),
     entryDivision: background.startRank.division === 'Makushita'
       ? 'Makushita60'

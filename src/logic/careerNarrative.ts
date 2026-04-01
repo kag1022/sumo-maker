@@ -10,6 +10,7 @@ import {
   TurningPointSummary,
 } from './models';
 import { STYLE_LABELS } from './styleProfile';
+import { normalizeTraitProgress } from './traits';
 
 interface RivalHeadToHeadInput {
   latestShikona: string;
@@ -33,6 +34,7 @@ const rankToNumericTier = (rank: Rank): number => {
 export const ensureCareerHistory = (history: CareerHistory): CareerHistory => {
   if (!history.bodyTimeline) history.bodyTimeline = [];
   if (!history.highlightEvents) history.highlightEvents = [];
+  if (!history.traitAwakenings) history.traitAwakenings = [];
   if (!history.careerTurningPoints) history.careerTurningPoints = [];
   return history;
 };
@@ -446,7 +448,7 @@ export const withRivalSummary = (
 };
 
 export const ensureCareerRecordStatus = (status: RikishiStatus): RikishiStatus => {
-  const next = { ...status };
+  const next = normalizeTraitProgress({ ...status });
   next.spirit = Number.isFinite(next.spirit) ? next.spirit : 70;
   next.history = ensureCareerHistory({ ...next.history });
   next.history.highlightEvents = inferHighlightEvents(next);

@@ -11,6 +11,8 @@ import {
   getCareerSaveIncentiveSummary,
   type CareerSaveIncentiveSummary,
 } from "../../../logic/persistence/careers";
+import { CONSTANTS } from "../../../logic/constants";
+import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { Button } from "../../../shared/ui/Button";
 import { BanzukeReviewTab } from "./BanzukeReviewTab";
 import { formatRankDisplayName } from "../utils/reportFormatters";
@@ -92,6 +94,16 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         .filter((summary, index, array) => Boolean(summary) && array.indexOf(summary) === index)
         .slice(0, 2),
     [narrative],
+  );
+  const learnedTraits = React.useMemo(
+    () =>
+      (status.traitJourney ?? [])
+        .filter((entry) => entry.state === "LEARNED")
+        .map((entry) => ({
+          ...entry,
+          data: CONSTANTS.TRAIT_DATA[entry.trait],
+        })),
+    [status.traitJourney],
   );
 
   React.useEffect(() => {
@@ -319,44 +331,80 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       )}
 
       {activeTab === "profile" && (
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
-          <div className={`${surface} relative overflow-hidden p-5`}>
-            <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
-            <div className="mb-4">
-              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物の入口</p>
-              <h2 className="mt-2 text-2xl ui-text-heading text-text">プロフィール</h2>
+        <section className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+            <div className={`${surface} relative overflow-hidden p-5`}>
+              <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
+              <div className="mb-4">
+                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物の入口</p>
+                <h2 className="mt-2 text-2xl ui-text-heading text-text">プロフィール</h2>
+              </div>
+              <div className="space-y-2">
+                <InfoRow label="出身地" value={initial?.birthplace ?? status.profile.birthplace} />
+                <InfoRow label="所属部屋" value={initial?.stableName ?? "不明"} />
+                <InfoRow label="入門年齢" value={`${initial?.entryAge ?? status.entryAge}歳`} />
+                <InfoRow label="学歴・競技歴" value={initial?.entryPathLabel ?? "記録なし"} />
+                <InfoRow label="気質" value={initial?.temperamentLabel ?? PERSONALITY_LABELS[status.profile.personality]} />
+                <InfoRow label="身体の素地" value={initial?.bodySeedLabel ?? "記録なし"} />
+                <InfoRow label="初期体格" value={initial ? `${initial.initialHeightCm}cm / ${initial.initialWeightKg}kg` : "-"} />
+                <InfoRow label="現在体格" value={`${currentHeight}cm / ${currentWeight}kg`} />
+                <InfoRow label="成長見込み" value={growth ? `${growth.peakHeightCm}cm / ${growth.peakWeightKg}kg` : "-"} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <InfoRow label="出身地" value={initial?.birthplace ?? status.profile.birthplace} />
-              <InfoRow label="所属部屋" value={initial?.stableName ?? "不明"} />
-              <InfoRow label="入門年齢" value={`${initial?.entryAge ?? status.entryAge}歳`} />
-              <InfoRow label="学歴・競技歴" value={initial?.entryPathLabel ?? "記録なし"} />
-              <InfoRow label="気質" value={initial?.temperamentLabel ?? PERSONALITY_LABELS[status.profile.personality]} />
-              <InfoRow label="身体の素地" value={initial?.bodySeedLabel ?? "記録なし"} />
-              <InfoRow label="初期体格" value={initial ? `${initial.initialHeightCm}cm / ${initial.initialWeightKg}kg` : "-"} />
-              <InfoRow label="現在体格" value={`${currentHeight}cm / ${currentWeight}kg`} />
-              <InfoRow label="成長見込み" value={growth ? `${growth.peakHeightCm}cm / ${growth.peakWeightKg}kg` : "-"} />
+
+            <div className={`${surface} relative overflow-hidden p-5`}>
+              <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
+              <div className="mb-4">
+                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物像の読み口</p>
+                <h2 className="mt-2 text-2xl ui-text-heading text-text">記録から見えること</h2>
+              </div>
+              <div className="space-y-3 text-sm leading-relaxed text-text/70">
+                <p>{narrative?.growthArc ?? "身体の伸び方と残り方は、番付の浮沈と共に現れます。"}</p>
+                <p>{narrative?.careerIdentity ?? "どんな相撲が定着したかは、決まり手と対戦の積み重ねで読みます。"}</p>
+                {narrative?.designEchoes?.slice(0, 2).map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+                <p>
+                  {status.history.totalAbsent > 0
+                    ? `生涯で${status.history.totalAbsent}休があり、怪我や停滞もこの力士像の一部として残っています。`
+                    : "長い休場は少なく、番付の推移で地力の積み上がりを読みやすい経歴です。"}
+                </p>
+              </div>
             </div>
           </div>
 
           <div className={`${surface} relative overflow-hidden p-5`}>
-            <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
+            <div className="absolute inset-y-0 left-0 w-1 bg-gold/35" />
             <div className="mb-4">
-              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物像の読み口</p>
-              <h2 className="mt-2 text-2xl ui-text-heading text-text">記録から見えること</h2>
+              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">習得した特性</p>
+              <h2 className="mt-2 text-2xl ui-text-heading text-text">特性</h2>
             </div>
-            <div className="space-y-3 text-sm leading-relaxed text-text/70">
-              <p>{narrative?.growthArc ?? "身体の伸び方と残り方は、番付の浮沈と共に現れます。"}</p>
-              <p>{narrative?.careerIdentity ?? "どんな相撲が定着したかは、決まり手と対戦の積み重ねで読みます。"}</p>
-              {narrative?.designEchoes?.slice(0, 2).map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-              <p>
-                {status.history.totalAbsent > 0
-                  ? `生涯で${status.history.totalAbsent}休があり、怪我や停滞もこの力士像の一部として残っています。`
-                  : "長い休場は少なく、番付の推移で地力の積み上がりを読みやすい経歴です。"}
-              </p>
-            </div>
+            {learnedTraits.length > 0 ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {learnedTraits.map((entry) => (
+                  <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className={`${insetSurface} p-4 space-y-2`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-lg ui-text-heading text-text">{entry.data?.name ?? entry.trait}</div>
+                        <div className="text-xs text-gold/70">
+                          {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-[10px] ui-text-label border ${entry.data?.isNegative ? "border-warning/30 text-warning-bright" : "border-state/30 text-state-bright"}`}>
+                        {entry.data?.isNegative ? "発現" : "習得"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-text/72">{entry.triggerLabel ?? "きっかけ不明"}</div>
+                    <div className="text-xs leading-relaxed text-text/58">{entry.triggerDetail ?? "詳細な契機は記録されていません。"}</div>
+                    <div className="border-t border-gold/10 pt-2 text-xs text-text/60">{entry.data?.description ?? "効果説明なし"}</div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className={`${insetSurface} p-4 text-sm text-text/60`}>
+                習得が記録された特性はありません。
+              </div>
+            )}
           </div>
         </section>
       )}
