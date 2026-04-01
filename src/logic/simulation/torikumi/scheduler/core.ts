@@ -52,7 +52,28 @@ type MatchAttempt = {
   leftoverIds: string[];
   totalScore: number;
   repairDepth: number;
+  repairAttempts: number;
+  repairSuccessCount: number;
 };
+
+type CandidateLink = {
+  opponent: TorikumiParticipant;
+  evalResult: PairEval;
+};
+
+type PairGraph = {
+  byId: Map<string, CandidateLink[]>;
+  evalByPairKey: Map<string, PairEval>;
+};
+
+type NeighborhoodResult = {
+  pairKeys: string[];
+  scheduledCount: number;
+  totalScore: number;
+};
+
+const LOCAL_REPAIR_CANDIDATE_LIMIT = 6;
+const LOCAL_REPAIR_NEIGHBORHOOD_LIMIT = 12;
 
 const DIVISION_PRIORITY: Record<TorikumiParticipant['division'], number> = {
   Makuuchi: 0,
@@ -74,11 +95,6 @@ const TIER_PRIORITY: Record<ReturnType<typeof resolveTorikumiTier>, number> = {
 
 const canonicalPairKey = (aId: string, bId: string): string =>
   [aId, bId].sort().join(':');
-
-const cloneFacedMap = (
-  faced: Map<string, Set<string>>,
-): Map<string, Set<string>> =>
-  new Map([...faced.entries()].map(([id, ids]) => [id, new Set(ids)]));
 
 const ensureFacedMap = (
   participants: TorikumiParticipant[],
@@ -517,47 +533,411 @@ const evaluateLowerPair = (
   };
 };
 
+const buildPairGraph = (
+  pool: TorikumiParticipant[],
+  faced: Map<string, Set<string>>,
+  evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
+): PairGraph => {
+  const byId = new Map<string, CandidateLink[]>();
+  const evalByPairKey = new Map<string, PairEval>();
+  for (const participant of pool) {
+    byId.set(participant.id, []);
+  }
+  for (let index = 0; index < pool.length; index += 1) {
+    for (let inner = index + 1; inner < pool.length; inner += 1) {
+      const a = pool[index];
+      const b = pool[inner];
+      if (!isLegalPair(faced, a, b)) continue;
+      const evalResult = evaluate(a, b);
+      if (!evalResult) continue;
+      const pairKey = canonicalPairKey(a.id, b.id);
+      evalByPairKey.set(pairKey, evalResult);
+      byId.get(a.id)?.push({ opponent: b, evalResult });
+      byId.get(b.id)?.push({ opponent: a, evalResult });
+    }
+  }
+  for (const links of byId.values()) {
+    links.sort((left, right) =>
+      left.evalResult.score - right.evalResult.score ||
+      left.opponent.id.localeCompare(right.opponent.id));
+  }
+  return { byId, evalByPairKey };
+};
+
+const resolveRemainingNeed = (participant: TorikumiParticipant): number =>
+  Math.max(0, participant.targetBouts - participant.boutsDone);
+
+const compareParticipantsForAttempt = (
+  left: TorikumiParticipant,
+  right: TorikumiParticipant,
+  orderKey: (participant: TorikumiParticipant) => number,
+  candidateCountById: Map<string, number>,
+): number => {
+  const candidateDiff =
+    (candidateCountById.get(left.id) ?? 0) - (candidateCountById.get(right.id) ?? 0);
+  if (candidateDiff !== 0) return candidateDiff;
+  const remainingDiff = resolveRemainingNeed(right) - resolveRemainingNeed(left);
+  if (remainingDiff !== 0) return remainingDiff;
+  const keyDiff = orderKey(left) - orderKey(right);
+  if (keyDiff !== 0) return keyDiff;
+  const rankDiff = left.rankScore - right.rankScore;
+  if (rankDiff !== 0) return rankDiff;
+  return left.id.localeCompare(right.id);
+};
+
+const computeLeftoverIds = (
+  pool: TorikumiParticipant[],
+  pairs: TorikumiPair[],
+): string[] => {
+  const scheduledIds = new Set<string>();
+  for (const pair of pairs) {
+    scheduledIds.add(pair.a.id);
+    scheduledIds.add(pair.b.id);
+  }
+  return pool
+    .filter((participant) => !scheduledIds.has(participant.id))
+    .map((participant) => participant.id);
+};
+
+const computeTotalScore = (
+  pairs: TorikumiPair[],
+  evalByPairKey: Map<string, PairEval>,
+): number =>
+  pairs.reduce((sum, pair) =>
+    sum + (evalByPairKey.get(canonicalPairKey(pair.a.id, pair.b.id))?.score ?? 0), 0);
+
+const finalizeAttempt = (
+  pool: TorikumiParticipant[],
+  pairs: TorikumiPair[],
+  repairDepth: number,
+  evalByPairKey: Map<string, PairEval>,
+  repairAttempts = 0,
+  repairSuccessCount = 0,
+): MatchAttempt => ({
+  pairs,
+  totalScore: computeTotalScore(pairs, evalByPairKey),
+  repairDepth,
+  leftoverIds: computeLeftoverIds(pool, pairs),
+  repairAttempts,
+  repairSuccessCount,
+});
+
+const buildPairAssignments = (pairs: TorikumiPair[]): Map<string, string> => {
+  const assignments = new Map<string, string>();
+  for (const pair of pairs) {
+    assignments.set(pair.a.id, pair.b.id);
+    assignments.set(pair.b.id, pair.a.id);
+  }
+  return assignments;
+};
+
+const compareNeighborhoodResults = (
+  left: NeighborhoodResult,
+  right: NeighborhoodResult,
+): number => {
+  if (left.scheduledCount !== right.scheduledCount) {
+    return left.scheduledCount - right.scheduledCount;
+  }
+  if (left.totalScore !== right.totalScore) {
+    return right.totalScore - left.totalScore;
+  }
+  return right.pairKeys.join('|').localeCompare(left.pairKeys.join('|'));
+};
+
+const resolveNeighborhoodResult = (
+  neighborhoodIds: string[],
+  pairs: TorikumiPair[],
+  evalByPairKey: Map<string, PairEval>,
+): NeighborhoodResult => {
+  const neighborhoodSet = new Set(neighborhoodIds);
+  const pairKeys = pairs
+    .filter((pair) => neighborhoodSet.has(pair.a.id) && neighborhoodSet.has(pair.b.id))
+    .map((pair) => canonicalPairKey(pair.a.id, pair.b.id))
+    .sort();
+  return {
+    pairKeys,
+    scheduledCount: pairKeys.length * 2,
+    totalScore: pairKeys.reduce((sum, pairKey) => sum + (evalByPairKey.get(pairKey)?.score ?? 0), 0),
+  };
+};
+
+const buildNeighborhoodIds = (
+  leftoverId: string,
+  graph: PairGraph,
+  pairAssignments: Map<string, string>,
+): string[] => {
+  const ids = new Set<string>([leftoverId]);
+  const ordered = [leftoverId];
+  const candidates = (graph.byId.get(leftoverId) ?? []).slice(0, LOCAL_REPAIR_CANDIDATE_LIMIT);
+  for (const { opponent } of candidates) {
+    const additions: string[] = [];
+    if (!ids.has(opponent.id)) additions.push(opponent.id);
+    const partnerId = pairAssignments.get(opponent.id);
+    if (partnerId && !ids.has(partnerId)) additions.push(partnerId);
+    if (ordered.length + additions.length > LOCAL_REPAIR_NEIGHBORHOOD_LIMIT) continue;
+    for (const id of additions) {
+      ids.add(id);
+      ordered.push(id);
+    }
+  }
+  return ordered;
+};
+
+const optimizeNeighborhood = (
+  neighborhoodIds: string[],
+  graph: PairGraph,
+): NeighborhoodResult => {
+  const neighborhoodSet = new Set(neighborhoodIds);
+  const adjacency = new Map<string, string[]>();
+  for (const id of neighborhoodIds) {
+    adjacency.set(
+      id,
+      (graph.byId.get(id) ?? [])
+        .map((link) => link.opponent.id)
+        .filter((candidateId) => neighborhoodSet.has(candidateId)),
+    );
+  }
+
+  let best: NeighborhoodResult = { pairKeys: [], scheduledCount: 0, totalScore: 0 };
+
+  const search = (
+    remaining: Set<string>,
+    pairKeys: string[],
+    scheduledCount: number,
+    totalScore: number,
+  ): void => {
+    const upperBound = scheduledCount + Math.floor(remaining.size / 2) * 2;
+    if (upperBound < best.scheduledCount) return;
+    if (remaining.size === 0) {
+      const candidate = {
+        pairKeys: pairKeys.slice().sort(),
+        scheduledCount,
+        totalScore,
+      };
+      if (compareNeighborhoodResults(candidate, best) > 0) best = candidate;
+      return;
+    }
+
+    let nextId: string | null = null;
+    let nextCandidates: string[] = [];
+    for (const id of remaining) {
+      const candidates = (adjacency.get(id) ?? []).filter((candidateId) => remaining.has(candidateId));
+      if (!nextId || candidates.length < nextCandidates.length) {
+        nextId = id;
+        nextCandidates = candidates;
+      }
+      if (candidates.length <= 1) break;
+    }
+    if (!nextId) return;
+
+    const pairable = nextCandidates
+      .map((candidateId) => ({
+        candidateId,
+        score: graph.evalByPairKey.get(canonicalPairKey(nextId, candidateId))?.score ?? Number.POSITIVE_INFINITY,
+      }))
+      .sort((left, right) => left.score - right.score || left.candidateId.localeCompare(right.candidateId));
+
+    for (const { candidateId, score } of pairable) {
+      if (!remaining.has(candidateId)) continue;
+      remaining.delete(nextId);
+      remaining.delete(candidateId);
+      pairKeys.push(canonicalPairKey(nextId, candidateId));
+      search(remaining, pairKeys, scheduledCount + 2, totalScore + score);
+      pairKeys.pop();
+      remaining.add(nextId);
+      remaining.add(candidateId);
+    }
+
+    remaining.delete(nextId);
+    search(remaining, pairKeys, scheduledCount, totalScore);
+    remaining.add(nextId);
+  };
+
+  search(new Set(neighborhoodIds), [], 0, 0);
+  return best;
+};
+
+const replaceNeighborhoodPairs = (
+  pairs: TorikumiPair[],
+  neighborhoodIds: string[],
+  nextNeighborhood: NeighborhoodResult,
+  participantsById: Map<string, TorikumiParticipant>,
+  evalByPairKey: Map<string, PairEval>,
+  repairDepth: number,
+): TorikumiPair[] => {
+  const neighborhoodSet = new Set(neighborhoodIds);
+  const outsidePairs = pairs.filter((pair) =>
+    !neighborhoodSet.has(pair.a.id) && !neighborhoodSet.has(pair.b.id));
+  const nextPairs = nextNeighborhood.pairKeys.map((pairKey) => {
+    const [aId, bId] = pairKey.split(':');
+    const a = participantsById.get(aId);
+    const b = participantsById.get(bId);
+    const evalResult = evalByPairKey.get(pairKey);
+    if (!a || !b || !evalResult) {
+      throw new Error(`Failed to rebuild local torikumi pair for ${pairKey}`);
+    }
+    return toPair(a, b, evalResult, repairDepth);
+  });
+  return outsidePairs.concat(nextPairs);
+};
+
+const improveAttemptLocally = (
+  pool: TorikumiParticipant[],
+  attempt: MatchAttempt,
+  graph: PairGraph,
+  orderKey: (participant: TorikumiParticipant) => number,
+): MatchAttempt => {
+  let pairs = attempt.pairs.slice();
+  let repairAttempts = 0;
+  let repairSuccessCount = 0;
+  const participantsById = new Map(pool.map((participant) => [participant.id, participant]));
+  const candidateCountById = new Map(
+    pool.map((participant) => [participant.id, graph.byId.get(participant.id)?.length ?? 0]),
+  );
+
+  while (true) {
+    const leftoverIds = computeLeftoverIds(pool, pairs);
+    const playerLeftoverIds = leftoverIds.filter((id) => participantsById.get(id)?.isPlayer);
+    if (playerLeftoverIds.length === 0) break;
+    const pairAssignments = buildPairAssignments(pairs);
+    const orderedLeftovers = playerLeftoverIds
+      .slice()
+      .sort((leftId, rightId) => {
+        const left = participantsById.get(leftId);
+        const right = participantsById.get(rightId);
+        if (!left || !right) return leftId.localeCompare(rightId);
+        return compareParticipantsForAttempt(left, right, orderKey, candidateCountById);
+      });
+
+    let improved = false;
+    for (const leftoverId of orderedLeftovers) {
+      const neighborhoodIds = buildNeighborhoodIds(leftoverId, graph, pairAssignments);
+      if (neighborhoodIds.length < 2) continue;
+      repairAttempts += 1;
+      const currentNeighborhood = resolveNeighborhoodResult(
+        neighborhoodIds,
+        pairs,
+        graph.evalByPairKey,
+      );
+      const optimized = optimizeNeighborhood(neighborhoodIds, graph);
+      if (compareNeighborhoodResults(optimized, currentNeighborhood) <= 0) continue;
+      pairs = replaceNeighborhoodPairs(
+        pairs,
+        neighborhoodIds,
+        optimized,
+        participantsById,
+        graph.evalByPairKey,
+        attempt.repairDepth,
+      );
+      repairSuccessCount += 1;
+      improved = true;
+      break;
+    }
+    if (!improved) break;
+  }
+
+  return finalizeAttempt(
+    pool,
+    pairs,
+    attempt.repairDepth,
+    graph.evalByPairKey,
+    repairAttempts,
+    repairSuccessCount,
+  );
+};
+
+const resolveMakeupDay = (
+  participant: TorikumiParticipant,
+  day: number,
+  bashoDays: number[],
+  canFightOnDay: (participant: TorikumiParticipant, day: number) => boolean,
+  grantedMakeupDaysById: Map<string, Set<number>>,
+): number | null => {
+  const grantedDays = grantedMakeupDaysById.get(participant.id) ?? new Set<number>();
+  for (const candidateDay of bashoDays) {
+    if (candidateDay <= day) continue;
+    if (canFightOnDay(participant, candidateDay)) continue;
+    if (grantedDays.has(candidateDay)) continue;
+    return candidateDay;
+  }
+  return null;
+};
+
 const buildAttempt = (
   pool: TorikumiParticipant[],
   faced: Map<string, Set<string>>,
   repairDepth: number,
   orderKey: (participant: TorikumiParticipant) => number,
   evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
+  options?: {
+    optimizeLocally?: boolean;
+  },
 ): MatchAttempt => {
-  const tempFaced = cloneFacedMap(faced);
+  const graph = buildPairGraph(pool, faced, evaluate);
+  const candidateCountById = new Map(
+    pool.map((participant) => [participant.id, graph.byId.get(participant.id)?.length ?? 0]),
+  );
   const scheduledIds = new Set<string>();
+  const exhaustedIds = new Set<string>();
   const pairs: TorikumiPair[] = [];
-  let totalScore = 0;
-  const ordered = pool.slice().sort((left, right) => {
-    const keyDiff = orderKey(left) - orderKey(right);
-    if (keyDiff !== 0) return keyDiff;
-    return left.id.localeCompare(right.id);
-  });
-  for (const participant of ordered) {
-    if (scheduledIds.has(participant.id)) continue;
-    let best: { opponent: TorikumiParticipant; evalResult: PairEval } | null = null;
-    for (const candidate of ordered) {
-      if (scheduledIds.has(candidate.id) || participant.id === candidate.id) continue;
-      if (!isLegalPair(tempFaced, participant, candidate)) continue;
-      const evalResult = evaluate(participant, candidate);
-      if (!evalResult) continue;
-      if (!best || evalResult.score < best.evalResult.score) {
-        best = { opponent: candidate, evalResult };
-      }
+  while (true) {
+    const remaining = pool.filter((participant) =>
+      !scheduledIds.has(participant.id) && !exhaustedIds.has(participant.id));
+    if (remaining.length < 2) break;
+    const participant = remaining
+      .slice()
+      .sort((left, right) => {
+        const leftCurrentCount = (graph.byId.get(left.id) ?? [])
+          .filter((candidate) =>
+            !scheduledIds.has(candidate.opponent.id) && !exhaustedIds.has(candidate.opponent.id))
+          .length;
+        const rightCurrentCount = (graph.byId.get(right.id) ?? [])
+          .filter((candidate) =>
+            !scheduledIds.has(candidate.opponent.id) && !exhaustedIds.has(candidate.opponent.id))
+          .length;
+        if (leftCurrentCount !== rightCurrentCount) return leftCurrentCount - rightCurrentCount;
+        return compareParticipantsForAttempt(left, right, orderKey, candidateCountById);
+      })[0];
+    const best = (graph.byId.get(participant.id) ?? [])
+      .filter((candidate) =>
+        !scheduledIds.has(candidate.opponent.id) && !exhaustedIds.has(candidate.opponent.id))
+      .sort((left, right) => {
+        const leftCurrentCount = (graph.byId.get(left.opponent.id) ?? [])
+          .filter((candidate) =>
+            !scheduledIds.has(candidate.opponent.id) &&
+            !exhaustedIds.has(candidate.opponent.id) &&
+            candidate.opponent.id !== participant.id)
+          .length;
+        const rightCurrentCount = (graph.byId.get(right.opponent.id) ?? [])
+          .filter((candidate) =>
+            !scheduledIds.has(candidate.opponent.id) &&
+            !exhaustedIds.has(candidate.opponent.id) &&
+            candidate.opponent.id !== participant.id)
+          .length;
+        if (left.evalResult.score !== right.evalResult.score) {
+          return left.evalResult.score - right.evalResult.score;
+        }
+        if (leftCurrentCount !== rightCurrentCount) return leftCurrentCount - rightCurrentCount;
+        return compareParticipantsForAttempt(
+          left.opponent,
+          right.opponent,
+          orderKey,
+          candidateCountById,
+        );
+      })[0] ?? null;
+    if (!best) {
+      exhaustedIds.add(participant.id);
+      continue;
     }
-    if (!best) continue;
     scheduledIds.add(participant.id);
     scheduledIds.add(best.opponent.id);
-    markFaced(tempFaced, participant, best.opponent);
     pairs.push(toPair(participant, best.opponent, best.evalResult, repairDepth));
-    totalScore += best.evalResult.score;
   }
-  return {
-    pairs,
-    totalScore,
-    repairDepth,
-    leftoverIds: pool.filter((participant) => !scheduledIds.has(participant.id)).map((participant) => participant.id),
-  };
+  const attempt = finalizeAttempt(pool, pairs, repairDepth, graph.evalByPairKey);
+  if (!options?.optimizeLocally || attempt.leftoverIds.length === 0) {
+    return attempt;
+  }
+  return improveAttemptLocally(pool, attempt, graph, orderKey);
 };
 
 const chooseAttempt = (primary: MatchAttempt, repair: MatchAttempt): MatchAttempt => {
@@ -579,6 +959,8 @@ export const scheduleTorikumiBasho = (
   const bandMap = buildBoundaryBandMap(params.boundaryBands);
   const obligations = buildObligations(participants);
   const crossDivisionById = new Map<string, number>(participants.map((participant) => [participant.id, 0]));
+  const grantedMakeupDaysById = new Map<string, Set<number>>();
+  const observedHealthyUnresolvedDaysById = new Map<string, Set<number>>();
 
   const dayResults: TorikumiBashoResult['days'] = [];
   const boundaryActivations: TorikumiBashoResult['diagnostics']['boundaryActivations'] = [];
@@ -586,9 +968,13 @@ export const scheduleTorikumiBasho = (
   const repairHistogram: Record<string, number> = {};
   const crossDivisionByBoundary: Record<string, number> = {};
   const scheduleViolations: TorikumiBashoResult['diagnostics']['scheduleViolations'] = [];
+  const playerHealthyUnresolvedDays = new Set<number>();
+  const unresolvedByDivisionAndDay: Record<string, Partial<Record<TorikumiParticipant['division'], number>>> = {};
   let crossDivisionBoutCount = 0;
   let lateCrossDivisionBoutCount = 0;
   let lateDirectTitleBoutCount = 0;
+  let repairAttempts = 0;
+  let repairSuccessCount = 0;
 
   for (const day of days) {
     const eligible = enrichParticipantsForDay(
@@ -596,7 +982,7 @@ export const scheduleTorikumiBasho = (
         participant.active &&
         !participant.kyujo &&
         participant.boutsDone < participant.targetBouts &&
-        canFightOnDay(participant, day)),
+        (canFightOnDay(participant, day) || grantedMakeupDaysById.get(participant.id)?.has(day) === true)),
     );
     const scheduledIds = new Set<string>();
     const dayPairs: TorikumiPair[] = [];
@@ -604,6 +990,9 @@ export const scheduleTorikumiBasho = (
     const schedulePool = (
       pool: TorikumiParticipant[],
       evaluate: (a: TorikumiParticipant, b: TorikumiParticipant) => PairEval | null,
+      options?: {
+        optimizeLocally?: boolean;
+      },
     ): void => {
       const available = pool.filter((participant) => !scheduledIds.has(participant.id));
       if (available.length < 2) return;
@@ -613,6 +1002,7 @@ export const scheduleTorikumiBasho = (
         0,
         (participant) => resolveSchedulingPriority(participant, day, false),
         evaluate,
+        options,
       );
       const repair = buildAttempt(
         available,
@@ -620,8 +1010,11 @@ export const scheduleTorikumiBasho = (
         1,
         (participant) => resolveSchedulingPriority(participant, day, true),
         evaluate,
+        options,
       );
       const chosen = chooseAttempt(primary, repair);
+      repairAttempts += chosen.repairAttempts;
+      repairSuccessCount += chosen.repairSuccessCount;
       for (const pair of chosen.pairs) {
         scheduledIds.add(pair.a.id);
         scheduledIds.add(pair.b.id);
@@ -638,10 +1031,12 @@ export const scheduleTorikumiBasho = (
         participant.division === 'Juryo' ||
         (participant.division === 'Makushita' && resolveRankNumber(participant) <= 5)),
       (a, b) => evaluateJuryoPair(a, b, day, obligations.byPairKey, bandMap, crossDivisionById),
+      { optimizeLocally: true },
     );
     schedulePool(
       eligible.filter((participant) => isLowerDivision(participant.division)),
       (a, b) => evaluateLowerPair(a, b, bandMap),
+      { optimizeLocally: true },
     );
 
     for (const pair of dayPairs) {
@@ -697,6 +1092,34 @@ export const scheduleTorikumiBasho = (
       .filter((participant) => !scheduledIds.has(participant.id))
       .map((participant) => participant.id);
     if (leftoverIds.length > 0) {
+      const unresolvedByDivision =
+        unresolvedByDivisionAndDay[String(day)] ?? {};
+      for (const id of leftoverIds) {
+        const participant = eligible.find((entry) => entry.id === id);
+        if (!participant) continue;
+        unresolvedByDivision[participant.division] =
+          (unresolvedByDivision[participant.division] ?? 0) + 1;
+        if (participant.targetBouts <= 7) {
+          const makeupDay = resolveMakeupDay(
+            participant,
+            day,
+            days,
+            canFightOnDay,
+            grantedMakeupDaysById,
+          );
+          if (makeupDay !== null) {
+            const grantedDays = grantedMakeupDaysById.get(participant.id) ?? new Set<number>();
+            grantedDays.add(makeupDay);
+            grantedMakeupDaysById.set(participant.id, grantedDays);
+          }
+        }
+        if (participant.isPlayer && participant.targetBouts <= 7) {
+          const observedDays = observedHealthyUnresolvedDaysById.get(participant.id) ?? new Set<number>();
+          observedDays.add(day);
+          observedHealthyUnresolvedDaysById.set(participant.id, observedDays);
+        }
+      }
+      unresolvedByDivisionAndDay[String(day)] = unresolvedByDivision;
       scheduleViolations.push({
         day,
         participantIds: leftoverIds,
@@ -713,6 +1136,17 @@ export const scheduleTorikumiBasho = (
     const remaining = Math.max(0, participant.targetBouts - participant.boutsDone);
     remainingTargetById[participant.id] = remaining;
     if (remaining > 0) unscheduledById[participant.id] = remaining;
+    if (
+      participant.isPlayer &&
+      participant.targetBouts <= 7 &&
+      participant.active &&
+      !participant.kyujo &&
+      remaining > 0
+    ) {
+      for (const unresolvedDay of observedHealthyUnresolvedDaysById.get(participant.id) ?? []) {
+        playerHealthyUnresolvedDays.add(unresolvedDay);
+      }
+    }
   }
 
   return {
@@ -731,6 +1165,10 @@ export const scheduleTorikumiBasho = (
       obligationCoverage: obligations.coverage,
       crossDivisionByBoundary,
       lateDirectTitleBoutCount,
+      playerHealthyUnresolvedDays: [...playerHealthyUnresolvedDays].sort((left, right) => left - right),
+      unresolvedByDivisionAndDay,
+      repairAttempts,
+      repairSuccessCount,
     },
   };
 };

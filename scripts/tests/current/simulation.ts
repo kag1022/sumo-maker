@@ -1189,6 +1189,46 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'simulation: healthy lower-division player finishes seven bouts in reproduced shortage seeds',
+    run: () => {
+      const cases: Array<{ seed: number; rank: Rank }> = [
+        { seed: 56, rank: { division: 'Makushita', name: '幕下', side: 'East', number: 1 } },
+        { seed: 1, rank: { division: 'Makushita', name: '幕下', side: 'East', number: 59 } },
+        { seed: 1, rank: { division: 'Jonidan', name: '序二段', side: 'East', number: 99 } },
+      ];
+
+      for (const testCase of cases) {
+        const rng = lcg(testCase.seed);
+        const world = createSimulationWorld(rng);
+        const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
+        const status = createStatus({ rank: testCase.rank });
+        const result = runBashoDetailed(status, 2026, 1, rng, world, lowerWorld);
+        const diagnostics = result.torikumiDiagnostics;
+        const healthyUnresolvedDays = diagnostics?.playerHealthyUnresolvedDays ?? [];
+        const playerScheduleViolations = diagnostics?.scheduleViolations.filter((entry) =>
+          entry.participantIds.includes('PLAYER')) ?? [];
+        const actualBouts = result.playerBoutDetails.filter((bout) => bout.result !== 'ABSENT');
+
+        assert.ok(
+          healthyUnresolvedDays.length === 0,
+          `Expected no healthy unresolved days for ${testCase.rank.division}${testCase.rank.number ?? ''} seed ${testCase.seed}`,
+        );
+        assert.ok(
+          playerScheduleViolations.length === 0,
+          `Expected PLAYER to avoid unresolved leftovers for ${testCase.rank.division}${testCase.rank.number ?? ''} seed ${testCase.seed}`,
+        );
+        assert.ok(
+          result.playerBoutDetails.every((bout) => bout.result !== 'ABSENT'),
+          `Expected healthy player to avoid ABSENT rows for ${testCase.rank.division}${testCase.rank.number ?? ''} seed ${testCase.seed}`,
+        );
+        assert.ok(
+          actualBouts.length === 7,
+          `Expected seven actual bouts for ${testCase.rank.division}${testCase.rank.number ?? ''} seed ${testCase.seed}`,
+        );
+      }
+    },
+  },
+{
     name: 'simulation: maegashira kinboshi can be recorded with sansho',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
