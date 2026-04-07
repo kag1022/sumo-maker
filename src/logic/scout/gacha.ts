@@ -145,35 +145,48 @@ const resolveBodyConstitution = (bodySeed: ScoutBodySeed): BodyConstitution => {
 
 const resolvePotentialFromBodySeed = (
   bodySeed: ScoutBodySeed,
+  entryAge: ScoutDraft["entryAge"],
   startingHeightCm: number,
   startingWeightKg: number,
 ): Pick<BuildSpecVNext, "heightPotentialCm" | "weightPotentialKg" | "reachDeltaCm"> => {
+  const completedHeightPotential = entryAge >= 22 ? startingHeightCm : undefined;
   if (bodySeed === "HEAVY") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 3, 186),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 186),
       weightPotentialKg: Math.max(startingWeightKg + 24, 178),
       reachDeltaCm: -1,
     };
   }
   if (bodySeed === "LONG") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 5, 191),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 5, 191),
       weightPotentialKg: Math.max(startingWeightKg + 18, 148),
       reachDeltaCm: 5,
     };
   }
   if (bodySeed === "SPRING") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 3, 183),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 183),
       weightPotentialKg: Math.max(startingWeightKg + 20, 156),
       reachDeltaCm: 1,
     };
   }
   return {
-    heightPotentialCm: Math.max(startingHeightCm + 3, 184),
+    heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 184),
     weightPotentialKg: Math.max(startingWeightKg + 18, 150),
     reachDeltaCm: 0,
   };
+};
+
+const buildGrowthLine = (
+  draft: ScoutDraft,
+  preview: BuildPreviewSummaryVNext,
+): string => {
+  const gainsHeight = preview.potentialHeightCm > draft.startingHeightCm;
+  if (!gainsHeight) {
+    return `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}で骨格はほぼ完成しており、体重は${preview.potentialWeightKg}kgまで積み上がる余地がある。`;
+  }
+  return `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`;
 };
 
 const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): StyleArchetype => {
@@ -240,7 +253,7 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
   const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
   const spec: BuildSpecVNext = {
     oyakataId: oyakata.id,
-    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.startingHeightCm, draft.startingWeightKg),
+    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.entryAge, draft.startingHeightCm, draft.startingWeightKg),
     bodyConstitution,
     amateurBackground: resolveBackground(draft),
     primaryStyle,
@@ -277,7 +290,7 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     bodySeedLabel: SCOUT_BODY_SEED_LABELS[draft.bodySeed],
     stableLabel: stable.displayName,
     introductionLine: `${draft.birthplace}から${stable.displayName}へ入り、${draft.entryAge}歳で土俵に立つ。`,
-    growthLine: `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`,
+    growthLine: buildGrowthLine(draft, preview),
   };
 };
 

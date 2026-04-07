@@ -21,7 +21,7 @@ interface CareerTrajectoryChapterProps {
   viewState: CareerWindowState & { selectedBashoSeq: number | null };
   onSelectBasho: (bashoSeq: number) => void;
   onWindowChange: (window: CareerWindowState) => void;
-  onOpenChapter: (chapter: "place" | "review") => void;
+  onOpenChapter: (chapter: "place" | "encyclopedia") => void;
 }
 
 type TrajectoryMode = "standard" | "milestones";
@@ -284,9 +284,9 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
             <ArrowRight className="mr-2 h-4 w-4" />
             場所別を開く
           </Button>
-          <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("review")} disabled={!selectedPoint}>
+          <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
             <ScrollText className="mr-2 h-4 w-4" />
-            審議録を開く
+            力士名鑑へ戻る
           </Button>
           </div>
         </aside>

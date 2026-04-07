@@ -98,6 +98,29 @@ export const simulateNpcBout = (
   b: DivisionParticipant,
   rng: RandomSource,
 ): void => {
+  const applyFusenWin = (winner: DivisionParticipant, loser: DivisionParticipant): void => {
+    const expectedWin = 0.96;
+    winner.expectedWins = (winner.expectedWins ?? 0) + expectedWin;
+    loser.expectedWins = (loser.expectedWins ?? 0) + (1 - expectedWin);
+    winner.boutsSimulated = (winner.boutsSimulated ?? 0) + 1;
+    loser.boutsSimulated = (loser.boutsSimulated ?? 0) + 1;
+    winner.wins += 1;
+    winner.currentWinStreak = (winner.currentWinStreak ?? 0) + 1;
+    winner.currentLossStreak = 0;
+    loser.currentLossStreak = 0;
+    loser.currentWinStreak = 0;
+  };
+  if (a.bashoKyujo && b.bashoKyujo) {
+    return;
+  }
+  if (a.bashoKyujo) {
+    applyFusenWin(b, a);
+    return;
+  }
+  if (b.bashoKyujo) {
+    applyFusenWin(a, b);
+    return;
+  }
   if (!a.active && !b.active) {
     // 両者休場の場合は勝敗つかず
     return;

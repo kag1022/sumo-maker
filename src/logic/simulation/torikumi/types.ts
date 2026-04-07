@@ -103,6 +103,7 @@ export type TorikumiParticipant = {
   opponentAbilityTotal?: number;
   boutsSimulated?: number;
   active: boolean;
+  bashoKyujo?: boolean;
   targetBouts: number;
   boutsDone: number;
   kyujo?: boolean;
@@ -165,6 +166,9 @@ export type TorikumiDiagnostics = {
   }>;
   repairHistogram: Record<string, number>;
   obligationCoverage: Record<string, { scheduled: number; total: number }>;
+  sanyakuRoundRobinCoverageRate: number;
+  joiAssignmentCoverageRate: number;
+  yokozunaOzekiTailBoutRatio: number;
   crossDivisionByBoundary: Record<string, number>;
   lateDirectTitleBoutCount: number;
   playerHealthyUnresolvedDays: number[];

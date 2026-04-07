@@ -229,6 +229,30 @@ export const runTopDivisionBasho = (
         return;
       }
 
+      if (opponent.bashoKyujo) {
+        wins += 1;
+        player.wins += 1;
+        consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        player.currentWinStreak = currentWinStreak;
+        player.currentLossStreak = 0;
+        opponent.currentLossStreak = 0;
+        opponent.currentWinStreak = 0;
+        previousResult = 'WIN';
+        playerBoutDetails.push({
+          day,
+          result: 'WIN',
+          kimarite: '不戦勝',
+          opponentId: opponent.id,
+          opponentShikona: opponent.shikona,
+          opponentRankName: opponentRank.name,
+          opponentRankNumber: opponentRank.number,
+          opponentRankSide: opponentRank.side,
+        });
+        return;
+      }
+
       if (rng() < resolveInjuryRate(status)) {
         losses += 1;
         player.losses += 1;

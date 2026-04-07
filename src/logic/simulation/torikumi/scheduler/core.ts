@@ -406,25 +406,46 @@ const evaluateMakuuchiPair = (
 ): PairEval | null => {
   if (a.division !== 'Makuuchi' || b.division !== 'Makuuchi') return null;
   const phaseId = resolveTopPhase(day);
+  const aBand = resolveMakuuchiBand(a);
+  const bBand = resolveMakuuchiBand(b);
+  const aTopHeavy = a.rankName === '横綱' || a.rankName === '大関';
+  const bTopHeavy = b.rankName === '横綱' || b.rankName === '大関';
   const rankDiff = Math.abs(resolveRankNumber(a) - resolveRankNumber(b));
   const winDiff = Math.abs(a.wins - b.wins);
   const title = resolveTitleImplication(a, b, day);
   const obligation = obligations.get(canonicalPairKey(a.id, b.id));
   let score = rankDiff * 10 + winDiff * (phaseId === 'LATE' ? 10 : 13) + Math.abs(a.losses - b.losses) * 3;
-  if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') score -= 360;
-  if (obligation?.reason === 'JOI_ASSIGNMENT') score -= phaseId === 'EARLY' ? 300 : phaseId === 'MID_A' ? 220 : 140;
+  if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') {
+    score -= phaseId === 'EARLY' ? 420 : phaseId === 'MID_A' ? 380 : 320;
+  }
+  if (obligation?.reason === 'JOI_ASSIGNMENT') {
+    score -= phaseId === 'EARLY' ? 340 : phaseId === 'MID_A' ? 260 : 170;
+  }
   if (title.titleImplication === 'DIRECT') score -= 420;
   if (title.titleImplication === 'CHASE') score -= 260;
   if (
     phaseId === 'EARLY' &&
-    (resolveMakuuchiBand(a) === 'SANYAKU' || resolveMakuuchiBand(b) === 'SANYAKU') &&
-    (resolveMakuuchiBand(a) === 'TAIL' || resolveMakuuchiBand(b) === 'TAIL')
+    (aBand === 'SANYAKU' || bBand === 'SANYAKU') &&
+    (aBand === 'TAIL' || bBand === 'TAIL')
   ) {
     score += 240;
+  }
+  if ((aTopHeavy && bBand === 'TAIL') || (bTopHeavy && aBand === 'TAIL')) {
+    score += phaseId === 'EARLY' ? 360 : phaseId === 'MID_A' ? 300 : 220;
+  }
+  if ((aTopHeavy && (bBand === 'SANYAKU' || bBand === 'JOI_A')) || (bTopHeavy && (aBand === 'SANYAKU' || aBand === 'JOI_A'))) {
+    score -= phaseId === 'EARLY' ? 90 : phaseId === 'MID_A' ? 60 : 30;
   }
   let matchReason: TorikumiMatchReason = 'RANK_NEARBY';
   if (title.titleImplication === 'DIRECT') matchReason = 'YUSHO_DIRECT';
   else if (title.titleImplication === 'CHASE') matchReason = 'YUSHO_PURSUIT';
+  else if (
+    obligation?.reason === 'JOI_ASSIGNMENT' &&
+    ((aTopHeavy && (bBand === 'SANYAKU' || bBand === 'JOI_A')) ||
+      (bTopHeavy && (aBand === 'SANYAKU' || aBand === 'JOI_A')))
+  ) {
+    matchReason = 'TOP_RANK_DUTY';
+  }
   else if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') matchReason = 'SANYAKU_ROUND_ROBIN';
   else if (obligation?.reason === 'JOI_ASSIGNMENT') matchReason = 'JOI_ASSIGNMENT';
   else if (winDiff <= 1) matchReason = 'RECORD_NEARBY';
@@ -1007,6 +1028,8 @@ export const scheduleTorikumiBasho = (
   let crossDivisionBoutCount = 0;
   let lateCrossDivisionBoutCount = 0;
   let lateDirectTitleBoutCount = 0;
+  let yokozunaOzekiBoutCount = 0;
+  let yokozunaOzekiTailBoutCount = 0;
   let repairAttempts = 0;
   let repairSuccessCount = 0;
 
@@ -1145,6 +1168,19 @@ export const scheduleTorikumiBasho = (
       if (pair.titleImplication === 'DIRECT' && day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY) {
         lateDirectTitleBoutCount += 1;
       }
+      if (pair.a.division === 'Makuuchi' && pair.b.division === 'Makuuchi') {
+        const aTopHeavy = pair.a.rankName === '横綱' || pair.a.rankName === '大関';
+        const bTopHeavy = pair.b.rankName === '横綱' || pair.b.rankName === '大関';
+        if (aTopHeavy || bTopHeavy) {
+          yokozunaOzekiBoutCount += 1;
+          if (
+            (aTopHeavy && resolveMakuuchiBand(pair.b) === 'TAIL') ||
+            (bTopHeavy && resolveMakuuchiBand(pair.a) === 'TAIL')
+          ) {
+            yokozunaOzekiTailBoutCount += 1;
+          }
+        }
+      }
       const relaxKey = String(pair.relaxationStage);
       torikumiRelaxationHistogram[relaxKey] = (torikumiRelaxationHistogram[relaxKey] ?? 0) + 1;
       const repairKey = String(pair.repairDepth);
@@ -1249,6 +1285,18 @@ export const scheduleTorikumiBasho = (
       scheduleViolations,
       repairHistogram,
       obligationCoverage: obligations.coverage,
+      sanyakuRoundRobinCoverageRate:
+        (obligations.coverage.SANYAKU_ROUND_ROBIN.total ?? 0) > 0
+          ? (obligations.coverage.SANYAKU_ROUND_ROBIN.scheduled ?? 0) /
+            obligations.coverage.SANYAKU_ROUND_ROBIN.total
+          : 1,
+      joiAssignmentCoverageRate:
+        (obligations.coverage.JOI_ASSIGNMENT.total ?? 0) > 0
+          ? (obligations.coverage.JOI_ASSIGNMENT.scheduled ?? 0) /
+            obligations.coverage.JOI_ASSIGNMENT.total
+          : 1,
+      yokozunaOzekiTailBoutRatio:
+        yokozunaOzekiBoutCount > 0 ? yokozunaOzekiTailBoutCount / yokozunaOzekiBoutCount : 0,
       crossDivisionByBoundary,
       lateDirectTitleBoutCount,
       playerHealthyUnresolvedDays: [...playerHealthyUnresolvedDays].sort((left, right) => left - right),

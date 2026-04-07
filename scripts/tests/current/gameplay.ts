@@ -193,6 +193,38 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'scout: 22-year-old tsukedashi keeps peak height at entry',
+    run: () => {
+      const rikishi = buildInitialRikishiFromDraft({
+        ...createScoutDraft(),
+        entryAge: 22,
+        entryPath: 'CHAMPION',
+        startingHeightCm: 188,
+        startingWeightKg: 149,
+      });
+      assert.equal(rikishi.entryAge, 22);
+      assert.equal(rikishi.bodyMetrics.heightCm, 188);
+      assert.equal(rikishi.careerSeed?.peakHeightCm, 188);
+      assert.equal(rikishi.buildSummary?.heightPotentialCm, 188);
+      assert.ok((rikishi.careerSeed?.peakWeightKg ?? 0) >= 149);
+    },
+  },
+{
+    name: 'build vnext: college tsukedashi starts at full planned height',
+    run: () => {
+      const starter = getStarterOyakataBlueprints()[0];
+      const rikishi = buildInitialRikishiFromSpec({
+        ...createDefaultBuildSpecVNext(starter.id),
+        amateurBackground: 'COLLEGE_YOKOZUNA',
+        heightPotentialCm: 190,
+        weightPotentialKg: 162,
+      }, starter);
+      assert.equal(rikishi.entryAge, 22);
+      assert.equal(rikishi.bodyMetrics.heightCm, 190);
+      assert.equal(rikishi.buildSummary?.heightPotentialCm, 190);
+    },
+  },
+{
     name: 'initialization: average initial stats are monotonic by aptitude tier',
     run: () => {
       const samples = 320;
