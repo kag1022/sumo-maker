@@ -45,14 +45,14 @@ export const AMATEUR_BACKGROUND_CONFIG = {
     label: '学生エリート',
     entryAge: 22,
     startRank: { division: 'Sandanme', name: '三段目', side: 'East', number: 90 } as Rank,
-    initialHeightDelta: 2,
+    initialHeightDelta: 0,
     initialWeightDelta: 10,
   },
   COLLEGE_YOKOZUNA: {
     label: '学生横綱',
     entryAge: 22,
     startRank: { division: 'Makushita', name: '幕下', side: 'East', number: 60 } as Rank,
-    initialHeightDelta: 1,
+    initialHeightDelta: 0,
     initialWeightDelta: 8,
   },
 } as const;

@@ -11,6 +11,72 @@ import {
   BashoRecordSnapshot,
 } from './sekitori/types';
 
+const assignOpenSide = (
+  allocations: BanzukeAllocation[],
+  rankName: '関脇' | '小結',
+): 'East' | 'West' => {
+  const used = new Set(
+    allocations
+      .filter((allocation) => allocation.nextRank.division === 'Makuuchi' && allocation.nextRank.name === rankName)
+      .map((allocation) => allocation.nextRank.side)
+      .filter((side): side is 'East' | 'West' => side === 'East' || side === 'West'),
+  );
+  return used.has('East') && !used.has('West') ? 'West' : 'East';
+};
+
+const ensureSanyakuFloor = (
+  allocations: BanzukeAllocation[],
+): BanzukeAllocation[] => {
+  const next = allocations.slice();
+  const makuuchi = next.filter((allocation) => allocation.nextRank.division === 'Makuuchi');
+  const byScoreDesc = (left: BanzukeAllocation, right: BanzukeAllocation): number =>
+    right.score - left.score || left.id.localeCompare(right.id);
+  const byScoreAsc = (left: BanzukeAllocation, right: BanzukeAllocation): number =>
+    left.score - right.score || left.id.localeCompare(right.id);
+
+  const promoteToRank = (
+    allocation: BanzukeAllocation | undefined,
+    rankName: '関脇' | '小結',
+  ): void => {
+    if (!allocation) return;
+    allocation.nextRank = {
+      division: 'Makuuchi',
+      name: rankName,
+      side: assignOpenSide(next, rankName),
+    };
+  };
+
+  const countOf = (rankName: '関脇' | '小結'): number =>
+    makuuchi.filter((allocation) => allocation.nextRank.name === rankName).length;
+
+  while (countOf('関脇') < 2) {
+    const source =
+      makuuchi
+        .filter((allocation) => allocation.nextRank.name === '小結')
+        .sort(byScoreDesc)[0] ??
+      makuuchi
+        .filter((allocation) => allocation.nextRank.name === '前頭')
+        .sort(byScoreDesc)[0];
+    if (!source) break;
+    promoteToRank(source, '関脇');
+  }
+
+  while (countOf('小結') < 2) {
+    const source =
+      makuuchi
+        .filter((allocation) => allocation.nextRank.name === '関脇')
+        .sort(byScoreAsc)
+        .find(() => countOf('関脇') > 2) ??
+      makuuchi
+        .filter((allocation) => allocation.nextRank.name === '前頭')
+        .sort(byScoreDesc)[0];
+    if (!source) break;
+    promoteToRank(source, '小結');
+  }
+
+  return next;
+};
+
 export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllocation[] => {
   const activeSekitori = records.filter(
     (record) => !record.isRetired && isSekitoriDivision(record.rank.division),
@@ -58,7 +124,7 @@ export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllo
     makuuchiSlots,
   );
 
-  return candidates
+  const resolvedAllocations = candidates
     .slice()
     .sort(compareRankKey)
     .map((candidate) => {
@@ -84,6 +150,8 @@ export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllo
         nextIsOzekiReturn,
       };
     });
+
+  return ensureSanyakuFloor(resolvedAllocations);
 };
 
 export type {
