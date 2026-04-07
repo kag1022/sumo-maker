@@ -31,7 +31,7 @@ const isExceptionalSekiwakeLift = (candidate: BanzukeCandidate): boolean =>
   isForcedSanyakuLift(candidate, 1, 11) || isForcedSanyakuLift(candidate, 2, 12);
 
 const isExceptionalKomusubiLift = (candidate: BanzukeCandidate): boolean =>
-  isForcedSanyakuLift(candidate, 1, 10) || isForcedSanyakuLift(candidate, 2, 11);
+  isForcedSanyakuLift(candidate, 2, 10);
 
 const takeCandidates = (
   sortedPool: BanzukeCandidate[],
@@ -135,6 +135,15 @@ const pickTopCandidates = (
         pool.filter((candidate) => !picked.some((row) => row.snapshot.id === candidate.snapshot.id)),
         count - picked.length,
         forcedFallback,
+      ),
+    );
+  }
+  if (picked.length < count) {
+    picked.push(
+      ...takeCandidates(
+        pool.filter((candidate) => !picked.some((row) => row.snapshot.id === candidate.snapshot.id)),
+        count - picked.length,
+        () => true,
       ),
     );
   }
@@ -253,8 +262,12 @@ export const allocateSekitoriSlots = (
     SANYAKU_MIN.sekiwake,
     Math.min(maxSekiwake, strictSekiwakeCount),
   );
+  const maxSekiwakeSlots = Math.max(
+    SANYAKU_MIN.sekiwake,
+    remainingForSanyaku - SANYAKU_MIN.komusubi,
+  );
   const targetSekiwake = Math.min(
-    remainingForSanyaku,
+    maxSekiwakeSlots,
     Math.max(forcedSekiwake.length, desiredSekiwake),
   );
   const sekiwake = pickTopCandidates(
@@ -271,10 +284,22 @@ export const allocateSekitoriSlots = (
     makuuchiSlots - yokozuna.length - ozeki.length - sekiwake.length,
   );
   const forcedKomusubi = takeCandidates(topPool, topPool.length, isForcedKomusubi);
-  const strictKomusubiCount = topPool.filter(isStrictKomusubiCandidate).length;
-  const desiredKomusubi = Math.max(
-    SANYAKU_MIN.komusubi,
-    Math.min(SANYAKU_CAP.komusubi, strictKomusubiCount),
+  const komusubiOverflowCandidates = topPool.filter((candidate) => {
+    const rank = candidate.snapshot.rank;
+    return (
+      rank.division === 'Makuuchi' &&
+      rank.name === '前頭' &&
+      (rank.number || 99) <= 2 &&
+      candidate.snapshot.wins >= 10
+    );
+  }).length;
+  const desiredKomusubi = Math.min(
+    SANYAKU_CAP.komusubi,
+    Math.max(
+      SANYAKU_MIN.komusubi,
+      forcedKomusubi.length,
+      SANYAKU_MIN.komusubi + komusubiOverflowCandidates,
+    ),
   );
   const targetKomusubi = Math.min(
     remainingForKomusubi,

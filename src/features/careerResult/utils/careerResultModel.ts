@@ -11,7 +11,7 @@ export interface CareerWindowState {
   visibleWindowEndSeq: number;
 }
 
-export type CareerChapterId = "overview" | "trajectory" | "place" | "review";
+export type CareerChapterId = "encyclopedia" | "trajectory" | "place";
 export type CareerPlaceTabId = "banzuke" | "bouts";
 export type CareerLedgerBandKey =
   | "YOKOZUNA"

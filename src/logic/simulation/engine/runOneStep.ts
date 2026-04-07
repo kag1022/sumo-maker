@@ -660,6 +660,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     torikumiRepairHistogram: bashoResult.torikumiDiagnostics?.repairHistogram,
     torikumiScheduleViolations: bashoResult.torikumiDiagnostics?.scheduleViolations.length,
     torikumiLateDirectTitleBoutCount: bashoResult.torikumiDiagnostics?.lateDirectTitleBoutCount,
+    sanyakuRoundRobinCoverageRate: bashoResult.torikumiDiagnostics?.sanyakuRoundRobinCoverageRate,
+    joiAssignmentCoverageRate: bashoResult.torikumiDiagnostics?.joiAssignmentCoverageRate,
+    yokozunaOzekiTailBoutRatio: bashoResult.torikumiDiagnostics?.yokozunaOzekiTailBoutRatio,
     ...(true
       ? {
         bashoVariance: {

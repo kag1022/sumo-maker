@@ -393,7 +393,9 @@ export const applyGrowth = (
         currentStatus.careerSeed?.peakWeightKg ??
         currentStatus.buildSummary?.weightPotentialKg ??
         bodyMetrics.weightKg;
-    if (age <= 23 && bodyMetrics.heightCm < targetHeight) {
+    const entryAge = Number.isFinite(currentStatus.entryAge) ? currentStatus.entryAge : age;
+    const canGrowTallerAfterEntry = entryAge < 22;
+    if (canGrowTallerAfterEntry && age <= 23 && bodyMetrics.heightCm < targetHeight) {
         const heightGrowthBias = seedBiases ? Math.max(0.85, 1 + seedBiases.earlyGrowthBias * 0.05) : 1;
         bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + (0.2 + Math.max(0, (23 - age) * 0.04)) * heightGrowthBias);
     }

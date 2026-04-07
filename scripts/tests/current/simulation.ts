@@ -1017,6 +1017,30 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'growth: 22-year-old entrant does not gain height after debut',
+    run: () => {
+      const result = applyGrowth(createStatus({
+        entryAge: 22,
+        age: 22,
+        bodyMetrics: { heightCm: 188, weightKg: 149 },
+        buildSummary: {
+          oyakataName: '大寿',
+          amateurBackground: 'COLLEGE_YOKOZUNA',
+          bodyConstitution: 'BALANCED_FRAME',
+          heightPotentialCm: 191,
+          weightPotentialKg: 165,
+          reachDeltaCm: 0,
+          spentPoints: 40,
+          remainingPoints: 10,
+          debtCount: 0,
+          careerBandLabel: '標準',
+        },
+      }), null, false, () => 0.5);
+      assert.equal(result.bodyMetrics.heightCm, 188);
+      assert.ok(result.bodyMetrics.weightKg > 149);
+    },
+  },
+{
     name: 'growth: severe injury and near-full absence cause sharp weight loss',
     run: () => {
       const heavy = applyGrowth(createStatus({

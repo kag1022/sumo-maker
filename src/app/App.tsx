@@ -66,7 +66,7 @@ export const App: React.FC = () => {
     selectedBashoSeq: null,
     visibleWindowStartSeq: 1,
     visibleWindowEndSeq: 1,
-    activeChapter: "overview",
+    activeChapter: "encyclopedia",
     placeTab: "banzuke",
   });
   const [eraViewState, setEraViewState] = React.useState<EraStatsViewState>({
@@ -111,7 +111,7 @@ export const App: React.FC = () => {
         selectedBashoSeq: null,
         visibleWindowStartSeq: 1,
         visibleWindowEndSeq: 1,
-        activeChapter: "overview",
+        activeChapter: "encyclopedia",
         placeTab: "banzuke",
       });
       return;
@@ -136,7 +136,7 @@ export const App: React.FC = () => {
         selectedBashoSeq: selectedSeq,
         visibleWindowStartSeq: windowStart,
         visibleWindowEndSeq: Math.max(windowStart, windowEnd),
-        activeChapter: shouldSnapToLatest ? "overview" : current.activeChapter,
+        activeChapter: shouldSnapToLatest ? "encyclopedia" : current.activeChapter,
         placeTab: shouldSnapToLatest ? "banzuke" : current.placeTab,
       };
     });

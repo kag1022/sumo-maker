@@ -64,6 +64,16 @@ const RETIREMENT_HAZARD = {
     ageStart: 36,
     ageScale: 0.0018,
   },
+  activeSekitoriAbsencePressure: {
+    startTotal: 3,
+    perAdditional: 0.004,
+  },
+  activeSekitoriUpperTenure: {
+    sanyakuStart: 6,
+    sanyakuPerAdditional: 0.0022,
+    ozekiYokozunaStart: 4,
+    ozekiYokozunaPerAdditional: 0.0032,
+  },
   nonSekitoriLowerDivisionPenalty: {
     makushita: 0.0004,
     lower: 0.0009,
@@ -177,6 +187,9 @@ export interface RetirementChanceInput {
   stagnationPressure?: number;
   careerBand?: CareerBand;
   careerSeedBiases?: CareerSeedBiases;
+  recentAbsenceTotal?: number;
+  recentUpperBashoCount?: number;
+  recentOzekiYokozunaBashoCount?: number;
 }
 
 export const resolveRetirementChance = (input: RetirementChanceInput): number => {
@@ -194,6 +207,9 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
     stagnationPressure,
     careerBand,
     careerSeedBiases,
+    recentAbsenceTotal,
+    recentUpperBashoCount,
+    recentOzekiYokozunaBashoCount,
   } = input;
 
   if (age >= 50) return 1;
@@ -227,6 +243,25 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
       RETIREMENT_HAZARD.formerSekitoriDrop.base +
       Math.max(0, age - RETIREMENT_HAZARD.formerSekitoriDrop.ageStart) *
         RETIREMENT_HAZARD.formerSekitoriDrop.ageScale;
+  }
+
+  if (hazardGroup === 'ACTIVE_SEKITORI') {
+    chance +=
+      Math.max(
+        0,
+        (recentAbsenceTotal ?? 0) - RETIREMENT_HAZARD.activeSekitoriAbsencePressure.startTotal,
+      ) * RETIREMENT_HAZARD.activeSekitoriAbsencePressure.perAdditional;
+    chance +=
+      Math.max(
+        0,
+        (recentUpperBashoCount ?? 0) - RETIREMENT_HAZARD.activeSekitoriUpperTenure.sanyakuStart,
+      ) * RETIREMENT_HAZARD.activeSekitoriUpperTenure.sanyakuPerAdditional;
+    chance +=
+      Math.max(
+        0,
+        (recentOzekiYokozunaBashoCount ?? 0) -
+          RETIREMENT_HAZARD.activeSekitoriUpperTenure.ozekiYokozunaStart,
+      ) * RETIREMENT_HAZARD.activeSekitoriUpperTenure.ozekiYokozunaPerAdditional;
   }
 
   if (hazardGroup === 'NON_SEKITORI' && !isCurrentSekitori) {
