@@ -7,7 +7,7 @@ import { createNpcNameContext, generateUniqueNpcShikona, isSurnameShikona } from
 import { ActorRegistry } from '../../../src/logic/simulation/npc/types';
 import { createSekitoriBoundaryWorld } from '../../../src/logic/simulation/sekitoriQuota';
 import { createLowerDivisionQuotaWorld } from '../../../src/logic/simulation/lowerQuota';
-import { createSimulationWorld, syncPlayerActorInWorld } from '../../../src/logic/simulation/world';
+import { createSimulationWorld, finalizeSekitoriPlayerPlacement, syncPlayerActorInWorld } from '../../../src/logic/simulation/world';
 
 import type { TestCase } from '../types';
 import {
@@ -386,6 +386,41 @@ export const tests: TestCase[] = [
         'Colliding NPC should be renamed',
       );
       assertActiveShikonaUnique(world.npcRegistry, 'player-collision');
+    },
+  },
+{
+    name: 'player sync: repeated sync keeps existing sekitori placement stable',
+    run: () => {
+      const rng = lcg(20260408);
+      const world = createSimulationWorld(rng);
+      const status = createStatus({
+        shikona: '試験山',
+        rank: { division: 'Makuuchi', name: '前頭', number: 9, side: 'East' },
+      });
+
+      syncPlayerActorInWorld(world, status, rng);
+      finalizeSekitoriPlayerPlacement(world, status);
+      const before = {
+        makuuchi: world.rosters.Makuuchi.map((rikishi) => `${rikishi.id}:${rikishi.rankScore}`),
+        juryo: world.rosters.Juryo.map((rikishi) => `${rikishi.id}:${rikishi.rankScore}`),
+      };
+
+      syncPlayerActorInWorld(world, status, rng);
+      syncPlayerActorInWorld(world, status, rng);
+
+      const after = {
+        makuuchi: world.rosters.Makuuchi.map((rikishi) => `${rikishi.id}:${rikishi.rankScore}`),
+        juryo: world.rosters.Juryo.map((rikishi) => `${rikishi.id}:${rikishi.rankScore}`),
+      };
+      const totalPlayerRows = [...world.rosters.Makuuchi, ...world.rosters.Juryo]
+        .filter((rikishi) => rikishi.id === 'PLAYER')
+        .length;
+
+      assert.equal(world.rosters.Makuuchi.length, 42);
+      assert.equal(world.rosters.Juryo.length, 28);
+      assert.equal(totalPlayerRows, 1);
+      assert.deepEqual(after.makuuchi, before.makuuchi);
+      assert.deepEqual(after.juryo, before.juryo);
     },
   },
 {

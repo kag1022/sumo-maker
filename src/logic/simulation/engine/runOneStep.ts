@@ -62,6 +62,7 @@ import {
   resolveTopDivisionQuotaForPlayer,
   simulateOffscreenSekitoriBasho,
   syncPlayerActorInWorld,
+  finalizeSekitoriPlayerPlacement,
   SimulationWorld,
 } from '../world';
 import { SimulationDiagnostics } from '../diagnostics';
@@ -236,6 +237,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   syncPlayerActorInWorld(world, state.status, deps.random);
 
   const currentRank = { ...state.status.rank };
+  const bashoMakuuchiLayout = { ...world.makuuchiLayout };
   const stagnationPressureBeforeBasho = state.status.stagnation?.pressure ?? 0;
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
 
@@ -582,6 +584,12 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     });
   }
   syncPlayerActorInWorld(world, state.status, deps.random);
+  if (
+    (currentRank.division !== 'Juryo' && currentRank.division !== 'Makuuchi') &&
+    (state.status.rank.division === 'Juryo' || state.status.rank.division === 'Makuuchi')
+  ) {
+    finalizeSekitoriPlayerPlacement(world, state.status);
+  }
 
   state.seq += 1;
 
@@ -674,7 +682,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       : {}),
   };
 
-  const sekitoriNpc = buildSekitoriNpcRecords(world, world.makuuchiLayout);
+  const sekitoriNpc = buildSekitoriNpcRecords(world, bashoMakuuchiLayout);
   const sameDivisionNpc = buildSameDivisionLowerNpcRecords(lowerDivisionQuotaWorld, currentRank);
   const npcBashoRecords = mergeNpcBashoRecords(
     sekitoriNpc,

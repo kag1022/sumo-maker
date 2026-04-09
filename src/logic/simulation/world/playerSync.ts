@@ -79,18 +79,73 @@ const syncTopRosterNamesFromRegistry = (world: SimulationWorld): void => {
     world.rosters[division] = world.rosters[division].map((rikishi) => {
       const actor = world.npcRegistry.get(rikishi.id);
       if (!actor) return rikishi;
-      return {
-        ...rikishi,
-        shikona: actor.shikona,
-        stableId: actor.stableId,
-        aptitudeTier: actor.aptitudeTier,
-        aptitudeFactor: actor.aptitudeFactor,
-        aptitudeProfile: actor.aptitudeProfile,
-        careerBand: actor.careerBand,
-        stagnation: actor.stagnation,
-      };
+      return toWorldRikishiFromActor(actor, division, rikishi.rankScore);
     });
   }
+};
+
+const normalizeExistingTopRosterPlayerRows = (
+  world: SimulationWorld,
+  targetDivision: TopDivision | null,
+): void => {
+  const candidate =
+    targetDivision
+      ? [...world.rosters[targetDivision]].find((rikishi) => rikishi.id === PLAYER_ACTOR_ID)
+      : undefined;
+
+  world.rosters.Makuuchi = world.rosters.Makuuchi.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
+  world.rosters.Juryo = world.rosters.Juryo.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
+
+  if (!targetDivision || !candidate) return;
+
+  world.rosters[targetDivision] = world.rosters[targetDivision]
+    .concat({ ...candidate, division: targetDivision })
+    .sort((left, right) => left.rankScore - right.rankScore)
+    .slice(0, DIVISION_SIZE[targetDivision]);
+};
+
+const compareTopRosterOrder = (left: WorldRikishi, right: WorldRikishi): number => {
+  const leftGlobal = left.division === 'Makuuchi' ? left.rankScore : DIVISION_SIZE.Makuuchi + left.rankScore;
+  const rightGlobal = right.division === 'Makuuchi' ? right.rankScore : DIVISION_SIZE.Makuuchi + right.rankScore;
+  if (leftGlobal !== rightGlobal) return leftGlobal - rightGlobal;
+  if (left.id === PLAYER_ACTOR_ID) return -1;
+  if (right.id === PLAYER_ACTOR_ID) return 1;
+  return left.id.localeCompare(right.id);
+};
+
+export const finalizeSekitoriPlayerPlacement = (
+  world: SimulationWorld,
+  status: RikishiStatus,
+): void => {
+  const topDivision = resolveTopDivisionFromRank(status.rank);
+  if (!topDivision) {
+    normalizeExistingTopRosterPlayerRows(world, null);
+    syncTopRosterNamesFromRegistry(world);
+    syncLowerSeedsFromRegistry(world);
+    return;
+  }
+
+  const playerActor = world.actorRegistry.get(PLAYER_ACTOR_ID);
+  if (!playerActor) return;
+
+  const rankScore = resolvePlayerRankScore(status.rank, world.makuuchiLayout);
+  const combined = [
+    ...world.rosters.Makuuchi.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID),
+    ...world.rosters.Juryo.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID),
+    toWorldRikishiFromActor(playerActor, topDivision, rankScore),
+  ]
+    .sort(compareTopRosterOrder)
+    .slice(0, DIVISION_SIZE.Makuuchi + DIVISION_SIZE.Juryo);
+
+  world.rosters.Makuuchi = combined
+    .slice(0, DIVISION_SIZE.Makuuchi)
+    .map((rikishi, index) => ({ ...rikishi, division: 'Makuuchi', rankScore: index + 1 }));
+  world.rosters.Juryo = combined
+    .slice(DIVISION_SIZE.Makuuchi, DIVISION_SIZE.Makuuchi + DIVISION_SIZE.Juryo)
+    .map((rikishi, index) => ({ ...rikishi, division: 'Juryo', rankScore: index + 1 }));
+
+  syncTopRosterNamesFromRegistry(world);
+  syncLowerSeedsFromRegistry(world);
 };
 
 const syncLowerSeedsFromRegistry = (world: SimulationWorld): void => {
@@ -139,26 +194,8 @@ export const syncPlayerActorInWorld = (
   world.actorRegistry.set(PLAYER_ACTOR_ID, nextActor);
   world.npcRegistry = world.actorRegistry;
   renameNpcCollidingWithPlayer(world, status.shikona, rng);
-
-  world.rosters.Makuuchi = world.rosters.Makuuchi.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
-  world.rosters.Juryo = world.rosters.Juryo.filter((rikishi) => rikishi.id !== PLAYER_ACTOR_ID);
-
   const topDivision = resolveTopDivisionFromRank(status.rank);
-  if (topDivision) {
-    const rankScore = resolvePlayerRankScore(status.rank, world.makuuchiLayout);
-    const nextRoster = world.rosters[topDivision]
-      .slice()
-      .sort((a, b) => a.rankScore - b.rankScore);
-    if (nextRoster.length >= DIVISION_SIZE[topDivision]) {
-      nextRoster.pop();
-    }
-    nextRoster.push(toWorldRikishiFromActor(nextActor, topDivision, rankScore));
-    world.rosters[topDivision] = nextRoster
-      .slice()
-      .sort((a, b) => a.rankScore - b.rankScore)
-      .slice(0, DIVISION_SIZE[topDivision]);
-  }
-
+  normalizeExistingTopRosterPlayerRows(world, topDivision);
   syncTopRosterNamesFromRegistry(world);
   syncLowerSeedsFromRegistry(world);
 };

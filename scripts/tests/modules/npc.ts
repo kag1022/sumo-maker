@@ -10,4 +10,5 @@ export const npcTestModule = createScopedModule('npc', currentTests, [
   'npc universe',
   'population plan',
   'player name collision',
+  'player sync',
 ]);

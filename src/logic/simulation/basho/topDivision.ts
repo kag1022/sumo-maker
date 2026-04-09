@@ -25,6 +25,7 @@ import { resolveTopDivisionRank } from '../topDivision/rank';
 import {
   createDivisionParticipants,
   evolveDivisionAfterBasho,
+  finalizeSekitoriPlayerPlacement,
   resolveTopDivisionRankValue,
   SimulationWorld,
   syncPlayerActorInWorld,
@@ -80,6 +81,7 @@ export const runTopDivisionBasho = (
   forcedPlayerBashoFormDelta?: number,
 ): BashoSimulationResult => {
   syncPlayerActorInWorld(world, status, rng);
+  finalizeSekitoriPlayerPlacement(world, status);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
   const kimariteCount: Record<string, number> = {};
   let wins = 0;

@@ -2,7 +2,7 @@ import { generateNextBanzuke } from '../../banzuke/providers/topDivision';
 import { BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import {
-  applyNpcBanzukeToRosters,
+  applyBanzukeToRosters,
   buildTopDivisionRecords,
   resolvePlayerSanyakuQuota,
 } from '../topDivision/banzuke';
@@ -55,7 +55,7 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
   world.lastPlayerAllocation = playerAllocation;
   world.lastPlayerAssignedRank = playerAllocation?.nextRank;
   world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank);
-  applyNpcBanzukeToRosters(world, allocations, (rank, layout) =>
+  applyBanzukeToRosters(world, allocations, (rank, layout) =>
     resolvePlayerRankScore(rank, layout),
   );
 
