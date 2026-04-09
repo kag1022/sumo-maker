@@ -124,23 +124,17 @@ export const syncPlayerToLowerDivisionRoster = (
 
   if (!LOWER_DIVISIONS.includes(status.rank.division as typeof LOWER_DIVISIONS[number])) return;
   const division = status.rank.division as typeof LOWER_DIVISIONS[number];
-  const rankScore = resolveLowerRankScore(status.rank, lowerWorld);
   const playerActor = lowerWorld.npcRegistry.get(PLAYER_ACTOR_ID);
   const slots = Math.max(1, lowerWorld.rosters[division].length || resolveDivisionSlots(division));
-  const merged = lowerWorld.rosters[division]
-    .slice()
-    .sort((a, b) => a.rankScore - b.rankScore);
-  if (merged.length >= slots) {
-    merged.pop();
-  }
-  merged.push({
+  const targetIndex = Math.max(0, Math.min(slots - 1, resolveLowerRankScore(status.rank, lowerWorld) - 1));
+  const playerRow = {
     id: PLAYER_ACTOR_ID,
     seedId: PLAYER_ACTOR_ID,
     shikona: status.shikona,
     stableId: status.stableId,
     division,
     currentDivision: division,
-    rankScore,
+    rankScore: targetIndex + 1,
     basePower: playerActor?.basePower ?? 72,
     ability: playerActor?.ability ?? status.ratingState.ability,
     uncertainty: playerActor?.uncertainty ?? status.ratingState.uncertainty,
@@ -159,10 +153,20 @@ export const syncPlayerToLowerDivisionRoster = (
     active: true,
     stagnation: playerActor?.stagnation ?? status.stagnation,
     recentBashoResults: playerActor?.recentBashoResults ?? [],
-  });
-  lowerWorld.rosters[division] = merged
-    .sort((a, b) => a.rankScore - b.rankScore)
-    .slice(0, slots);
+  };
+  const reordered = lowerWorld.rosters[division]
+    .slice()
+    .sort((a, b) => a.rankScore - b.rankScore);
+
+  reordered.splice(targetIndex, 0, playerRow);
+  lowerWorld.rosters[division] = reordered
+    .slice(0, slots)
+    .map((npc, index) => ({
+      ...npc,
+      division,
+      currentDivision: division,
+      rankScore: index + 1,
+    }));
 };
 
 const decodeJuryoRankFromScore = (

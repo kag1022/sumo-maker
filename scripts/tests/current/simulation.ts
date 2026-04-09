@@ -49,6 +49,37 @@ import {
   buildCareerRateSample,
 } from '../shared/currentHelpers';
 
+const assertUniqueProgressSlots = (
+  entries: SimulationProgressSnapshot['makuuchi'],
+  division: 'Makuuchi' | 'Juryo',
+  context: string,
+): void => {
+  const scores = entries.map((entry) => entry.rankScore);
+  assert.ok(
+    new Set(scores).size === scores.length,
+    `Expected unique ${division} rankScore values in ${context}`,
+  );
+  const playerCount = entries.filter((entry) => entry.id === 'PLAYER').length;
+  assert.ok(playerCount <= 1, `Expected at most one PLAYER entry in ${division} for ${context}`);
+};
+
+const assertUniqueTopRosterSlots = (
+  world: ReturnType<typeof createSimulationWorld>,
+  context: string,
+): void => {
+  for (const division of ['Makuuchi', 'Juryo'] as const) {
+    const scores = world.rosters[division].map((entry) => entry.rankScore);
+    assert.ok(
+      new Set(scores).size === scores.length,
+      `Expected unique ${division} rankScore values in ${context}`,
+    );
+  }
+  const playerCount = [...world.rosters.Makuuchi, ...world.rosters.Juryo]
+    .filter((entry) => entry.id === 'PLAYER')
+    .length;
+  assert.ok(playerCount <= 1, `Expected at most one PLAYER row in ${context}`);
+};
+
 export const tests: TestCase[] = [
 {
     name: 'battle: deterministic win path',
@@ -1610,6 +1641,27 @@ export const tests: TestCase[] = [
 
       const uniqueIds = new Set(step.npcBashoRecords.map((row) => row.entityId));
       assert.equal(uniqueIds.size, step.npcBashoRecords.length);
+
+      const sameDivisionRows = step.npcBashoRecords
+        .filter((row) => row.division === 'Makushita')
+        .map((row) => ({
+          division: row.division,
+          rankName: row.rankName,
+          rankNumber: row.rankNumber,
+          rankSide: row.rankSide,
+        }));
+      sameDivisionRows.push({
+        division: step.playerRecord.rank.division,
+        rankName: step.playerRecord.rank.name,
+        rankNumber: step.playerRecord.rank.number,
+        rankSide: step.playerRecord.rank.side,
+      });
+      const rankKeys = sameDivisionRows.map((row) =>
+        `${row.division}:${row.rankName}:${row.rankNumber ?? ''}:${row.rankSide ?? ''}`);
+      assert.ok(
+        new Set(rankKeys).size === rankKeys.length,
+        'Expected lower-division result rows to keep rank keys unique around the player',
+      );
     },
   },
 {
@@ -1682,6 +1734,8 @@ export const tests: TestCase[] = [
         observedSteps += 1;
         assert.equal(progress.makuuchi.length, 42);
         assert.equal(progress.juryo.length, 28);
+        assertUniqueProgressSlots(progress.makuuchi, 'Makuuchi', `engine-progress-${i}`);
+        assertUniqueProgressSlots(progress.juryo, 'Juryo', `engine-progress-${i}`);
         assert.equal(progress.makuuchiSlots, 42);
         assert.equal(progress.juryoSlots, 28);
         assert.equal(progress.makuuchiActive, 42);
@@ -1793,6 +1847,7 @@ export const tests: TestCase[] = [
         assert.equal(world.rosters.Juryo.length, 28);
         assert.equal(activeMakuuchi, 42);
         assert.equal(activeJuryo, 28);
+        assertUniqueTopRosterSlots(world, `simulation-loop-${i}`);
         assertActiveShikonaUnique(world.npcRegistry, `simulation-loop-${i}`);
       }
     },

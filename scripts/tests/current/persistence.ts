@@ -880,6 +880,124 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'persistence: simulated sekitori detail rows keep player once and rank keys unique',
+    run: async () => {
+      await resetDb();
+      const initial = createStatus({
+        rank: { division: 'Makuuchi', name: '前頭', side: 'East', number: 8 },
+        stats: {
+          tsuki: 115,
+          oshi: 115,
+          kumi: 110,
+          nage: 108,
+          koshi: 112,
+          deashi: 114,
+          waza: 109,
+          power: 118,
+        },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: initial,
+        careerStartYearMonth: '2026-01',
+      });
+      const engine = createSimulationEngine(
+        { initialStats: initial, oyakata: null },
+        {
+          random: lcg(20260409),
+          getCurrentYear: () => 2026,
+          yieldControl: async () => { },
+        },
+      );
+
+      const step = expectBashoStep(
+        await engine.runNextBasho(),
+        'persistence: simulated sekitori detail rows keep player once and rank keys unique',
+      );
+      await appendBashoChunk({
+        careerId,
+        seq: step.seq,
+        playerRecord: step.playerRecord,
+        playerShikona: initial.shikona,
+        playerBouts: step.playerBouts,
+        importantTorikumiNotes: step.importantTorikumiNotes,
+        npcRecords: step.npcBashoRecords,
+        banzukePopulation: step.banzukePopulation,
+        banzukeDecisions: step.banzukeDecisions,
+      });
+
+      const detail = await getCareerBashoDetail(careerId, step.seq);
+      assert.ok(detail?.playerRecord, 'Expected persisted player record');
+      if (!detail?.playerRecord) return;
+
+      const sameDivisionRows = detail.rows.filter((row) => row.division === detail.playerRecord?.division);
+      const rankKeys = sameDivisionRows.map((row) =>
+        `${row.division}:${row.rankName}:${row.rankNumber ?? ''}:${row.rankSide ?? ''}`);
+
+      assert.ok(
+        sameDivisionRows.filter((row) => row.entityId === 'PLAYER').length === 1,
+        'Expected exactly one PLAYER row in persisted same-division detail rows',
+      );
+      assert.ok(
+        new Set(rankKeys).size === rankKeys.length,
+        'Expected persisted same-division detail rows to have unique rank keys',
+      );
+    },
+  },
+{
+    name: 'persistence: simulated lower-division detail rows keep player once and rank keys unique',
+    run: async () => {
+      await resetDb();
+      const initial = createStatus({
+        rank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: initial,
+        careerStartYearMonth: '2026-01',
+      });
+      const engine = createSimulationEngine(
+        { initialStats: initial, oyakata: null },
+        {
+          random: lcg(20260410),
+          getCurrentYear: () => 2026,
+          yieldControl: async () => { },
+        },
+      );
+
+      const step = expectBashoStep(
+        await engine.runNextBasho(),
+        'persistence: simulated lower-division detail rows keep player once and rank keys unique',
+      );
+      await appendBashoChunk({
+        careerId,
+        seq: step.seq,
+        playerRecord: step.playerRecord,
+        playerShikona: initial.shikona,
+        playerBouts: step.playerBouts,
+        importantTorikumiNotes: step.importantTorikumiNotes,
+        npcRecords: step.npcBashoRecords,
+        banzukePopulation: step.banzukePopulation,
+        banzukeDecisions: step.banzukeDecisions,
+      });
+
+      const detail = await getCareerBashoDetail(careerId, step.seq);
+      assert.ok(detail?.playerRecord, 'Expected persisted player record');
+      if (!detail?.playerRecord) return;
+
+      const sameDivisionRows = detail.rows.filter((row) => row.division === detail.playerRecord?.division);
+      const rankKeys = sameDivisionRows.map((row) =>
+        `${row.division}:${row.rankName}:${row.rankNumber ?? ''}:${row.rankSide ?? ''}`);
+
+      assert.ok(
+        sameDivisionRows.filter((row) => row.entityId === 'PLAYER').length === 1,
+        'Expected exactly one PLAYER row in persisted lower-division detail rows',
+      );
+      assert.ok(
+        new Set(rankKeys).size === rankKeys.length,
+        'Expected persisted lower-division detail rows to have unique rank keys',
+      );
+    },
+  },
+{
     name: 'storage: getCareerHeadToHead aggregates by opponent id and uses latest shikona',
     run: async () => {
       await resetDb();

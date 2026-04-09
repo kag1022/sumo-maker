@@ -27,6 +27,7 @@
     "report:realism:compare": "node scripts/reports/run_realism_monte_carlo.cjs --acceptance --compare",
     "report:realism:mc": "node scripts/reports/run_realism_monte_carlo.cjs --acceptance --compare",
     "report:realism:mc:v3": "node scripts/reports/run_realism_monte_carlo.cjs --acceptance --v3-only",
+    "report:npc:yokozuna": "node scripts/reports/run_npc_yokozuna_probe.cjs",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview"
   },
