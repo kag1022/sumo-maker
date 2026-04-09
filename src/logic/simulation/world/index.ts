@@ -18,6 +18,7 @@ export {
   createSimulationWorld,
 } from './factory';
 export {
+  finalizeSekitoriPlayerPlacement,
   syncPlayerActorInWorld,
 } from './playerSync';
 export {

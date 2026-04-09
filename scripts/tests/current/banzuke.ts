@@ -20,7 +20,7 @@ import { BoundarySnapshot as LowerBoundarySnapshot, EMPTY_EXCHANGE as EMPTY_LOWE
 import { resolveExpectedSlotBand } from '../../../src/logic/banzuke/providers/expected/slotBands';
 import { resolveLowerAssignedNextRank } from '../../../src/logic/banzuke/providers/lowerBoundary';
 import { resolveSekitoriBoundaryAssignedRank } from '../../../src/logic/banzuke/providers/sekitoriBoundary';
-import { advanceTopDivisionBanzuke, createSimulationWorld, resolveTopDivisionQuotaForPlayer } from '../../../src/logic/simulation/world';
+import { advanceTopDivisionBanzuke, createSimulationWorld, finalizeSekitoriPlayerPlacement, resolveTopDivisionQuotaForPlayer, syncPlayerActorInWorld } from '../../../src/logic/simulation/world';
 import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../../src/logic/simulation/sekitori/types';
 import { Rank } from '../../../src/logic/models';
 import { composeNextBanzuke, evaluateYokozunaPromotion, maxNumber, rankNumberSideToSlot, resolveVariableHeadcountByFlow, slotToRankNumberSide } from '../../../src/logic/banzuke';
@@ -50,6 +50,24 @@ import {
   pushCareerRateSample,
   buildCareerRateSample,
 } from '../shared/currentHelpers';
+
+const assertUniqueSekitoriRosterSlots = (
+  world: ReturnType<typeof createSimulationWorld>,
+  context: string,
+): void => {
+  const totalPlayerRows = [...world.rosters.Makuuchi, ...world.rosters.Juryo]
+    .filter((rikishi) => rikishi.id === 'PLAYER')
+    .length;
+  assert.ok(totalPlayerRows === 1, `Expected exactly one PLAYER row in ${context}, got ${totalPlayerRows}`);
+
+  for (const division of ['Makuuchi', 'Juryo'] as const) {
+    const scores = world.rosters[division].map((rikishi) => rikishi.rankScore);
+    assert.ok(
+      new Set(scores).size === scores.length,
+      `Expected unique ${division} rankScore values in ${context}`,
+    );
+  }
+};
 
 export const tests: TestCase[] = [
 {
@@ -1692,6 +1710,88 @@ export const tests: TestCase[] = [
       assert.equal(
         quota?.enforcedSanyaku,
         quota?.assignedNextRank?.name === '関脇' ? 'Sekiwake' : 'Komusubi',
+      );
+    },
+  },
+{
+    name: 'quota: advanceTopDivisionBanzuke rebuilds sekitori rosters with one player and unique slots',
+    run: () => {
+      const makuuchiWorld = createSimulationWorld(() => 0.5);
+      makuuchiWorld.lastBashoResults.Makuuchi = Array.from({ length: 42 }, (_, i) => ({
+        id: i === 15 ? 'PLAYER' : `Makuuchi-${i}`,
+        shikona: i === 15 ? '試験山' : `幕内${i + 1}`,
+        isPlayer: i === 15,
+        stableId: i === 15 ? 'player-heya' : `m-${i % 8}`,
+        rankScore: i + 1,
+        wins: i === 15 ? 9 : 8,
+        losses: i === 15 ? 6 : 7,
+      }));
+      makuuchiWorld.lastBashoResults.Juryo = Array.from({ length: 28 }, (_, i) => ({
+        id: `Juryo-${i}`,
+        shikona: `十両${i + 1}`,
+        isPlayer: false,
+        stableId: `j-${i % 8}`,
+        rankScore: i + 1,
+        wins: 8,
+        losses: 7,
+      }));
+
+      advanceTopDivisionBanzuke(makuuchiWorld);
+      assert.equal(makuuchiWorld.rosters.Makuuchi.length, 42);
+      assert.equal(makuuchiWorld.rosters.Juryo.length, 28);
+      assertUniqueSekitoriRosterSlots(makuuchiWorld, 'advance-top-makuuchi');
+
+      const juryoWorld = createSimulationWorld(() => 0.5);
+      juryoWorld.lastBashoResults.Makuuchi = Array.from({ length: 42 }, (_, i) => ({
+        id: `Makuuchi-${i}`,
+        shikona: `幕内${i + 1}`,
+        isPlayer: false,
+        stableId: `m-${i % 8}`,
+        rankScore: i + 1,
+        wins: 8,
+        losses: 7,
+      }));
+      juryoWorld.lastBashoResults.Juryo = Array.from({ length: 28 }, (_, i) => ({
+        id: i === 4 ? 'PLAYER' : `Juryo-${i}`,
+        shikona: i === 4 ? '試験山' : `十両${i + 1}`,
+        isPlayer: i === 4,
+        stableId: i === 4 ? 'player-heya' : `j-${i % 8}`,
+        rankScore: i + 1,
+        wins: i === 4 ? 9 : 8,
+        losses: i === 4 ? 6 : 7,
+      }));
+
+      advanceTopDivisionBanzuke(juryoWorld);
+      assert.equal(juryoWorld.rosters.Makuuchi.length, 42);
+      assert.equal(juryoWorld.rosters.Juryo.length, 28);
+      assertUniqueSekitoriRosterSlots(juryoWorld, 'advance-top-juryo');
+    },
+  },
+{
+    name: 'quota: finalizeSekitoriPlayerPlacement inserts promoted player once and trims juryo tail',
+    run: () => {
+      const rng = lcg(20260407);
+      const world = createSimulationWorld(rng);
+      const status = createStatus({
+        shikona: '試験山',
+        rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
+      });
+      const juryoTailId = world.rosters.Juryo[world.rosters.Juryo.length - 1]?.id;
+
+      syncPlayerActorInWorld(world, status, rng);
+      finalizeSekitoriPlayerPlacement(world, status);
+
+      assert.equal(world.rosters.Juryo.length, 28);
+      assert.equal(world.rosters.Makuuchi.length, 42);
+      assertUniqueSekitoriRosterSlots(world, 'finalize-sekitori-player-placement');
+      assert.ok(world.rosters.Juryo.some((rikishi) => rikishi.id === 'PLAYER'), 'Expected PLAYER in Juryo roster');
+      assert.ok(
+        world.rosters.Juryo.some((rikishi) => rikishi.id === 'PLAYER' && rikishi.rankScore === 15),
+        'Expected PLAYER to land at East Juryo 8 slot',
+      );
+      assert.ok(
+        !world.rosters.Juryo.some((rikishi) => rikishi.id === juryoTailId),
+        'Expected one Juryo tail rikishi to be pushed out of the active roster',
       );
     },
   },
