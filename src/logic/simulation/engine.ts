@@ -19,4 +19,6 @@ export type {
   SimulationParams,
   SimulationProgressSnapshot,
   SimulationStepResult,
+  SimulationTimingBreakdown,
+  SimulationTimingPhase,
 } from './engine/types';

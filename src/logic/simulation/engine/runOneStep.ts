@@ -69,9 +69,22 @@ import { SimulationDiagnostics } from '../diagnostics';
 import { createPopulationSnapshot, createProgressLite, createProgressSnapshot } from './progressSnapshot';
 import { resolvePauseReason } from './pausePolicy';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
-import { RuntimeNarrativeState, SimulationParams, SimulationStepResult } from './types';
+import {
+  RuntimeNarrativeState,
+  SimulationParams,
+  SimulationStepResult,
+  SimulationTimingBreakdown,
+  SimulationTimingPhase,
+} from './types';
 
 const MONTHS = [1, 3, 5, 7, 9, 11] as const;
+const EMPTY_SIMULATION_TIMING_PHASES: Record<SimulationTimingPhase, number> = {
+  pre_reconcile: 0,
+  basho_simulation: 0,
+  quota_and_banzuke: 0,
+  post_basho_maintenance: 0,
+  postprocess: 0,
+};
 
 export interface EngineRuntimeState {
   status: RikishiStatus;
@@ -97,6 +110,19 @@ export interface RunOneStepContext {
 
 export const cloneStatus = (status: RikishiStatus): RikishiStatus =>
   JSON.parse(JSON.stringify(status)) as RikishiStatus;
+
+const createTimingBreakdown = (
+  phases?: Partial<Record<SimulationTimingPhase, number>>,
+): SimulationTimingBreakdown => {
+  const nextPhases = {
+    ...EMPTY_SIMULATION_TIMING_PHASES,
+    ...(phases ?? {}),
+  };
+  return {
+    totalMs: Object.values(nextPhases).reduce((sum, value) => sum + value, 0),
+    phases: nextPhases,
+  };
+};
 
 const enrichStatusWithRuntimeNarrative = (
   status: RikishiStatus,
@@ -183,6 +209,16 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lowerDivisionQuotaWorld,
     state,
   } = context;
+  const startMs = deps.now();
+  const phaseTimings: Record<SimulationTimingPhase, number> = {
+    ...EMPTY_SIMULATION_TIMING_PHASES,
+  };
+  let phaseStartMs = startMs;
+  const finishPhase = (phase: SimulationTimingPhase): void => {
+    const now = deps.now();
+    phaseTimings[phase] += Math.max(0, now - phaseStartMs);
+    phaseStartMs = now;
+  };
 
   if (state.completed) {
     const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
@@ -197,6 +233,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
         state.year,
         MONTHS[Math.min(state.monthIndex, MONTHS.length - 1)],
       ),
+      timing: createTimingBreakdown(),
     };
   }
 
@@ -227,6 +264,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       events,
       pauseReason: 'RETIREMENT',
       progress: buildProgressSnapshot(context, state.year, month),
+      timing: createTimingBreakdown({
+        pre_reconcile: Math.max(0, deps.now() - startMs),
+      }),
     };
   }
 
@@ -240,6 +280,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   const bashoMakuuchiLayout = { ...world.makuuchiLayout };
   const stagnationPressureBeforeBasho = state.status.stagnation?.pressure ?? 0;
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
+  finishPhase('pre_reconcile');
 
   if (!playerTopDivision) {
     simulateOffscreenSekitoriBasho(world, deps.random);
@@ -264,6 +305,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     simulationModelVersion,
     playerBashoFormDelta,
   );
+  finishPhase('basho_simulation');
   const bashoRecord = bashoResult.playerRecord;
   const lowerPlayerRecord: PlayerLowerRecord | undefined =
     currentRank.division === 'Makushita' ||
@@ -374,6 +416,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     ...playerAllocation.finalDecision,
     nextRank: playerAllocation.finalRank,
   };
+  finishPhase('quota_and_banzuke');
 
   const beforeEvents = state.status.history.events.length;
   appendBashoEvents(state.status, state.year, month, bashoRecord, rankChange, currentRank);
@@ -720,6 +763,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       titles: [...row.titles],
     })),
   });
+  finishPhase('post_basho_maintenance');
 
   state.monthIndex += 1;
   if (state.monthIndex >= MONTHS.length) {
@@ -736,6 +780,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const progress = buildProgressSnapshot(context, state.year, MONTHS[state.monthIndex]);
   const eventPauseReason = resolvePauseReason(newEvents);
+  const statusSnapshot =
+    context.params.bashoSnapshotMode === 'none' ? undefined : cloneStatus(state.status);
+  finishPhase('postprocess');
 
   return {
     kind: 'BASHO',
@@ -756,7 +803,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     })),
     events: newEvents,
     pauseReason: eventPauseReason,
-    statusSnapshot: context.params.bashoSnapshotMode === 'none' ? undefined : cloneStatus(state.status),
+    statusSnapshot,
     progress,
+    timing: createTimingBreakdown(phaseTimings),
   };
 };

@@ -1216,11 +1216,11 @@ export const scheduleTorikumiBasho = (
     if (leftoverIds.length > 0) {
       const unresolvedByDivision =
         unresolvedByDivisionAndDay[String(day)] ?? {};
+      const unresolvedLeftoverIds: string[] = [];
       for (const id of leftoverIds) {
         const participant = eligible.find((entry) => entry.id === id);
         if (!participant) continue;
-        unresolvedByDivision[participant.division] =
-          (unresolvedByDivision[participant.division] ?? 0) + 1;
+        let grantedMakeup = false;
         if (participant.targetBouts <= 7) {
           const makeupDay = resolveMakeupDay(
             participant,
@@ -1233,20 +1233,29 @@ export const scheduleTorikumiBasho = (
             const grantedDays = grantedMakeupDaysById.get(participant.id) ?? new Set<number>();
             grantedDays.add(makeupDay);
             grantedMakeupDaysById.set(participant.id, grantedDays);
+            grantedMakeup = true;
           }
         }
+        if (grantedMakeup) {
+          continue;
+        }
+        unresolvedLeftoverIds.push(id);
+        unresolvedByDivision[participant.division] =
+          (unresolvedByDivision[participant.division] ?? 0) + 1;
         if (participant.isPlayer && participant.targetBouts <= 7) {
           const observedDays = observedHealthyUnresolvedDaysById.get(participant.id) ?? new Set<number>();
           observedDays.add(day);
           observedHealthyUnresolvedDaysById.set(participant.id, observedDays);
         }
       }
-      unresolvedByDivisionAndDay[String(day)] = unresolvedByDivision;
-      scheduleViolations.push({
-        day,
-        participantIds: leftoverIds,
-        reason: 'UNRESOLVED_LEFTOVER',
-      });
+      if (unresolvedLeftoverIds.length > 0) {
+        unresolvedByDivisionAndDay[String(day)] = unresolvedByDivision;
+        scheduleViolations.push({
+          day,
+          participantIds: unresolvedLeftoverIds,
+          reason: 'UNRESOLVED_LEFTOVER',
+        });
+      }
     }
 
     dayResults.push({ day, pairs: dayPairs, byeIds: [] });

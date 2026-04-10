@@ -1,9 +1,11 @@
 import { createInitialRikishi } from '../../../src/logic/initialization';
+import { calculateBattleResult } from '../../../src/logic/battle';
 import { PlayerBoutDetail } from '../../../src/logic/simulation/basho';
 import { BashoRecord, BuildSpecVNext, Trait } from '../../../src/logic/models';
-import { listNonTechniqueCatalog, listOfficialWinningKimariteCatalog, normalizeKimariteName } from '../../../src/logic/kimarite/catalog';
+import { findOfficialKimariteEntry, listNonTechniqueCatalog, listOfficialWinningKimariteCatalog, normalizeKimariteName } from '../../../src/logic/kimarite/catalog';
 import { inferBodyTypeFromMetrics, resolveKimariteOutcome } from '../../../src/logic/kimarite/selection';
 import { KIMARITE_CATALOG } from '../../../src/logic/kimarite/catalog';
+import { ensureKimariteRepertoire } from '../../../src/logic/kimarite/repertoire';
 import { buildInitialRikishiFromDraft, rollScoutDraft } from '../../../src/logic/scout/gacha';
 import { CONSTANTS } from '../../../src/logic/constants';
 import { appendBashoEvents } from '../../../src/logic/simulation/career';
@@ -97,11 +99,120 @@ export const tests: TestCase[] = [
           rng: lcg(index + 1),
           forcePattern: 'PUSH_ADVANCE',
           allowNonTechnique: false,
+          boutContext: {
+            isHighPressure: false,
+            isLastDay: false,
+            isUnderdog: false,
+            isEdgeCandidate: false,
+            weightDiff: 20,
+            heightDiff: -4,
+          },
         });
         seen.add(result.kimarite);
       }
       assert.ok(!seen.has('居反り'));
       assert.ok(!seen.has('伝え反り'));
+    },
+  },
+{
+    name: 'kimarite: push style stays on push and pull shelves in normal context',
+    run: () => {
+      const winner = {
+        style: 'PUSH' as const,
+        bodyType: 'ANKO' as const,
+        heightCm: 181,
+        weightKg: 168,
+        stats: { tsuki: 98, oshi: 101, power: 95, waza: 52, nage: 40, deashi: 76, kumi: 48, koshi: 50 },
+        traits: ['TSUPPARI_TOKKA', 'HEAVY_PRESSURE'] as Trait[],
+        historyCounts: { 押し出し: 18, 押し倒し: 8, 引き落とし: 5 },
+      };
+      const loser = {
+        style: 'GRAPPLE' as const,
+        bodyType: 'MUSCULAR' as const,
+        heightCm: 184,
+        weightKg: 150,
+        stats: { tsuki: 64, oshi: 66, power: 70, kumi: 74, koshi: 72, waza: 48, nage: 46, deashi: 60 },
+        traits: [],
+        historyCounts: {},
+      };
+      const familyCounts = new Map<string, number>();
+      for (let index = 0; index < 500; index += 1) {
+        const result = resolveKimariteOutcome({
+          winner,
+          loser,
+          rng: lcg(index + 101),
+          allowNonTechnique: false,
+          boutContext: {
+            isHighPressure: false,
+            isLastDay: false,
+            isUnderdog: false,
+            isEdgeCandidate: false,
+            weightDiff: 18,
+            heightDiff: -3,
+          },
+        });
+        const entry = findOfficialKimariteEntry(result.kimarite);
+        if (entry) {
+          familyCounts.set(entry.family, (familyCounts.get(entry.family) ?? 0) + 1);
+        }
+      }
+      const pushAndTwist =
+        (familyCounts.get('PUSH_THRUST') ?? 0) +
+        (familyCounts.get('TWIST_DOWN') ?? 0);
+      assert.equal(familyCounts.get('TRIP_PICK') ?? 0, 0);
+      assert.equal(familyCounts.get('REAR') ?? 0, 0);
+      assert.equal(familyCounts.get('BACKWARD_BODY_DROP') ?? 0, 0);
+      assert.ok(pushAndTwist / 500 > 0.9, `Expected push/pull shelves to dominate, got ${pushAndTwist}/500`);
+    },
+  },
+{
+    name: 'kimarite: grapple style concentrates on force-out and throw in normal context',
+    run: () => {
+      const winner = {
+        style: 'GRAPPLE' as const,
+        bodyType: 'MUSCULAR' as const,
+        heightCm: 185,
+        weightKg: 156,
+        stats: { tsuki: 52, oshi: 50, power: 91, kumi: 98, koshi: 96, waza: 58, nage: 78, deashi: 70 },
+        traits: ['YOTSU_NO_ONI', 'BELT_COUNTER'] as Trait[],
+        historyCounts: { 寄り切り: 20, 上手投げ: 8, 下手投げ: 5 },
+      };
+      const loser = {
+        style: 'PUSH' as const,
+        bodyType: 'ANKO' as const,
+        heightCm: 180,
+        weightKg: 162,
+        stats: { tsuki: 72, oshi: 78, power: 88, kumi: 54, koshi: 58, waza: 44, nage: 40, deashi: 62 },
+        traits: [],
+        historyCounts: {},
+      };
+      const familyCounts = new Map<string, number>();
+      for (let index = 0; index < 500; index += 1) {
+        const result = resolveKimariteOutcome({
+          winner,
+          loser,
+          rng: lcg(index + 701),
+          allowNonTechnique: false,
+          boutContext: {
+            isHighPressure: false,
+            isLastDay: false,
+            isUnderdog: false,
+            isEdgeCandidate: false,
+            weightDiff: -6,
+            heightDiff: 5,
+          },
+        });
+        const entry = findOfficialKimariteEntry(result.kimarite);
+        if (entry) {
+          familyCounts.set(entry.family, (familyCounts.get(entry.family) ?? 0) + 1);
+        }
+      }
+      const mainFamilies =
+        (familyCounts.get('FORCE_OUT') ?? 0) +
+        (familyCounts.get('THROW') ?? 0);
+      assert.equal(familyCounts.get('REAR') ?? 0, 0);
+      assert.equal(familyCounts.get('BACKWARD_BODY_DROP') ?? 0, 0);
+      assert.ok(mainFamilies / 500 > 0.88, `Expected belt/throw shelves to dominate, got ${mainFamilies}/500`);
     },
   },
 {
@@ -133,12 +244,146 @@ export const tests: TestCase[] = [
           rng: lcg(index + 77),
           forcePattern: 'BACKWARD_ARCH',
           allowNonTechnique: false,
+          boutContext: {
+            isHighPressure: true,
+            isLastDay: true,
+            isUnderdog: true,
+            isEdgeCandidate: true,
+            weightDiff: -10,
+            heightDiff: 6,
+          },
         });
         if (['居反り', '掛け反り', '撞木反り', '外たすき反り', 'たすき反り', '伝え反り'].includes(result.kimarite)) {
           extremeCount += 1;
         }
       }
       assert.ok(extremeCount > 0, 'Expected at least one extreme backward-body-drop selection');
+    },
+  },
+{
+    name: 'kimarite: edge context unlocks rare reversals for technique specialists',
+    run: () => {
+      const winner = {
+        style: 'TECHNIQUE' as const,
+        bodyType: 'SOPPU' as const,
+        heightCm: 190,
+        weightKg: 123,
+        stats: { waza: 108, nage: 92, deashi: 86, kumi: 60, koshi: 58, tsuki: 54, oshi: 50, power: 45 },
+        traits: ['ARAWAZASHI', 'CLUTCH_REVERSAL', 'READ_THE_BOUT'] as Trait[],
+        historyCounts: { 叩き込み: 10, 突き落とし: 7, 上手投げ: 5 },
+      };
+      const loser = {
+        style: 'GRAPPLE' as const,
+        bodyType: 'MUSCULAR' as const,
+        heightCm: 184,
+        weightKg: 136,
+        stats: { power: 74, kumi: 70, koshi: 68, tsuki: 56, oshi: 54, waza: 45, nage: 48, deashi: 58 },
+        traits: [],
+        historyCounts: {},
+      };
+      let contextualRareCount = 0;
+      for (let index = 0; index < 6000; index += 1) {
+        const result = resolveKimariteOutcome({
+          winner,
+          loser,
+          rng: lcg(index + 9001),
+          allowNonTechnique: false,
+          boutContext: {
+            isHighPressure: true,
+            isLastDay: true,
+            isUnderdog: true,
+            isEdgeCandidate: true,
+            weightDiff: -13,
+            heightDiff: 6,
+          },
+        });
+        if (['うっちゃり', '後ろもたれ', '居反り', '掛け反り', '撞木反り', '外たすき反り', 'たすき反り', '伝え反り'].includes(result.kimarite)) {
+          contextualRareCount += 1;
+        }
+      }
+      assert.ok(contextualRareCount > 0, 'Expected rare reversals to appear when edge context is unlocked');
+    },
+  },
+{
+    name: 'kimarite: initial rikishi gets seeded repertoire and empty win-route history',
+    run: () => {
+      const rikishi = createInitialRikishi({
+        shikona: '試験山',
+        age: 15,
+        startingRank: { division: 'Jonokuchi', name: '序ノ口', number: 12, side: 'East' },
+        archetype: 'AVG_JOE',
+        tactics: 'PUSH',
+        signatureMove: '押し出し',
+        bodyType: 'ANKO',
+        traits: ['TSUPPARI_TOKKA'],
+        historyBonus: 0,
+        stableId: 'stable-001',
+        ichimonId: 'TAIJU',
+        stableArchetypeId: 'TRADITIONAL_LARGE',
+      });
+      const repertoireSize = rikishi.kimariteRepertoire?.entries.length ?? 0;
+      assert.ok(repertoireSize >= 4 && repertoireSize <= 6, `unexpected repertoire size: ${repertoireSize}`);
+      assert.deepEqual(rikishi.kimariteRepertoire?.primaryRoutes, ['PUSH_OUT']);
+      assert.ok((rikishi.kimariteRepertoire?.secondaryRoutes.length ?? 0) <= 1);
+      assert.deepEqual(rikishi.history.winRouteTotal, {});
+    },
+  },
+{
+    name: 'kimarite: ensureKimariteRepertoire backfills legacy status',
+    run: () => {
+      const legacy = createStatus({
+        tactics: 'GRAPPLE',
+        bodyType: 'MUSCULAR',
+        traits: ['YOTSU_NO_ONI'],
+        signatureMoves: ['寄り切り'],
+      });
+      delete (legacy as typeof legacy & { kimariteRepertoire?: unknown }).kimariteRepertoire;
+      const normalized = ensureKimariteRepertoire(legacy);
+      assert.ok(Boolean(normalized.kimariteRepertoire));
+      assert.ok(normalized.kimariteRepertoire?.primaryRoutes.includes('BELT_FORCE'));
+      assert.ok(normalized.kimariteRepertoire?.entries.some((entry) => entry.kimarite === '寄り切り'));
+    },
+  },
+{
+    name: 'kimarite: battle result carries route on decisive win',
+    run: () => {
+      const rikishi = createStatus({
+        tactics: 'PUSH',
+        bodyType: 'ANKO',
+        traits: ['TSUPPARI_TOKKA', 'HEAVY_PRESSURE'],
+        signatureMoves: ['押し出し'],
+        stats: { tsuki: 105, oshi: 110, deashi: 88, power: 98, kumi: 46, koshi: 50, waza: 44, nage: 40 },
+      });
+      const result = calculateBattleResult(
+        ensureKimariteRepertoire(rikishi),
+        {
+          id: 'enemy-001',
+          shikona: '敵ノ海',
+          rankValue: 18,
+          rankName: '前頭',
+          rankNumber: 15,
+          rankSide: 'West',
+          power: 52,
+          ability: 54,
+          styleBias: 'GRAPPLE',
+          heightCm: 180,
+          weightKg: 146,
+        },
+        {
+          day: 3,
+          currentWins: 2,
+          currentLosses: 0,
+          consecutiveWins: 2,
+          currentWinStreak: 2,
+          currentLossStreak: 0,
+          isLastDay: false,
+          isYushoContention: false,
+          previousResult: 'WIN',
+        },
+        () => 0.01,
+      );
+      assert.equal(result.isWin, true);
+      assert.ok(Boolean(result.winRoute));
     },
   },
 {

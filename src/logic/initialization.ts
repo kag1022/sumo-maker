@@ -28,6 +28,8 @@ import {
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
 import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 import { resolveLegacyAptitudeFactor } from './simulation/realism';
+import { createKimariteRepertoireFromSeed } from './kimarite/repertoire';
+import { styleToTactics } from './styleProfile';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -178,6 +180,32 @@ export const createInitialRikishi = (
   const retirementProfile =
     params.retirementProfile ??
     resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
+  const designedPrimaryStyle = params.designedStyleProfile
+    ? (params.designedStyleProfile.primary ? (styleToTactics(params.designedStyleProfile.primary) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.primary) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.primary) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE') : undefined)
+    : undefined;
+  const designedSecondaryStyle = params.designedStyleProfile
+    ? (params.designedStyleProfile.secondary ? (styleToTactics(params.designedStyleProfile.secondary) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.secondary) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.secondary) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE') : undefined)
+    : undefined;
+  const designedSecretStyle = params.designedStyleProfile?.secret
+    ? (styleToTactics(params.designedStyleProfile.secret) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.secret) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.secret) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE')
+    : undefined;
+  const kimariteRepertoire = createKimariteRepertoireFromSeed({
+    style:
+      params.tactics === 'PUSH'
+        ? 'PUSH'
+        : params.tactics === 'GRAPPLE'
+          ? 'GRAPPLE'
+          : params.tactics === 'TECHNIQUE'
+            ? 'TECHNIQUE'
+            : 'BALANCE',
+    bodyType: params.bodyType,
+    traits: params.traits,
+    preferredMove: params.signatureMove,
+    designedPrimaryStyle,
+    designedSecondaryStyle,
+    designedSecretStyle,
+    kataSettled: false,
+  });
 
   return {
     stableId: params.stableId,
@@ -198,6 +226,7 @@ export const createInitialRikishi = (
     entryDivision,
     tactics: params.tactics,
     signatureMoves: params.signatureMove ? [params.signatureMove] : [],
+    kimariteRepertoire,
     bodyType: params.bodyType,
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
@@ -241,6 +270,7 @@ export const createInitialRikishi = (
       totalAbsent: 0,
       yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
       kimariteTotal: {},
+      winRouteTotal: {},
       bodyTimeline: [],
       highlightEvents: [],
       traitAwakenings: [],

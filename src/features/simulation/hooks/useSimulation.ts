@@ -30,6 +30,7 @@ export const useSimulation = () => ({
   loadUnshelvedCareers: useSimulationStore((state) => state.loadUnshelvedCareers),
   openCareer: useSimulationStore((state) => state.openCareer),
   deleteCareerById: useSimulationStore((state) => state.deleteCareerById),
+  clearAllData: useSimulationStore((state) => state.clearAllData),
   resetView: useSimulationStore((state) => state.resetView),
 });
 

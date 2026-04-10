@@ -1,4 +1,4 @@
-import { BashoRecord, Rank } from '../../models';
+import { BashoRecord, Rank, WinRoute } from '../../models';
 import { LowerLeagueSnapshots } from '../lowerQuota';
 import type { TorikumiMatchReason, TorikumiPair } from '../torikumi/types';
 import { TorikumiDiagnostics } from '../torikumi/types';
@@ -9,6 +9,7 @@ export interface PlayerBoutDetail {
   day: number;
   result: BoutOutcome;
   kimarite?: string;
+  winRoute?: WinRoute;
   opponentId?: string;
   opponentShikona?: string;
   opponentRankName?: string;

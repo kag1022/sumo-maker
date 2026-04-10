@@ -43,7 +43,6 @@ interface CareerResultPageProps {
   onSelectBasho: (bashoSeq: number) => void;
   onViewStateChange: (patch: Partial<CareerResultViewState>) => void;
   onSave: () => void | Promise<void>;
-  onOpenEra: () => void;
   onReturnToScout: () => void;
 }
 
@@ -80,7 +79,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   onSave,
   onReturnToScout,
 }) => {
-  const heroRef = React.useRef<HTMLDivElement | null>(null);
   const chapterRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
@@ -113,10 +111,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         ? "詳細記録の整理に失敗しました。"
         : "詳細記録はまだ準備されていません。";
 
-  const scrollToHero = React.useCallback(() => {
-    heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
   const scrollToChapterBody = React.useCallback(() => {
     chapterRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
@@ -129,14 +123,10 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       onViewStateChange({ activeChapter: chapter });
       setMobileNavOpen(false);
       window.requestAnimationFrame(() => {
-        if (chapter === "encyclopedia") {
-          scrollToHero();
-          return;
-        }
         scrollToChapterBody();
       });
     },
-    [canReadDetails, onViewStateChange, scrollToChapterBody, scrollToHero],
+    [canReadDetails, onViewStateChange, scrollToChapterBody],
   );
 
   const openChapterWithPoint = React.useCallback(
@@ -151,19 +141,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
 
   return (
     <div className="career-ledger-page">
-      <div ref={heroRef} className="career-ledger-cover">
-        <CareerEncyclopediaChapter
-          status={status}
-          overview={overview}
-          highestRankLabel={highestRankLabel}
-          isSaved={isSaved}
-          detailState={detailState}
-          detailBuildProgress={detailBuildProgress}
-          onSave={onSave}
-          onReturnToScout={onReturnToScout}
-        />
-      </div>
-
       <div className="career-ledger-ribbon-shell">
         <div className="career-ledger-ribbon">
           <div className="career-ledger-ribbon-current">
@@ -241,17 +218,29 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       <div ref={chapterRef} className="career-ledger-body">
         <AnimatePresence mode="wait" initial={false}>
           {viewState.activeChapter === "encyclopedia" ? (
-            <motion.section key="encyclopedia" className="career-ledger-reading-note" {...chapterTransition}>
-              <div className="career-ledger-reading-kicker">閲覧ガイド</div>
-              <div className="career-ledger-reading-title">
-                {canReadDetails ? "名鑑を起点に、この人生の推移と各場所を読み進めます。" : "名鑑は開けますが、詳細章は記録整理後に開きます。"}
-              </div>
-              <p className="career-ledger-reading-copy">
-                {canReadDetails
-                  ? "力士名鑑で人物像を掴み、番付推移で浮沈を追い、場所別で一場所ごとの顔つきを確かめる構成です。"
-                  : detailLoadingLabel}
-              </p>
-            </motion.section>
+            <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
+              <section className="career-ledger-reading-note">
+                <div className="career-ledger-reading-kicker">閲覧ガイド</div>
+                <div className="career-ledger-reading-title">
+                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
+                </div>
+                <p className="career-ledger-reading-copy">
+                  {canReadDetails
+                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
+                    : detailLoadingLabel}
+                </p>
+              </section>
+              <CareerEncyclopediaChapter
+                status={status}
+                overview={overview}
+                highestRankLabel={highestRankLabel}
+                isSaved={isSaved}
+                detailState={detailState}
+                detailBuildProgress={detailBuildProgress}
+                onSave={onSave}
+                onReturnToScout={onReturnToScout}
+              />
+            </motion.div>
           ) : null}
 
           {viewState.activeChapter === "trajectory" && canReadDetails ? (

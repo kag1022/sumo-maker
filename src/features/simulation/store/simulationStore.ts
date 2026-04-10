@@ -3,6 +3,7 @@ import { Oyakata, RikishiStatus, SimulationRunOptions } from '../../../logic/mod
 import { normalizeNewRunModelVersion, SimulationModelVersion } from '../../../logic/simulation/modelVersion';
 import {
   buildCareerStartYearMonth,
+  clearAllStoredData,
   createDraftCareer,
   deleteCareer,
   discardCareer,
@@ -76,6 +77,7 @@ interface SimulationStore {
   loadUnshelvedCareers: () => Promise<void>;
   openCareer: (careerId: string) => Promise<void>;
   deleteCareerById: (careerId: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
   resetView: () => Promise<void>;
 }
 
@@ -453,6 +455,31 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
     await get().loadHallOfFame();
     await get().loadUnshelvedCareers();
+  },
+
+  clearAllData: async () => {
+    terminateWorker();
+    await clearAllStoredData();
+    set({
+      phase: 'idle',
+      status: null,
+      progress: null,
+      currentCareerId: null,
+      isCurrentCareerSaved: false,
+      simulationPacing: 'skip_to_end',
+      simulationDetailPolicy: 'buffered',
+      detailState: 'idle',
+      detailBuildProgress: null,
+      latestBashoView: null,
+      latestEvents: [],
+      observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
+      latestPauseReason: undefined,
+      hallOfFame: [],
+      unshelvedCareers: [],
+      errorMessage: undefined,
+    });
   },
 
   resetView: async () => {

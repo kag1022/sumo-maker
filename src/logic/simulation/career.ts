@@ -7,6 +7,7 @@ import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
 import { ensureCareerRecordStatus, pushCareerTurningPoint } from '../careerNarrative';
 import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
+import { ensureKimariteRepertoire, evolveKimariteRepertoireAfterBasho } from '../kimarite/repertoire';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -45,6 +46,7 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   status.statHistory = [];
   if (!status.injuries) status.injuries = [];
   if (!status.history.kimariteTotal) status.history.kimariteTotal = {};
+  if (!status.history.winRouteTotal) status.history.winRouteTotal = {};
   if (!status.traits) status.traits = [];
   if (!status.bodyType) status.bodyType = 'NORMAL';
   if (!status.profile) {
@@ -105,7 +107,7 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (!Number.isFinite(status.spirit)) status.spirit = 70;
   if (!status.stagnation) status.stagnation = createDefaultStagnationState();
   status.history.realismKpi = buildCareerRealismSnapshot(status);
-  return ensureCareerRecordStatus(ensureKataProfile(status));
+  return ensureCareerRecordStatus(ensureKimariteRepertoire(ensureKataProfile(status)));
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
@@ -211,6 +213,13 @@ export const updateCareerStats = (status: RikishiStatus, record: BashoRecord): v
       status.history.kimariteTotal[move] = (status.history.kimariteTotal[move] || 0) + count;
     }
   }
+  if (record.winRouteCount) {
+    if (!status.history.winRouteTotal) status.history.winRouteTotal = {};
+    for (const [route, count] of Object.entries(record.winRouteCount)) {
+      status.history.winRouteTotal[route as keyof NonNullable<typeof status.history.winRouteTotal>] =
+        (status.history.winRouteTotal[route as keyof NonNullable<typeof status.history.winRouteTotal>] || 0) + (count || 0);
+    }
+  }
 
   if (record.yusho) {
     if (status.rank.division === 'Makuuchi') status.history.yushoCount.makuuchi++;
@@ -222,6 +231,8 @@ export const updateCareerStats = (status: RikishiStatus, record: BashoRecord): v
   if (isHigherRank(status.rank, status.history.maxRank)) {
     status.history.maxRank = { ...status.rank };
   }
+  const evolved = evolveKimariteRepertoireAfterBasho(status, record, status.history.records.length + 1);
+  status.kimariteRepertoire = evolved.kimariteRepertoire;
 };
 
 export const finalizeCareer = (
