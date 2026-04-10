@@ -239,6 +239,7 @@ export interface RikishiStatus {
   careerBand?: CareerBand;
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
+  kimariteRepertoire?: KimariteRepertoire;
   bodyType: BodyType;          // 体格タイプ
   profile: BasicProfile;       // 基本プロフィール
   bodyMetrics: BodyMetrics;    // 身長・体重
@@ -360,6 +361,33 @@ export interface StyleProfile {
   confidence: number;
   source: 'DESIGNED' | 'REALIZED';
   locked?: boolean;
+}
+
+export type WinRoute =
+  | 'PUSH_OUT'
+  | 'BELT_FORCE'
+  | 'THROW_BREAK'
+  | 'PULL_DOWN'
+  | 'EDGE_REVERSAL'
+  | 'REAR_FINISH'
+  | 'LEG_ATTACK';
+
+export type KimariteRepertoireTier = 'PRIMARY' | 'SECONDARY' | 'CONTEXT' | 'RARE';
+
+export interface KimariteRepertoireEntry {
+  kimarite: string;
+  route: WinRoute;
+  tier: KimariteRepertoireTier;
+  affinity: number;
+  unlockedAtBashoSeq?: number;
+}
+
+export interface KimariteRepertoire {
+  version: 1;
+  provisional: boolean;
+  primaryRoutes: WinRoute[];
+  secondaryRoutes: WinRoute[];
+  entries: KimariteRepertoireEntry[];
 }
 
 export interface LifeCardSummary {
@@ -707,6 +735,7 @@ export interface CareerHistory {
     others: number;
   };
   kimariteTotal: Record<string, number>; // 通算決まり手カウント
+  winRouteTotal?: Partial<Record<WinRoute, number>>;
   title?: string; // 二つ名
   prizeBreakdown?: CareerPrizeBreakdown;
   rewardSummary?: CareerRewardSummary;
@@ -733,6 +762,7 @@ export interface BashoRecord {
   performanceOverExpected?: number;
   kinboshi?: number; // 金星獲得数（平幕が横綱を破った回数）
   kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
+  winRouteCount?: Partial<Record<WinRoute, number>>;
   scaleSlots?: RankScaleSlots; // その場所時点の番付スロット構成（相対スケール）
   bodyWeightKg?: number;
 }

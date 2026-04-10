@@ -3,6 +3,7 @@ import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
 import { clamp } from '../../simulation/boundary/shared';
 import { BoundarySnapshot, JURYO_SIZE, MAKUSHITA_POOL_SIZE, SekitoriExchange } from '../../simulation/sekitori/types';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
+import { orderExpectedPlacementCandidates } from './expected/order';
 import { ExpectedPlacementCandidate } from './expected/types';
 import { optimizeExpectedPlacements } from '../optimizer';
 import { resolveEmpiricalSlotBand } from './empirical';
@@ -180,9 +181,10 @@ export const resolveSekitoriBoundaryAssignedRank = (
   }
 
   if (!candidates.some((candidate) => candidate.id === 'PLAYER')) return undefined;
+  const orderedCandidates = orderExpectedPlacementCandidates(candidates);
   const assignments =
-    optimizeExpectedPlacements(candidates, TOTAL_SLOTS) ??
-    reallocateWithMonotonicConstraints(candidates, TOTAL_SLOTS);
+    optimizeExpectedPlacements(orderedCandidates, TOTAL_SLOTS) ??
+    reallocateWithMonotonicConstraints(orderedCandidates, TOTAL_SLOTS);
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
   if (!player) return undefined;
   return toRank(player.slot);

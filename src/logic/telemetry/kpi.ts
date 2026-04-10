@@ -38,3 +38,12 @@ export const readKpiCounters = (): Partial<Record<KpiEventName, KpiCounter>> => 
   }
 };
 
+export const clearKpiCounters = (): void => {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // KPI削除失敗は非致命扱い
+  }
+};
+

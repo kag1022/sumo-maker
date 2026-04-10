@@ -15,6 +15,7 @@ import {
   advanceTopDivisionBanzuke,
   countActiveBanzukeHeadcountExcludingMaezumo,
   createSimulationWorld,
+  simulateOffscreenSekitoriBasho,
 } from '../../../src/logic/simulation/world';
 import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
 import { resolveRetirementChance } from '../../../src/logic/simulation/retirement/shared';
@@ -22,6 +23,8 @@ import { Rank } from '../../../src/logic/models';
 import { calculateMomentumBonus, resolvePlayerAbility, resolveRankBaselineAbility } from '../../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../../src/logic/simulation/strength/update';
 import { resolveBashoFormDelta } from '../../../src/logic/simulation/variance/bashoVariance';
+import { LOGIC_LAB_DEFAULT_PRESET } from '../../../src/features/logicLab/presets';
+import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 
 import type { TestCase } from '../types';
 import {
@@ -1700,6 +1703,51 @@ export const tests: TestCase[] = [
       assert.ok(!divisions.has('Sandanme'));
       assert.ok(!divisions.has('Jonidan'));
       assert.ok(!divisions.has('Jonokuchi'));
+    },
+  },
+{
+    name: 'simulation: logic-lab summary includes per-career timing totals and phase share',
+    run: async () => {
+      const { summary, logs } = await runLogicLabToEnd({
+        presetId: LOGIC_LAB_DEFAULT_PRESET,
+        seed: 7331,
+        maxBasho: 8,
+      });
+      const phaseTotalSum = (Object.values(summary.phaseTotalsMs) as number[])
+        .reduce((sum, value) => sum + value, 0);
+      const phaseShareSum = (Object.values(summary.phaseShare) as number[])
+        .reduce((sum, value) => sum + value, 0);
+
+      assert.equal(summary.bashoCount, logs.length);
+      assert.ok(summary.totalMs > 0, `Expected totalMs > 0, got ${summary.totalMs}`);
+      assert.equal(summary.avgMsPerBasho, summary.totalMs / summary.bashoCount);
+      assert.ok(summary.slowestBashoMs >= summary.avgMsPerBasho);
+      assert.ok(Math.abs(phaseTotalSum - summary.totalMs) < 1e-6);
+      assert.ok(Math.abs(phaseShareSum - 1) < 1e-6);
+      assert.ok(summary.phaseTotalsMs.basho_simulation > 0);
+    },
+  },
+{
+    name: 'simulation: offscreen sekitori lite path preserves roster sizes and result shapes',
+    run: () => {
+      const rng = lcg(44);
+      const world = createSimulationWorld(rng);
+
+      simulateOffscreenSekitoriBasho(world, rng);
+
+      assert.equal(world.rosters.Makuuchi.length, 42);
+      assert.equal(world.rosters.Juryo.length, 28);
+      assert.equal(world.lastBashoResults.Makuuchi?.length, 42);
+      assert.equal(world.lastBashoResults.Juryo?.length, 28);
+      assertUniqueTopRosterSlots(world, 'offscreen-sekitori-lite');
+      assert.ok(
+        world.lastBashoResults.Makuuchi?.every((row) => row.rank?.division === 'Makuuchi') ?? false,
+        'Expected all offscreen Makuuchi records to stay in Makuuchi',
+      );
+      assert.ok(
+        world.lastBashoResults.Juryo?.every((row) => row.rank?.division === 'Juryo') ?? false,
+        'Expected all offscreen Juryo records to stay in Juryo',
+      );
     },
   },
 {

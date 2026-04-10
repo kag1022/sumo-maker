@@ -56,6 +56,7 @@ import {
   resolveCareerRecordRewardPoints,
 } from '../careerSeed';
 import { ensureCareerRecordStatus, withRivalSummary } from '../careerNarrative';
+import { clearKpiCounters } from '../telemetry/kpi';
 
 const MAX_SHELVED_CAREERS = 200;
 const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT', 'RECORD'];
@@ -400,6 +401,99 @@ const toNpcBashoRows = (
   }));
 };
 
+const resolveBanzukeSlot = (
+  division: string,
+  rankName: string,
+  rankNumber?: number,
+  rankSide?: 'East' | 'West',
+): number => {
+  const sideOffset = rankSide === 'West' ? 1 : 0;
+  if (division === 'Makuuchi') {
+    if (rankName === '横綱') return sideOffset + 1;
+    if (rankName === '大関') return sideOffset + 3;
+    if (rankName === '関脇') return sideOffset + 5;
+    if (rankName === '小結') return sideOffset + 7;
+    const bounded = Math.max(1, Math.min(17, rankNumber ?? 1));
+    return 8 + (bounded - 1) * 2 + sideOffset;
+  }
+  const maxByDivision: Record<string, number> = {
+    Juryo: 14,
+    Makushita: 60,
+    Sandanme: 90,
+    Jonidan: 100,
+    Jonokuchi: 32,
+  };
+  const max = maxByDivision[division] ?? 200;
+  const bounded = Math.max(1, Math.min(max, rankNumber ?? 1));
+  return 1 + (bounded - 1) * 2 + sideOffset;
+};
+
+const normalizePersistentOpponentId = (opponentId?: string): string | undefined => {
+  if (!opponentId) return undefined;
+  return opponentId.startsWith('JURYO_GUEST_')
+    ? opponentId.slice('JURYO_GUEST_'.length)
+    : opponentId;
+};
+
+const filterPersistedNpcRecords = (
+  chunk: Pick<AppendBashoChunkParams, 'playerRecord' | 'playerBouts' | 'npcRecords'>,
+): NpcBashoAggregate[] => {
+  const recordsById = new Map<string, NpcBashoAggregate>();
+  for (const record of chunk.npcRecords) {
+    if (!recordsById.has(record.entityId)) {
+      recordsById.set(record.entityId, record);
+    }
+  }
+
+  const selectedIds = new Set<string>();
+  for (const record of recordsById.values()) {
+    if (record.division === 'Makuuchi' || record.division === 'Juryo') {
+      selectedIds.add(record.entityId);
+    }
+  }
+
+  const playerDivision = chunk.playerRecord.rank.division;
+  if (
+    playerDivision === 'Makushita' ||
+    playerDivision === 'Sandanme' ||
+    playerDivision === 'Jonidan' ||
+    playerDivision === 'Jonokuchi'
+  ) {
+    const playerSlot = resolveBanzukeSlot(
+      playerDivision,
+      chunk.playerRecord.rank.name,
+      chunk.playerRecord.rank.number,
+      chunk.playerRecord.rank.side,
+    );
+    for (const bout of chunk.playerBouts) {
+      const normalizedId = normalizePersistentOpponentId(bout.opponentId);
+      if (normalizedId && recordsById.has(normalizedId)) {
+        selectedIds.add(normalizedId);
+      }
+    }
+    for (const record of recordsById.values()) {
+      if (record.division !== playerDivision) continue;
+      if (record.titles.includes('YUSHO')) {
+        selectedIds.add(record.entityId);
+        continue;
+      }
+      const npcSlot = resolveBanzukeSlot(
+        record.division,
+        record.rankName,
+        record.rankNumber,
+        record.rankSide,
+      );
+      if (Math.abs(npcSlot - playerSlot) <= 12) {
+        selectedIds.add(record.entityId);
+      }
+    }
+  }
+
+  return [...selectedIds]
+    .map((id) => recordsById.get(id))
+    .filter((record): record is NpcBashoAggregate => Boolean(record));
+};
+
 const toBoutRows = (
   careerId: string,
   seq: number,
@@ -419,6 +513,7 @@ const toBoutRows = (
   playerRankSide: rank.side,
   result: bout.result,
   kimarite: bout.kimarite,
+  winRoute: bout.winRoute,
   opponentId: bout.opponentId,
   opponentShikona: bout.opponentShikona,
   opponentRankName: bout.opponentRankName,
@@ -657,12 +752,13 @@ const appendBashoChunksInternal = async (
 
   for (const chunk of chunks) {
     bashoRows.push(toPlayerBashoRow(chunk.careerId, chunk.seq, chunk.playerRecord, chunk.playerShikona));
+    const persistedNpcRecords = filterPersistedNpcRecords(chunk);
     bashoRows.push(...toNpcBashoRows(
       chunk.careerId,
       chunk.seq,
       chunk.playerRecord.year,
       chunk.playerRecord.month,
-      chunk.npcRecords,
+      persistedNpcRecords,
     ));
     boutRows.push(...toBoutRows(
       chunk.careerId,
@@ -1215,6 +1311,29 @@ export const deleteCareer = async (careerId: string): Promise<void> => {
   await refreshBestScoreRanks();
 };
 
+export const clearAllStoredData = async (): Promise<void> => {
+  const db = getDb();
+  const writableTables = [
+    db.careers,
+    db.bashoRecords,
+    db.boutRecords,
+    db.importantTorikumi,
+    db.meta,
+    db.banzukePopulation,
+    db.banzukeDecisions,
+    db.simulationDiagnostics,
+    db.walletTransactions,
+    db.careerRewardLedger,
+    db.collectionEntries,
+    db.adRewardLedger,
+    db.oyakataProfiles,
+  ];
+  await db.transaction('rw', writableTables, async () => {
+    await Promise.all(writableTables.map((table) => table.clear()));
+  });
+  clearKpiCounters();
+};
+
 export const isCareerSaved = async (careerId: string): Promise<boolean> => {
   const db = getDb();
   const row = await db.careers.get(careerId);
@@ -1246,6 +1365,7 @@ export const listCareerPlayerBoutsByBasho = async (
       day: row.day,
       result: row.result,
       kimarite: row.kimarite,
+      winRoute: row.winRoute,
       opponentId: row.opponentId,
       opponentShikona: row.opponentShikona,
       opponentRankName: row.opponentRankName,
@@ -1335,6 +1455,7 @@ export const getCareerBashoDetail = async (
       day: row.day,
       result: row.result,
       kimarite: row.kimarite,
+      winRoute: row.winRoute,
       opponentId: row.opponentId,
       opponentShikona: row.opponentShikona,
       opponentRankName: row.opponentRankName,

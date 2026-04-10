@@ -116,11 +116,4 @@ export const buildOptimizerRows = (
           scoreTieBreak: 0,
         },
     };
-  })
-  .sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority;
-    if (a.candidate.currentSlot !== b.candidate.currentSlot) {
-      return a.candidate.currentSlot - b.candidate.currentSlot;
-    }
-    return a.id.localeCompare(b.id);
   });

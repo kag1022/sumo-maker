@@ -12,7 +12,7 @@ export interface CareerWindowState {
 }
 
 export type CareerChapterId = "encyclopedia" | "trajectory" | "place";
-export type CareerPlaceTabId = "banzuke" | "bouts";
+export type CareerPlaceTabId = "nearby" | "full" | "bouts";
 export type CareerLedgerBandKey =
   | "YOKOZUNA"
   | "OZEKI"
@@ -139,10 +139,11 @@ const toShortRankLabel = (rank: Rank): string => {
 const resolveMilestoneTags = (
   record: BashoRecord & { bashoSeq: number },
   prev: BashoRecord | undefined,
-  seenBestRankValue: number,
   lastSeq: number,
   hasSeenJuryo: boolean,
   hasSeenMakuuchi: boolean,
+  hasSeenSanyaku: boolean,
+  hasSeenOzeki: boolean,
 ): string[] => {
   const tags: string[] = [];
 
@@ -152,12 +153,15 @@ const resolveMilestoneTags = (
   if (prev && prev.rank.division !== "Makuuchi" && record.rank.division === "Makuuchi") {
     tags.push(hasSeenMakuuchi ? "再入幕" : "新入幕");
   }
-  if (record.rank.name === "横綱") tags.push("横綱");
-  else if (record.rank.name === "大関") tags.push("大関");
-  else if (SANYAKU_NAMES.has(record.rank.name)) tags.push("三役");
-
-  const currentRankValue = getRankValueForChart(record.rank);
-  if (currentRankValue < seenBestRankValue) tags.push("自己最高位更新");
+  if (prev && !SANYAKU_NAMES.has(prev.rank.name) && SANYAKU_NAMES.has(record.rank.name)) {
+    tags.push(hasSeenSanyaku ? "再三役" : "新三役");
+  }
+  if (prev && prev.rank.name !== "大関" && record.rank.name === "大関") {
+    tags.push(hasSeenOzeki ? "再大関" : "新大関");
+  }
+  if (prev && prev.rank.name !== "横綱" && record.rank.name === "横綱") {
+    tags.push("横綱昇進");
+  }
   if (record.bashoSeq === lastSeq) tags.push("引退前最後");
 
   return [...new Set(tags)];
@@ -201,9 +205,10 @@ export const buildCareerLedgerModel = (
     .filter((record) => record.rank.division !== "Maezumo")
     .map((record, index) => ({ ...record, bashoSeq: index + 1 }));
   const lastSeq = records.length;
-  let seenBestRankValue = Number.POSITIVE_INFINITY;
   let hasSeenJuryo = false;
   let hasSeenMakuuchi = false;
+  let hasSeenSanyaku = false;
+  let hasSeenOzeki = false;
 
   const rawPoints = records.map((record, index) => {
     const prev = records[index - 1];
@@ -211,18 +216,23 @@ export const buildCareerLedgerModel = (
     const milestoneTags = resolveMilestoneTags(
       record,
       prev,
-      seenBestRankValue,
       lastSeq,
       hasSeenJuryo,
       hasSeenMakuuchi,
+      hasSeenSanyaku,
+      hasSeenOzeki,
     );
-    const currentRankValue = getRankValueForChart(record.rank);
-    seenBestRankValue = Math.min(seenBestRankValue, currentRankValue);
     if (record.rank.division === "Juryo" || record.rank.division === "Makuuchi") {
       hasSeenJuryo = true;
     }
     if (record.rank.division === "Makuuchi") {
       hasSeenMakuuchi = true;
+    }
+    if (SANYAKU_NAMES.has(record.rank.name)) {
+      hasSeenSanyaku = true;
+    }
+    if (record.rank.name === "大関" || record.rank.name === "横綱") {
+      hasSeenOzeki = true;
     }
     const bandKey = toBandKey(record.rank);
     const { deltaValue, deltaLabel } = computeDeltaLabel(record, next);
@@ -317,7 +327,7 @@ export const buildCareerOverviewModel = (
 };
 
 export const buildCareerPlaceSummary = (
-  detail: CareerBashoDetail | null,
+  _detail: CareerBashoDetail | null,
   ledgerPoint: CareerLedgerPoint | null,
 ): CareerPlaceSummaryModel | null => {
   if (!ledgerPoint) return null;
@@ -326,7 +336,7 @@ export const buildCareerPlaceSummary = (
     rankLabel: ledgerPoint.rankLabel,
     recordLabel: ledgerPoint.recordLabel,
     deltaLabel: ledgerPoint.deltaLabel,
-    milestoneTags: ledgerPoint.milestoneTags.length > 0 ? ledgerPoint.milestoneTags : detail?.importantTorikumi?.slice(0, 1).map((row) => row.summary) ?? [],
+    milestoneTags: ledgerPoint.milestoneTags,
   };
 };
 
@@ -343,11 +353,17 @@ export const groupNearbyRanks = (
   playerRow: BashoRecordRow,
   range: number,
 ): BashoRecordRow[] => {
-  const sorted = rows
-    .filter((row) => row.division === playerRow.division)
-    .slice()
-    .sort((left, right) => rankValueFromRow(left) - rankValueFromRow(right));
+  const sorted = listDivisionRows(rows, playerRow);
   const playerIndex = sorted.findIndex((row) => row.entityType === "PLAYER");
   if (playerIndex < 0) return sorted.slice(0, Math.min(sorted.length, range * 2 + 1));
   return sorted.slice(Math.max(0, playerIndex - range), Math.min(sorted.length, playerIndex + range + 1));
 };
+
+export const listDivisionRows = (
+  rows: BashoRecordRow[],
+  playerRow: BashoRecordRow,
+): BashoRecordRow[] =>
+  rows
+    .filter((row) => row.division === playerRow.division)
+    .slice()
+    .sort((left, right) => rankValueFromRow(left) - rankValueFromRow(right));

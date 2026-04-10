@@ -9,7 +9,7 @@ import type {
   CareerPlaceSummaryModel,
   CareerPlaceTabId,
 } from "../utils/careerResultModel";
-import { groupNearbyRanks } from "../utils/careerResultModel";
+import { groupNearbyRanks, listDivisionRows } from "../utils/careerResultModel";
 
 interface CareerPlaceChapterProps {
   ledger: CareerLedgerModel;
@@ -36,9 +36,13 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   onSelectNpc,
   onPlaceTabChange,
 }) => {
-  const groupedRows = React.useMemo(() => {
+  const nearbyRows = React.useMemo(() => {
     if (!detail?.rows?.length || !detail.playerRecord) return [];
     return groupNearbyRanks(detail.rows, detail.playerRecord, 3);
+  }, [detail]);
+  const fullRows = React.useMemo(() => {
+    if (!detail?.rows?.length || !detail.playerRecord) return [];
+    return listDivisionRows(detail.rows, detail.playerRecord);
   }, [detail]);
   const importantDayMap = React.useMemo(
     () => new Map((detail?.importantTorikumi ?? []).map((note) => [note.day, note])),
@@ -102,7 +106,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               role="listitem"
               className="career-place-selector-chip"
               data-selected={entry.bashoSeq === point?.bashoSeq}
-              data-event={entry.milestoneTags.length > 0 || entry.eventFlags.length > 0}
+              data-event={entry.milestoneTags.length > 0}
               onClick={() => onSelectBasho(entry.bashoSeq)}
             >
               <span className="career-place-selector-chiplabel">{entry.bashoLabel}</span>
@@ -133,7 +137,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
           </article>
         </div>
         <div className="career-place-notechips">
-          {(summary?.milestoneTags.length ? summary.milestoneTags : ["節目記録なし"]).map((tag) => (
+          {(summary?.milestoneTags ?? []).map((tag) => (
             <span key={tag} className="career-place-notechip">
               {tag}
             </span>
@@ -145,11 +149,20 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         <button
           type="button"
           className="career-archive-switchbutton"
-          data-active={placeTab === "banzuke"}
-          onClick={() => onPlaceTabChange("banzuke")}
+          data-active={placeTab === "nearby"}
+          onClick={() => onPlaceTabChange("nearby")}
         >
-          <span className="career-archive-switchlabel">上下番付</span>
+          <span className="career-archive-switchlabel">近傍番付</span>
           <span className="career-archive-switchmeta">近傍の顔ぶれを見る</span>
+        </button>
+        <button
+          type="button"
+          className="career-archive-switchbutton"
+          data-active={placeTab === "full"}
+          onClick={() => onPlaceTabChange("full")}
+        >
+          <span className="career-archive-switchlabel">全番付</span>
+          <span className="career-archive-switchmeta">同じ階級の全員を見る</span>
         </button>
         <button
           type="button"
@@ -162,11 +175,11 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         </button>
       </div>
 
-      {placeTab === "banzuke" ? (
+      {placeTab === "nearby" || placeTab === "full" ? (
         <div className="career-archive-sheet">
           {isLoading ? (
             <div className="career-archive-empty">読込中</div>
-          ) : groupedRows.length > 0 ? (
+          ) : (placeTab === "nearby" ? nearbyRows : fullRows).length > 0 ? (
             <div className="career-archive-scroll">
               <table className="detail-table career-archive-table">
                 <thead>
@@ -177,7 +190,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {groupedRows.map((row) => (
+                  {(placeTab === "nearby" ? nearbyRows : fullRows).map((row) => (
                     <tr key={`${row.entityType}-${row.entityId}`} data-player={row.entityType === "PLAYER"}>
                       <td className="table-rikishi-name" data-player={row.entityType === "PLAYER"}>
                         {row.entityType === "NPC" ? (

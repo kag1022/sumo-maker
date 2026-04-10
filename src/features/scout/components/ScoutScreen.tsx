@@ -69,22 +69,7 @@ const cloneDraft = (draft: ScoutDraft): ScoutDraft => ({
   profile: { ...draft.profile },
 });
 
-const createDraftAlternatives = (): ScoutDraft[] => {
-  const first = rollScoutDraft();
-  const second = rollScoutDraft();
-  const third = rollScoutDraft();
-  second.personaLine = "型を固め切らず、どこで化けるかを見たい。";
-  third.personaLine = "初手から気配が強く、波の大きい人生を予感させる。";
-  return [first, second, third].map(cloneDraft);
-};
-
-const createInitialScoutBundle = () => {
-  const alternatives = createDraftAlternatives();
-  return {
-    draft: cloneDraft(alternatives[0]),
-    alternatives,
-  };
-};
+const createInitialScoutDraft = (): ScoutDraft => cloneDraft(rollScoutDraft());
 
 const STEP_COPY: Record<ScoutStepId, { title: string; body: string; action: string }> = {
   identity: {
@@ -156,7 +141,7 @@ const SectionCard: React.FC<{
     <section className="scout-ritual-section" data-active={active}>
       <div className="scout-ritual-section-head">
         <div>
-          <div className="scout-ritual-section-step">STEP {STEP_ORDER.indexOf(step) + 1}</div>
+          <div className="scout-ritual-section-step">区画 {STEP_ORDER.indexOf(step) + 1}</div>
           <h2 className="scout-ritual-section-title">{STEP_COPY[step].title}</h2>
           <p className="scout-ritual-section-copy">{active ? STEP_COPY[step].body : summary}</p>
         </div>
@@ -241,36 +226,26 @@ const ScoutDecisionPanel: React.FC<{
 );
 
 const ScoutCandidateShelf: React.FC<{
-  activeAlternativeIndex: number;
-  totalAlternatives: number;
-  onCycleAlternative: () => void;
-  onRefreshAlternatives: () => void;
+  onCycleCandidate: () => void;
   mode: "desktop" | "mobile";
 }> = ({
-  activeAlternativeIndex,
-  totalAlternatives,
-  onCycleAlternative,
-  onRefreshAlternatives,
+  onCycleCandidate,
   mode,
 }) => (
   <section className={mode === "desktop" ? "scout-candidate-shelf" : "scout-candidate-shelf scout-candidate-shelf-mobile"}>
     <div className="scout-candidate-shelf-head">
       <div>
         <p className={SECTION_TITLE}>候補札</p>
-        <h2 className="mt-2 text-xl ui-text-heading text-text">別案を巡る</h2>
+        <h2 className="mt-2 text-xl ui-text-heading text-text">次の候補へ切り替える</h2>
         {mode === "mobile" ? (
-          <p className="mt-2 text-sm text-text-dim">入力中の流れを止めずに、別の入口案へ切り替えます。</p>
+          <p className="mt-2 text-sm text-text-dim">入力中の流れを止めずに、次の入口案へ差し替えます。</p>
         ) : null}
       </div>
-      <span className="scout-candidate-index">{activeAlternativeIndex + 1} / {totalAlternatives}</span>
     </div>
     <div className="scout-candidate-actions">
-      <Button variant="outline" size="sm" onClick={onCycleAlternative}>
+      <Button variant="outline" size="sm" onClick={onCycleCandidate}>
         <RefreshCw className="mr-2 h-4 w-4" />
         次の候補
-      </Button>
-      <Button variant="ghost" size="sm" onClick={onRefreshAlternatives}>
-        三案を作り直す
       </Button>
     </div>
   </section>
@@ -352,10 +327,7 @@ const ScoutEntryLedger: React.FC<{
 
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   const { isMobileViewport } = useViewportMode();
-  const [initialBundle] = React.useState(createInitialScoutBundle);
-  const [draft, setDraft] = React.useState<ScoutDraft>(initialBundle.draft);
-  const [draftAlternatives, setDraftAlternatives] = React.useState<ScoutDraft[]>(initialBundle.alternatives);
-  const [activeAlternativeIndex, setActiveAlternativeIndex] = React.useState(0);
+  const [draft, setDraft] = React.useState<ScoutDraft>(createInitialScoutDraft);
   const [activeStep, setActiveStep] = React.useState<ScoutStepId>("identity");
   const [isRegistering, setIsRegistering] = React.useState(false);
 
@@ -373,17 +345,9 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
     [],
   );
 
-  const handleCycleAlternative = React.useCallback(() => {
-    const nextIndex = (activeAlternativeIndex + 1) % draftAlternatives.length;
-    setActiveAlternativeIndex(nextIndex);
-    setDraft(cloneDraft(draftAlternatives[nextIndex]));
-  }, [activeAlternativeIndex, draftAlternatives]);
-
-  const handleRefreshAlternatives = React.useCallback(() => {
-    const nextAlternatives = createDraftAlternatives();
-    setDraftAlternatives(nextAlternatives);
-    setActiveAlternativeIndex(0);
-    setDraft(cloneDraft(nextAlternatives[0]));
+  const handleCycleCandidate = React.useCallback(() => {
+    const nextDraft = createInitialScoutDraft();
+    setDraft(nextDraft);
   }, []);
 
   const handleRegister = React.useCallback(async () => {
@@ -569,10 +533,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
         <div className="scout-mobile-main">
           {sections}
           <ScoutCandidateShelf
-            activeAlternativeIndex={activeAlternativeIndex}
-            totalAlternatives={draftAlternatives.length}
-            onCycleAlternative={handleCycleAlternative}
-            onRefreshAlternatives={handleRefreshAlternatives}
+            onCycleCandidate={handleCycleCandidate}
             mode="mobile"
           />
           <ScoutDecisionPanel isRegistering={isRegistering} onRegister={register} mode="mobile" />
@@ -593,10 +554,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
         <aside className="scout-ritual-aside">
           <ScoutCandidateShelf
-            activeAlternativeIndex={activeAlternativeIndex}
-            totalAlternatives={draftAlternatives.length}
-            onCycleAlternative={handleCycleAlternative}
-            onRefreshAlternatives={handleRefreshAlternatives}
+            onCycleCandidate={handleCycleCandidate}
             mode="desktop"
           />
           <ScoutEntryLedger

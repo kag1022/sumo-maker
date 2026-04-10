@@ -235,6 +235,56 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'league: reconcile preserves deterministic promotion order across bucket refills',
+    run: () => {
+      const rng = lcg(20260411);
+      const world = createSimulationWorld(rng);
+      const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
+      const boundaryWorld = createSekitoriBoundaryWorld(rng);
+      boundaryWorld.npcRegistry = world.npcRegistry;
+      boundaryWorld.makushitaPool =
+        lowerWorld.rosters.Makushita as unknown as typeof boundaryWorld.makushitaPool;
+
+      const expectedMakuuchiPromotions = world.rosters.Juryo.slice(0, 2).map((row) => row.id);
+      const expectedJuryoPromotions = lowerWorld.rosters.Makushita.slice(0, 3).map((row) => row.id);
+
+      for (const row of world.rosters.Makuuchi.slice(40)) {
+        const npc = world.npcRegistry.get(row.id);
+        if (npc) npc.active = false;
+      }
+      for (const row of world.rosters.Juryo.slice(27)) {
+        const npc = world.npcRegistry.get(row.id);
+        if (npc) npc.active = false;
+      }
+
+      const report = reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, 1, 1);
+      const firstPromotions = report.moves
+        .filter((move) => move.type === 'PROMOTE')
+        .slice(0, 5)
+        .map((move) => ({ id: move.id, from: move.from, to: move.to }));
+
+      assert.equal(report.before.Makuuchi, 40);
+      assert.equal(report.before.Juryo, 27);
+      assert.equal(report.after.Makuuchi, 42);
+      assert.equal(report.after.Juryo, 28);
+      assert.deepEqual(firstPromotions, [
+        { id: expectedMakuuchiPromotions[0], from: 'Juryo', to: 'Makuuchi' },
+        { id: expectedMakuuchiPromotions[1], from: 'Juryo', to: 'Makuuchi' },
+        { id: expectedJuryoPromotions[0], from: 'Makushita', to: 'Juryo' },
+        { id: expectedJuryoPromotions[1], from: 'Makushita', to: 'Juryo' },
+        { id: expectedJuryoPromotions[2], from: 'Makushita', to: 'Juryo' },
+      ]);
+      assert.equal(
+        expectedMakuuchiPromotions.every((id) => world.rosters.Makuuchi.some((row) => row.id === id)),
+        true,
+      );
+      assert.equal(
+        expectedJuryoPromotions.every((id) => world.rosters.Juryo.some((row) => row.id === id)),
+        true,
+      );
+    },
+  },
+{
     name: 'npc stable catalog: size is fixed at 45 entries',
     run: () => {
       assert.equal(NPC_STABLE_CATALOG.length, 45);
