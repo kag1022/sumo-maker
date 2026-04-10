@@ -29,15 +29,22 @@ type TrajectoryMode = "standard" | "milestones";
 const SLOT_WIDTH = 64;
 const MIN_CANVAS_WIDTH = 880;
 const MILESTONE_PRIORITY = [
+  "横綱昇進",
+  "新大関",
+  "再大関",
+  "新三役",
+  "再三役",
+  "新入幕",
+  "再入幕",
+  "新十両",
+  "再十両",
   "横綱",
   "大関",
   "三役",
-  "新入幕",
-  "新十両",
   "引退前最後",
 ] as const;
 
-const HIDDEN_VISUAL_TAGS = new Set(["自己最高位更新"]);
+const HIDDEN_VISUAL_TAGS = new Set<string>();
 
 const resolvePrimaryMilestone = (tags: string[]): string | null => {
   const visibleTags = tags.filter((tag) => !HIDDEN_VISUAL_TAGS.has(tag));
@@ -173,7 +180,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                       {rowPoints.map((point) => {
                         const visibleIndex = visibleIndexBySeq.get(point.bashoSeq) ?? 0;
                         const isSelected = point.bashoSeq === selectedPoint?.bashoSeq;
-                        const hasMilestone = point.milestoneTags.length > 0 || point.eventFlags.length > 0;
+                        const hasMilestone = point.milestoneTags.length > 0;
                         const primaryMilestone = resolvePrimaryMilestone(point.milestoneTags);
                         return (
                           <motion.button
@@ -251,7 +258,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </div>
 
           <div className="career-workspace-detailtags">
-            {(detailTags.length ? detailTags : headlineMilestone ? [headlineMilestone] : ["節目記録なし"]).map((tag) => (
+            {(detailTags.length ? detailTags : headlineMilestone ? [headlineMilestone] : []).map((tag) => (
               <span key={tag} className="career-workspace-detailtag">
                 {tag}
               </span>

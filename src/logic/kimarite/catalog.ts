@@ -21,6 +21,7 @@ export type KimariteFamily =
   | 'REAR'
   | 'NON_TECHNIQUE';
 export type KimariteRarityBucket = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EXTREME';
+export type KimaritePatternRole = 'MAIN' | 'ALT' | 'CONTEXT' | 'RARE';
 export type KimaritePattern =
   | 'PUSH_ADVANCE'
   | 'BELT_FORCE'
@@ -42,6 +43,14 @@ export type KimariteTag =
   | 'twist'
   | 'rare'
   | 'extreme';
+export type KimariteContextTag =
+  | 'EDGE'
+  | 'REAR'
+  | 'UNDERDOG'
+  | 'ARAWAZASHI_ONLY'
+  | 'SOPPU_ONLY'
+  | 'HEAVY_ONLY'
+  | 'BELT_ONLY';
 
 export interface OfficialKimariteEntry {
   officialOrder: number;
@@ -65,6 +74,8 @@ export interface OfficialKimariteEntry {
   signatureEligible: boolean;
   collectionVisible: boolean;
   tags: KimariteTag[];
+  patternRole: KimaritePatternRole;
+  contextTags: KimariteContextTag[];
 }
 
 export interface NonTechniqueEntry {
@@ -84,10 +95,104 @@ export interface OfficialWinningKimariteCatalogEntry {
   family: KimariteFamily;
   rarityBucket: KimariteRarityBucket;
   tags: KimariteTag[];
+  patternRole: KimaritePatternRole;
+  contextTags: KimariteContextTag[];
 }
 
+const MAIN_KIMARITE_NAMES = new Set([
+  '押し出し',
+  '押し倒し',
+  '突き出し',
+  '寄り切り',
+  '寄り倒し',
+  '上手投げ',
+  '下手投げ',
+  '掬い投げ',
+  '小手投げ',
+  '叩き込み',
+  '引き落とし',
+  '突き落とし',
+  '送り出し',
+]);
+
+const CONTEXT_KIMARITE_NAMES = new Set([
+  '送り投げ',
+  '吊り落とし',
+  'うっちゃり',
+  '後ろもたれ',
+  '呼び戻し',
+  '送り倒し',
+  '吊り出し',
+  '極め出し',
+  '極め倒し',
+]);
+
+const UNDERDOG_KIMARITE_NAMES = new Set([
+  'うっちゃり',
+  '後ろもたれ',
+  '吊り落とし',
+  '呼び戻し',
+  '居反り',
+  'たすき反り',
+  '外たすき反り',
+  '伝え反り',
+  '撞木反り',
+  '掛け反り',
+]);
+
+const HEAVY_KIMARITE_NAMES = new Set([
+  '吊り出し',
+  '送り吊り出し',
+  '吊り落とし',
+  '送り吊り落とし',
+  'つかみ投げ',
+  '鯖折り',
+  '割り出し',
+  '極め出し',
+  '極め倒し',
+]);
+
+const resolvePatternRole = (entry: {
+  name: string;
+  class: KimariteClass;
+  rarityBucket: KimariteRarityBucket;
+  historicalWeight: number;
+}): KimaritePatternRole => {
+  if (MAIN_KIMARITE_NAMES.has(entry.name)) return 'MAIN';
+  if (CONTEXT_KIMARITE_NAMES.has(entry.name)) return 'CONTEXT';
+  if (
+    entry.class === 'BACKWARD_BODY_DROP' ||
+    entry.rarityBucket === 'EXTREME' ||
+    (entry.rarityBucket === 'RARE' && entry.historicalWeight < 0.9)
+  ) {
+    return 'RARE';
+  }
+  return 'ALT';
+};
+
+const resolveContextTags = (entry: Omit<OfficialKimariteEntry, 'collectionVisible' | 'floorRate' | 'patternRole' | 'contextTags'>): KimariteContextTag[] => {
+  const role = resolvePatternRole(entry);
+  if (role === 'MAIN') return [];
+
+  const tags = new Set<KimariteContextTag>();
+  if (entry.tags.includes('edge') || entry.requiredPatterns.includes('EDGE_REVERSAL')) tags.add('EDGE');
+  if (entry.tags.includes('rear') || entry.family === 'REAR') tags.add('REAR');
+  if (UNDERDOG_KIMARITE_NAMES.has(entry.name)) tags.add('UNDERDOG');
+  if (entry.traitTags.includes('ARAWAZASHI') && role !== 'ALT') tags.add('ARAWAZASHI_ONLY');
+  if (entry.bodyAffinity.preferredBodyTypes?.includes('SOPPU')) tags.add('SOPPU_ONLY');
+  if (
+    HEAVY_KIMARITE_NAMES.has(entry.name) ||
+    entry.tags.includes('lift') ||
+    (typeof entry.bodyAffinity.minWeightDiff === 'number' && entry.bodyAffinity.minWeightDiff >= 0)
+  ) {
+    tags.add('HEAVY_ONLY');
+  }
+  if (entry.tags.includes('belt') && role !== 'ALT') tags.add('BELT_ONLY');
+  return [...tags];
+};
+
 const createOfficial = (
-  entry: Omit<OfficialKimariteEntry, 'floorRate' | 'collectionVisible'> & {
+  entry: Omit<OfficialKimariteEntry, 'floorRate' | 'collectionVisible' | 'patternRole' | 'contextTags'> & {
     floorRate?: number;
   },
 ): OfficialKimariteEntry => ({
@@ -102,6 +207,8 @@ const createOfficial = (
           ? 0.0025
           : 0),
   collectionVisible: true,
+  patternRole: resolvePatternRole(entry),
+  contextTags: resolveContextTags(entry),
 });
 
 const BASIC_KIMARITE: OfficialKimariteEntry[] = [
@@ -255,6 +362,8 @@ export const listOfficialWinningKimariteCatalog = (): OfficialWinningKimariteCat
     family: entry.family,
     rarityBucket: entry.rarityBucket,
     tags: [...entry.tags],
+    patternRole: entry.patternRole,
+    contextTags: [...entry.contextTags],
   }));
 
 export const listNonTechniqueCatalog = (): NonTechniqueEntry[] =>

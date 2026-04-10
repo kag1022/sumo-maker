@@ -36,6 +36,7 @@ export const ensureCareerHistory = (history: CareerHistory): CareerHistory => {
   if (!history.highlightEvents) history.highlightEvents = [];
   if (!history.traitAwakenings) history.traitAwakenings = [];
   if (!history.careerTurningPoints) history.careerTurningPoints = [];
+  if (!history.winRouteTotal) history.winRouteTotal = {};
   return history;
 };
 

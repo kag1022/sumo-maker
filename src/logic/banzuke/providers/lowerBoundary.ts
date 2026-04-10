@@ -3,6 +3,7 @@ import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
 import { BanzukeEngineVersion } from '../types';
 import { optimizeExpectedPlacements } from '../optimizer';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
+import { orderExpectedPlacementCandidates } from './expected/order';
 import { ExpectedPlacementCandidate } from './expected/types';
 import { resolveBottomTailReliefSlots, resolveEmpiricalSlotBand } from './empirical';
 import {
@@ -253,9 +254,10 @@ export const resolveLowerDivisionPlacements = (
     }
   }
 
+  const orderedCandidates = orderExpectedPlacementCandidates(candidates);
   const assignments =
-    optimizeExpectedPlacements(candidates, totalSlots) ??
-    reallocateWithMonotonicConstraints(candidates, totalSlots);
+    optimizeExpectedPlacements(orderedCandidates, totalSlots) ??
+    reallocateWithMonotonicConstraints(orderedCandidates, totalSlots);
   const placements: LowerDivisionResolvedPlacement[] = assignments.map((assignment) => {
     const resolved = fromGlobalSlot(assignment.slot, divisionOffsets, divisionSizes, totalSlots);
     return {

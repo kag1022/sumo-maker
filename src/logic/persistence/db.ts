@@ -3,6 +3,7 @@ import {
   BuildIntent,
   CareerPrizeBreakdown,
   CollectionEntry,
+  WinRoute,
   OyakataProfile,
   Rank,
   RikishiStatus,
@@ -100,6 +101,7 @@ export interface BoutRecordRow {
   playerRankSide?: 'East' | 'West';
   result: BoutResultType;
   kimarite?: string;
+  winRoute?: WinRoute;
   opponentId?: string;
   opponentShikona?: string;
   opponentRankName?: string;

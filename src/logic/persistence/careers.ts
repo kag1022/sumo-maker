@@ -4,6 +4,7 @@ export {
   buildCareerStartYearMonth,
   buildGenealogyTree,
   commitCareer,
+  clearAllStoredData,
   createDraftCareer,
   deleteCareer,
   discardCareer,

@@ -20,6 +20,18 @@ export interface SimulationParams {
   bashoSnapshotMode?: 'full' | 'none';
 }
 
+export type SimulationTimingPhase =
+  | 'pre_reconcile'
+  | 'basho_simulation'
+  | 'quota_and_banzuke'
+  | 'post_basho_maintenance'
+  | 'postprocess';
+
+export interface SimulationTimingBreakdown {
+  totalMs: number;
+  phases: Record<SimulationTimingPhase, number>;
+}
+
 export interface BanzukeEntry {
   id: string;
   shikona: string;
@@ -82,6 +94,7 @@ export interface BashoStepResult {
   pauseReason?: PauseReason;
   statusSnapshot?: RikishiStatus;
   progress: SimulationProgressState;
+  timing: SimulationTimingBreakdown;
 }
 
 export interface CompletedStepResult {
@@ -92,6 +105,7 @@ export interface CompletedStepResult {
   pauseReason?: PauseReason;
   events: TimelineEvent[];
   progress: SimulationProgressState;
+  timing: SimulationTimingBreakdown;
 }
 
 export interface RuntimeNarrativeState {

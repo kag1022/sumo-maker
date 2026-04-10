@@ -998,6 +998,195 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'persistence: lower-division detail persists sekitori and player-nearby npc rows only',
+    run: async () => {
+      await resetDb();
+      const initial = createStatus({
+        rank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+      });
+      const careerId = await createDraftCareer({
+        initialStatus: initial,
+        careerStartYearMonth: '2026-01',
+      });
+
+      await appendBashoChunk({
+        careerId,
+        seq: 1,
+        playerRecord: {
+          year: 2026,
+          month: 1,
+          rank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+          wins: 5,
+          losses: 2,
+          absent: 0,
+          yusho: false,
+          specialPrizes: [],
+        },
+        playerShikona: initial.shikona,
+        playerBouts: [
+          {
+            day: 3,
+            result: 'WIN',
+            opponentId: 'JURYO_GUEST_NPC-OPP',
+            opponentShikona: '対戦相手山',
+            opponentRankName: '幕下',
+            opponentRankNumber: 40,
+            opponentRankSide: 'West',
+          },
+        ],
+        npcRecords: [
+          {
+            entityId: 'NPC-NEAR',
+            shikona: '近辺山',
+            division: 'Makushita',
+            rankName: '幕下',
+            rankNumber: 14,
+            rankSide: 'West',
+            wins: 4,
+            losses: 3,
+            absent: 0,
+            titles: [],
+          },
+          {
+            entityId: 'NPC-FAR',
+            shikona: '遠方山',
+            division: 'Makushita',
+            rankName: '幕下',
+            rankNumber: 35,
+            rankSide: 'East',
+            wins: 4,
+            losses: 3,
+            absent: 0,
+            titles: [],
+          },
+          {
+            entityId: 'NPC-OPP',
+            shikona: '対戦相手山',
+            division: 'Makushita',
+            rankName: '幕下',
+            rankNumber: 40,
+            rankSide: 'West',
+            wins: 6,
+            losses: 1,
+            absent: 0,
+            titles: [],
+          },
+          {
+            entityId: 'NPC-YUSHO',
+            shikona: '優勝山',
+            division: 'Makushita',
+            rankName: '幕下',
+            rankNumber: 55,
+            rankSide: 'East',
+            wins: 7,
+            losses: 0,
+            absent: 0,
+            titles: ['YUSHO'],
+          },
+          {
+            entityId: 'NPC-SD',
+            shikona: '三段目山',
+            division: 'Sandanme',
+            rankName: '三段目',
+            rankNumber: 5,
+            rankSide: 'East',
+            wins: 6,
+            losses: 1,
+            absent: 0,
+            titles: [],
+          },
+          {
+            entityId: 'NPC-J',
+            shikona: '十両海',
+            division: 'Juryo',
+            rankName: '十両',
+            rankNumber: 12,
+            rankSide: 'East',
+            wins: 8,
+            losses: 7,
+            absent: 0,
+            titles: [],
+          },
+        ],
+        banzukePopulation: {
+          seq: 1,
+          year: 2026,
+          month: 1,
+          headcount: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 200,
+            Jonidan: 250,
+            Jonokuchi: 78,
+            Maezumo: 12,
+          },
+          activeHeadcount: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 200,
+            Jonidan: 250,
+            Jonokuchi: 78,
+            Maezumo: 12,
+          },
+          banzukeHeadcountExcludingMaezumo: 718,
+          maezumoHeadcount: 12,
+          intakeCountThisBasho: 2,
+          retiredCountThisBasho: 1,
+        },
+        banzukeDecisions: [
+          {
+            seq: 1,
+            rikishiId: 'PLAYER',
+            fromRank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+            proposedRank: { division: 'Makushita', name: '幕下', side: 'East', number: 8 },
+            finalRank: { division: 'Makushita', name: '幕下', side: 'East', number: 8 },
+            reasons: ['REVIEW_ACCEPTED'],
+          },
+        ],
+        diagnostics: {
+          seq: 1,
+          year: 2026,
+          month: 1,
+          rank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+          wins: 5,
+          losses: 2,
+          absent: 0,
+          expectedWins: 3.8,
+          strengthOfSchedule: 0.12,
+          performanceOverExpected: 1.2,
+          promoted: false,
+          demoted: false,
+          simulationModelVersion: 'v3',
+          banzukeEngineVersion: 'optimizer-v2',
+        },
+      });
+
+      const detail = await getCareerBashoDetail(careerId, 1);
+      const rowsBySeq = await listCareerBashoRecordsBySeq(careerId);
+      const populations = await listBanzukePopulation(careerId);
+      const decisions = await listBanzukeDecisions(careerId, 1);
+      assert.ok(detail, 'Expected persisted basho detail');
+      if (!detail) return;
+
+      const persistedIds = new Set(detail.rows.map((row) => row.entityId));
+      assert.deepEqual(
+        [...persistedIds].sort(),
+        ['NPC-J', 'NPC-NEAR', 'NPC-OPP', 'NPC-YUSHO', 'PLAYER'].sort(),
+      );
+      assert.equal(persistedIds.has('NPC-FAR'), false);
+      assert.equal(persistedIds.has('NPC-SD'), false);
+      assert.equal(detail.bouts.length, 1);
+      assert.equal(detail.diagnostics?.seq, 1);
+      assert.equal(detail.banzukeDecisions.length, 1);
+      assert.equal(rowsBySeq[0]?.rows.some((row) => row.entityId === 'NPC-NEAR'), true);
+      assert.equal(rowsBySeq[0]?.rows.some((row) => row.entityId === 'NPC-FAR'), false);
+      assert.equal(populations.length, 1);
+      assert.equal(decisions.length, 1);
+    },
+  },
+{
     name: 'storage: getCareerHeadToHead aggregates by opponent id and uses latest shikona',
     run: async () => {
       await resetDb();

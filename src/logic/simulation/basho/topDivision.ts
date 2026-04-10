@@ -84,6 +84,7 @@ export const runTopDivisionBasho = (
   finalizeSekitoriPlayerPlacement(world, status);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
   const kimariteCount: Record<string, number> = {};
+  const winRouteCount: Record<string, number> = {};
   let wins = 0;
   let losses = 0;
   let absent = 0;
@@ -357,6 +358,7 @@ export const runTopDivisionBasho = (
         opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
         opponent.currentWinStreak = 0;
         kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
+        if (result.winRoute) winRouteCount[result.winRoute] = (winRouteCount[result.winRoute] || 0) + 1;
         if (division === 'Makuuchi' && isKinboshiEligibleRank(status.rank)) {
           if (opponentRank.name === '横綱') {
             addKinboshi('PLAYER');
@@ -381,6 +383,7 @@ export const runTopDivisionBasho = (
         day,
         result: result.isWin ? 'WIN' : 'LOSS',
         kimarite: result.kimarite,
+        winRoute: result.isWin ? result.winRoute : undefined,
         opponentId: opponent.id,
         opponentShikona: opponent.shikona,
         opponentRankName: opponentRank.name,
@@ -451,6 +454,7 @@ export const runTopDivisionBasho = (
       ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kinboshi: playerKinboshi,
       kimariteCount,
+      winRouteCount,
     },
     playerBoutDetails,
     sameDivisionNpcRecords,

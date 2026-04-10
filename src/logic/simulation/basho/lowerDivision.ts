@@ -208,6 +208,7 @@ export const runLowerDivisionBasho = (
   let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
+  const winRouteCount: Record<string, number> = {};
   let expectedWins = 0;
   let sosTotal = 0;
   let sosCount = 0;
@@ -544,6 +545,7 @@ export const runLowerDivisionBasho = (
         opponent.currentLossStreak = (opponent.currentLossStreak ?? 0) + 1;
         opponent.currentWinStreak = 0;
         kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
+        if (result.winRoute) winRouteCount[result.winRoute] = (winRouteCount[result.winRoute] || 0) + 1;
         previousResult = 'WIN';
       } else {
         losses += 1;
@@ -563,6 +565,7 @@ export const runLowerDivisionBasho = (
         day,
         result: result.isWin ? 'WIN' : 'LOSS',
         kimarite: result.kimarite,
+        winRoute: result.isWin ? result.winRoute : undefined,
         opponentId: enemy.id,
         opponentShikona: enemy.shikona,
         opponentRankName: enemy.rankName,
@@ -583,13 +586,17 @@ export const runLowerDivisionBasho = (
   });
 
   const recordedDays = new Set(playerBoutDetails.map((detail) => detail.day));
+  const recordedActualBouts = playerBoutDetails.filter((detail) => detail.result !== 'ABSENT').length;
+  let remainingAbsentBouts = Math.max(0, numBouts - recordedActualBouts - absent);
   const healthyUnresolvedDays = new Set(
     torikumiResult.diagnostics.playerHealthyUnresolvedDays,
   );
   for (const day of playerPlannedDays) {
+    if (remainingAbsentBouts <= 0) break;
     if (recordedDays.has(day)) continue;
     if (healthyUnresolvedDays.has(day)) continue;
     absent += 1;
+    remainingAbsentBouts -= 1;
     currentWinStreak = 0;
     currentLossStreak = 0;
     player.currentWinStreak = 0;
@@ -626,6 +633,7 @@ export const runLowerDivisionBasho = (
       specialPrizes: [],
       ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kimariteCount,
+      winRouteCount,
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],

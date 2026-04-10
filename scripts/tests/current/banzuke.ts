@@ -18,12 +18,12 @@ import { createLowerDivisionQuotaWorld, resolveLowerDivisionQuotaForPlayer, runL
 import { resolveBoundaryExchange } from '../../../src/logic/simulation/lower/exchange';
 import { BoundarySnapshot as LowerBoundarySnapshot, EMPTY_EXCHANGE as EMPTY_LOWER_EXCHANGE, LOWER_BOUNDARIES } from '../../../src/logic/simulation/lower/types';
 import { resolveExpectedSlotBand } from '../../../src/logic/banzuke/providers/expected/slotBands';
-import { resolveLowerAssignedNextRank } from '../../../src/logic/banzuke/providers/lowerBoundary';
+import { resolveLowerAssignedNextRank, resolveLowerDivisionPlacements } from '../../../src/logic/banzuke/providers/lowerBoundary';
 import { resolveSekitoriBoundaryAssignedRank } from '../../../src/logic/banzuke/providers/sekitoriBoundary';
 import { advanceTopDivisionBanzuke, createSimulationWorld, finalizeSekitoriPlayerPlacement, resolveTopDivisionQuotaForPlayer, syncPlayerActorInWorld } from '../../../src/logic/simulation/world';
 import { BoundarySnapshot as SekitoriBoundarySnapshot } from '../../../src/logic/simulation/sekitori/types';
 import { Rank } from '../../../src/logic/models';
-import { composeNextBanzuke, evaluateYokozunaPromotion, maxNumber, rankNumberSideToSlot, resolveVariableHeadcountByFlow, slotToRankNumberSide } from '../../../src/logic/banzuke';
+import { composeNextBanzuke, evaluateYokozunaPromotion, maxNumber, optimizeExpectedPlacements, rankNumberSideToSlot, resolveVariableHeadcountByFlow, slotToRankNumberSide } from '../../../src/logic/banzuke';
 
 import type { TestCase } from '../types';
 import {
@@ -751,6 +751,34 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'quota: sekitori boundary representative fixture resolves player rank on fast path',
+    run: () => {
+      const assigned = resolveSekitoriBoundaryAssignedRank(
+        [
+          { id: 'J-keep', shikona: '十残', isPlayer: false, stableId: 'j-1', rankScore: 26, wins: 6, losses: 9 },
+          { id: 'PLAYER', shikona: '力士', isPlayer: true, stableId: 'player-heya', rankScore: 28, wins: 5, losses: 10 },
+        ],
+        [
+          { id: 'MS-top', shikona: '幕昇', isPlayer: false, stableId: 'ms-1', rankScore: 1, wins: 6, losses: 1 },
+          { id: 'MS-next', shikona: '幕次', isPlayer: false, stableId: 'ms-2', rankScore: 2, wins: 5, losses: 2 },
+          { id: 'MS-low', shikona: '幕残', isPlayer: false, stableId: 'ms-3', rankScore: 3, wins: 3, losses: 4 },
+        ],
+        {
+          slots: 1,
+          promotedToJuryoIds: ['MS-top'],
+          demotedToMakushitaIds: ['PLAYER'],
+          playerPromotedToJuryo: false,
+          playerDemotedToMakushita: true,
+          reason: 'NORMAL',
+        },
+        false,
+      );
+
+      assert.ok(Boolean(assigned), 'Expected player assignment');
+      assert.equal(assigned?.division, 'Makushita');
+    },
+  },
+{
     name: 'banzuke scoring: juryo absent never increases candidate score',
     run: () => {
       const baseSnapshot: BashoRecordSnapshot = {
@@ -908,6 +936,91 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'quota: representative lower-boundary optimizer fixture resolves without fallback',
+    run: () => {
+      const assignments = optimizeExpectedPlacements([
+        {
+          id: 'A',
+          currentRank: { division: 'Makushita', name: '幕下', side: 'East', number: 3 },
+          wins: 6,
+          losses: 1,
+          absent: 0,
+          currentSlot: 5,
+          expectedSlot: 2,
+          minSlot: 1,
+          maxSlot: 4,
+          mandatoryDemotion: false,
+          mandatoryPromotion: true,
+          sourceDivision: 'Makushita',
+          score: 320,
+        },
+        {
+          id: 'B',
+          currentRank: { division: 'Makushita', name: '幕下', side: 'West', number: 2 },
+          wins: 4,
+          losses: 3,
+          absent: 0,
+          currentSlot: 4,
+          expectedSlot: 3,
+          minSlot: 1,
+          maxSlot: 4,
+          mandatoryDemotion: false,
+          mandatoryPromotion: false,
+          sourceDivision: 'Makushita',
+          score: 240,
+        },
+        {
+          id: 'C',
+          currentRank: { division: 'Makushita', name: '幕下', side: 'East', number: 2 },
+          wins: 1,
+          losses: 1,
+          absent: 0,
+          currentSlot: 3,
+          expectedSlot: 3,
+          minSlot: 2,
+          maxSlot: 4,
+          mandatoryDemotion: false,
+          mandatoryPromotion: false,
+          sourceDivision: 'Makushita',
+          score: 120,
+        },
+        {
+          id: 'D',
+          currentRank: { division: 'Makushita', name: '幕下', side: 'West', number: 1 },
+          wins: 2,
+          losses: 5,
+          absent: 0,
+          currentSlot: 2,
+          expectedSlot: 4,
+          minSlot: 2,
+          maxSlot: 5,
+          mandatoryDemotion: false,
+          mandatoryPromotion: false,
+          sourceDivision: 'Makushita',
+          score: -40,
+        },
+        {
+          id: 'E',
+          currentRank: { division: 'Makushita', name: '幕下', side: 'East', number: 1 },
+          wins: 0,
+          losses: 7,
+          absent: 0,
+          currentSlot: 1,
+          expectedSlot: 5,
+          minSlot: 2,
+          maxSlot: 5,
+          mandatoryDemotion: true,
+          mandatoryPromotion: false,
+          sourceDivision: 'Makushita',
+          score: -220,
+        },
+      ], 5);
+
+      assert.ok(Boolean(assignments), 'Expected optimizer to resolve representative fixture');
+      assert.equal(assignments?.length, 5);
+    },
+  },
+{
     name: 'quota: lower boundary keeps at least one slot under neutral records',
     run: () => {
       const spec = LOWER_BOUNDARIES.find((boundary) => boundary.id === 'MakushitaSandanme');
@@ -935,6 +1048,66 @@ export const tests: TestCase[] = [
 
       const exchange = resolveBoundaryExchange(spec, upper, lower);
       assert.ok(exchange.slots >= 1, `Expected at least 1 slot, got ${exchange.slots}`);
+    },
+  },
+{
+    name: 'quota: lower boundary placements keep kachikoshi above makekoshi in representative fixture',
+    run: () => {
+      const results = {
+        Makushita: [
+          { id: 'MS-KK', shikona: '幕勝', isPlayer: false, stableId: 'ms-1', rankScore: 4, wins: 7, losses: 0 },
+          { id: 'MS-EV', shikona: '幕均', isPlayer: false, stableId: 'ms-2', rankScore: 2, wins: 1, losses: 1 },
+          { id: 'MS-MK', shikona: '幕負', isPlayer: false, stableId: 'ms-3', rankScore: 1, wins: 2, losses: 5 },
+        ],
+        Sandanme: [
+          { id: 'SD-KK', shikona: '三勝', isPlayer: false, stableId: 'sd-1', rankScore: 4, wins: 6, losses: 1 },
+          { id: 'SD-EV', shikona: '三均', isPlayer: false, stableId: 'sd-2', rankScore: 2, wins: 1, losses: 1 },
+          { id: 'SD-MK', shikona: '三負', isPlayer: false, stableId: 'sd-3', rankScore: 1, wins: 1, losses: 6 },
+        ],
+        Jonidan: [
+          { id: 'JD-KK', shikona: '二勝', isPlayer: false, stableId: 'jd-1', rankScore: 4, wins: 5, losses: 2 },
+          { id: 'JD-EV', shikona: '二均', isPlayer: false, stableId: 'jd-2', rankScore: 2, wins: 1, losses: 1 },
+          { id: 'JD-MK', shikona: '二負', isPlayer: false, stableId: 'jd-3', rankScore: 1, wins: 0, losses: 7 },
+        ],
+        Jonokuchi: [
+          { id: 'JK-KK', shikona: '口勝', isPlayer: false, stableId: 'jk-1', rankScore: 4, wins: 4, losses: 3 },
+          { id: 'JK-EV', shikona: '口均', isPlayer: false, stableId: 'jk-2', rankScore: 2, wins: 1, losses: 1 },
+          { id: 'JK-MK', shikona: '口負', isPlayer: false, stableId: 'jk-3', rankScore: 1, wins: 0, losses: 7 },
+        ],
+      };
+      const sizes = {
+        Makushita: results.Makushita.length,
+        Sandanme: results.Sandanme.length,
+        Jonidan: results.Jonidan.length,
+        Jonokuchi: results.Jonokuchi.length,
+      };
+      const offsets = {
+        Makushita: 0,
+        Sandanme: sizes.Makushita,
+        Jonidan: sizes.Makushita + sizes.Sandanme,
+        Jonokuchi: sizes.Makushita + sizes.Sandanme + sizes.Jonidan,
+      };
+      const toGlobalSlot = (placement: { division: keyof typeof offsets; rankScore: number }): number =>
+        offsets[placement.division] + placement.rankScore;
+
+      const resolution = resolveLowerDivisionPlacements(results);
+      const byId = new Map(resolution.placements.map((placement) => [placement.id, placement]));
+      const assertAbove = (higherId: string, lowerId: string): void => {
+        const higher = byId.get(higherId);
+        const lower = byId.get(lowerId);
+        assert.ok(Boolean(higher), `Missing placement for ${higherId}`);
+        assert.ok(Boolean(lower), `Missing placement for ${lowerId}`);
+        if (!higher || !lower) return;
+        assert.ok(
+          toGlobalSlot(higher) < toGlobalSlot(lower),
+          `Expected ${higherId} above ${lowerId}, got ${toGlobalSlot(higher)} >= ${toGlobalSlot(lower)}`,
+        );
+      };
+
+      assertAbove('MS-KK', 'MS-MK');
+      assertAbove('SD-KK', 'SD-MK');
+      assertAbove('JD-KK', 'JD-MK');
+      assertAbove('JK-KK', 'JK-MK');
     },
   },
 {

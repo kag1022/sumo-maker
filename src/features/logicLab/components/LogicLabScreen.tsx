@@ -35,8 +35,11 @@ const formatStopReason = (reason?: LogicLabStopReason): string =>
   !reason ? '-' :
     reason === 'PROMOTION' ? '昇進イベント' :
       reason === 'INJURY' ? '負傷イベント' :
-        reason === 'RETIREMENT' ? '引退' :
-          reason === 'MAX_BASHO_REACHED' ? '最大場所数到達' : reason;
+          reason === 'RETIREMENT' ? '引退' :
+            reason === 'MAX_BASHO_REACHED' ? '最大場所数到達' : reason;
+const formatDuration = (value: number): string =>
+  value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${value.toFixed(1)}ms`;
+const formatShare = (value: number): string => `${(value * 100).toFixed(1)}%`;
 const rankDelta = (row: LogicLabBashoLogRow): number =>
   getRankValueForChart(row.rankBefore) - getRankValueForChart(row.rankAfter);
 const rankDeltaText = (row: LogicLabBashoLogRow): string => {
@@ -389,11 +392,38 @@ export const LogicLabScreen: React.FC = () => {
             <MetricSmall label="年齢" value={`${summary.age}歳`} />
             <MetricSmall label="場所数" value={`${summary.bashoCount}`} />
             <MetricSmall label="通算成績" value={formatRecord(summary.totalWins, summary.totalLosses, summary.totalAbsent)} />
+            <MetricSmall label="総時間" value={formatDuration(summary.totalMs)} />
+            <MetricSmall label="平均/場所" value={formatDuration(summary.avgMsPerBasho)} />
+            <MetricSmall label="最遅場所" value={formatDuration(summary.slowestBashoMs)} />
             <MetricSmall label="終了因" value={formatStopReason(summary.stopReason)} tone="dim" />
           </div>
           
           <div className="p-2 border border-gold-muted/20 bg-bg-panel/20 text-[9px] ui-text-label text-text-faint tracking-widest">
             LOGIC LAB VERIFICATION PASSED
+          </div>
+        </section>
+      )}
+
+      {summary && (
+        <section className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/30 animate-in fade-in">
+          <div className="flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+            <Activity className="w-3.5 h-3.5" />
+            時間統計 - Timing
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            {[
+              { label: '前処理', key: 'pre_reconcile' as const },
+              { label: '本場所', key: 'basho_simulation' as const },
+              { label: '番付反映', key: 'quota_and_banzuke' as const },
+              { label: '保守処理', key: 'post_basho_maintenance' as const },
+              { label: '後処理', key: 'postprocess' as const },
+            ].map((item) => (
+              <div key={item.key} className="surface-card p-4 border-gold-muted/10 bg-bg-panel/20 space-y-1">
+                <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">{item.label}</div>
+                <div className="text-base ui-text-metric text-text">{formatDuration(summary.phaseTotalsMs[item.key])}</div>
+                <div className="text-[10px] text-text-dim">{formatShare(summary.phaseShare[item.key])}</div>
+              </div>
+            ))}
           </div>
         </section>
       )}
