@@ -136,6 +136,30 @@ if (!isMainThread) {
     'kimarite',
     'catalog.js',
   ));
+  const { ensureKimariteRepertoire } = require(path.join(
+    process.cwd(),
+    '.tmp',
+    'sim-tests',
+    'src',
+    'logic',
+    'kimarite',
+    'repertoire.js',
+  ));
+  const {
+    ensureStyleIdentityProfile,
+    resolveDisplayedStrengthStyles,
+    resolveDisplayedWeakStyles,
+    resolveInternalStrengthStyles,
+    resolveInternalWeakStyles,
+  } = require(path.join(
+    process.cwd(),
+    '.tmp',
+    'sim-tests',
+    'src',
+    'logic',
+    'style',
+    'identity.js',
+  ));
 
   const withPatchedMathRandom = (randomFn, run) => {
     const original = Math.random;
@@ -310,6 +334,11 @@ if (!isMainThread) {
     const winRouteMetrics = summarizeWinRouteMetrics(result.status.history.winRouteTotal);
     const kimariteVarietyEligible =
       result.status.history.totalWins >= 100 && result.status.history.records.length >= 20;
+    const normalizedStatus = ensureKimariteRepertoire(ensureStyleIdentityProfile(result.status));
+    const strengths = resolveDisplayedStrengthStyles(normalizedStatus.styleIdentityProfile);
+    const weaknesses = resolveDisplayedWeakStyles(normalizedStatus.styleIdentityProfile);
+    const internalStrengths = resolveInternalStrengthStyles(normalizedStatus.styleIdentityProfile);
+    const internalWeaknesses = resolveInternalWeakStyles(normalizedStatus.styleIdentityProfile);
 
     parentPort.postMessage({
       isSekitori: isSekitoriRank(maxRank),
@@ -339,6 +368,13 @@ if (!isMainThread) {
       top2RouteShare: winRouteMetrics.top2RouteShare,
       winRouteCounts: result.status.history.winRouteTotal,
       kimariteCounts: result.status.history.kimariteTotal,
+      strengthStyleCount: strengths.length,
+      weakStyleCount: weaknesses.length,
+      internalStrengthStyleCount: internalStrengths.length,
+      internalWeakStyleCount: internalWeaknesses.length,
+      noStyleIdentity: strengths.length === 0,
+      repertoireUnsettled: normalizedStatus.kimariteRepertoire?.provisional !== false,
+      repertoireSettledAtBashoSeq: normalizedStatus.kimariteRepertoire?.settledAtBashoSeq,
       kimariteVariety20Reached:
         kimariteVarietyEligible && kimariteMetrics.uniqueOfficialKimariteCount >= 20,
     });
@@ -564,6 +600,13 @@ if (!isMainThread) {
       const rareMoveRates = [];
       const aggregateKimariteCounts = new Map();
       const aggregateWinRouteCounts = new Map();
+      let strengthStyleCountTotal = 0;
+      let weakStyleCountTotal = 0;
+      let internalStrengthStyleCountTotal = 0;
+      let internalWeakStyleCountTotal = 0;
+      let noStyleIdentityCount = 0;
+      let repertoireUnsettledCount = 0;
+      const repertoireSettledAtBashoSeqs = [];
       let kimariteVarietyEligibleCount = 0;
       let kimariteVariety20Count = 0;
       const styleBucketMetrics = {
@@ -598,6 +641,15 @@ if (!isMainThread) {
           if (message.isMakuuchi) makuuchiCount += 1;
           if (message.isSanyaku) sanyakuCount += 1;
           if (message.isYokozuna) yokozunaCount += 1;
+          strengthStyleCountTotal += message.strengthStyleCount ?? 0;
+          weakStyleCountTotal += message.weakStyleCount ?? 0;
+          internalStrengthStyleCountTotal += message.internalStrengthStyleCount ?? 0;
+          internalWeakStyleCountTotal += message.internalWeakStyleCount ?? 0;
+          if (message.noStyleIdentity) noStyleIdentityCount += 1;
+          if (message.repertoireUnsettled) repertoireUnsettledCount += 1;
+          if (Number.isFinite(message.repertoireSettledAtBashoSeq)) {
+            repertoireSettledAtBashoSeqs.push(message.repertoireSettledAtBashoSeq);
+          }
 
           totalWins += message.totalWins;
           totalLosses += message.totalLosses;
@@ -718,6 +770,9 @@ if (!isMainThread) {
             const sortedTop3MoveShares = top3MoveShares.slice().sort((left, right) => left - right);
             const sortedDominantRouteShares = dominantRouteShares.slice().sort((left, right) => left - right);
             const sortedTop2RouteShares = top2RouteShares.slice().sort((left, right) => left - right);
+            const sortedRepertoireSettledAtBashoSeqs = repertoireSettledAtBashoSeqs
+              .slice()
+              .sort((left, right) => left - right);
             const totalKimariteCount = [...aggregateKimariteCounts.values()].reduce((sum, value) => sum + value, 0);
             const topKimarite = [...aggregateKimariteCounts.entries()]
               .sort((left, right) => right[1] - left[1])
@@ -801,7 +856,14 @@ if (!isMainThread) {
               top3MoveShareP50: percentile(sortedTop3MoveShares, 0.5),
               dominantRouteShareP50: percentile(sortedDominantRouteShares, 0.5),
               top2RouteShareP50: percentile(sortedTop2RouteShares, 0.5),
-              rareMoveRate:
+               strengthStyleCountMean: strengthStyleCountTotal / runs,
+               weakStyleCountMean: weakStyleCountTotal / runs,
+               internalStrengthStyleCountMean: internalStrengthStyleCountTotal / runs,
+               internalWeakStyleCountMean: internalWeakStyleCountTotal / runs,
+               noStyleIdentityRate: noStyleIdentityCount / runs,
+               repertoireUnsettledRate: repertoireUnsettledCount / runs,
+               repertoireSettledAtBashoSeqP50: percentile(sortedRepertoireSettledAtBashoSeqs, 0.5),
+               rareMoveRate:
                 rareMoveRates.length > 0
                   ? rareMoveRates.reduce((sum, value) => sum + value, 0) / rareMoveRates.length
                   : Number.NaN,
@@ -947,6 +1009,13 @@ if (!isMainThread) {
     lines.push(renderMonitorLine('勝ち筋支配率 P50', 'monitor', toPctOrNA(metrics.dominantRouteShareP50)));
     lines.push(renderMonitorLine('勝ち筋上位2本比率 P50', 'monitor', toPctOrNA(metrics.top2RouteShareP50)));
     lines.push(renderMonitorLine('レア技率', 'monitor', toPctOrNA(metrics.rareMoveRate)));
+    lines.push(renderMonitorLine('得意な型数 平均', 'monitor', Number.isFinite(metrics.strengthStyleCountMean) ? metrics.strengthStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('苦手な型数 平均', 'monitor', Number.isFinite(metrics.weakStyleCountMean) ? metrics.weakStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('内部得意型数 平均', 'monitor', Number.isFinite(metrics.internalStrengthStyleCountMean) ? metrics.internalStrengthStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('内部苦手型数 平均', 'monitor', Number.isFinite(metrics.internalWeakStyleCountMean) ? metrics.internalWeakStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('型なし率', 'monitor', toPctOrNA(metrics.noStyleIdentityRate)));
+    lines.push(renderMonitorLine('レパートリー未収束率', 'monitor', toPctOrNA(metrics.repertoireUnsettledRate)));
+    lines.push(renderMonitorLine('レパートリー収束場所 P50', 'monitor', Number.isFinite(metrics.repertoireSettledAtBashoSeqP50) ? metrics.repertoireSettledAtBashoSeqP50.toFixed(1) : 'n/a'));
     lines.push(renderGateLine('20種類達成率', `${toPct(KIMARITE_VARIETY_GATE.variety20RateMin)}-${toPct(KIMARITE_VARIETY_GATE.variety20RateMax)}`, toPctOrNA(metrics.kimariteVariety20Rate), gate.variety20Pass));
     for (const bucket of ['PUSH', 'GRAPPLE', 'TECHNIQUE']) {
       const sample = metrics.styleBucketMetrics?.[bucket];
@@ -1146,6 +1215,13 @@ if (!isMainThread) {
     dominantRouteShareP50: metrics.dominantRouteShareP50,
     top2RouteShareP50: metrics.top2RouteShareP50,
     rareMoveRate: metrics.rareMoveRate,
+    strengthStyleCountMean: metrics.strengthStyleCountMean,
+    weakStyleCountMean: metrics.weakStyleCountMean,
+    internalStrengthStyleCountMean: metrics.internalStrengthStyleCountMean,
+    internalWeakStyleCountMean: metrics.internalWeakStyleCountMean,
+    noStyleIdentityRate: metrics.noStyleIdentityRate,
+    repertoireUnsettledRate: metrics.repertoireUnsettledRate,
+    repertoireSettledAtBashoSeqP50: metrics.repertoireSettledAtBashoSeqP50,
     topKimarite: metrics.topKimarite,
     topWinRoutes: metrics.topWinRoutes,
     kimariteVariety20Rate: metrics.kimariteVariety20Rate,

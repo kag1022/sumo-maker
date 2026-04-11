@@ -6,7 +6,6 @@ import {
   IchimonId,
   PersonalityType,
   RikishiStatus,
-  StyleArchetype,
 } from "../models";
 import {
   STARTER_OYAKATA_BLUEPRINTS,
@@ -27,6 +26,7 @@ import {
   STABLE_CATALOG,
   type StableDefinition,
 } from "../simulation/heya/stableCatalog";
+import { ensureStyleIdentityProfile } from "../style/identity";
 
 type RandomSource = () => number;
 
@@ -189,7 +189,7 @@ const buildGrowthLine = (
   return `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`;
 };
 
-const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): StyleArchetype => {
+const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition) => {
   if (draft.bodySeed === "HEAVY") return stable.archetypeId === "TSUKI_OSHI_GROUP" ? "POWER_PRESSURE" : "YOTSU";
   if (draft.bodySeed === "LONG") return "TSUKI_OSHI";
   if (draft.bodySeed === "SPRING") return "DOHYOUGIWA";
@@ -198,7 +198,7 @@ const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): Style
   return "YOTSU";
 };
 
-const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: StyleArchetype): StyleArchetype => {
+const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: BuildSpecVNext["primaryStyle"]) => {
   if (draft.entryPath === "CHAMPION") return primaryStyle === "YOTSU" ? "MOROZASHI" : "NAGE_TECH";
   if (draft.entryPath === "COLLEGE") return "MOROZASHI";
   if (draft.temperament === "EXPLOSIVE") return "POWER_PRESSURE";
@@ -448,7 +448,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   };
   status.bodyMetrics.reachDeltaCm = seed.spec.reachDeltaCm;
   status.history.maxRank = { ...status.rank };
-  return status;
+  return ensureStyleIdentityProfile(status);
 };
 
 export const getScoutDraftHeadline = (draft: ScoutDraft): string =>

@@ -444,6 +444,7 @@ export const runLowerDivisionBasho = (
           opponentRankName: rankName,
           opponentRankNumber: rankNumber,
           opponentRankSide: rankSide,
+          opponentStyleBias: opponent.styleBias ?? 'BALANCE',
         });
         return;
       }
@@ -469,6 +470,7 @@ export const runLowerDivisionBasho = (
           opponentRankName: rankName,
           opponentRankNumber: rankNumber,
           opponentRankSide: rankSide,
+          opponentStyleBias: opponent.styleBias ?? 'BALANCE',
         });
         if (postInjury.mustSitOut) {
           player.active = false;
@@ -571,6 +573,7 @@ export const runLowerDivisionBasho = (
         opponentRankName: enemy.rankName,
         opponentRankNumber: enemy.rankNumber,
         opponentRankSide: enemy.rankSide,
+        opponentStyleBias: enemy.styleBias ?? 'BALANCE',
       });
     },
     onBye: (participant, day) => {

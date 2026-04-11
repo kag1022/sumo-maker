@@ -226,6 +226,7 @@ export const runTopDivisionBasho = (
           opponentRankName: opponentRank.name,
           opponentRankNumber: opponentRank.number,
           opponentRankSide: opponentRank.side,
+          opponentStyleBias: opponent.styleBias ?? 'BALANCE',
         });
 
         // 取組自体は発生しない（勝たないと金星は得られない）
@@ -252,6 +253,7 @@ export const runTopDivisionBasho = (
           opponentRankName: opponentRank.name,
           opponentRankNumber: opponentRank.number,
           opponentRankSide: opponentRank.side,
+          opponentStyleBias: opponent.styleBias ?? 'BALANCE',
         });
         return;
       }
@@ -283,6 +285,7 @@ export const runTopDivisionBasho = (
           opponentRankName: opponentRank.name,
           opponentRankNumber: opponentRank.number,
           opponentRankSide: opponentRank.side,
+          opponentStyleBias: opponent.styleBias ?? 'BALANCE',
         });
 
         if (postInjury.mustSitOut) {
@@ -389,6 +392,7 @@ export const runTopDivisionBasho = (
         opponentRankName: opponentRank.name,
         opponentRankNumber: opponentRank.number,
         opponentRankSide: opponentRank.side,
+        opponentStyleBias: opponent.styleBias ?? 'BALANCE',
       });
     },
     onBye: (participant, day) => {

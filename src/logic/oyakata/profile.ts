@@ -1,5 +1,6 @@
 import { Oyakata, OyakataProfile, RikishiStatus, StyleArchetype, Trait } from '../models';
 import { STYLE_LABELS } from '../styleProfile';
+import { ensureStyleIdentityProfile, resolveSecretStyleFromIdentity } from '../style/identity';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -57,7 +58,7 @@ const resolveOyakataEligibility = (status: RikishiStatus): boolean => {
 };
 
 const resolveSecretStyle = (status: RikishiStatus): StyleArchetype | undefined =>
-  status.realizedStyleProfile?.dominant ?? status.designedStyleProfile?.dominant;
+  resolveSecretStyleFromIdentity(ensureStyleIdentityProfile(status).styleIdentityProfile);
 
 const normalizeGrowthModBudget = (
   growthMod: Oyakata['growthMod'],

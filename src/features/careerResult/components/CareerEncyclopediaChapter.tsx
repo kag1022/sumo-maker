@@ -2,9 +2,13 @@ import React from "react";
 import { BookUser, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type RikishiStatus } from "../../../logic/models";
-import { resolveKataDisplay } from "../../../logic/style/kata";
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveDisplayedWeakStyles,
+  resolveStyleLabelsOrFallback,
+} from "../../../logic/style/identity";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
-import { getStyleLabel } from "../../../logic/styleProfile";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import type { CareerOverviewModel } from "../utils/careerResultModel";
@@ -124,30 +128,29 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         .map(([move]) => move),
     [status.history.kimariteTotal],
   );
-  const kata = resolveKataDisplay(status.kataProfile);
-  const styleLabels = React.useMemo(() => {
-    const labels: string[] = [];
-    const styleProfile = status.realizedStyleProfile ?? status.designedStyleProfile;
-    if (styleProfile) {
-      labels.push(getStyleLabel(styleProfile.primary));
-      if (styleProfile.secondary !== styleProfile.primary) {
-        labels.push(getStyleLabel(styleProfile.secondary));
-      }
-    }
-    if (kata.styleLabel !== "なし" && !labels.includes(kata.styleLabel)) {
-      labels.push(kata.styleLabel);
-    }
-    return labels.slice(0, 3);
-  }, [kata.styleLabel, status.designedStyleProfile, status.realizedStyleProfile]);
+  const styleIdentity = React.useMemo(
+    () => ensureStyleIdentityProfile(status).styleIdentityProfile,
+    [status],
+  );
+  const strengthLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(resolveDisplayedStrengthStyles(styleIdentity)),
+    [styleIdentity],
+  );
+  const weaknessLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(resolveDisplayedWeakStyles(styleIdentity)),
+    [styleIdentity],
+  );
   const signatureLines = React.useMemo(() => {
     const lines: Array<{ label: string; value: string }> = [];
-    if (styleLabels.length > 0) {
-      lines.push({
-        label: "取り口",
-        value: styleLabels.slice(0, 2).join(" / "),
-      });
-    }
-    const representativeMoves = [...new Set([kata.dominantMoveLabel, ...status.signatureMoves, ...topMoves].filter(Boolean))].slice(0, 3);
+    lines.push({
+      label: "得意な型",
+      value: strengthLabel,
+    });
+    lines.push({
+      label: "苦手な型",
+      value: weaknessLabel,
+    });
+    const representativeMoves = [...new Set([...status.signatureMoves, ...topMoves].filter(Boolean))].slice(0, 3);
     if (representativeMoves.length > 0) {
       lines.push({
         label: "代表技",
@@ -155,7 +158,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       });
     }
     return lines;
-  }, [kata.dominantMoveLabel, status.signatureMoves, styleLabels, topMoves]);
+  }, [status.signatureMoves, strengthLabel, topMoves, weaknessLabel]);
   const recordRows = React.useMemo(
     () =>
       [

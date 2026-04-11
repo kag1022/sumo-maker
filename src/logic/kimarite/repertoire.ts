@@ -4,12 +4,15 @@ import type {
   KimariteRepertoireEntry,
   KimariteRepertoireTier,
   RikishiStatus,
+  StyleArchetype,
   Trait,
   WinRoute,
 } from '../models';
 import type { BashoRecord } from '../models';
 import type { KimariteContextTag, KimaritePattern, KimariteStyle, OfficialKimariteEntry } from './catalog';
 import { findOfficialKimariteEntry, normalizeKimariteName, OFFICIAL_WIN_KIMARITE_82 } from './catalog';
+import { ensureStyleIdentityProfile, resolvePrimaryIdentityStyles } from '../style/identity';
+import { styleToTactics } from '../styleProfile';
 
 export interface KimariteRepertoireSeed {
   style: KimariteStyle;
@@ -59,6 +62,9 @@ const TIER_LIMITS: Record<KimariteRepertoireTier, number> = {
   CONTEXT: 1,
   RARE: 1,
 };
+const EXPANDED_PROVISIONAL_SECONDARY_LIMIT = TIER_LIMITS.SECONDARY + 1;
+const DEFAULT_ENTRY_LIMIT = 6;
+const EXPANDED_PROVISIONAL_ENTRY_LIMIT = 7;
 
 const traitMatchScore = (entry: OfficialKimariteEntry, traits: Trait[]): number => {
   const matches = entry.traitTags.filter((trait) => traits.includes(trait)).length;
@@ -131,6 +137,36 @@ const routeSeedBoost = (
 
 const unique = <T,>(values: T[]): T[] => [...new Set(values)];
 
+const isExpandableVarietyStyle = (style: KimariteStyle): boolean =>
+  style === 'GRAPPLE' || style === 'TECHNIQUE';
+
+const resolveSecondaryRouteLimit = (
+  style: KimariteStyle,
+  settled: boolean,
+): number => (!settled && isExpandableVarietyStyle(style) ? 2 : 1);
+
+const resolveEntryLimits = (
+  style: KimariteStyle,
+  provisional: boolean,
+): { secondaryTierLimit: number; totalEntries: number } => ({
+  secondaryTierLimit:
+    provisional && isExpandableVarietyStyle(style)
+      ? EXPANDED_PROVISIONAL_SECONDARY_LIMIT
+      : TIER_LIMITS.SECONDARY,
+  totalEntries:
+    provisional && isExpandableVarietyStyle(style)
+      ? EXPANDED_PROVISIONAL_ENTRY_LIMIT
+      : DEFAULT_ENTRY_LIMIT,
+});
+
+const resolveIdentitySampleAverage = (status: RikishiStatus): number => {
+  const profile = status.styleIdentityProfile;
+  if (!profile) return 0;
+  const styles = Object.values(profile.styles ?? {});
+  if (!styles.length) return 0;
+  return styles.reduce((sum, entry) => sum + (entry.sample ?? 0), 0) / styles.length;
+};
+
 const scoreEntryForSeed = (
   entry: OfficialKimariteEntry,
   route: WinRoute,
@@ -182,7 +218,11 @@ const pushEntry = (
   });
 };
 
-const normalizeEntries = (entries: KimariteRepertoireEntry[]): KimariteRepertoireEntry[] => {
+const normalizeEntries = (
+  entries: KimariteRepertoireEntry[],
+  style: KimariteStyle = 'BALANCE',
+  provisional = false,
+): KimariteRepertoireEntry[] => {
   const deduped = new Map<string, KimariteRepertoireEntry>();
   for (const entry of entries) {
     const normalized = normalizeKimariteName(entry.kimarite);
@@ -210,12 +250,15 @@ const normalizeEntries = (entries: KimariteRepertoireEntry[]): KimariteRepertoir
     grouped[tier].sort((left, right) => right.affinity - left.affinity);
   });
 
-  return ([] as KimariteRepertoireEntry[]).concat(
+  const limits = resolveEntryLimits(style, provisional);
+  const normalized = ([] as KimariteRepertoireEntry[]).concat(
     grouped.PRIMARY.slice(0, TIER_LIMITS.PRIMARY),
-    grouped.SECONDARY.slice(0, TIER_LIMITS.SECONDARY),
+    grouped.SECONDARY.slice(0, limits.secondaryTierLimit),
     grouped.CONTEXT.slice(0, TIER_LIMITS.CONTEXT),
     grouped.RARE.slice(0, TIER_LIMITS.RARE),
   );
+
+  return normalized.slice(0, limits.totalEntries);
 };
 
 const ensurePreferredMove = (
@@ -238,26 +281,27 @@ const resolvePreferredRoute = (seed: KimariteRepertoireSeed): WinRoute | undefin
 
 const resolveRouteSeed = (
   seed: KimariteRepertoireSeed,
-): { primaryRoute: WinRoute; secondaryRoute?: WinRoute } => {
+): { primaryRoute: WinRoute; secondaryRoutes: WinRoute[] } => {
   const preferredRoute = resolvePreferredRoute(seed);
   const stylePrimary = STYLE_PRIMARY_ROUTES[seed.style][0] ?? 'BELT_FORCE';
-  const styleSecondary = STYLE_SECONDARY_ROUTES[seed.style][0];
   const primaryRoute = preferredRoute ?? stylePrimary;
   const secondaryCandidates = unique([
     ...(preferredRoute && preferredRoute !== primaryRoute ? [stylePrimary] : []),
-    styleSecondary,
+    ...STYLE_SECONDARY_ROUTES[seed.style],
     ...(seed.designedSecondaryStyle ? STYLE_SECONDARY_ROUTES[seed.designedSecondaryStyle] : []),
   ]).filter((route): route is WinRoute => Boolean(route) && route !== primaryRoute);
-  const secondaryRoute = secondaryCandidates[0];
-  return { primaryRoute, secondaryRoute };
+  return {
+    primaryRoute,
+    secondaryRoutes: secondaryCandidates.slice(0, resolveSecondaryRouteLimit(seed.style, Boolean(seed.kataSettled))),
+  };
 };
 
 export const createKimariteRepertoireFromSeed = (
   seed: KimariteRepertoireSeed,
 ): KimariteRepertoire => {
-  const { primaryRoute, secondaryRoute } = resolveRouteSeed(seed);
+  const provisional = !seed.kataSettled;
+  const { primaryRoute, secondaryRoutes } = resolveRouteSeed(seed);
   const primaryRoutes = [primaryRoute];
-  const secondaryRoutes = secondaryRoute ? [secondaryRoute] : [];
 
   const entries: KimariteRepertoireEntry[] = [];
   collectRouteCandidates(primaryRoute, seed)
@@ -273,7 +317,7 @@ export const createKimariteRepertoireFromSeed = (
       ),
     );
 
-  if (secondaryRoute) {
+  secondaryRoutes.forEach((secondaryRoute, routeIndex) => {
     collectRouteCandidates(secondaryRoute, seed)
       .filter((entry) => entry.patternRole === 'MAIN' || entry.patternRole === 'ALT')
       .slice(0, 2)
@@ -282,20 +326,21 @@ export const createKimariteRepertoireFromSeed = (
           entries,
           entry,
           secondaryRoute,
-          index === 0 || entry.patternRole === 'MAIN' ? 'SECONDARY' : 'CONTEXT',
+          routeIndex === 0 && (index === 0 || entry.patternRole === 'MAIN') ? 'SECONDARY' : 'CONTEXT',
           scoreEntryForSeed(entry, secondaryRoute, seed),
         ),
       );
-  }
+  });
 
   ensurePreferredMove(entries, seed);
 
   return {
     version: 1,
-    provisional: !seed.kataSettled,
+    provisional,
     primaryRoutes,
     secondaryRoutes,
-    entries: normalizeEntries(entries),
+    routeLockConfidence: 0,
+    entries: normalizeEntries(entries, seed.style, provisional),
   };
 };
 
@@ -313,7 +358,7 @@ const toSeedFromStatus = (status: RikishiStatus): KimariteRepertoireSeed => ({
   preferredMove: status.signatureMoves?.[0],
   designedSecondaryStyle: undefined,
   designedSecretStyle: undefined,
-  kataSettled: Boolean(status.kataProfile?.settled),
+  kataSettled: status.kimariteRepertoire?.provisional === false,
 });
 
 const toKimariteStyle = (style: RikishiStatus['tactics'] | undefined): KimariteStyle | undefined => {
@@ -325,26 +370,33 @@ const toKimariteStyle = (style: RikishiStatus['tactics'] | undefined): KimariteS
 };
 
 export const ensureKimariteRepertoire = (status: RikishiStatus): RikishiStatus => {
+  const normalizedStatus = ensureStyleIdentityProfile(status);
+  const style = toKimariteStyle(normalizedStatus.tactics) ?? 'BALANCE';
   if (status.kimariteRepertoire?.entries?.length) {
+    const provisional = status.kimariteRepertoire.provisional !== false;
     return {
-      ...status,
+      ...normalizedStatus,
       kimariteRepertoire: {
         ...status.kimariteRepertoire,
         version: 1,
         primaryRoutes: unique(status.kimariteRepertoire.primaryRoutes ?? []).slice(0, 1),
-        secondaryRoutes: unique(status.kimariteRepertoire.secondaryRoutes ?? []).slice(0, 1),
-        entries: normalizeEntries(status.kimariteRepertoire.entries ?? []),
+        secondaryRoutes: unique(status.kimariteRepertoire.secondaryRoutes ?? []).slice(
+          0,
+          resolveSecondaryRouteLimit(style, !provisional),
+        ),
+        routeLockConfidence: status.kimariteRepertoire.routeLockConfidence ?? 0,
+        entries: normalizeEntries(status.kimariteRepertoire.entries ?? [], style, provisional),
       },
     };
   }
+  const preferredStyles = resolvePrimaryIdentityStyles(normalizedStatus.styleIdentityProfile);
   const seed: KimariteRepertoireSeed = {
-    ...toSeedFromStatus(status),
-    designedPrimaryStyle: status.designedStyleProfile ? toKimariteStyle(status.designedStyleProfile.primary === 'TSUKI_OSHI' || status.designedStyleProfile.primary === 'POWER_PRESSURE' ? 'PUSH' : status.designedStyleProfile.primary === 'YOTSU' || status.designedStyleProfile.primary === 'MOROZASHI' ? 'GRAPPLE' : 'TECHNIQUE') : undefined,
-    designedSecondaryStyle: status.designedStyleProfile ? toKimariteStyle(status.designedStyleProfile.secondary === 'TSUKI_OSHI' || status.designedStyleProfile.secondary === 'POWER_PRESSURE' ? 'PUSH' : status.designedStyleProfile.secondary === 'YOTSU' || status.designedStyleProfile.secondary === 'MOROZASHI' ? 'GRAPPLE' : 'TECHNIQUE') : undefined,
-    designedSecretStyle: status.designedStyleProfile?.secret ? toKimariteStyle(status.designedStyleProfile.secret === 'TSUKI_OSHI' || status.designedStyleProfile.secret === 'POWER_PRESSURE' ? 'PUSH' : status.designedStyleProfile.secret === 'YOTSU' || status.designedStyleProfile.secret === 'MOROZASHI' ? 'GRAPPLE' : 'TECHNIQUE') : undefined,
+    ...toSeedFromStatus(normalizedStatus),
+    designedPrimaryStyle: preferredStyles[0] ? toKimariteStyle(styleToTactics(preferredStyles[0])) : undefined,
+    designedSecondaryStyle: preferredStyles[1] ? toKimariteStyle(styleToTactics(preferredStyles[1])) : undefined,
   };
   return {
-    ...status,
+    ...normalizedStatus,
     kimariteRepertoire: createKimariteRepertoireFromSeed(seed),
   };
 };
@@ -372,9 +424,32 @@ export const evolveKimariteRepertoireAfterBasho = (
   const ensured = ensureKimariteRepertoire(status);
   const current = ensured.kimariteRepertoire;
   if (!current) return ensured;
+  const style = toKimariteStyle(ensured.tactics) ?? 'BALANCE';
+  const currentProvisional = current.provisional !== false;
   const entries = current.entries.map((entry) => ({ ...entry }));
-  const dominantRoute = Object.entries(record.winRouteCount ?? {})
-    .sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0))[0]?.[0] as WinRoute | undefined;
+  const sortedRoutes = Object.entries(record.winRouteCount ?? {})
+    .sort((left, right) => (right[1] ?? 0) - (left[1] ?? 0));
+  const dominantRoute = sortedRoutes[0]?.[0] as WinRoute | undefined;
+  const totalRouteWins = sortedRoutes.reduce((sum, [, count]) => sum + (count ?? 0), 0);
+  const dominantRouteShare =
+    dominantRoute && totalRouteWins > 0 ? (sortedRoutes[0]?.[1] ?? 0) / totalRouteWins : 0;
+  let routeLockConfidence = current.routeLockConfidence ?? 0;
+  const dominantRouteIsKnown = Boolean(
+    dominantRoute &&
+    (current.primaryRoutes.includes(dominantRoute) || current.secondaryRoutes.includes(dominantRoute)),
+  );
+  if (dominantRouteIsKnown && dominantRouteShare >= 0.55) {
+    routeLockConfidence = Math.min(3, routeLockConfidence + 1);
+  } else if (dominantRouteShare < 0.45 || record.wins < 4) {
+    routeLockConfidence = Math.max(0, routeLockConfidence - 1);
+  }
+  const settled =
+    current.provisional === false || (
+      resolveIdentitySampleAverage(ensured) >= 60 &&
+      record.wins >= 5 &&
+      dominantRouteShare >= 0.55 &&
+      routeLockConfidence >= 2
+    );
 
   for (const [move, count] of Object.entries(record.kimariteCount ?? {})) {
     if (count <= 0) continue;
@@ -384,15 +459,17 @@ export const evolveKimariteRepertoireAfterBasho = (
     const existing = entries.find((entry) => entry.kimarite === normalized);
     if (existing) {
       existing.affinity += count * 0.45;
-      if (count >= 3 && existing.tier === 'SECONDARY') existing.tier = 'PRIMARY';
-      else if (count >= 2 && existing.tier === 'CONTEXT') existing.tier = 'SECONDARY';
+      if (!currentProvisional) {
+        if (count >= 3 && existing.tier === 'SECONDARY') existing.tier = 'PRIMARY';
+        else if (count >= 2 && existing.tier === 'CONTEXT') existing.tier = 'SECONDARY';
+      }
       continue;
     }
     const official = findOfficialKimariteEntry(normalized);
     if (!official || official.patternRole === 'CONTEXT' || official.patternRole === 'RARE' || official.rarityBucket !== 'COMMON') continue;
     const routeIsStable = current.primaryRoutes.includes(route) || current.secondaryRoutes.includes(route);
     if (!routeIsStable || count < 3) continue;
-    if (entries.length >= 6) continue;
+    if (entries.length >= resolveEntryLimits(style, currentProvisional).totalEntries) continue;
     if (entries.filter((entry) => entry.route === route).length >= 3) continue;
     if (dominantRoute && route !== dominantRoute && !current.secondaryRoutes.includes(route)) continue;
     const tier: KimariteRepertoireTier = 'SECONDARY';
@@ -408,11 +485,18 @@ export const evolveKimariteRepertoireAfterBasho = (
   const nextPrimaryRoutes = dominantRoute
     ? unique([dominantRoute, ...current.primaryRoutes]).slice(0, 1)
     : current.primaryRoutes;
-  const nextSecondaryRoutes = unique([...current.secondaryRoutes])
+  const nextSecondaryRoutes = unique([
+    ...current.secondaryRoutes,
+    ...(dominantRoute && !nextPrimaryRoutes.includes(dominantRoute) ? [dominantRoute] : []),
+    ...STYLE_SECONDARY_ROUTES[style],
+  ])
     .filter((route) => !nextPrimaryRoutes.includes(route))
-    .slice(0, 1);
+    .slice(0, resolveSecondaryRouteLimit(style, settled));
 
-  if (ensured.kataProfile?.settled && dominantRoute) {
+  if (settled && dominantRoute) {
+    entries.forEach((entry) => {
+      if (entry.tier === 'PRIMARY') entry.tier = 'SECONDARY';
+    });
     const topDominant = entries
       .filter((entry) => entry.route === dominantRoute)
       .sort((left, right) => right.affinity - left.affinity)[0];
@@ -423,10 +507,62 @@ export const evolveKimariteRepertoireAfterBasho = (
     ...ensured,
     kimariteRepertoire: {
       version: 1,
-      provisional: !ensured.kataProfile?.settled,
+      provisional: !settled,
       primaryRoutes: nextPrimaryRoutes,
       secondaryRoutes: nextSecondaryRoutes,
-      entries: normalizeEntries(entries),
+      routeLockConfidence,
+      settledAtBashoSeq: settled ? current.settledAtBashoSeq ?? bashoSeq : undefined,
+      entries: normalizeEntries(entries, style, !settled),
+    },
+  };
+};
+
+export const rebuildTechniqueBranchRepertoire = (
+  status: RikishiStatus,
+  bashoSeq: number,
+  archetype: Extract<StyleArchetype, 'NAGE_TECH' | 'DOHYOUGIWA'> = 'NAGE_TECH',
+): RikishiStatus => {
+  const ensured = ensureKimariteRepertoire(status);
+  const retained = ensured.kimariteRepertoire?.entries
+    ?.slice()
+    .sort((left, right) => right.affinity - left.affinity)[0];
+  const preferredMove =
+    archetype === 'NAGE_TECH'
+      ? status.signatureMoves?.[0] || '上手投げ'
+      : status.signatureMoves?.[0] || '叩き込み';
+  const preferredStyles = resolvePrimaryIdentityStyles(ensured.styleIdentityProfile);
+  const rebuilt = createKimariteRepertoireFromSeed({
+    ...toSeedFromStatus({ ...ensured, tactics: 'TECHNIQUE', signatureMoves: [preferredMove] }),
+    style: 'TECHNIQUE',
+    designedPrimaryStyle: 'TECHNIQUE',
+    designedSecondaryStyle: preferredStyles[1] ? toKimariteStyle(styleToTactics(preferredStyles[1])) : undefined,
+    kataSettled: true,
+  });
+  const mergedEntries = rebuilt.entries.slice();
+
+  if (retained && !mergedEntries.some((entry) => entry.kimarite === retained.kimarite)) {
+    mergedEntries.push({
+      ...retained,
+      tier: retained.route === 'THROW_BREAK' || retained.route === 'PULL_DOWN' ? retained.tier : 'SECONDARY',
+      affinity: Math.max(retained.affinity, 3.2),
+      unlockedAtBashoSeq: retained.unlockedAtBashoSeq ?? bashoSeq,
+    });
+  }
+
+  return {
+    ...ensured,
+    kimariteRepertoire: {
+      version: 1,
+      provisional: false,
+      primaryRoutes: ['THROW_BREAK'],
+      secondaryRoutes: ['PULL_DOWN'],
+      routeLockConfidence: 3,
+      settledAtBashoSeq: bashoSeq,
+      entries: normalizeEntries(
+        mergedEntries.filter((entry) => entry.tier !== 'CONTEXT' && entry.tier !== 'RARE'),
+        'TECHNIQUE',
+        false,
+      ),
     },
   };
 };

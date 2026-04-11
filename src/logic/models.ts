@@ -240,6 +240,7 @@ export interface RikishiStatus {
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   kimariteRepertoire?: KimariteRepertoire;
+  styleIdentityProfile?: StyleIdentityProfile;
   bodyType: BodyType;          // 体格タイプ
   profile: BasicProfile;       // 基本プロフィール
   bodyMetrics: BodyMetrics;    // 身長・体重
@@ -255,8 +256,6 @@ export interface RikishiStatus {
   retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
   kataProfile?: KataProfile;
-  designedStyleProfile?: StyleProfile;
-  realizedStyleProfile?: StyleProfile | null;
   buildSummary?: BuildSummary;
   careerSeed?: CareerSeed;
   careerNarrative?: CareerNarrativeSummary;
@@ -363,6 +362,19 @@ export interface StyleProfile {
   locked?: boolean;
 }
 
+export interface StyleIdentityEntry {
+  aptitude: number;
+  resistance: number;
+  sample: number;
+  lastDelta: number;
+}
+
+export interface StyleIdentityProfile {
+  version: 1;
+  styles: Record<StyleArchetype, StyleIdentityEntry>;
+  lastUpdatedBashoSeq?: number;
+}
+
 export type WinRoute =
   | 'PUSH_OUT'
   | 'BELT_FORCE'
@@ -387,7 +399,17 @@ export interface KimariteRepertoire {
   provisional: boolean;
   primaryRoutes: WinRoute[];
   secondaryRoutes: WinRoute[];
+  routeLockConfidence?: number;
+  settledAtBashoSeq?: number;
   entries: KimariteRepertoireEntry[];
+}
+
+export interface StyleEvolutionProfile {
+  techniqueAffinity: number;
+  birthStyleBias: TacticsType;
+  branchState: 'NONE' | 'PENDING' | 'LOCKED';
+  pendingTechniqueCount: number;
+  branchedAtBashoSeq?: number;
 }
 
 export interface LifeCardSummary {
@@ -842,6 +864,8 @@ export interface RealismProbeMetrics extends RealismKpiSnapshot {
   top3MoveShareP50?: number;
   rareMoveRate?: number;
   kimariteVariety20Rate?: number;
+  techniqueBranchRate?: number;
+  finalTechniqueRate?: number;
   styleBucketMetrics?: Partial<Record<'PUSH' | 'GRAPPLE' | 'TECHNIQUE', RealismStyleBucketMetrics>>;
 }
 

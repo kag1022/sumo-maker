@@ -38,7 +38,7 @@ import {
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
 import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
-import { updateKataProfileAfterBasho } from '../../style/kata';
+import { updateStyleIdentityAfterBasho } from '../../style/identity';
 import {
   applySpiritChangeAfterBasho,
   ensureCareerRecordStatus,
@@ -49,12 +49,12 @@ import {
   withRivalSummary,
 } from '../../careerNarrative';
 import { applyTraitAwakeningsForBasho } from '../../traits';
-import { resolveRealizedStyleProfile } from '../../styleProfile';
 import {
   appendRuntimeRivalryStep,
   buildCareerRivalryDigest,
 } from '../../careerRivalry';
 import { buildCareerRealismSnapshot, updateStagnationState } from '../realism';
+import { evolveKimariteRepertoireAfterBasho } from '../../kimarite/repertoire';
 import {
   advanceTopDivisionBanzuke,
   countActiveBanzukeHeadcountExcludingMaezumo,
@@ -340,7 +340,17 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   state.status.history.records.push(bashoRecord);
   updateCareerStats(state.status, bashoRecord);
-  state.status = updateKataProfileAfterBasho(state.status, bashoRecord, state.seq + 1);
+  state.status = updateStyleIdentityAfterBasho(
+    state.status,
+    bashoRecord,
+    state.seq + 1,
+    bashoResult.playerBoutDetails,
+  );
+  state.status.kimariteRepertoire = evolveKimariteRepertoireAfterBasho(
+    state.status,
+    bashoRecord,
+    state.seq + 1,
+  ).kimariteRepertoire;
 
   const pastRecords = resolvePastRecords(state.status.history.records);
   const topDivisionQuota = resolveTopDivisionQuotaForPlayer(world, state.status.rank);
@@ -614,7 +624,6 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   }
   bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
-  state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
   state.status = ensureCareerRecordStatus(state.status);
   state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
   if (true) {

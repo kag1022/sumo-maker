@@ -1,7 +1,12 @@
 import { getRankValueForChart } from '../../../logic/ranking';
 import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
 import { buildCounterfactualInjuryText, buildFantasyHooks } from '../../../logic/careerNarrative';
-import { getStyleLabel } from '../../../logic/styleProfile';
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveDisplayedWeakStyles,
+  resolveStyleLabels,
+} from '../../../logic/style/identity';
 import {
   BashoRecord,
   HighlightEventTag,
@@ -181,15 +186,14 @@ export const buildCareerHeadline = (status: RikishiStatus): string => {
 };
 
 export const buildDesignedVsRealizedLabel = (status: RikishiStatus): string => {
-  const designed = status.designedStyleProfile;
-  const realized = status.realizedStyleProfile;
-  if (!designed && !realized) return '型未確立';
-  if (!realized) return `設計型 ${designed ? getStyleLabel(designed.dominant) : '不明'} / 実戦型未確立`;
-  if (!designed) return `実戦型 ${getStyleLabel(realized.dominant)}`;
-  if (designed.dominant === realized.dominant) {
-    return `設計型 ${getStyleLabel(designed.dominant)} と実戦型が一致`;
-  }
-  return `設計型 ${getStyleLabel(designed.dominant)} -> 実戦型 ${getStyleLabel(realized.dominant)}`;
+  const profile = ensureStyleIdentityProfile(status).styleIdentityProfile;
+  const strengths = resolveDisplayedStrengthStyles(profile);
+  const weaknesses = resolveDisplayedWeakStyles(profile);
+  if (strengths.length === 0 && weaknesses.length === 0) return '得意な型なし / 苦手な型なし';
+  const parts: string[] = [];
+  if (strengths.length > 0) parts.push(`得意 ${resolveStyleLabels(strengths).join(' / ')}`);
+  if (weaknesses.length > 0) parts.push(`苦手 ${resolveStyleLabels(weaknesses).join(' / ')}`);
+  return parts.join(' / ');
 };
 
 export const buildFantasyHooksForReport = (status: RikishiStatus): string[] => buildFantasyHooks(status);
