@@ -48,7 +48,11 @@ import {
   resolveKimariteRarityLabel,
 } from '../kimarite/catalog';
 import { deriveOyakataProfile } from '../oyakata/profile';
-import { ensureKataProfile, resolveKataDisplay } from '../style/kata';
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveStyleLabelsOrFallback,
+} from '../style/identity';
 import { buildCareerRivalryDigest } from '../careerRivalry';
 import {
   createUnlockedOyakataBlueprint,
@@ -1069,7 +1073,11 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   lifetimePrizeYen: row.lifetimePrizeYen,
   earnedPointsFromPrize: row.earnedPointsFromPrize,
   oyakataProfile: row.oyakataProfile,
-  kataLabel: resolveKataDisplay(row.finalStatus?.kataProfile).styleLabel,
+  kataLabel: row.finalStatus
+    ? resolveStyleLabelsOrFallback(
+        resolveDisplayedStrengthStyles(ensureStyleIdentityProfile(row.finalStatus).styleIdentityProfile),
+      )
+    : 'なし',
   parentCareerId: row.parentCareerId,
   generation: row.generation,
   careerIndex: row.careerIndex,
@@ -1285,7 +1293,7 @@ export const loadCareerStatus = async (careerId: string): Promise<RikishiStatus 
   const row = await db.careers.get(careerId);
   if (!row) return null;
   if (!row.finalStatus) return null;
-  const status = ensureCareerRecordStatus(ensureKataProfile(row.finalStatus));
+  const status = ensureCareerRecordStatus(ensureStyleIdentityProfile(row.finalStatus));
   if ((row.detailState ?? 'ready') !== 'ready') {
     return status;
   }

@@ -1,5 +1,6 @@
 import { RikishiStatus, StyleArchetype, StyleCompatibility, StyleProfile, TacticsType } from './models';
 import { resolveStyleCountScoreForKimarite } from './kimarite/catalog';
+import { ensureStyleIdentityProfile, resolveDisplayedStrengthStyles } from './style/identity';
 
 export const STYLE_LABELS: Record<StyleArchetype, string> = {
   YOTSU: '四つ',
@@ -73,6 +74,22 @@ export const createDesignedStyleProfile = (input: {
 };
 
 export const resolveRealizedStyleProfile = (status: RikishiStatus): StyleProfile | null => {
+  const ensured = ensureStyleIdentityProfile(status);
+  const strengths = resolveDisplayedStrengthStyles(ensured.styleIdentityProfile);
+  if (strengths.length > 0) {
+    const primary = strengths[0];
+    const secondary = strengths[1] ?? strengths[0];
+    return {
+      primary,
+      secondary,
+      dominant: primary,
+      compatibility: getStyleCompatibility(primary, secondary),
+      label: secondary !== primary ? `${STYLE_LABELS[primary]} / ${STYLE_LABELS[secondary]}` : STYLE_LABELS[primary],
+      confidence: 0.88,
+      source: 'REALIZED',
+      locked: strengths.length === 0,
+    };
+  }
   const entries = Object.entries(status.history.kimariteTotal ?? {}).filter(([, count]) => count > 0);
   if (entries.length < 6) return null;
   const scoreMap: Record<StyleArchetype, number> = {
@@ -90,10 +107,6 @@ export const resolveRealizedStyleProfile = (status: RikishiStatus): StyleProfile
     (Object.keys(styleScores) as StyleArchetype[]).forEach((style) => {
       scoreMap[style] += (styleScores[style] ?? 0) * count;
     });
-  }
-  if (status.designedStyleProfile) {
-    scoreMap[status.designedStyleProfile.primary] += 1.2;
-    scoreMap[status.designedStyleProfile.secondary] += 0.8;
   }
   const ranked = (Object.entries(scoreMap) as Array<[StyleArchetype, number]>)
     .sort((a, b) => b[1] - a[1]);

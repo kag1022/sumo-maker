@@ -29,7 +29,7 @@ import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulatio
 import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 import { resolveLegacyAptitudeFactor } from './simulation/realism';
 import { createKimariteRepertoireFromSeed } from './kimarite/repertoire';
-import { styleToTactics } from './styleProfile';
+import { ensureStyleIdentityProfile } from './style/identity';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -180,15 +180,6 @@ export const createInitialRikishi = (
   const retirementProfile =
     params.retirementProfile ??
     resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
-  const designedPrimaryStyle = params.designedStyleProfile
-    ? (params.designedStyleProfile.primary ? (styleToTactics(params.designedStyleProfile.primary) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.primary) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.primary) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE') : undefined)
-    : undefined;
-  const designedSecondaryStyle = params.designedStyleProfile
-    ? (params.designedStyleProfile.secondary ? (styleToTactics(params.designedStyleProfile.secondary) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.secondary) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.secondary) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE') : undefined)
-    : undefined;
-  const designedSecretStyle = params.designedStyleProfile?.secret
-    ? (styleToTactics(params.designedStyleProfile.secret) === 'PUSH' ? 'PUSH' : styleToTactics(params.designedStyleProfile.secret) === 'GRAPPLE' ? 'GRAPPLE' : styleToTactics(params.designedStyleProfile.secret) === 'TECHNIQUE' ? 'TECHNIQUE' : 'BALANCE')
-    : undefined;
   const kimariteRepertoire = createKimariteRepertoireFromSeed({
     style:
       params.tactics === 'PUSH'
@@ -201,13 +192,10 @@ export const createInitialRikishi = (
     bodyType: params.bodyType,
     traits: params.traits,
     preferredMove: params.signatureMove,
-    designedPrimaryStyle,
-    designedSecondaryStyle,
-    designedSecretStyle,
     kataSettled: false,
   });
 
-  return {
+  return ensureStyleIdentityProfile({
     stableId: params.stableId,
     ichimonId: params.ichimonId,
     stableArchetypeId: params.stableArchetypeId,
@@ -249,8 +237,6 @@ export const createInitialRikishi = (
       settled: false,
       confidence: 0,
     },
-    designedStyleProfile: params.designedStyleProfile,
-    realizedStyleProfile: null,
     buildSummary: params.buildSummary,
     mentorId: params.mentorId,
     spirit: Number.isFinite(params.spirit) ? Math.round(params.spirit as number) : 70,
@@ -281,6 +267,6 @@ export const createInitialRikishi = (
       },
     },
     statHistory: [],
-  };
+  });
 };
 

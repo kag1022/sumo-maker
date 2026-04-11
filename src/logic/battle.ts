@@ -28,7 +28,12 @@ import {
 import { createKimariteRepertoireFromSeed, ensureKimariteRepertoire } from './kimarite/repertoire';
 import { resolveStableById } from './simulation/heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
-import { getCompatibilityWeight, styleToTactics } from './styleProfile';
+import {
+  ensureStyleIdentityProfile,
+  resolvePrimaryIdentityStyles,
+  resolveStyleMatchupDelta,
+} from './style/identity';
+import { styleToTactics } from './styleProfile';
 
 export { type EnemyStats };
 
@@ -101,41 +106,13 @@ const resolveBodyMetricModifiers = (
 const resolveSizeScore = (heightCm: number, weightKg: number): number =>
   (heightCm - 180) * 0.20 + (weightKg - 140) * 0.12;
 
-const resolveEnemyStyleMatchupModifier = (
-  myTactics: RikishiStatus['tactics'],
+const resolveIdentityBattleModifier = (
+  status: RikishiStatus,
   enemyStyle?: EnemyStyleBias,
 ): number => {
-  if (!enemyStyle || enemyStyle === 'BALANCE' || myTactics === 'BALANCE') return 1;
-  if (
-    (myTactics === 'PUSH' && enemyStyle === 'TECHNIQUE') ||
-    (myTactics === 'TECHNIQUE' && enemyStyle === 'GRAPPLE') ||
-    (myTactics === 'GRAPPLE' && enemyStyle === 'PUSH')
-  ) {
-    return 1.04;
-  }
-  if (
-    (myTactics === 'PUSH' && enemyStyle === 'GRAPPLE') ||
-    (myTactics === 'TECHNIQUE' && enemyStyle === 'PUSH') ||
-    (myTactics === 'GRAPPLE' && enemyStyle === 'TECHNIQUE')
-  ) {
-    return 0.96;
-  }
-  return 1;
-};
-
-const resolveKataBattleModifier = (status: RikishiStatus): number => {
-  const kata = status.kataProfile;
-  if (!kata) return 1;
-  if (kata.settled) return 1.03;
-  return kata.confidence < 0.35 ? 0.985 : 1.0;
-};
-
-const resolveDesignedStyleBattleModifier = (status: RikishiStatus): number => {
-  const profile = status.designedStyleProfile;
-  if (!profile) return 1;
-  const compatibilityBonus = getCompatibilityWeight(profile.compatibility) / 100;
-  const secretTacticsMatch = profile.secret && styleToTactics(profile.secret) === status.tactics;
-  return 1 + compatibilityBonus + (secretTacticsMatch ? 0.03 : 0);
+  const ensured = ensureStyleIdentityProfile(status);
+  const delta = resolveStyleMatchupDelta(ensured.styleIdentityProfile, enemyStyle);
+  return 1 + delta;
 };
 
 const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
@@ -237,7 +214,8 @@ const buildPlayerKimariteProfile = (
   weightKg: number,
   preferredMove?: string | null,
 ): KimariteCompetitorProfile => {
-  const normalized = ensureKimariteRepertoire(rikishi);
+  const normalized = ensureKimariteRepertoire(ensureStyleIdentityProfile(rikishi));
+  const preferredStyles = resolvePrimaryIdentityStyles(normalized.styleIdentityProfile);
   return {
     style: toKimariteStyle(normalized.tactics),
     bodyType: normalized.bodyType,
@@ -247,10 +225,9 @@ const buildPlayerKimariteProfile = (
     traits: normalized.traits || [],
     preferredMove: preferredMove ?? normalized.signatureMoves?.[0] ?? undefined,
     historyCounts: normalized.history.kimariteTotal ?? {},
-    designedPrimaryStyle: normalized.designedStyleProfile ? toKimariteStyle(styleToTactics(normalized.designedStyleProfile.primary)) : undefined,
-    designedSecondaryStyle: normalized.designedStyleProfile ? toKimariteStyle(styleToTactics(normalized.designedStyleProfile.secondary)) : undefined,
-    designedSecretStyle: normalized.designedStyleProfile?.secret ? toKimariteStyle(styleToTactics(normalized.designedStyleProfile.secret)) : undefined,
-    kataSettled: Boolean(normalized.kataProfile?.settled),
+    designedPrimaryStyle: preferredStyles[0] ? toKimariteStyle(styleToTactics(preferredStyles[0])) : undefined,
+    designedSecondaryStyle: preferredStyles[1] ? toKimariteStyle(styleToTactics(preferredStyles[1])) : undefined,
+    kataSettled: normalized.kimariteRepertoire?.provisional === false,
     repertoire: normalized.kimariteRepertoire,
   };
 };
@@ -400,9 +377,7 @@ const resolveBattleResult = (
   const enemyWeight = enemy.weightKg;
   const sizeDiff = clamp(resolveSizeScore(myHeight, myWeight) - resolveSizeScore(enemyHeight, enemyWeight), -12, 12);
   myPower += sizeDiff * 0.9;
-  myPower *= resolveEnemyStyleMatchupModifier(rikishi.tactics, enemy.styleBias);
-  myPower *= resolveKataBattleModifier(rikishi);
-  myPower *= resolveDesignedStyleBattleModifier(rikishi);
+  myPower *= resolveIdentityBattleModifier(rikishi, enemy.styleBias);
 
   let usedSignatureMove: string | null = null;
   if (rikishi.signatureMoves && rikishi.signatureMoves.length > 0) {

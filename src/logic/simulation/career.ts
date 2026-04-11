@@ -5,9 +5,10 @@ import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
+import { ensureStyleIdentityProfile } from '../style/identity';
 import { ensureCareerRecordStatus, pushCareerTurningPoint } from '../careerNarrative';
 import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
-import { ensureKimariteRepertoire, evolveKimariteRepertoireAfterBasho } from '../kimarite/repertoire';
+import { ensureKimariteRepertoire } from '../kimarite/repertoire';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -107,7 +108,13 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (!Number.isFinite(status.spirit)) status.spirit = 70;
   if (!status.stagnation) status.stagnation = createDefaultStagnationState();
   status.history.realismKpi = buildCareerRealismSnapshot(status);
-  return ensureCareerRecordStatus(ensureKimariteRepertoire(ensureKataProfile(status)));
+  return ensureCareerRecordStatus(
+    ensureKimariteRepertoire(
+      ensureStyleIdentityProfile(
+        ensureKataProfile(status),
+      ),
+    ),
+  );
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
@@ -231,8 +238,6 @@ export const updateCareerStats = (status: RikishiStatus, record: BashoRecord): v
   if (isHigherRank(status.rank, status.history.maxRank)) {
     status.history.maxRank = { ...status.rank };
   }
-  const evolved = evolveKimariteRepertoireAfterBasho(status, record, status.history.records.length + 1);
-  status.kimariteRepertoire = evolved.kimariteRepertoire;
 };
 
 export const finalizeCareer = (

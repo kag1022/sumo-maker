@@ -9,7 +9,11 @@ import {
   RikishiStatus,
   TurningPointSummary,
 } from './models';
-import { STYLE_LABELS } from './styleProfile';
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveStyleLabels,
+} from './style/identity';
 import { normalizeTraitProgress } from './traits';
 
 interface RivalHeadToHeadInput {
@@ -302,6 +306,8 @@ export const buildCounterfactualInjuryText = (status: RikishiStatus): string | n
 
 export const buildFantasyHooks = (status: RikishiStatus): string[] => {
   const hooks: string[] = [];
+  const ensured = ensureStyleIdentityProfile(status);
+  const strengths = resolveDisplayedStrengthStyles(ensured.styleIdentityProfile);
   const highlights = inferHighlightEvents(status);
   const yusho = highlights.find((event) => event.tag === 'YUSHO');
   const firstSekitori = highlights.find((event) => event.tag === 'FIRST_SEKITORI');
@@ -312,12 +318,8 @@ export const buildFantasyHooks = (status: RikishiStatus): string[] => {
   if (yusho) hooks.push(`${yusho.year}年${yusho.month}月の優勝で、一門の看板候補として空気が変わった。`);
   if (kinboshi) hooks.push(`${kinboshi.year}年${kinboshi.month}月の金星が、型の完成を世間に知らしめた。`);
   if (majorInjury) hooks.push(`${majorInjury.year}年${majorInjury.month}月の大怪我がなければ、もう一段上の番付争いが見えた。`);
-  if (status.designedStyleProfile && status.realizedStyleProfile) {
-    if (status.designedStyleProfile.dominant !== status.realizedStyleProfile.dominant) {
-      hooks.push(`設計では${STYLE_LABELS[status.designedStyleProfile.dominant]}型だったが、土俵では${STYLE_LABELS[status.realizedStyleProfile.dominant]}に化けた。`);
-    } else {
-      hooks.push(`設計どおり${STYLE_LABELS[status.designedStyleProfile.dominant]}を通し切った、珍しい完成形だった。`);
-    }
+  if (strengths.length > 0) {
+    hooks.push(`土俵では${resolveStyleLabels(strengths).join(' / ')}を得意な型として残した。`);
   }
   if (hooks.length < 3) {
     hooks.push(`最高位 ${status.history.maxRank.name} までの曲線に、この力士らしい癖がはっきり残った。`);
@@ -365,11 +367,14 @@ export const applySpiritChangeAfterBasho = (input: {
 
 export const buildCareerNarrativeSummary = (status: RikishiStatus): CareerNarrativeSummary => {
   const seed = status.careerSeed;
+  const ensured = ensureStyleIdentityProfile(status);
+  const strengths = resolveDisplayedStrengthStyles(ensured.styleIdentityProfile);
+  const styleLabel = strengths.length > 0 ? resolveStyleLabels(strengths).join(' / ') : '型未確立';
   const designEchoes = seed
     ? [
         `${seed.entryPathLabel}として入ったことが、入口番付と序盤の見られ方を決めた。`,
         `${seed.temperamentLabel}気質は、${status.history.totalAbsent > 0 ? "停滞や休場を含む波" : "踏みとどまり方"}に残った。`,
-        `${seed.bodySeedLabel}は、最終的な${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgと${status.realizedStyleProfile ? STYLE_LABELS[status.realizedStyleProfile.dominant] : "実戦型"}の輪郭に繋がった。`,
+        `${seed.bodySeedLabel}は、最終的な${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgと${styleLabel}の輪郭に繋がった。`,
       ]
     : undefined;
   const initialConditions = seed
@@ -380,9 +385,9 @@ export const buildCareerNarrativeSummary = (status: RikishiStatus): CareerNarrat
       ? `${seed.initialHeightCm}cm・${seed.initialWeightKg}kgの入口から、最終的に${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgまで形を変えた。`
       : `番付の浮沈とともに、体格と地力の輪郭が固まっていった。`;
   const careerIdentity =
-    status.realizedStyleProfile
-      ? `実戦では${STYLE_LABELS[status.realizedStyleProfile.dominant]}を主軸に戦い、最高位は${status.history.maxRank.name}まで届いた。`
-      : `型は固定され切らず、それでも最高位は${status.history.maxRank.name}まで届いた。`;
+    strengths.length > 0
+      ? `実戦では${styleLabel}を得意な型として残し、最高位は${status.history.maxRank.name}まで届いた。`
+      : `どの型にも収まり切らないまま、それでも最高位は${status.history.maxRank.name}まで届いた。`;
   const retirementDigest = `引退時は${status.age}歳。${getRetirementSpiritReason(status)}。`;
   return {
     initialConditions,
