@@ -76,6 +76,7 @@ export const runSimplifiedBasho = (
         opponentRankName: enemy.rankName,
         opponentRankNumber: enemy.rankNumber,
         opponentRankSide: enemy.rankSide,
+        opponentStyleBias: enemy.styleBias ?? 'BALANCE',
       });
       if (postInjury.mustSitOut) {
         const remaining = numBouts - day;
@@ -145,6 +146,7 @@ export const runSimplifiedBasho = (
       opponentRankName: enemy.rankName,
       opponentRankNumber: enemy.rankNumber,
       opponentRankSide: enemy.rankSide,
+      opponentStyleBias: enemy.styleBias ?? 'BALANCE',
     });
   }
 

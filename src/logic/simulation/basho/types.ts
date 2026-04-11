@@ -1,4 +1,5 @@
 import { BashoRecord, Rank, WinRoute } from '../../models';
+import type { EnemyStyleBias } from '../../catalog/enemyData';
 import { LowerLeagueSnapshots } from '../lowerQuota';
 import type { TorikumiMatchReason, TorikumiPair } from '../torikumi/types';
 import { TorikumiDiagnostics } from '../torikumi/types';
@@ -15,6 +16,7 @@ export interface PlayerBoutDetail {
   opponentRankName?: string;
   opponentRankNumber?: number;
   opponentRankSide?: 'East' | 'West';
+  opponentStyleBias?: EnemyStyleBias;
 }
 
 export interface NpcBashoAggregate {

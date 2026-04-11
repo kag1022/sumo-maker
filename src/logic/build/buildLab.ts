@@ -36,11 +36,7 @@ import {
   estimateCareerBandLabel,
   STARTER_OYAKATA_BLUEPRINTS,
 } from '../careerSeed';
-import {
-  createDesignedStyleProfile,
-  getStyleCompatibility,
-  styleToTactics,
-} from '../styleProfile';
+import { getStyleCompatibility } from '../styleProfile';
 
 export interface BuildCostBreakdown {
   physical: number;
@@ -767,11 +763,6 @@ export const buildInitialRikishiFromSpec = (
     spec.amateurBackground === 'MIDDLE_SCHOOL' ? 'EARLY' :
     spec.amateurBackground === 'COLLEGE_YOKOZUNA' ? 'NORMAL' :
     'NORMAL';
-  const designedStyleProfile = createDesignedStyleProfile({
-    primary: spec.primaryStyle,
-    secondary: spec.secondaryStyle,
-    secret: oyakata.secretStyle,
-  });
   const traitJourney = buildLockedTraitJourney([
     { source: 'MENTAL_TRAIT', traits: resolveMentalTraits(spec.mentalTrait) },
     { source: 'INJURY_RESISTANCE', traits: resolveInjuryTraits(spec.injuryResistance) },
@@ -802,6 +793,9 @@ export const buildInitialRikishiFromSpec = (
     compatibility,
   });
   const entryAge = background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0);
+  const isTsukedashi =
+    background.startRank.division === 'Makushita' ||
+    background.startRank.division === 'Sandanme';
   const status = createInitialRikishi({
     shikona: generateShikona(),
     age: entryAge,
@@ -809,7 +803,14 @@ export const buildInitialRikishiFromSpec = (
     archetype: 'HARD_WORKER',
     aptitudeTier: rollAptitudeTier(Math.random),
     aptitudeFactor: 1,
-    tactics: styleToTactics(designedStyleProfile.dominant),
+    tactics:
+      isTsukedashi
+        ? spec.primaryStyle === 'TSUKI_OSHI' || spec.primaryStyle === 'POWER_PRESSURE'
+          ? 'PUSH'
+          : spec.primaryStyle === 'YOTSU' || spec.primaryStyle === 'MOROZASHI'
+            ? 'GRAPPLE'
+            : 'TECHNIQUE'
+        : 'BALANCE',
     signatureMove: '',
     bodyType: resolveBodyTypeFromConstitution(spec.bodyConstitution),
     traits: [],
@@ -839,7 +840,6 @@ export const buildInitialRikishiFromSpec = (
     stableId: stable.id,
     ichimonId: stable.ichimonId,
     stableArchetypeId: stable.archetypeId,
-    designedStyleProfile,
     buildSummary,
     mentorId: oyakata.id,
     spirit:
@@ -858,9 +858,6 @@ export const buildInitialRikishiFromSpec = (
   status.bodyMetrics.heightCm = initialBody.heightCm;
   status.bodyMetrics.weightKg = initialBody.weightKg;
   status.buildSummary = buildSummary;
-  status.designedStyleProfile = designedStyleProfile;
-  status.realizedStyleProfile = null;
-  status.tactics = styleToTactics(designedStyleProfile.dominant);
   status.mentorId = oyakata.id;
   return status;
 };

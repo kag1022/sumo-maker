@@ -733,6 +733,16 @@ const resolveRepertoireFit = (
     return resolveRouteAccess(route, winner, context) ? 0.08 + Math.min(0.06, repEntry.affinity * 0.008) : 0;
   }
   if (!resolveRouteAccess(route, winner, context)) return 0;
+  if (winner.repertoire.provisional) {
+    if (winner.repertoire.primaryRoutes.includes(route)) {
+      if (entry.patternRole === 'MAIN') return 0.26;
+      if (entry.patternRole === 'ALT') return 0.08;
+    }
+    if (winner.repertoire.secondaryRoutes.includes(route)) {
+      if (entry.patternRole === 'MAIN') return 0.32;
+      if (entry.patternRole === 'ALT') return 0.12;
+    }
+  }
   if (routeEntries.length === 0 && entry.patternRole === 'MAIN') {
     return winner.repertoire.primaryRoutes.includes(route) ? 0.2 : 0;
   }

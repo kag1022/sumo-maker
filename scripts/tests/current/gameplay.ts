@@ -5,12 +5,20 @@ import { BashoRecord, BuildSpecVNext, Trait } from '../../../src/logic/models';
 import { findOfficialKimariteEntry, listNonTechniqueCatalog, listOfficialWinningKimariteCatalog, normalizeKimariteName } from '../../../src/logic/kimarite/catalog';
 import { inferBodyTypeFromMetrics, resolveKimariteOutcome } from '../../../src/logic/kimarite/selection';
 import { KIMARITE_CATALOG } from '../../../src/logic/kimarite/catalog';
-import { ensureKimariteRepertoire } from '../../../src/logic/kimarite/repertoire';
+import { ensureKimariteRepertoire, evolveKimariteRepertoireAfterBasho } from '../../../src/logic/kimarite/repertoire';
 import { buildInitialRikishiFromDraft, rollScoutDraft } from '../../../src/logic/scout/gacha';
 import { CONSTANTS } from '../../../src/logic/constants';
 import { appendBashoEvents } from '../../../src/logic/simulation/career';
 import { BUILD_COST, buildInitialRikishiFromSpec, calculateBuildCost, calculateBuildCostVNext, createDefaultBuildSpec, createDefaultBuildSpecVNext, getStarterOyakataBlueprints, isBuildSpecVNextBmiValid, resolveDisplayedAptitudeTier } from '../../../src/logic/build/buildLab';
 import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../../src/logic/style/kata';
+import { ensureStyleEvolutionProfile, updateStyleEvolutionAfterBasho } from '../../../src/logic/style/evolution';
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveDisplayedWeakStyles,
+  resolveInternalWeakStyles,
+  resolveStyleMatchupDelta,
+} from '../../../src/logic/style/identity';
 import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori';
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from '../../../src/features/logicLab/presets';
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
@@ -342,6 +350,128 @@ export const tests: TestCase[] = [
       assert.ok(Boolean(normalized.kimariteRepertoire));
       assert.ok(normalized.kimariteRepertoire?.primaryRoutes.includes('BELT_FORCE'));
       assert.ok(normalized.kimariteRepertoire?.entries.some((entry) => entry.kimarite === '寄り切り'));
+      assert.equal(normalized.kimariteRepertoire?.routeLockConfidence, 0);
+    },
+  },
+{
+    name: 'style identity: internal weakness can drive matchup before display weakness appears',
+    run: () => {
+      const status = ensureStyleIdentityProfile(createStatus({}));
+      const profile = status.styleIdentityProfile!;
+      profile.styles.TSUKI_OSHI.resistance = -10;
+      profile.styles.POWER_PRESSURE.resistance = -6;
+      profile.styles.TSUKI_OSHI.sample = 60;
+      profile.styles.POWER_PRESSURE.sample = 60;
+      profile.styles.YOTSU.sample = 60;
+      profile.styles.MOROZASHI.sample = 60;
+      profile.styles.DOHYOUGIWA.sample = 60;
+      profile.styles.NAGE_TECH.sample = 60;
+
+      assert.deepEqual(resolveDisplayedWeakStyles(profile), []);
+      assert.deepEqual(resolveInternalWeakStyles(profile), ['TSUKI_OSHI']);
+      assert.equal(resolveStyleMatchupDelta(profile, 'PUSH'), -0.025);
+    },
+  },
+{
+    name: 'kimarite: grapple provisional repertoire keeps two secondary routes',
+    run: () => {
+      const status = createStatus({
+        tactics: 'GRAPPLE',
+        bodyType: 'MUSCULAR',
+        traits: ['YOTSU_NO_ONI'],
+        signatureMoves: ['寄り切り'],
+      });
+      delete (status as typeof status & { kimariteRepertoire?: unknown }).kimariteRepertoire;
+      const normalized = ensureKimariteRepertoire(status);
+
+      assert.equal(normalized.kimariteRepertoire?.provisional, true);
+      assert.deepEqual(normalized.kimariteRepertoire?.secondaryRoutes, ['THROW_BREAK', 'PULL_DOWN']);
+    },
+  },
+{
+    name: 'kimarite: repertoire does not settle after a single dominant basho',
+    run: () => {
+      let status = ensureStyleIdentityProfile(createStatus({
+        tactics: 'GRAPPLE',
+        bodyType: 'MUSCULAR',
+        traits: ['YOTSU_NO_ONI'],
+        signatureMoves: ['寄り切り'],
+      }));
+      status.styleIdentityProfile!.styles.YOTSU.aptitude = 22;
+      status.styleIdentityProfile!.styles.YOTSU.sample = 80;
+      status.styleIdentityProfile!.styles.MOROZASHI.sample = 80;
+      status.styleIdentityProfile!.styles.TSUKI_OSHI.sample = 80;
+      status.styleIdentityProfile!.styles.POWER_PRESSURE.sample = 80;
+      status.styleIdentityProfile!.styles.DOHYOUGIWA.sample = 80;
+      status.styleIdentityProfile!.styles.NAGE_TECH.sample = 80;
+      status = ensureKimariteRepertoire(status);
+
+      const basho = {
+        ...createBashoRecord(status.rank, 9, 6, 0),
+        kimariteCount: { 寄り切り: 5, 上手投げ: 2, 引き落とし: 2 },
+        winRouteCount: { BELT_FORCE: 7, THROW_BREAK: 2 },
+      };
+      const evolved = evolveKimariteRepertoireAfterBasho(status, basho, 12);
+
+      assert.equal(evolved.kimariteRepertoire?.provisional, true);
+      assert.equal(evolved.kimariteRepertoire?.routeLockConfidence, 1);
+      assert.equal(evolved.kimariteRepertoire?.settledAtBashoSeq, undefined);
+    },
+  },
+{
+    name: 'kata: lightweight overachiever trends toward technique styles',
+    run: () => {
+      let status = ensureStyleEvolutionProfile(createStatus({
+        tactics: 'GRAPPLE',
+        bodyType: 'SOPPU',
+        bodyMetrics: { heightCm: 181, weightKg: 124, reachDeltaCm: 2 },
+        stableArchetypeId: 'TECHNICAL_SMALL',
+        signatureMoves: [],
+        stats: { tsuki: 58, oshi: 55, deashi: 94, power: 54, kumi: 76, koshi: 72, waza: 101, nage: 97 },
+      }));
+      const records: BashoRecord[] = [
+        {
+          ...createBashoRecord(status.rank, 10, 5, 0),
+          performanceOverExpected: 2.2,
+          kimariteCount: { 上手投げ: 4, 下手投げ: 2, 叩き込み: 2, 引き落とし: 2 },
+          winRouteCount: { THROW_BREAK: 5, PULL_DOWN: 4, EDGE_REVERSAL: 1 },
+        },
+        {
+          ...createBashoRecord(status.rank, 9, 6, 0),
+          performanceOverExpected: 1.7,
+          kimariteCount: { 上手投げ: 3, 小手投げ: 2, 叩き込み: 2, 引き落とし: 2 },
+          winRouteCount: { THROW_BREAK: 4, PULL_DOWN: 4, EDGE_REVERSAL: 1 },
+        },
+      ];
+      status.history.records.push(...records);
+      const firstBranchRecord = {
+        ...createBashoRecord(status.rank, 11, 4, 0),
+        performanceOverExpected: 2.8,
+        kimariteCount: { 上手投げ: 4, 掬い投げ: 2, 叩き込み: 3, 引き落とし: 2 },
+        winRouteCount: { THROW_BREAK: 5, PULL_DOWN: 5, EDGE_REVERSAL: 1 },
+        specialPrizes: ['技能賞'],
+      };
+      status.history.records.push(firstBranchRecord);
+      status = updateStyleEvolutionAfterBasho(status, firstBranchRecord, 9);
+      const secondBranchRecord = {
+        ...createBashoRecord(status.rank, 10, 5, 0),
+        performanceOverExpected: 2.4,
+        kimariteCount: { 上手投げ: 3, 下手投げ: 2, 叩き込み: 3, 引き落とし: 2 },
+        winRouteCount: { THROW_BREAK: 4, PULL_DOWN: 5, EDGE_REVERSAL: 1 },
+      };
+      status.history.records.push(secondBranchRecord);
+      status = updateStyleEvolutionAfterBasho(status, secondBranchRecord, 10);
+      const normalized = ensureStyleIdentityProfile(status);
+      const strengths = resolveDisplayedStrengthStyles(normalized.styleIdentityProfile);
+      const nageTech = normalized.styleIdentityProfile?.styles.NAGE_TECH?.aptitude ?? 0;
+      const dohyougiwa = normalized.styleIdentityProfile?.styles.DOHYOUGIWA?.aptitude ?? 0;
+
+      assert.ok(nageTech > 0 || dohyougiwa > 0);
+      assert.ok(
+        strengths.length === 0 ||
+        strengths.includes('NAGE_TECH') ||
+        strengths.includes('DOHYOUGIWA'),
+      );
     },
   },
 {
@@ -550,10 +680,11 @@ export const tests: TestCase[] = [
         debtCards: ['LATE_START'],
       };
       const status = buildInitialRikishiFromSpec(spec, starter);
+      const normalized = ensureStyleIdentityProfile(status);
       assert.equal(status.mentorId, starter.id);
       assert.equal(status.ichimonId, starter.ichimonId);
-      assert.ok(Boolean(status.designedStyleProfile), 'Expected designed style profile');
-      assert.equal(status.designedStyleProfile?.dominant, starter.secretStyle);
+      assert.ok(Boolean(normalized.styleIdentityProfile), 'Expected style identity profile');
+      assert.deepEqual(resolveDisplayedStrengthStyles(normalized.styleIdentityProfile), []);
       assert.equal(status.buildSummary?.debtCount, 1);
       assert.equal(status.spirit > 0, true);
     },
