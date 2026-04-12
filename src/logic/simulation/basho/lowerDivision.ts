@@ -504,6 +504,7 @@ export const runLowerDivisionBasho = (
         schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
+        expectedWinsSoFar: expectedWins,
       };
       const enemyPowerNoise = 1.0;
       const enemy = {

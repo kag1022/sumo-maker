@@ -20,6 +20,11 @@ import {
 import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
 import { resolveRetirementChance } from '../../../src/logic/simulation/retirement/shared';
 import { Rank } from '../../../src/logic/models';
+import {
+  applyPlayerEmpiricalProgressClamp,
+  resolvePlayerFavoriteCompression,
+  resolvePlayerRetentionModifier,
+} from '../../../src/logic/simulation/playerRealism';
 import { calculateMomentumBonus, resolvePlayerAbility, resolveRankBaselineAbility } from '../../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../../src/logic/simulation/strength/update';
 import { resolveBashoFormDelta } from '../../../src/logic/simulation/variance/bashoVariance';
@@ -332,6 +337,107 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'battle: player favorite compression is disabled before 6 basho',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 10, side: 'East' };
+      const base = resolvePlayerFavoriteCompression({
+        winProbability: 0.74,
+        projectedExpectedWins: 5.2,
+        careerBashoCount: 5,
+        currentRank: rank,
+      });
+      assert.equal(base, 0.74);
+    },
+  },
+{
+    name: 'battle: player favorite compression leaves underdog path untouched',
+    run: () => {
+      const rank: Rank = { division: 'Juryo', name: '十両', number: 3, side: 'East' };
+      const base = resolvePlayerFavoriteCompression({
+        winProbability: 0.49,
+        projectedExpectedWins: 8.8,
+        careerBashoCount: 18,
+        currentRank: rank,
+      });
+      assert.equal(base, 0.49);
+    },
+  },
+{
+    name: 'battle: player favorite compression is stronger in sanyaku than lower divisions',
+    run: () => {
+      const lower = resolvePlayerFavoriteCompression({
+        winProbability: 0.78,
+        projectedExpectedWins: 5.0,
+        careerBashoCount: 24,
+        currentRank: { division: 'Sandanme', name: '三段目', number: 25, side: 'East' },
+      });
+      const sanyaku = resolvePlayerFavoriteCompression({
+        winProbability: 0.78,
+        projectedExpectedWins: 9.0,
+        careerBashoCount: 24,
+        currentRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+      });
+      assert.ok(sanyaku < lower, `Expected sanyaku compression < lower division, got ${sanyaku} >= ${lower}`);
+    },
+  },
+{
+    name: 'growth: full kyujo clamps positive player progress to zero',
+    run: () => {
+      const current = {
+        ability: 96,
+        form: 0.1,
+        uncertainty: 1.2,
+        lastBashoExpectedWins: 4.2,
+      };
+      const next = {
+        ability: 101,
+        form: 0.35,
+        uncertainty: 1.1,
+        lastBashoExpectedWins: 4.2,
+      };
+      const clamped = applyPlayerEmpiricalProgressClamp({
+        current,
+        next,
+        age: 26,
+        careerBashoCount: 30,
+        currentRank: { division: 'Makushita', name: '幕下', number: 8, side: 'East' },
+        absent: 7,
+        maxRank: { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
+      });
+      assert.equal(clamped.ability, current.ability);
+      assert.equal(clamped.form, current.form);
+    },
+  },
+{
+    name: 'growth: player empirical clamp applies age and division soft cap',
+    run: () => {
+      const current = {
+        ability: 130,
+        form: 0,
+        uncertainty: 0.9,
+        lastBashoExpectedWins: 8.8,
+      };
+      const next = {
+        ability: 150,
+        form: 0.4,
+        uncertainty: 0.85,
+        lastBashoExpectedWins: 8.8,
+      };
+      const currentRank: Rank = { division: 'Makuuchi', name: '前頭', number: 4, side: 'East' };
+      const clamped = applyPlayerEmpiricalProgressClamp({
+        current,
+        next,
+        age: 34,
+        careerBashoCount: 80,
+        currentRank,
+        absent: 0,
+        maxRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+      });
+      const cap = resolveRankBaselineAbility(currentRank) + 15;
+      assert.ok(clamped.ability <= cap, `Expected clamped ability <= ${cap}, got ${clamped.ability}`);
+    },
+  },
+{
     name: 'battle: higher player aptitudeFactor increases win rate under same stats',
     run: () => {
       const enemy: EnemyStats = {
@@ -579,6 +685,8 @@ export const tests: TestCase[] = [
         age: 24,
         careerBashoCount: 40,
         currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
+        maxRank: { division: 'Juryo', name: '十両', side: 'East', number: 1 },
+        absent: 0,
       });
 
       assert.ok(
@@ -601,6 +709,8 @@ export const tests: TestCase[] = [
         age: 24,
         careerBashoCount: 40,
         currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
+        maxRank: { division: 'Juryo', name: '十両', side: 'East', number: 1 },
+        absent: 0,
       });
 
       assert.ok(
@@ -626,6 +736,8 @@ export const tests: TestCase[] = [
         age: 25,
         careerBashoCount: 80,
         currentRank: rank,
+        maxRank: rank,
+        absent: 0,
       });
 
       assert.ok(next.ability < currentAbility);
@@ -2011,6 +2123,58 @@ export const tests: TestCase[] = [
       assert.ok(median(annualJonokuchiSwings) >= 16 && median(annualJonokuchiSwings) <= 24, `Unexpected Jonokuchi swing median: ${median(annualJonokuchiSwings)}`);
       assert.ok(annualAbsDeltas.some((value) => value >= 25), 'Expected at least one |delta| >= 25');
       assert.ok(annualSwings.some((value) => value >= 45), 'Expected at least one annual swing >= 45');
+    },
+  },
+{
+    name: 'retirement: player retention modifier is neutral before age 28',
+    run: () => {
+      const modifier = resolvePlayerRetentionModifier({
+        age: 27,
+        careerBashoCount: 60,
+        currentDivision: 'Makushita',
+        currentRank: { division: 'Makushita', name: '幕下', number: 15, side: 'East' },
+        maxRank: { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
+        recentRecords: Array.from({ length: 6 }, () =>
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 15, side: 'East' }, 2, 5, 0),
+        ),
+        fullKyujoStreak: 0,
+        formerSekitori: false,
+      });
+      assert.equal(modifier, 1);
+    },
+  },
+{
+    name: 'retirement: player retention modifier rises for non-sekitori stagnation and kyujo streak',
+    run: () => {
+      const currentRank: Rank = { division: 'Makushita', name: '幕下', number: 35, side: 'East' };
+      const stagnant = resolvePlayerRetentionModifier({
+        age: 32,
+        careerBashoCount: 72,
+        currentDivision: 'Makushita',
+        currentRank,
+        maxRank: currentRank,
+        recentRecords: [
+          createBashoRecord(currentRank, 2, 5, 0),
+          createBashoRecord(currentRank, 3, 4, 0),
+          createBashoRecord(currentRank, 1, 6, 0),
+          createBashoRecord(currentRank, 0, 0, 7),
+          createBashoRecord(currentRank, 0, 0, 7),
+          createBashoRecord(currentRank, 2, 5, 0),
+        ],
+        fullKyujoStreak: 2,
+        formerSekitori: false,
+      });
+      const neutral = resolvePlayerRetentionModifier({
+        age: 32,
+        careerBashoCount: 72,
+        currentDivision: 'Makushita',
+        currentRank,
+        maxRank: currentRank,
+        recentRecords: Array.from({ length: 6 }, () => createBashoRecord(currentRank, 4, 3, 0)),
+        fullKyujoStreak: 0,
+        formerSekitori: false,
+      });
+      assert.ok(stagnant > neutral, `Expected stagnant modifier > neutral, got ${stagnant} <= ${neutral}`);
     },
   },
 {

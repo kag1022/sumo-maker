@@ -6,6 +6,7 @@ import {
   simulateNpcBout,
 } from '../../matchmaking';
 import { clamp, randomNoise } from '../../boundary/shared';
+import { applyEmpiricalNpcDriftClamp } from '../../npc/empiricalDrift';
 import { pushNpcBashoResult } from '../../npc/retirement';
 import {
   BoundarySnapshot,
@@ -91,27 +92,43 @@ const evolveMakushitaPool = (
       const diff = result.wins - result.losses;
       const expectedWins = result.expectedWins ?? (result.wins + result.losses) / 2;
       const performanceOverExpected = result.wins - expectedWins;
+      const absent = Math.max(0, 7 - (result.wins + result.losses));
+      const rawBasePower = clamp(
+        npc.basePower + diff * 0.28 + (npc.growthBias ?? 0) * 0.85 + randomNoise(rng, 0.4),
+        MAKUSHITA_POWER_MIN,
+        MAKUSHITA_POWER_MAX,
+      );
+      const rawAbility =
+        (npc.ability ?? npc.basePower) +
+        performanceOverExpected * 1.0 +
+        ((result.bashoFormDelta ?? 0) * 0.45) +
+        randomNoise(rng, 0.35);
+      const rawForm = clamp(
+        npc.form * 0.64 +
+        (
+          1 +
+          diff * 0.012 +
+          ((result.bashoFormDelta ?? 0) * 0.008) +
+          randomNoise(rng, 0.05)
+        ) * 0.36,
+        0.8,
+        1.2,
+      );
       const updated = {
         ...npc,
         basePower: clamp(
-          npc.basePower + diff * 0.28 + (npc.growthBias ?? 0) * 0.85 + randomNoise(rng, 0.4),
+          applyEmpiricalNpcDriftClamp(npc.basePower, rawBasePower, { age: npc.age ?? 24, division: 'Makushita', absent }),
           MAKUSHITA_POWER_MIN,
           MAKUSHITA_POWER_MAX,
         ),
-        ability:
-          (npc.ability ?? npc.basePower) +
-          performanceOverExpected * 1.0 +
-          ((result.bashoFormDelta ?? 0) * 0.45) +
-          randomNoise(rng, 0.35),
+        ability: applyEmpiricalNpcDriftClamp(
+          npc.ability ?? npc.basePower,
+          rawAbility,
+          { age: npc.age ?? 24, division: 'Makushita', absent },
+        ),
         uncertainty: clamp((npc.uncertainty ?? 1.7) - 0.02, 0.6, 2.3),
         form: clamp(
-          npc.form * 0.64 +
-          (
-            1 +
-            diff * 0.012 +
-            ((result.bashoFormDelta ?? 0) * 0.008) +
-            randomNoise(rng, 0.05)
-          ) * 0.36,
+          applyEmpiricalNpcDriftClamp(npc.form, rawForm, { age: npc.age ?? 24, division: 'Makushita', absent }),
           0.8,
           1.2,
         ),
@@ -130,7 +147,7 @@ const evolveMakushitaPool = (
         persistent.stagnation = updated.stagnation;
         persistent.division = 'Makushita';
         persistent.currentDivision = 'Makushita';
-        pushNpcBashoResult(persistent, result.wins, result.losses);
+        pushNpcBashoResult(persistent, result.wins, result.losses, { absent, division: 'Makushita' });
       }
       return updated;
     })

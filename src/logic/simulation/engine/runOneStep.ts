@@ -603,6 +603,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     age: state.status.age,
     careerBashoCount: state.status.history.records.length,
     currentRank: state.status.rank,
+    maxRank: state.status.history.maxRank,
+    absent: bashoRecord.absent,
     careerBand: state.status.careerBand,
     stagnationPressure: state.status.stagnation?.pressure ?? 0,
     careerSeedBiases: state.status.careerSeed?.biases,

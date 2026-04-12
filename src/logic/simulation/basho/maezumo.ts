@@ -71,6 +71,7 @@ export const runMaezumoBasho = (
         isLastDay: boutIndex === numBouts - 1,
         isYushoContention: false,
         previousResult,
+        expectedWinsSoFar: expectedWins,
       },
       rng,
     );

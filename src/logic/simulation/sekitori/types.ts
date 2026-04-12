@@ -20,6 +20,7 @@ export type MakushitaNpc = {
   aptitudeProfile?: AptitudeProfile;
   careerBand?: CareerBand;
   growthBias?: number;
+  age?: number;
   stagnation?: StagnationState;
 };
 

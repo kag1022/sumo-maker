@@ -5,6 +5,7 @@ export const npcTestModule = createScopedModule('npc', currentTests, [
   'league',
   'npc intake',
   'npc pipeline',
+  'npc realism c1',
   'npc shikona',
   'npc stable catalog',
   'npc universe',
