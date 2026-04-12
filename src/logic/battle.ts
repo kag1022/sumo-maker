@@ -13,6 +13,7 @@ import {
   resolvePlayerAbility,
   resolveUnifiedNpcStrength,
 } from './simulation/strength/model';
+import { resolvePlayerFavoriteCompression } from './simulation/playerRealism';
 import {
   resolveCompetitiveFactor,
 } from './simulation/realism';
@@ -67,6 +68,7 @@ export interface BoutContext {
   schedulePhase?: string;
   previousResult?: 'WIN' | 'LOSS' | 'ABSENT';
   bashoFormDelta?: number;
+  expectedWinsSoFar?: number;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -512,7 +514,13 @@ const resolveBattleResult = (
     injuryPenalty,
     bonus: momentumDelta,
   });
-  const winProbability = clamp(baseWinProbability, 0.03, 0.97);
+  const projectedExpectedWins = (context?.expectedWinsSoFar ?? 0) + baseWinProbability;
+  const winProbability = resolvePlayerFavoriteCompression({
+    winProbability: baseWinProbability,
+    projectedExpectedWins,
+    careerBashoCount: rikishi.history.records.length,
+    currentRank: rikishi.rank,
+  });
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;
   const playerSelectionContext = {

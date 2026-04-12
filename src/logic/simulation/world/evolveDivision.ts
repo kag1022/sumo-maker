@@ -1,6 +1,7 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
+import { applyEmpiricalNpcDriftClamp } from '../npc/empiricalDrift';
 import { pushNpcBashoResult } from '../npc/retirement';
 import { evaluateSpecialPrizes, SpecialPrizeCode } from '../topDivision/specialPrizes';
 import { resolveYushoResolution } from '../yusho';
@@ -121,7 +122,7 @@ export const evolveDivisionAfterBasho = (
       const expectedWins = result.expectedWins ?? (result.wins + result.losses) / 2;
       const performanceOverExpected = result.wins - expectedWins;
       const absencePenalty = absent * (isUpperRank ? 0.26 : 0.14);
-      const ability = (npc.ability ?? npc.basePower) +
+      const rawAbility = (npc.ability ?? npc.basePower) +
         performanceOverExpected * (isUpperRank ? 0.88 : 1.05) +
         ((result.bashoFormDelta ?? 0) * 0.45) +
         npc.growthBias * (isUpperRank ? 0.55 : 0.85) +
@@ -129,7 +130,7 @@ export const evolveDivisionAfterBasho = (
         upperDrag * 0.24 -
         absencePenalty * 0.85 -
         (diff < 0 ? Math.abs(diff) * (isUpperRank ? 0.9 : 0) : 0);
-      const basePower = softClampPower(
+      const rawBasePower = softClampPower(
         npc.basePower +
           (diff > 0 ? diff * (isUpperRank ? 0.14 : 0.2) : diff * (isUpperRank ? 0.32 : 0.2)) +
           performanceOverExpected * (isUpperRank ? 0.2 : 0.3) +
@@ -138,7 +139,7 @@ export const evolveDivisionAfterBasho = (
           absencePenalty * 0.45,
         range,
       );
-      const nextForm = clamp(
+      const rawNextForm = clamp(
         npc.form * (isUpperRank ? 0.54 : 0.6) +
         (
           1 +
@@ -149,6 +150,28 @@ export const evolveDivisionAfterBasho = (
           upperDrag * 0.012 -
           absent * 0.014
         ) * (isUpperRank ? 0.46 : 0.4),
+        isUpperRank ? 0.68 : 0.78,
+        isUpperRank ? 1.18 : 1.22,
+      );
+      const ability = applyEmpiricalNpcDriftClamp(
+        npc.ability ?? npc.basePower,
+        rawAbility,
+        { age, division, rankName: rank.name, absent },
+      );
+      const basePower = softClampPower(
+        applyEmpiricalNpcDriftClamp(
+          npc.basePower,
+          rawBasePower,
+          { age, division, rankName: rank.name, absent },
+        ),
+        range,
+      );
+      const nextForm = clamp(
+        applyEmpiricalNpcDriftClamp(
+          npc.form,
+          rawNextForm,
+          { age, division, rankName: rank.name, absent },
+        ),
         isUpperRank ? 0.68 : 0.78,
         isUpperRank ? 1.18 : 1.22,
       );
@@ -181,6 +204,7 @@ export const evolveDivisionAfterBasho = (
         pushNpcBashoResult(registryNpc, result.wins, result.losses, {
           absent,
           rankName: rank.name,
+          rankNumber: rank.number,
           division,
         });
       }

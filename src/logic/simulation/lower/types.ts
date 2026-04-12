@@ -36,7 +36,7 @@ export type LowerNpc = {
   retiredAtSeq?: number;
   riseBand?: 1 | 2 | 3;
   stagnation?: StagnationState;
-  recentBashoResults?: { division: string; wins: number; losses: number }[];
+  recentBashoResults?: { division: string; rankName?: string; rankNumber?: number; wins: number; losses: number; absent?: number }[];
 };
 
 export type BoundarySnapshot = {

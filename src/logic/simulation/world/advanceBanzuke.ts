@@ -52,9 +52,15 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
   }
 
   const playerAllocation = allocations.find((allocation) => allocation.id === PLAYER_ACTOR_ID);
+  const playerRecord = topDivisionRecords.find((record) => record.id === PLAYER_ACTOR_ID);
   world.lastPlayerAllocation = playerAllocation;
   world.lastPlayerAssignedRank = playerAllocation?.nextRank;
-  world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank);
+  world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank, {
+    currentRank: playerAllocation?.currentRank,
+    isKachikoshi:
+      playerRecord ? playerRecord.wins > playerRecord.losses + playerRecord.absent : false,
+    nextIsOzekiReturn: playerAllocation?.nextIsOzekiReturn,
+  });
   applyBanzukeToRosters(world, allocations, (rank, layout) =>
     resolvePlayerRankScore(rank, layout),
   );
