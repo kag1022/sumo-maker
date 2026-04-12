@@ -262,6 +262,7 @@ const resolveMinimumDemotionSlots = (
   if (deficit >= 2) return 1;
   return 0;
 };
+const EMPIRICAL_RECORD_AWARE_SAMPLE_SIZE_MIN = 20;
 
 export const resolveBottomTailReliefSlots = ({
   division,
@@ -351,7 +352,11 @@ export const resolveEmpiricalSlotBand = (
     absent,
   );
 
-  const recordAware = findNearestRecordAwareQuantiles(division, rankBand, recordBucket);
+  const recordAwareCandidate = findNearestRecordAwareQuantiles(division, rankBand, recordBucket);
+  const recordAware =
+    recordAwareCandidate && recordAwareCandidate.quantiles.sampleSize >= EMPIRICAL_RECORD_AWARE_SAMPLE_SIZE_MIN
+      ? recordAwareCandidate
+      : null;
   const quantiles = recordAware?.quantiles ?? resolveFallbackQuantiles(division, movementClass);
   if (!quantiles) {
     const expected = clamp(currentSlot, 1, totalSlots);

@@ -42,8 +42,23 @@ const decodeJuryoRankFromScore = (rankScore: number): Rank => {
   };
 };
 
-export const resolvePlayerSanyakuQuota = (assignedRank?: Rank): PlayerSanyakuQuota => {
+export const resolvePlayerSanyakuQuota = (
+  assignedRank?: Rank,
+  options?: {
+    isKachikoshi?: boolean;
+    nextIsOzekiReturn?: boolean;
+    currentRank?: Rank;
+  },
+): PlayerSanyakuQuota => {
   if (assignedRank?.division !== 'Makuuchi') return {};
+  const alreadySanyaku =
+    options?.currentRank?.division === 'Makuuchi' &&
+    (options.currentRank.name === '横綱' ||
+      options.currentRank.name === '大関' ||
+      options.currentRank.name === '関脇' ||
+      options.currentRank.name === '小結');
+  const canHoldSanyaku = Boolean(options?.isKachikoshi || options?.nextIsOzekiReturn);
+  if (!alreadySanyaku || !canHoldSanyaku) return {};
   if (assignedRank.name === '関脇') return { enforcedSanyaku: 'Sekiwake' };
   if (assignedRank.name === '小結') return { enforcedSanyaku: 'Komusubi' };
   return {};

@@ -1,5 +1,6 @@
 import { CareerBand, CareerSeedBiases, Rank, RatingState } from '../../models';
 import { BALANCE } from '../../balance';
+import { applyPlayerEmpiricalProgressClamp } from '../playerRealism';
 import { resolveRankBaselineAbility } from './model';
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -12,11 +13,13 @@ export const updateAbilityAfterBasho = (input: {
   age: number;
   careerBashoCount: number;
   currentRank: Rank;
+  maxRank: Rank;
+  absent: number;
   careerBand?: CareerBand;
   stagnationPressure?: number;
   careerSeedBiases?: CareerSeedBiases;
 }): RatingState => {
-  const { current, actualWins, expectedWins, age, careerBashoCount, currentRank, careerBand, stagnationPressure, careerSeedBiases } = input;
+  const { current, actualWins, expectedWins, age, careerBashoCount, currentRank, maxRank, absent, careerBand, stagnationPressure, careerSeedBiases } = input;
   let delta = actualWins - expectedWins;
   const pressure = Math.max(0, stagnationPressure ?? 0);
   const isSekitori = currentRank.division === 'Makuuchi' || currentRank.division === 'Juryo';
@@ -97,10 +100,19 @@ export const updateAbilityAfterBasho = (input: {
     BALANCE.ratingUpdate.maxUncertainty,
   );
 
-  return {
+  const nextState = {
     ability: nextAbility,
     form: clamp(current.form * (0.82 + volatilityBias * 0.01) + (delta / 15) * (0.18 + clutchBias * 0.01), -1.2, 1.2),
     uncertainty: nextUncertainty,
     lastBashoExpectedWins: expectedWins,
   };
+  return applyPlayerEmpiricalProgressClamp({
+    current,
+    next: nextState,
+    age,
+    careerBashoCount,
+    currentRank,
+    absent,
+    maxRank,
+  });
 };

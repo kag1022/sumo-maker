@@ -1,5 +1,7 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 import { Rank, RikishiStatus } from '../../src/logic/models';
 import { createSeededRandom, createSimulationEngine } from '../../src/logic/simulation/engine';
 import { createSimulationWorld, resolveTopDivisionQuotaForPlayer } from '../../src/logic/simulation/world';
@@ -9,6 +11,26 @@ type Scenario = {
   initial: RikishiStatus;
   seeds: number;
   steps: number;
+};
+
+type ConstraintBucket = 'YOKOZUNA' | 'OZEKI' | 'SANYAKU' | 'MAEGASHIRA' | 'JURYO' | 'LOWER';
+
+type ScenarioTask = {
+  scenario: Scenario;
+  seed: number;
+};
+
+type ScenarioRunResult = {
+  transitions: number;
+  topMaegashira87ToSanyaku: number;
+  juryoTop14PlusToSanyaku: number;
+  komusubi9PlusStayedKomusubi: number;
+  maegashira8_87CaseCount: number;
+  maegashira8_87AfterRanks: string[];
+  juryoTop14PlusAfterRanks: string[];
+  lower70AfterRanks: string[];
+  lowerBadAfterRanks: string[];
+  constraintHitsByBucket: Record<ConstraintBucket, number>;
 };
 
 type QuickSummary = {
@@ -45,6 +67,25 @@ type QuickSummary = {
 const TOP_NAMES = new Set(['横綱', '大関', '関脇', '小結']);
 const REPORT_PATH = path.join('docs', 'balance', 'banzuke-quick-checks.md');
 const JSON_PATH = path.join('.tmp', 'banzuke-quick-checks.json');
+const DEFAULT_WORKER_LIMIT = Number(process.env.BANZUKE_QUICK_WORKERS || 0);
+const resolveAvailableWorkers = (): number => {
+  const available =
+    typeof os.availableParallelism === 'function'
+      ? os.availableParallelism()
+      : os.cpus().length;
+  if (DEFAULT_WORKER_LIMIT > 0) {
+    return Math.max(1, DEFAULT_WORKER_LIMIT);
+  }
+  return Math.max(1, Math.min(8, available - 1 || 1));
+};
+const createEmptyConstraintHits = (): Record<ConstraintBucket, number> => ({
+  YOKOZUNA: 0,
+  OZEKI: 0,
+  SANYAKU: 0,
+  MAEGASHIRA: 0,
+  JURYO: 0,
+  LOWER: 0,
+});
 
 const toRankLabel = (rank: Rank): string => {
   const side = rank.side === 'West' ? '西' : '東';
@@ -251,7 +292,7 @@ const renderReport = (summary: QuickSummary): string => {
   return lines.join('\n');
 };
 
-const run = async (): Promise<void> => {
+const runScenarioTask = async ({ scenario, seed }: ScenarioTask): Promise<ScenarioRunResult> => {
   let transitions = 0;
   let topMaegashira87ToSanyaku = 0;
   let juryoTop14PlusToSanyaku = 0;
@@ -261,115 +302,211 @@ const run = async (): Promise<void> => {
   const juryoTopAfter = new Set<string>();
   const lower70After = new Set<string>();
   const lowerBadAfter = new Set<string>();
-  const constraintHitsByBucket: Record<string, number> = {
-    YOKOZUNA: 0,
-    OZEKI: 0,
-    SANYAKU: 0,
-    MAEGASHIRA: 0,
-    JURYO: 0,
-    LOWER: 0,
-  };
+  const constraintHitsByBucket = createEmptyConstraintHits();
 
-  for (const scenario of scenarios) {
-    for (let seed = 1; seed <= scenario.seeds; seed += 1) {
-      const random = createSeededRandom(seed * 4099 + scenario.name.length * 97);
-      const engine = createSimulationEngine(
-        {
-          initialStats: JSON.parse(JSON.stringify(scenario.initial)) as RikishiStatus,
-          oyakata: null,
-        },
-        {
-          random,
-          getCurrentYear: () => 2026,
-          yieldControl: async () => {},
-        },
-      );
+  const random = createSeededRandom(seed * 4099 + scenario.name.length * 97);
+  const engine = createSimulationEngine(
+    {
+      initialStats: JSON.parse(JSON.stringify(scenario.initial)) as RikishiStatus,
+      oyakata: null,
+    },
+    {
+      random,
+      getCurrentYear: () => 2026,
+      yieldControl: async () => {},
+    },
+  );
 
-      for (let i = 0; i < scenario.steps; i += 1) {
-        const step = await engine.runNextBasho();
-        if (step.kind !== 'BASHO') break;
-        transitions += 1;
-        const before = step.playerRecord.rank;
-        const after = step.statusSnapshot.rank;
-        const wins = step.playerRecord.wins;
-        const losses = step.playerRecord.losses;
-        const absent = step.playerRecord.absent;
-        const playerDecision = step.banzukeDecisions.find((decision) => decision.rikishiId === 'PLAYER');
-        if (playerDecision?.constraintHits?.length) {
-          const bucket = playerDecision.ruleBucket ?? 'LOWER';
-          constraintHitsByBucket[bucket] = (constraintHitsByBucket[bucket] ?? 0) + 1;
-        }
+  for (let i = 0; i < scenario.steps; i += 1) {
+    const step = await engine.runNextBasho();
+    if (step.kind !== 'BASHO') break;
+    transitions += 1;
+    const before = step.playerRecord.rank;
+    const after = step.statusSnapshot?.rank ?? step.playerRecord.rank;
+    const wins = step.playerRecord.wins;
+    const losses = step.playerRecord.losses;
+    const absent = step.playerRecord.absent;
+    const playerDecision = step.banzukeDecisions.find((decision) => decision.rikishiId === 'PLAYER');
+    if (playerDecision?.constraintHits?.length) {
+      const bucket = (playerDecision.ruleBucket ?? 'LOWER') as ConstraintBucket;
+      constraintHitsByBucket[bucket] = (constraintHitsByBucket[bucket] ?? 0) + 1;
+    }
 
-        if (
-          before.division === 'Makuuchi' &&
-          before.name === '前頭' &&
-          typeof before.number === 'number' &&
-          before.number >= 1 &&
-          before.number <= 5 &&
-          wins === 8 &&
-          losses === 7 &&
-          absent === 0 &&
-          (after.name === '関脇' || after.name === '小結')
-        ) {
-          topMaegashira87ToSanyaku += 1;
-        }
+    if (
+      before.division === 'Makuuchi' &&
+      before.name === '前頭' &&
+      typeof before.number === 'number' &&
+      before.number >= 1 &&
+      before.number <= 5 &&
+      wins === 8 &&
+      losses === 7 &&
+      absent === 0 &&
+      (after.name === '関脇' || after.name === '小結')
+    ) {
+      topMaegashira87ToSanyaku += 1;
+    }
 
-        if (
-          before.division === 'Juryo' &&
-          typeof before.number === 'number' &&
-          before.number <= 3 &&
-          wins >= 14
-        ) {
-          juryoTopAfter.add(toRankLabel(after));
-          if (after.division === 'Makuuchi' && (after.name === '関脇' || after.name === '小結')) {
-            juryoTop14PlusToSanyaku += 1;
-          }
-        }
-
-        if (
-          before.division === 'Makuuchi' &&
-          before.name === '小結' &&
-          wins >= 9
-        ) {
-          if (after.division === 'Makuuchi' && after.name === '小結') {
-            komusubi9PlusStayedKomusubi += 1;
-          }
-        }
-
-        if (
-          before.division === 'Makuuchi' &&
-          before.name === '前頭' &&
-          before.number === 8 &&
-          wins === 8 &&
-          losses === 7 &&
-          absent === 0
-        ) {
-          maegashira8_87CaseCount += 1;
-          m8After.add(toRankLabel(after));
-        }
-
-        if (
-          (before.division === 'Makushita' ||
-            before.division === 'Sandanme' ||
-            before.division === 'Jonidan' ||
-            before.division === 'Jonokuchi') &&
-          wins === 7 &&
-          losses === 0 &&
-          absent === 0
-        ) {
-          lower70After.add(toRankLabel(after));
-        }
-
-        if (
-          (before.division === 'Makushita' ||
-            before.division === 'Sandanme' ||
-            before.division === 'Jonidan' ||
-            before.division === 'Jonokuchi') &&
-          (absent >= 7 || (wins <= 1 && losses + absent >= 6))
-        ) {
-          lowerBadAfter.add(toRankLabel(after));
-        }
+    if (
+      before.division === 'Juryo' &&
+      typeof before.number === 'number' &&
+      before.number <= 3 &&
+      wins >= 14
+    ) {
+      juryoTopAfter.add(toRankLabel(after));
+      if (after.division === 'Makuuchi' && (after.name === '関脇' || after.name === '小結')) {
+        juryoTop14PlusToSanyaku += 1;
       }
+    }
+
+    if (
+      before.division === 'Makuuchi' &&
+      before.name === '小結' &&
+      wins >= 9
+    ) {
+      if (after.division === 'Makuuchi' && after.name === '小結') {
+        komusubi9PlusStayedKomusubi += 1;
+      }
+    }
+
+    if (
+      before.division === 'Makuuchi' &&
+      before.name === '前頭' &&
+      before.number === 8 &&
+      wins === 8 &&
+      losses === 7 &&
+      absent === 0
+    ) {
+      maegashira8_87CaseCount += 1;
+      m8After.add(toRankLabel(after));
+    }
+
+    if (
+      (before.division === 'Makushita' ||
+        before.division === 'Sandanme' ||
+        before.division === 'Jonidan' ||
+        before.division === 'Jonokuchi') &&
+      wins === 7 &&
+      losses === 0 &&
+      absent === 0
+    ) {
+      lower70After.add(toRankLabel(after));
+    }
+
+    if (
+      (before.division === 'Makushita' ||
+        before.division === 'Sandanme' ||
+        before.division === 'Jonidan' ||
+        before.division === 'Jonokuchi') &&
+      (absent >= 7 || (wins <= 1 && losses + absent >= 6))
+    ) {
+      lowerBadAfter.add(toRankLabel(after));
+    }
+  }
+
+  return {
+    transitions,
+    topMaegashira87ToSanyaku,
+    juryoTop14PlusToSanyaku,
+    komusubi9PlusStayedKomusubi,
+    maegashira8_87CaseCount,
+    maegashira8_87AfterRanks: [...m8After],
+    juryoTop14PlusAfterRanks: [...juryoTopAfter],
+    lower70AfterRanks: [...lower70After],
+    lowerBadAfterRanks: [...lowerBadAfter],
+    constraintHitsByBucket,
+  };
+};
+
+const runScenarioTasksParallel = async (tasks: ScenarioTask[]): Promise<ScenarioRunResult[]> => {
+  if (tasks.length === 0) return [];
+  const workerCount = Math.min(resolveAvailableWorkers(), tasks.length);
+  if (workerCount <= 1) {
+    return Promise.all(tasks.map((task) => runScenarioTask(task)));
+  }
+
+  console.log(`quick banzuke checks: tasks=${tasks.length}, workers=${workerCount}`);
+
+  return new Promise((resolve, reject) => {
+    const results: ScenarioRunResult[] = new Array(tasks.length);
+    let activeWorkers = 0;
+    let completed = 0;
+    let nextIndex = 0;
+    let failed = false;
+
+    const launchNext = (): void => {
+      if (failed) return;
+      if (completed === tasks.length && activeWorkers === 0) {
+        resolve(results);
+        return;
+      }
+      while (activeWorkers < workerCount && nextIndex < tasks.length) {
+        const taskIndex = nextIndex;
+        const task = tasks[nextIndex];
+        nextIndex += 1;
+        activeWorkers += 1;
+
+        const worker = new Worker(__filename, {
+          workerData: task,
+        });
+
+        worker.on('message', (message: ScenarioRunResult) => {
+          results[taskIndex] = message;
+          completed += 1;
+          if (completed % 12 === 0 || completed === tasks.length) {
+            console.log(`quick banzuke checks: completed ${completed}/${tasks.length}`);
+          }
+        });
+        worker.on('error', (error) => {
+          failed = true;
+          reject(error);
+        });
+        worker.on('exit', (code) => {
+          activeWorkers -= 1;
+          if (!failed && code !== 0) {
+            failed = true;
+            reject(new Error(`quick banzuke worker exited with code ${code}`));
+            return;
+          }
+          launchNext();
+        });
+      }
+    };
+
+    launchNext();
+  });
+};
+
+const runMain = async (): Promise<void> => {
+  let transitions = 0;
+  let topMaegashira87ToSanyaku = 0;
+  let juryoTop14PlusToSanyaku = 0;
+  let komusubi9PlusStayedKomusubi = 0;
+  let maegashira8_87CaseCount = 0;
+  const m8After = new Set<string>();
+  const juryoTopAfter = new Set<string>();
+  const lower70After = new Set<string>();
+  const lowerBadAfter = new Set<string>();
+  const constraintHitsByBucket = createEmptyConstraintHits();
+  const tasks = scenarios.flatMap((scenario) =>
+    Array.from({ length: scenario.seeds }, (_, index) => ({
+      scenario,
+      seed: index + 1,
+    })),
+  );
+  const taskResults = await runScenarioTasksParallel(tasks);
+
+  for (const result of taskResults) {
+    transitions += result.transitions;
+    topMaegashira87ToSanyaku += result.topMaegashira87ToSanyaku;
+    juryoTop14PlusToSanyaku += result.juryoTop14PlusToSanyaku;
+    komusubi9PlusStayedKomusubi += result.komusubi9PlusStayedKomusubi;
+    maegashira8_87CaseCount += result.maegashira8_87CaseCount;
+    for (const rank of result.maegashira8_87AfterRanks) m8After.add(rank);
+    for (const rank of result.juryoTop14PlusAfterRanks) juryoTopAfter.add(rank);
+    for (const rank of result.lower70AfterRanks) lower70After.add(rank);
+    for (const rank of result.lowerBadAfterRanks) lowerBadAfter.add(rank);
+    for (const bucket of Object.keys(constraintHitsByBucket) as ConstraintBucket[]) {
+      constraintHitsByBucket[bucket] += result.constraintHitsByBucket[bucket] ?? 0;
     }
   }
 
@@ -528,4 +665,17 @@ const run = async (): Promise<void> => {
   console.log(`json written: ${JSON_PATH}`);
 };
 
-run();
+if (!isMainThread) {
+  runScenarioTask(workerData as ScenarioTask)
+    .then((result) => {
+      parentPort?.postMessage(result);
+    })
+    .catch((error) => {
+      throw error;
+    });
+} else {
+  runMain().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

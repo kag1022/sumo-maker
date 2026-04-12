@@ -21,33 +21,45 @@ export const resolveLowerDivisionQuotaForPlayer = (
       (rank.division === 'Jonidan' && assigned.division === 'Jonokuchi'));
 
   if (rank.division === 'Makushita') {
+    const canDemote = Boolean(world.lastExchanges.MakushitaSandanme.playerDemotedToLower);
     return {
-      canDemoteToSandanme: assignDemote || world.lastExchanges.MakushitaSandanme.playerDemotedToLower,
+      canDemoteToSandanme: canDemote,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Makushita,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank: canDemote && assignDemote ? world.lastPlayerAssignedRank : undefined,
     };
   }
   if (rank.division === 'Sandanme') {
+    const canPromote = Boolean(world.lastExchanges.MakushitaSandanme.playerPromotedToUpper);
+    const canDemote = Boolean(world.lastExchanges.SandanmeJonidan.playerDemotedToLower);
     return {
-      canPromoteToMakushita: assignPromote || world.lastExchanges.MakushitaSandanme.playerPromotedToUpper,
-      canDemoteToJonidan: assignDemote || world.lastExchanges.SandanmeJonidan.playerDemotedToLower,
+      canPromoteToMakushita: canPromote,
+      canDemoteToJonidan: canDemote,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Sandanme,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank:
+        (canPromote && assignPromote) || (canDemote && assignDemote)
+          ? world.lastPlayerAssignedRank
+          : undefined,
     };
   }
   if (rank.division === 'Jonidan') {
+    const canPromote = Boolean(world.lastExchanges.SandanmeJonidan.playerPromotedToUpper);
+    const canDemote = Boolean(world.lastExchanges.JonidanJonokuchi.playerDemotedToLower);
     return {
-      canPromoteToSandanme: assignPromote || world.lastExchanges.SandanmeJonidan.playerPromotedToUpper,
-      canDemoteToJonokuchi: assignDemote || world.lastExchanges.JonidanJonokuchi.playerDemotedToLower,
+      canPromoteToSandanme: canPromote,
+      canDemoteToJonokuchi: canDemote,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Jonidan,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank:
+        (canPromote && assignPromote) || (canDemote && assignDemote)
+          ? world.lastPlayerAssignedRank
+          : undefined,
     };
   }
   if (rank.division === 'Jonokuchi') {
+    const canPromote = Boolean(world.lastExchanges.JonidanJonokuchi.playerPromotedToUpper);
     return {
-      canPromoteToJonidan: assignPromote || world.lastExchanges.JonidanJonokuchi.playerPromotedToUpper,
+      canPromoteToJonidan: canPromote,
       enemyHalfStepNudge: world.lastPlayerHalfStepNudge.Jonokuchi,
-      assignedNextRank: world.lastPlayerAssignedRank,
+      assignedNextRank: canPromote && assignPromote ? world.lastPlayerAssignedRank : undefined,
     };
   }
   return undefined;

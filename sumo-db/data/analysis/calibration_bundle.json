@@ -1,11 +1,11 @@
 {
   "meta": {
-    "generatedAt": "2026-03-31T20:57:55Z",
+    "generatedAt": "2026-04-12T00:32:03Z",
     "cohort": "heisei_debut",
     "sampleSize": 2883,
-    "includedCount": 2882,
+    "includedCount": 2883,
     "excludedCount": 280,
-    "pendingCount": 896,
+    "pendingCount": 895,
     "stabilityStatus": {
       "reachedMinimumSample": true,
       "stableRunLength": 1,
@@ -15,7 +15,7 @@
   },
   "career": {
     "meta": {
-      "generatedAt": "2026-03-31T20:57:55Z",
+      "generatedAt": "2026-04-12T00:32:03Z",
       "source": "rikishi_summary",
       "era": "heisei_debut",
       "cohort": "heisei_debut",
@@ -88,7 +88,7 @@
   },
   "banzuke": {
     "meta": {
-      "generatedAt": "2026-03-31T20:57:55Z",
+      "generatedAt": "2026-04-12T00:32:03Z",
       "source": "rank_movement",
       "era": "heisei_banzuke",
       "cohort": "heisei_banzuke",
@@ -5909,7 +5909,7 @@
   },
   "population": {
     "meta": {
-      "generatedAt": "2026-03-31T20:57:55Z",
+      "generatedAt": "2026-04-12T00:32:03Z",
       "source": "basho_banzuke_entry",
       "era": "heisei_population",
       "cohort": "heisei_population",
@@ -6077,7 +6077,7 @@
   },
   "collection": {
     "meta": {
-      "generatedAt": "2026-03-31T17:28:42Z",
+      "generatedAt": "2026-04-11T23:52:32Z",
       "cohort": "heisei_debut",
       "discoverySource": "heisei_banzuke",
       "checkpointInterval": 250,
@@ -6092,19 +6092,19 @@
     },
     "counts": {
       "discoveredCount": 4058,
-      "pendingCount": 896,
-      "fetchedCount": 3162,
+      "pendingCount": 895,
+      "fetchedCount": 3163,
       "errorCount": 0,
-      "includedCount": 2882,
+      "includedCount": 2883,
       "excludedCount": 280
     },
     "metrics": {
-      "includedCount": 2882,
-      "sekitoriRate": 0.10617626648161,
-      "makuuchiRate": 0.07494795281054822,
-      "sanyakuRate": 0.03157529493407356,
+      "includedCount": 2883,
+      "sekitoriRate": 0.10613943808532779,
+      "makuuchiRate": 0.07492195629552549,
+      "sanyakuRate": 0.03156434269857787,
       "careerBashoP50": 38.0,
-      "careerWinRateMean": 0.48201798293017833
+      "careerWinRateMean": 0.4820242201889608
     },
     "checkpoints": [
       {
