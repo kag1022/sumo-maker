@@ -11,9 +11,13 @@ import {
   calculateMomentumBonus,
   resolveBoutWinProb,
   resolvePlayerAbility,
+  resolveRankBaselineAbility,
   resolveUnifiedNpcStrength,
 } from './simulation/strength/model';
-import { resolvePlayerFavoriteCompression } from './simulation/playerRealism';
+import {
+  resolvePlayerFavoriteCompression,
+  resolvePlayerStagnationState,
+} from './simulation/playerRealism';
 import {
   resolveCompetitiveFactor,
 } from './simulation/realism';
@@ -514,12 +518,31 @@ const resolveBattleResult = (
     injuryPenalty,
     bonus: momentumDelta,
   });
+  const baselineWinProbability = resolveBoutWinProb({
+    attackerAbility: resolveRankBaselineAbility(rikishi.rank) * playerCompetitiveFactor,
+    defenderAbility: enemyAbility,
+    attackerStyle: playerStyle,
+    defenderStyle: enemy.styleBias,
+    injuryPenalty,
+    bonus: momentumDelta,
+  });
   const projectedExpectedWins = (context?.expectedWinsSoFar ?? 0) + baseWinProbability;
+  const stagnation = resolvePlayerStagnationState({
+    age: rikishi.age,
+    careerBashoCount: rikishi.history.records.length,
+    currentRank: rikishi.rank,
+    maxRank: rikishi.history.maxRank,
+    recentRecords: rikishi.history.records.slice(-6),
+    formerSekitori:
+      rikishi.history.maxRank.division === 'Makuuchi' || rikishi.history.maxRank.division === 'Juryo',
+  });
   const winProbability = resolvePlayerFavoriteCompression({
     winProbability: baseWinProbability,
+    baselineWinProbability,
     projectedExpectedWins,
     careerBashoCount: rikishi.history.records.length,
     currentRank: rikishi.rank,
+    stagnation,
   });
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;

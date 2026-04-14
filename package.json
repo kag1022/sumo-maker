@@ -16,6 +16,7 @@
     "report:banzuke:quick": "node scripts/reports/run_quick_banzuke_checks.cjs",
     "report:torikumi:quick": "node scripts/reports/run_quick_torikumi_checks.cjs",
     "report:banzuke:quantile": "node scripts/reports/run_banzuke_quantile_report.cjs",
+    "report:banzuke:validation": "node scripts/reports/run_banzuke_context_validation.cjs",
     "report:sekitori:retire": "node scripts/reports/run_realism_monte_carlo.cjs --retire",
     "report:roster:integrity": "node scripts/reports/run_roster_integrity_report.cjs",
     "report:realism:help": "node scripts/reports/run_realism_monte_carlo.cjs --help",
