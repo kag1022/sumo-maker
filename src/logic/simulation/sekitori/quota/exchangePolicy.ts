@@ -37,11 +37,18 @@ export const resolveSekitoriExchangePolicy = (
   const mandatoryDemotions = demotionPool.filter((candidate) => candidate.mandatory).length;
   const mandatoryPromotions = promotionPool.filter((candidate) => candidate.mandatory).length;
   if (!demotionPool.length && !promotionPool.length) {
-    demotionPool = buildJuryoFallbackDemotionCandidates(juryoResults, new Set<string>());
-    promotionPool = buildMakushitaFallbackPromotionCandidates(
-      makushitaResults,
-      new Set<string>(),
-    );
+    return {
+      exchange: {
+        slots: 0,
+        promotedToJuryoIds: [],
+        demotedToMakushitaIds: [],
+        playerPromotedToJuryo: false,
+        playerDemotedToMakushita: false,
+        reason: playerJuryoFullAbsence ? 'MANDATORY_ABSENCE_DEMOTION' : 'NORMAL',
+      },
+      promotedToJuryoIds: [],
+      demotedToMakushitaIds: [],
+    };
   }
 
   if (mandatoryPromotions > demotionPool.length) {

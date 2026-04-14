@@ -19,11 +19,12 @@ const buildDivisionGroups = (
   const grouped = new Map<string, Array<{ candidate: ExpectedPlacementCandidate; index: number }>>();
 
   candidates.forEach((candidate, index) => {
-    if (!grouped.has(candidate.sourceDivision)) {
-      grouped.set(candidate.sourceDivision, []);
-      divisionOrder.push(candidate.sourceDivision);
+    const groupKey = candidate.orderingGroup ?? candidate.sourceDivision;
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, []);
+      divisionOrder.push(groupKey);
     }
-    grouped.get(candidate.sourceDivision)?.push({ candidate, index });
+    grouped.get(groupKey)?.push({ candidate, index });
   });
 
   return divisionOrder.map((division) => grouped.get(division) ?? []);
@@ -35,6 +36,9 @@ export const orderExpectedPlacementCandidates = (
   .flatMap((group) => group
     .slice()
     .sort((left, right) => {
+      const leftTier = left.candidate.comparisonTier ?? Number.MAX_SAFE_INTEGER;
+      const rightTier = right.candidate.comparisonTier ?? Number.MAX_SAFE_INTEGER;
+      if (leftTier !== rightTier) return leftTier - rightTier;
       const leftBucket = resolveDirectionBucket(left.candidate);
       const rightBucket = resolveDirectionBucket(right.candidate);
       if (leftBucket !== rightBucket) return leftBucket - rightBucket;
