@@ -1,6 +1,9 @@
-import { CareerBand, CareerSeedBiases, Rank, RatingState } from '../../models';
+import { BashoRecord, CareerBand, CareerSeedBiases, Rank, RatingState } from '../../models';
 import { BALANCE } from '../../balance';
-import { applyPlayerEmpiricalProgressClamp } from '../playerRealism';
+import {
+  applyPlayerEmpiricalProgressClamp,
+  resolvePlayerStagnationState,
+} from '../playerRealism';
 import { resolveRankBaselineAbility } from './model';
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -15,11 +18,12 @@ export const updateAbilityAfterBasho = (input: {
   currentRank: Rank;
   maxRank: Rank;
   absent: number;
+  recentRecords?: BashoRecord[];
   careerBand?: CareerBand;
   stagnationPressure?: number;
   careerSeedBiases?: CareerSeedBiases;
 }): RatingState => {
-  const { current, actualWins, expectedWins, age, careerBashoCount, currentRank, maxRank, absent, careerBand, stagnationPressure, careerSeedBiases } = input;
+  const { current, actualWins, expectedWins, age, careerBashoCount, currentRank, maxRank, absent, recentRecords = [], careerBand, stagnationPressure, careerSeedBiases } = input;
   let delta = actualWins - expectedWins;
   const pressure = Math.max(0, stagnationPressure ?? 0);
   const isSekitori = currentRank.division === 'Makuuchi' || currentRank.division === 'Juryo';
@@ -106,6 +110,14 @@ export const updateAbilityAfterBasho = (input: {
     uncertainty: nextUncertainty,
     lastBashoExpectedWins: expectedWins,
   };
+  const stagnation = resolvePlayerStagnationState({
+    age,
+    careerBashoCount,
+    currentRank,
+    maxRank,
+    recentRecords,
+    formerSekitori: maxRank.division === 'Makuuchi' || maxRank.division === 'Juryo',
+  });
   return applyPlayerEmpiricalProgressClamp({
     current,
     next: nextState,
@@ -114,5 +126,6 @@ export const updateAbilityAfterBasho = (input: {
     currentRank,
     absent,
     maxRank,
+    stagnation,
   });
 };

@@ -21,8 +21,14 @@ import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retireme
 import { resolveRetirementChance } from '../../../src/logic/simulation/retirement/shared';
 import { Rank } from '../../../src/logic/models';
 import {
+  applyPlayerInitialAbilityCap,
   applyPlayerEmpiricalProgressClamp,
   resolvePlayerFavoriteCompression,
+  resolvePlayerNormalDivisionCompression,
+  resolvePlayerOpeningBonusAttenuation,
+  resolvePlayerStagnationBattlePenalty,
+  resolvePlayerStagnationRetentionPressure,
+  resolvePlayerStagnationState,
   resolvePlayerRetentionModifier,
 } from '../../../src/logic/simulation/playerRealism';
 import { calculateMomentumBonus, resolvePlayerAbility, resolveRankBaselineAbility } from '../../../src/logic/simulation/strength/model';
@@ -337,16 +343,35 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'battle: player favorite compression is disabled before 6 basho',
+    name: 'battle: player favorite compression applies half-strength B3 compression at 3-5 basho',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 10, side: 'East' };
-      const base = resolvePlayerFavoriteCompression({
+      const compressed = resolvePlayerFavoriteCompression({
         winProbability: 0.74,
+        baselineWinProbability: 0.66,
         projectedExpectedWins: 5.2,
         careerBashoCount: 5,
         currentRank: rank,
       });
-      assert.equal(base, 0.74);
+      assert.ok(compressed < 0.74, `Expected B3 half compression before 6 basho, got ${compressed}`);
+    },
+  },
+{
+    name: 'battle: opening bonus attenuation only reduces upside above baseline',
+    run: () => {
+      const attenuated = resolvePlayerOpeningBonusAttenuation({
+        rawWinProbability: 0.72,
+        baselineWinProbability: 0.60,
+        careerBashoCount: 4,
+      });
+      const expected = 0.60 + (0.72 - 0.60) * 0.70;
+      const unchanged = resolvePlayerOpeningBonusAttenuation({
+        rawWinProbability: 0.48,
+        baselineWinProbability: 0.52,
+        careerBashoCount: 4,
+      });
+      assert.ok(Math.abs(attenuated - expected) < 1e-9, `Expected ${expected}, got ${attenuated}`);
+      assert.equal(unchanged, 0.48);
     },
   },
 {
@@ -381,6 +406,212 @@ export const tests: TestCase[] = [
     },
   },
 {
+    name: 'retirement: last 6 bad results escalate from stalled to critical',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 18, side: 'East' };
+      const stalled = resolvePlayerStagnationState({
+        age: 26,
+        careerBashoCount: 20,
+        currentRank: rank,
+        maxRank: rank,
+        recentRecords: [
+          createBashoRecord(rank, 4, 3, 0),
+          createBashoRecord(rank, 2, 5, 0),
+          createBashoRecord(rank, 3, 4, 0),
+          createBashoRecord(rank, 4, 3, 0),
+          createBashoRecord(rank, 2, 5, 0),
+          createBashoRecord(rank, 1, 6, 0),
+        ],
+        formerSekitori: false,
+      });
+      const critical = resolvePlayerStagnationState({
+        age: 26,
+        careerBashoCount: 20,
+        currentRank: rank,
+        maxRank: rank,
+        recentRecords: [
+          createBashoRecord(rank, 2, 5, 0),
+          createBashoRecord(rank, 3, 4, 0),
+          createBashoRecord(rank, 2, 5, 0),
+          createBashoRecord(rank, 0, 0, 7),
+          createBashoRecord(rank, 0, 0, 7),
+          createBashoRecord(rank, 1, 6, 0),
+        ],
+        formerSekitori: false,
+      });
+      assert.equal(stalled.band, 'STALLED');
+      assert.equal(critical.band, 'CRITICAL');
+    },
+  },
+{
+    name: 'retirement: makushita top without kachikoshi becomes stalled',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 12, side: 'East' };
+      const resolution = resolvePlayerStagnationState({
+        age: 24,
+        careerBashoCount: 30,
+        currentRank: rank,
+        maxRank: rank,
+        recentRecords: [
+          createBashoRecord(rank, 3, 4, 0),
+          createBashoRecord(rank, 3, 4, 0),
+          createBashoRecord(rank, 0, 0, 7),
+          createBashoRecord(rank, 3, 4, 0),
+        ],
+        formerSekitori: false,
+      });
+      assert.ok(
+        resolution.band === 'STALLED' || resolution.band === 'CRITICAL',
+        `Expected stalled or critical, got ${resolution.band}`,
+      );
+      assert.equal(resolution.isMakushitaTop15, true);
+    },
+  },
+{
+    name: 'retirement: young single full kyujo grace relaxes one level only',
+    run: () => {
+      const rank: Rank = { division: 'Sandanme', name: '三段目', number: 22, side: 'East' };
+      const resolution = resolvePlayerStagnationState({
+        age: 20,
+        careerBashoCount: 10,
+        currentRank: rank,
+        maxRank: rank,
+        recentRecords: [
+          createBashoRecord(rank, 4, 3, 0),
+          createBashoRecord(rank, 5, 2, 0),
+          createBashoRecord(rank, 4, 3, 0),
+          createBashoRecord(rank, 0, 0, 7),
+        ],
+        fullKyujoStreak: 1,
+        formerSekitori: false,
+      });
+      assert.equal(resolution.band, 'NORMAL');
+      assert.equal(resolution.graceApplied, true);
+    },
+  },
+{
+    name: 'retirement: makekoshi-driven slide does not receive injury grace',
+    run: () => {
+      const rank: Rank = { division: 'Sandanme', name: '三段目', number: 22, side: 'East' };
+      const resolution = resolvePlayerStagnationState({
+        age: 20,
+        careerBashoCount: 10,
+        currentRank: rank,
+        maxRank: rank,
+        recentRecords: [
+          createBashoRecord(rank, 2, 5, 0),
+          createBashoRecord(rank, 3, 4, 0),
+          createBashoRecord(rank, 4, 3, 0),
+          createBashoRecord(rank, 0, 0, 7),
+        ],
+        fullKyujoStreak: 1,
+        formerSekitori: false,
+      });
+      assert.equal(resolution.band, 'STALLED');
+      assert.equal(resolution.graceApplied, false);
+    },
+  },
+{
+    name: 'battle: stagnation battle penalty only affects favorite side',
+    run: () => {
+      const stagnation = {
+        band: 'CRITICAL' as const,
+        badResultCount: 5,
+        fullKyujoStreak: 2,
+        isMakushitaTop15: false,
+        isMakushitaTop10: false,
+        graceApplied: false,
+      };
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 9, side: 'East' };
+      const favoritePenalty = resolvePlayerStagnationBattlePenalty({
+        winProbability: 0.62,
+        currentRank: rank,
+        stagnation,
+      });
+      const underdogPenalty = resolvePlayerStagnationBattlePenalty({
+        winProbability: 0.48,
+        currentRank: rank,
+        stagnation,
+      });
+      assert.ok(favoritePenalty > 0);
+      assert.equal(underdogPenalty, 0);
+    },
+  },
+{
+    name: 'battle: stalled lower-division compression is tighter than neutral',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 11, side: 'East' };
+      const neutral = resolvePlayerFavoriteCompression({
+        winProbability: 0.74,
+        projectedExpectedWins: 5.1,
+        careerBashoCount: 24,
+        currentRank: rank,
+      });
+      const stalled = resolvePlayerFavoriteCompression({
+        winProbability: 0.74,
+        projectedExpectedWins: 5.1,
+        careerBashoCount: 24,
+        currentRank: rank,
+        stagnation: {
+          band: 'STALLED',
+          badResultCount: 3,
+          fullKyujoStreak: 0,
+          isMakushitaTop15: true,
+          isMakushitaTop10: false,
+          graceApplied: false,
+        },
+      });
+      assert.ok(stalled < neutral, `Expected stalled compression < neutral, got ${stalled} >= ${neutral}`);
+    },
+  },
+{
+    name: 'battle: normal lower-division compression reaches full strength after 6 basho',
+    run: () => {
+      const rank: Rank = { division: 'Jonidan', name: '序二段', number: 35, side: 'East' };
+      const half = resolvePlayerNormalDivisionCompression({
+        careerBashoCount: 4,
+        currentRank: rank,
+        winProbability: 0.66,
+      });
+      const full = resolvePlayerNormalDivisionCompression({
+        careerBashoCount: 8,
+        currentRank: rank,
+        winProbability: 0.66,
+      });
+      assert.equal(half, 0.04);
+      assert.equal(full, 0.08);
+    },
+  },
+{
+    name: 'battle: pre-6 stagnation does not add battle penalty',
+    run: () => {
+      const rank: Rank = { division: 'Makushita', name: '幕下', number: 11, side: 'East' };
+      const neutral = resolvePlayerFavoriteCompression({
+        winProbability: 0.74,
+        baselineWinProbability: 0.66,
+        projectedExpectedWins: 5.0,
+        careerBashoCount: 5,
+        currentRank: rank,
+      });
+      const critical = resolvePlayerFavoriteCompression({
+        winProbability: 0.74,
+        baselineWinProbability: 0.66,
+        projectedExpectedWins: 5.0,
+        careerBashoCount: 5,
+        currentRank: rank,
+        stagnation: {
+          band: 'CRITICAL',
+          badResultCount: 5,
+          fullKyujoStreak: 2,
+          isMakushitaTop15: true,
+          isMakushitaTop10: false,
+          graceApplied: false,
+        },
+      });
+      assert.equal(critical, neutral);
+    },
+  },
+{
     name: 'growth: full kyujo clamps positive player progress to zero',
     run: () => {
       const current = {
@@ -403,9 +634,63 @@ export const tests: TestCase[] = [
         currentRank: { division: 'Makushita', name: '幕下', number: 8, side: 'East' },
         absent: 7,
         maxRank: { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
+        stagnation: {
+          band: 'CRITICAL',
+          badResultCount: 5,
+          fullKyujoStreak: 1,
+          isMakushitaTop15: true,
+          isMakushitaTop10: true,
+          graceApplied: false,
+        },
       });
       assert.equal(clamped.ability, current.ability);
       assert.equal(clamped.form, current.form);
+    },
+  },
+{
+    name: 'growth: early stagnation does not penalize pre-6-basho progress',
+    run: () => {
+      const current = {
+        ability: 82,
+        form: 0,
+        uncertainty: 1.4,
+        lastBashoExpectedWins: 4.1,
+      };
+      const next = {
+        ability: 90,
+        form: 0.4,
+        uncertainty: 1.3,
+        lastBashoExpectedWins: 4.1,
+      };
+      const currentRank: Rank = { division: 'Makushita', name: '幕下', number: 18, side: 'East' };
+      const stalled = applyPlayerEmpiricalProgressClamp({
+        current,
+        next,
+        age: 20,
+        careerBashoCount: 4,
+        currentRank,
+        absent: 0,
+        maxRank: currentRank,
+        stagnation: {
+          band: 'CRITICAL',
+          badResultCount: 5,
+          fullKyujoStreak: 2,
+          isMakushitaTop15: false,
+          isMakushitaTop10: false,
+          graceApplied: false,
+        },
+      });
+      const neutral = applyPlayerEmpiricalProgressClamp({
+        current,
+        next,
+        age: 20,
+        careerBashoCount: 4,
+        currentRank,
+        absent: 0,
+        maxRank: currentRank,
+      });
+      assert.equal(stalled.ability, neutral.ability);
+      assert.equal(stalled.form, neutral.form);
     },
   },
 {
@@ -435,6 +720,24 @@ export const tests: TestCase[] = [
       });
       const cap = resolveRankBaselineAbility(currentRank) + 15;
       assert.ok(clamped.ability <= cap, `Expected clamped ability <= ${cap}, got ${clamped.ability}`);
+    },
+  },
+{
+    name: 'growth: initial ability cap only compresses the upper side',
+    run: () => {
+      const rank: Rank = { division: 'Jonidan', name: '序二段', number: 50, side: 'East' };
+      const baseline = resolveRankBaselineAbility(rank);
+      const below = applyPlayerInitialAbilityCap({
+        ability: baseline - 6,
+        rank,
+      });
+      const above = applyPlayerInitialAbilityCap({
+        ability: baseline + 18,
+        rank,
+      });
+      assert.equal(below, baseline - 6);
+      assert.ok(above < baseline + 18, `Expected upper clamp to compress, got ${above}`);
+      assert.ok(above > baseline + 8, `Expected soft cap, got ${above}`);
     },
   },
 {
@@ -687,6 +990,7 @@ export const tests: TestCase[] = [
         currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
         maxRank: { division: 'Juryo', name: '十両', side: 'East', number: 1 },
         absent: 0,
+        recentRecords: [],
       });
 
       assert.ok(
@@ -711,6 +1015,7 @@ export const tests: TestCase[] = [
         currentRank: { division: 'Juryo', name: '十両', side: 'East', number: 3 },
         maxRank: { division: 'Juryo', name: '十両', side: 'East', number: 1 },
         absent: 0,
+        recentRecords: [],
       });
 
       assert.ok(
@@ -738,6 +1043,7 @@ export const tests: TestCase[] = [
         currentRank: rank,
         maxRank: rank,
         absent: 0,
+        recentRecords: [],
       });
 
       assert.ok(next.ability < currentAbility);
@@ -2126,11 +2432,11 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'retirement: player retention modifier is neutral before age 28',
+    name: 'retirement: player retention modifier is neutral only before age 24 and 18 basho',
     run: () => {
       const modifier = resolvePlayerRetentionModifier({
-        age: 27,
-        careerBashoCount: 60,
+        age: 23,
+        careerBashoCount: 17,
         currentDivision: 'Makushita',
         currentRank: { division: 'Makushita', name: '幕下', number: 15, side: 'East' },
         maxRank: { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
@@ -2141,6 +2447,48 @@ export const tests: TestCase[] = [
         formerSekitori: false,
       });
       assert.equal(modifier, 1);
+    },
+  },
+{
+    name: 'retirement: pre-6 stagnation pressure stays neutral without double full kyujo',
+    run: () => {
+      const modifier = resolvePlayerRetentionModifier({
+        age: 26,
+        careerBashoCount: 4,
+        currentDivision: 'Makushita',
+        currentRank: { division: 'Makushita', name: '幕下', number: 22, side: 'East' },
+        maxRank: { division: 'Makushita', name: '幕下', number: 10, side: 'East' },
+        recentRecords: [
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 2, 5, 0),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 3, 4, 0),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 2, 5, 0),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 0, 0, 7),
+        ],
+        fullKyujoStreak: 1,
+        formerSekitori: false,
+      });
+      assert.equal(modifier, 1);
+    },
+  },
+{
+    name: 'retirement: pre-6 double full kyujo still raises retention modifier',
+    run: () => {
+      const modifier = resolvePlayerRetentionModifier({
+        age: 26,
+        careerBashoCount: 4,
+        currentDivision: 'Makushita',
+        currentRank: { division: 'Makushita', name: '幕下', number: 22, side: 'East' },
+        maxRank: { division: 'Makushita', name: '幕下', number: 10, side: 'East' },
+        recentRecords: [
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 2, 5, 0),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 2, 5, 0),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 0, 0, 7),
+          createBashoRecord({ division: 'Makushita', name: '幕下', number: 22, side: 'East' }, 0, 0, 7),
+        ],
+        fullKyujoStreak: 2,
+        formerSekitori: false,
+      });
+      assert.ok(modifier > 1, `Expected double full kyujo modifier > 1, got ${modifier}`);
     },
   },
 {
@@ -2175,6 +2523,59 @@ export const tests: TestCase[] = [
         formerSekitori: false,
       });
       assert.ok(stagnant > neutral, `Expected stagnant modifier > neutral, got ${stagnant} <= ${neutral}`);
+    },
+  },
+{
+    name: 'retirement: makushita top15 stagnation adds extra retention pressure',
+    run: () => {
+      const top15Rank: Rank = { division: 'Makushita', name: '幕下', number: 12, side: 'East' };
+      const lowerRank: Rank = { division: 'Makushita', name: '幕下', number: 28, side: 'East' };
+      const stagnation = resolvePlayerStagnationState({
+        age: 29,
+        careerBashoCount: 40,
+        currentRank: top15Rank,
+        maxRank: top15Rank,
+        recentRecords: [
+          createBashoRecord(top15Rank, 3, 4, 0),
+          createBashoRecord(top15Rank, 2, 5, 0),
+          createBashoRecord(top15Rank, 3, 4, 0),
+          createBashoRecord(top15Rank, 0, 0, 7),
+        ],
+        formerSekitori: false,
+      });
+      const topPressure = resolvePlayerStagnationRetentionPressure({
+        currentDivision: 'Makushita',
+        currentRank: top15Rank,
+        stagnation,
+      });
+      const lowerPressure = resolvePlayerStagnationRetentionPressure({
+        currentDivision: 'Makushita',
+        currentRank: lowerRank,
+        stagnation: {
+          ...stagnation,
+          isMakushitaTop15: false,
+          isMakushitaTop10: false,
+        },
+      });
+      assert.ok(topPressure > lowerPressure, `Expected top15 pressure > lower pressure, got ${topPressure} <= ${lowerPressure}`);
+    },
+  },
+{
+    name: 'retirement: critical top15 non-sekitori pressure reaches 3.75x before clamp',
+    run: () => {
+      const critical = resolvePlayerStagnationRetentionPressure({
+        currentDivision: 'Makushita',
+        currentRank: { division: 'Makushita', name: '幕下', number: 12, side: 'East' },
+        stagnation: {
+          band: 'CRITICAL',
+          badResultCount: 5,
+          fullKyujoStreak: 2,
+          isMakushitaTop15: true,
+          isMakushitaTop10: false,
+          graceApplied: false,
+        },
+      });
+      assert.equal(critical, 3.75);
     },
   },
 {

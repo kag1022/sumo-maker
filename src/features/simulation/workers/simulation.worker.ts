@@ -72,6 +72,8 @@ const buildObservation = (
     };
   }
 
+  const stagnationWarning = step.events.find((row) =>
+    row.type === 'OTHER' && row.description.startsWith('師匠の示唆:'));
   const event = step.events.find((row) => row.type === 'RETIREMENT')
     ?? step.events.find((row) => row.type === 'YUSHO')
     ?? step.events.find((row) => row.type === 'PROMOTION')
@@ -83,7 +85,10 @@ const buildObservation = (
     seq: step.seq,
     year: step.year,
     month: step.month,
-      kind:
+    kind:
+      stagnationWarning
+        ? 'danger'
+        :
       chapterKind === 'INJURY'
         ? 'danger'
         : chapterKind === 'TITLE_RACE' || chapterKind === 'SEKITORI' || chapterKind === 'SANYAKU' || chapterKind === 'DEBUT'
@@ -91,7 +96,9 @@ const buildObservation = (
           : 'result',
     chapterKind,
     headline:
-      chapterKind === 'DEBUT'
+      stagnationWarning
+        ? `${step.year}年${step.month}月場所で空気が変わる`
+        : chapterKind === 'DEBUT'
         ? `${step.year}年${step.month}月場所で初土俵を踏む`
         : chapterKind === 'SEKITORI'
           ? `${step.year}年${step.month}月場所で関取に届く`
@@ -102,7 +109,7 @@ const buildObservation = (
               : chapterKind === 'INJURY'
                 ? `${step.year}年${step.month}月場所で影が差す`
         : `${step.year}年${step.month}月場所を見届けた`,
-    detail: event?.description ?? `${rankLabel}で ${recordText}`,
+    detail: stagnationWarning?.description ?? event?.description ?? `${rankLabel}で ${recordText}`,
   };
 };
 
@@ -225,8 +232,11 @@ const buildChapterCopy = (
   };
 };
 
-const shouldPauseForChapter = (chapterKind: SimulationChapterKind | null): boolean =>
-  pacing === 'chaptered' && chapterKind !== null;
+const shouldPauseForChapter = (
+  chapterKind: SimulationChapterKind | null,
+  observation: SimulationObservationEntry,
+): boolean =>
+  pacing === 'chaptered' && (chapterKind !== null || observation.kind === 'danger');
 
 const buildPendingChunk = (step: BashoStepResult): AppendBashoChunkParams => ({
   careerId: activeCareerId ?? '',
@@ -351,7 +361,7 @@ const runLoop = async (): Promise<void> => {
             ...chapterCopy,
           },
         });
-        const pauseForChapter = shouldPauseForChapter(chapterKind);
+        const pauseForChapter = shouldPauseForChapter(chapterKind, observation);
         if (pauseForChapter) {
           pausedForChapter = true;
         }
@@ -426,7 +436,7 @@ const runLoop = async (): Promise<void> => {
         chapterReason: chapterCopy.chapterReason,
         nextBeatLabel: chapterCopy.nextBeatLabel,
       });
-      const pauseForChapter = shouldPauseForChapter(effectiveChapterKind);
+      const pauseForChapter = shouldPauseForChapter(effectiveChapterKind, observation);
       post({
         type: 'COMPLETED',
         payload: {
