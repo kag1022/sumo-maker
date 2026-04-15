@@ -2,8 +2,8 @@ import { RandomSource } from '../deps';
 import { PersistentNpc } from './types';
 import {
   computeConsecutiveMakekoshiStreak,
-  resolveRetirementChance,
 } from '../retirement/shared';
+import { resolveEmpiricalNpcRetirementHazard } from '../../calibration/npcRealismHeisei';
 import { updateStagnationState } from '../realism';
 import { PopulationPlan } from './populationPlanTypes';
 
@@ -17,6 +17,7 @@ export const pushNpcBashoResult = (
   options?: {
     absent?: number;
     rankName?: string;
+    rankNumber?: number;
     division?: PersistentNpc['currentDivision'];
   },
 ): void => {
@@ -24,6 +25,7 @@ export const pushNpcBashoResult = (
   npc.recentBashoResults.push({
     division: options?.division ?? npc.currentDivision,
     rankName: options?.rankName,
+    rankNumber: options?.rankNumber,
     wins,
     losses,
     absent,
@@ -50,11 +52,6 @@ export const runNpcRetirementStep = (
   populationPlan?: PopulationPlan,
 ): string[] => {
   const retiredIds: string[] = [];
-  const populationMultiplier = clamp(
-    1 + (populationPlan?.annualRetirementShock ?? 0),
-    0.35,
-    1.6,
-  );
   for (const npc of npcs) {
     if (npc.actorType === 'PLAYER') continue;
     if (!npc.active) continue;
@@ -84,24 +81,28 @@ export const runNpcRetirementStep = (
         ? count + 1
         : count
     ), 0);
-    const baseChance = resolveRetirementChance({
+    const baseChance = resolveEmpiricalNpcRetirementHazard({
       age: npc.age,
-      injuryLevel: Math.max(0, Math.round((72 - npc.basePower * npc.form) / 8)),
       currentDivision: npc.currentDivision,
-      isFormerSekitori: npc.division === 'Makuuchi' || npc.division === 'Juryo',
-      consecutiveAbsence,
-      consecutiveMakekoshi,
-      profile: npc.retirementProfile ?? 'STANDARD',
-      retirementBias: npc.retirementBias,
-      careerBashoCount: npc.careerBashoCount,
-      careerWinRate,
-      stagnationPressure: npc.stagnation?.pressure ?? 0,
-      careerBand: npc.careerBand,
-      recentAbsenceTotal,
-      recentUpperBashoCount,
-      recentOzekiYokozunaBashoCount,
+      currentRankScore: npc.rankScore,
+      recentBashoResults: npc.recentBashoResults,
+      formerSekitori:
+        npc.currentDivision === 'Makuuchi' ||
+        npc.currentDivision === 'Juryo' ||
+        npc.recentBashoResults.some(
+          (row) => row.division === 'Makuuchi' || row.division === 'Juryo',
+        ),
+      annualRetirementShock: populationPlan?.annualRetirementShock ?? 0,
     });
-    const chance = clamp(baseChance * populationMultiplier, 0, 1);
+    const adjustment =
+      1 +
+      Math.max(0, consecutiveAbsence - 4) * 0.03 +
+      Math.max(0, consecutiveMakekoshi - 5) * 0.015 +
+      Math.max(0, recentAbsenceTotal - 6) * 0.004 +
+      Math.max(0, recentUpperBashoCount - 6) * 0.004 +
+      Math.max(0, recentOzekiYokozunaBashoCount - 3) * 0.005 +
+      Math.max(0, 0.48 - careerWinRate) * 0.18;
+    const chance = clamp(baseChance * adjustment, 0, 1);
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
       npc.retiredAtSeq = seq;

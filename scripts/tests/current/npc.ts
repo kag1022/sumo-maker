@@ -1,7 +1,11 @@
+import rawNpcRealismCalibration from '../../../sumo-db/data/analysis/npc_realism_c1_heisei.json';
+import { sampleEmpiricalDivisionAge, sampleEmpiricalNpcSeed, resolveEmpiricalNpcRetirementHazard, resolveEmpiricalNpcRetirementLookupMeta } from '../../../src/logic/calibration/npcRealismHeisei';
+import { checkRetirement } from '../../../src/logic/growth';
 import { createInitialNpcUniverse } from '../../../src/logic/simulation/npc/factory';
 import { intakeNewNpcRecruits, resolveIntakeCount } from '../../../src/logic/simulation/npc/intake';
 import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
 import { ensurePopulationPlan } from '../../../src/logic/simulation/npc/populationPlan';
+import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
 import { countActiveByStable, NPC_STABLE_CATALOG, resolveIchimonByStableId } from '../../../src/logic/simulation/npc/stableCatalog';
 import { createNpcNameContext, generateUniqueNpcShikona, isSurnameShikona } from '../../../src/logic/simulation/npc/npcShikonaGenerator';
 import { ActorRegistry } from '../../../src/logic/simulation/npc/types';
@@ -35,7 +39,276 @@ import {
   buildCareerRateSample,
 } from '../shared/currentHelpers';
 
+const NPC_REALISM_CALIBRATION = rawNpcRealismCalibration as {
+  retirementHazardByState: Record<string, { sampleSize: number }>;
+};
+
 export const tests: TestCase[] = [
+{
+    name: 'npc realism c1: seed sampler is deterministic',
+    run: () => {
+      const rngA = lcg(20260412);
+      const rngB = lcg(20260412);
+      const sampleA = Array.from({ length: 8 }, () => sampleEmpiricalNpcSeed(rngA).id);
+      const sampleB = Array.from({ length: 8 }, () => sampleEmpiricalNpcSeed(rngB).id);
+      assert.deepEqual(sampleA, sampleB);
+    },
+  },
+{
+    name: 'npc realism c1: age sampler stays within division quantile range',
+    run: () => {
+      for (const division of ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi', 'Maezumo'] as const) {
+        for (let index = 0; index < 40; index += 1) {
+          const age = sampleEmpiricalDivisionAge(division, lcg(division.length * 100 + index));
+          assert.ok(age >= 15 && age <= 45, `Unexpected age ${age} for ${division}`);
+        }
+      }
+    },
+  },
+{
+    name: 'npc realism c1: low-sample full-key hazard falls back',
+    run: () => {
+      const lowSampleEntry = Object.entries(NPC_REALISM_CALIBRATION.retirementHazardByState).find(
+        ([, row]) => row.sampleSize > 0 && row.sampleSize < 20,
+      );
+      assert.ok(Boolean(lowSampleEntry), 'Expected at least one low-sample retirement state');
+      if (!lowSampleEntry) return;
+      const [key] = lowSampleEntry;
+      const [division, rankBand, ageBand, resultClass, absenceBand, formerSekitoriFlag] = key.split('|');
+      const rankIdentityByBand: Record<string, { rankName: string; rankNumber?: number; currentRankScore: number }> = {
+        'Y/O': { rankName: '横綱', rankNumber: 1, currentRankScore: 1 },
+        'S/K': { rankName: '関脇', rankNumber: 1, currentRankScore: 5 },
+        '1-5': { rankName: division === 'Makuuchi' ? '前頭' : division === 'Makushita' ? '幕下' : '十両', rankNumber: 3, currentRankScore: 5 },
+        '6-10': { rankName: '前頭', rankNumber: 8, currentRankScore: 17 },
+        '11+': { rankName: '前頭', rankNumber: 12, currentRankScore: 25 },
+        '1-3': { rankName: '十両', rankNumber: 2, currentRankScore: 3 },
+        '4-7': { rankName: '十両', rankNumber: 5, currentRankScore: 9 },
+        '8-11': { rankName: '十両', rankNumber: 9, currentRankScore: 17 },
+        '12-14': { rankName: '十両', rankNumber: 13, currentRankScore: 25 },
+        '6-15': { rankName: '幕下', rankNumber: 10, currentRankScore: 19 },
+        '16-30': { rankName: '幕下', rankNumber: 20, currentRankScore: 39 },
+        '31-45': { rankName: '幕下', rankNumber: 40, currentRankScore: 79 },
+        '46+': { rankName: '幕下', rankNumber: 50, currentRankScore: 99 },
+        '1-10': { rankName: division === 'Sandanme' ? '三段目' : '序ノ口', rankNumber: 6, currentRankScore: 11 },
+        '11-30': { rankName: '三段目', rankNumber: 18, currentRankScore: 35 },
+        '31-60': { rankName: '三段目', rankNumber: 40, currentRankScore: 79 },
+        '61-90': { rankName: '三段目', rankNumber: 72, currentRankScore: 143 },
+        '91+': { rankName: '三段目', rankNumber: 100, currentRankScore: 199 },
+        '1-20': { rankName: '序二段', rankNumber: 10, currentRankScore: 19 },
+        '21-50': { rankName: '序二段', rankNumber: 35, currentRankScore: 69 },
+        '51-100': { rankName: '序二段', rankNumber: 75, currentRankScore: 149 },
+        '101-150': { rankName: '序二段', rankNumber: 120, currentRankScore: 239 },
+        '151+': { rankName: '序二段', rankNumber: 170, currentRankScore: 339 },
+        '11-20': { rankName: '序ノ口', rankNumber: 15, currentRankScore: 29 },
+        '21-30': { rankName: '序ノ口', rankNumber: 25, currentRankScore: 49 },
+        '31+': { rankName: '序ノ口', rankNumber: 35, currentRankScore: 69 },
+      };
+      const rankIdentity = rankIdentityByBand[rankBand] ?? { rankName: '幕下', rankNumber: 10, currentRankScore: 19 };
+      const wins =
+        resultClass === 'KK' ? 4 : resultClass === 'EVEN' ? 3 : resultClass === 'MK_LIGHT' ? 2 : 1;
+      const losses =
+        resultClass === 'KK' ? 3 : resultClass === 'EVEN' ? 3 : resultClass === 'MK_LIGHT' ? 4 : 5;
+      const scheduledBouts = division === 'Makuuchi' || division === 'Juryo' ? 15 : 7;
+      const absent =
+        resultClass === 'FULL_KYUJO'
+          ? scheduledBouts
+          : absenceBand === '0'
+            ? 0
+            : absenceBand === '1-2'
+              ? 2
+              : absenceBand === '3-5'
+                ? 4
+                : 7;
+      const age =
+        ageBand === '15-18' ? 17 :
+        ageBand === '19-21' ? 20 :
+        ageBand === '22-24' ? 23 :
+        ageBand === '25-27' ? 26 :
+        ageBand === '28-30' ? 29 :
+        ageBand === '31-33' ? 32 :
+        ageBand === '34-36' ? 35 :
+        ageBand === '37-39' ? 38 : 41;
+      const meta = resolveEmpiricalNpcRetirementLookupMeta({
+        age,
+        currentDivision: division as never,
+        currentRankScore: rankIdentity.currentRankScore,
+        recentBashoResults: [{
+          division: division as never,
+          rankName: rankIdentity.rankName,
+          rankNumber: rankIdentity.rankNumber,
+          wins,
+          losses,
+          absent,
+        }],
+        formerSekitori: formerSekitoriFlag === '1',
+      });
+      const hazard = resolveEmpiricalNpcRetirementHazard({
+        age,
+        currentDivision: division as never,
+        currentRankScore: rankIdentity.currentRankScore,
+        recentBashoResults: [{
+          division: division as never,
+          rankName: rankIdentity.rankName,
+          rankNumber: rankIdentity.rankNumber,
+          wins,
+          losses,
+          absent,
+        }],
+        formerSekitori: formerSekitoriFlag === '1',
+      });
+      assert.ok(meta.fallbackLevel !== 'full', `Expected fallback for low-sample key ${key}, got full`);
+      assert.ok(hazard >= 0 && hazard <= 1, `Expected hazard to be normalized, got ${hazard}`);
+    },
+  },
+{
+    name: 'npc realism c1: generated bands diverge from legacy hand weights',
+    run: () => {
+      const universe = createInitialNpcUniverse(lcg(20260413));
+      const all = [
+        ...universe.rosters.Makuuchi,
+        ...universe.rosters.Juryo,
+        ...universe.rosters.Makushita,
+        ...universe.rosters.Sandanme,
+        ...universe.rosters.Jonidan,
+        ...universe.rosters.Jonokuchi,
+      ];
+      const counts = {
+        ELITE: 0,
+        STRONG: 0,
+        STANDARD: 0,
+        GRINDER: 0,
+        WASHOUT: 0,
+      };
+      for (const npc of all) {
+        counts[npc.careerBand ?? 'STANDARD'] += 1;
+        assert.ok(typeof npc.riseBand === 'number', `Expected riseBand on ${npc.id}`);
+      }
+      const total = all.length;
+      const legacy = { ELITE: 0.04, STRONG: 0.15, STANDARD: 0.43, GRINDER: 0.26, WASHOUT: 0.12 };
+      const meanAbsDiff =
+        (Math.abs(counts.ELITE / total - legacy.ELITE) +
+          Math.abs(counts.STRONG / total - legacy.STRONG) +
+          Math.abs(counts.STANDARD / total - legacy.STANDARD) +
+          Math.abs(counts.GRINDER / total - legacy.GRINDER) +
+          Math.abs(counts.WASHOUT / total - legacy.WASHOUT)) / 5;
+      assert.ok(meanAbsDiff >= 0.015, `Expected empirical distribution to differ from legacy weights, got ${meanAbsDiff}`);
+    },
+  },
+{
+    name: 'npc realism c1: positive retirement shock increases retirements without collapse',
+    run: () => {
+      const buildNpc = (index: number) => ({
+        actorId: `NPC-${index}`,
+        actorType: 'NPC' as const,
+        id: `NPC-${index}`,
+        seedId: `NPC-${index}`,
+        shikona: `検証${index}`,
+        stableId: 'stable-001',
+        division: 'Makushita' as const,
+        currentDivision: 'Makushita' as const,
+        rankScore: 18,
+        basePower: 82,
+        ability: 84,
+        uncertainty: 1.6,
+        form: 1,
+        volatility: 1.2,
+        styleBias: 'BALANCE' as const,
+        heightCm: 181,
+        weightKg: 143,
+        growthBias: 0,
+        retirementBias: 0,
+        retirementProfile: 'STANDARD' as const,
+        aptitudeTier: 'B' as const,
+        aptitudeFactor: 1,
+        aptitudeProfile: undefined,
+        careerBand: 'STANDARD' as const,
+        entryAge: 15,
+        age: 29,
+        careerBashoCount: 84,
+        active: true,
+        entrySeq: 0,
+        riseBand: 2 as const,
+        stagnation: {
+          pressure: 1.8,
+          makekoshiStreak: 0,
+          lowWinRateStreak: 0,
+          stuckBasho: 0,
+          reboundBoost: 0,
+        },
+        recentBashoResults: [
+          { division: 'Makushita' as const, rankName: '幕下', rankNumber: 18, wins: 2, losses: 5, absent: 0 },
+          { division: 'Makushita' as const, rankName: '幕下', rankNumber: 22, wins: 3, losses: 4, absent: 0 },
+          { division: 'Makushita' as const, rankName: '幕下', rankNumber: 25, wins: 2, losses: 5, absent: 0 },
+        ],
+      });
+      const positive = Array.from({ length: 240 }, (_, index) => buildNpc(index));
+      const negative = Array.from({ length: 240 }, (_, index) => buildNpc(index + 300));
+      const positiveRetired = runNpcRetirementStep(positive, 1, lcg(20260414), {
+        sampledAtYear: 2026,
+        annualIntakeShock: 0,
+        annualRetirementShock: 0.2,
+        annualIntakeHardCap: 760,
+        jonidanShock: 0,
+        jonokuchiShock: 0,
+        lowerDivisionElasticity: 1,
+        sampledTotalSwing: 0,
+        sampledJonidanSwing: 0,
+        sampledJonokuchiSwing: 0,
+      }).length;
+      const negativeRetired = runNpcRetirementStep(negative, 1, lcg(20260414), {
+        sampledAtYear: 2026,
+        annualIntakeShock: 0,
+        annualRetirementShock: -0.2,
+        annualIntakeHardCap: 760,
+        jonidanShock: 0,
+        jonokuchiShock: 0,
+        lowerDivisionElasticity: 1,
+        sampledTotalSwing: 0,
+        sampledJonidanSwing: 0,
+        sampledJonokuchiSwing: 0,
+      }).length;
+      assert.ok(positiveRetired > negativeRetired, `Expected positive shock retirements > negative, got ${positiveRetired} <= ${negativeRetired}`);
+      assert.ok(positiveRetired < positive.length * 0.6, `Expected no collapse, got ${positiveRetired}/${positive.length}`);
+    },
+  },
+{
+    name: 'npc realism c1: player retirement path still follows shared growth logic',
+    run: () => {
+      const status = createStatus({
+        age: 33,
+        injuryLevel: 1,
+        careerBand: 'STANDARD',
+        retirementProfile: 'STANDARD',
+        history: {
+          records: Array.from({ length: 80 }, () =>
+            createBashoRecord(
+              { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
+              7,
+              8,
+              0,
+            ),
+          ),
+          events: [],
+          maxRank: { division: 'Makushita', name: '幕下', number: 2, side: 'East' },
+          totalWins: 560,
+          totalLosses: 640,
+          totalAbsent: 0,
+          yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
+          kimariteTotal: {},
+          winRouteTotal: {},
+          bodyTimeline: [],
+          highlightEvents: [],
+          traitAwakenings: [],
+          careerTurningPoints: [],
+          realismKpi: { careerWinRate: 0.466, stagnationPressure: 0.4 },
+        },
+      });
+      const resultLow = checkRetirement(status, () => 0);
+      const resultHigh = checkRetirement(status, () => 0.999999);
+      assert.ok(resultLow.shouldRetire, 'Expected low roll to retire on player path');
+      assert.ok(!resultHigh.shouldRetire, 'Expected high roll to survive on player path');
+    },
+  },
 {
     name: 'population plan: same year reuses plan and next year resamples',
     run: () => {

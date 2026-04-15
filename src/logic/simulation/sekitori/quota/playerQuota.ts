@@ -12,7 +12,7 @@ export const resolveSekitoriQuotaForPlayer = (
     return {
       canDemoteToMakushita: world.lastExchange.playerDemotedToMakushita,
       enemyHalfStepNudge: world.lastPlayerJuryoHalfStepNudge,
-      assignedNextRank: boundaryAssigned,
+      assignedNextRank: world.lastExchange.playerDemotedToMakushita ? boundaryAssigned : undefined,
     };
   }
   if (rank.division === 'Makushita') {
@@ -20,7 +20,7 @@ export const resolveSekitoriQuotaForPlayer = (
       assigned && assigned.division === 'Juryo' ? assigned : undefined;
     return {
       canPromoteToJuryo: world.lastExchange.playerPromotedToJuryo,
-      assignedNextRank: boundaryAssigned,
+      assignedNextRank: world.lastExchange.playerPromotedToJuryo ? boundaryAssigned : undefined,
     };
   }
   return undefined;

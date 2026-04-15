@@ -10,6 +10,7 @@ export type NpcNamingSchoolId = 'HAYATE' | 'TRADITION' | 'KAREI' | 'GORIKI';
 export interface NpcBashoResult {
   division: Division;
   rankName?: string;
+  rankNumber?: number;
   wins: number;
   losses: number;
   absent?: number;

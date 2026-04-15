@@ -4,7 +4,7 @@ import {
   RankChangeResult,
   composeNextBanzuke,
 } from '../../banzuke';
-import { resolveEmpiricalRankBand, resolveEmpiricalRecordBucket } from '../../banzuke/providers/empirical';
+import { resolveRuntimeRankBand, resolveRuntimeRecordBucket } from '../../banzuke/providers/runtimeMetadata';
 import { applyGrowth, checkRetirement } from '../../growth';
 import { Rank, RikishiStatus } from '../../models';
 import {
@@ -37,6 +37,7 @@ import {
   SekitoriBoundaryWorld,
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
+import { resolvePlayerStagnationState } from '../playerRealism';
 import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
 import { updateStyleIdentityAfterBasho } from '../../style/identity';
 import {
@@ -84,6 +85,12 @@ const EMPTY_SIMULATION_TIMING_PHASES: Record<SimulationTimingPhase, number> = {
   quota_and_banzuke: 0,
   post_basho_maintenance: 0,
   postprocess: 0,
+};
+
+const STAGNATION_BAND_ORDER: Record<'NORMAL' | 'STALLED' | 'CRITICAL', number> = {
+  NORMAL: 0,
+  STALLED: 1,
+  CRITICAL: 2,
 };
 
 export interface EngineRuntimeState {
@@ -279,6 +286,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   const currentRank = { ...state.status.rank };
   const bashoMakuuchiLayout = { ...world.makuuchiLayout };
   const stagnationPressureBeforeBasho = state.status.stagnation?.pressure ?? 0;
+  const stagnationBeforeBasho = resolvePlayerStagnationState({
+    age: state.status.age,
+    careerBashoCount: state.status.history.records.length,
+    currentRank,
+    maxRank: state.status.history.maxRank,
+    recentRecords: state.status.history.records.slice(-6),
+    formerSekitori:
+      state.status.history.maxRank.division === 'Makuuchi' || state.status.history.maxRank.division === 'Juryo',
+  });
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
   finishPhase('pre_reconcile');
 
@@ -369,12 +385,12 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     ...(lowerDivisionQuota ? { lowerDivisionQuota } : {}),
     ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
     empiricalContext: {
-      recordBucket: resolveEmpiricalRecordBucket(
+      recordBucket: resolveRuntimeRecordBucket(
         bashoRecord.wins,
         bashoRecord.losses,
         bashoRecord.absent,
       ),
-      rankBand: resolveEmpiricalRankBand(
+      rankBand: resolveRuntimeRankBand(
         currentRank.division,
         currentRank.name,
         currentRank.number,
@@ -431,6 +447,29 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   const beforeEvents = state.status.history.events.length;
   appendBashoEvents(state.status, state.year, month, bashoRecord, rankChange, currentRank);
   let newEvents = state.status.history.events.slice(beforeEvents);
+  const stagnationAfterBasho = resolvePlayerStagnationState({
+    age: state.status.age,
+    careerBashoCount: state.status.history.records.length,
+    currentRank: rankChange.nextRank,
+    maxRank: state.status.history.maxRank,
+    recentRecords: state.status.history.records.slice(-6),
+    formerSekitori:
+      state.status.history.maxRank.division === 'Makuuchi' || state.status.history.maxRank.division === 'Juryo',
+  });
+  if (STAGNATION_BAND_ORDER[stagnationAfterBasho.band] > STAGNATION_BAND_ORDER[stagnationBeforeBasho.band]) {
+    newEvents = [
+      ...newEvents,
+      {
+        year: bashoRecord.year,
+        month: bashoRecord.month,
+        type: 'OTHER',
+        description:
+          stagnationAfterBasho.band === 'CRITICAL'
+            ? '師匠の示唆: 稽古場の空気が重い。今場所を落とすと、土俵際ではなく力士人生そのものが苦しくなる。'
+            : '師匠の示唆: 稽古場の空気が少し変わった。今の足踏みを次の場所へ持ち越すと、番付も先行きも苦しくなる。',
+      },
+    ];
+  }
 
   const spiritDelta = applySpiritChangeAfterBasho({
     status: state.status,
@@ -603,6 +642,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     age: state.status.age,
     careerBashoCount: state.status.history.records.length,
     currentRank: state.status.rank,
+    maxRank: state.status.history.maxRank,
+    absent: bashoRecord.absent,
+    recentRecords: state.status.history.records.slice(-6),
     careerBand: state.status.careerBand,
     stagnationPressure: state.status.stagnation?.pressure ?? 0,
     careerSeedBiases: state.status.careerSeed?.biases,

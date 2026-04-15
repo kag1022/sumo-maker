@@ -1,11 +1,11 @@
 import { Rank } from '../../models';
-import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
 import { BanzukeEngineVersion } from '../types';
 import { optimizeExpectedPlacements } from '../optimizer';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { orderExpectedPlacementCandidates } from './expected/order';
 import { ExpectedPlacementCandidate } from './expected/types';
-import { resolveBottomTailReliefSlots, resolveEmpiricalSlotBand } from './empirical';
+import { calculateLowerDivisionRankChange } from '../rules/lowerDivision';
+import { resolveRuntimeRankBand, resolveRuntimeRecordBucket } from './runtimeMetadata';
 import {
   BoundarySnapshot,
   LowerBoundaryExchange,
@@ -22,18 +22,11 @@ const DIVISION_LABEL: Record<LowerDivision, string> = {
   Jonidan: '序二段',
   Jonokuchi: '序ノ口',
 };
-const PROMOTION_RATE_KEY: Partial<Record<LowerDivision, string>> = {
-  Makushita: 'MakushitaToJuryo',
-  Sandanme: 'SandanmeToMakushita',
-  Jonidan: 'JonidanToSandanme',
-  Jonokuchi: 'JonokuchiToJonidan',
+const UPPER_DIVISION: Partial<Record<LowerDivision, LowerDivision>> = {
+  Sandanme: 'Makushita',
+  Jonidan: 'Sandanme',
+  Jonokuchi: 'Jonidan',
 };
-const DEMOTION_RATE_KEY: Partial<Record<LowerDivision, string>> = {
-  Makushita: 'MakushitaToSandanme',
-  Sandanme: 'SandanmeToJonidan',
-  Jonidan: 'JonidanToJonokuchi',
-};
-
 type LowerResults = Record<LowerDivision, BoundarySnapshot[]>;
 
 export type LowerDivisionResolvedPlacement = {
@@ -122,35 +115,14 @@ const toRank = (
   };
 };
 
-const resolveBoundaryPressure = (
-  direction: 'promotion' | 'demotion',
-  division: LowerDivision,
-  rankScore: number,
-  divisionSizes: Record<LowerDivision, number>,
-  wins: number,
-  losses: number,
-  absent: number,
-): number => {
-  const key = direction === 'promotion' ? PROMOTION_RATE_KEY[division] : DEMOTION_RATE_KEY[division];
-  if (!key) return 0;
-  const rate = getHeiseiBoundaryExchangeRate(key);
-  if (rate <= 0) return 0;
-  const effectiveLosses = losses + absent;
-  const diff = wins - effectiveLosses;
-  if (direction === 'promotion' && diff <= 0) return 0;
-  if (direction === 'demotion' && diff >= 0) return 0;
-  const proximity =
-    direction === 'promotion'
-      ? 1 - (rankScore - 1) / Math.max(1, divisionSizes[division] - 1)
-      : (rankScore - 1) / Math.max(1, divisionSizes[division] - 1);
-  return clamp(rate * proximity * Math.abs(diff), 0, 1);
-};
-
 const resolvePlayerMandatoryFlags = (
   playerRecord: PlayerLowerRecord,
 ): { mandatoryDemotion: boolean; mandatoryPromotion: boolean } => ({
   mandatoryDemotion: playerRecord.absent >= 7 && playerRecord.rank.division !== 'Jonokuchi',
-  mandatoryPromotion: false,
+  mandatoryPromotion:
+    playerRecord.rank.division !== 'Makushita' &&
+    (playerRecord.rank.number ?? 99) === 1 &&
+    playerRecord.wins > playerRecord.losses + playerRecord.absent,
 });
 
 export const resolveLowerDivisionPlacements = (
@@ -184,6 +156,12 @@ export const resolveLowerDivisionPlacements = (
     ORDERED_DIVISIONS.includes(resolvedPlayerRecord.rank.division as LowerDivision)
       ? resolvePlayerMandatoryFlags(resolvedPlayerRecord)
       : { mandatoryDemotion: false, mandatoryPromotion: false };
+  const scaleSlots = {
+    Makushita: divisionSizes.Makushita,
+    Sandanme: divisionSizes.Sandanme,
+    Jonidan: divisionSizes.Jonidan,
+    Jonokuchi: divisionSizes.Jonokuchi,
+  };
 
   const candidates: ExpectedPlacementCandidate[] = [];
   for (const division of ORDERED_DIVISIONS) {
@@ -201,38 +179,40 @@ export const resolveLowerDivisionPlacements = (
         : Math.max(0, 7 - (row.wins + row.losses));
       const mandatoryDemotion = row.id === 'PLAYER' ? playerFlags.mandatoryDemotion : false;
       const mandatoryPromotion = row.id === 'PLAYER' ? playerFlags.mandatoryPromotion : false;
-      const empirical = resolveEmpiricalSlotBand({
-        division,
-        rankName: currentRank.name,
-        rankNumber: currentRank.number,
-        currentSlot,
-        totalSlots,
-        divisionTotalSlots: divisionSizes[division],
-        baselineDivisionTotalSlots: DIVISION_SIZE[division],
+      const deterministic = calculateLowerDivisionRankChange({
+        year: 2026,
+        month: 1,
+        rank: currentRank,
         wins: row.wins,
         losses: row.losses,
         absent,
-        mandatoryDemotion,
-        mandatoryPromotion,
-        promotionPressure: resolveBoundaryPressure(
-          'promotion',
-          division,
-          row.rankScore,
-          divisionSizes,
-          row.wins,
-          row.losses,
-          absent,
-        ),
-        demotionPressure: resolveBoundaryPressure(
-          'demotion',
-          division,
-          row.rankScore,
-          divisionSizes,
-          row.wins,
-          row.losses,
-          absent,
-        ),
-      });
+        yusho: false,
+        specialPrizes: [],
+      }, { scaleSlots }, () => 0.5);
+      const headPromotionDivision =
+        currentRank.number === 1 &&
+        row.wins > row.losses &&
+        currentRank.division !== 'Makushita'
+          ? UPPER_DIVISION[currentRank.division as LowerDivision]
+          : undefined;
+      const targetRank = headPromotionDivision
+        ? {
+          division: headPromotionDivision,
+          name: DIVISION_LABEL[headPromotionDivision],
+          number: divisionMaxNumbers[headPromotionDivision],
+          side: 'East' as const,
+        }
+        : deterministic.nextRank.division === 'Maezumo'
+        ? { ...deterministic.nextRank, division: 'Jonokuchi', name: '序ノ口' } as Rank
+        : deterministic.nextRank;
+      const targetSlot = toGlobalSlot(
+        targetRank.division as LowerDivision,
+        ((targetRank.number ?? 1) - 1) * 2 + (targetRank.side === 'West' ? 2 : 1),
+        divisionOffsets,
+        divisionSizes,
+        totalSlots,
+      );
+      const radius = mandatoryDemotion || mandatoryPromotion ? 2 : Math.max(2, Math.abs(currentSlot - targetSlot) <= 3 ? 2 : 6);
       candidates.push({
         id: row.id,
         currentRank,
@@ -240,16 +220,21 @@ export const resolveLowerDivisionPlacements = (
         losses: row.losses,
         absent,
         currentSlot,
-        expectedSlot: empirical.expectedSlot,
-        minSlot: empirical.minSlot,
-        maxSlot: empirical.maxSlot,
+        expectedSlot: targetSlot,
+        minSlot: clamp(Math.min(targetSlot - radius, currentSlot), 1, totalSlots),
+        maxSlot: clamp(Math.max(targetSlot + radius, currentSlot), 1, totalSlots),
         mandatoryDemotion,
         mandatoryPromotion,
         sourceDivision: division,
-        score: empirical.score,
-        rankBand: empirical.rankBand,
-        recordBucket: empirical.recordBucket,
-        proposalBasis: empirical.proposalBasis,
+        score:
+          (division === 'Makushita' ? 800 : division === 'Sandanme' ? 600 : division === 'Jonidan' ? 400 : 250) +
+          row.wins * 40 -
+          row.losses * 32 -
+          absent * 24 -
+          currentSlot * 0.8,
+        rankBand: resolveRuntimeRankBand(division, currentRank.name, currentRank.number),
+        recordBucket: resolveRuntimeRecordBucket(row.wins, row.losses, absent),
+        proposalBasis: 'RULE_OVERRIDE',
       });
     }
   }
@@ -268,27 +253,6 @@ export const resolveLowerDivisionPlacements = (
     };
   });
   const player = assignments.find((assignment) => assignment.id === 'PLAYER');
-  const playerCurrentDivision =
-    resolvedPlayerRecord?.rank.division && ORDERED_DIVISIONS.includes(resolvedPlayerRecord.rank.division as LowerDivision)
-      ? (resolvedPlayerRecord.rank.division as LowerDivision)
-      : undefined;
-  const playerCurrentRow =
-    playerCurrentDivision
-      ? (results[playerCurrentDivision] ?? []).find((candidate) => candidate.id === 'PLAYER')
-      : undefined;
-  const playerTailRelief =
-    resolvedPlayerRecord && playerCurrentDivision
-      ? resolveBottomTailReliefSlots({
-        division: playerCurrentDivision,
-        rankNumber: resolvedPlayerRecord.rank.number,
-        divisionTotalSlots: divisionSizes[playerCurrentDivision],
-        baselineDivisionTotalSlots: DIVISION_SIZE[playerCurrentDivision],
-        wins: resolvedPlayerRecord.wins,
-        losses: resolvedPlayerRecord.losses,
-        absent: resolvedPlayerRecord.absent,
-      })
-      : 0;
-
   if (
     player &&
     resolvedPlayerRecord &&
@@ -311,27 +275,6 @@ export const resolveLowerDivisionPlacements = (
   }
 
   const resolved = fromGlobalSlot(player.slot, divisionOffsets, divisionSizes, totalSlots);
-  if (
-    resolvedPlayerRecord &&
-    playerCurrentDivision === 'Jonokuchi' &&
-    playerCurrentRow &&
-    playerTailRelief > 0 &&
-    resolved.division === 'Jonokuchi'
-  ) {
-    const protectedRankScore = Math.max(1, playerCurrentRow.rankScore - playerTailRelief);
-    if (resolved.rankScore > protectedRankScore) {
-      return {
-        placements,
-        playerAssignedRank: toRank(
-          'Jonokuchi',
-          protectedRankScore,
-          divisionSizes,
-          divisionMaxNumbers,
-        ),
-      };
-    }
-  }
-
   return {
     placements,
     playerAssignedRank: toRank(
