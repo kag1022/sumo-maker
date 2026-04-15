@@ -41,9 +41,37 @@ export interface BanzukeAllocation {
   currentRank: Rank;
   nextRank: Rank;
   score: number;
+  recordDiff: number;
   sourceDivision: SekitoriDivision;
   nextIsOzekiKadoban: boolean;
   nextIsOzekiReturn: boolean;
+}
+
+export interface SekitoriContextSnapshot {
+  upperCollapseCount: number;
+  upperBlockerCount: number;
+  makuuchiDemotionOpenings: number;
+  juryoPromotionCandidates: number;
+  sanyakuVacancies: number;
+  boundaryOpenings: {
+    makuuchi: number;
+    juryo: number;
+  };
+  competitionBands: Map<string, number>;
+  promotionPressureSource: number;
+  demotionPressureSource: number;
+}
+
+export interface RankOrderProfile {
+  comparisonTier: number;
+  bubbleClass: string;
+  vacancyGain: number;
+  congestionPenalty: number;
+  hardRuleReason: string[];
+  targetSlot: number;
+  minSlot: number;
+  maxSlot: number;
+  score: number;
 }
 
 export type TopDirective = {
@@ -60,6 +88,7 @@ export type BanzukeCandidate = {
   score: number;
   currentSlot: number;
   directive: TopDirective;
+  orderProfile?: RankOrderProfile;
 };
 
 export type SekitoriZone = 'MakuuchiTop' | 'MakuuchiMidLow' | 'Juryo';

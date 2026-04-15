@@ -1,12 +1,12 @@
 # 平成初土俵収集レポート
 
-- generatedAt: 2026-03-31T17:28:42Z
+- generatedAt: 2026-04-11T23:52:32Z
 - cohort: heisei_debut
 - discoverySource: heisei_banzuke
 - discovered: 4058
-- included: 2882
+- included: 2883
 - excluded: 280
-- pending: 896
+- pending: 895
 - errors: 0
 - stopReason: continue
 
@@ -18,7 +18,7 @@
 
 ## Metrics
 
-- sekitoriRate: 0.1062
+- sekitoriRate: 0.1061
 - makuuchiRate: 0.0749
 - sanyakuRate: 0.0316
 - careerBashoP50: 38.00

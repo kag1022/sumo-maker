@@ -338,6 +338,7 @@ export const runTopDivisionBasho = (
         schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
+        expectedWinsSoFar: expectedWins,
       };
 
       const result = calculateBattleResult(

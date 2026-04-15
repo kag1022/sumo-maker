@@ -17,6 +17,12 @@ export interface ExpectedPlacementCandidate {
   rankBand?: string;
   recordBucket?: string;
   proposalBasis?: 'EMPIRICAL' | 'RULE_OVERRIDE';
+  orderingGroup?: string;
+  vacancyGain?: number;
+  congestionPenalty?: number;
+  comparisonTier?: number;
+  bubbleClass?: string;
+  hardRuleReason?: string[];
 }
 
 export interface ExpectedPlacementAssignment {

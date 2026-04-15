@@ -1847,7 +1847,7 @@ export const tests: TestCase[] = [
     },
   },
 {
-    name: 'quota: makuuchi player receives assigned komusubi rank from global composition',
+    name: 'quota: makuuchi player keeps assigned sanyaku rank without enforced quota push',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
       world.lastBashoResults.Makuuchi = Array.from({ length: 42 }, (_, i) => ({
@@ -1880,10 +1880,7 @@ export const tests: TestCase[] = [
         ['関脇', '小結'].includes(quota?.assignedNextRank?.name || ''),
         'Expected assigned sanyaku rank for player',
       );
-      assert.equal(
-        quota?.enforcedSanyaku,
-        quota?.assignedNextRank?.name === '関脇' ? 'Sekiwake' : 'Komusubi',
-      );
+      assert.equal(quota?.enforcedSanyaku, undefined);
     },
   },
 {
