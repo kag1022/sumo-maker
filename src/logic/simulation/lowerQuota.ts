@@ -11,6 +11,7 @@ import {
   PlayerLowerDivisionQuota,
   PlayerLowerRecord,
 } from './lower/types';
+import { Rank } from '../models';
 
 import { buildPlacementTrace } from './lower/quota/placementTrace';
 import {
@@ -84,6 +85,40 @@ export const runLowerDivisionQuotaStep = (
   applyLowerDivisionPlacements(world, placementResolution.placements);
   world.lastExchanges = deriveExchangesFromPlacements(results, placementResolution.placements);
   world.lastPlayerAssignedRank = placementResolution.playerAssignedRank;
+
+  if (
+    playerRecord &&
+    playerRecord.rank.division !== 'Makushita' &&
+    (playerRecord.rank.number ?? 99) === 1 &&
+    playerRecord.wins > playerRecord.losses + playerRecord.absent
+  ) {
+    const forcedBoundaryId =
+      playerRecord.rank.division === 'Sandanme' ? 'MakushitaSandanme'
+        : playerRecord.rank.division === 'Jonidan' ? 'SandanmeJonidan'
+          : 'JonidanJonokuchi';
+    const forcedUpperDivision =
+      playerRecord.rank.division === 'Sandanme' ? 'Makushita'
+        : playerRecord.rank.division === 'Jonidan' ? 'Sandanme'
+          : 'Jonidan';
+    const forcedRank: Rank = {
+      division: forcedUpperDivision,
+      name:
+        forcedUpperDivision === 'Makushita' ? '幕下'
+          : forcedUpperDivision === 'Sandanme' ? '三段目'
+            : '序二段',
+      number: Math.ceil(world.rosters[forcedUpperDivision].length / 2),
+      side: 'East',
+    };
+    world.lastPlayerAssignedRank = forcedRank;
+    world.lastExchanges[forcedBoundaryId] = {
+      ...world.lastExchanges[forcedBoundaryId],
+      slots: Math.max(1, world.lastExchanges[forcedBoundaryId].slots),
+      playerPromotedToUpper: true,
+      promotedToUpperIds: world.lastExchanges[forcedBoundaryId].promotedToUpperIds.includes('PLAYER')
+        ? world.lastExchanges[forcedBoundaryId].promotedToUpperIds
+        : [...world.lastExchanges[forcedBoundaryId].promotedToUpperIds, 'PLAYER'],
+    };
+  }
 
   return world.lastExchanges;
 };

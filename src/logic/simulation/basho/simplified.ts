@@ -105,6 +105,7 @@ export const runSimplifiedBasho = (
       isLastDay,
       isYushoContention,
       previousResult,
+      expectedWinsSoFar: expectedWins,
     };
 
     const result = calculateBattleResult(

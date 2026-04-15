@@ -13,6 +13,7 @@ const WATCH_PATHS = [
   path.join(ROOT_DIR, 'src', 'logic'),
   path.join(ROOT_DIR, 'src', 'features', 'logicLab'),
   path.join(ROOT_DIR, 'src', 'features', 'report'),
+  path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis'),
 ];
 const WATCH_EXTENSIONS = new Set(['.ts', '.tsx', '.json']);
 
