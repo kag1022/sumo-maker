@@ -2,7 +2,7 @@ import { BALANCE } from '../../balance';
 import { BashoRecord } from '../../models';
 import { BashoRecordSnapshot } from '../providers/sekitori/types';
 
-export type YokozunaPromotionDecisionBand = 'AUTO_PROMOTE' | 'BORDERLINE' | 'REJECT';
+export type YokozunaPromotionDecisionBand = 'AUTO_PROMOTE' | 'BORDERLINE' | 'BORDERLINE_PROMOTE' | 'REJECT';
 
 export interface YokozunaPromotionEvidence {
   isCurrentOzeki: boolean;
@@ -16,6 +16,12 @@ export interface YokozunaPromotionEvidence {
   hasEquivalentPair: boolean;
   hasYushoPair: boolean;
   hasRealisticTotal: boolean;
+}
+
+export interface YokozunaDeliberationContext {
+  performanceOverExpected?: number;
+  recentWinTrend?: number[];
+  hasShukun?: boolean;
 }
 
 export interface YokozunaPromotionResult {
@@ -81,9 +87,60 @@ const evaluateYokozunaDecisionBand = (
   return 'REJECT';
 };
 
+/**
+ * 横綱審議委員会の審議をシミュレーションする。
+ * BORDERLINE判定時のみ呼ばれ、場所内容・上昇トレンド・殊勲賞等を加味してスコアリング。
+ * 歴史的にBORDERLINE相当の約30%が昇進している。
+ */
+const evaluateYokozunaDeliberation = (
+  evidence: YokozunaPromotionEvidence,
+  context?: YokozunaDeliberationContext,
+): { deliberationScore: number; shouldPromote: boolean } => {
+  let score = 0;
+
+  // 今場所優勝: 最大の加点要素
+  if (evidence.currentYusho) score += 30;
+  // 今場所準優勝
+  else if (evidence.currentJunYusho) score += 15;
+
+  // 勝数の絶対的な強さ
+  if (evidence.currentEquivalent >= 14) score += 15;
+  else if (evidence.currentEquivalent >= 13) score += 8;
+
+  // 2場所の合計の厚み
+  if (evidence.combinedEquivalent >= 29) score += 10;
+  else if (evidence.combinedEquivalent >= 28) score += 5;
+
+  // 前場所の内容
+  if (evidence.prevYushoEquivalent) score += 10;
+
+  // POE（対戦品質を考慮した期待勝数超過）
+  if (context?.performanceOverExpected !== undefined) {
+    if (context.performanceOverExpected >= 2.0) score += 20;
+    else if (context.performanceOverExpected >= 1.0) score += 10;
+  }
+
+  // 直近の上昇トレンド
+  if (context?.recentWinTrend?.length && context.recentWinTrend.length >= 3) {
+    const trend = context.recentWinTrend;
+    const isUpward = trend.every((w, i) => i === 0 || w >= trend[i - 1]);
+    if (isUpward) score += 15;
+  }
+
+  // 殊勲賞保持
+  if (context?.hasShukun) score += 10;
+
+  const threshold = BALANCE.yokozuna.deliberationThreshold;
+  return {
+    deliberationScore: score,
+    shouldPromote: score >= threshold,
+  };
+};
+
 const evaluateCore = (
   current: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean },
   prev: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean } | undefined,
+  deliberationContext?: YokozunaDeliberationContext,
 ): YokozunaPromotionResult => {
   const evidence = buildYokozunaEvidence(current, prev);
   const decisionBand = evaluateYokozunaDecisionBand(evidence);
@@ -98,6 +155,16 @@ const evaluateCore = (
   }
 
   if (decisionBand === 'BORDERLINE') {
+    const deliberation = evaluateYokozunaDeliberation(evidence, deliberationContext);
+    if (deliberation.shouldPromote) {
+      return {
+        promote: true,
+        bonus: 22,
+        score: evidence.combinedEquivalent,
+        decisionBand: 'BORDERLINE_PROMOTE',
+        evidence,
+      };
+    }
     return {
       promote: false,
       bonus: 10,
@@ -118,6 +185,7 @@ const evaluateCore = (
 
 export const evaluateYokozunaPromotion = (
   snapshot: BashoRecordSnapshot,
+  deliberationContext?: YokozunaDeliberationContext,
 ): YokozunaPromotionResult =>
   evaluateCore(
     {
@@ -134,13 +202,15 @@ export const evaluateYokozunaPromotion = (
         junYusho: snapshot.pastRecords[0].junYusho,
       }
       : undefined,
+    deliberationContext,
   );
 
 export const canPromoteToYokozuna = (
   current: BashoRecord,
   pastRecords: BashoRecord[],
-): boolean =>
-  evaluateCore(
+  deliberationContext?: YokozunaDeliberationContext,
+): boolean => {
+  const result = evaluateCore(
     {
       rankName: current.rank.name,
       wins: current.wins,
@@ -155,4 +225,7 @@ export const canPromoteToYokozuna = (
         junYusho: false,
       }
       : undefined,
-  ).decisionBand === 'AUTO_PROMOTE';
+    deliberationContext,
+  );
+  return result.decisionBand === 'AUTO_PROMOTE' || result.decisionBand === 'BORDERLINE_PROMOTE';
+};

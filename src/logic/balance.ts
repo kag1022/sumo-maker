@@ -50,6 +50,8 @@ export const BALANCE = {
     yushoEquivalentMinScore: 13.0,
     yushoEquivalentTotalMinScore: 29.0,
     strictTwoBashoGate: true,
+    /** BORDERLINE審議スコア閾値 (0-100, これ以上で昇進) */
+    deliberationThreshold: 65,
   },
 } as const;
 

@@ -12,6 +12,7 @@ import {
 } from '../../simulation/sekitori/boundaryTuning';
 import { canPromoteToYokozuna } from './yokozunaPromotion';
 import { canPromoteToOzekiBy33Wins } from './sanyakuPromotion';
+import { resolveEmpiricalMovement } from './empiricalMovement';
 import {
   LIMITS,
   RankScaleSlots,
@@ -335,6 +336,7 @@ const calculateMakuuchiChange = (
   losses: number,
   diff: number,
   options?: RankCalculationOptions,
+  _rng: RandomSource = Math.random,
 ): { nextRank: Rank; event?: string } => {
   const currentRank = record.rank;
   const enforcedSanyaku = options?.topDivisionQuota?.enforcedSanyaku;
@@ -392,18 +394,56 @@ const calculateMakuuchiChange = (
 
   const num = currentRank.number || 1;
 
-  // 三役昇進（枠制を意識し、厳しめ）
-  if (num <= 1 && wins >= 10) {
-    return {
-      nextRank: { division: 'Makuuchi', name: '小結', side: 'East' },
-      event: 'PROMOTION_TO_KOMUSUBI',
-    };
+  // 三役昇進（空き枠に応じて閾値を動的に緩和）
+  const vacancies = options?.topDivisionQuota?.sanyakuVacancies;
+  const sekiwakeVacancies = vacancies?.sekiwake ?? 0;
+  const komusubiVacancies = vacancies?.komusubi ?? 0;
+  const totalSanyakuVacancies = sekiwakeVacancies + komusubiVacancies;
+
+  // 関脇昇進
+  if (sekiwakeVacancies > 0) {
+    if (num <= 2 && wins >= 10) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+        event: 'PROMOTION_TO_SEKIWAKE',
+      };
+    }
+    if (num <= 4 && wins >= 11) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+        event: 'PROMOTION_TO_SEKIWAKE',
+      };
+    }
+  } else {
+    if (num <= 2 && wins >= 12) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
+        event: 'PROMOTION_TO_SEKIWAKE',
+      };
+    }
   }
-  if (num <= 2 && wins >= 12) {
-    return {
-      nextRank: { division: 'Makuuchi', name: '関脇', side: 'East' },
-      event: 'PROMOTION_TO_SEKIWAKE',
-    };
+
+  // 小結昇進
+  if (komusubiVacancies > 0 || totalSanyakuVacancies >= 2) {
+    if (num <= 3 && wins >= 9) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '小結', side: 'East' },
+        event: 'PROMOTION_TO_KOMUSUBI',
+      };
+    }
+    if (num <= 5 && wins >= 10) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '小結', side: 'East' },
+        event: 'PROMOTION_TO_KOMUSUBI',
+      };
+    }
+  } else {
+    if (num <= 1 && wins >= 10) {
+      return {
+        nextRank: { division: 'Makuuchi', name: '小結', side: 'East' },
+        event: 'PROMOTION_TO_KOMUSUBI',
+      };
+    }
   }
 
   // 幕内→十両 陥落（危険水域を明文化）
@@ -421,6 +461,26 @@ const calculateMakuuchiChange = (
     };
   }
 
+  // 経験的データに基づく移動を試行し、不足時は線形フォールバック
+  const empirical = resolveEmpiricalMovement({
+    division: 'Makuuchi',
+    rankName: '前頭',
+    rankNumber: num,
+    wins,
+    losses,
+    absent: record.absent,
+    divisionSlotOffset: 8,
+    divisionTotalHalfSlots: LIMITS.MAEGASHIRA_MAX * 2,
+    performanceOverExpected: options?.empiricalContext?.performanceOverExpected,
+    stagnationPressure: options?.stagnationPressure,
+  }, _rng);
+
+  if (empirical) {
+    const newNumber = clamp(empirical.targetNumber, 1, LIMITS.MAEGASHIRA_MAX);
+    return { nextRank: { ...currentRank, number: newNumber } };
+  }
+
+  // フォールバック: 従来の線形乗数
   let move = diff;
   if (diff > 0) {
     move = Math.max(1, Math.floor(diff * (num <= 5 ? 0.9 : 1.2)));
@@ -498,6 +558,36 @@ const calculateJuryoChange = (
     };
   }
 
+  // 経験的データに基づく移動を試行
+  const empirical = resolveEmpiricalMovement({
+    division: 'Juryo',
+    rankName: '十両',
+    rankNumber: num,
+    wins,
+    losses,
+    absent: record.absent,
+    divisionSlotOffset: 0,
+    divisionTotalHalfSlots: LIMITS.JURYO_MAX * 2,
+    performanceOverExpected: options?.empiricalContext?.performanceOverExpected,
+    stagnationPressure: options?.stagnationPressure,
+  }, _rng);
+
+  if (empirical) {
+    const empiricalNumber = clamp(empirical.targetNumber, 1, LIMITS.JURYO_MAX);
+    let nextPos = (empiricalNumber - 1) * 2 + (empirical.targetSide === 'West' ? 1 : 0);
+    const nudge = clamp(Math.round(options?.sekitoriQuota?.enemyHalfStepNudge ?? 0), -1, 1);
+    nextPos = clamp(nextPos + nudge, 0, LIMITS.JURYO_MAX * 2 - 1);
+    return {
+      nextRank: {
+        division: 'Juryo',
+        name: '十両',
+        number: Math.floor(nextPos / 2) + 1,
+        side: nextPos % 2 === 0 ? 'East' : 'West',
+      },
+    };
+  }
+
+  // フォールバック: 従来の線形乗数
   let move = diff;
   if (diff > 0) move = Math.max(1, Math.floor(diff * 1.1));
   if (diff < 0) move = Math.ceil(diff * 1.3);
@@ -577,7 +667,7 @@ const calculateStandardRankChange = (
   const diff = scoreDiff(record);
 
   if (currentRank.division === 'Makuuchi') {
-    return calculateMakuuchiChange(record, wins, losses, diff, options);
+    return calculateMakuuchiChange(record, wins, losses, diff, options, rng);
   }
   if (currentRank.division === 'Juryo') {
     return calculateJuryoChange(record, wins, losses, diff, options, rng);

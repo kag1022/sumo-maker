@@ -149,16 +149,46 @@ const resolveRuleBucket = (
   return 'LOWER';
 };
 
+const resolveSanyakuVacancies = (
+  entries: ComposeNextBanzukeInput['entries'],
+): { sekiwake: number; komusubi: number } => {
+  let sekiwakeVacancies = 0;
+  let komusubiVacancies = 0;
+  for (const entry of entries) {
+    if (entry.currentRank.division !== 'Makuuchi') continue;
+    const totalLosses = entry.losses + entry.absent;
+    const isMakekoshi = entry.wins < totalLosses;
+    if (entry.currentRank.name === '関脇' && isMakekoshi) sekiwakeVacancies += 1;
+    if (entry.currentRank.name === '小結' && isMakekoshi) komusubiVacancies += 1;
+  }
+  return { sekiwake: sekiwakeVacancies, komusubi: komusubiVacancies };
+};
+
 export const composeNextBanzuke = (
   input: ComposeNextBanzukeInput,
 ): ComposeNextBanzukeOutput => {
   const cases: BanzukeCommitteeCase[] = [];
   const proposedById = new Map<string, BanzukeComposeAllocation['proposedChange']>();
   const proposalSourceById = new Map<string, BanzukeProposalSource>();
+  const sanyakuVacancies = resolveSanyakuVacancies(input.entries);
 
   for (const entry of input.entries) {
     const proposalSource = resolveProposalSource(input, entry);
     proposalSourceById.set(entry.id, proposalSource);
+    const entryOptions: typeof entry.options = {
+      ...(entry.options ?? {}),
+      isOzekiReturn: entry.isOzekiReturn,
+    };
+    if (
+      entry.currentRank.division === 'Makuuchi' &&
+      entry.currentRank.name === '前頭' &&
+      (sanyakuVacancies.sekiwake > 0 || sanyakuVacancies.komusubi > 0)
+    ) {
+      entryOptions.topDivisionQuota = {
+        ...entryOptions.topDivisionQuota,
+        sanyakuVacancies,
+      };
+    }
     const proposedChange = calculateNextRank(
       {
         year: input.year,
@@ -174,10 +204,7 @@ export const composeNextBanzuke = (
       entry.historyWindow,
       entry.isOzekiKadoban,
       input.random ?? Math.random,
-      {
-        ...(entry.options ?? {}),
-        isOzekiReturn: entry.isOzekiReturn,
-      },
+      entryOptions,
     );
     proposedById.set(entry.id, proposedChange);
 

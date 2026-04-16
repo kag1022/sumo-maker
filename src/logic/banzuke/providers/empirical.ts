@@ -21,6 +21,7 @@ export interface EmpiricalSlotBandResolverInput {
   mandatoryDemotion?: boolean;
   promotionPressure?: number;
   demotionPressure?: number;
+  performanceOverExpected?: number;
 }
 
 export interface EmpiricalSlotBandResolverResult {
@@ -226,14 +227,17 @@ const resolveScore = (
   absent: number,
   quantiles: BanzukeMovementQuantiles,
   currentSlot: number,
+  performanceOverExpected?: number,
 ): number => {
   const effectiveLosses = resolveEffectiveLosses(losses, absent);
   const diff = wins - effectiveLosses;
+  const poeBonus = (performanceOverExpected ?? 0) * 14;
   return (
     quantiles.p50HalfStep * 18 +
     diff * 28 -
     currentSlot * 0.12 +
-    quantiles.sampleSize * 0.02
+    quantiles.sampleSize * 0.02 +
+    poeBonus
   );
 };
 
@@ -424,7 +428,7 @@ export const resolveEmpiricalSlotBand = (
     expectedSlot,
     minSlot,
     maxSlot,
-    score: resolveScore(wins, losses, absent, quantiles, currentSlot),
+    score: resolveScore(wins, losses, absent, quantiles, currentSlot, input.performanceOverExpected),
     rankBand: recordAware?.rankBand ?? rankBand,
     recordBucket: recordAware?.recordBucket ?? recordBucket,
     proposalBasis: 'EMPIRICAL',
