@@ -4,9 +4,9 @@ const DEFAULT_SLOTS: Record<Exclude<Division, 'Maezumo'>, number> = {
   Makuuchi: 42,
   Juryo: 28,
   Makushita: 120,
-  Sandanme: 180,
-  Jonidan: 200,
-  Jonokuchi: 64,
+  Sandanme: 200,
+  Jonidan: 250,
+  Jonokuchi: 78,
 };
 
 const clamp = (value: number, min: number, max: number): number =>
