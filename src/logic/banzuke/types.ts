@@ -45,6 +45,7 @@ export interface RankCalculationOptions {
     canDemoteToJuryo?: boolean;
     enforcedSanyaku?: 'Sekiwake' | 'Komusubi';
     assignedNextRank?: Rank;
+    sanyakuVacancies?: { sekiwake: number; komusubi: number };
   };
   sekitoriQuota?: {
     canPromoteToJuryo?: boolean;
@@ -66,8 +67,11 @@ export interface RankCalculationOptions {
   empiricalContext?: {
     recordBucket?: string;
     rankBand?: string;
+    performanceOverExpected?: number;
   };
   isOzekiReturn?: boolean;
+  /** 停滞圧力 (0-4.2): 高値で不利なサンプリング、rebound時は有利 */
+  stagnationPressure?: number;
   scaleSlots?: RankScaleSlots;
   simulationModelVersion?: SimulationModelVersion;
   banzukeEngineVersion?: BanzukeEngineVersion;
@@ -79,6 +83,7 @@ export interface BanzukeDivisionPolicy {
   fixedSlots?: number;
   minSlots?: number;
   softMaxSlots?: number;
+  targetSlots?: number;
 }
 
 export interface BanzukePopulationSnapshot {
@@ -87,6 +92,15 @@ export interface BanzukePopulationSnapshot {
   month: number;
   headcount: Record<Division, number>;
   activeHeadcount: Record<Division, number>;
+  banzukeHeadcountExcludingMaezumo: number;
+  maezumoHeadcount: number;
+  intakeCountThisBasho: number;
+  retiredCountThisBasho: number;
+  populationPlanIntakeShock?: number;
+  populationPlanRetirementShock?: number;
+  populationPlanJonidanShock?: number;
+  populationPlanJonokuchiShock?: number;
+  populationPlanLowerDivisionElasticity?: number;
 }
 
 export interface BanzukeCommitteeCase {

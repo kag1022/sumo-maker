@@ -18,6 +18,7 @@ export {
   createSimulationWorld,
 } from './factory';
 export {
+  finalizeSekitoriPlayerPlacement,
   syncPlayerActorInWorld,
 } from './playerSync';
 export {
@@ -39,5 +40,7 @@ export {
 } from './offscreen';
 export {
   countActiveNpcInWorld,
+  countActiveBanzukeHeadcountExcludingMaezumo,
+  countActiveMaezumoHeadcount,
   pruneRetiredTopDivisionRosters,
 } from './maintenance';

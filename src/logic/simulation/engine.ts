@@ -7,6 +7,9 @@ export {
 export {
   resolveBoundaryAssignedRankForCurrentDivision,
 } from './engine/runOneStep';
+export {
+  isDetailedSimulationProgress,
+} from './engine/types';
 export type {
   BanzukeEntry,
   BashoStepResult,
@@ -16,4 +19,6 @@ export type {
   SimulationParams,
   SimulationProgressSnapshot,
   SimulationStepResult,
+  SimulationTimingBreakdown,
+  SimulationTimingPhase,
 } from './engine/types';

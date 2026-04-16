@@ -14,6 +14,7 @@ import {
   TacticsType,
   TalentArchetype,
   Trait,
+  TraitJourneyEntry,
   IchimonId,
   StableArchetypeId,
 } from './models';
@@ -27,6 +28,8 @@ import {
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
 import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
 import { resolveLegacyAptitudeFactor } from './simulation/realism';
+import { createKimariteRepertoireFromSeed } from './kimarite/repertoire';
+import { ensureStyleIdentityProfile } from './style/identity';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
@@ -41,6 +44,7 @@ export interface CreateInitialRikishiParams {
   signatureMove: string;
   bodyType: BodyType;
   traits: Trait[];
+  traitJourney?: TraitJourneyEntry[];
   historyBonus: number;
   entryDivision?: EntryDivision;
   growthType?: GrowthType;
@@ -176,8 +180,22 @@ export const createInitialRikishi = (
   const retirementProfile =
     params.retirementProfile ??
     resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
+  const kimariteRepertoire = createKimariteRepertoireFromSeed({
+    style:
+      params.tactics === 'PUSH'
+        ? 'PUSH'
+        : params.tactics === 'GRAPPLE'
+          ? 'GRAPPLE'
+          : params.tactics === 'TECHNIQUE'
+            ? 'TECHNIQUE'
+            : 'BALANCE',
+    bodyType: params.bodyType,
+    traits: params.traits,
+    preferredMove: params.signatureMove,
+    kataSettled: false,
+  });
 
-  return {
+  return ensureStyleIdentityProfile({
     stableId: params.stableId,
     ichimonId: params.ichimonId,
     stableArchetypeId: params.stableArchetypeId,
@@ -196,10 +214,12 @@ export const createInitialRikishi = (
     entryDivision,
     tactics: params.tactics,
     signatureMoves: params.signatureMove ? [params.signatureMove] : [],
+    kimariteRepertoire,
     bodyType: params.bodyType,
     profile: params.profile ? { ...params.profile } : { ...DEFAULT_PROFILE },
     bodyMetrics: resolvedBodyMetrics,
     traits: [...params.traits],
+    traitJourney: params.traitJourney ? params.traitJourney.map((entry) => ({ ...entry })) : [],
     durability: Math.max(40, Math.min(160, durability)),
     currentCondition: 50,
     ratingState: {
@@ -217,8 +237,6 @@ export const createInitialRikishi = (
       settled: false,
       confidence: 0,
     },
-    designedStyleProfile: params.designedStyleProfile,
-    realizedStyleProfile: null,
     buildSummary: params.buildSummary,
     mentorId: params.mentorId,
     spirit: Number.isFinite(params.spirit) ? Math.round(params.spirit as number) : 70,
@@ -238,8 +256,10 @@ export const createInitialRikishi = (
       totalAbsent: 0,
       yushoCount: { makuuchi: 0, juryo: 0, makushita: 0, others: 0 },
       kimariteTotal: {},
+      winRouteTotal: {},
       bodyTimeline: [],
       highlightEvents: [],
+      traitAwakenings: [],
       careerTurningPoints: [],
       realismKpi: {
         careerWinRate: 0.5,
@@ -247,6 +267,6 @@ export const createInitialRikishi = (
       },
     },
     statHistory: [],
-  };
+  });
 };
 

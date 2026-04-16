@@ -3,6 +3,9 @@ import {
   BashoStepResult,
   createSeededRandom,
   createSimulationEngine,
+  SimulationTimingBreakdown,
+  SimulationTimingPhase,
+  type SimulationProgressSnapshot,
 } from '../../logic/simulation/engine';
 import { NpcBashoAggregate } from '../../logic/simulation/basho';
 
@@ -29,6 +32,13 @@ export const LOGIC_LAB_DEFAULT_SEED = 7331;
 export const LOGIC_LAB_DEFAULT_MAX_BASHO = 240;
 export const LOGIC_LAB_MAX_BASHO_LIMIT = 300;
 const LOGIC_LAB_FIXED_START_YEAR = 2026;
+const LOGIC_LAB_TIMING_PHASES: SimulationTimingPhase[] = [
+  'pre_reconcile',
+  'basho_simulation',
+  'quota_and_banzuke',
+  'post_basho_maintenance',
+  'postprocess',
+];
 
 const resolveDefaultKimariteTuningPreset = (presetId: LogicLabRunConfig['presetId']): KimariteTuningPresetId =>
   presetId === 'STANDARD_B_GRINDER' || presetId === 'HIGH_TALENT_AS'
@@ -82,15 +92,52 @@ const buildInjurySummary = (status: RikishiStatus): LogicLabInjurySummary => {
   };
 };
 
+interface LogicLabTimingAccumulator {
+  totalMs: number;
+  slowestBashoMs: number;
+  phaseTotalsMs: Record<SimulationTimingPhase, number>;
+}
+
+const createEmptyTimingAccumulator = (): LogicLabTimingAccumulator => ({
+  totalMs: 0,
+  slowestBashoMs: 0,
+  phaseTotalsMs: LOGIC_LAB_TIMING_PHASES.reduce((acc, phase) => {
+    acc[phase] = 0;
+    return acc;
+  }, {} as Record<SimulationTimingPhase, number>),
+});
+
+const accumulateTiming = (
+  accumulator: LogicLabTimingAccumulator,
+  timing: SimulationTimingBreakdown,
+): LogicLabTimingAccumulator => {
+  const phaseTotalsMs = { ...accumulator.phaseTotalsMs };
+  for (const phase of LOGIC_LAB_TIMING_PHASES) {
+    phaseTotalsMs[phase] += timing.phases[phase] ?? 0;
+  }
+  return {
+    totalMs: accumulator.totalMs + timing.totalMs,
+    slowestBashoMs: Math.max(accumulator.slowestBashoMs, timing.totalMs),
+    phaseTotalsMs,
+  };
+};
+
 const buildSummary = (
   status: RikishiStatus,
   committeeWarnings: number,
   stopReason: LogicLabStopReason | undefined,
   kimariteTuningPresetId: KimariteTuningPresetId,
+  timing: LogicLabTimingAccumulator,
 ): LogicLabSummary => {
   const sansho = summarizeSansho(status);
+  const bashoCount = status.history.records.length;
+  const avgMsPerBasho = bashoCount > 0 ? timing.totalMs / bashoCount : 0;
+  const phaseShare = LOGIC_LAB_TIMING_PHASES.reduce((acc, phase) => {
+    acc[phase] = timing.totalMs > 0 ? timing.phaseTotalsMs[phase] / timing.totalMs : 0;
+    return acc;
+  }, {} as Record<SimulationTimingPhase, number>);
   return {
-    bashoCount: status.history.records.length,
+    bashoCount,
     simulationModelVersion: 'v3',
     kimariteTuningPresetId,
     currentRank: { ...status.rank },
@@ -106,11 +153,18 @@ const buildSummary = (
     injurySummary: buildInjurySummary(status),
     committeeWarnings,
     realismKpi: status.history.realismKpi ?? buildCareerRealismSnapshot(status),
+    totalMs: timing.totalMs,
+    avgMsPerBasho,
+    slowestBashoMs: timing.slowestBashoMs,
+    phaseTotalsMs: timing.phaseTotalsMs,
+    phaseShare,
     ...(stopReason ? { stopReason } : {}),
   };
 };
 
 const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
+  const statusSnapshot = step.statusSnapshot as RikishiStatus;
+  const progress = step.progress as SimulationProgressSnapshot;
   const playerDecision = step.banzukeDecisions.find(
     (decision) => decision.rikishiId === 'PLAYER',
   );
@@ -208,8 +262,8 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     if (!sameDivision.length) return undefined;
 
     const afterEntries = [
-      ...step.progress.makuuchi,
-      ...step.progress.juryo,
+      ...progress.makuuchi,
+      ...progress.juryo,
     ];
     const afterById = new Map(afterEntries.map((entry) => [entry.id, entry]));
 
@@ -223,12 +277,12 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
       });
     })();
     const playerAfterSlot =
-      step.statusSnapshot.rank.division === division
+      statusSnapshot.rank.division === division
         ? toEntrySlot({
           division,
-          rankName: step.statusSnapshot.rank.name,
-          rankNumber: step.statusSnapshot.rank.number,
-          rankSide: step.statusSnapshot.rank.side,
+          rankName: statusSnapshot.rank.name,
+          rankNumber: statusSnapshot.rank.number,
+          rankSide: statusSnapshot.rank.side,
         })
         : playerSlot;
 
@@ -288,7 +342,7 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     return {
       division,
       playerBeforeRankLabel: playerRankLabel,
-      playerAfterRankLabel: formatRank(step.statusSnapshot.rank),
+      playerAfterRankLabel: formatRank(statusSnapshot.rank),
       playerGlobalMove: playerSlot - playerAfterSlot,
       playerScoreDiff,
       outperformedByLowerCount,
@@ -309,7 +363,7 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
   year: step.year,
   month: step.month,
   rankBefore: { ...step.playerRecord.rank },
-  rankAfter: { ...step.statusSnapshot.rank },
+  rankAfter: { ...statusSnapshot.rank },
   banzukeReasons: (playerDecision?.reasons ?? []).slice(0, 3),
   record: {
     wins: step.playerRecord.wins,
@@ -318,9 +372,9 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
     yusho: step.playerRecord.yusho,
   },
   events: step.events.map((event) => event.description),
-  injurySummary: buildInjurySummary(step.statusSnapshot),
+  injurySummary: buildInjurySummary(statusSnapshot),
   ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
-  committeeWarnings: step.progress.lastCommitteeWarnings,
+  committeeWarnings: progress.lastCommitteeWarnings,
   npcContext: buildNpcContext(),
   kimariteCount,
   };
@@ -396,9 +450,10 @@ export const createLogicLabRun = (
   let currentStatus = JSON.parse(JSON.stringify(initialStatus)) as RikishiStatus;
   let currentWarnings = 0;
   let stopReason: LogicLabStopReason | undefined;
+  let timing = createEmptyTimingAccumulator();
 
   const getSummary = (): LogicLabSummary =>
-    buildSummary(currentStatus, currentWarnings, stopReason, getActiveKimariteTuningPreset());
+    buildSummary(currentStatus, currentWarnings, stopReason, getActiveKimariteTuningPreset(), timing);
 
   const step = async (): Promise<LogicLabRunStep> => {
     if (completed || currentStatus.history.records.length >= config.maxBasho) {
@@ -415,8 +470,9 @@ export const createLogicLabRun = (
 
     const result = await engine.runNextBasho();
     if (result.kind === 'BASHO') {
-      currentStatus = result.statusSnapshot;
-      currentWarnings = result.progress.lastCommitteeWarnings;
+      currentStatus = result.statusSnapshot as RikishiStatus;
+      currentWarnings = (result.progress as SimulationProgressSnapshot).lastCommitteeWarnings;
+      timing = accumulateTiming(timing, result.timing);
       const reachedLimit = currentStatus.history.records.length >= config.maxBasho;
       if (reachedLimit) {
         completed = true;
@@ -431,7 +487,8 @@ export const createLogicLabRun = (
     }
 
     currentStatus = result.statusSnapshot;
-    currentWarnings = result.progress.lastCommitteeWarnings;
+    currentWarnings = (result.progress as SimulationProgressSnapshot).lastCommitteeWarnings;
+    timing = accumulateTiming(timing, result.timing);
     stopReason = result.pauseReason;
     completed = true;
     return {
