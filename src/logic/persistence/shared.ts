@@ -405,33 +405,6 @@ const toNpcBashoRows = (
   }));
 };
 
-const resolveBanzukeSlot = (
-  division: string,
-  rankName: string,
-  rankNumber?: number,
-  rankSide?: 'East' | 'West',
-): number => {
-  const sideOffset = rankSide === 'West' ? 1 : 0;
-  if (division === 'Makuuchi') {
-    if (rankName === '横綱') return sideOffset + 1;
-    if (rankName === '大関') return sideOffset + 3;
-    if (rankName === '関脇') return sideOffset + 5;
-    if (rankName === '小結') return sideOffset + 7;
-    const bounded = Math.max(1, Math.min(17, rankNumber ?? 1));
-    return 8 + (bounded - 1) * 2 + sideOffset;
-  }
-  const maxByDivision: Record<string, number> = {
-    Juryo: 14,
-    Makushita: 60,
-    Sandanme: 90,
-    Jonidan: 100,
-    Jonokuchi: 32,
-  };
-  const max = maxByDivision[division] ?? 200;
-  const bounded = Math.max(1, Math.min(max, rankNumber ?? 1));
-  return 1 + (bounded - 1) * 2 + sideOffset;
-};
-
 const normalizePersistentOpponentId = (opponentId?: string): string | undefined => {
   if (!opponentId) return undefined;
   return opponentId.startsWith('JURYO_GUEST_')
@@ -463,12 +436,6 @@ const filterPersistedNpcRecords = (
     playerDivision === 'Jonidan' ||
     playerDivision === 'Jonokuchi'
   ) {
-    const playerSlot = resolveBanzukeSlot(
-      playerDivision,
-      chunk.playerRecord.rank.name,
-      chunk.playerRecord.rank.number,
-      chunk.playerRecord.rank.side,
-    );
     for (const bout of chunk.playerBouts) {
       const normalizedId = normalizePersistentOpponentId(bout.opponentId);
       if (normalizedId && recordsById.has(normalizedId)) {
@@ -477,19 +444,7 @@ const filterPersistedNpcRecords = (
     }
     for (const record of recordsById.values()) {
       if (record.division !== playerDivision) continue;
-      if (record.titles.includes('YUSHO')) {
-        selectedIds.add(record.entityId);
-        continue;
-      }
-      const npcSlot = resolveBanzukeSlot(
-        record.division,
-        record.rankName,
-        record.rankNumber,
-        record.rankSide,
-      );
-      if (Math.abs(npcSlot - playerSlot) <= 12) {
-        selectedIds.add(record.entityId);
-      }
+      selectedIds.add(record.entityId);
     }
   }
 
