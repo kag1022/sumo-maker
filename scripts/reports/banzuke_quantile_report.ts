@@ -287,7 +287,7 @@ const run = async (): Promise<void> => {
         if (step.kind !== 'BASHO') break;
         transitions += 1;
         const before = step.playerRecord.rank;
-        const after = step.statusSnapshot.rank;
+        const after = step.statusSnapshot!.rank;
         const deltaHalfStep = toHalfStep(before) - toHalfStep(after);
         const key = `${before.division}:${step.playerRecord.wins}-${step.playerRecord.losses}-${step.playerRecord.absent}`;
         const list = bucket.get(key) ?? [];
