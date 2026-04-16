@@ -9,6 +9,31 @@ export const countActiveNpcInWorld = (world: SimulationWorld): number => {
   return count;
 };
 
+export const countActiveBanzukeHeadcountExcludingMaezumo = (
+  world: SimulationWorld,
+): number => {
+  let count = 0;
+  for (const npc of world.npcRegistry.values()) {
+    if (npc.actorType === 'PLAYER') continue;
+    if (!npc.active) continue;
+    if (npc.currentDivision === 'Maezumo') continue;
+    count += 1;
+  }
+  return count;
+};
+
+export const countActiveMaezumoHeadcount = (
+  world: SimulationWorld,
+): number => {
+  let count = 0;
+  for (const npc of world.npcRegistry.values()) {
+    if (npc.actorType === 'PLAYER') continue;
+    if (!npc.active) continue;
+    if (npc.currentDivision === 'Maezumo') count += 1;
+  }
+  return count;
+};
+
 export const pruneRetiredTopDivisionRosters = (world: SimulationWorld): void => {
   for (const division of ['Makuuchi', 'Juryo'] as const) {
     world.rosters[division] = world.rosters[division].map((rikishi) => {

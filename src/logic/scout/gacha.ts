@@ -6,7 +6,6 @@ import {
   IchimonId,
   PersonalityType,
   RikishiStatus,
-  StyleArchetype,
 } from "../models";
 import {
   STARTER_OYAKATA_BLUEPRINTS,
@@ -27,6 +26,7 @@ import {
   STABLE_CATALOG,
   type StableDefinition,
 } from "../simulation/heya/stableCatalog";
+import { ensureStyleIdentityProfile } from "../style/identity";
 
 type RandomSource = () => number;
 
@@ -67,6 +67,7 @@ export const SCOUT_BODY_SEED_LABELS: Record<ScoutBodySeed, string> = {
 export interface ScoutDraft {
   shikona: string;
   birthplace: string;
+  personaLine?: string;
   profile: BasicProfile;
   entryAge: 15 | 18 | 22;
   startingHeightCm: number;
@@ -75,15 +76,7 @@ export interface ScoutDraft {
   temperament: ScoutTemperament;
   bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
-  selectedIchimonId?: string | null;
   aptitudeTier: AptitudeTier;
-  amateurBackground?: string;
-  bodyConstitution?: string;
-  primaryStyle?: string;
-  secondaryStyle?: string;
-  mentalTrait?: string;
-  debtCardIds?: string[];
-  injuryResistance?: string;
 }
 
 export interface ScoutResolvedSeed {
@@ -97,32 +90,6 @@ export interface ScoutResolvedSeed {
   introductionLine: string;
   growthLine: string;
 }
-
-export interface ScoutOverrideCostBreakdown {
-  shikona: number;
-  realName: number;
-  birthplace: number;
-  personality: number;
-  background: number;
-  bodyConstitution: number;
-  style: number;
-  mental: number;
-  burden: number;
-  stable: number;
-}
-
-export interface ScoutOverrideCost {
-  total: number;
-  breakdown: ScoutOverrideCostBreakdown;
-}
-
-export const SCOUT_COST = {
-  DRAW: 0,
-  SHIKONA: 0,
-  REAL_NAME: 0,
-  BIRTHPLACE: 0,
-  PERSONALITY: 0,
-} as const;
 
 const RANDOM_FAMILY_NAMES = [
   "佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤",
@@ -178,38 +145,51 @@ const resolveBodyConstitution = (bodySeed: ScoutBodySeed): BodyConstitution => {
 
 const resolvePotentialFromBodySeed = (
   bodySeed: ScoutBodySeed,
+  entryAge: ScoutDraft["entryAge"],
   startingHeightCm: number,
   startingWeightKg: number,
 ): Pick<BuildSpecVNext, "heightPotentialCm" | "weightPotentialKg" | "reachDeltaCm"> => {
+  const completedHeightPotential = entryAge >= 22 ? startingHeightCm : undefined;
   if (bodySeed === "HEAVY") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 3, 186),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 186),
       weightPotentialKg: Math.max(startingWeightKg + 24, 178),
       reachDeltaCm: -1,
     };
   }
   if (bodySeed === "LONG") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 5, 191),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 5, 191),
       weightPotentialKg: Math.max(startingWeightKg + 18, 148),
       reachDeltaCm: 5,
     };
   }
   if (bodySeed === "SPRING") {
     return {
-      heightPotentialCm: Math.max(startingHeightCm + 3, 183),
+      heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 183),
       weightPotentialKg: Math.max(startingWeightKg + 20, 156),
       reachDeltaCm: 1,
     };
   }
   return {
-    heightPotentialCm: Math.max(startingHeightCm + 3, 184),
+    heightPotentialCm: completedHeightPotential ?? Math.max(startingHeightCm + 3, 184),
     weightPotentialKg: Math.max(startingWeightKg + 18, 150),
     reachDeltaCm: 0,
   };
 };
 
-const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): StyleArchetype => {
+const buildGrowthLine = (
+  draft: ScoutDraft,
+  preview: BuildPreviewSummaryVNext,
+): string => {
+  const gainsHeight = preview.potentialHeightCm > draft.startingHeightCm;
+  if (!gainsHeight) {
+    return `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}で骨格はほぼ完成しており、体重は${preview.potentialWeightKg}kgまで積み上がる余地がある。`;
+  }
+  return `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`;
+};
+
+const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition) => {
   if (draft.bodySeed === "HEAVY") return stable.archetypeId === "TSUKI_OSHI_GROUP" ? "POWER_PRESSURE" : "YOTSU";
   if (draft.bodySeed === "LONG") return "TSUKI_OSHI";
   if (draft.bodySeed === "SPRING") return "DOHYOUGIWA";
@@ -218,7 +198,7 @@ const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition): Style
   return "YOTSU";
 };
 
-const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: StyleArchetype): StyleArchetype => {
+const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: BuildSpecVNext["primaryStyle"]) => {
   if (draft.entryPath === "CHAMPION") return primaryStyle === "YOTSU" ? "MOROZASHI" : "NAGE_TECH";
   if (draft.entryPath === "COLLEGE") return "MOROZASHI";
   if (draft.temperament === "EXPLOSIVE") return "POWER_PRESSURE";
@@ -273,7 +253,7 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
   const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
   const spec: BuildSpecVNext = {
     oyakataId: oyakata.id,
-    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.startingHeightCm, draft.startingWeightKg),
+    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.entryAge, draft.startingHeightCm, draft.startingWeightKg),
     bodyConstitution,
     amateurBackground: resolveBackground(draft),
     primaryStyle,
@@ -310,7 +290,7 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     bodySeedLabel: SCOUT_BODY_SEED_LABELS[draft.bodySeed],
     stableLabel: stable.displayName,
     introductionLine: `${draft.birthplace}から${stable.displayName}へ入り、${draft.entryAge}歳で土俵に立つ。`,
-    growthLine: `${SCOUT_BODY_SEED_LABELS[draft.bodySeed]}が、${preview.potentialHeightCm}cm・${preview.potentialWeightKg}kgまで伸びる余地を作る。`,
+    growthLine: buildGrowthLine(draft, preview),
   };
 };
 
@@ -332,6 +312,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   return {
     shikona: generateShikona(),
     birthplace: profile.birthplace,
+    personaLine: `${entryAge === 15 ? "早い入口" : entryAge === 22 ? "完成に近い入口" : "土台のある入口"}から角界へ入る。`,
     profile,
     entryAge,
     startingHeightCm: baseHeight + Math.floor(rng() * 7),
@@ -343,6 +324,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     aptitudeTier: resolveAptitudeTier({
       shikona: "",
       birthplace: "",
+      personaLine: "",
       profile,
       entryAge,
       startingHeightCm: 0,
@@ -466,27 +448,8 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   };
   status.bodyMetrics.reachDeltaCm = seed.spec.reachDeltaCm;
   status.history.maxRank = { ...status.rank };
-  return status;
+  return ensureStyleIdentityProfile(status);
 };
-
-export const resolveScoutOverrideCost = (
-  _base: ScoutDraft,
-  _edited: ScoutDraft,
-): ScoutOverrideCost => ({
-  total: 0,
-  breakdown: {
-    shikona: 0,
-    realName: 0,
-    birthplace: 0,
-    personality: 0,
-    background: 0,
-    bodyConstitution: 0,
-    style: 0,
-    mental: 0,
-    burden: 0,
-    stable: 0,
-  },
-});
 
 export const getScoutDraftHeadline = (draft: ScoutDraft): string =>
   `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;

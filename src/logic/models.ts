@@ -72,6 +72,36 @@ export type Trait =
   | 'READ_THE_BOUT'
   | 'CLUTCH_REVERSAL';
 
+export type TraitJourneyState = 'LOCKED' | 'LEARNED';
+export type TraitJourneySource =
+  | 'MENTAL_TRAIT'
+  | 'INJURY_RESISTANCE'
+  | 'BODY_CONSTITUTION'
+  | 'DEBT_CARD'
+  | 'LEGACY';
+
+export interface TraitJourneyEntry {
+  trait: Trait;
+  state: TraitJourneyState;
+  source: TraitJourneySource;
+  learnedAtBashoSeq?: number;
+  learnedYear?: number;
+  learnedMonth?: number;
+  triggerLabel?: string;
+  triggerDetail?: string;
+  legacy?: boolean;
+}
+
+export interface TraitAwakening {
+  trait: Trait;
+  bashoSeq: number;
+  year: number;
+  month: number;
+  triggerLabel: string;
+  triggerDetail: string;
+  legacy?: boolean;
+}
+
 export interface BasicProfile {
   realName: string;
   birthplace: string;
@@ -209,10 +239,13 @@ export interface RikishiStatus {
   careerBand?: CareerBand;
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
+  kimariteRepertoire?: KimariteRepertoire;
+  styleIdentityProfile?: StyleIdentityProfile;
   bodyType: BodyType;          // 体格タイプ
   profile: BasicProfile;       // 基本プロフィール
   bodyMetrics: BodyMetrics;    // 身長・体重
   traits: Trait[];             // スキル（特性）リスト
+  traitJourney?: TraitJourneyEntry[];
   durability: number;      // 基礎耐久力
   currentCondition: number; // 現在の調子 (0-100)
   ratingState: RatingState; // 連続実力モデル状態
@@ -223,8 +256,6 @@ export interface RikishiStatus {
   retirementProfile?: RetirementProfile; // 引退傾向プロファイル
   genome?: RikishiGenome;  // 三層DNA（v9以降で必須化、後方互換のためoptional）
   kataProfile?: KataProfile;
-  designedStyleProfile?: StyleProfile;
-  realizedStyleProfile?: StyleProfile | null;
   buildSummary?: BuildSummary;
   careerSeed?: CareerSeed;
   careerNarrative?: CareerNarrativeSummary;
@@ -329,6 +360,56 @@ export interface StyleProfile {
   confidence: number;
   source: 'DESIGNED' | 'REALIZED';
   locked?: boolean;
+}
+
+export interface StyleIdentityEntry {
+  aptitude: number;
+  resistance: number;
+  sample: number;
+  lastDelta: number;
+}
+
+export interface StyleIdentityProfile {
+  version: 1;
+  styles: Record<StyleArchetype, StyleIdentityEntry>;
+  lastUpdatedBashoSeq?: number;
+}
+
+export type WinRoute =
+  | 'PUSH_OUT'
+  | 'BELT_FORCE'
+  | 'THROW_BREAK'
+  | 'PULL_DOWN'
+  | 'EDGE_REVERSAL'
+  | 'REAR_FINISH'
+  | 'LEG_ATTACK';
+
+export type KimariteRepertoireTier = 'PRIMARY' | 'SECONDARY' | 'CONTEXT' | 'RARE';
+
+export interface KimariteRepertoireEntry {
+  kimarite: string;
+  route: WinRoute;
+  tier: KimariteRepertoireTier;
+  affinity: number;
+  unlockedAtBashoSeq?: number;
+}
+
+export interface KimariteRepertoire {
+  version: 1;
+  provisional: boolean;
+  primaryRoutes: WinRoute[];
+  secondaryRoutes: WinRoute[];
+  routeLockConfidence?: number;
+  settledAtBashoSeq?: number;
+  entries: KimariteRepertoireEntry[];
+}
+
+export interface StyleEvolutionProfile {
+  techniqueAffinity: number;
+  birthStyleBias: TacticsType;
+  branchState: 'NONE' | 'PENDING' | 'LOCKED';
+  pendingTechniqueCount: number;
+  branchedAtBashoSeq?: number;
 }
 
 export interface LifeCardSummary {
@@ -629,7 +710,6 @@ export interface BuildSpecV4 {
   genome: RikishiGenome;
   aptitudeBaseTier: AptitudeTier;
   aptitudePlan: AptitudePlan;
-  selectedIchimonId: IchimonId | null;
   selectedStableId: string | null;
   selectedOyakataId: string | null;
   abstractAxes: {
@@ -677,11 +757,13 @@ export interface CareerHistory {
     others: number;
   };
   kimariteTotal: Record<string, number>; // 通算決まり手カウント
+  winRouteTotal?: Partial<Record<WinRoute, number>>;
   title?: string; // 二つ名
   prizeBreakdown?: CareerPrizeBreakdown;
   rewardSummary?: CareerRewardSummary;
   bodyTimeline?: Array<{ bashoSeq: number; year: number; month: number; weightKg: number }>;
   highlightEvents?: HighlightEvent[];
+  traitAwakenings?: TraitAwakening[];
   careerTurningPoints?: CareerTurningPoint[];
   careerTurningPoint?: CareerTurningPoint;
   realismKpi?: RealismKpiSnapshot;
@@ -702,6 +784,7 @@ export interface BashoRecord {
   performanceOverExpected?: number;
   kinboshi?: number; // 金星獲得数（平幕が横綱を破った回数）
   kimariteCount?: Record<string, number>; // 決まり手カウント (勝ち技のみ)
+  winRouteCount?: Partial<Record<WinRoute, number>>;
   scaleSlots?: RankScaleSlots; // その場所時点の番付スロット構成（相対スケール）
   bodyWeightKg?: number;
 }
@@ -781,6 +864,8 @@ export interface RealismProbeMetrics extends RealismKpiSnapshot {
   top3MoveShareP50?: number;
   rareMoveRate?: number;
   kimariteVariety20Rate?: number;
+  techniqueBranchRate?: number;
+  finalTechniqueRate?: number;
   styleBucketMetrics?: Partial<Record<'PUSH' | 'GRAPPLE' | 'TECHNIQUE', RealismStyleBucketMetrics>>;
 }
 
@@ -799,6 +884,6 @@ export interface RealismProbeResult {
 export interface TimelineEvent {
   year: number;
   month: number;
-  type: 'ENTRY' | 'PROMOTION' | 'DEMOTION' | 'YUSHO' | 'INJURY' | 'RETIREMENT' | 'OTHER';
+  type: 'ENTRY' | 'PROMOTION' | 'DEMOTION' | 'YUSHO' | 'INJURY' | 'RETIREMENT' | 'TRAIT_AWAKENING' | 'OTHER';
   description: string;
 }

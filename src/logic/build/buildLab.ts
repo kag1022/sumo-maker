@@ -26,7 +26,12 @@ import {
   Trait,
 } from '../models';
 import { generateShikona } from '../naming/playerNaming';
+import {
+  applyPlayerInitialAbilityCap,
+  resolvePlayerEntryCalibration,
+} from '../simulation/playerRealism';
 import { listStablesByIchimon, resolveStableById } from '../simulation/heya/stableCatalog';
+import { buildLockedTraitJourney } from '../traits';
 import {
   AMATEUR_BACKGROUND_CONFIG,
   buildCareerSeedSummary,
@@ -35,11 +40,7 @@ import {
   estimateCareerBandLabel,
   STARTER_OYAKATA_BLUEPRINTS,
 } from '../careerSeed';
-import {
-  createDesignedStyleProfile,
-  getStyleCompatibility,
-  styleToTactics,
-} from '../styleProfile';
+import { getStyleCompatibility } from '../styleProfile';
 
 export interface BuildCostBreakdown {
   physical: number;
@@ -143,6 +144,25 @@ type BuildHistory = keyof typeof HISTORY_OPTIONS;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
+
+const resolvePlayerBuildAptitudeFactor = (
+  baseFactor: number,
+  growthBias: number,
+): number => clamp(1 + (baseFactor - 1) * 0.5 + growthBias, 0.88, 1.12);
+
+const applyPlayerEntryRealism = (
+  status: RikishiStatus,
+  initialAbilityBias: number,
+): RikishiStatus => ({
+  ...status,
+  ratingState: {
+    ...status.ratingState,
+    ability: applyPlayerInitialAbilityCap({
+      ability: status.ratingState.ability + Math.max(0, initialAbilityBias),
+      rank: status.rank,
+    }),
+  },
+});
 
 const createBaseGenome = (): RikishiGenome => {
   const dist = CONSTANTS.GENOME.ARCHETYPE_DNA.HARD_WORKER;
@@ -326,7 +346,6 @@ export const createDefaultBuildSpec = (): BuildSpecV4 => ({
     reveal: false,
     tuneStep: 0,
   },
-  selectedIchimonId: null,
   selectedStableId: null,
   selectedOyakataId: null,
   abstractAxes: {
@@ -387,13 +406,20 @@ export const buildRikishiFromBuildSpec = (spec: BuildSpecV4): RikishiStatus => {
   }
 
   const history = resolveHistory(spec.history, spec.entryDivision);
+  const entryCalibration = resolvePlayerEntryCalibration({
+    startingRank: history.rank,
+    rng: Math.random,
+  });
   const status = createInitialRikishi({
     shikona: spec.shikona,
     age: history.age,
     startingRank: history.rank,
     archetype: 'HARD_WORKER',
     aptitudeTier: spec.aptitudeBaseTier,
-    aptitudeFactor: resolveAptitudeFactorFromPlan(spec),
+    aptitudeFactor: resolvePlayerBuildAptitudeFactor(
+      resolveAptitudeFactorFromPlan(spec),
+      entryCalibration.growthBias,
+    ),
     tactics: 'BALANCE',
     signatureMove: '',
     bodyType: spec.bodyType,
@@ -408,11 +434,11 @@ export const buildRikishiFromBuildSpec = (spec: BuildSpecV4): RikishiStatus => {
     stableArchetypeId: stable.archetypeId,
   });
 
-  return {
+  return applyPlayerEntryRealism({
     ...status,
     tactics: 'BALANCE',
     signatureMoves: [],
-  };
+  }, entryCalibration.initialAbilityBias);
 };
 
 export const buildPreviewSummary = (spec: BuildSpecV4): BuildPreviewSummary => {
@@ -767,18 +793,21 @@ export const buildInitialRikishiFromSpec = (
     spec.amateurBackground === 'MIDDLE_SCHOOL' ? 'EARLY' :
     spec.amateurBackground === 'COLLEGE_YOKOZUNA' ? 'NORMAL' :
     'NORMAL';
-  const designedStyleProfile = createDesignedStyleProfile({
-    primary: spec.primaryStyle,
-    secondary: spec.secondaryStyle,
-    secret: oyakata.secretStyle,
-  });
-  const traits = [
-    ...resolveMentalTraits(spec.mentalTrait),
-    ...resolveInjuryTraits(spec.injuryResistance),
-  ];
-  if (spec.bodyConstitution === 'LONG_REACH') traits.push('LONG_REACH');
-  if (spec.bodyConstitution === 'HEAVY_BULK') traits.push('HEAVY_PRESSURE');
-  if (spec.debtCards.includes('OLD_KNEE')) traits.push('GLASS_KNEE');
+  const traitJourney = buildLockedTraitJourney([
+    { source: 'MENTAL_TRAIT', traits: resolveMentalTraits(spec.mentalTrait) },
+    { source: 'INJURY_RESISTANCE', traits: resolveInjuryTraits(spec.injuryResistance) },
+    {
+      source: 'BODY_CONSTITUTION',
+      traits: [
+        ...(spec.bodyConstitution === 'LONG_REACH' ? ['LONG_REACH' as const] : []),
+        ...(spec.bodyConstitution === 'HEAVY_BULK' ? ['HEAVY_PRESSURE' as const] : []),
+      ],
+    },
+    {
+      source: 'DEBT_CARD',
+      traits: spec.debtCards.includes('OLD_KNEE') ? ['GLASS_KNEE' as const] : [],
+    },
+  ]);
   const buildSummary = buildCareerSeedSummary({
     oyakataName: oyakata.name,
     amateurBackground: spec.amateurBackground,
@@ -794,17 +823,36 @@ export const buildInitialRikishiFromSpec = (
     compatibility,
   });
   const entryAge = background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0);
+  const isTsukedashi =
+    background.startRank.division === 'Makushita' ||
+    background.startRank.division === 'Sandanme';
+  const entryCalibration = resolvePlayerEntryCalibration({
+    startingRank: background.startRank,
+    rng: Math.random,
+  });
+  const rolledAptitudeTier = rollAptitudeTier(Math.random);
   const status = createInitialRikishi({
     shikona: generateShikona(),
     age: entryAge,
     startingRank: background.startRank,
     archetype: 'HARD_WORKER',
-    aptitudeTier: rollAptitudeTier(Math.random),
-    aptitudeFactor: 1,
-    tactics: styleToTactics(designedStyleProfile.dominant),
+    aptitudeTier: rolledAptitudeTier,
+    aptitudeFactor: resolvePlayerBuildAptitudeFactor(
+      resolveAptitudeFactor(rolledAptitudeTier),
+      entryCalibration.growthBias,
+    ),
+    tactics:
+      isTsukedashi
+        ? spec.primaryStyle === 'TSUKI_OSHI' || spec.primaryStyle === 'POWER_PRESSURE'
+          ? 'PUSH'
+          : spec.primaryStyle === 'YOTSU' || spec.primaryStyle === 'MOROZASHI'
+            ? 'GRAPPLE'
+            : 'TECHNIQUE'
+        : 'BALANCE',
     signatureMove: '',
     bodyType: resolveBodyTypeFromConstitution(spec.bodyConstitution),
-    traits: [...new Set(traits)].slice(0, 5),
+    traits: [],
+    traitJourney,
     historyBonus: resolveBackgroundBonus(spec.amateurBackground) - (spec.debtCards.includes('LATE_START') ? 4 : 0),
     entryDivision: background.startRank.division === 'Makushita'
       ? 'Makushita60'
@@ -830,7 +878,6 @@ export const buildInitialRikishiFromSpec = (
     stableId: stable.id,
     ichimonId: stable.ichimonId,
     stableArchetypeId: stable.archetypeId,
-    designedStyleProfile,
     buildSummary,
     mentorId: oyakata.id,
     spirit:
@@ -849,11 +896,8 @@ export const buildInitialRikishiFromSpec = (
   status.bodyMetrics.heightCm = initialBody.heightCm;
   status.bodyMetrics.weightKg = initialBody.weightKg;
   status.buildSummary = buildSummary;
-  status.designedStyleProfile = designedStyleProfile;
-  status.realizedStyleProfile = null;
-  status.tactics = styleToTactics(designedStyleProfile.dominant);
   status.mentorId = oyakata.id;
-  return status;
+  return applyPlayerEntryRealism(status, entryCalibration.initialAbilityBias);
 };
 
 export const getStarterOyakataBlueprints = (): OyakataBlueprint[] => STARTER_OYAKATA_BLUEPRINTS;

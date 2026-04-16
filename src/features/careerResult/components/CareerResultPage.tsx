@@ -1,411 +1,304 @@
 import React from "react";
-import { Save, Scale, ScrollText, TableProperties } from "lucide-react";
-import { Button } from "../../../shared/ui/Button";
-import { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
-import { Division, RikishiStatus } from "../../../logic/models";
-import { BanzukeReviewTab } from "../../report/components/BanzukeReviewTab";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookUser, Menu, ScrollText, Table2, Trophy, X } from "lucide-react";
+import { type RikishiStatus } from "../../../logic/models";
+import type {
+  CareerBashoDetail,
+  CareerBashoRecordsBySeq,
+} from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
-import { buildBanzukeReviewTabModel } from "../../report/utils/banzukeReview";
 import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
+import { Button } from "../../../shared/ui/Button";
+import { CareerEncyclopediaChapter } from "./CareerEncyclopediaChapter";
+import { CareerPlaceChapter } from "./CareerPlaceChapter";
+import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
 import {
-  buildCareerYearBands,
-  getCareerValueForFlow,
-  groupNearbyRanks,
-  type CareerRankFlowPoint,
+  buildCareerLedgerModel,
+  buildCareerOverviewModel,
+  buildCareerPlaceSummary,
+  type CareerChapterId,
+  type CareerPlaceTabId,
   type CareerWindowState,
 } from "../utils/careerResultModel";
+import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 
 export interface CareerResultViewState extends CareerWindowState {
   selectedBashoSeq: number | null;
+  activeChapter: CareerChapterId;
+  placeTab: CareerPlaceTabId;
 }
 
 interface CareerResultPageProps {
   status: RikishiStatus;
   careerId: string | null;
   isSaved: boolean;
+  yokozunaOrdinal?: number | null;
   detail: CareerBashoDetail | null;
   detailLoading: boolean;
   bashoRows: CareerBashoRecordsBySeq[];
+  detailState: "idle" | "building" | "ready" | "error";
+  detailBuildProgress: DetailBuildProgress | null;
   viewState: CareerResultViewState;
   onSelectBasho: (bashoSeq: number) => void;
-  onWindowChange: (window: CareerWindowState) => void;
+  onViewStateChange: (patch: Partial<CareerResultViewState>) => void;
   onSave: () => void | Promise<void>;
-  onOpenEra: () => void;
+  onReturnToScout: () => void;
 }
 
-const VISIBLE_COLUMNS_MIN = 14;
-const PAGE_TABS = [
-  { id: "review", label: "番付審議", icon: Scale },
-  { id: "rank", label: "番付推移", icon: ScrollText },
-] as const;
-type CareerResultTabId = (typeof PAGE_TABS)[number]["id"];
+const CHAPTERS: Array<{
+  id: CareerChapterId;
+  label: string;
+  icon: typeof Trophy;
+}> = [
+  { id: "encyclopedia", label: "力士名鑑", icon: BookUser },
+  { id: "trajectory", label: "番付推移", icon: ScrollText },
+  { id: "place", label: "場所別", icon: Table2 },
+];
+
+const chapterTransition = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -12 },
+  transition: { duration: 0.2, ease: "easeOut" as const },
+};
 
 export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   status,
   careerId,
   isSaved,
+  yokozunaOrdinal,
   detail,
   detailLoading,
   bashoRows,
+  detailState,
+  detailBuildProgress,
   viewState,
   onSelectBasho,
-  onWindowChange,
+  onViewStateChange,
   onSave,
-  onOpenEra,
+  onReturnToScout,
 }) => {
+  const chapterRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
-  const [activeTab, setActiveTab] = React.useState<CareerResultTabId>("review");
-  const flow = React.useMemo(() => getCareerValueForFlow(status), [status]);
-  const selectedPoint = flow.find((point) => point.bashoSeq === viewState.selectedBashoSeq) ?? flow[flow.length - 1] ?? null;
-  const careerPeriod = flow.length > 0 ? `${flow[0].bashoLabel} - ${flow[flow.length - 1].bashoLabel}` : "-";
-  const yearBands = React.useMemo(() => buildCareerYearBands(flow), [flow]);
-  const visibleFlow = React.useMemo(
-    () =>
-      flow.filter(
-        (point) =>
-          point.bashoSeq >= viewState.visibleWindowStartSeq &&
-          point.bashoSeq <= viewState.visibleWindowEndSeq,
-      ),
-    [flow, viewState.visibleWindowEndSeq, viewState.visibleWindowStartSeq],
-  );
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const ledger = React.useMemo(() => buildCareerLedgerModel(status, bashoRows), [bashoRows, status]);
+  const overview = React.useMemo(() => buildCareerOverviewModel(status, bashoRows), [bashoRows, status]);
+  const selectedPoint =
+    ledger.points.find((point) => point.bashoSeq === viewState.selectedBashoSeq) ??
+    ledger.points[ledger.points.length - 1] ??
+    null;
   const selectedNpc = React.useMemo(
     () => (selectedNpcId ? buildNpcCareerDetail(bashoRows, selectedNpcId, viewState.selectedBashoSeq) : null),
     [bashoRows, selectedNpcId, viewState.selectedBashoSeq],
   );
-  const reviewModel = React.useMemo(
-    () => buildBanzukeReviewTabModel({ detail, bashoRows }),
-    [bashoRows, detail],
+  const placeSummary = React.useMemo(
+    () => buildCareerPlaceSummary(detail, selectedPoint),
+    [detail, selectedPoint],
+  );
+
+  const highestRankLabel =
+    status.history.maxRank.name === "横綱" && yokozunaOrdinal
+      ? `第${yokozunaOrdinal}代横綱`
+      : formatRankDisplayName(status.history.maxRank);
+  const activeChapterLabel = CHAPTERS.find((chapter) => chapter.id === viewState.activeChapter)?.label ?? "力士名鑑";
+  const selectedMeta = selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel;
+  const canReadDetails = detailState === "ready";
+  const detailLoadingLabel =
+    detailState === "building"
+      ? `詳細記録を整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? bashoRows.length}`
+      : detailState === "error"
+        ? "詳細記録の整理に失敗しました。"
+        : "詳細記録はまだ準備されていません。";
+
+  const scrollToChapterBody = React.useCallback(() => {
+    chapterRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const setChapter = React.useCallback(
+    (chapter: CareerChapterId) => {
+      if (!canReadDetails && chapter !== "encyclopedia") {
+        return;
+      }
+      onViewStateChange({ activeChapter: chapter });
+      setMobileNavOpen(false);
+      window.requestAnimationFrame(() => {
+        scrollToChapterBody();
+      });
+    },
+    [canReadDetails, onViewStateChange, scrollToChapterBody],
+  );
+
+  const openChapterWithPoint = React.useCallback(
+    (chapter: "encyclopedia" | "place", bashoSeq?: number | null) => {
+      if (typeof bashoSeq === "number") {
+        onSelectBasho(bashoSeq);
+      }
+      setChapter(chapter);
+    },
+    [onSelectBasho, setChapter],
   );
 
   return (
-    <div className="career-result-page">
-      <section className="analysis-header-strip">
-        <div className="analysis-summary">
-          <MetricBlock label="四股名" value={status.shikona} />
-          <MetricBlock label="最高位" value={formatRankDisplayName(status.history.maxRank)} />
-          <MetricBlock
-            label="通算"
-            value={`${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`}
-          />
-          <MetricBlock label="キャリア期間" value={careerPeriod} />
-        </div>
-        <div className="analysis-actions">
-          {!isSaved ? (
-            <Button onClick={() => void onSave()}>
-              <Save className="mr-2 h-4 w-4" />
-              保存
-            </Button>
-          ) : null}
-          <Button variant="secondary" onClick={onOpenEra}>
-            <TableProperties className="mr-2 h-4 w-4" />
-            時代統計
+    <div className="career-ledger-page">
+      <div className="career-ledger-ribbon-shell">
+        <div className="career-ledger-ribbon">
+          <div className="career-ledger-ribbon-current">
+            <div className="career-ledger-ribbon-label">{activeChapterLabel}</div>
+            <div className="career-ledger-ribbon-meta">
+              {selectedMeta}
+            </div>
+          </div>
+
+          <div className="career-ledger-ribbon-track" role="tablist" aria-label="キャリア結果ナビゲーション">
+            {CHAPTERS.map((chapter) => {
+              const Icon = chapter.icon;
+              return (
+                <button
+                  key={chapter.id}
+                  type="button"
+                  className="career-ledger-ribbon-tab disabled:cursor-not-allowed disabled:opacity-40"
+                  data-active={viewState.activeChapter === chapter.id}
+                  disabled={!canReadDetails && chapter.id !== "encyclopedia"}
+                  onClick={() => setChapter(chapter.id)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{chapter.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="career-ledger-ribbon-mobile-toggle"
+            onClick={() => setMobileNavOpen((current) => !current)}
+          >
+            {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
-      </section>
 
-      <section className="analysis-section">
-        <div className="career-result-tabs" role="tablist" aria-label="キャリア結果タブ">
-          {PAGE_TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                className="career-result-tab-button"
-                data-active={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {activeTab === "review" ? (
-        <section className="analysis-section analysis-section-detail">
-          <BanzukeReviewTab
-            model={reviewModel}
-            isLoading={detailLoading}
-            emptyLabel={careerId ? "この場所の番付審議はまだ保存されていません。" : "保存後に番付審議を開けます。"}
-            onSelectNpc={setSelectedNpcId}
-          />
-        </section>
-      ) : (
-        <>
-          <section className="analysis-section analysis-section-graph">
-            <div className="analysis-toolbar">
-              <div className="analysis-toolbar-primary">
-                <span className="analysis-subtitle">番付変動</span>
-                <span className="analysis-caption">
-                  {visibleFlow[0]?.bashoLabel ?? "-"} - {visibleFlow[visibleFlow.length - 1]?.bashoLabel ?? "-"}
-                </span>
+        <AnimatePresence initial={false}>
+          {mobileNavOpen ? (
+            <motion.div
+              className="career-ledger-ribbon-drawer"
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+            >
+              <div className="career-ledger-ribbon-drawer-current">
+                <div>{selectedPoint?.bashoLabel ?? "-"}</div>
+                <div>{selectedPoint?.rankLabel ?? highestRankLabel}</div>
               </div>
-              <WindowControls totalCount={flow.length} viewState={viewState} onWindowChange={onWindowChange} />
-            </div>
-            <div className="year-band-strip">
-              {yearBands.map((band) => {
-                const active =
-                  band.startSeq <= viewState.visibleWindowEndSeq && band.endSeq >= viewState.visibleWindowStartSeq;
-                const hasSelected =
-                  viewState.selectedBashoSeq != null &&
-                  viewState.selectedBashoSeq >= band.startSeq &&
-                  viewState.selectedBashoSeq <= band.endSeq;
-                return (
-                  <button
-                    key={band.year}
-                    type="button"
-                    className="year-band-chip"
-                    data-active={active}
-                    data-selected={hasSelected}
-                    style={{ flexGrow: Math.max(1, band.size) }}
-                    onClick={() => {
-                      onWindowChange({
-                        visibleWindowStartSeq: band.startSeq,
-                        visibleWindowEndSeq: band.endSeq,
-                      });
-                      onSelectBasho(hasSelected && viewState.selectedBashoSeq ? viewState.selectedBashoSeq : band.endSeq);
-                    }}
-                  >
-                    <span>{band.label}</span>
-                    <span>{band.size}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="analysis-subsection">
-              <RankBandChart
-                flow={visibleFlow}
-                selectedBashoSeq={viewState.selectedBashoSeq}
-                onSelectBasho={onSelectBasho}
-              />
-            </div>
-          </section>
-
-          <section className="analysis-section analysis-section-detail">
-            {selectedPoint ? (
-              <BashoDetailPanel
-                point={selectedPoint}
-                detail={detail}
-                isLoading={detailLoading}
-                hasPersistence={Boolean(careerId)}
-                onSelectNpc={setSelectedNpcId}
-              />
-            ) : null}
-          </section>
-        </>
-      )}
-      {selectedNpc ? <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} /> : null}
-    </div>
-  );
-};
-
-const RankBandChart: React.FC<{
-  flow: CareerRankFlowPoint[];
-  selectedBashoSeq: number | null;
-  onSelectBasho: (bashoSeq: number) => void;
-}> = ({ flow, selectedBashoSeq, onSelectBasho }) => {
-  if (flow.length === 0) return null;
-
-  const min = Math.min(...flow.map((point) => point.rankValue));
-  const max = Math.max(...flow.map((point) => point.rankValue));
-  const width = Math.max(720, flow.length * 46);
-  const height = 300;
-  const topPad = 18;
-  const bottomPad = 46;
-  const leftPad = 10;
-  const innerHeight = height - topPad - bottomPad;
-  const step = flow.length > 1 ? (width - leftPad * 2) / (flow.length - 1) : width - leftPad * 2;
-  const normalizeY = (rankValue: number) => {
-    if (max === min) return topPad + innerHeight / 2;
-    return topPad + ((rankValue - min) / (max - min)) * innerHeight;
-  };
-  const points = flow.map((point, index) => ({
-    ...point,
-    x: leftPad + index * step,
-    y: normalizeY(point.rankValue),
-  }));
-  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-  const selectedPoint = points.find((point) => point.bashoSeq === selectedBashoSeq) ?? points[points.length - 1];
-  const axisPoints = [points[0], points[Math.floor((points.length - 1) / 2)], points[points.length - 1]].filter(Boolean);
-
-  return (
-    <div className="trajectory-chart">
-      <div className="trajectory-axis">
-        <div className="trajectory-axis-label">{flow[0]?.rankLabel ?? "-"}</div>
-        <div className="trajectory-axis-label trajectory-axis-label-current">{selectedPoint?.rankLabel ?? "-"}</div>
-        <div className="trajectory-axis-label">{flow[flow.length - 1]?.rankLabel ?? "-"}</div>
-      </div>
-      <div className="trajectory-canvas-wrap">
-        <svg className="trajectory-canvas" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-          {[0, 0.5, 1].map((ratio) => {
-            const y = topPad + innerHeight * ratio;
-            return <line key={ratio} x1={0} x2={width} y1={y} y2={y} className="trajectory-grid-line" />;
-          })}
-          <path d={path} className="trajectory-line-shadow" />
-          <path d={path} className="trajectory-line" />
-          {points.map((point) => (
-            <g key={point.bashoSeq}>
-              {point.eventFlags.length > 0 ? (
-                <circle cx={point.x} cy={Math.max(10, point.y - 12)} r={3.5} className="trajectory-event-dot" />
-              ) : null}
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={point.bashoSeq === selectedBashoSeq ? 6 : 4}
-                className="trajectory-point"
-                data-selected={point.bashoSeq === selectedBashoSeq}
-                data-movement={point.movementType}
-                onClick={() => onSelectBasho(point.bashoSeq)}
-              />
-            </g>
-          ))}
-          {axisPoints.map((point) => (
-            <text key={`tick-${point.bashoSeq}`} x={point.x} y={height - 14} textAnchor="middle" className="trajectory-tick">
-              {point.axisLabel}
-            </text>
-          ))}
-        </svg>
-      </div>
-    </div>
-  );
-};
-
-const WindowControls: React.FC<{
-  totalCount: number;
-  viewState: CareerResultViewState;
-  onWindowChange: (window: CareerWindowState) => void;
-}> = ({ totalCount, viewState, onWindowChange }) => {
-  const size = viewState.visibleWindowEndSeq - viewState.visibleWindowStartSeq + 1;
-  const shiftWindow = (direction: -1 | 1) => {
-    const start = Math.max(1, Math.min(totalCount - size + 1, viewState.visibleWindowStartSeq + direction * Math.max(3, Math.floor(size / 3))));
-    onWindowChange({
-      visibleWindowStartSeq: start,
-      visibleWindowEndSeq: Math.min(totalCount, start + size - 1),
-    });
-  };
-  const widenWindow = (delta: number) => {
-    const nextSize = Math.max(VISIBLE_COLUMNS_MIN, Math.min(totalCount, size + delta));
-    const center = Math.floor((viewState.visibleWindowStartSeq + viewState.visibleWindowEndSeq) / 2);
-    const start = Math.max(1, Math.min(totalCount - nextSize + 1, center - Math.floor(nextSize / 2)));
-    onWindowChange({
-      visibleWindowStartSeq: start,
-      visibleWindowEndSeq: Math.min(totalCount, start + nextSize - 1),
-    });
-  };
-
-  return (
-    <div className="window-controls">
-      <Button variant="ghost" size="sm" onClick={() => shiftWindow(-1)}>←</Button>
-      <Button variant="ghost" size="sm" onClick={() => shiftWindow(1)}>→</Button>
-      <Button variant="ghost" size="sm" onClick={() => widenWindow(-6)}>拡大</Button>
-      <Button variant="ghost" size="sm" onClick={() => widenWindow(6)}>圧縮</Button>
-    </div>
-  );
-};
-
-const BashoDetailPanel: React.FC<{
-  point: CareerRankFlowPoint;
-  detail: CareerBashoDetail | null;
-  isLoading: boolean;
-  hasPersistence: boolean;
-  onSelectNpc: (entityId: string | null) => void;
-}> = ({ point, detail, isLoading, hasPersistence, onSelectNpc }) => {
-  const groupedRows = React.useMemo(() => {
-    if (!detail?.rows?.length || !detail.playerRecord) return [];
-    return groupNearbyRanks(detail.rows, detail.playerRecord, 3);
-  }, [detail]);
-
-  return (
-    <div className="detail-panel-grid">
-      <div className="detail-panel detail-panel-summary">
-        <div className="detail-summary-grid">
-          <MetricBlock label="場所" value={point.bashoLabel} />
-          <MetricBlock label="番付" value={point.rankLabel} />
-          <MetricBlock label="成績" value={point.recordLabel} />
-          <MetricBlock label="変動" value={point.delta > 0 ? `+${point.delta}` : `${point.delta}`} />
-        </div>
-      </div>
-
-      <div className="detail-panel">
-        <div className="detail-panel-title">上下番付</div>
-        {isLoading ? (
-          <div className="detail-empty">読込中</div>
-        ) : groupedRows.length > 0 ? (
-          <div className="detail-table-scroll">
-            <table className="detail-table">
-              <thead>
-                <tr>
-                  <th>四股名</th>
-                  <th>番付</th>
-                  <th>成績</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupedRows.map((row) => (
-                  <tr key={`${row.entityType}-${row.entityId}`} data-player={row.entityType === "PLAYER"}>
-                    <td>
-                      {row.entityType === "NPC" ? (
-                        <button type="button" className="table-link-button" onClick={() => onSelectNpc(row.entityId)}>
-                          {row.shikona}
-                        </button>
-                      ) : (
-                        row.shikona
-                      )}
-                    </td>
-                    <td>{formatRankDisplayName({ division: row.division as Division, name: row.rankName, number: row.rankNumber ?? undefined, side: row.rankSide ?? undefined })}</td>
-                    <td>{row.wins}勝{row.losses}敗{row.absent > 0 ? `${row.absent}休` : ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="detail-empty">{hasPersistence ? "該当データなし" : "保存後に利用可能"}</div>
-        )}
-      </div>
-
-      <div className="detail-panel">
-        <div className="detail-panel-title">全取組</div>
-        {isLoading ? (
-          <div className="detail-empty">読込中</div>
-        ) : detail?.bouts?.length ? (
-          <div className="detail-bouts-scroll">
-            {detail.bouts.map((bout) => (
-              <div key={`${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? bout.result}`} className="detail-bout-row">
-                <div>{bout.day}日目</div>
-                <div>
-                  {bout.opponentId ? (
-                    <button type="button" className="table-link-button" onClick={() => onSelectNpc(bout.opponentId ?? null)}>
-                      {bout.opponentShikona ?? "対戦相手なし"}
+              <div className="career-ledger-ribbon-drawer-list">
+                {CHAPTERS.map((chapter) => {
+                  const Icon = chapter.icon;
+                  return (
+                    <button
+                      key={`mobile-${chapter.id}`}
+                      type="button"
+                      className="career-ledger-ribbon-drawer-tab disabled:cursor-not-allowed disabled:opacity-40"
+                      data-active={viewState.activeChapter === chapter.id}
+                      disabled={!canReadDetails && chapter.id !== "encyclopedia"}
+                      onClick={() => setChapter(chapter.id)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{chapter.label}</span>
                     </button>
-                  ) : (
-                    bout.opponentShikona ?? "対戦相手なし"
-                  )}
-                  {bout.opponentRankName
-                    ? ` / ${formatRankDisplayName({ division: point.rank.division, name: bout.opponentRankName, number: bout.opponentRankNumber ?? undefined, side: bout.opponentRankSide ?? undefined })}`
-                    : ""}
-                </div>
-                <div>
-                  {bout.result}
-                  {bout.kimarite ? ` / ${bout.kimarite}` : ""}
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="detail-empty">{hasPersistence ? "取組データなし" : "保存後に利用可能"}</div>
-        )}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+
+      <div ref={chapterRef} className="career-ledger-body">
+        <AnimatePresence mode="wait" initial={false}>
+          {viewState.activeChapter === "encyclopedia" ? (
+            <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
+              <section className="career-ledger-reading-note">
+                <div className="career-ledger-reading-kicker">閲覧ガイド</div>
+                <div className="career-ledger-reading-title">
+                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
+                </div>
+                <p className="career-ledger-reading-copy">
+                  {canReadDetails
+                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
+                    : detailLoadingLabel}
+                </p>
+              </section>
+              <CareerEncyclopediaChapter
+                status={status}
+                overview={overview}
+                highestRankLabel={highestRankLabel}
+                isSaved={isSaved}
+                detailState={detailState}
+                detailBuildProgress={detailBuildProgress}
+                onSave={onSave}
+                onReturnToScout={onReturnToScout}
+              />
+            </motion.div>
+          ) : null}
+
+          {viewState.activeChapter === "trajectory" && canReadDetails ? (
+            <motion.div key="trajectory" {...chapterTransition}>
+              <CareerTrajectoryChapter
+                ledger={ledger}
+                selectedPoint={selectedPoint}
+                selectionSummary={placeSummary}
+                detail={detail}
+                detailLoading={detailLoading}
+                hasPersistence={Boolean(careerId)}
+                viewState={viewState}
+                onSelectBasho={onSelectBasho}
+                onWindowChange={(window) => onViewStateChange(window)}
+                onOpenChapter={(chapter) => openChapterWithPoint(chapter, selectedPoint?.bashoSeq)}
+              />
+            </motion.div>
+          ) : null}
+
+          {viewState.activeChapter === "place" && canReadDetails ? (
+            <motion.div key="place" className="career-ledger-split" {...chapterTransition}>
+              <div className="career-ledger-mainpane">
+                <CareerPlaceChapter
+                  ledger={ledger}
+                  point={selectedPoint}
+                  detail={detail}
+                  summary={placeSummary}
+                  placeTab={viewState.placeTab}
+                  isLoading={detailLoading}
+                  hasPersistence={Boolean(careerId)}
+                  onSelectBasho={onSelectBasho}
+                  onSelectNpc={setSelectedNpcId}
+                  onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
+                />
+              </div>
+              <aside className="career-ledger-sidepane">
+                {selectedNpc ? (
+                  <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
+                ) : (
+                  <div className="career-ledger-sideempty">
+                    <div className="career-ledger-sideempty-kicker">補助欄</div>
+                    <div className="career-ledger-sideempty-title">近傍力士を開く</div>
+                    <p>番付や取組に表示される力士名を選ぶと、この場所で接していた相手の略歴を右側に表示します。</p>
+                  </div>
+                )}
+              </aside>
+            </motion.div>
+          ) : null}
+
+          {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
+            <motion.section key="detail-lock" className="career-ledger-reading-note" {...chapterTransition}>
+              <div className="career-ledger-reading-kicker">記録整理中</div>
+              <div className="career-ledger-reading-title">詳細章はまだ開けません。</div>
+              <p className="career-ledger-reading-copy">{detailLoadingLabel}</p>
+            </motion.section>
+          ) : null}
+        </AnimatePresence>
       </div>
     </div>
   );
 };
-
-const MetricBlock: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="analysis-metric">
-    <div className="analysis-metric-label">{label}</div>
-    <div className="analysis-metric-value">{value}</div>
-  </div>
-);

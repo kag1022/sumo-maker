@@ -1,10 +1,11 @@
 import { Rank } from '../../models';
-import { getHeiseiBoundaryExchangeRate } from '../../calibration/banzukeHeisei';
 import { BanzukeEngineVersion } from '../types';
 import { optimizeExpectedPlacements } from '../optimizer';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
+import { orderExpectedPlacementCandidates } from './expected/order';
 import { ExpectedPlacementCandidate } from './expected/types';
-import { resolveEmpiricalSlotBand } from './empirical';
+import { calculateLowerDivisionRankChange } from '../rules/lowerDivision';
+import { resolveRuntimeRankBand, resolveRuntimeRecordBucket } from './runtimeMetadata';
 import {
   BoundarySnapshot,
   LowerBoundaryExchange,
@@ -21,18 +22,11 @@ const DIVISION_LABEL: Record<LowerDivision, string> = {
   Jonidan: '序二段',
   Jonokuchi: '序ノ口',
 };
-const PROMOTION_RATE_KEY: Partial<Record<LowerDivision, string>> = {
-  Makushita: 'MakushitaToJuryo',
-  Sandanme: 'SandanmeToMakushita',
-  Jonidan: 'JonidanToSandanme',
-  Jonokuchi: 'JonokuchiToJonidan',
+const UPPER_DIVISION: Partial<Record<LowerDivision, LowerDivision>> = {
+  Sandanme: 'Makushita',
+  Jonidan: 'Sandanme',
+  Jonokuchi: 'Jonidan',
 };
-const DEMOTION_RATE_KEY: Partial<Record<LowerDivision, string>> = {
-  Makushita: 'MakushitaToSandanme',
-  Sandanme: 'SandanmeToJonidan',
-  Jonidan: 'JonidanToJonokuchi',
-};
-
 type LowerResults = Record<LowerDivision, BoundarySnapshot[]>;
 
 export type LowerDivisionResolvedPlacement = {
@@ -121,36 +115,138 @@ const toRank = (
   };
 };
 
-const resolveBoundaryPressure = (
-  direction: 'promotion' | 'demotion',
-  division: LowerDivision,
-  rankScore: number,
-  divisionSizes: Record<LowerDivision, number>,
-  wins: number,
-  losses: number,
-  absent: number,
-): number => {
-  const key = direction === 'promotion' ? PROMOTION_RATE_KEY[division] : DEMOTION_RATE_KEY[division];
-  if (!key) return 0;
-  const rate = getHeiseiBoundaryExchangeRate(key);
-  if (rate <= 0) return 0;
-  const effectiveLosses = losses + absent;
-  const diff = wins - effectiveLosses;
-  if (direction === 'promotion' && diff <= 0) return 0;
-  if (direction === 'demotion' && diff >= 0) return 0;
-  const proximity =
-    direction === 'promotion'
-      ? 1 - (rankScore - 1) / Math.max(1, divisionSizes[division] - 1)
-      : (rankScore - 1) / Math.max(1, divisionSizes[division] - 1);
-  return clamp(rate * proximity * Math.abs(diff), 0, 1);
-};
-
 const resolvePlayerMandatoryFlags = (
   playerRecord: PlayerLowerRecord,
 ): { mandatoryDemotion: boolean; mandatoryPromotion: boolean } => ({
   mandatoryDemotion: playerRecord.absent >= 7 && playerRecord.rank.division !== 'Jonokuchi',
-  mandatoryPromotion: false,
+  mandatoryPromotion:
+    playerRecord.rank.division !== 'Makushita' &&
+    (playerRecord.rank.number ?? 99) === 1 &&
+    playerRecord.wins > playerRecord.losses + playerRecord.absent,
 });
+
+/**
+ * 部門境界からのスロット距離に基づいて候補をTier分類する。
+ * Tier 1: プレイヤー + 境界±BOUNDARY_BUFFER枚以内 + プレイヤー±PLAYER_BUFFER枚以内 → DP最適化
+ * Tier 2: それ以外 → 決定的計算 + 単調性制約のみ
+ */
+const BOUNDARY_BUFFER = 15;
+const PLAYER_BUFFER = 15;
+
+type TierClassification = 'TIER1_PRECISE' | 'TIER2_DETERMINISTIC';
+
+const classifyTier = (
+  slot: number,
+  playerSlot: number | undefined,
+  boundarySlots: number[],
+  isPlayer: boolean,
+): TierClassification => {
+  if (isPlayer) return 'TIER1_PRECISE';
+  for (const boundary of boundarySlots) {
+    if (Math.abs(slot - boundary) <= BOUNDARY_BUFFER) return 'TIER1_PRECISE';
+  }
+  if (playerSlot !== undefined && Math.abs(slot - playerSlot) <= PLAYER_BUFFER) {
+    return 'TIER1_PRECISE';
+  }
+  return 'TIER2_DETERMINISTIC';
+};
+
+const resolveBoundarySlots = (
+  divisionOffsets: Record<LowerDivision, number>,
+  divisionSizes: Record<LowerDivision, number>,
+): number[] => {
+  const slots: number[] = [];
+  for (const division of ORDERED_DIVISIONS) {
+    // 各部門の先頭と末尾が境界
+    const start = divisionOffsets[division] + 1;
+    const end = divisionOffsets[division] + divisionSizes[division];
+    slots.push(start, end);
+  }
+  return slots;
+};
+
+const buildCandidate = (
+  row: BoundarySnapshot,
+  division: LowerDivision,
+  resolvedPlayerRecord: PlayerLowerRecord | undefined,
+  playerFlags: { mandatoryDemotion: boolean; mandatoryPromotion: boolean },
+  divisionSizes: Record<LowerDivision, number>,
+  divisionMaxNumbers: Record<LowerDivision, number>,
+  divisionOffsets: Record<LowerDivision, number>,
+  totalSlots: number,
+  scaleSlots: Record<LowerDivision, number>,
+): ExpectedPlacementCandidate => {
+  const currentRank = toRank(division, row.rankScore, divisionSizes, divisionMaxNumbers);
+  const currentSlot = toGlobalSlot(
+    division,
+    row.rankScore,
+    divisionOffsets,
+    divisionSizes,
+    totalSlots,
+  );
+  const absent = row.id === 'PLAYER' && resolvedPlayerRecord
+    ? resolvedPlayerRecord.absent
+    : Math.max(0, 7 - (row.wins + row.losses));
+  const mandatoryDemotion = row.id === 'PLAYER' ? playerFlags.mandatoryDemotion : false;
+  const mandatoryPromotion = row.id === 'PLAYER' ? playerFlags.mandatoryPromotion : false;
+  const deterministic = calculateLowerDivisionRankChange({
+    year: 2026,
+    month: 1,
+    rank: currentRank,
+    wins: row.wins,
+    losses: row.losses,
+    absent,
+    yusho: false,
+    specialPrizes: [],
+  }, { scaleSlots }, () => 0.5);
+  const headPromotionDivision =
+    currentRank.number === 1 &&
+    row.wins > row.losses &&
+    currentRank.division !== 'Makushita'
+      ? UPPER_DIVISION[currentRank.division as LowerDivision]
+      : undefined;
+  const targetRank = headPromotionDivision
+    ? {
+      division: headPromotionDivision,
+      name: DIVISION_LABEL[headPromotionDivision],
+      number: divisionMaxNumbers[headPromotionDivision],
+      side: 'East' as const,
+    }
+    : deterministic.nextRank.division === 'Maezumo'
+    ? { ...deterministic.nextRank, division: 'Jonokuchi', name: '序ノ口' } as Rank
+    : deterministic.nextRank;
+  const targetSlot = toGlobalSlot(
+    targetRank.division as LowerDivision,
+    ((targetRank.number ?? 1) - 1) * 2 + (targetRank.side === 'West' ? 2 : 1),
+    divisionOffsets,
+    divisionSizes,
+    totalSlots,
+  );
+  const radius = mandatoryDemotion || mandatoryPromotion ? 2 : Math.max(2, Math.abs(currentSlot - targetSlot) <= 3 ? 2 : 6);
+  return {
+    id: row.id,
+    currentRank,
+    wins: row.wins,
+    losses: row.losses,
+    absent,
+    currentSlot,
+    expectedSlot: targetSlot,
+    minSlot: clamp(Math.min(targetSlot - radius, currentSlot), 1, totalSlots),
+    maxSlot: clamp(Math.max(targetSlot + radius, currentSlot), 1, totalSlots),
+    mandatoryDemotion,
+    mandatoryPromotion,
+    sourceDivision: division,
+    score:
+      (division === 'Makushita' ? 800 : division === 'Sandanme' ? 600 : division === 'Jonidan' ? 400 : 250) +
+      row.wins * 40 -
+      row.losses * 32 -
+      absent * 24 -
+      currentSlot * 0.8,
+    rankBand: resolveRuntimeRankBand(division, currentRank.name, currentRank.number),
+    recordBucket: resolveRuntimeRecordBucket(row.wins, row.losses, absent),
+    proposalBasis: 'RULE_OVERRIDE',
+  };
+};
 
 export const resolveLowerDivisionPlacements = (
   results: LowerResults,
@@ -183,78 +279,95 @@ export const resolveLowerDivisionPlacements = (
     ORDERED_DIVISIONS.includes(resolvedPlayerRecord.rank.division as LowerDivision)
       ? resolvePlayerMandatoryFlags(resolvedPlayerRecord)
       : { mandatoryDemotion: false, mandatoryPromotion: false };
+  const scaleSlots = {
+    Makushita: divisionSizes.Makushita,
+    Sandanme: divisionSizes.Sandanme,
+    Jonidan: divisionSizes.Jonidan,
+    Jonokuchi: divisionSizes.Jonokuchi,
+  };
 
-  const candidates: ExpectedPlacementCandidate[] = [];
+  // プレイヤーが下位にいるか判定し、playerSlotを計算
+  const playerSlot = (() => {
+    if (!resolvedPlayerRecord) return undefined;
+    const division = resolvedPlayerRecord.rank.division as LowerDivision;
+    if (!ORDERED_DIVISIONS.includes(division)) return undefined;
+    const rankScore = ((resolvedPlayerRecord.rank.number ?? 1) - 1) * 2 +
+      (resolvedPlayerRecord.rank.side === 'West' ? 2 : 1);
+    return toGlobalSlot(division, rankScore, divisionOffsets, divisionSizes, totalSlots);
+  })();
+
+  // 境界スロットを計算
+  const boundarySlots = resolveBoundarySlots(divisionOffsets, divisionSizes);
+
+  // 全候補を構築し、Tier分類する
+  const tier1Candidates: ExpectedPlacementCandidate[] = [];
+  const tier2Candidates: ExpectedPlacementCandidate[] = [];
+
   for (const division of ORDERED_DIVISIONS) {
     for (const row of results[division] ?? []) {
-      const currentRank = toRank(division, row.rankScore, divisionSizes, divisionMaxNumbers);
-      const currentSlot = toGlobalSlot(
-        division,
-        row.rankScore,
-        divisionOffsets,
-        divisionSizes,
-        totalSlots,
+      const candidate = buildCandidate(
+        row, division, resolvedPlayerRecord, playerFlags,
+        divisionSizes, divisionMaxNumbers, divisionOffsets, totalSlots, scaleSlots,
       );
-      const absent = row.id === 'PLAYER' && resolvedPlayerRecord
-        ? resolvedPlayerRecord.absent
-        : Math.max(0, 7 - (row.wins + row.losses));
-      const mandatoryDemotion = row.id === 'PLAYER' ? playerFlags.mandatoryDemotion : false;
-      const mandatoryPromotion = row.id === 'PLAYER' ? playerFlags.mandatoryPromotion : false;
-      const empirical = resolveEmpiricalSlotBand({
-        division,
-        rankName: currentRank.name,
-        rankNumber: currentRank.number,
-        currentSlot,
-        totalSlots,
-        wins: row.wins,
-        losses: row.losses,
-        absent,
-        mandatoryDemotion,
-        mandatoryPromotion,
-        promotionPressure: resolveBoundaryPressure(
-          'promotion',
-          division,
-          row.rankScore,
-          divisionSizes,
-          row.wins,
-          row.losses,
-          absent,
-        ),
-        demotionPressure: resolveBoundaryPressure(
-          'demotion',
-          division,
-          row.rankScore,
-          divisionSizes,
-          row.wins,
-          row.losses,
-          absent,
-        ),
-      });
-      candidates.push({
-        id: row.id,
-        currentRank,
-        wins: row.wins,
-        losses: row.losses,
-        absent,
-        currentSlot,
-        expectedSlot: empirical.expectedSlot,
-        minSlot: empirical.minSlot,
-        maxSlot: empirical.maxSlot,
-        mandatoryDemotion,
-        mandatoryPromotion,
-        sourceDivision: division,
-        score: empirical.score,
-        rankBand: empirical.rankBand,
-        recordBucket: empirical.recordBucket,
-        proposalBasis: empirical.proposalBasis,
-      });
+      const tier = classifyTier(candidate.currentSlot, playerSlot, boundarySlots, row.id === 'PLAYER');
+      if (tier === 'TIER1_PRECISE') {
+        tier1Candidates.push(candidate);
+      } else {
+        tier2Candidates.push(candidate);
+      }
     }
   }
 
-  const assignments =
-    optimizeExpectedPlacements(candidates, totalSlots) ??
-    reallocateWithMonotonicConstraints(candidates, totalSlots);
-  const placements: LowerDivisionResolvedPlacement[] = assignments.map((assignment) => {
+  // Tier 2: 決定的計算でスロットを割り当て（expectedSlotをそのまま使用）
+  const tier2Assignments = tier2Candidates.map((candidate) => ({
+    id: candidate.id,
+    slot: clamp(candidate.expectedSlot, 1, totalSlots),
+  }));
+
+  // Tier 2が使うスロットを集合として記録し、Tier 1の最適化から除外
+  const tier2OccupiedSlots = new Set(tier2Assignments.map((a) => a.slot));
+
+  // Tier 1: DP最適化で精密配置（Tier 2の割り当てを尊重）
+  let tier1Assignments: { id: string; slot: number }[];
+  if (tier1Candidates.length > 0) {
+    const orderedTier1 = orderExpectedPlacementCandidates(tier1Candidates);
+    const optimized = optimizeExpectedPlacements(orderedTier1, totalSlots);
+    const rawAssignments = optimized ?? reallocateWithMonotonicConstraints(orderedTier1, totalSlots);
+
+    // Tier 2とのスロット衝突を解決: Tier 1の結果を優先し、衝突したTier 2をずらす
+    const tier1SlotSet = new Set(rawAssignments.map((a) => a.slot));
+    for (const t2 of tier2Assignments) {
+      if (tier1SlotSet.has(t2.slot)) {
+        // 近傍の空きスロットを探す
+        let offset = 1;
+        while (offset <= totalSlots) {
+          const up = t2.slot - offset;
+          if (up >= 1 && !tier1SlotSet.has(up) && !tier2OccupiedSlots.has(up)) {
+            tier2OccupiedSlots.delete(t2.slot);
+            t2.slot = up;
+            tier2OccupiedSlots.add(up);
+            break;
+          }
+          const down = t2.slot + offset;
+          if (down <= totalSlots && !tier1SlotSet.has(down) && !tier2OccupiedSlots.has(down)) {
+            tier2OccupiedSlots.delete(t2.slot);
+            t2.slot = down;
+            tier2OccupiedSlots.add(down);
+            break;
+          }
+          offset += 1;
+        }
+      }
+    }
+    tier1Assignments = rawAssignments;
+  } else {
+    tier1Assignments = [];
+  }
+
+  // 全割り当てを統合
+  const allAssignments = [...tier1Assignments, ...tier2Assignments];
+
+  const placements: LowerDivisionResolvedPlacement[] = allAssignments.map((assignment) => {
     const resolved = fromGlobalSlot(assignment.slot, divisionOffsets, divisionSizes, totalSlots);
     return {
       id: assignment.id,
@@ -263,8 +376,7 @@ export const resolveLowerDivisionPlacements = (
       rank: toRank(resolved.division, resolved.rankScore, divisionSizes, divisionMaxNumbers),
     };
   });
-  const player = assignments.find((assignment) => assignment.id === 'PLAYER');
-
+  const player = allAssignments.find((assignment) => assignment.id === 'PLAYER');
   if (
     player &&
     resolvedPlayerRecord &&

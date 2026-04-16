@@ -1,8 +1,8 @@
 import { MakuuchiLayout, buildMakuuchiLayoutFromRanks, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
+import { BashoRecordSnapshot, BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
 import { Rank } from '../../models';
-import { BashoRecordHistorySnapshot, BashoRecordSnapshot, BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
-
-type TopDivision = 'Makuuchi' | 'Juryo';
+import { PLAYER_ACTOR_ID } from '../actors/constants';
+import { SimulationWorld, TopDivision, WorldRikishi } from '../world/types';
 
 type DivisionBashoSnapshotLike = {
   id: string;
@@ -18,22 +18,6 @@ type DivisionBashoSnapshotLike = {
   yusho?: boolean;
   junYusho?: boolean;
   specialPrizes?: string[];
-};
-
-type WorldRikishiLike = {
-  id: string;
-  division: TopDivision;
-  rankScore: number;
-  [key: string]: unknown;
-};
-
-type SimulationWorldLike = {
-  rosters: Record<TopDivision, WorldRikishiLike[]>;
-  lastBashoResults: Partial<Record<TopDivision, DivisionBashoSnapshotLike[]>>;
-  recentSekitoriHistory: Map<string, BashoRecordHistorySnapshot[]>;
-  ozekiKadobanById: Map<string, boolean>;
-  ozekiReturnById: Map<string, boolean>;
-  makuuchiLayout: MakuuchiLayout;
 };
 
 export type PlayerSanyakuQuota = {
@@ -58,14 +42,29 @@ const decodeJuryoRankFromScore = (rankScore: number): Rank => {
   };
 };
 
-export const resolvePlayerSanyakuQuota = (assignedRank?: Rank): PlayerSanyakuQuota => {
+export const resolvePlayerSanyakuQuota = (
+  assignedRank?: Rank,
+  options?: {
+    isKachikoshi?: boolean;
+    nextIsOzekiReturn?: boolean;
+    currentRank?: Rank;
+  },
+): PlayerSanyakuQuota => {
   if (assignedRank?.division !== 'Makuuchi') return {};
+  const alreadySanyaku =
+    options?.currentRank?.division === 'Makuuchi' &&
+    (options.currentRank.name === '横綱' ||
+      options.currentRank.name === '大関' ||
+      options.currentRank.name === '関脇' ||
+      options.currentRank.name === '小結');
+  const canHoldSanyaku = Boolean(options?.isKachikoshi || options?.nextIsOzekiReturn);
+  if (!alreadySanyaku || !canHoldSanyaku) return {};
   if (assignedRank.name === '関脇') return { enforcedSanyaku: 'Sekiwake' };
   if (assignedRank.name === '小結') return { enforcedSanyaku: 'Komusubi' };
   return {};
 };
 
-export const buildTopDivisionRecords = (world: SimulationWorldLike): BashoRecordSnapshot[] => {
+export const buildTopDivisionRecords = (world: SimulationWorld): BashoRecordSnapshot[] => {
   const toSnapshots = (
     division: TopDivision,
     results: DivisionBashoSnapshotLike[],
@@ -101,6 +100,39 @@ export const buildTopDivisionRecords = (world: SimulationWorldLike): BashoRecord
   ];
 };
 
+const buildWorldRikishi = (
+  world: SimulationWorld,
+  existingById: Map<string, WorldRikishi>,
+  id: string,
+  division: TopDivision,
+  rankScore: number,
+): WorldRikishi => {
+  const actor = world.actorRegistry.get(id);
+  const existing = existingById.get(id);
+
+  return {
+    id,
+    shikona: actor?.shikona ?? existing?.shikona ?? id,
+    division,
+    stableId: actor?.stableId ?? existing?.stableId ?? 'stable-001',
+    basePower: actor?.basePower ?? existing?.basePower ?? 60,
+    ability: actor?.ability ?? existing?.ability ?? actor?.basePower ?? existing?.basePower ?? 60,
+    uncertainty: actor?.uncertainty ?? existing?.uncertainty ?? 2,
+    growthBias: actor?.growthBias ?? existing?.growthBias ?? 0,
+    rankScore,
+    volatility: actor?.volatility ?? existing?.volatility ?? 1.2,
+    form: actor?.form ?? existing?.form ?? 1,
+    styleBias: actor?.styleBias ?? existing?.styleBias ?? 'BALANCE',
+    heightCm: actor?.heightCm ?? existing?.heightCm ?? 180,
+    weightKg: actor?.weightKg ?? existing?.weightKg ?? 130,
+    aptitudeTier: actor?.aptitudeTier ?? existing?.aptitudeTier,
+    aptitudeFactor: actor?.aptitudeFactor ?? existing?.aptitudeFactor,
+    aptitudeProfile: actor?.aptitudeProfile ?? existing?.aptitudeProfile,
+    careerBand: actor?.careerBand ?? existing?.careerBand,
+    stagnation: actor?.stagnation ?? existing?.stagnation,
+  };
+};
+
 const compareAllocationForRoster = (
   a: BanzukeAllocation,
   b: BanzukeAllocation,
@@ -114,8 +146,8 @@ const compareAllocationForRoster = (
   return a.id.localeCompare(b.id);
 };
 
-export const applyNpcBanzukeToRosters = (
-  world: SimulationWorldLike,
+export const applyBanzukeToRosters = (
+  world: SimulationWorld,
   allocations: BanzukeAllocation[],
   resolveRankScore: (rank: Rank, layout: MakuuchiLayout) => number,
 ): void => {
@@ -125,85 +157,40 @@ export const applyNpcBanzukeToRosters = (
       .filter((rank) => rank.division === 'Makuuchi'),
   );
   const allNpcs = [...world.rosters.Makuuchi, ...world.rosters.Juryo];
-  const allocationById = new Map(
-    allocations
-      .filter((allocation) => allocation.id !== 'PLAYER')
-      .map((allocation) => [allocation.id, allocation]),
+  const existingById = new Map(
+    allNpcs.map((rikishi) => [rikishi.id, rikishi]),
   );
 
-  const mappedNpcs = allNpcs.map((npc) => {
-    const allocation = allocationById.get(npc.id);
-    if (!allocation) {
+  const sekitori = allocations
+    .filter((allocation) =>
+      allocation.nextRank.division === 'Makuuchi' || allocation.nextRank.division === 'Juryo')
+    .map((allocation) => {
+      const division = allocation.nextRank.division as TopDivision;
+      const rankScore = resolveRankScore(allocation.nextRank, nextLayout);
       return {
-        ...npc,
-        division: npc.division,
-        rankScore: DIVISION_SIZE[npc.division] + 100,
+        rikishi: buildWorldRikishi(world, existingById, allocation.id, division, rankScore),
+        allocation,
       };
-    }
-    const division = allocation.nextRank.division === 'Makuuchi' ? 'Makuuchi' : 'Juryo';
-    return {
-      ...npc,
-      division,
-      rankScore: resolveRankScore(allocation.nextRank, nextLayout),
-    };
-  });
-
-  const makuuchi = mappedNpcs
-    .filter((npc) => npc.division === 'Makuuchi')
-    .map((npc) => ({ npc, allocation: allocationById.get(npc.id) }))
-    .sort((a, b) => {
-      if (a.allocation && b.allocation) {
-        return compareAllocationForRoster(a.allocation, b.allocation, nextLayout, resolveRankScore);
-      }
-      if (a.allocation) return -1;
-      if (b.allocation) return 1;
-      return a.npc.rankScore - b.npc.rankScore;
     })
-    .map((entry) => ({ ...entry.npc, division: 'Makuuchi' as TopDivision }));
-
-  const juryo = mappedNpcs
-    .filter((npc) => npc.division === 'Juryo')
-    .map((npc) => ({ npc, allocation: allocationById.get(npc.id) }))
-    .sort((a, b) => {
-      if (a.allocation && b.allocation) {
-        return compareAllocationForRoster(a.allocation, b.allocation, nextLayout, resolveRankScore);
-      }
-      if (a.allocation) return -1;
-      if (b.allocation) return 1;
-      return a.npc.rankScore - b.npc.rankScore;
+    .sort((left, right) => {
+      const rankOrder = compareAllocationForRoster(
+        left.allocation,
+        right.allocation,
+        nextLayout,
+        resolveRankScore,
+      );
+      if (rankOrder !== 0) return rankOrder;
+      if (left.rikishi.id === PLAYER_ACTOR_ID) return -1;
+      if (right.rikishi.id === PLAYER_ACTOR_ID) return 1;
+      return left.rikishi.id.localeCompare(right.rikishi.id);
     })
-    .map((entry) => ({ ...entry.npc, division: 'Juryo' as TopDivision }));
+    .map((entry) => entry.rikishi);
 
-  // プレイヤーが関取帯にいる間は NPC1名が「予備枠」として場所結果を持たないため、
-  // 片側の頭数が不足した場合は余剰側の末尾を移して定員を維持する。
-  while (makuuchi.length < DIVISION_SIZE.Makuuchi && juryo.length > 0) {
-    const moved = juryo.pop();
-    if (!moved) break;
-    makuuchi.push({ ...moved, division: 'Makuuchi' });
-  }
-  while (juryo.length < DIVISION_SIZE.Juryo && makuuchi.length > 0) {
-    const moved = makuuchi.pop();
-    if (!moved) break;
-    juryo.push({ ...moved, division: 'Juryo' });
-  }
-
-  // 補完後に超過側を定員まで切り詰める。
-  while (makuuchi.length > DIVISION_SIZE.Makuuchi) {
-    const moved = makuuchi.pop();
-    if (!moved) break;
-    juryo.push({ ...moved, division: 'Juryo' });
-  }
-  while (juryo.length > DIVISION_SIZE.Juryo) {
-    const moved = juryo.pop();
-    if (!moved) break;
-    makuuchi.push({ ...moved, division: 'Makuuchi' });
-  }
-
-  world.rosters.Makuuchi = makuuchi
+  world.rosters.Makuuchi = sekitori
     .slice(0, DIVISION_SIZE.Makuuchi)
-    .map((npc, index) => ({ ...npc, division: 'Makuuchi', rankScore: index + 1 }));
-  world.rosters.Juryo = juryo
-    .slice(0, DIVISION_SIZE.Juryo)
-    .map((npc, index) => ({ ...npc, division: 'Juryo', rankScore: index + 1 }));
+    .map((rikishi, index) => ({ ...rikishi, division: 'Makuuchi', rankScore: index + 1 }));
+  world.rosters.Juryo = sekitori
+    .slice(DIVISION_SIZE.Makuuchi, DIVISION_SIZE.Makuuchi + DIVISION_SIZE.Juryo)
+    .map((rikishi, index) => ({ ...rikishi, division: 'Juryo', rankScore: index + 1 }));
   world.makuuchiLayout = nextLayout;
 };

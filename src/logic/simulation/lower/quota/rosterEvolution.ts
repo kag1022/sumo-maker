@@ -2,6 +2,7 @@ import { RandomSource } from '../../deps';
 import { clamp, randomNoise } from '../../boundary/shared';
 import { DivisionParticipant } from '../../matchmaking';
 
+import { applyEmpiricalNpcDriftClamp } from '../../npc/empiricalDrift';
 import { pushNpcBashoResult } from '../../npc/retirement';
 import {
   BoundarySnapshot,
@@ -34,14 +35,32 @@ export const evolveDivisionRoster = (
       const baseAbility = Number.isFinite(npc.ability)
         ? (npc.ability as number)
         : npc.basePower * npc.form;
+      const absent = Math.max(0, 7 - (result.wins + result.losses));
+      const rawAbility =
+        baseAbility +
+        performanceOverExpected * 1.0 +
+        diff * 0.25 +
+        ((result.bashoFormDelta ?? 0) * 0.45) +
+        randomNoise(rng, 0.5);
+      const rawBasePower = clamp(
+        npc.basePower + diff * 0.24 + (npc.growthBias ?? 0) * 0.8 + randomNoise(rng, 0.35),
+        range.min,
+        range.max,
+      );
+      const rawForm = clamp(
+        npc.form * 0.67 +
+        (
+          1 +
+          diff * 0.01 +
+          ((result.bashoFormDelta ?? 0) * 0.008) +
+          randomNoise(rng, 0.045)
+        ) * 0.33,
+        0.8,
+        1.2,
+      );
       const updatedNpc = {
         ...npc,
-        ability:
-          baseAbility +
-          performanceOverExpected * 1.0 +
-          diff * 0.25 +
-          ((result.bashoFormDelta ?? 0) * 0.45) +
-          randomNoise(rng, 0.5),
+        ability: applyEmpiricalNpcDriftClamp(baseAbility, rawAbility, { age: npc.age ?? 24, division, absent }),
         uncertainty: clamp(
           (Number.isFinite(npc.uncertainty) ? (npc.uncertainty as number) : 2.1) * 0.975 +
           Math.min(0.14, Math.abs(performanceOverExpected) * 0.012),
@@ -49,18 +68,12 @@ export const evolveDivisionRoster = (
           2.4,
         ),
         basePower: clamp(
-          npc.basePower + diff * 0.24 + (npc.growthBias ?? 0) * 0.8 + randomNoise(rng, 0.35),
+          applyEmpiricalNpcDriftClamp(npc.basePower, rawBasePower, { age: npc.age ?? 24, division, absent }),
           range.min,
           range.max,
         ),
         form: clamp(
-          npc.form * 0.67 +
-          (
-            1 +
-            diff * 0.01 +
-            ((result.bashoFormDelta ?? 0) * 0.008) +
-            randomNoise(rng, 0.045)
-          ) * 0.33,
+          applyEmpiricalNpcDriftClamp(npc.form, rawForm, { age: npc.age ?? 24, division, absent }),
           0.8,
           1.2,
         ),
@@ -80,7 +93,7 @@ export const evolveDivisionRoster = (
         registryNpc.aptitudeProfile = updatedNpc.aptitudeProfile;
         registryNpc.careerBand = updatedNpc.careerBand;
         registryNpc.stagnation = updatedNpc.stagnation;
-        pushNpcBashoResult(registryNpc, result.wins, result.losses);
+        pushNpcBashoResult(registryNpc, result.wins, result.losses, { absent, division });
       }
       return updatedNpc;
     })

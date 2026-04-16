@@ -1,7 +1,5 @@
 import { RandomSource } from '../deps';
 import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../matchmaking';
-import { scheduleTorikumiBasho } from '../torikumi/scheduler';
-import { toDivisionParticipants, toTorikumiParticipant } from './shared';
 import { evolveDivisionAfterBasho } from './evolveDivision';
 import { createDivisionParticipants } from './participants';
 import { SimulationWorld, TopDivision } from './types';
@@ -29,35 +27,6 @@ export const simulateOffscreenSekitoriBasho = (
   world: SimulationWorld,
   rng: RandomSource,
 ): void => {
-  const makuuchi = createDivisionParticipants(world, 'Makuuchi', rng).map((participant) =>
-    toTorikumiParticipant('Makuuchi', participant, world),
-  );
-  const juryo = createDivisionParticipants(world, 'Juryo', rng).map((participant) =>
-    toTorikumiParticipant('Juryo', participant, world),
-  );
-  const participants = makuuchi.concat(juryo);
-
-  scheduleTorikumiBasho({
-    participants,
-    days: Array.from({ length: 15 }, (_, index) => index + 1),
-    boundaryBands: [],
-    rng,
-    facedMap: createFacedMap(participants),
-    onPair: ({ a, b }) => {
-      simulateNpcBout(a, b, rng);
-    },
-  });
-
-  evolveDivisionAfterBasho(
-    world,
-    'Makuuchi',
-    toDivisionParticipants(participants.filter((participant) => participant.division === 'Makuuchi')),
-    rng,
-  );
-  evolveDivisionAfterBasho(
-    world,
-    'Juryo',
-    toDivisionParticipants(participants.filter((participant) => participant.division === 'Juryo')),
-    rng,
-  );
+  simulateOffscreenTopDivisionBasho(world, 'Makuuchi', rng);
+  simulateOffscreenTopDivisionBasho(world, 'Juryo', rng);
 };

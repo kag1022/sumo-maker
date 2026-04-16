@@ -26,6 +26,9 @@ export interface SimulationDiagnostics {
   torikumiRepairHistogram?: Record<string, number>;
   torikumiScheduleViolations?: number;
   torikumiLateDirectTitleBoutCount?: number;
+  sanyakuRoundRobinCoverageRate?: number;
+  joiAssignmentCoverageRate?: number;
+  yokozunaOzekiTailBoutRatio?: number;
   bashoVariance?: {
     playerBashoFormDelta: number;
     conditionBefore: number;

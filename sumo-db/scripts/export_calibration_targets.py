@@ -7,8 +7,10 @@ from pathlib import Path
 
 from _paths import ANALYSIS_DIR, DB_PATH
 
+DOCS_SUMMARY_PATH = ANALYSIS_DIR.parents[2] / "docs" / "balance" / "calibration-targets.md"
 CAREER_PATH = ANALYSIS_DIR / "career_calibration_1965plus.json"
 BANZUKE_PATH = ANALYSIS_DIR / "banzuke_calibration_heisei.json"
+POPULATION_PATH = ANALYSIS_DIR / "population_calibration_heisei.json"
 BUNDLE_PATH = ANALYSIS_DIR / "calibration_bundle.json"
 COLLECTION_REPORT_PATH = ANALYSIS_DIR / "heisei_collection_report.json"
 
@@ -92,6 +94,20 @@ def summarize_quantiles(values: list[float]) -> dict | None:
     }
 
 
+def summarize_distribution(values: list[float], digits: int = 3) -> dict | None:
+    if not values:
+        return None
+    values = sorted(values)
+    return {
+        "sampleSize": len(values),
+        "min": round_num(values[0], digits),
+        "p10": round_num(quantile(values, 0.1), digits),
+        "p50": round_num(quantile(values, 0.5), digits),
+        "p90": round_num(quantile(values, 0.9), digits),
+        "max": round_num(values[-1], digits),
+    }
+
+
 def next_official_basho_code(basho_code: str) -> str:
     year = int(basho_code[:4])
     month = int(basho_code[4:])
@@ -99,6 +115,21 @@ def next_official_basho_code(basho_code: str) -> str:
     if month_index == len(OFFICIAL_BASHO_MONTHS) - 1:
         return f"{year + 1}01"
     return f"{year}{OFFICIAL_BASHO_MONTHS[month_index + 1]:02d}"
+
+
+def parse_era_basho_code(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    text = raw.strip()
+    if len(text) == 6 and text.isdigit():
+        return text
+    if not text.startswith("平成") or "年" not in text or "月" not in text:
+        return None
+    year_text, rest = text[2:].split("年", 1)
+    month_text = rest.replace("月", "")
+    era_year = 1 if year_text == "元" else int(year_text)
+    gregorian_year = 1988 + era_year
+    return f"{gregorian_year}{int(month_text):02d}"
 
 
 def resolve_lower_rank_band(division: str, rank_number: int | None) -> str:
@@ -501,9 +532,181 @@ def fetch_banzuke_target(con: sqlite3.Connection, generated_at: str) -> dict:
     }
 
 
+def fetch_population_target(con: sqlite3.Connection, generated_at: str) -> dict:
+    basho_rows = con.execute(
+        """
+        SELECT
+            b.basho_code,
+            CAST(SUBSTR(b.basho_code, 1, 4) AS INTEGER) AS year,
+            CAST(SUBSTR(b.basho_code, 5, 2) AS INTEGER) AS month,
+            b.division,
+            COUNT(*) AS headcount
+        FROM basho_banzuke_entry b
+        JOIN basho_metadata m
+          ON m.basho_code = b.basho_code
+        WHERE m.parse_status = 'ok'
+          AND b.basho_code <= ?
+          AND b.division IN ('幕内', '十両', '幕下', '三段目', '序二段', '序ノ口')
+        GROUP BY b.basho_code, b.division
+        ORDER BY b.basho_code, b.division
+        """,
+        (HEISEI_MAX_BASHO_CODE,),
+    ).fetchall()
+    if not basho_rows:
+        raise RuntimeError("No population rows found for calibration export.")
+
+    basho_stats: dict[str, dict] = {}
+    for basho_code, year, month, division_ja, headcount in basho_rows:
+        stats = basho_stats.setdefault(
+            basho_code,
+            {
+                "bashoCode": basho_code,
+                "year": int(year),
+                "month": int(month),
+                "divisions": {division: 0 for division in DIVISION_SCOPE},
+            },
+        )
+        division = DIVISION_LABELS[division_ja]
+        stats["divisions"][division] = int(headcount)
+
+    basho_list = sorted(basho_stats.values(), key=lambda row: row["bashoCode"])
+    total_headcounts = [
+        float(sum(row["divisions"][division] for division in DIVISION_SCOPE))
+        for row in basho_list
+    ]
+    jonidan_headcounts = [float(row["divisions"]["Jonidan"]) for row in basho_list]
+    jonokuchi_headcounts = [float(row["divisions"]["Jonokuchi"]) for row in basho_list]
+
+    year_groups: dict[int, list[dict]] = {}
+    for row in basho_list:
+        year_groups.setdefault(int(row["year"]), []).append(row)
+
+    total_delta_values: list[float] = []
+    total_swing_values: list[float] = []
+    jonidan_delta_values: list[float] = []
+    jonidan_swing_values: list[float] = []
+    jonokuchi_delta_values: list[float] = []
+    jonokuchi_swing_values: list[float] = []
+    year_end_total_values: list[float] = []
+    year_end_jonidan_values: list[float] = []
+    year_end_jonokuchi_values: list[float] = []
+
+    for rows in year_groups.values():
+        ordered = sorted(rows, key=lambda row: row["month"])
+        total_series = [sum(row["divisions"][division] for division in DIVISION_SCOPE) for row in ordered]
+        jonidan_series = [row["divisions"]["Jonidan"] for row in ordered]
+        jonokuchi_series = [row["divisions"]["Jonokuchi"] for row in ordered]
+
+        total_delta_values.append(float(total_series[-1] - total_series[0]))
+        total_swing_values.append(float(max(total_series) - min(total_series)))
+        jonidan_delta_values.append(float(jonidan_series[-1] - jonidan_series[0]))
+        jonidan_swing_values.append(float(max(jonidan_series) - min(jonidan_series)))
+        jonokuchi_delta_values.append(float(jonokuchi_series[-1] - jonokuchi_series[0]))
+        jonokuchi_swing_values.append(float(max(jonokuchi_series) - min(jonokuchi_series)))
+        year_end_total_values.append(float(total_series[-1]))
+        year_end_jonidan_values.append(float(jonidan_series[-1]))
+        year_end_jonokuchi_values.append(float(jonokuchi_series[-1]))
+
+    monthly_intake_values: dict[int, list[float]] = {month: [] for month in OFFICIAL_BASHO_MONTHS}
+    summary_debut_rows = con.execute(
+        """
+        SELECT debut_basho
+        FROM rikishi_summary
+        WHERE status = 'ok'
+          AND debut_basho IS NOT NULL
+        """
+    ).fetchall()
+    debut_counts_by_basho: dict[str, int] = {}
+    for (debut_basho_raw,) in summary_debut_rows:
+        basho_code = parse_era_basho_code(debut_basho_raw)
+        if basho_code is None:
+            continue
+        if basho_code < "199001" or basho_code > HEISEI_MAX_BASHO_CODE:
+            continue
+        debut_counts_by_basho[basho_code] = debut_counts_by_basho.get(basho_code, 0) + 1
+    for basho_code, debut_count in sorted(debut_counts_by_basho.items()):
+        month_value = int(basho_code[4:])
+        if month_value in monthly_intake_values:
+            monthly_intake_values[month_value].append(float(debut_count))
+
+    return {
+        "meta": {
+            "generatedAt": generated_at,
+            "source": "basho_banzuke_entry",
+            "era": "heisei_population",
+            "cohort": "heisei_population",
+            "sampleSize": len(basho_list),
+            "bashoCount": len(basho_list),
+            "divisionScope": list(DIVISION_SCOPE),
+            "countMeaning": "active banzuke headcount excluding maezumo",
+            "monthlyIntakeMeaning": "first banzuke appearance count by basho month",
+        },
+        "annualTotalHeadcount": summarize_distribution(year_end_total_values, 3),
+        "annualTotalDelta": summarize_distribution(total_delta_values, 3),
+        "annualTotalSwing": summarize_distribution(total_swing_values, 3),
+        "annualJonidanHeadcount": summarize_distribution(year_end_jonidan_values, 3),
+        "annualJonidanDelta": summarize_distribution(jonidan_delta_values, 3),
+        "annualJonidanSwing": summarize_distribution(jonidan_swing_values, 3),
+        "annualJonokuchiHeadcount": summarize_distribution(year_end_jonokuchi_values, 3),
+        "annualJonokuchiDelta": summarize_distribution(jonokuchi_delta_values, 3),
+        "annualJonokuchiSwing": summarize_distribution(jonokuchi_swing_values, 3),
+        "monthlyIntakeByMonth": {
+            str(month): summarize_distribution(values, 3)
+            for month, values in monthly_intake_values.items()
+        },
+        "bashoLevelReference": {
+            "totalHeadcount": summarize_distribution(total_headcounts, 3),
+            "jonidanHeadcount": summarize_distribution(jonidan_headcounts, 3),
+            "jonokuchiHeadcount": summarize_distribution(jonokuchi_headcounts, 3),
+        },
+    }
+
+
 def write_json(target_path: Path, payload: dict) -> None:
     ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
     target_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def build_summary_markdown(career: dict, banzuke: dict, population: dict, bundle: dict) -> str:
+    lines = [
+        "# 校正データサマリー",
+        "",
+        "## Bundle",
+        f"- generatedAt: {bundle['meta']['generatedAt']}",
+        f"- cohort: {bundle['meta']['cohort']}",
+        f"- includedCount: {bundle['meta']['includedCount']}",
+        f"- pendingCount: {bundle['meta']['pendingCount']}",
+        "",
+        "## Career",
+        f"- source: {career['meta']['source']}",
+        f"- era: {career['meta']['era']}",
+        f"- sampleSize: {career['meta']['sampleSize']}",
+        "",
+        "## Banzuke",
+        f"- source: {banzuke['meta']['source']}",
+        f"- era: {banzuke['meta']['era']}",
+        f"- bashoCount: {banzuke['meta']['bashoCount']}",
+        "",
+        "## Population",
+        f"- source: {population['meta']['source']}",
+        f"- era: {population['meta']['era']}",
+        f"- bashoCount: {population['meta']['bashoCount']}",
+        "",
+        "## record bucket support",
+        f"- supported: {str(banzuke['recordBucketRules']['supported']).lower()}",
+        f"- source: {banzuke['recordBucketRules']['source']}",
+        f"- lowerDivisionScope: {', '.join(banzuke['recordBucketRules']['lowerDivisionScope'])}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def write_summary_markdown(target_path: Path, career: dict, banzuke: dict, population: dict, bundle: dict) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(
+        build_summary_markdown(career, banzuke, population, bundle) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -514,6 +717,7 @@ def main() -> None:
     try:
         career = fetch_career_target(con, generated_at)
         banzuke = fetch_banzuke_target(con, generated_at)
+        population = fetch_population_target(con, generated_at)
     finally:
         con.close()
 
@@ -529,15 +733,20 @@ def main() -> None:
         },
         "career": career,
         "banzuke": banzuke,
+        "population": population,
         "collection": collection_report,
     }
 
     write_json(CAREER_PATH, career)
     write_json(BANZUKE_PATH, banzuke)
+    write_json(POPULATION_PATH, population)
     write_json(BUNDLE_PATH, bundle)
+    write_summary_markdown(DOCS_SUMMARY_PATH, career, banzuke, population, bundle)
     print(f"written: {CAREER_PATH}")
     print(f"written: {BANZUKE_PATH}")
+    print(f"written: {POPULATION_PATH}")
     print(f"written: {BUNDLE_PATH}")
+    print(f"written: {DOCS_SUMMARY_PATH}")
 
 
 if __name__ == "__main__":

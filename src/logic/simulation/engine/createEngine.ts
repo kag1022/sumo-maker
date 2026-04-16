@@ -12,7 +12,7 @@ import {
 import { appendEntryEvent, initializeSimulationStatus } from '../career';
 import { createEmptyRuntimeRivalryState } from '../../careerRivalry';
 import { resolveSimulationDependencies, SimulationDependencies } from '../deps';
-import { createSimulationWorld, syncPlayerActorInWorld } from '../world';
+import { createSimulationWorld, finalizeSekitoriPlayerPlacement, syncPlayerActorInWorld } from '../world';
 import { SimulationEngine, SimulationParams } from './types';
 import { cloneStatus, EngineRuntimeState, runOneStep } from './runOneStep';
 
@@ -47,6 +47,7 @@ export const createSimulationEngine = (
   };
 
   syncPlayerActorInWorld(world, state.status, deps.random);
+  finalizeSekitoriPlayerPlacement(world, state.status);
   appendEntryEvent(state.status, state.year);
 
   return {

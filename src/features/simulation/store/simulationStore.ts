@@ -3,6 +3,7 @@ import { Oyakata, RikishiStatus, SimulationRunOptions } from '../../../logic/mod
 import { normalizeNewRunModelVersion, SimulationModelVersion } from '../../../logic/simulation/modelVersion';
 import {
   buildCareerStartYearMonth,
+  clearAllStoredData,
   createDraftCareer,
   deleteCareer,
   discardCareer,
@@ -13,15 +14,18 @@ import {
   shelveCareer,
   type CareerListItem,
 } from '../../../logic/persistence/careers';
-import { PauseReason, SimulationProgressSnapshot } from '../../../logic/simulation/engine';
+import { PauseReason } from '../../../logic/simulation/engine';
 import {
   resolveSimulationPhaseOnCompletion,
   resolveSimulationPhaseOnStart,
   shouldCaptureObservations,
 } from '../../../logic/simulation/appFlow';
 import {
+  DetailBuildProgress,
   LiveBashoViewModel,
+  SimulationDetailPolicy,
   SimulationObservationEntry,
+  SimulationProgressState,
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
@@ -29,27 +33,35 @@ import {
 export type SimulationPhase =
   | 'idle'
   | 'simulating'
+  | 'chapter_ready'
   | 'reveal_ready'
   | 'running'
   | 'completed'
   | 'error';
-export type SimulationPacing = 'observe' | 'skip_to_end';
+export type SimulationPacing = 'chaptered' | 'observe' | 'skip_to_end';
+export type SimulationDetailState = 'idle' | 'building' | 'ready' | 'error';
 
 interface SimulationStore {
   phase: SimulationPhase;
   status: RikishiStatus | null;
-  progress: SimulationProgressSnapshot | null;
+  progress: SimulationProgressState | null;
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
   simulationPacing: SimulationPacing;
+  simulationDetailPolicy: SimulationDetailPolicy;
+  detailState: SimulationDetailState;
+  detailBuildProgress: DetailBuildProgress | null;
   latestBashoView: LiveBashoViewModel | null;
   latestEvents: string[];
   observationLog: SimulationObservationEntry[];
+  latestObservation: SimulationObservationEntry | null;
+  isTerminalChapterReady: boolean;
   latestPauseReason?: PauseReason;
   hallOfFame: CareerListItem[];
   unshelvedCareers: CareerListItem[];
   errorMessage?: string;
   setSimulationPacing: (pacing: SimulationPacing) => void;
+  continueChapter: () => void;
   startSimulation: (
     initialStats: RikishiStatus,
     oyakata: Oyakata | null,
@@ -65,6 +77,7 @@ interface SimulationStore {
   loadUnshelvedCareers: () => Promise<void>;
   openCareer: (careerId: string) => Promise<void>;
   deleteCareerById: (careerId: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
   resetView: () => Promise<void>;
 }
 
@@ -96,9 +109,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   currentCareerId: null,
   isCurrentCareerSaved: false,
   simulationPacing: 'skip_to_end',
+  simulationDetailPolicy: 'buffered',
+  detailState: 'idle',
+  detailBuildProgress: null,
   latestBashoView: null,
   latestEvents: [],
   observationLog: [],
+  latestObservation: null,
+  isTerminalChapterReady: false,
   latestPauseReason: undefined,
   hallOfFame: [],
   unshelvedCareers: [],
@@ -107,6 +125,24 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   setSimulationPacing: (pacing) => {
     postToWorker({ type: 'SET_PACING', payload: { pacing } });
     set({ simulationPacing: pacing });
+  },
+
+  continueChapter: () => {
+    const state = get();
+    if (state.phase !== 'chapter_ready') return;
+    if (state.isTerminalChapterReady) {
+      set({
+        phase: 'completed',
+        isTerminalChapterReady: false,
+      });
+      return;
+    }
+    postToWorker({ type: 'RESUME' });
+    set({
+      phase: 'running',
+      isTerminalChapterReady: false,
+      latestPauseReason: undefined,
+    });
   },
 
   startSimulation: async (
@@ -119,10 +155,12 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
     const currentCareerId = get().currentCareerId;
     if (currentCareerId && !get().isCurrentCareerSaved) {
+      terminateWorker();
       await discardCareer(currentCareerId);
     }
-
     terminateWorker();
+
+    const nextDetailPolicy: SimulationDetailPolicy = initialPacing === 'skip_to_end' ? 'buffered' : 'eager';
 
     const now = new Date();
     const careerId = await createDraftCareer({
@@ -141,17 +179,39 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
       if (message.type === 'BASHO_PROGRESS') {
         const state = get();
+        if (message.payload.mode === 'lite') {
+          set({
+            phase: state.phase === 'simulating' ? 'simulating' : 'running',
+            progress: message.payload.progress,
+            currentCareerId: message.payload.careerId,
+            isCurrentCareerSaved: false,
+            latestPauseReason: undefined,
+            errorMessage: undefined,
+          });
+          return;
+        }
+
+        if (!message.payload.status || !message.payload.observation || !message.payload.latestBashoView) {
+          return;
+        }
+        const chapterKind = message.payload.observation.chapterKind;
         set({
-          phase: state.phase === 'simulating' ? 'simulating' : 'running',
+          phase: message.payload.pauseForChapter
+            ? 'chapter_ready'
+            : state.phase === 'simulating'
+              ? 'simulating'
+              : 'running',
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
           isCurrentCareerSaved: false,
           latestBashoView: message.payload.latestBashoView,
-          latestEvents: toLatestEvents(message.payload.events),
+          latestEvents: toLatestEvents(message.payload.events ?? []),
           observationLog: pushObservation(state.observationLog, message.payload.observation),
+          latestObservation: message.payload.observation,
+          isTerminalChapterReady: false,
           simulationPacing: state.simulationPacing,
-          latestPauseReason: undefined,
+          latestPauseReason: chapterKind === 'INJURY' ? 'INJURY' : undefined,
           errorMessage: undefined,
         });
         return;
@@ -159,19 +219,57 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
       if (message.type === 'COMPLETED') {
         const completedWithObserve = shouldCaptureObservations(get().simulationPacing);
+        const nextDetailState = message.payload.detailState;
         set({
-          phase: resolveSimulationPhaseOnCompletion(get().simulationPacing),
+          phase: message.payload.pauseForChapter
+            ? 'chapter_ready'
+            : resolveSimulationPhaseOnCompletion(get().simulationPacing),
           status: message.payload.status,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
-          latestBashoView: get().latestBashoView,
-          latestEvents: completedWithObserve ? toLatestEvents(message.payload.events) : [],
+          latestBashoView: message.payload.latestBashoView ?? get().latestBashoView,
+          latestEvents: completedWithObserve && message.payload.observation
+            ? toLatestEvents(message.payload.events)
+            : [],
           observationLog: completedWithObserve
+            && message.payload.observation
             ? pushObservation(get().observationLog, message.payload.observation)
             : [],
+          latestObservation: completedWithObserve ? message.payload.observation ?? null : null,
           latestPauseReason: completedWithObserve ? message.payload.pauseReason : undefined,
           errorMessage: undefined,
           isCurrentCareerSaved: false,
+          isTerminalChapterReady: Boolean(message.payload.pauseForChapter),
+          detailState: nextDetailState,
+          detailBuildProgress: nextDetailState === 'building'
+            ? {
+              flushedBashoCount: 0,
+              totalBashoCount: message.payload.progress.bashoCount,
+            }
+            : null,
+        });
+        if (nextDetailState === 'ready') {
+          terminateWorker();
+          void get().loadUnshelvedCareers();
+        }
+        return;
+      }
+
+      if (message.type === 'DETAIL_BUILD_PROGRESS') {
+        set({
+          detailState: 'building',
+          detailBuildProgress: message.payload.progress,
+          errorMessage: undefined,
+        });
+        return;
+      }
+
+      if (message.type === 'DETAIL_BUILD_COMPLETED') {
+        set({
+          status: message.payload.status,
+          detailState: 'ready',
+          detailBuildProgress: message.payload.progress,
+          errorMessage: undefined,
         });
         terminateWorker();
         void get().loadUnshelvedCareers();
@@ -182,6 +280,9 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         set({
           phase: 'error',
           latestBashoView: null,
+          latestObservation: null,
+          isTerminalChapterReady: false,
+          detailState: 'error',
           errorMessage: message.payload.message,
         });
         terminateWorker();
@@ -192,6 +293,9 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       set({
         phase: 'error',
         latestBashoView: null,
+        latestObservation: null,
+        isTerminalChapterReady: false,
+        detailState: 'error',
         errorMessage: event.message || 'Worker error',
       });
       terminateWorker();
@@ -199,14 +303,19 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
     set({
       phase: resolveSimulationPhaseOnStart(initialPacing),
-      status: null,
+      status: initialStats,
       progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
       simulationPacing: initialPacing,
+      simulationDetailPolicy: nextDetailPolicy,
+      detailState: 'idle',
+      detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
       observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
       latestPauseReason: undefined,
       errorMessage: undefined,
     });
@@ -220,13 +329,24 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         runOptions,
         simulationModelVersion: normalizedModelVersion,
         initialPacing,
+        detailPolicy: nextDetailPolicy,
       },
     });
   },
 
   skipToEnd: () => {
+    const state = get();
     postToWorker({ type: 'SET_PACING', payload: { pacing: 'skip_to_end' } });
-    set({ simulationPacing: 'skip_to_end' });
+    set({
+      simulationPacing: 'skip_to_end',
+      phase:
+        state.phase === 'chapter_ready'
+          ? state.isTerminalChapterReady
+            ? 'completed'
+            : 'running'
+          : state.phase,
+      isTerminalChapterReady: false,
+    });
   },
 
   revealCurrentResult: () => {
@@ -248,9 +368,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: null,
       isCurrentCareerSaved: false,
       simulationPacing: 'skip_to_end',
+      simulationDetailPolicy: 'buffered',
+      detailState: 'idle',
+      detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
       observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
       latestPauseReason: undefined,
       errorMessage: undefined,
     });
@@ -259,7 +384,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   saveCurrentCareer: async () => {
     const careerId = get().currentCareerId;
-    if (!careerId) return;
+    if (!careerId || get().detailState !== 'ready') return;
     await shelveCareer(careerId);
     const saved = await isCareerSaved(careerId);
     const refreshedStatus = await loadCareerStatus(careerId);
@@ -293,9 +418,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: careerId,
       isCurrentCareerSaved: saved,
       simulationPacing: 'skip_to_end',
+      simulationDetailPolicy: 'eager',
+      detailState: 'ready',
+      detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
       observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
       latestPauseReason: undefined,
       errorMessage: undefined,
     });
@@ -312,9 +442,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         progress: null,
         isCurrentCareerSaved: false,
         simulationPacing: 'skip_to_end',
+        simulationDetailPolicy: 'buffered',
+        detailState: 'idle',
+        detailBuildProgress: null,
         latestBashoView: null,
         latestEvents: [],
         observationLog: [],
+        latestObservation: null,
+        isTerminalChapterReady: false,
         latestPauseReason: undefined,
       });
     }
@@ -322,12 +457,38 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     await get().loadUnshelvedCareers();
   },
 
+  clearAllData: async () => {
+    terminateWorker();
+    await clearAllStoredData();
+    set({
+      phase: 'idle',
+      status: null,
+      progress: null,
+      currentCareerId: null,
+      isCurrentCareerSaved: false,
+      simulationPacing: 'skip_to_end',
+      simulationDetailPolicy: 'buffered',
+      detailState: 'idle',
+      detailBuildProgress: null,
+      latestBashoView: null,
+      latestEvents: [],
+      observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
+      latestPauseReason: undefined,
+      hallOfFame: [],
+      unshelvedCareers: [],
+      errorMessage: undefined,
+    });
+  },
+
   resetView: async () => {
-    if (get().phase === 'running') {
+    if (get().phase === 'running' || get().phase === 'chapter_ready') {
       await get().stopSimulation();
       return;
     }
     const currentCareerId = get().currentCareerId;
+    terminateWorker();
     if (currentCareerId && !get().isCurrentCareerSaved) {
       await discardCareer(currentCareerId);
     }
@@ -338,9 +499,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       currentCareerId: null,
       isCurrentCareerSaved: false,
       simulationPacing: 'skip_to_end',
+      simulationDetailPolicy: 'buffered',
+      detailState: 'idle',
+      detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
       observationLog: [],
+      latestObservation: null,
+      isTerminalChapterReady: false,
       latestPauseReason: undefined,
       errorMessage: undefined,
     });

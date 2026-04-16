@@ -2,7 +2,7 @@ import { generateNextBanzuke } from '../../banzuke/providers/topDivision';
 import { BanzukeAllocation } from '../../banzuke/providers/sekitori/types';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import {
-  applyNpcBanzukeToRosters,
+  applyBanzukeToRosters,
   buildTopDivisionRecords,
   resolvePlayerSanyakuQuota,
 } from '../topDivision/banzuke';
@@ -52,10 +52,16 @@ export const advanceTopDivisionBanzuke = (world: SimulationWorld): void => {
   }
 
   const playerAllocation = allocations.find((allocation) => allocation.id === PLAYER_ACTOR_ID);
+  const playerRecord = topDivisionRecords.find((record) => record.id === PLAYER_ACTOR_ID);
   world.lastPlayerAllocation = playerAllocation;
   world.lastPlayerAssignedRank = playerAllocation?.nextRank;
-  world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank);
-  applyNpcBanzukeToRosters(world, allocations, (rank, layout) =>
+  world.lastSanyakuQuota = resolvePlayerSanyakuQuota(world.lastPlayerAssignedRank, {
+    currentRank: playerAllocation?.currentRank,
+    isKachikoshi:
+      playerRecord ? playerRecord.wins > playerRecord.losses + playerRecord.absent : false,
+    nextIsOzekiReturn: playerAllocation?.nextIsOzekiReturn,
+  });
+  applyBanzukeToRosters(world, allocations, (rank, layout) =>
     resolvePlayerRankScore(rank, layout),
   );
 

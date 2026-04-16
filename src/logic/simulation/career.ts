@@ -5,8 +5,10 @@ import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
+import { ensureStyleIdentityProfile } from '../style/identity';
 import { ensureCareerRecordStatus, pushCareerTurningPoint } from '../careerNarrative';
 import { buildCareerRealismSnapshot, createDefaultStagnationState, resolveLegacyAptitudeFactor } from './realism';
+import { ensureKimariteRepertoire } from '../kimarite/repertoire';
 
 const PRIZE_LABEL: Record<string, string> = {
   SHUKUN: '殊勲賞',
@@ -45,6 +47,7 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   status.statHistory = [];
   if (!status.injuries) status.injuries = [];
   if (!status.history.kimariteTotal) status.history.kimariteTotal = {};
+  if (!status.history.winRouteTotal) status.history.winRouteTotal = {};
   if (!status.traits) status.traits = [];
   if (!status.bodyType) status.bodyType = 'NORMAL';
   if (!status.profile) {
@@ -105,7 +108,13 @@ export const initializeSimulationStatus = (initialStats: RikishiStatus): Rikishi
   if (!Number.isFinite(status.spirit)) status.spirit = 70;
   if (!status.stagnation) status.stagnation = createDefaultStagnationState();
   status.history.realismKpi = buildCareerRealismSnapshot(status);
-  return ensureCareerRecordStatus(ensureKataProfile(status));
+  return ensureCareerRecordStatus(
+    ensureKimariteRepertoire(
+      ensureStyleIdentityProfile(
+        ensureKataProfile(status),
+      ),
+    ),
+  );
 };
 
 export const appendEntryEvent = (status: RikishiStatus, year: number): void => {
@@ -209,6 +218,13 @@ export const updateCareerStats = (status: RikishiStatus, record: BashoRecord): v
     if (!status.history.kimariteTotal) status.history.kimariteTotal = {};
     for (const [move, count] of Object.entries(record.kimariteCount)) {
       status.history.kimariteTotal[move] = (status.history.kimariteTotal[move] || 0) + count;
+    }
+  }
+  if (record.winRouteCount) {
+    if (!status.history.winRouteTotal) status.history.winRouteTotal = {};
+    for (const [route, count] of Object.entries(record.winRouteCount)) {
+      status.history.winRouteTotal[route as keyof NonNullable<typeof status.history.winRouteTotal>] =
+        (status.history.winRouteTotal[route as keyof NonNullable<typeof status.history.winRouteTotal>] || 0) + (count || 0);
     }
   }
 

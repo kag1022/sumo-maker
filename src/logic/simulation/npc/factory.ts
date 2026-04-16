@@ -1,12 +1,15 @@
 import { Division } from '../../models';
-import { resolveAptitudeProfile, rollAptitudeTier, rollCareerBand, CONSTANTS } from '../../constants';
+import { resolveAptitudeProfile, CONSTANTS } from '../../constants';
 import {
   ENEMY_SEED_POOL,
   EnemySeedProfile,
   resolveEnemySeedBodyMetrics,
 } from '../../catalog/enemyData';
+import {
+  sampleEmpiricalDivisionAge,
+  sampleEmpiricalNpcSeed,
+} from '../../calibration/npcRealismHeisei';
 import { RandomSource } from '../deps';
-import { resolveRetirementProfileByRoll } from '../retirement/shared';
 import { resolveLegacyAptitudeFactor } from '../realism';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
@@ -25,16 +28,6 @@ const POWER_RANGE: Record<Division, { min: number; max: number }> = {
   Jonidan: { min: 45, max: 82 },
   Jonokuchi: { min: 35, max: 72 },
   Maezumo: { min: 28, max: 60 },
-};
-
-const ABILITY_DISTRIBUTION: Record<Division, { mean: number; sigma: number }> = {
-  Makuuchi: { mean: 122, sigma: 10 },
-  Juryo: { mean: 106, sigma: 8 },
-  Makushita: { mean: 90, sigma: 7 },
-  Sandanme: { mean: 76, sigma: 7 },
-  Jonidan: { mean: 64, sigma: 7 },
-  Jonokuchi: { mean: 54, sigma: 6 },
-  Maezumo: { mean: 46, sigma: 5 },
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -60,7 +53,6 @@ const createNpc = (
   registry: NpcUniverse['registry'],
 ): PersistentNpc => {
   const range = POWER_RANGE[division];
-  const abilityDist = ABILITY_DISTRIBUTION[division];
   const shikona = generateUniqueNpcShikona(
     stableId,
     division,
@@ -68,11 +60,12 @@ const createNpc = (
     nameContext,
     registry,
   );
-  const entryAge = 15 + Math.floor(rng() * 10);
+  const entryAge = sampleEmpiricalDivisionAge(division, rng);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
-  const careerBand = rollCareerBand(rng);
+  const empiricalSeed = sampleEmpiricalNpcSeed(rng);
+  const careerBand = empiricalSeed.careerBand;
   const bandBias = CONSTANTS.CAREER_BAND_DATA[careerBand];
-  const aptitudeTier = rollAptitudeTier(rng);
+  const aptitudeTier = empiricalSeed.aptitudeTier;
   const aptitudeProfile = resolveAptitudeProfile(aptitudeTier);
   const basePower = clamp(
     seed.basePower +
@@ -83,12 +76,12 @@ const createNpc = (
   );
   const ability =
     basePower * (0.82 + aptitudeProfile.boutFactor * 0.08) +
-    abilityDist.mean * 0.1 +
-    randomNoise(rng, abilityDist.sigma * 0.45) +
+    seed.basePower * 0.12 +
+    randomNoise(rng, 2.1) +
     seed.growthBias * 5.2 +
     bandBias.abilityBias * 0.6;
   const aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
-  const retirementProfile = resolveRetirementProfileByRoll(rng());
+  const retirementProfile = empiricalSeed.retirementProfile;
   return {
     actorId: `NPC-${serial}`,
     actorType: 'NPC',
@@ -119,7 +112,7 @@ const createNpc = (
     careerBashoCount: 0,
     active: true,
     entrySeq: seq,
-    riseBand: undefined,
+    riseBand: empiricalSeed.riseBand,
     stagnation: {
       pressure: careerBand === 'ELITE' ? 0 : careerBand === 'STRONG' ? 0.1 : careerBand === 'STANDARD' ? 0.35 : careerBand === 'GRINDER' ? 0.8 : 1.1,
       makekoshiStreak: 0,
@@ -166,6 +159,7 @@ const createDivisionRoster = (
     registry.set(npc.id, npc);
   }
 
+  const divisionRange = POWER_RANGE[division];
   const rankedRoster = roster
     .slice()
     .sort((a, b) => {
@@ -174,7 +168,22 @@ const createDivisionRoster = (
       if (bScore !== aScore) return bScore - aScore;
       return a.id.localeCompare(b.id);
     })
-    .map((npc, index) => ({ ...npc, rankScore: index + 1 }));
+    .map((npc, index, ordered) => {
+      const percentile = ordered.length <= 1 ? 0.5 : 1 - index / (ordered.length - 1);
+      const sortedAbilities = ordered.map((row) => row.ability).sort((a, b) => a - b);
+      const anchorIndex = clamp(
+        Math.round((sortedAbilities.length - 1) * percentile),
+        0,
+        Math.max(0, sortedAbilities.length - 1),
+      );
+      const anchorAbility = sortedAbilities[anchorIndex] ?? npc.ability;
+      const softenedAbility = clamp(
+        anchorAbility * 0.72 + npc.ability * 0.28,
+        divisionRange.min,
+        divisionRange.max + 16,
+      );
+      return { ...npc, ability: softenedAbility, rankScore: index + 1 };
+    });
 
   for (const npc of rankedRoster) {
     registry.set(npc.id, npc);
