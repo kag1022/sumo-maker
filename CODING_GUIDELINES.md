@@ -122,7 +122,18 @@ const myTotal = Object.values(rikishi.stats).reduce((a, b) => a + b, 0);
 
 ---
 
-## 7. ESLint
+## 7. ドキュメント
+
+- `src/features/<name>/` と `src/logic/<name>/` には **`README.md` を必ず置く**
+  - 内容は「責務 / 主要ファイル / 依存」だけで良い（数行〜十数行）
+  - 責務を変えたら README も更新する
+  - 詳細な運用方針は [AGENTS.md](./AGENTS.md) の「ドキュメント運用ルール」を参照
+- ルート `README.md` は各サブ README への目次として扱う
+- `npm run doc:audit` で README が欠けているディレクトリを検出できる
+
+---
+
+## 8. ESLint
 
 ESLint設定（`eslint.config.js`）で以下のルールが `warn` レベルで有効です:
 

@@ -31,6 +31,7 @@
     "report:npc:yokozuna": "node scripts/reports/run_npc_yokozuna_probe.cjs",
     "report:player:realism:c2": "node scripts/reports/run_player_realism_c2_probe.cjs",
     "lint": "eslint . --max-warnings 0",
+    "doc:audit": "node scripts/shared/doc_audit.cjs",
     "preview": "vite preview"
   },
   "dependencies": {
