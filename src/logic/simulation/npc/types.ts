@@ -9,8 +9,11 @@ export type NpcNamingSchoolId = 'HAYATE' | 'TRADITION' | 'KAREI' | 'GORIKI';
 
 export interface NpcBashoResult {
   division: Division;
+  rankName?: string;
+  rankNumber?: number;
   wins: number;
   losses: number;
+  absent?: number;
 }
 
 export interface PersistentActor {
@@ -76,9 +79,10 @@ export const TOP_DIVISION_SLOTS: Record<TopDivision, number> = {
 
 export const LOWER_DIVISION_SLOTS: Record<LowerDivision, number> = {
   Makushita: 120,
-  Sandanme: 180,
-  Jonidan: 200,
-  Jonokuchi: 64,
+  // Heisei-wide lower-division centerline used for initial world seeding.
+  Sandanme: 200,
+  Jonidan: 250,
+  Jonokuchi: 78,
 };
 
 export const ACTIVE_DIVISIONS: ActiveDivision[] = [

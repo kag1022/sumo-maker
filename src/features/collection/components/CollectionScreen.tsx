@@ -95,11 +95,13 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
     null;
 
   return (
-    <div className="space-y-5">
-      <section className="surface-panel space-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="collection-museum-shell">
+      <section className="collection-museum-surface surface-panel">
+        <div className="collection-museum-head">
           <div>
-            <div className="panel-title">資料館の蓄積</div>
+            <div className="record-page-kicker">収蔵室</div>
+            <div className="panel-title">資料館の収蔵</div>
+            <div className="text-sm text-text-dim">主役は展示一覧と詳細面です。上部は進捗だけを静かに示します。</div>
           </div>
           <Button variant="secondary" size="sm" onClick={onOpenArchive}>
             保存済み記録を開く
@@ -113,7 +115,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="collection-museum-summarybar">
               <SummaryCard label="総解放数" value={`${dashboard?.totalUnlocked ?? 0}`} icon={<BookOpenText className="w-4 h-4" />} tone="brand" />
               <SummaryCard label="新着" value={`${dashboard?.totalNew ?? 0}`} icon={<Sparkles className="w-4 h-4" />} tone="action" />
               {(dashboard?.rows ?? []).map((row) => (
@@ -128,22 +130,22 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
               ))}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[1fr_minmax(320px,0.7fr)] pt-4">
-              <section className="space-y-4">
-                <div className="flex flex-wrap gap-1 p-1 bg-bg-panel/40 border border-gold/10 backdrop-blur-sm sticky top-0 z-20">
+            <div className="collection-museum-layout">
+              <section className="collection-museum-catalog">
+                <div className="collection-museum-tabs">
                   {COLLECTION_TABS.map((tab) => {
                     const Icon = tab.icon;
                     return (
                       <button
                         key={tab.id}
                         type="button"
-                        className="report-tab-button flex-1 min-w-[120px]"
+                        className="collection-museum-tab"
                         data-active={activeTab === tab.id}
                         onClick={() => setActiveTab(tab.id)}
                       >
                         <span className="inline-flex items-center gap-2 py-1">
                           <Icon className="h-4 w-4" />
-                          <span className="ui-text-label text-sm uppercase tracking-wide">{tab.label}</span>
+                          <span className="ui-text-label text-xs uppercase tracking-wide">{tab.label}</span>
                         </span>
                       </button>
                     );
@@ -151,12 +153,12 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                 </div>
 
                 {activeTab === "KIMARITE" ? (
-                  <div className="mb-3 flex flex-wrap gap-2">
+                  <div className="collection-museum-filterbar">
                     {(["ALL", "押し・突き", "寄り・極め", "投げ", "捻り・落とし", "足取り・掛け", "反り", "送り", "非技"] as KimariteFamilyFilter[]).map((filter) => (
                       <button
                         key={filter}
                         type="button"
-                        className="report-tab-button"
+                        className="collection-museum-filterchip"
                         data-active={kimariteFamilyFilter === filter}
                         onClick={() => setKimariteFamilyFilter(filter)}
                       >
@@ -166,12 +168,12 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                   </div>
                 ) : null}
 
-                <div className="space-y-2 mt-4">
+                <div className="collection-museum-entrylist">
                   {filteredEntries.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
-                      className="w-full surface-card p-3 text-left transition-all hover:bg-gold/5 group"
+                      className="collection-museum-entry"
                       data-active={selectedEntry?.id === entry.id}
                       onClick={() => {
                         setSelectedByType((current) => ({
@@ -180,18 +182,18 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                         }));
                       }}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="collection-museum-entry-head">
                         <div className="min-w-0">
-                          <div className={`ui-text-label text-sm transition-colors ${selectedEntry?.id === entry.id ? 'text-gold' : 'text-text group-hover:text-gold/80'}`}>
+                          <div className="collection-museum-entry-title">
                             {entry.state === "UNLOCKED" ? entry.label : "？？？？？"}
                           </div>
-                          <div className="mt-1 text-xs text-text-dim line-clamp-1 italic">
+                          <div className="collection-museum-entry-copy">
                             {entry.state === "UNLOCKED"
                               ? entry.description
                               : "相まみえることで解放される秘録です。"}
                           </div>
                         </div>
-                        <div className={`shrink-0 text-[10px] ui-text-label px-2 py-0.5 border ${entry.state === "UNLOCKED" ? 'border-gold/30 text-gold bg-gold/5' : 'border-text-faint text-text-faint bg-bg-panel/50'}`}>
+                        <div className="collection-museum-entry-state" data-unlocked={entry.state === "UNLOCKED"}>
                           {entry.state === "UNLOCKED" ? "解放済" : "未解放"}
                         </div>
                       </div>
@@ -200,11 +202,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                 </div>
               </section>
 
-              <section className="space-y-6">
-                <div className="surface-panel p-5 border-gold/20 bg-bg-panel/40 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 text-gold/60 mb-4 border-b border-gold/10 pb-2">
+              <section className="collection-museum-detailstack">
+                <div className="collection-museum-detail surface-panel">
+                  <div className="collection-museum-detail-head">
                     <ScrollText className="w-4 h-4" />
-                    <span className="ui-text-label text-[10px] uppercase tracking-widest">資料詳細 - DETAILED ARCHIVE</span>
+                    <span className="ui-text-label text-[10px] uppercase tracking-widest">資料詳細</span>
                   </div>
 
                   {selectedEntry ? (
@@ -218,14 +220,14 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                 </div>
 
                 {!!dashboard?.recentUnlocks.length && (
-                  <div className="surface-panel p-5 border-gold-muted/10 bg-gradient-to-b from-bg-panel/20 to-transparent">
-                    <div className="flex items-center gap-2 text-text-dim mb-4 mb-2">
+                  <div className="collection-museum-recent surface-panel">
+                    <div className="collection-museum-recent-head">
                       <Sparkles className="w-3.5 h-3.5" />
                       <span className="ui-text-label text-[10px] uppercase tracking-widest text-text-dim">最近の解放項目</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="collection-museum-recent-list">
                       {dashboard.recentUnlocks.map((entry) => (
-                        <div key={entry.id} className="surface-card p-3 border-gold-muted/5 bg-bg/20">
+                        <div key={entry.id} className="collection-museum-recent-item">
                           <div className="flex items-center justify-between gap-3">
                             <div className="ui-text-label text-sm text-text-dim">{entry.label}</div>
                             <div className="text-[10px] ui-text-label text-text-faint">{formatUnlockedAt(entry.unlockedAt)}</div>
@@ -254,14 +256,14 @@ const SummaryCard: React.FC<{
   progress?: number;
 }> = ({ label, value, note, icon, tone, progress }) => (
   <div
-    className="surface-card p-4 flex flex-col justify-between min-h-[100px] border-gold-muted/10 group hover:border-gold/30 transition-all overflow-hidden relative"
+    className="collection-museum-summarycard"
     data-tone={tone}
   >
     <div className="flex items-center justify-between mb-2">
-      <div className="text-[10px] ui-text-label text-text-dim group-hover:text-gold/70 transition-colors uppercase tracking-widest">
+      <div className="text-[10px] ui-text-label text-text-dim uppercase tracking-widest">
         {label}
       </div>
-      {icon && <div className="text-gold/40 group-hover:text-gold/80 transition-colors">{icon}</div>}
+      {icon && <div className="text-gold/50">{icon}</div>}
     </div>
     <div className={`text-xl ui-text-metric ${tone === "brand" ? 'text-gold' : tone === "action" ? 'text-action' : 'text-text'}`}>
       {value}

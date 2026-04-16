@@ -16,6 +16,7 @@ import {
     resolveLongevityFactor,
     resolveStagnationPenalty,
 } from './simulation/realism';
+import { resolvePlayerRetentionModifier } from './simulation/playerRealism';
 
 const resolveAbsenceWeightPenalty = (record?: { wins: number; losses: number; absent: number }): number => {
     if (!record || record.absent <= 0) return 0;
@@ -393,7 +394,9 @@ export const applyGrowth = (
         currentStatus.careerSeed?.peakWeightKg ??
         currentStatus.buildSummary?.weightPotentialKg ??
         bodyMetrics.weightKg;
-    if (age <= 23 && bodyMetrics.heightCm < targetHeight) {
+    const entryAge = Number.isFinite(currentStatus.entryAge) ? currentStatus.entryAge : age;
+    const canGrowTallerAfterEntry = entryAge < 22;
+    if (canGrowTallerAfterEntry && age <= 23 && bodyMetrics.heightCm < targetHeight) {
         const heightGrowthBias = seedBiases ? Math.max(0.85, 1 + seedBiases.earlyGrowthBias * 0.05) : 1;
         bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + (0.2 + Math.max(0, (23 - age) * 0.04)) * heightGrowthBias);
     }
@@ -467,8 +470,13 @@ export const checkRetirement = (
     const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(records, 10);
     const isFormerSekitori =
         status.history.maxRank.division === 'Makuuchi' || status.history.maxRank.division === 'Juryo';
+    const fullKyujoStreak = records.reduce((streak, record) => {
+        const scheduled = record.rank.division === 'Makuuchi' || record.rank.division === 'Juryo' ? 15 : 7;
+        if (record.absent < scheduled) return 0;
+        return streak + 1;
+    }, 0);
 
-    const chance = resolveRetirementChance({
+    const baseChance = resolveRetirementChance({
         age: status.age,
         injuryLevel: status.injuryLevel,
         currentDivision: status.rank.division,
@@ -483,6 +491,22 @@ export const checkRetirement = (
         careerBand: status.careerBand,
         careerSeedBiases: status.careerSeed?.biases,
     });
+    const chance = Math.max(
+        0,
+        Math.min(
+            1,
+            baseChance * resolvePlayerRetentionModifier({
+                age: status.age,
+                careerBashoCount: records.length,
+                currentDivision: status.rank.division,
+                currentRank: status.rank,
+                maxRank: status.history.maxRank,
+                recentRecords: records.slice(-6),
+                fullKyujoStreak,
+                formerSekitori: isFormerSekitori,
+            }),
+        ),
+    );
 
     if (chance > 0 && rng() < chance) {
         return {

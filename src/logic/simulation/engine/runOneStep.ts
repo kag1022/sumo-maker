@@ -4,7 +4,7 @@ import {
   RankChangeResult,
   composeNextBanzuke,
 } from '../../banzuke';
-import { resolveEmpiricalRankBand, resolveEmpiricalRecordBucket } from '../../banzuke/providers/empirical';
+import { resolveRuntimeRankBand, resolveRuntimeRecordBucket } from '../../banzuke/providers/runtimeMetadata';
 import { applyGrowth, checkRetirement } from '../../growth';
 import { Rank, RikishiStatus } from '../../models';
 import {
@@ -24,6 +24,7 @@ import { PlayerLowerRecord } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
 import { intakeNewNpcRecruits } from '../npc/intake';
 import { reconcileNpcLeague } from '../npc/leagueReconcile';
+import { ensurePopulationPlan } from '../npc/populationPlan';
 import { runNpcRetirementStep } from '../npc/retirement';
 import {
   buildSameDivisionLowerNpcRecords,
@@ -36,8 +37,9 @@ import {
   SekitoriBoundaryWorld,
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
+import { resolvePlayerStagnationState } from '../playerRealism';
 import { resolveBashoFormDelta, updateConditionForV3 } from '../variance/bashoVariance';
-import { updateKataProfileAfterBasho } from '../../style/kata';
+import { updateStyleIdentityAfterBasho } from '../../style/identity';
 import {
   applySpiritChangeAfterBasho,
   ensureCareerRecordStatus,
@@ -47,28 +49,49 @@ import {
   setCareerTurningPoint,
   withRivalSummary,
 } from '../../careerNarrative';
-import { resolveRealizedStyleProfile } from '../../styleProfile';
+import { applyTraitAwakeningsForBasho } from '../../traits';
 import {
   appendRuntimeRivalryStep,
   buildCareerRivalryDigest,
 } from '../../careerRivalry';
 import { buildCareerRealismSnapshot, updateStagnationState } from '../realism';
+import { evolveKimariteRepertoireAfterBasho } from '../../kimarite/repertoire';
 import {
   advanceTopDivisionBanzuke,
-  countActiveNpcInWorld,
+  countActiveBanzukeHeadcountExcludingMaezumo,
   resolveTopDivisionFromRank,
   resolveTopDivisionQuotaForPlayer,
   simulateOffscreenSekitoriBasho,
   syncPlayerActorInWorld,
+  finalizeSekitoriPlayerPlacement,
   SimulationWorld,
 } from '../world';
 import { SimulationDiagnostics } from '../diagnostics';
-import { createPopulationSnapshot, createProgressSnapshot } from './progressSnapshot';
+import { createPopulationSnapshot, createProgressLite, createProgressSnapshot } from './progressSnapshot';
 import { resolvePauseReason } from './pausePolicy';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
-import { RuntimeNarrativeState, SimulationParams, SimulationStepResult } from './types';
+import {
+  RuntimeNarrativeState,
+  SimulationParams,
+  SimulationStepResult,
+  SimulationTimingBreakdown,
+  SimulationTimingPhase,
+} from './types';
 
 const MONTHS = [1, 3, 5, 7, 9, 11] as const;
+const EMPTY_SIMULATION_TIMING_PHASES: Record<SimulationTimingPhase, number> = {
+  pre_reconcile: 0,
+  basho_simulation: 0,
+  quota_and_banzuke: 0,
+  post_basho_maintenance: 0,
+  postprocess: 0,
+};
+
+const STAGNATION_BAND_ORDER: Record<'NORMAL' | 'STALLED' | 'CRITICAL', number> = {
+  NORMAL: 0,
+  STALLED: 1,
+  CRITICAL: 2,
+};
 
 export interface EngineRuntimeState {
   status: RikishiStatus;
@@ -94,6 +117,19 @@ export interface RunOneStepContext {
 
 export const cloneStatus = (status: RikishiStatus): RikishiStatus =>
   JSON.parse(JSON.stringify(status)) as RikishiStatus;
+
+const createTimingBreakdown = (
+  phases?: Partial<Record<SimulationTimingPhase, number>>,
+): SimulationTimingBreakdown => {
+  const nextPhases = {
+    ...EMPTY_SIMULATION_TIMING_PHASES,
+    ...(phases ?? {}),
+  };
+  return {
+    totalMs: Object.values(nextPhases).reduce((sum, value) => sum + value, 0),
+    phases: nextPhases,
+  };
+};
 
 const enrichStatusWithRuntimeNarrative = (
   status: RikishiStatus,
@@ -150,6 +186,25 @@ const resolveCurrentScaleSlots = (
   Jonokuchi: lowerDivisionQuotaWorld.rosters.Jonokuchi.length,
 });
 
+const buildProgressSnapshot = (
+  context: Pick<RunOneStepContext, 'params' | 'world' | 'lowerDivisionQuotaWorld' | 'state'>,
+  year: number,
+  month: number,
+) => {
+  const { params, world, lowerDivisionQuotaWorld, state } = context;
+  return params.progressSnapshotMode === 'lite'
+    ? createProgressLite(state.status, year, month)
+    : createProgressSnapshot(
+      state.status,
+      world,
+      lowerDivisionQuotaWorld,
+      year,
+      month,
+      state.lastCommitteeWarnings,
+      state.lastDiagnostics,
+    );
+};
+
 export const runOneStep = async (context: RunOneStepContext): Promise<SimulationStepResult> => {
   const {
     params,
@@ -161,6 +216,16 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lowerDivisionQuotaWorld,
     state,
   } = context;
+  const startMs = deps.now();
+  const phaseTimings: Record<SimulationTimingPhase, number> = {
+    ...EMPTY_SIMULATION_TIMING_PHASES,
+  };
+  let phaseStartMs = startMs;
+  const finishPhase = (phase: SimulationTimingPhase): void => {
+    const now = deps.now();
+    phaseTimings[phase] += Math.max(0, now - phaseStartMs);
+    phaseStartMs = now;
+  };
 
   if (state.completed) {
     const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
@@ -170,20 +235,26 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       banzukeDecisions: [],
       diagnostics: state.lastDiagnostics,
       events: [],
-      progress: createProgressSnapshot(
-        state.status,
-        world,
-        lowerDivisionQuotaWorld,
+      progress: buildProgressSnapshot(
+        context,
         state.year,
         MONTHS[Math.min(state.monthIndex, MONTHS.length - 1)],
-        state.lastCommitteeWarnings,
-        state.lastDiagnostics,
       ),
+      timing: createTimingBreakdown(),
     };
   }
 
   const month = MONTHS[state.monthIndex];
-  reconcileNpcLeague(world, lowerDivisionQuotaWorld, sekitoriBoundaryWorld, deps.random, state.seq, month);
+  const populationPlan = ensurePopulationPlan(world, state.year, deps.random);
+  reconcileNpcLeague(
+    world,
+    lowerDivisionQuotaWorld,
+    sekitoriBoundaryWorld,
+    deps.random,
+    state.seq,
+    month,
+    populationPlan,
+  );
 
   const retirementCheck = checkRetirement(state.status, deps.random);
   if (retirementCheck.shouldRetire) {
@@ -199,15 +270,10 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       diagnostics: state.lastDiagnostics,
       events,
       pauseReason: 'RETIREMENT',
-      progress: createProgressSnapshot(
-        state.status,
-        world,
-        lowerDivisionQuotaWorld,
-        state.year,
-        month,
-        state.lastCommitteeWarnings,
-        state.lastDiagnostics,
-      ),
+      progress: buildProgressSnapshot(context, state.year, month),
+      timing: createTimingBreakdown({
+        pre_reconcile: Math.max(0, deps.now() - startMs),
+      }),
     };
   }
 
@@ -218,8 +284,19 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   syncPlayerActorInWorld(world, state.status, deps.random);
 
   const currentRank = { ...state.status.rank };
+  const bashoMakuuchiLayout = { ...world.makuuchiLayout };
   const stagnationPressureBeforeBasho = state.status.stagnation?.pressure ?? 0;
+  const stagnationBeforeBasho = resolvePlayerStagnationState({
+    age: state.status.age,
+    careerBashoCount: state.status.history.records.length,
+    currentRank,
+    maxRank: state.status.history.maxRank,
+    recentRecords: state.status.history.records.slice(-6),
+    formerSekitori:
+      state.status.history.maxRank.division === 'Makuuchi' || state.status.history.maxRank.division === 'Juryo',
+  });
   const playerTopDivision = resolveTopDivisionFromRank(state.status.rank);
+  finishPhase('pre_reconcile');
 
   if (!playerTopDivision) {
     simulateOffscreenSekitoriBasho(world, deps.random);
@@ -244,6 +321,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     simulationModelVersion,
     playerBashoFormDelta,
   );
+  finishPhase('basho_simulation');
   const bashoRecord = bashoResult.playerRecord;
   const lowerPlayerRecord: PlayerLowerRecord | undefined =
     currentRank.division === 'Makushita' ||
@@ -274,12 +352,21 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     deps.random,
     undefined,
     lowerDivisionQuotaWorld,
-    banzukeEngineVersion,
   );
 
   state.status.history.records.push(bashoRecord);
   updateCareerStats(state.status, bashoRecord);
-  state.status = updateKataProfileAfterBasho(state.status, bashoRecord, state.seq + 1);
+  state.status = updateStyleIdentityAfterBasho(
+    state.status,
+    bashoRecord,
+    state.seq + 1,
+    bashoResult.playerBoutDetails,
+  );
+  state.status.kimariteRepertoire = evolveKimariteRepertoireAfterBasho(
+    state.status,
+    bashoRecord,
+    state.seq + 1,
+  ).kimariteRepertoire;
 
   const pastRecords = resolvePastRecords(state.status.history.records);
   const topDivisionQuota = resolveTopDivisionQuotaForPlayer(world, state.status.rank);
@@ -298,17 +385,19 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     ...(lowerDivisionQuota ? { lowerDivisionQuota } : {}),
     ...(boundaryAssignedNextRank ? { boundaryAssignedNextRank } : {}),
     empiricalContext: {
-      recordBucket: resolveEmpiricalRecordBucket(
+      recordBucket: resolveRuntimeRecordBucket(
         bashoRecord.wins,
         bashoRecord.losses,
         bashoRecord.absent,
       ),
-      rankBand: resolveEmpiricalRankBand(
+      rankBand: resolveRuntimeRankBand(
         currentRank.division,
         currentRank.name,
         currentRank.number,
       ),
+      performanceOverExpected: bashoRecord.performanceOverExpected,
     },
+    stagnationPressure: stagnationPressureBeforeBasho,
     scaleSlots,
     simulationModelVersion,
     banzukeEngineVersion,
@@ -355,10 +444,34 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     ...playerAllocation.finalDecision,
     nextRank: playerAllocation.finalRank,
   };
+  finishPhase('quota_and_banzuke');
 
   const beforeEvents = state.status.history.events.length;
   appendBashoEvents(state.status, state.year, month, bashoRecord, rankChange, currentRank);
-  const newEvents = state.status.history.events.slice(beforeEvents);
+  let newEvents = state.status.history.events.slice(beforeEvents);
+  const stagnationAfterBasho = resolvePlayerStagnationState({
+    age: state.status.age,
+    careerBashoCount: state.status.history.records.length,
+    currentRank: rankChange.nextRank,
+    maxRank: state.status.history.maxRank,
+    recentRecords: state.status.history.records.slice(-6),
+    formerSekitori:
+      state.status.history.maxRank.division === 'Makuuchi' || state.status.history.maxRank.division === 'Juryo',
+  });
+  if (STAGNATION_BAND_ORDER[stagnationAfterBasho.band] > STAGNATION_BAND_ORDER[stagnationBeforeBasho.band]) {
+    newEvents = [
+      ...newEvents,
+      {
+        year: bashoRecord.year,
+        month: bashoRecord.month,
+        type: 'OTHER',
+        description:
+          stagnationAfterBasho.band === 'CRITICAL'
+            ? '師匠の示唆: 稽古場の空気が重い。今場所を落とすと、土俵際ではなく力士人生そのものが苦しくなる。'
+            : '師匠の示唆: 稽古場の空気が少し変わった。今の足踏みを次の場所へ持ち越すと、番付も先行きも苦しくなる。',
+      },
+    ];
+  }
 
   const spiritDelta = applySpiritChangeAfterBasho({
     status: state.status,
@@ -531,6 +644,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     age: state.status.age,
     careerBashoCount: state.status.history.records.length,
     currentRank: state.status.rank,
+    maxRank: state.status.history.maxRank,
+    absent: bashoRecord.absent,
+    recentRecords: state.status.history.records.slice(-6),
     careerBand: state.status.careerBand,
     stagnationPressure: state.status.stagnation?.pressure ?? 0,
     careerSeedBiases: state.status.careerSeed?.biases,
@@ -538,9 +654,20 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   const isNewInjury = state.status.injuryLevel === 0 && bashoRecord.absent > 0;
   state.status = applyGrowth(state.status, params.oyakata, isNewInjury, deps.random);
+  const traitAwakeningResult = applyTraitAwakeningsForBasho({
+    status: state.status,
+    bashoSeq,
+    bashoRecord,
+    playerBouts: bashoResult.playerBoutDetails,
+    importantTorikumiNotes: bashoResult.importantTorikumiNotes,
+    currentRank,
+    nextRank: rankChange.nextRank,
+  });
+  if (traitAwakeningResult.events.length > 0) {
+    newEvents = [...newEvents, ...traitAwakeningResult.events];
+  }
   bashoRecord.bodyWeightKg = Math.round(state.status.bodyMetrics.weightKg * 10) / 10;
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
-  state.status.realizedStyleProfile = resolveRealizedStyleProfile(state.status);
   state.status = ensureCareerRecordStatus(state.status);
   state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
   if (true) {
@@ -553,12 +680,23 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     });
   }
   syncPlayerActorInWorld(world, state.status, deps.random);
+  if (
+    (currentRank.division !== 'Juryo' && currentRank.division !== 'Makuuchi') &&
+    (state.status.rank.division === 'Juryo' || state.status.rank.division === 'Makuuchi')
+  ) {
+    finalizeSekitoriPlayerPlacement(world, state.status);
+  }
 
   state.seq += 1;
 
-  runNpcRetirementStep(world.npcRegistry.values(), state.seq, deps.random);
+  const retiredIds = runNpcRetirementStep(
+    world.npcRegistry.values(),
+    state.seq,
+    deps.random,
+    populationPlan,
+  );
 
-  const activeNpcCount = countActiveNpcInWorld(world);
+  const activeBanzukeHeadcount = countActiveBanzukeHeadcountExcludingMaezumo(world);
   const intake = intakeNewNpcRecruits(
     {
       registry: world.npcRegistry,
@@ -568,7 +706,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     },
     state.seq,
     month,
-    activeNpcCount,
+    activeBanzukeHeadcount,
+    populationPlan,
     deps.random,
   );
   world.nextNpcSerial = intake.nextNpcSerial;
@@ -577,11 +716,28 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lowerDivisionQuotaWorld.maezumoPool.push(
       ...intake.recruits.map((npc) => ({
         ...(npc as unknown as typeof lowerDivisionQuotaWorld.maezumoPool[number]),
-      })),
+        })),
     );
   }
-  reconcileNpcLeague(world, lowerDivisionQuotaWorld, sekitoriBoundaryWorld, deps.random, state.seq, month);
-  const populationSnapshot = createPopulationSnapshot(world, state.seq, bashoRecord.year, bashoRecord.month);
+  reconcileNpcLeague(
+    world,
+    lowerDivisionQuotaWorld,
+    sekitoriBoundaryWorld,
+    deps.random,
+    state.seq,
+    month,
+    populationPlan,
+  );
+  const populationSnapshot = createPopulationSnapshot(
+    world,
+    state.seq,
+    bashoRecord.year,
+    bashoRecord.month,
+    {
+      intakeCountThisBasho: intake.recruits.length,
+      retiredCountThisBasho: retiredIds.length,
+    },
+  );
   state.lastDiagnostics = {
     seq: state.seq,
     year: bashoRecord.year,
@@ -608,6 +764,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     torikumiRepairHistogram: bashoResult.torikumiDiagnostics?.repairHistogram,
     torikumiScheduleViolations: bashoResult.torikumiDiagnostics?.scheduleViolations.length,
     torikumiLateDirectTitleBoutCount: bashoResult.torikumiDiagnostics?.lateDirectTitleBoutCount,
+    sanyakuRoundRobinCoverageRate: bashoResult.torikumiDiagnostics?.sanyakuRoundRobinCoverageRate,
+    joiAssignmentCoverageRate: bashoResult.torikumiDiagnostics?.joiAssignmentCoverageRate,
+    yokozunaOzekiTailBoutRatio: bashoResult.torikumiDiagnostics?.yokozunaOzekiTailBoutRatio,
     ...(true
       ? {
         bashoVariance: {
@@ -619,7 +778,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       : {}),
   };
 
-  const sekitoriNpc = buildSekitoriNpcRecords(world, world.makuuchiLayout);
+  const sekitoriNpc = buildSekitoriNpcRecords(world, bashoMakuuchiLayout);
   const sameDivisionNpc = buildSameDivisionLowerNpcRecords(lowerDivisionQuotaWorld, currentRank);
   const npcBashoRecords = mergeNpcBashoRecords(
     sekitoriNpc,
@@ -657,6 +816,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       titles: [...row.titles],
     })),
   });
+  finishPhase('post_basho_maintenance');
 
   state.monthIndex += 1;
   if (state.monthIndex >= MONTHS.length) {
@@ -671,16 +831,11 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   await deps.yieldControl();
 
-  const progress = createProgressSnapshot(
-    state.status,
-    world,
-    lowerDivisionQuotaWorld,
-    state.year,
-    MONTHS[state.monthIndex],
-    state.lastCommitteeWarnings,
-    state.lastDiagnostics,
-  );
+  const progress = buildProgressSnapshot(context, state.year, MONTHS[state.monthIndex]);
   const eventPauseReason = resolvePauseReason(newEvents);
+  const statusSnapshot =
+    context.params.bashoSnapshotMode === 'none' ? undefined : cloneStatus(state.status);
+  finishPhase('postprocess');
 
   return {
     kind: 'BASHO',
@@ -701,7 +856,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     })),
     events: newEvents,
     pauseReason: eventPauseReason,
-    statusSnapshot: cloneStatus(state.status),
+    statusSnapshot,
     progress,
+    timing: createTimingBreakdown(phaseTimings),
   };
 };

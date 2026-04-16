@@ -10,17 +10,17 @@ const readArgValue = (args, index) => {
 };
 
 const extractRunnerArgs = (args) => {
-  let jobsArg;
+  let workersArg;
   let listScopesOnly = false;
   const passthroughArgs = [];
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
-    if (arg === '--jobs') {
+    if (arg === '--workers' || arg === '--jobs') {
       const value = readArgValue(args, i);
-      if (!value) {
-        throw new Error('Missing value for --jobs');
+      if (value === undefined) {
+        throw new Error(`Missing value for ${arg}`);
       }
-      jobsArg = Number(value);
+      workersArg = Number(value);
       i += 1;
       continue;
     }
@@ -31,10 +31,10 @@ const extractRunnerArgs = (args) => {
     }
     passthroughArgs.push(arg);
   }
-  return { jobsArg, listScopesOnly, passthroughArgs };
+  return { workersArg, listScopesOnly, passthroughArgs };
 };
 
-const { jobsArg, listScopesOnly, passthroughArgs } = extractRunnerArgs(rawArgs);
+const { workersArg, listScopesOnly, passthroughArgs } = extractRunnerArgs(rawArgs);
 
 const build = ensureSimTestsBuild();
 fs.mkdirSync('.tmp/sim-tests', { recursive: true });
@@ -43,8 +43,8 @@ const testEntry = build.entryPath;
 
 const cpuCount = typeof os.availableParallelism === 'function' ? os.availableParallelism() : (os.cpus()?.length ?? 1);
 const autoJobs = Math.max(1, Math.min(6, cpuCount - 1));
-const envJobs = Number(process.env.TEST_JOBS);
-const requestedJobs = Number.isFinite(jobsArg) ? jobsArg : (Number.isFinite(envJobs) ? envJobs : autoJobs);
+const envWorkers = Number(process.env.TEST_WORKERS ?? process.env.TEST_JOBS);
+const requestedJobs = Number.isFinite(workersArg) ? workersArg : (Number.isFinite(envWorkers) ? envWorkers : autoJobs);
 const jobs = Math.max(1, Math.floor(requestedJobs));
 
 const runSingle = () => {

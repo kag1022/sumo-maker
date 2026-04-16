@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": ".tmp/banzuke-validation",
+    "rootDir": ".",
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["scripts/reports/banzuke_context_validation.ts", "src/logic/**/*.ts"]
+}

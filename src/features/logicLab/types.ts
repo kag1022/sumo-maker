@@ -1,6 +1,7 @@
 import { InjuryStatusType, Rank, RealismKpiSnapshot } from '../../logic/models';
 import { KimariteTuningPresetId } from '../../logic/kimarite/selection';
 import { PauseReason } from '../../logic/simulation/engine';
+import { SimulationTimingPhase } from '../../logic/simulation/engine';
 
 
 export type LogicLabPresetId =
@@ -102,6 +103,11 @@ export interface LogicLabSummary {
   injurySummary: LogicLabInjurySummary;
   committeeWarnings: number;
   realismKpi: RealismKpiSnapshot;
+  totalMs: number;
+  avgMsPerBasho: number;
+  slowestBashoMs: number;
+  phaseTotalsMs: Record<SimulationTimingPhase, number>;
+  phaseShare: Record<SimulationTimingPhase, number>;
   stopReason?: LogicLabStopReason;
 }
 

@@ -1,9 +1,12 @@
 import { RandomSource } from '../deps';
 import { LowerDivisionQuotaWorld, LowerNpc } from '../lower/types';
 import { intakeNewNpcRecruits } from './intake';
+import { resolveMonthlyIntakePulse } from './populationPlan';
+import { PopulationPlan } from './populationPlanTypes';
 import { PersistentNpc } from './types';
 import { SekitoriBoundaryWorld } from '../sekitori/types';
 import { SimulationWorld } from '../world';
+import { countActiveBanzukeHeadcountExcludingMaezumo } from '../world';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../../banzuke/population/flow';
 
 type LeagueDivision =
@@ -46,14 +49,20 @@ export interface ReconcileReport {
   moves: ReconcileMove[];
 }
 
-const createEmptyBuckets = (): Record<LeagueDivision, PersistentNpc[]> => ({
-  Makuuchi: [],
-  Juryo: [],
-  Makushita: [],
-  Sandanme: [],
-  Jonidan: [],
-  Jonokuchi: [],
-  Maezumo: [],
+interface BucketState {
+  items: PersistentNpc[];
+  start: number;
+  end: number;
+}
+
+const createEmptyBuckets = (): Record<LeagueDivision, BucketState> => ({
+  Makuuchi: { items: [], start: 0, end: 0 },
+  Juryo: { items: [], start: 0, end: 0 },
+  Makushita: { items: [], start: 0, end: 0 },
+  Sandanme: { items: [], start: 0, end: 0 },
+  Jonidan: { items: [], start: 0, end: 0 },
+  Jonokuchi: { items: [], start: 0, end: 0 },
+  Maezumo: { items: [], start: 0, end: 0 },
 });
 
 const compareByRankThenId = (a: PersistentNpc, b: PersistentNpc): number => {
@@ -70,53 +79,109 @@ const resolveDivision = (npc: PersistentNpc): LeagueDivision => {
   return 'Maezumo';
 };
 
-const takeBest = (bucket: PersistentNpc[]): PersistentNpc | undefined => {
-  bucket.sort(compareByRankThenId);
-  return bucket.shift();
-};
+const getBucketLength = (bucket: BucketState): number => bucket.end - bucket.start;
 
-const takeWorst = (bucket: PersistentNpc[]): PersistentNpc | undefined => {
-  bucket.sort(compareByRankThenId);
-  return bucket.pop();
-};
+const toBucketArray = (bucket: BucketState): PersistentNpc[] =>
+  bucket.items.slice(bucket.start, bucket.end);
 
-const countActive = (world: SimulationWorld): number => {
-  let total = 0;
-  for (const npc of world.npcRegistry.values()) {
-    if (npc.actorType === 'PLAYER') continue;
-    if (npc.active) total += 1;
+const insertSorted = (bucket: BucketState, npc: PersistentNpc): void => {
+  let low = bucket.start;
+  let high = bucket.end;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (compareByRankThenId(bucket.items[mid], npc) <= 0) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
   }
-  return total;
+  bucket.items.splice(low, 0, npc);
+  bucket.end += 1;
 };
 
-const toCounts = (buckets: Record<LeagueDivision, PersistentNpc[]>): ReconcileCounts => ({
-  Makuuchi: buckets.Makuuchi.length,
-  Juryo: buckets.Juryo.length,
-  Makushita: buckets.Makushita.length,
-  Sandanme: buckets.Sandanme.length,
-  Jonidan: buckets.Jonidan.length,
-  Jonokuchi: buckets.Jonokuchi.length,
-  Maezumo: buckets.Maezumo.length,
+const takeBest = (bucket: BucketState): PersistentNpc | undefined =>
+  bucket.start < bucket.end
+    ? bucket.items[bucket.start++]
+    : undefined;
+
+const takeWorst = (bucket: BucketState): PersistentNpc | undefined =>
+  bucket.start < bucket.end
+    ? bucket.items[--bucket.end]
+    : undefined;
+
+const toCounts = (buckets: Record<LeagueDivision, BucketState>): ReconcileCounts => ({
+  Makuuchi: getBucketLength(buckets.Makuuchi),
+  Juryo: getBucketLength(buckets.Juryo),
+  Makushita: getBucketLength(buckets.Makushita),
+  Sandanme: getBucketLength(buckets.Sandanme),
+  Jonidan: getBucketLength(buckets.Jonidan),
+  Jonokuchi: getBucketLength(buckets.Jonokuchi),
+  Maezumo: getBucketLength(buckets.Maezumo),
 });
 
-const resolveIntakeDrivenPolicies = (maezumoCount: number) => {
-  const intakePressure = clamp(maezumoCount, 0, 120);
-  const jonokuchiMin = clamp(18 + Math.floor(intakePressure * 0.25), 18, 48);
-  const jonidanMin = clamp(120 + Math.floor(intakePressure * 0.55), 120, 240);
+const resolvePopulationDrivenPolicies = (
+  populationPlan: PopulationPlan | undefined,
+  month: number,
+) => {
+  if (!populationPlan) {
+    return DEFAULT_DIVISION_POLICIES;
+  }
+  const intakePulse = resolveMonthlyIntakePulse(month);
+  const elasticity = populationPlan.lowerDivisionElasticity;
+  const jonidanCenter = clamp(
+    250 +
+      Math.round(populationPlan.jonidanShock * populationPlan.sampledJonidanSwing * 0.65) +
+      Math.round(intakePulse * populationPlan.sampledJonidanSwing * 0.45 * elasticity),
+    200,
+    320,
+  );
+  const jonokuchiCenter = clamp(
+    78 +
+      Math.round(populationPlan.jonokuchiShock * populationPlan.sampledJonokuchiSwing * 0.75) +
+      Math.round(intakePulse * populationPlan.sampledJonokuchiSwing * 0.42 * elasticity),
+    45,
+    120,
+  );
+  const jonidanMargin = clamp(
+    Math.round(populationPlan.sampledJonidanSwing * 0.42 * elasticity),
+    12,
+    60,
+  );
+  const jonokuchiMargin = clamp(
+    Math.round(populationPlan.sampledJonokuchiSwing * 0.45 * elasticity),
+    8,
+    28,
+  );
+  const jonidanMin = clamp(jonidanCenter - jonidanMargin, 180, 320);
+  const jonidanSoftMax = clamp(jonidanCenter + jonidanMargin, 200, 340);
+  const jonokuchiMin = clamp(jonokuchiCenter - jonokuchiMargin, 45, 120);
+  const jonokuchiSoftMax = clamp(jonokuchiCenter + jonokuchiMargin, 45, 120);
+  const jonidanTarget = clamp(
+    jonidanCenter,
+    jonidanMin,
+    jonidanSoftMax,
+  );
+  const jonokuchiTarget = clamp(
+    jonokuchiCenter,
+    jonokuchiMin,
+    jonokuchiSoftMax,
+  );
 
   return DEFAULT_DIVISION_POLICIES.map((policy) => {
     if (policy.division === 'Jonokuchi' && policy.capacityMode === 'VARIABLE') {
       return {
         ...policy,
         minSlots: jonokuchiMin,
-        softMaxSlots: 48,
+        softMaxSlots: jonokuchiSoftMax,
+        targetSlots: jonokuchiTarget,
       };
     }
     if (policy.division === 'Jonidan' && policy.capacityMode === 'VARIABLE') {
       return {
         ...policy,
         minSlots: jonidanMin,
-        softMaxSlots: 240,
+        softMaxSlots: jonidanSoftMax,
+        targetSlots: jonidanTarget,
       };
     }
     return policy;
@@ -212,6 +277,7 @@ export const reconcileNpcLeague = (
   rng: RandomSource,
   seq: number,
   month: number,
+  populationPlan?: PopulationPlan,
 ): ReconcileReport => {
   const buckets = createEmptyBuckets();
   const moves: ReconcileMove[] = [];
@@ -221,11 +287,16 @@ export const reconcileNpcLeague = (
     if (npc.actorType === 'PLAYER') continue;
     if (!npc.active) continue;
     const division = resolveDivision(npc);
-    buckets[division].push(npc);
+    buckets[division].items.push(npc);
+    buckets[division].end += 1;
+  }
+
+  for (const division of ORDER) {
+    buckets[division].items.sort(compareByRankThenId);
   }
 
   const before = toCounts(buckets);
-  const policyMap = resolveDivisionPolicyMap(resolveIntakeDrivenPolicies(buckets.Maezumo.length));
+  const policyMap = resolveDivisionPolicyMap(resolvePopulationDrivenPolicies(populationPlan, month));
 
   const recruitToMaezumo = (): boolean => {
     const intake = intakeNewNpcRecruits(
@@ -237,14 +308,15 @@ export const reconcileNpcLeague = (
       },
       seq,
       month,
-      countActive(world),
+      countActiveBanzukeHeadcountExcludingMaezumo(world),
+      populationPlan,
       rng,
     );
     world.nextNpcSerial = intake.nextNpcSerial;
     lowerWorld.nextNpcSerial = intake.nextNpcSerial;
     if (!intake.recruits.length) return false;
     for (const recruit of intake.recruits) {
-      buckets.Maezumo.push(recruit);
+      insertSorted(buckets.Maezumo, recruit);
       moves.push({ id: recruit.id, to: 'Maezumo', type: 'INTAKE' });
     }
     recruited += intake.recruits.length;
@@ -259,13 +331,13 @@ export const reconcileNpcLeague = (
   ): void => {
     npc.currentDivision = to;
     npc.division = to;
-    buckets[to].push(npc);
+    insertSorted(buckets[to], npc);
     moves.push({ id: npc.id, from, to, type });
   };
 
   const ensureSource = (index: number): boolean => {
     const division = ORDER[index];
-    if (buckets[division].length > 0) return true;
+    if (getBucketLength(buckets[division]) > 0) return true;
 
     if (division === 'Maezumo') {
       return recruitToMaezumo();
@@ -285,16 +357,16 @@ export const reconcileNpcLeague = (
     const division = ORDER[i];
     const lowerDivision = ORDER[i + 1];
     if (division === 'Maezumo') continue;
-    const target = resolveTargetHeadcount(division, buckets[division].length, policyMap);
+    const target = resolveTargetHeadcount(division, getBucketLength(buckets[division]), policyMap);
 
-    while (buckets[division].length > target.max) {
+    while (getBucketLength(buckets[division]) > target.max) {
       const demoted = takeWorst(buckets[division]);
       if (!demoted) break;
       moveNpc(demoted, division, lowerDivision, 'DEMOTE');
     }
 
     if (target.fixed) {
-      while (buckets[division].length < target.target) {
+      while (getBucketLength(buckets[division]) < target.target) {
         if (!ensureSource(i + 1)) break;
         const promoted = takeBest(buckets[lowerDivision]);
         if (!promoted) break;
@@ -303,7 +375,20 @@ export const reconcileNpcLeague = (
       continue;
     }
 
-    while (buckets[division].length < target.min) {
+    while (getBucketLength(buckets[division]) < target.min) {
+      if (!ensureSource(i + 1)) break;
+      const promoted = takeBest(buckets[lowerDivision]);
+      if (!promoted) break;
+      moveNpc(promoted, lowerDivision, division, 'PROMOTE');
+    }
+
+    while (getBucketLength(buckets[division]) > target.target) {
+      const demoted = takeWorst(buckets[division]);
+      if (!demoted) break;
+      moveNpc(demoted, division, lowerDivision, 'DEMOTE');
+    }
+
+    while (getBucketLength(buckets[division]) < target.target) {
       if (!ensureSource(i + 1)) break;
       const promoted = takeBest(buckets[lowerDivision]);
       if (!promoted) break;
@@ -311,47 +396,45 @@ export const reconcileNpcLeague = (
     }
   }
 
-  for (const division of ORDER) {
-    const bucket = buckets[division].sort(compareByRankThenId);
+  const orderedBuckets = ORDER.reduce((acc, division) => {
+    const bucket = toBucketArray(buckets[division]);
     for (let i = 0; i < bucket.length; i += 1) {
       const npc = bucket[i];
       npc.currentDivision = division;
       npc.division = division;
       npc.rankScore = i + 1;
     }
-  }
+    acc[division] = bucket;
+    return acc;
+  }, {} as Record<LeagueDivision, PersistentNpc[]>);
 
-  world.rosters.Makuuchi = buckets.Makuuchi
+  world.rosters.Makuuchi = orderedBuckets.Makuuchi
     .slice()
-    .sort(compareByRankThenId)
     .map((npc) => toTopRosterItem(npc, 'Makuuchi'));
-  world.rosters.Juryo = buckets.Juryo
+  world.rosters.Juryo = orderedBuckets.Juryo
     .slice()
-    .sort(compareByRankThenId)
     .map((npc) => toTopRosterItem(npc, 'Juryo'));
 
   world.lowerRosterSeeds = {
-    Makushita: buckets.Makushita.slice().sort(compareByRankThenId),
-    Sandanme: buckets.Sandanme.slice().sort(compareByRankThenId),
-    Jonidan: buckets.Jonidan.slice().sort(compareByRankThenId),
-    Jonokuchi: buckets.Jonokuchi.slice().sort(compareByRankThenId),
+    Makushita: orderedBuckets.Makushita.slice(),
+    Sandanme: orderedBuckets.Sandanme.slice(),
+    Jonidan: orderedBuckets.Jonidan.slice(),
+    Jonokuchi: orderedBuckets.Jonokuchi.slice(),
   };
-  world.maezumoPool = buckets.Maezumo.slice().sort(compareByRankThenId);
+  world.maezumoPool = orderedBuckets.Maezumo.slice();
 
   lowerWorld.rosters = {
-    Makushita: buckets.Makushita.slice().sort(compareByRankThenId).map((npc) => toLowerNpc(npc, 'Makushita')),
-    Sandanme: buckets.Sandanme.slice().sort(compareByRankThenId).map((npc) => toLowerNpc(npc, 'Sandanme')),
-    Jonidan: buckets.Jonidan.slice().sort(compareByRankThenId).map((npc) => toLowerNpc(npc, 'Jonidan')),
-    Jonokuchi: buckets.Jonokuchi.slice().sort(compareByRankThenId).map((npc) => toLowerNpc(npc, 'Jonokuchi')),
+    Makushita: orderedBuckets.Makushita.map((npc) => toLowerNpc(npc, 'Makushita')),
+    Sandanme: orderedBuckets.Sandanme.map((npc) => toLowerNpc(npc, 'Sandanme')),
+    Jonidan: orderedBuckets.Jonidan.map((npc) => toLowerNpc(npc, 'Jonidan')),
+    Jonokuchi: orderedBuckets.Jonokuchi.map((npc) => toLowerNpc(npc, 'Jonokuchi')),
   };
-  lowerWorld.maezumoPool = buckets.Maezumo
+  lowerWorld.maezumoPool = orderedBuckets.Maezumo
     .slice()
-    .sort(compareByRankThenId)
     .map((npc) => toLowerNpc(npc, 'Maezumo'));
 
-  boundaryWorld.makushitaPool = buckets.Makushita
+  boundaryWorld.makushitaPool = orderedBuckets.Makushita
     .slice()
-    .sort(compareByRankThenId)
     .map(toMakushitaPoolNpc);
   boundaryWorld.npcRegistry = world.npcRegistry;
 

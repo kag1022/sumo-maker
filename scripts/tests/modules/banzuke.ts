@@ -1,7 +1,7 @@
-import { tests as legacyTests } from '../legacy/allCases';
-import { createScopedModule } from '../_shared/moduleUtils';
+import { tests as currentTests } from '../current/banzuke';
+import { createScopedModule } from '../shared/moduleUtils';
 
-export const banzukeTestModule = createScopedModule('banzuke', legacyTests, [
+export const banzukeTestModule = createScopedModule('banzuke', currentTests, [
   'banzuke',
   'banzuke scoring',
   'quota',

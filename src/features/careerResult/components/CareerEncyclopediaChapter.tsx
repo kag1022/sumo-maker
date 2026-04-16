@@ -1,0 +1,332 @@
+import React from "react";
+import { BookUser, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
+import { CONSTANTS } from "../../../logic/constants";
+import { type RikishiStatus } from "../../../logic/models";
+import {
+  ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveDisplayedWeakStyles,
+  resolveStyleLabelsOrFallback,
+} from "../../../logic/style/identity";
+import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
+import { Button } from "../../../shared/ui/Button";
+import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
+import type { CareerOverviewModel } from "../utils/careerResultModel";
+import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
+
+interface CareerEncyclopediaChapterProps {
+  status: RikishiStatus;
+  overview: CareerOverviewModel;
+  highestRankLabel: string;
+  isSaved: boolean;
+  detailState: "idle" | "building" | "ready" | "error";
+  detailBuildProgress: DetailBuildProgress | null;
+  onSave: () => void | Promise<void>;
+  onReturnToScout: () => void;
+}
+
+const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
+  NORMAL: "均整型",
+  SOPPU: "ソップ型",
+  ANKO: "アンコ型",
+  MUSCULAR: "筋骨型",
+};
+
+const formatRecordText = (wins: number, losses: number, absent: number): string =>
+  `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
+
+const formatWinRate = (wins: number, losses: number): string => {
+  const total = wins + losses;
+  if (total <= 0) return "-";
+  return `${((wins / total) * 100).toFixed(1)}%`;
+};
+
+const InfoCard: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ title, icon, children }) => (
+  <section className="career-encyclopedia-card">
+    <div className="career-encyclopedia-cardhead">
+      <span className="career-encyclopedia-cardicon">{icon}</span>
+      <div className="career-encyclopedia-cardtitle">{title}</div>
+    </div>
+    {children}
+  </section>
+);
+
+const KeyValueGrid: React.FC<{
+  rows: Array<{ label: string; value: string }>;
+}> = ({ rows }) => (
+  <div className="career-encyclopedia-grid">
+    {rows.map((row) => (
+      <div key={row.label} className="career-encyclopedia-griditem">
+        <span>{row.label}</span>
+        <strong>{row.value}</strong>
+      </div>
+    ))}
+  </div>
+);
+
+export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
+  status,
+  overview,
+  highestRankLabel,
+  isSaved,
+  detailState,
+  detailBuildProgress,
+  onSave,
+  onReturnToScout,
+}) => {
+  const initial = status.buildSummary?.initialConditionSummary;
+  const growth = status.buildSummary?.growthSummary;
+  const narrative = status.careerNarrative;
+  const learnedTraits = React.useMemo(
+    () =>
+      (status.traitJourney ?? [])
+        .filter((entry) => entry.state === "LEARNED")
+        .map((entry) => ({
+          ...entry,
+          data: CONSTANTS.TRAIT_DATA[entry.trait],
+        })),
+    [status.traitJourney],
+  );
+  const profileRows = React.useMemo(
+    () =>
+      [
+        { label: "最高位", value: highestRankLabel },
+        { label: "所属部屋", value: initial?.stableName ?? overview.stableName },
+        { label: "出身地", value: initial?.birthplace ?? status.profile.birthplace },
+        { label: "入門年齢", value: `${initial?.entryAge ?? status.entryAge}歳` },
+        { label: "現在体格", value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg` },
+        { label: "引退年齢", value: `${status.age}歳` },
+      ].filter((row) => Boolean(row.value)),
+    [highestRankLabel, initial?.birthplace, initial?.entryAge, initial?.stableName, overview.stableName, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
+  );
+  const subProfileRows = React.useMemo(
+    () =>
+      [
+        initial?.entryPathLabel ? { label: "入門経路", value: initial.entryPathLabel } : null,
+        initial?.temperamentLabel ? { label: "気質", value: initial.temperamentLabel } : null,
+        initial?.bodySeedLabel ? { label: "身体の素地", value: initial.bodySeedLabel } : null,
+        growth?.bodyTypeLabel || BODY_LABELS[status.bodyType]
+          ? { label: "体型", value: growth?.bodyTypeLabel ?? BODY_LABELS[status.bodyType] }
+          : null,
+      ].filter((row): row is { label: string; value: string } => Boolean(row)),
+    [growth?.bodyTypeLabel, initial?.bodySeedLabel, initial?.entryPathLabel, initial?.temperamentLabel, status.bodyType],
+  );
+  const totalSansho = React.useMemo(
+    () => status.history.records.reduce((sum, record) => sum + (record.specialPrizes?.length ?? 0), 0),
+    [status.history.records],
+  );
+  const topMoves = React.useMemo(
+    () =>
+      Object.entries(status.history.kimariteTotal ?? {})
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([move]) => move),
+    [status.history.kimariteTotal],
+  );
+  const styleIdentity = React.useMemo(
+    () => ensureStyleIdentityProfile(status).styleIdentityProfile,
+    [status],
+  );
+  const strengthLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(resolveDisplayedStrengthStyles(styleIdentity)),
+    [styleIdentity],
+  );
+  const weaknessLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(resolveDisplayedWeakStyles(styleIdentity)),
+    [styleIdentity],
+  );
+  const signatureLines = React.useMemo(() => {
+    const lines: Array<{ label: string; value: string }> = [];
+    lines.push({
+      label: "得意な型",
+      value: strengthLabel,
+    });
+    lines.push({
+      label: "苦手な型",
+      value: weaknessLabel,
+    });
+    const representativeMoves = [...new Set([...status.signatureMoves, ...topMoves].filter(Boolean))].slice(0, 3);
+    if (representativeMoves.length > 0) {
+      lines.push({
+        label: "代表技",
+        value: representativeMoves.join(" / "),
+      });
+    }
+    return lines;
+  }, [status.signatureMoves, strengthLabel, topMoves, weaknessLabel]);
+  const recordRows = React.useMemo(
+    () =>
+      [
+        { label: "通算成績", value: formatRecordText(status.history.totalWins, status.history.totalLosses, status.history.totalAbsent) },
+        { label: "勝率", value: formatWinRate(status.history.totalWins, status.history.totalLosses) },
+        { label: "幕内優勝", value: `${status.history.yushoCount.makuuchi}回` },
+        totalSansho > 0 ? { label: "三賞", value: `${totalSansho}回` } : null,
+        (status.history.records.some((record) => (record.kinboshi ?? 0) > 0))
+          ? {
+              label: "金星",
+              value: `${status.history.records.reduce((sum, record) => sum + (record.kinboshi ?? 0), 0)}個`,
+            }
+          : null,
+      ].filter((row): row is { label: string; value: string } => Boolean(row)),
+    [status.history.records, status.history.totalAbsent, status.history.totalLosses, status.history.totalWins, status.history.yushoCount.makuuchi, totalSansho],
+  );
+  const memoLines = React.useMemo(
+    () =>
+      [
+        narrative?.initialConditions,
+        narrative?.careerIdentity,
+        narrative?.growthArc,
+        narrative?.retirementDigest,
+      ].filter((line): line is string => Boolean(line)).slice(0, 3),
+    [narrative?.careerIdentity, narrative?.growthArc, narrative?.initialConditions, narrative?.retirementDigest],
+  );
+  const saveDisabled = detailState !== "ready";
+  const saveCopy = saveDisabled
+    ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
+    : "名鑑の内容を確認したうえで、この人生を残すか決められます。";
+
+  return (
+    <section className="career-encyclopedia-shell">
+      <div className="career-encyclopedia-hero">
+        <div className="career-encyclopedia-copy">
+          <p className="career-encyclopedia-kicker">力士名鑑</p>
+          <h1 className="career-encyclopedia-name">{status.shikona}</h1>
+          <div className="career-encyclopedia-rank">{highestRankLabel}</div>
+          <div className="career-encyclopedia-origin">
+            {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+          </div>
+          <p className="career-encyclopedia-summary">
+            {memoLines[0] ?? overview.lifeSummary}
+          </p>
+          <div className="career-encyclopedia-summaryrow">
+            <div className="career-encyclopedia-summarymetric">
+              <span>通算</span>
+              <strong>{overview.totalRecordLabel}</strong>
+            </div>
+            <div className="career-encyclopedia-summarymetric">
+              <span>勝率</span>
+              <strong>{overview.winRateLabel}</strong>
+            </div>
+            <div className="career-encyclopedia-summarymetric">
+              <span>在位</span>
+              <strong>{overview.careerPeriodLabel}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="career-encyclopedia-portraitdock">
+          <RikishiPortrait
+            bodyType={status.bodyType}
+            className="career-encyclopedia-portrait"
+            innerClassName="career-encyclopedia-portrait-inner"
+            presentation="blend"
+          />
+        </div>
+      </div>
+
+      <div className="career-encyclopedia-actions">
+        {!isSaved ? (
+          <>
+            <div className="career-encyclopedia-actioncopy">
+              <div className="career-encyclopedia-actionkicker">保存判断</div>
+              <div>{saveCopy}</div>
+            </div>
+            <div className="career-encyclopedia-actionbuttons">
+              <Button size="lg" disabled={saveDisabled} onClick={() => void onSave()}>
+                <Save className="mr-2 h-4 w-4" />
+                {saveDisabled ? "記録整理中" : "この人生を保存する"}
+              </Button>
+              <Button variant="outline" onClick={onReturnToScout}>
+                保存せず次の新弟子へ
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="career-encyclopedia-actioncopy">
+              <div className="career-encyclopedia-actionkicker">保存済み</div>
+              <div>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onReturnToScout}>
+              新弟子設計へ戻る
+            </Button>
+          </>
+        )}
+      </div>
+
+      <div className="career-encyclopedia-layout">
+        <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
+          <KeyValueGrid rows={profileRows} />
+          {subProfileRows.length > 0 ? (
+            <>
+              <div className="career-encyclopedia-subtitle">補足</div>
+              <KeyValueGrid rows={subProfileRows} />
+            </>
+          ) : null}
+        </InfoCard>
+
+        <InfoCard title="力士像の補足" icon={<Swords className="h-4 w-4" />}>
+          {signatureLines.length > 0 ? (
+            <div className="career-encyclopedia-stack">
+              {signatureLines.map((line) => (
+                <div key={line.label} className="career-encyclopedia-note">
+                  <span>{line.label}</span>
+                  <strong>{line.value}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="career-encyclopedia-empty">得意な技はまだ定まっていません。</div>
+          )}
+
+          <div className="career-encyclopedia-subtitle">人物メモ</div>
+          <div className="career-encyclopedia-stack">
+            {(memoLines.length > 1 ? memoLines.slice(1) : [overview.lifeSummary]).map((line) => (
+              <p key={line} className="career-encyclopedia-copyline">{line}</p>
+            ))}
+          </div>
+
+          <div className="career-encyclopedia-subtitle">特性</div>
+          {learnedTraits.length > 0 ? (
+            <div className="career-encyclopedia-traits">
+              {learnedTraits.map((entry) => (
+                <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className="career-encyclopedia-trait">
+                  <div className="career-encyclopedia-traithead">
+                    <strong>{entry.data?.name ?? entry.trait}</strong>
+                    <span>
+                      {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
+                    </span>
+                  </div>
+                  <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="career-encyclopedia-empty">記録された特性はありません。</div>
+          )}
+        </InfoCard>
+
+        <InfoCard title="主要実績" icon={<Trophy className="h-4 w-4" />}>
+          <KeyValueGrid rows={recordRows} />
+          {topMoves.length > 0 ? (
+            <div className="career-encyclopedia-recordnote">
+              <Star className="h-3.5 w-3.5" />
+              <span>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
+            </div>
+          ) : null}
+          {memoLines.length > 0 ? (
+            <div className="career-encyclopedia-recordnote">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{memoLines[0]}</span>
+            </div>
+          ) : null}
+        </InfoCard>
+      </div>
+    </section>
+  );
+};

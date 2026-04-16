@@ -25,6 +25,7 @@ export const runMaezumoBasho = (
   let currentLossStreak = 0;
   let previousResult: BoutOutcome | undefined;
   const kimariteCount: Record<string, number> = {};
+  const winRouteCount: Record<string, number> = {};
   let expectedWins = 0;
   let sosTotal = 0;
   let sosCount = 0;
@@ -70,6 +71,7 @@ export const runMaezumoBasho = (
         isLastDay: boutIndex === numBouts - 1,
         isYushoContention: false,
         previousResult,
+        expectedWinsSoFar: expectedWins,
       },
       rng,
     );
@@ -83,6 +85,7 @@ export const runMaezumoBasho = (
       currentWinStreak += 1;
       currentLossStreak = 0;
       kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
+      if (result.winRoute) winRouteCount[result.winRoute] = (winRouteCount[result.winRoute] || 0) + 1;
       previousResult = 'WIN';
     } else {
       losses += 1;
@@ -96,11 +99,13 @@ export const runMaezumoBasho = (
       day,
       result: result.isWin ? 'WIN' : 'LOSS',
       kimarite: result.kimarite,
+      winRoute: result.isWin ? result.winRoute : undefined,
       opponentId: enemy.id,
       opponentShikona: enemy.shikona,
       opponentRankName: '前相撲',
       opponentRankNumber: 1,
       opponentRankSide: 'East',
+      opponentStyleBias: enemy.styleBias ?? 'BALANCE',
     });
   }
 
@@ -116,6 +121,7 @@ export const runMaezumoBasho = (
       specialPrizes: [],
       ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kimariteCount,
+      winRouteCount,
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],

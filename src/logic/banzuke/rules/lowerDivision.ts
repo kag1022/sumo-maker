@@ -3,10 +3,12 @@ import { BashoRecord, Rank } from '../../models';
 import { RandomSource } from '../../simulation/deps';
 import { RankCalculationOptions } from '../types';
 import {
+  DEFAULT_SCALE_SLOTS,
   LowerDivisionKey,
   resolveLowerDivisionMax,
   resolveLowerDivisionOffset,
   resolveLowerDivisionOrder,
+  resolveScaleSlots,
   resolveLowerDivisionTotal,
   resolveRankLimits,
 } from '../scale/rankLimits';
@@ -106,6 +108,56 @@ const resolveMakushitaDeltaByScore = (
   const band = resolveMakushitaTargetBand(currentNum, record.wins, totalLosses);
   const targetNum = clamp(randomIntInclusive(rng, band.min, band.max), 1, maxNumber);
   return currentNum - targetNum;
+};
+
+const resolveBottomTailReliefSteps = (
+  record: BashoRecord,
+  scaleSlots?: RankCalculationOptions['scaleSlots'],
+): number => {
+  const division = record.rank.division as LowerDivisionKey;
+  if (division !== 'Jonidan' && division !== 'Jonokuchi') return 0;
+
+  const effectiveLosses = record.losses + record.absent;
+  const deficit = effectiveLosses - record.wins;
+  if (deficit <= 0 || record.absent >= 7) return 0;
+
+  const slots = resolveScaleSlots(scaleSlots);
+  const divisionSlots = Math.max(2, slots[division]);
+  const divisionMaxNumber = Math.max(1, Math.ceil(divisionSlots / 2));
+  const boundedRankNumber = clamp(record.rank.number || divisionMaxNumber, 1, divisionMaxNumber);
+  const distanceFromBottom = divisionMaxNumber - boundedRankNumber;
+  const bottomBand =
+    division === 'Jonokuchi'
+      ? Math.max(4, Math.ceil(divisionMaxNumber * 0.22))
+      : Math.max(8, Math.ceil(divisionMaxNumber * 0.16));
+  if (distanceFromBottom > bottomBand) return 0;
+
+  const baselineSlots = DEFAULT_SCALE_SLOTS[division];
+  const expansionSlots = Math.max(0, divisionSlots - baselineSlots);
+  const expansionRelief =
+    division === 'Jonokuchi'
+      ? Math.floor(expansionSlots * 0.35)
+      : Math.floor(expansionSlots * 0.2);
+  const deficitRelief =
+    deficit <= 1
+      ? division === 'Jonokuchi'
+        ? 8
+        : 6
+      : deficit === 2
+        ? division === 'Jonokuchi'
+          ? 6
+          : 4
+        : deficit === 3
+          ? 2
+          : 0;
+  const proximityRatio = 1 - distanceFromBottom / Math.max(1, bottomBand);
+  const proximityRelief = Math.max(
+    0,
+    Math.round((division === 'Jonokuchi' ? 4 : 3) * proximityRatio),
+  );
+  const reliefCap = division === 'Jonokuchi' ? 12 : 10;
+
+  return clamp(deficitRelief + proximityRelief + expansionRelief, 0, reliefCap);
 };
 
 export const resolveLowerRangeDeltaByScore = (
@@ -254,6 +306,16 @@ export const calculateLowerDivisionRankChange = (
             : 0;
     const jitter = rng() < 0.35 ? (rng() < 0.5 ? -1 : 1) : 0;
     nextPos += clamp(positionBias + jitter, -2, 2);
+  }
+
+  const bottomTailReliefSteps = resolveBottomTailReliefSteps(record, options?.scaleSlots);
+  if (bottomTailReliefSteps > 0) {
+    const lowerBottom = lowerTotal - 1;
+    if (nextPos > lowerBottom) {
+      nextPos = Math.max(0, lowerBottom - bottomTailReliefSteps);
+    } else {
+      nextPos -= bottomTailReliefSteps;
+    }
   }
 
   // 序ノ口は前相撲に陥落しない。

@@ -136,6 +136,30 @@ if (!isMainThread) {
     'kimarite',
     'catalog.js',
   ));
+  const { ensureKimariteRepertoire } = require(path.join(
+    process.cwd(),
+    '.tmp',
+    'sim-tests',
+    'src',
+    'logic',
+    'kimarite',
+    'repertoire.js',
+  ));
+  const {
+    ensureStyleIdentityProfile,
+    resolveDisplayedStrengthStyles,
+    resolveDisplayedWeakStyles,
+    resolveInternalStrengthStyles,
+    resolveInternalWeakStyles,
+  } = require(path.join(
+    process.cwd(),
+    '.tmp',
+    'sim-tests',
+    'src',
+    'logic',
+    'style',
+    'identity.js',
+  ));
 
   const withPatchedMathRandom = (randomFn, run) => {
     const original = Math.random;
@@ -203,6 +227,24 @@ if (!isMainThread) {
       top3MoveShare: sorted.slice(0, 3).reduce((sum, row) => sum + row.count, 0) / total,
       rareMoveRate: rareCount / total,
       dominantStyleBucket: dominantFamily ? resolveStyleBucketFromFamily(dominantFamily) : null,
+    };
+  };
+
+  const summarizeWinRouteMetrics = (winRouteTotal) => {
+    const entries = Object.entries(winRouteTotal || {}).filter(([, count]) => count > 0);
+    if (!entries.length) {
+      return {
+        dominantRoute: null,
+        dominantRouteShare: Number.NaN,
+        top2RouteShare: Number.NaN,
+      };
+    }
+    const sorted = entries.slice().sort((left, right) => right[1] - left[1]);
+    const total = sorted.reduce((sum, [, count]) => sum + count, 0);
+    return {
+      dominantRoute: sorted[0]?.[0] ?? null,
+      dominantRouteShare: sorted[0] ? sorted[0][1] / total : Number.NaN,
+      top2RouteShare: sorted.slice(0, 2).reduce((sum, [, count]) => sum + count, 0) / total,
     };
   };
 
@@ -289,8 +331,14 @@ if (!isMainThread) {
     const result = await runCareerToEnd(initial, seed, modelVersion);
     const maxRank = result.status.history.maxRank;
     const kimariteMetrics = summarizeKimariteMetrics(result.status.history.kimariteTotal);
+    const winRouteMetrics = summarizeWinRouteMetrics(result.status.history.winRouteTotal);
     const kimariteVarietyEligible =
       result.status.history.totalWins >= 100 && result.status.history.records.length >= 20;
+    const normalizedStatus = ensureKimariteRepertoire(ensureStyleIdentityProfile(result.status));
+    const strengths = resolveDisplayedStrengthStyles(normalizedStatus.styleIdentityProfile);
+    const weaknesses = resolveDisplayedWeakStyles(normalizedStatus.styleIdentityProfile);
+    const internalStrengths = resolveInternalStrengthStyles(normalizedStatus.styleIdentityProfile);
+    const internalWeaknesses = resolveInternalWeakStyles(normalizedStatus.styleIdentityProfile);
 
     parentPort.postMessage({
       isSekitori: isSekitoriRank(maxRank),
@@ -315,6 +363,18 @@ if (!isMainThread) {
       top3MoveShare: kimariteMetrics.top3MoveShare,
       rareMoveRate: kimariteMetrics.rareMoveRate,
       dominantStyleBucket: kimariteMetrics.dominantStyleBucket,
+      dominantRoute: winRouteMetrics.dominantRoute,
+      dominantRouteShare: winRouteMetrics.dominantRouteShare,
+      top2RouteShare: winRouteMetrics.top2RouteShare,
+      winRouteCounts: result.status.history.winRouteTotal,
+      kimariteCounts: result.status.history.kimariteTotal,
+      strengthStyleCount: strengths.length,
+      weakStyleCount: weaknesses.length,
+      internalStrengthStyleCount: internalStrengths.length,
+      internalWeakStyleCount: internalWeaknesses.length,
+      noStyleIdentity: strengths.length === 0,
+      repertoireUnsettled: normalizedStatus.kimariteRepertoire?.provisional !== false,
+      repertoireSettledAtBashoSeq: normalizedStatus.kimariteRepertoire?.settledAtBashoSeq,
       kimariteVariety20Reached:
         kimariteVarietyEligible && kimariteMetrics.uniqueOfficialKimariteCount >= 20,
     });
@@ -535,7 +595,18 @@ if (!isMainThread) {
       const uniqueOfficialKimariteCounts = [];
       const top1MoveShares = [];
       const top3MoveShares = [];
+      const dominantRouteShares = [];
+      const top2RouteShares = [];
       const rareMoveRates = [];
+      const aggregateKimariteCounts = new Map();
+      const aggregateWinRouteCounts = new Map();
+      let strengthStyleCountTotal = 0;
+      let weakStyleCountTotal = 0;
+      let internalStrengthStyleCountTotal = 0;
+      let internalWeakStyleCountTotal = 0;
+      let noStyleIdentityCount = 0;
+      let repertoireUnsettledCount = 0;
+      const repertoireSettledAtBashoSeqs = [];
       let kimariteVarietyEligibleCount = 0;
       let kimariteVariety20Count = 0;
       const styleBucketMetrics = {
@@ -570,6 +641,15 @@ if (!isMainThread) {
           if (message.isMakuuchi) makuuchiCount += 1;
           if (message.isSanyaku) sanyakuCount += 1;
           if (message.isYokozuna) yokozunaCount += 1;
+          strengthStyleCountTotal += message.strengthStyleCount ?? 0;
+          weakStyleCountTotal += message.weakStyleCount ?? 0;
+          internalStrengthStyleCountTotal += message.internalStrengthStyleCount ?? 0;
+          internalWeakStyleCountTotal += message.internalWeakStyleCount ?? 0;
+          if (message.noStyleIdentity) noStyleIdentityCount += 1;
+          if (message.repertoireUnsettled) repertoireUnsettledCount += 1;
+          if (Number.isFinite(message.repertoireSettledAtBashoSeq)) {
+            repertoireSettledAtBashoSeqs.push(message.repertoireSettledAtBashoSeq);
+          }
 
           totalWins += message.totalWins;
           totalLosses += message.totalLosses;
@@ -635,6 +715,12 @@ if (!isMainThread) {
             if (Number.isFinite(message.rareMoveRate)) {
               rareMoveRates.push(message.rareMoveRate);
             }
+            if (Number.isFinite(message.dominantRouteShare)) {
+              dominantRouteShares.push(message.dominantRouteShare);
+            }
+            if (Number.isFinite(message.top2RouteShare)) {
+              top2RouteShares.push(message.top2RouteShare);
+            }
             if (message.dominantStyleBucket && styleBucketMetrics[message.dominantStyleBucket]) {
               styleBucketMetrics[message.dominantStyleBucket].uniqueCounts.push(
                 message.uniqueOfficialKimariteCount,
@@ -649,6 +735,14 @@ if (!isMainThread) {
                 message.rareMoveRate,
               );
             }
+          }
+          for (const [name, count] of Object.entries(message.kimariteCounts || {})) {
+            if (!Number.isFinite(count) || count <= 0) continue;
+            aggregateKimariteCounts.set(name, (aggregateKimariteCounts.get(name) ?? 0) + count);
+          }
+          for (const [name, count] of Object.entries(message.winRouteCounts || {})) {
+            if (!Number.isFinite(count) || count <= 0) continue;
+            aggregateWinRouteCounts.set(name, (aggregateWinRouteCounts.get(name) ?? 0) + count);
           }
 
           tasksCompleted += 1;
@@ -674,6 +768,28 @@ if (!isMainThread) {
             const sortedUniqueOfficialKimariteCounts = uniqueOfficialKimariteCounts.slice().sort((left, right) => left - right);
             const sortedTop1MoveShares = top1MoveShares.slice().sort((left, right) => left - right);
             const sortedTop3MoveShares = top3MoveShares.slice().sort((left, right) => left - right);
+            const sortedDominantRouteShares = dominantRouteShares.slice().sort((left, right) => left - right);
+            const sortedTop2RouteShares = top2RouteShares.slice().sort((left, right) => left - right);
+            const sortedRepertoireSettledAtBashoSeqs = repertoireSettledAtBashoSeqs
+              .slice()
+              .sort((left, right) => left - right);
+            const totalKimariteCount = [...aggregateKimariteCounts.values()].reduce((sum, value) => sum + value, 0);
+            const topKimarite = [...aggregateKimariteCounts.entries()]
+              .sort((left, right) => right[1] - left[1])
+              .slice(0, 10)
+              .map(([name, count]) => ({
+                name,
+                count,
+                share: totalKimariteCount > 0 ? count / totalKimariteCount : Number.NaN,
+              }));
+            const totalWinRouteCount = [...aggregateWinRouteCounts.values()].reduce((sum, value) => sum + value, 0);
+            const topWinRoutes = [...aggregateWinRouteCounts.entries()]
+              .sort((left, right) => right[1] - left[1])
+              .map(([name, count]) => ({
+                name,
+                count,
+                share: totalWinRouteCount > 0 ? count / totalWinRouteCount : Number.NaN,
+              }));
             const overallSummary = finalizeCareerRateAccumulator(overallCareerRates);
             const sekitoriSummary = finalizeCareerRateAccumulator(sekitoriCareerRates);
             const nonSekitoriSummary = finalizeCareerRateAccumulator(nonSekitoriCareerRates);
@@ -738,10 +854,21 @@ if (!isMainThread) {
               uniqueKimariteP90: percentile(sortedUniqueOfficialKimariteCounts, 0.9),
               topMoveShareP50: percentile(sortedTop1MoveShares, 0.5),
               top3MoveShareP50: percentile(sortedTop3MoveShares, 0.5),
-              rareMoveRate:
+              dominantRouteShareP50: percentile(sortedDominantRouteShares, 0.5),
+              top2RouteShareP50: percentile(sortedTop2RouteShares, 0.5),
+               strengthStyleCountMean: strengthStyleCountTotal / runs,
+               weakStyleCountMean: weakStyleCountTotal / runs,
+               internalStrengthStyleCountMean: internalStrengthStyleCountTotal / runs,
+               internalWeakStyleCountMean: internalWeakStyleCountTotal / runs,
+               noStyleIdentityRate: noStyleIdentityCount / runs,
+               repertoireUnsettledRate: repertoireUnsettledCount / runs,
+               repertoireSettledAtBashoSeqP50: percentile(sortedRepertoireSettledAtBashoSeqs, 0.5),
+               rareMoveRate:
                 rareMoveRates.length > 0
                   ? rareMoveRates.reduce((sum, value) => sum + value, 0) / rareMoveRates.length
                   : Number.NaN,
+              topKimarite,
+              topWinRoutes,
               kimariteVariety20Rate:
                 kimariteVarietyEligibleCount > 0
                   ? kimariteVariety20Count / kimariteVarietyEligibleCount
@@ -879,7 +1006,16 @@ if (!isMainThread) {
     lines.push(renderMonitorLine('通算種類数 P90', 'style-bucket target', Number.isFinite(metrics.uniqueKimariteP90) ? String(metrics.uniqueKimariteP90.toFixed(1)) : 'n/a'));
     lines.push(renderMonitorLine('主力1手比率 P50', 'monitor', toPctOrNA(metrics.topMoveShareP50)));
     lines.push(renderMonitorLine('主力3手比率 P50', 'monitor', toPctOrNA(metrics.top3MoveShareP50)));
+    lines.push(renderMonitorLine('勝ち筋支配率 P50', 'monitor', toPctOrNA(metrics.dominantRouteShareP50)));
+    lines.push(renderMonitorLine('勝ち筋上位2本比率 P50', 'monitor', toPctOrNA(metrics.top2RouteShareP50)));
     lines.push(renderMonitorLine('レア技率', 'monitor', toPctOrNA(metrics.rareMoveRate)));
+    lines.push(renderMonitorLine('得意な型数 平均', 'monitor', Number.isFinite(metrics.strengthStyleCountMean) ? metrics.strengthStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('苦手な型数 平均', 'monitor', Number.isFinite(metrics.weakStyleCountMean) ? metrics.weakStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('内部得意型数 平均', 'monitor', Number.isFinite(metrics.internalStrengthStyleCountMean) ? metrics.internalStrengthStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('内部苦手型数 平均', 'monitor', Number.isFinite(metrics.internalWeakStyleCountMean) ? metrics.internalWeakStyleCountMean.toFixed(2) : 'n/a'));
+    lines.push(renderMonitorLine('型なし率', 'monitor', toPctOrNA(metrics.noStyleIdentityRate)));
+    lines.push(renderMonitorLine('レパートリー未収束率', 'monitor', toPctOrNA(metrics.repertoireUnsettledRate)));
+    lines.push(renderMonitorLine('レパートリー収束場所 P50', 'monitor', Number.isFinite(metrics.repertoireSettledAtBashoSeqP50) ? metrics.repertoireSettledAtBashoSeqP50.toFixed(1) : 'n/a'));
     lines.push(renderGateLine('20種類達成率', `${toPct(KIMARITE_VARIETY_GATE.variety20RateMin)}-${toPct(KIMARITE_VARIETY_GATE.variety20RateMax)}`, toPctOrNA(metrics.kimariteVariety20Rate), gate.variety20Pass));
     for (const bucket of ['PUSH', 'GRAPPLE', 'TECHNIQUE']) {
       const sample = metrics.styleBucketMetrics?.[bucket];
@@ -901,6 +1037,20 @@ if (!isMainThread) {
           bucketGate.p90Pass,
         ),
       );
+    }
+    if (metrics.topKimarite?.length) {
+      lines.push('');
+      lines.push('- simulated top10:');
+      for (const row of metrics.topKimarite) {
+        lines.push(`  - ${row.name}: ${row.count} (${toPctOrNA(row.share)})`);
+      }
+    }
+    if (metrics.topWinRoutes?.length) {
+      lines.push('');
+      lines.push('- win routes:');
+      for (const row of metrics.topWinRoutes) {
+        lines.push(`  - ${row.name}: ${row.count} (${toPctOrNA(row.share)})`);
+      }
     }
     lines.push('');
   };
@@ -935,6 +1085,7 @@ if (!isMainThread) {
       lines.push(`- calibration gate: ${payload.calibrationGate.allPass ? 'PASS' : 'FAIL'}`);
       lines.push('');
     }
+    renderKimariteVarietySection(lines, probe.metrics, payload.kimariteVarietyGate);
     return lines.join('\n');
   };
 
@@ -1061,7 +1212,18 @@ if (!isMainThread) {
     uniqueKimariteP90: metrics.uniqueKimariteP90,
     topMoveShareP50: metrics.topMoveShareP50,
     top3MoveShareP50: metrics.top3MoveShareP50,
+    dominantRouteShareP50: metrics.dominantRouteShareP50,
+    top2RouteShareP50: metrics.top2RouteShareP50,
     rareMoveRate: metrics.rareMoveRate,
+    strengthStyleCountMean: metrics.strengthStyleCountMean,
+    weakStyleCountMean: metrics.weakStyleCountMean,
+    internalStrengthStyleCountMean: metrics.internalStrengthStyleCountMean,
+    internalWeakStyleCountMean: metrics.internalWeakStyleCountMean,
+    noStyleIdentityRate: metrics.noStyleIdentityRate,
+    repertoireUnsettledRate: metrics.repertoireUnsettledRate,
+    repertoireSettledAtBashoSeqP50: metrics.repertoireSettledAtBashoSeqP50,
+    topKimarite: metrics.topKimarite,
+    topWinRoutes: metrics.topWinRoutes,
     kimariteVariety20Rate: metrics.kimariteVariety20Rate,
     styleBucketMetrics: metrics.styleBucketMetrics,
     tierCareerWinRate: metrics.tierCareerWinRate,

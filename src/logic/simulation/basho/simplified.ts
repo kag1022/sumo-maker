@@ -34,6 +34,7 @@ export const runSimplifiedBasho = (
   let previousResult: BoutOutcome | undefined;
   let kinboshi = 0;
   const kimariteCount: Record<string, number> = {};
+  const winRouteCount: Record<string, number> = {};
   let expectedWins = 0;
   let sosTotal = 0;
   let sosCount = 0;
@@ -75,6 +76,7 @@ export const runSimplifiedBasho = (
         opponentRankName: enemy.rankName,
         opponentRankNumber: enemy.rankNumber,
         opponentRankSide: enemy.rankSide,
+        opponentStyleBias: enemy.styleBias ?? 'BALANCE',
       });
       if (postInjury.mustSitOut) {
         const remaining = numBouts - day;
@@ -103,6 +105,7 @@ export const runSimplifiedBasho = (
       isLastDay,
       isYushoContention,
       previousResult,
+      expectedWinsSoFar: expectedWins,
     };
 
     const result = calculateBattleResult(
@@ -121,6 +124,7 @@ export const runSimplifiedBasho = (
       currentWinStreak += 1;
       currentLossStreak = 0;
       kimariteCount[result.kimarite] = (kimariteCount[result.kimarite] || 0) + 1;
+      if (result.winRoute) winRouteCount[result.winRoute] = (winRouteCount[result.winRoute] || 0) + 1;
       if (isKinboshiEligibleRank(status.rank) && enemy.rankName === '横綱') {
         kinboshi += 1;
       }
@@ -137,11 +141,13 @@ export const runSimplifiedBasho = (
       day,
       result: result.isWin ? 'WIN' : 'LOSS',
       kimarite: result.kimarite,
+      winRoute: result.isWin ? result.winRoute : undefined,
       opponentId: enemy.id,
       opponentShikona: enemy.shikona,
       opponentRankName: enemy.rankName,
       opponentRankNumber: enemy.rankNumber,
       opponentRankSide: enemy.rankSide,
+      opponentStyleBias: enemy.styleBias ?? 'BALANCE',
     });
   }
 
@@ -170,6 +176,7 @@ export const runSimplifiedBasho = (
       ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kinboshi,
       kimariteCount,
+      winRouteCount,
     },
     playerBoutDetails,
     sameDivisionNpcRecords: [],

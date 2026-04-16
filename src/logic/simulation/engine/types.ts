@@ -6,6 +6,7 @@ import { SimulationDiagnostics } from '../diagnostics';
 import { LowerDivisionPlacementTraceRow } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
 import { TopDivision } from '../world';
+import { SimulationProgressState } from '../workerProtocol';
 
 export interface SimulationParams {
   initialStats: RikishiStatus;
@@ -15,6 +16,20 @@ export interface SimulationParams {
   banzukeMode?: BanzukeMode;
   simulationModelVersion?: SimulationModelVersion;
   banzukeEngineVersion?: BanzukeEngineVersion;
+  progressSnapshotMode?: 'full' | 'lite';
+  bashoSnapshotMode?: 'full' | 'none';
+}
+
+export type SimulationTimingPhase =
+  | 'pre_reconcile'
+  | 'basho_simulation'
+  | 'quota_and_banzuke'
+  | 'post_basho_maintenance'
+  | 'postprocess';
+
+export interface SimulationTimingBreakdown {
+  totalMs: number;
+  phases: Record<SimulationTimingPhase, number>;
 }
 
 export interface BanzukeEntry {
@@ -56,6 +71,10 @@ export interface SimulationProgressSnapshot {
   lastDiagnostics?: SimulationDiagnostics;
 }
 
+export const isDetailedSimulationProgress = (
+  progress: SimulationProgressState,
+): progress is SimulationProgressSnapshot => 'divisionHeadcount' in progress;
+
 export type PauseReason = 'PROMOTION' | 'INJURY' | 'RETIREMENT';
 
 export interface BashoStepResult {
@@ -73,8 +92,9 @@ export interface BashoStepResult {
   lowerDivisionPlacementTrace?: LowerDivisionPlacementTraceRow[];
   events: TimelineEvent[];
   pauseReason?: PauseReason;
-  statusSnapshot: RikishiStatus;
-  progress: SimulationProgressSnapshot;
+  statusSnapshot?: RikishiStatus;
+  progress: SimulationProgressState;
+  timing: SimulationTimingBreakdown;
 }
 
 export interface CompletedStepResult {
@@ -84,7 +104,8 @@ export interface CompletedStepResult {
   diagnostics?: SimulationDiagnostics;
   pauseReason?: PauseReason;
   events: TimelineEvent[];
-  progress: SimulationProgressSnapshot;
+  progress: SimulationProgressState;
+  timing: SimulationTimingBreakdown;
 }
 
 export interface RuntimeNarrativeState {

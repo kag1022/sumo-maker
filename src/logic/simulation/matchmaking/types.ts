@@ -27,6 +27,7 @@ export type DivisionParticipant = {
   opponentAbilityTotal?: number;
   boutsSimulated?: number;
   active: boolean;
+  bashoKyujo?: boolean;
 };
 
 export type DailyMatchups = {
