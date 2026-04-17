@@ -44,7 +44,7 @@ const NPC_REALISM_CALIBRATION = rawNpcRealismCalibration as {
 };
 
 export const tests: TestCase[] = [
-{
+  {
     name: 'npc realism c1: seed sampler is deterministic',
     run: () => {
       const rngA = lcg(20260412);
@@ -54,7 +54,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(sampleA, sampleB);
     },
   },
-{
+  {
     name: 'npc realism c1: age sampler stays within division quantile range',
     run: () => {
       for (const division of ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi', 'Maezumo'] as const) {
@@ -65,7 +65,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'npc realism c1: low-sample full-key hazard falls back',
     run: () => {
       const lowSampleEntry = Object.entries(NPC_REALISM_CALIBRATION.retirementHazardByState).find(
@@ -121,13 +121,13 @@ export const tests: TestCase[] = [
                 : 7;
       const age =
         ageBand === '15-18' ? 17 :
-        ageBand === '19-21' ? 20 :
-        ageBand === '22-24' ? 23 :
-        ageBand === '25-27' ? 26 :
-        ageBand === '28-30' ? 29 :
-        ageBand === '31-33' ? 32 :
-        ageBand === '34-36' ? 35 :
-        ageBand === '37-39' ? 38 : 41;
+          ageBand === '19-21' ? 20 :
+            ageBand === '22-24' ? 23 :
+              ageBand === '25-27' ? 26 :
+                ageBand === '28-30' ? 29 :
+                  ageBand === '31-33' ? 32 :
+                    ageBand === '34-36' ? 35 :
+                      ageBand === '37-39' ? 38 : 41;
       const meta = resolveEmpiricalNpcRetirementLookupMeta({
         age,
         currentDivision: division as never,
@@ -160,7 +160,7 @@ export const tests: TestCase[] = [
       assert.ok(hazard >= 0 && hazard <= 1, `Expected hazard to be normalized, got ${hazard}`);
     },
   },
-{
+  {
     name: 'npc realism c1: generated bands diverge from legacy hand weights',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(20260413));
@@ -194,7 +194,7 @@ export const tests: TestCase[] = [
       assert.ok(meanAbsDiff >= 0.015, `Expected empirical distribution to differ from legacy weights, got ${meanAbsDiff}`);
     },
   },
-{
+  {
     name: 'npc realism c1: positive retirement shock increases retirements without collapse',
     run: () => {
       const buildNpc = (index: number) => ({
@@ -271,7 +271,7 @@ export const tests: TestCase[] = [
       assert.ok(positiveRetired < positive.length * 0.6, `Expected no collapse, got ${positiveRetired}/${positive.length}`);
     },
   },
-{
+  {
     name: 'npc realism c1: player retirement path still follows shared growth logic',
     run: () => {
       const status = createStatus({
@@ -309,7 +309,7 @@ export const tests: TestCase[] = [
       assert.ok(!resultHigh.shouldRetire, 'Expected high roll to survive on player path');
     },
   },
-{
+  {
     name: 'population plan: same year reuses plan and next year resamples',
     run: () => {
       const world = createSimulationWorld(lcg(20260401));
@@ -324,7 +324,7 @@ export const tests: TestCase[] = [
       assert.ok(plan2027 !== plan2026, 'Expected population plan to resample on a new year');
     },
   },
-{
+  {
     name: 'npc intake: positive intake shock yields more recruits than negative shock',
     run: () => {
       const currentBanzukeHeadcount = 700;
@@ -366,7 +366,7 @@ export const tests: TestCase[] = [
       assert.ok(positive > negative, `Expected positive shock intake > negative shock, got ${positive} <= ${negative}`);
     },
   },
-{
+  {
     name: 'npc pipeline: aptitudeFactor persists through league reconcile outputs',
     run: () => {
       const rng = lcg(20260304);
@@ -399,7 +399,7 @@ export const tests: TestCase[] = [
       assert.equal(boundarySeed?.aptitudeFactor, 0.68);
     },
   },
-{
+  {
     name: 'league: reconcile follows lower-division shocks for jonidan and jonokuchi',
     run: () => {
       const rng = lcg(20260405);
@@ -435,7 +435,7 @@ export const tests: TestCase[] = [
       assert.ok(lower.rosters.Jonokuchi.length >= 88, `Expected Jonokuchi shock expansion, got ${lower.rosters.Jonokuchi.length}`);
     },
   },
-{
+  {
     name: 'league: heavy retirement is reconciled to active 42/28 in top divisions',
     run: () => {
       const rng = lcg(2027);
@@ -471,7 +471,7 @@ export const tests: TestCase[] = [
       assert.ok(world.rosters.Juryo.every((row) => world.npcRegistry.get(row.id)?.active !== false));
     },
   },
-{
+  {
     name: 'league: replenish path uses adjacency moves and intake lands in maezumo first',
     run: () => {
       const rng = lcg(500);
@@ -507,7 +507,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'league: reconcile preserves deterministic promotion order across bucket refills',
     run: () => {
       const rng = lcg(20260411);
@@ -557,13 +557,13 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'npc stable catalog: size is fixed at 45 entries',
     run: () => {
       assert.equal(NPC_STABLE_CATALOG.length, 45);
     },
   },
-{
+  {
     name: 'npc stable catalog: scale distribution matches 1/4/9/15/12/4',
     run: () => {
       const distribution = NPC_STABLE_CATALOG.reduce(
@@ -589,7 +589,7 @@ export const tests: TestCase[] = [
       assert.equal(distribution.TINY, 4);
     },
   },
-{
+  {
     name: 'npc stable catalog: small and tiny stables are 16 total',
     run: () => {
       const count = NPC_STABLE_CATALOG.filter(
@@ -598,7 +598,7 @@ export const tests: TestCase[] = [
       assert.equal(count, 16);
     },
   },
-{
+  {
     name: 'npc stable catalog: ichimon distribution matches 13/11/9/7/5',
     run: () => {
       const distribution = NPC_STABLE_CATALOG.reduce(
@@ -626,7 +626,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'npc shikona: surname style appears more in lower divisions than sekitori',
     run: () => {
       const topRegistry: ActorRegistry = new Map();
@@ -683,7 +683,7 @@ export const tests: TestCase[] = [
       assert.ok(lowerRatio > topRatio + 0.12, `Expected lower ratio > top ratio, got ${lowerRatio} vs ${topRatio}`);
     },
   },
-{
+  {
     name: 'player name collision: colliding active NPC is renamed while player name is preserved',
     run: () => {
       const rng = lcg(20260225);
@@ -711,7 +711,7 @@ export const tests: TestCase[] = [
       assertActiveShikonaUnique(world.npcRegistry, 'player-collision');
     },
   },
-{
+  {
     name: 'player sync: repeated sync keeps existing sekitori placement stable',
     run: () => {
       const rng = lcg(20260408);
@@ -746,7 +746,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(after.juryo, before.juryo);
     },
   },
-{
+  {
     name: 'npc universe: initial active total is 718 and stable headcounts stay near targets',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(2026));
@@ -767,7 +767,7 @@ export const tests: TestCase[] = [
       assert.equal(total, 718);
     },
   },
-{
+  {
     name: 'npc universe: initial rank-power correlation is descending in every division',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(2026));
@@ -793,7 +793,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'npc universe: same seed reproduces stable assignment sequence',
     run: () => {
       const universeA = createInitialNpcUniverse(lcg(77));
@@ -807,7 +807,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(toStableSequence(universeA.registry), toStableSequence(universeB.registry));
     },
   },
-{
+  {
     name: 'npc intake: small/tiny hard caps are respected through repeated intake',
     run: () => {
       const universe = createInitialNpcUniverse(lcg(1234));

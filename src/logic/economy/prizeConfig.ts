@@ -9,4 +9,3 @@ export const PRIZE_MONEY = {
   JONOKUCHI_YUSHO: 100_000,
   SANSHO: 2_000_000,
 } as const;
-

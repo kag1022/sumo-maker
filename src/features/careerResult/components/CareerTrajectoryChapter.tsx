@@ -287,14 +287,14 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </div>
 
           <div className="career-workspace-detailactions">
-          <Button type="button" variant="secondary" onClick={() => selectedPoint && onOpenChapter("place")} disabled={!selectedPoint}>
-            <ArrowRight className="mr-2 h-4 w-4" />
+            <Button type="button" variant="secondary" onClick={() => selectedPoint && onOpenChapter("place")} disabled={!selectedPoint}>
+              <ArrowRight className="mr-2 h-4 w-4" />
             場所別を開く
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
-            <ScrollText className="mr-2 h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
+              <ScrollText className="mr-2 h-4 w-4" />
             力士名鑑へ戻る
-          </Button>
+            </Button>
           </div>
         </aside>
       </div>

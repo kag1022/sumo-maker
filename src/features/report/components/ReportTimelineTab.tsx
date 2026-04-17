@@ -42,7 +42,6 @@ interface DecisionSnapshotModalState {
   boutMarks: Record<string, string>;
 }
 
-
 const EMPTY_IMPORTANT_DECISIONS: ReportImportantDecisionDigest = {
   highlights: [],
   timelineItems: [],

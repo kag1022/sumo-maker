@@ -36,9 +36,9 @@ export const evolveDivisionAfterBasho = (
   const specialPrizesById =
     division === 'Makuuchi'
       ? evaluateSpecialPrizes(participants, yushoWinnerId, rng, {
-          makuuchiLayout: world.makuuchiLayout,
-          techniqueSources: world.rosters.Makuuchi,
-        })
+        makuuchiLayout: world.makuuchiLayout,
+        techniqueSources: world.rosters.Makuuchi,
+      })
       : new Map<string, SpecialPrizeCode[]>();
 
   world.lastBashoResults[division] = participants.map((participant) => {

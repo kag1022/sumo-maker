@@ -716,7 +716,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     lowerDivisionQuotaWorld.maezumoPool.push(
       ...intake.recruits.map((npc) => ({
         ...(npc as unknown as typeof lowerDivisionQuotaWorld.maezumoPool[number]),
-        })),
+      })),
     );
   }
   reconcileNpcLeague(

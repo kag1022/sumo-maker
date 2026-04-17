@@ -46,4 +46,3 @@ export const clearKpiCounters = (): void => {
     // KPI削除失敗は非致命扱い
   }
 };
-

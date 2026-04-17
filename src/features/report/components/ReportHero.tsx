@@ -129,20 +129,20 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-8 relative z-10 p-6 sm:p-10">
           {/* 左: 力士肖像 (New) */}
           <div className="flex flex-col items-center space-y-4">
-             <div className="rpg-panel p-2 shadow-2xl relative group bg-bg-panel/40">
-                <div className="absolute inset-0 bg-gold/5 pointer-events-none" />
-                <div className="h-64 sm:h-80 w-48 sm:w-56 overflow-hidden flex items-end justify-center bg-bg/20">
-                   {/* bodyType情報がない場合はNormalと仮定するか、propsに追加する必要がある。現状は画像パス構築の都合上適当な対応が必要 */}
-                   <img 
-                      src="/images/rikishi/normal_front.png" 
-                      alt="Rikishi Portrait" 
-                      className="h-full object-contain pixelated drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]"
-                   />
-                </div>
-             </div>
-             <div className="washi-surface px-4 py-2 border-gold/20 text-center bg-bg-panel/60">
-                <p className="text-[10px] ui-text-label text-gold uppercase tracking-widest">{summary.titleBadge}</p>
-             </div>
+            <div className="rpg-panel p-2 shadow-2xl relative group bg-bg-panel/40">
+              <div className="absolute inset-0 bg-gold/5 pointer-events-none" />
+              <div className="h-64 sm:h-80 w-48 sm:w-56 overflow-hidden flex items-end justify-center bg-bg/20">
+                {/* bodyType情報がない場合はNormalと仮定するか、propsに追加する必要がある。現状は画像パス構築の都合上適当な対応が必要 */}
+                <img 
+                  src="/images/rikishi/normal_front.png" 
+                  alt="Rikishi Portrait" 
+                  className="h-full object-contain pixelated drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]"
+                />
+              </div>
+            </div>
+            <div className="washi-surface px-4 py-2 border-gold/20 text-center bg-bg-panel/60">
+              <p className="text-[10px] ui-text-label text-gold uppercase tracking-widest">{summary.titleBadge}</p>
+            </div>
           </div>
 
           {/* 中央: 力士の物語 */}

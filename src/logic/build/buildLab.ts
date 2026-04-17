@@ -736,9 +736,9 @@ export const buildPreviewSummaryVNext = (
     potentialWeightKg: spec.weightPotentialKg,
     compatibilityLabel:
       compatibility === 'EXCELLENT' ? '相性抜群' :
-      compatibility === 'GOOD' ? '相性良好' :
-      compatibility === 'POOR' ? '食い合わせ難' :
-      '相性標準',
+        compatibility === 'GOOD' ? '相性良好' :
+          compatibility === 'POOR' ? '食い合わせ難' :
+            '相性標準',
     careerBandLabel: estimateCareerBandLabel({
       spentPoints,
       debtCount: spec.debtCards.length,
@@ -790,9 +790,9 @@ export const buildInitialRikishiFromSpec = (
 
   const growthType =
     spec.debtCards.includes('LATE_START') ? 'LATE' :
-    spec.amateurBackground === 'MIDDLE_SCHOOL' ? 'EARLY' :
-    spec.amateurBackground === 'COLLEGE_YOKOZUNA' ? 'NORMAL' :
-    'NORMAL';
+      spec.amateurBackground === 'MIDDLE_SCHOOL' ? 'EARLY' :
+        spec.amateurBackground === 'COLLEGE_YOKOZUNA' ? 'NORMAL' :
+          'NORMAL';
   const traitJourney = buildLockedTraitJourney([
     { source: 'MENTAL_TRAIT', traits: resolveMentalTraits(spec.mentalTrait) },
     { source: 'INJURY_RESISTANCE', traits: resolveInjuryTraits(spec.injuryResistance) },
@@ -864,9 +864,9 @@ export const buildInitialRikishiFromSpec = (
       birthplace: '未設定',
       personality:
         spec.mentalTrait === 'VOLATILE_FIRE' ? 'WILD' :
-        spec.mentalTrait === 'BIG_STAGE' ? 'AGGRESSIVE' :
-        spec.mentalTrait === 'STONEWALL' ? 'SERIOUS' :
-        'CALM',
+          spec.mentalTrait === 'BIG_STAGE' ? 'AGGRESSIVE' :
+            spec.mentalTrait === 'STONEWALL' ? 'SERIOUS' :
+              'CALM',
     },
     bodyMetrics: {
       heightCm: initialBody.heightCm,

@@ -98,7 +98,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
             type="button"
             onClick={() => setSortOrder("desc")}
             className={`px-2 py-1 font-bold transition-all ${sortOrder === "desc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
-              }`}
+            }`}
           >
             新しい順
           </button>
@@ -106,7 +106,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
             type="button"
             onClick={() => setSortOrder("asc")}
             className={`px-2 py-1 font-bold transition-all ${sortOrder === "asc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
-              }`}
+            }`}
           >
             古い順
           </button>
@@ -160,7 +160,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                   </div>
                   <div className="flex flex-col items-end sm:items-start shrink-0">
                     <div className={`font-bold whitespace-nowrap text-xs sm:text-sm ${record.wins >= 8 ? 'text-shuiro' : 'text-sumi'
-                      }`}>
+                    }`}>
                       {formatRecord(record.wins, record.losses, record.absent)}
                     </div>
                     {(yusho || (specialPrizes && specialPrizes.length > 0)) && (
@@ -232,7 +232,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                             <div className={`absolute top-1/2 ${dayIndex >= 7
                               ? "right-full mr-1 before:left-full before:border-l-kiniro/30"
                               : "left-full ml-1 before:right-full before:border-r-kiniro/30"
-                              } z-20 -translate-y-1/2 w-40 border border-kiniro/30 bg-washi p-2 shadow-game shadow-black/40 text-left pointer-events-none before:content-[''] before:absolute before:top-1/2 before:-translate-y-1/2 before:border-[6px] before:border-transparent`}>
+                            } z-20 -translate-y-1/2 w-40 border border-kiniro/30 bg-washi p-2 shadow-game shadow-black/40 text-left pointer-events-none before:content-[''] before:absolute before:top-1/2 before:-translate-y-1/2 before:border-[6px] before:border-transparent`}>
                               <div className="flex justify-between items-baseline mb-1 border-b border-kiniro-muted/30 pb-1">
                                 <span className="text-[10px] text-kiniro font-bold">{dayIndex + 1}日目</span>
                                 <span className={`text-[11px] font-bold ${resolveSymbolColor(bout)}`}>{symbol}</span>

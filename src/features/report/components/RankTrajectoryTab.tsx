@@ -119,13 +119,13 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                           selectedState?.bashoSeq === item.bashoSeq
                             ? null
                             : {
-                                kind: "rank",
-                                bashoSeq: item.bashoSeq,
-                                sourceLabel: "番付推移",
-                                title: `${item.bashoLabel}の場所詳細`,
-                                subtitle: item.summary,
-                                highlightReason: item.summary,
-                              },
+                              kind: "rank",
+                              bashoSeq: item.bashoSeq,
+                              sourceLabel: "番付推移",
+                              title: `${item.bashoLabel}の場所詳細`,
+                              subtitle: item.summary,
+                              highlightReason: item.summary,
+                            },
                         )
                       }
                     >
