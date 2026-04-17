@@ -1,4 +1,4 @@
-import { RikishiStatus, Division, WinRoute } from './models';
+import { RikishiStatus, Division, StyleArchetype, WinRoute } from './models';
 import {
   ENEMY_SEED_POOL,
   EnemyStats,
@@ -35,6 +35,10 @@ import { resolveStableById } from './simulation/heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
 import {
   ensureStyleIdentityProfile,
+  resolveDisplayedStrengthStyles,
+  resolveDisplayedWeakStyles,
+  resolveInternalStrengthStyles,
+  resolveInternalWeakStyles,
   resolvePrimaryIdentityStyles,
   resolveStyleMatchupDelta,
 } from './style/identity';
@@ -127,7 +131,6 @@ const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
       tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
         'BALANCE';
 
-
 const buildEnemyKimariteStats = (
   enemy: BattleOpponent,
 ): Partial<Record<keyof RikishiStatus['stats'], number>> => {
@@ -180,6 +183,20 @@ const buildEnemyKimariteStats = (
   };
 };
 
+const ENEMY_BIAS_TO_STRONG_STYLES: Record<EnemyStyleBias, StyleArchetype[]> = {
+  PUSH: ['TSUKI_OSHI', 'POWER_PRESSURE'],
+  GRAPPLE: ['YOTSU', 'MOROZASHI'],
+  TECHNIQUE: ['NAGE_TECH', 'DOHYOUGIWA'],
+  BALANCE: [],
+};
+
+const ENEMY_BIAS_TO_WEAK_STYLES: Record<EnemyStyleBias, StyleArchetype[]> = {
+  PUSH: ['YOTSU', 'MOROZASHI'],
+  GRAPPLE: ['NAGE_TECH', 'DOHYOUGIWA'],
+  TECHNIQUE: ['TSUKI_OSHI', 'POWER_PRESSURE'],
+  BALANCE: [],
+};
+
 const buildEnemyKimariteProfile = (
   enemy: BattleOpponent,
 ): KimariteCompetitorProfile => {
@@ -201,6 +218,7 @@ const buildEnemyKimariteProfile = (
     preferredMove: undefined,
     kataSettled: false,
   });
+  const bias = enemy.styleBias ?? 'BALANCE';
   return {
     style,
     bodyType,
@@ -209,6 +227,8 @@ const buildEnemyKimariteProfile = (
     stats: buildEnemyKimariteStats(enemy),
     traits,
     historyCounts: {},
+    strongStyles: ENEMY_BIAS_TO_STRONG_STYLES[bias],
+    weakStyles: ENEMY_BIAS_TO_WEAK_STYLES[bias],
     kataSettled: false,
     repertoire,
   };
@@ -222,6 +242,12 @@ const buildPlayerKimariteProfile = (
 ): KimariteCompetitorProfile => {
   const normalized = ensureKimariteRepertoire(ensureStyleIdentityProfile(rikishi));
   const preferredStyles = resolvePrimaryIdentityStyles(normalized.styleIdentityProfile);
+  const strongDisplay = resolveDisplayedStrengthStyles(normalized.styleIdentityProfile);
+  const weakDisplay = resolveDisplayedWeakStyles(normalized.styleIdentityProfile);
+  const strongInternal = resolveInternalStrengthStyles(normalized.styleIdentityProfile);
+  const weakInternal = resolveInternalWeakStyles(normalized.styleIdentityProfile);
+  const strongStyles = strongDisplay.length > 0 ? strongDisplay : strongInternal;
+  const weakStyles = weakDisplay.length > 0 ? weakDisplay : weakInternal;
   return {
     style: toKimariteStyle(normalized.tactics),
     bodyType: normalized.bodyType,
@@ -233,6 +259,8 @@ const buildPlayerKimariteProfile = (
     historyCounts: normalized.history.kimariteTotal ?? {},
     designedPrimaryStyle: preferredStyles[0] ? toKimariteStyle(styleToTactics(preferredStyles[0])) : undefined,
     designedSecondaryStyle: preferredStyles[1] ? toKimariteStyle(styleToTactics(preferredStyles[1])) : undefined,
+    strongStyles,
+    weakStyles,
     kataSettled: normalized.kimariteRepertoire?.provisional === false,
     repertoire: normalized.kimariteRepertoire,
   };
@@ -546,6 +574,19 @@ const resolveBattleResult = (
   });
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;
+  const playerDominance = clamp(winProbability * 2 - 1, -1, 1);
+  const enemyDominance = -playerDominance;
+  const isTitleDecider = Boolean(
+    context?.isLastDay && (
+      context?.titleImplication === 'DIRECT' ||
+      (context?.isYushoContention && context?.contentionTier === 'Leader')
+    ),
+  );
+  const playerRankValue = rikishi.rank.division === 'Makuuchi'
+    ? (rikishi.rank.name === '横綱' ? 1 : rikishi.rank.name === '大関' ? 2 : rikishi.rank.name === '関脇' || rikishi.rank.name === '小結' ? 3 : 4)
+    : rikishi.rank.division === 'Juryo' ? 6 : 7;
+  const isPlayerKinboshi = playerRankValue >= 4 && (enemy.rankValue ?? 99) <= 2;
+  const isEnemyKinboshi = (enemy.rankValue ?? 99) >= 4 && playerRankValue <= 2;
   const playerSelectionContext = {
     isHighPressure: isHighPressureBout(context),
     isLastDay: Boolean(context?.isLastDay),
@@ -553,6 +594,9 @@ const resolveBattleResult = (
     isEdgeCandidate: canTriggerEdgeReversal(winProbability, context),
     weightDiff: myWeight - enemyWeight,
     heightDiff: myHeight - enemyHeight,
+    dominance: playerDominance,
+    isTitleDecider,
+    isKinboshiChance: isPlayerKinboshi,
   };
   const enemySelectionContext = {
     isHighPressure: isHighPressureBout(context),
@@ -561,6 +605,9 @@ const resolveBattleResult = (
     isEdgeCandidate: canTriggerEdgeReversal(1 - winProbability, context),
     weightDiff: enemyWeight - myWeight,
     heightDiff: enemyHeight - myHeight,
+    dominance: enemyDominance,
+    isTitleDecider,
+    isKinboshiChance: isEnemyKinboshi,
   };
 
   if (!isWin && canTriggerEdgeReversal(winProbability, context)) {
@@ -620,86 +667,86 @@ export const calculateBattleResult = (
  * @param division 現在の階級
  */
 export const generateEnemy = (
-    division: Division,
-    eraYear: number,
-    rng: RandomSource = Math.random,
+  division: Division,
+  eraYear: number,
+  rng: RandomSource = Math.random,
 ): EnemyStats => {
-    const pool = ENEMY_SEED_POOL[division];
-    // ランダムに選択
-    const index = Math.floor(rng() * pool.length);
-    const enemy = pool[index];
+  const pool = ENEMY_SEED_POOL[division];
+  // ランダムに選択
+  const index = Math.floor(rng() * pool.length);
+  const enemy = pool[index];
 
-    const poolDisplaySize: Record<Division, number> = {
-      Makuuchi: 42,
-      Juryo: 28,
-      Makushita: 120,
-      Sandanme: 200,
-      Jonidan: 250,
-      Jonokuchi: 78,
-      Maezumo: 2,
-    };
-    const slot = division === 'Maezumo' ? 1 : (index % poolDisplaySize[division]) + 1;
-    const rankNumber = division === 'Maezumo' ? 1 : Math.floor((slot - 1) / 2) + 1;
-    const rankSide = slot % 2 === 1 ? 'East' : 'West';
+  const poolDisplaySize: Record<Division, number> = {
+    Makuuchi: 42,
+    Juryo: 28,
+    Makushita: 120,
+    Sandanme: 200,
+    Jonidan: 250,
+    Jonokuchi: 78,
+    Maezumo: 2,
+  };
+  const slot = division === 'Maezumo' ? 1 : (index % poolDisplaySize[division]) + 1;
+  const rankNumber = division === 'Maezumo' ? 1 : Math.floor((slot - 1) / 2) + 1;
+  const rankSide = slot % 2 === 1 ? 'East' : 'West';
 
-    let rankName: string;
-    let rankValue: number;
-    if (division === 'Makuuchi') {
-      if (slot <= 2) {
-        rankName = '横綱';
-        rankValue = 1;
-      } else if (slot <= 4) {
-        rankName = '大関';
-        rankValue = 2;
-      } else if (slot <= 8) {
-        rankName = slot <= 6 ? '関脇' : '小結';
-        rankValue = 3;
-      } else {
-        rankName = '前頭';
-        rankValue = rankNumber <= 2 ? 4 : 5;
-      }
-    } else if (division === 'Juryo') {
-      rankName = '十両';
-      rankValue = 6;
-    } else if (division === 'Makushita') {
-      rankName = '幕下';
-      rankValue = 7;
-    } else if (division === 'Sandanme') {
-      rankName = '三段目';
-      rankValue = 8;
-    } else if (division === 'Jonidan') {
-      rankName = '序二段';
-      rankValue = 9;
-    } else if (division === 'Jonokuchi') {
-      rankName = '序ノ口';
-      rankValue = 10;
+  let rankName: string;
+  let rankValue: number;
+  if (division === 'Makuuchi') {
+    if (slot <= 2) {
+      rankName = '横綱';
+      rankValue = 1;
+    } else if (slot <= 4) {
+      rankName = '大関';
+      rankValue = 2;
+    } else if (slot <= 8) {
+      rankName = slot <= 6 ? '関脇' : '小結';
+      rankValue = 3;
     } else {
-      rankName = '前相撲';
-      rankValue = 11;
+      rankName = '前頭';
+      rankValue = rankNumber <= 2 ? 4 : 5;
     }
+  } else if (division === 'Juryo') {
+    rankName = '十両';
+    rankValue = 6;
+  } else if (division === 'Makushita') {
+    rankName = '幕下';
+    rankValue = 7;
+  } else if (division === 'Sandanme') {
+    rankName = '三段目';
+    rankValue = 8;
+  } else if (division === 'Jonidan') {
+    rankName = '序二段';
+    rankValue = 9;
+  } else if (division === 'Jonokuchi') {
+    rankName = '序ノ口';
+    rankValue = 10;
+  } else {
+    rankName = '前相撲';
+    rankValue = 11;
+  }
 
-    const powerFluctuation =
+  const powerFluctuation =
       (rng() * Math.max(2.5, enemy.powerVariance)) - (Math.max(2.5, enemy.powerVariance) / 2);
-    const eraShift = clamp((eraYear - 2026) * 0.12, -2, 6);
-    const rankProgress = division === 'Maezumo'
-      ? 0
-      : 1 - (slot - 1) / Math.max(1, poolDisplaySize[division] - 1);
-    const rankPowerShift = (rankProgress - 0.5) * 6;
-    const basePower = enemy.basePower + enemy.growthBias * 8 + eraShift + rankPowerShift;
-    const ability = basePower * 0.92 + enemy.growthBias * 4.5;
-    const body = resolveEnemySeedBodyMetrics(division, `${enemy.seedId}-${slot}`);
+  const eraShift = clamp((eraYear - 2026) * 0.12, -2, 6);
+  const rankProgress = division === 'Maezumo'
+    ? 0
+    : 1 - (slot - 1) / Math.max(1, poolDisplaySize[division] - 1);
+  const rankPowerShift = (rankProgress - 0.5) * 6;
+  const basePower = enemy.basePower + enemy.growthBias * 8 + eraShift + rankPowerShift;
+  const ability = basePower * 0.92 + enemy.growthBias * 4.5;
+  const body = resolveEnemySeedBodyMetrics(division, `${enemy.seedId}-${slot}`);
 
-    return {
-        id: `seed-${enemy.seedId}-${index}`,
-        shikona: `力士${index + 1}`,
-        rankValue,
-        rankName,
-        rankNumber,
-        rankSide,
-        styleBias: enemy.styleBias,
-        power: Math.round(basePower + powerFluctuation),
-        ability: ability + powerFluctuation * 0.7,
-        heightCm: body.heightCm,
-        weightKg: body.weightKg,
-    };
+  return {
+    id: `seed-${enemy.seedId}-${index}`,
+    shikona: `力士${index + 1}`,
+    rankValue,
+    rankName,
+    rankNumber,
+    rankSide,
+    styleBias: enemy.styleBias,
+    power: Math.round(basePower + powerFluctuation),
+    ability: ability + powerFluctuation * 0.7,
+    heightCm: body.heightCm,
+    weightKg: body.weightKg,
+  };
 };
