@@ -162,6 +162,27 @@ const resolveAverageStyleSample = (profile?: StyleIdentityProfile): number =>
     ? STYLE_IDS.reduce((sum, style) => sum + (profile.styles[style]?.sample ?? 0), 0) / STYLE_IDS.length
     : 0;
 
+export interface StyleIdentityShape {
+  topAptitude: number;
+  secondAptitude: number;
+  concentration: number;
+  breadth: number;
+}
+
+export const resolveStyleIdentityShape = (
+  profile?: StyleIdentityProfile,
+): StyleIdentityShape => {
+  if (!profile) {
+    return { topAptitude: 0, secondAptitude: 0, concentration: 1, breadth: 0 };
+  }
+  const ranked = rankStyleEntries(profile, 'aptitude');
+  const top = ranked[0]?.[1].aptitude ?? 0;
+  const second = ranked[1]?.[1].aptitude ?? 0;
+  const concentration = top > 0 ? top / Math.max(12, Math.max(0, second)) : 1;
+  const breadth = ranked.filter(([, entry]) => entry.aptitude >= STYLE_STRENGTH_THRESHOLD).length;
+  return { topAptitude: top, secondAptitude: second, concentration, breadth };
+};
+
 const seedTsukedashiProfile = (status: RikishiStatus): StyleIdentityProfile => {
   const profile = createEmptyProfile();
   const scores = buildAbilityStyleScores(status);
@@ -297,8 +318,8 @@ const resolveTopAptitudeStyles = (
 ): StyleArchetype[] =>
   profile
     ? rankStyleEntries(profile, 'aptitude')
-        .map(([style]) => style)
-        .slice(0, limit)
+      .map(([style]) => style)
+      .slice(0, limit)
     : [];
 
 export const resolveStyleIdentitySummary = (status: RikishiStatus): string => {
@@ -352,12 +373,20 @@ export const resolveStyleMatchupDelta = (
   const enemyWeaknesses = inferEnemyWeakStyles(enemyStyleBias);
   let delta = 0;
   enemyStrengths.forEach((style) => {
-    if (weaknesses.has(style)) delta -= 0.025;
+    if (weaknesses.has(style)) delta -= 0.04;
   });
   enemyWeaknesses.forEach((style) => {
-    if (strengths.has(style)) delta += 0.025;
+    if (strengths.has(style)) delta += 0.04;
   });
-  return clamp(delta, -0.06, 0.06);
+  if (delta === 0) return 0;
+  const avgSample = resolveAverageStyleSample(profile);
+  const sampleScale = clamp(avgSample / 80, 0, 1);
+  const shape = resolveStyleIdentityShape(profile);
+  const concentrationMult = clamp(0.8 + (shape.concentration - 1) * 0.5, 0.8, 1.45);
+  const breadthMult = clamp(1.2 - shape.breadth * 0.12, 0.55, 1.2);
+  const specialistLossMult = delta < 0 ? clamp(shape.concentration, 1, 1.6) : 1;
+  delta *= sampleScale * concentrationMult * breadthMult * specialistLossMult;
+  return clamp(delta, -0.14, 0.14);
 };
 
 const buildKimariteSignals = (record: BashoRecord): Record<StyleArchetype, number> => {
