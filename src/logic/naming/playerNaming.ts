@@ -26,7 +26,7 @@ const SHIKONA_PREFIX = ['朝', '若', '貴', '北', '琴', '栃', '千代', '豊
 const SHIKONA_SUFFIX = ['山', '川', '海', '里', '富士', '桜', '龍', '鵬', '国', '錦', '麒麟', '王', '嵐', '疾風', '天', '光', '勝'];
 
 export const generateShikona = (): string => {
-   const p = SHIKONA_PREFIX[Math.floor(Math.random() * SHIKONA_PREFIX.length)];
-   const s = SHIKONA_SUFFIX[Math.floor(Math.random() * SHIKONA_SUFFIX.length)];
-   return p + s;
+  const p = SHIKONA_PREFIX[Math.floor(Math.random() * SHIKONA_PREFIX.length)];
+  const s = SHIKONA_SUFFIX[Math.floor(Math.random() * SHIKONA_SUFFIX.length)];
+  return p + s;
 };

@@ -107,8 +107,8 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
   const rankedRecords = records.filter((record) => record.rank.division !== "Maezumo");
   const highest = rankedRecords.length > 0
     ? rankedRecords.reduce((best, record) =>
-        getRankValueForChart(record.rank) < getRankValueForChart(best.rank) ? record : best,
-      )
+      getRankValueForChart(record.rank) < getRankValueForChart(best.rank) ? record : best,
+    )
     : records[0];
 
   let biggestRise: RankArcSummaryCard | null = null;
@@ -200,10 +200,10 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
     summaryCards: [
       highest
         ? {
-            label: "最高到達点",
-            value: formatRankDisplayName(highest.rank),
-            detail: `${formatBashoLabel(highest.year, highest.month)}に到達`,
-          }
+          label: "最高到達点",
+          value: formatRankDisplayName(highest.rank),
+          detail: `${formatBashoLabel(highest.year, highest.month)}に到達`,
+        }
         : null,
       biggestRise,
       biggestDrop,

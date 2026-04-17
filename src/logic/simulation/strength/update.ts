@@ -90,7 +90,7 @@ export const updateAbilityAfterBasho = (input: {
   const baselineAbility = resolveRankBaselineAbility(currentRank);
   const rawAbility = current.ability + delta * k;
   const meanReversion = clamp(
-      BALANCE.ratingUpdate.meanReversionToRankBaseline +
+    BALANCE.ratingUpdate.meanReversionToRankBaseline +
       (isSekitori ? 0.012 : 0.02) +
       Math.max(0, pressure - 1) * 0.01 +
       (careerBand === 'WASHOUT' ? 0.012 : careerBand === 'GRINDER' ? 0.006 : 0),

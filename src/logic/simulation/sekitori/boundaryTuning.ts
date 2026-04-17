@@ -13,7 +13,7 @@ export const resolveMaxMakushitaDemotionNumber = (
     boundedJuryo >= 14 ? 1 :
       boundedJuryo >= 12 ? 3 :
         boundedJuryo >= 10 ? 6 :
-      boundedJuryo >= 8 ? 10 :
+          boundedJuryo >= 8 ? 10 :
             14;
   const depth = Math.floor(Math.max(0, deficit - 1) / 2);
   return clamp(base + depth, 1, 15);

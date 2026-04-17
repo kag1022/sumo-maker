@@ -56,4 +56,3 @@ export const resolveQuantileTarget = (
     p90: Math.max(p10, p50, p90),
   };
 };
-

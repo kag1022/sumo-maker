@@ -648,4 +648,3 @@ export const runLowerDivisionBasho = (
     torikumiDiagnostics: torikumiResult.diagnostics,
   };
 };
-

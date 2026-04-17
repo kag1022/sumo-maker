@@ -213,15 +213,15 @@ const createAwakening = (
   const nextJourney = journey.map((entry) =>
     entry.trait === trait
       ? {
-          ...entry,
-          state: 'LEARNED' as const,
-          learnedAtBashoSeq: meta.bashoSeq,
-          learnedYear: meta.year,
-          learnedMonth: meta.month,
-          triggerLabel: meta.triggerLabel,
-          triggerDetail: meta.triggerDetail,
-          legacy: false,
-        }
+        ...entry,
+        state: 'LEARNED' as const,
+        learnedAtBashoSeq: meta.bashoSeq,
+        learnedYear: meta.year,
+        learnedMonth: meta.month,
+        triggerLabel: meta.triggerLabel,
+        triggerDetail: meta.triggerDetail,
+        legacy: false,
+      }
       : entry,
   );
   status.traitJourney = nextJourney;
