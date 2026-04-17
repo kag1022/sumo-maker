@@ -30,6 +30,11 @@ import {
   resolveKimariteOutcome,
   type KimariteCompetitorProfile,
 } from './kimarite/selection';
+import {
+  type BoutEngagement,
+  resolveBoutEngagement,
+  resolveEngagementRouteBias,
+} from './kimarite/engagement';
 import { createKimariteRepertoireFromSeed, ensureKimariteRepertoire } from './kimarite/repertoire';
 import { resolveStableById } from './simulation/heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
@@ -290,11 +295,16 @@ const resolveWinRoute = (
     weightDiff: number;
     heightDiff: number;
   },
+  engagement: BoutEngagement | undefined,
   rng: RandomSource,
 ): WinRoute => {
+  // Engagement に応じて route の重みを事前スケーリング。
+  // BELT_BATTLE 下で PUSH 力士が無理に PUSH_OUT を取らないよう、×0.2〜×2.2 で引き寄せる。
+  const routeBias = engagement ? resolveEngagementRouteBias(engagement) : {};
+  const biasOf = (route: WinRoute): number => routeBias[route as keyof typeof routeBias] ?? 1;
   const primaryRoute = winner.repertoire?.primaryRoutes[0];
   const secondaryRoute = winner.repertoire?.secondaryRoutes[0];
-  const weights: Array<{ value: WinRoute; weight: number }> = [
+  const rawWeights: Array<{ value: WinRoute; weight: number }> = [
     {
       value: 'PUSH_OUT',
       weight:
@@ -361,7 +371,10 @@ const resolveWinRoute = (
             (context.isUnderdog ? 0.2 : 0)
           : 0,
     },
-  ].filter((entry): entry is { value: WinRoute; weight: number } => entry.weight > 0.04);
+  ];
+  const weights = rawWeights
+    .map((entry) => ({ ...entry, weight: entry.weight * biasOf(entry.value) }))
+    .filter((entry) => entry.weight > 0.04);
   return weightedPick(weights, rng);
 };
 
@@ -636,14 +649,19 @@ const resolveBattleResult = (
   const winnerProfile = isWin ? playerProfile : enemyProfile;
   const loserProfile = isWin ? enemyProfile : playerProfile;
   const selectionContext = isWin ? playerSelectionContext : enemySelectionContext;
-  const winRoute = resolveWinRoute(winnerProfile, loserProfile, selectionContext, rng);
+  // 両力士の相互作用から取組の型（engagement）を 1 回だけ sample。
+  // route 選択と kimarite 選択の両方に渡すことで、BELT 展開 × PUSH 勝者の
+  // 組み合わせでも自然に BELT_FORCE route へ寄せ、押し出し一択を防ぐ。
+  const engagement = resolveBoutEngagement(winnerProfile, loserProfile, selectionContext, rng);
+  const selectionContextWithEngagement = { ...selectionContext, engagement };
+  const winRoute = resolveWinRoute(winnerProfile, loserProfile, selectionContext, engagement, rng);
   const selected = resolveKimariteOutcome({
     winner: winnerProfile,
     loser: loserProfile,
     rng,
     allowedRoute: winRoute,
     allowNonTechnique: true,
-    boutContext: selectionContext,
+    boutContext: selectionContextWithEngagement,
   });
   return {
     isWin,

@@ -26,4 +26,3 @@ export const OPTIMIZER_CONFIG: OptimizerConfig = {
   scoreTieBreakScale: 0.0006,
   minimumQuantileSpread: 2,
 };
-

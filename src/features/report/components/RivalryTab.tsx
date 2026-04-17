@@ -160,14 +160,14 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                                 selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId
                                   ? null
                                   : {
-                                      kind: "rival",
-                                      bashoSeq: entry.featuredSeq,
-                                      sourceLabel: "対戦・宿敵",
-                                      title: `${entry.featuredBashoLabel}の場所詳細`,
-                                      subtitle: `${section.title} / ${entry.shikona}`,
-                                      highlightOpponentId: entry.opponentId,
-                                      highlightReason: entry.featuredReason,
-                                    },
+                                    kind: "rival",
+                                    bashoSeq: entry.featuredSeq,
+                                    sourceLabel: "対戦・宿敵",
+                                    title: `${entry.featuredBashoLabel}の場所詳細`,
+                                    subtitle: `${section.title} / ${entry.shikona}`,
+                                    highlightOpponentId: entry.opponentId,
+                                    highlightReason: entry.featuredReason,
+                                  },
                               )
                             }
                           >
