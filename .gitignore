@@ -12,3 +12,10 @@ sumo-db/data/raw_html
 sumo/
 .playwright-cli/
 sumo-db/data/sumodb.sqlite
+
+# Claude Code の個人設定（ローカルマシン固有のものだけ無視）
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/agent-memory-local/
+.claude/logs/
+.claude/*.log
