@@ -1,4 +1,4 @@
-import type { BodyType, KimariteRepertoire, RikishiStatus, Trait, WinRoute } from '../models';
+import type { BodyType, KimariteRepertoire, RikishiStatus, StyleArchetype, Trait, WinRoute } from '../models';
 import type { RandomSource } from '../simulation/deps';
 import {
   type KimariteFamily,
@@ -14,6 +14,10 @@ import {
   OFFICIAL_WIN_KIMARITE_82,
 } from './catalog';
 import { inferWinRouteFromMove, routeToPattern } from './repertoire';
+import {
+  resolveLoserFieldPenalty,
+  resolveStyleSignatureFit,
+} from './styleSignatureMoves';
 
 type StatKey = keyof RikishiStatus['stats'];
 
@@ -29,6 +33,8 @@ export interface KimariteCompetitorProfile {
   designedPrimaryStyle?: KimariteStyle;
   designedSecondaryStyle?: KimariteStyle;
   designedSecretStyle?: KimariteStyle;
+  strongStyles?: StyleArchetype[];
+  weakStyles?: StyleArchetype[];
   kataSettled?: boolean;
   repertoire?: KimariteRepertoire;
 }
@@ -40,6 +46,16 @@ export interface KimariteBoutContext {
   isEdgeCandidate?: boolean;
   weightDiff?: number;
   heightDiff?: number;
+  /** 2*winProb - 1: +1 = dominant favorite, -1 = heavy underdog. */
+  dominance?: number;
+  /** 千秋楽 優勝決定 or 直接タイトル争いの結び */
+  isTitleDecider?: boolean;
+  /** 平幕が横綱/大関を倒す取組 */
+  isKinboshiChance?: boolean;
+  /** 敗者が大きく格下（番付差） */
+  loserRankGap?: number;
+  /** 敗者がスタミナ切れ・体勢崩壊しやすい */
+  loserExhausted?: boolean;
 }
 
 export interface KimariteVarietyProfile {
@@ -75,7 +91,6 @@ interface KimariteCandidate {
   weight: number;
 }
 
-
 export type KimariteTuningPresetId = 'DEFAULT' | 'VARIETY_PLUS';
 
 interface KimariteTuningProfile {
@@ -103,7 +118,32 @@ interface KimariteTuningProfile {
   };
   family: { core: number; secondary: number; commonOther: number; rareOther: number };
   preferredMoveMatch: number;
-  nonTechnique: { baseChance: number; underweightBonus: number; arawazashiBonus: number; maxChance: number };
+  signatureMoveBoost: number;
+  loserWeakMatchBonus: number;
+  loserStrongMatchPenalty: number;
+  dominance: {
+    dominantMainBoost: number;
+    dominantRareDamp: number;
+    closeBoutEdgeBoost: number;
+    closeBoutTechniqueBoost: number;
+    upsetRareBoost: number;
+    upsetTrickBoost: number;
+  };
+  drama: {
+    titleDeciderRareMult: number;
+    titleDeciderExtremeMult: number;
+    kinboshiRareMult: number;
+    kinboshiTrickMult: number;
+  };
+  nonTechnique: {
+    baseChance: number;
+    underweightBonus: number;
+    arawazashiBonus: number;
+    conditionGapBonus: number;
+    loserExhaustedBonus: number;
+    upsetPressBonus: number;
+    maxChance: number;
+  };
   rarity: { rareTrickScale: number; extremeBase: number; extremeTrickScale: number; extremeEdgeScale: number };
   repeatPenalty: { perCount: number; min: number };
 }
@@ -128,7 +168,32 @@ const KIMARITE_TUNING_PRESETS: Record<KimariteTuningPresetId, KimariteTuningProf
     novelty: { earlyUniqueBoost: 1.1, unseenBoost: 0.58, repeatScale: 0.34, repeatPow: 1.08, repeatMin: 0.08 },
     family: { core: 1.34, secondary: 1.1, commonOther: 0.64, rareOther: 0.74 },
     preferredMoveMatch: 2.8,
-    nonTechnique: { baseChance: 0.0012, underweightBonus: 0.0005, arawazashiBonus: 0.0003, maxChance: 0.003 },
+    signatureMoveBoost: 1.6,
+    loserWeakMatchBonus: 1.25,
+    loserStrongMatchPenalty: 0.8,
+    dominance: {
+      dominantMainBoost: 1.3,
+      dominantRareDamp: 0.4,
+      closeBoutEdgeBoost: 1.5,
+      closeBoutTechniqueBoost: 1.25,
+      upsetRareBoost: 1.8,
+      upsetTrickBoost: 1.35,
+    },
+    drama: {
+      titleDeciderRareMult: 2.0,
+      titleDeciderExtremeMult: 2.2,
+      kinboshiRareMult: 1.8,
+      kinboshiTrickMult: 1.35,
+    },
+    nonTechnique: {
+      baseChance: 0.0012,
+      underweightBonus: 0.0005,
+      arawazashiBonus: 0.0003,
+      conditionGapBonus: 0.004,
+      loserExhaustedBonus: 0.003,
+      upsetPressBonus: 0.0025,
+      maxChance: 0.012,
+    },
     rarity: { rareTrickScale: 0.28, extremeBase: 0.06, extremeTrickScale: 0.26, extremeEdgeScale: 0.14 },
     repeatPenalty: { perCount: 0.08, min: 0.05 },
   },
@@ -151,7 +216,32 @@ const KIMARITE_TUNING_PRESETS: Record<KimariteTuningPresetId, KimariteTuningProf
     novelty: { earlyUniqueBoost: 1.16, unseenBoost: 0.66, repeatScale: 0.3, repeatPow: 1.02, repeatMin: 0.1 },
     family: { core: 1.26, secondary: 1.08, commonOther: 0.7, rareOther: 0.8 },
     preferredMoveMatch: 2.35,
-    nonTechnique: { baseChance: 0.0013, underweightBonus: 0.0005, arawazashiBonus: 0.00035, maxChance: 0.0032 },
+    signatureMoveBoost: 1.5,
+    loserWeakMatchBonus: 1.2,
+    loserStrongMatchPenalty: 0.84,
+    dominance: {
+      dominantMainBoost: 1.22,
+      dominantRareDamp: 0.55,
+      closeBoutEdgeBoost: 1.6,
+      closeBoutTechniqueBoost: 1.3,
+      upsetRareBoost: 1.9,
+      upsetTrickBoost: 1.4,
+    },
+    drama: {
+      titleDeciderRareMult: 2.1,
+      titleDeciderExtremeMult: 2.4,
+      kinboshiRareMult: 1.9,
+      kinboshiTrickMult: 1.4,
+    },
+    nonTechnique: {
+      baseChance: 0.0013,
+      underweightBonus: 0.0005,
+      arawazashiBonus: 0.00035,
+      conditionGapBonus: 0.0045,
+      loserExhaustedBonus: 0.0032,
+      upsetPressBonus: 0.0027,
+      maxChance: 0.014,
+    },
     rarity: { rareTrickScale: 0.34, extremeBase: 0.08, extremeTrickScale: 0.32, extremeEdgeScale: 0.18 },
     repeatPenalty: { perCount: 0.065, min: 0.08 },
   },
@@ -210,10 +300,15 @@ const weightedPick = <T>(
 const normalizeStat = (stats: Partial<Record<StatKey, number>>, key: StatKey): number =>
   clamp((stats[key] ?? tuning().statNormalize.defaultStat) / tuning().statNormalize.divider, tuning().statNormalize.min, tuning().statNormalize.max);
 
+const BODY_STRICT_MIN_WEIGHT_DIFF = 15;
+const BODY_STRICT_MIN_POWER = 65;
+const BODY_STRICT_PENALTY = 0.1;
+
 const resolveBodyFit = (
   entry: OfficialKimariteEntry,
   winner: KimariteCompetitorProfile,
   loser: KimariteCompetitorProfile,
+  dominance: number,
 ): number => {
   const heightDiff = winner.heightCm - loser.heightCm;
   const weightDiff = winner.weightKg - loser.weightKg;
@@ -241,6 +336,33 @@ const resolveBodyFit = (
   if (preferred?.includes(winner.bodyType)) score += tuning().bodyPreferredBonus;
   if (weightDiff >= 18 && (entry.tags.includes('lift') || entry.family === 'FORCE_OUT')) score += tuning().bodyLiftBonus;
   if (winner.bodyType === 'SOPPU' && entry.rarityBucket !== 'COMMON') score += tuning().bodySoppuRareBonus;
+
+  const isLiftMove = entry.tags.includes('lift') || entry.name === 'つり出し' || entry.name === 'つり落とし';
+  if (isLiftMove) {
+    const power = winner.stats.power ?? 50;
+    if (weightDiff < BODY_STRICT_MIN_WEIGHT_DIFF || power < BODY_STRICT_MIN_POWER) {
+      score *= BODY_STRICT_PENALTY;
+    }
+  }
+
+  if (entry.name === 'うっちゃり' || entry.name === '居反り') {
+    if (weightDiff > 0 && dominance >= 0.3) {
+      score *= 0.35;
+    } else if (weightDiff <= 0) {
+      score *= 1.35;
+    }
+  }
+
+  if (entry.name === '肩透かし' || entry.name === '引き落とし') {
+    if (heightDiff >= 5) score *= 1.25;
+  }
+
+  if (entry.name === '小手投げ' || entry.name === 'とったり') {
+    const kumi = winner.stats.kumi ?? 50;
+    const waza = winner.stats.waza ?? 50;
+    if (kumi < 65 && waza < 65) score *= 0.45;
+  }
+
   return score;
 };
 
@@ -511,6 +633,31 @@ const resolvePatternWeights = (
     NON_TECHNIQUE: 0,
   };
 
+  const dominance = clamp(context?.dominance ?? 0, -1, 1);
+  const isDominantWin = dominance >= 0.5;
+  const isCloseBout = Math.abs(dominance) < 0.2;
+  const isUpset = dominance < -0.2;
+  const dom = tuning().dominance;
+
+  const mainPatternMult = isDominantWin ? dom.dominantMainBoost : 1;
+  const rareDampMult = isDominantWin ? dom.dominantRareDamp : 1;
+  const edgeCloseMult = isCloseBout ? dom.closeBoutEdgeBoost : 1;
+  const techCloseMult = isCloseBout ? dom.closeBoutTechniqueBoost : 1;
+  const upsetRareMult = isUpset ? dom.upsetRareBoost : 1;
+  const upsetTrickMult = isUpset ? dom.upsetTrickBoost : 1;
+
+  const patternDominanceMult: Record<KimaritePattern, number> = {
+    PUSH_ADVANCE: mainPatternMult,
+    BELT_FORCE: mainPatternMult,
+    THROW_EXCHANGE: techCloseMult,
+    PULL_DOWN: mainPatternMult * (isCloseBout ? 0.9 : 1),
+    REAR_CONTROL: rareDampMult * (isCloseBout ? 1.1 : 1),
+    EDGE_REVERSAL: Math.max(edgeCloseMult, upsetRareMult) * rareDampMult,
+    LEG_TRIP_PICK: upsetTrickMult * (isCloseBout ? 1.2 : 1) * rareDampMult,
+    BACKWARD_ARCH: upsetRareMult * rareDampMult,
+    NON_TECHNIQUE: 1,
+  };
+
   const patterns: Array<{ pattern: KimaritePattern; weight: number }> = [
     {
       pattern: 'PUSH_ADVANCE',
@@ -570,7 +717,11 @@ const resolvePatternWeights = (
   return patterns
     .map((entry) => ({
       ...entry,
-      weight: entry.weight * availability[entry.pattern] * resolveIdentityPatternFit(entry.pattern, winner),
+      weight:
+        entry.weight *
+        availability[entry.pattern] *
+        resolveIdentityPatternFit(entry.pattern, winner) *
+        patternDominanceMult[entry.pattern],
     }))
     .filter((entry) => entry.weight > 0.04);
 };
@@ -657,32 +808,80 @@ const resolvePreferredMoveFit = (
   if (!preferredMove || !entry.signatureEligible) return 1;
   const preferred = findOfficialKimariteEntry(preferredMove);
   if (!preferred) return 1;
-  return preferred.name === entry.name ? tuning().preferredMoveMatch : 1;
+  return preferred.name === entry.name ? tuning().preferredMoveMatch * tuning().signatureMoveBoost : 1;
+};
+
+const resolveLoserAffinityFit = (
+  entry: OfficialKimariteEntry,
+  loser: KimariteCompetitorProfile,
+): number => {
+  let fit = 1;
+  if (loser.weakStyles && loser.weakStyles.length > 0) {
+    const weakMatch = resolveStyleSignatureFit(entry.name, loser.weakStyles);
+    if (weakMatch > 1) {
+      fit *= tuning().loserWeakMatchBonus;
+    }
+  }
+  fit *= resolveLoserFieldPenalty(entry.name, loser.strongStyles);
+  return fit;
+};
+
+const resolveDramaMultiplier = (
+  entry: OfficialKimariteEntry,
+  context?: KimariteBoutContext,
+): number => {
+  if (!context) return 1;
+  let mult = 1;
+  if (context.isTitleDecider) {
+    if (entry.rarityBucket === 'RARE') mult *= tuning().drama.titleDeciderRareMult;
+    else if (entry.rarityBucket === 'EXTREME') mult *= tuning().drama.titleDeciderExtremeMult;
+  }
+  if (context.isKinboshiChance) {
+    if (entry.rarityBucket === 'RARE') mult *= tuning().drama.kinboshiRareMult;
+    else if (entry.rarityBucket === 'EXTREME') mult *= tuning().drama.kinboshiTrickMult;
+    if (entry.family === 'THROW' || entry.family === 'TWIST_DOWN') {
+      mult *= 1.1;
+    }
+  }
+  return mult;
 };
 
 const resolveNonTechniqueChance = (
   winner: KimariteCompetitorProfile,
   loser: KimariteCompetitorProfile,
+  context?: KimariteBoutContext,
 ): number => {
   const weightDiff = winner.weightKg - loser.weightKg;
-  let chance = tuning().nonTechnique.baseChance;
-  if (weightDiff < -18) chance += tuning().nonTechnique.underweightBonus;
-  if (winner.traits.includes('ARAWAZASHI')) chance += tuning().nonTechnique.arawazashiBonus;
-  return clamp(chance, 0, tuning().nonTechnique.maxChance);
+  const cfg = tuning().nonTechnique;
+  let chance = cfg.baseChance;
+  if (weightDiff < -18) chance += cfg.underweightBonus;
+  if (winner.traits.includes('ARAWAZASHI')) chance += cfg.arawazashiBonus;
+  if (context?.loserExhausted) chance += cfg.loserExhaustedBonus;
+  const dominance = context?.dominance ?? 0;
+  if (dominance <= -0.35) chance += cfg.upsetPressBonus;
+  if (Math.abs(dominance) < 0.12) chance += cfg.conditionGapBonus * 0.5;
+  return clamp(chance, 0, cfg.maxChance);
 };
 
-const selectNonTechnique = (rng: RandomSource): KimariteOutcomeResolution => {
+const selectNonTechnique = (
+  rng: RandomSource,
+  context?: KimariteBoutContext,
+): KimariteOutcomeResolution => {
   const entries = NON_TECHNIQUE_CATALOG.filter((entry) => entry.name !== '不戦');
+  const dominance = context?.dominance ?? 0;
+  const isUpset = dominance <= -0.35;
+  const loserExhausted = Boolean(context?.loserExhausted);
   const picked = weightedPick(
-    entries.map((entry) => ({
-      value: entry,
-      weight:
-        entry.name === '反則'
-          ? 0.04
-          : entry.name === '踏み出し'
-            ? 0.18
-            : 1,
-    })),
+    entries.map((entry) => {
+      let weight = 1;
+      if (entry.name === '反則') weight = 0.04;
+      else if (entry.name === '踏み出し') weight = 0.18 + (isUpset ? 0.4 : 0);
+      else if (entry.name === '勇み足') weight = 1 + (isUpset ? 1.6 : 0);
+      else if (entry.name === '腰砕け') weight = 1 + (loserExhausted ? 2.0 : 0);
+      else if (entry.name === 'つきひざ') weight = 1 + (loserExhausted ? 1.4 : 0);
+      else if (entry.name === 'つき手') weight = 1 + (loserExhausted ? 1.4 : 0);
+      return { value: entry, weight };
+    }),
     rng,
   );
   return {
@@ -830,8 +1029,8 @@ export const resolveKimariteOutcome = (input: {
   boutContext?: KimariteBoutContext;
 }): KimariteOutcomeResolution => {
   const rng = input.rng ?? Math.random;
-  if (input.allowNonTechnique && rng() < resolveNonTechniqueChance(input.winner, input.loser)) {
-    return selectNonTechnique(rng);
+  if (input.allowNonTechnique && rng() < resolveNonTechniqueChance(input.winner, input.loser, input.boutContext)) {
+    return selectNonTechnique(rng, input.boutContext);
   }
 
   const profile = resolveVarietyProfile(input.winner);
@@ -841,19 +1040,21 @@ export const resolveKimariteOutcome = (input: {
   const pattern = route
     ? routeToPattern(route)
     : weightedPick(
-        resolvePatternWeights(
-          input.winner,
-          input.loser,
-          profile,
-          input.boutContext,
-          input.forcePattern,
-        ).map((entry) => ({ value: entry.pattern, weight: entry.weight })),
-        rng,
-      );
+      resolvePatternWeights(
+        input.winner,
+        input.loser,
+        profile,
+        input.boutContext,
+        input.forcePattern,
+      ).map((entry) => ({ value: entry.pattern, weight: entry.weight })),
+      rng,
+    );
+
+  const dominance = clamp(input.boutContext?.dominance ?? 0, -1, 1);
 
   const candidates: KimariteCandidate[] = OFFICIAL_WIN_KIMARITE_82.flatMap((entry) => {
     if (!entry.requiredPatterns.includes(pattern)) return [];
-    const bodyFit = resolveBodyFit(entry, input.winner, input.loser);
+    const bodyFit = resolveBodyFit(entry, input.winner, input.loser, dominance);
     if (bodyFit <= 0) return [];
     let weight =
       entry.historicalWeight *
@@ -864,6 +1065,9 @@ export const resolveKimariteOutcome = (input: {
       resolveFamilyFit(entry, profile) *
       resolvePreferredMoveFit(entry, input.winner.preferredMove) *
       resolveRepertoireFit(entry, input.winner, route, input.boutContext) *
+      resolveStyleSignatureFit(entry.name, input.winner.strongStyles) *
+      resolveLoserAffinityFit(entry, input.loser) *
+      resolveDramaMultiplier(entry, input.boutContext) *
       bodyFit *
       resolveNoveltyMultiplier(entry, historySummary, input.winner, pattern, targetUniqueCount);
 
@@ -888,6 +1092,7 @@ export const resolveKimariteOutcome = (input: {
     ? candidates
     : OFFICIAL_WIN_KIMARITE_82
       .filter((entry) => entry.requiredPatterns.includes(pattern))
+      .filter((entry) => resolveBodyFit(entry, input.winner, input.loser, dominance) > 0)
       .filter((entry) => !route || resolveRepertoireFit(entry, input.winner, route, input.boutContext) > 0)
       .map((entry) => ({ entry, weight: Math.max(entry.floorRate * 10000, 1) }));
 
