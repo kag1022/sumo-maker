@@ -8,6 +8,7 @@ import {
   type CollectionDashboardSummary,
 } from "../../../logic/persistence/collections";
 import { Button } from "../../../shared/ui/Button";
+import { ProgressRing } from "../../../shared/ui/ProgressRing";
 
 const COLLECTION_TABS: Array<{
   id: CollectionCatalogType;
@@ -98,15 +99,66 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
     <div className="collection-museum-shell">
       <section className="collection-museum-surface surface-panel">
         <div className="collection-museum-head">
-          <div>
-            <div className="record-page-kicker">収蔵室</div>
-            <div className="panel-title">資料館の収蔵</div>
-            <div className="text-sm text-text-dim">主役は展示一覧と詳細面です。上部は進捗だけを静かに示します。</div>
+          <div className="flex items-center gap-4">
+            {dashboard ? (() => {
+              const totalUnlocked = dashboard.totalUnlocked;
+              const totalAll = dashboard.rows.reduce((sum, r) => sum + r.total, 0);
+              const pct = totalAll > 0 ? Math.round((totalUnlocked / totalAll) * 100) : 0;
+              return (
+                <ProgressRing
+                  value={totalUnlocked}
+                  max={Math.max(1, totalAll)}
+                  size={56}
+                  strokeWidth={4}
+                  label={
+                    <span className="text-[11px] font-medium text-[var(--ui-brand-line)]">{pct}%</span>
+                  }
+                />
+              );
+            })() : null}
+            <div>
+              <div className="record-page-kicker">収蔵室</div>
+              <div className="panel-title">資料館の収蔵</div>
+              <div className="text-sm text-text-dim">
+                {dashboard
+                  ? `全${dashboard.rows.reduce((s, r) => s + r.total, 0)}件中 ${dashboard.totalUnlocked}件を解放済み`
+                  : "進捗だけを静かに示します。"}
+              </div>
+            </div>
           </div>
           <Button variant="secondary" size="sm" onClick={onOpenArchive}>
             保存済み記録を開く
           </Button>
         </div>
+
+        {!isLoading && dashboard ? (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {dashboard.rows.map((row) => {
+              const pct = row.total > 0 ? (row.unlocked / row.total) * 100 : 0;
+              return (
+                <div key={row.type} className="flex items-center gap-3 border border-white/8 bg-white/[0.02] px-3 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] ui-text-label tracking-widest text-text-dim uppercase">{row.label}</span>
+                      <span className="text-[10px] text-text-dim">{row.unlocked}/{row.total}</span>
+                    </div>
+                    <div className="h-1 bg-white/8 overflow-hidden">
+                      <div
+                        className="h-full transition-all duration-700"
+                        style={{ width: `${pct}%`, backgroundColor: "var(--ui-brand-line)", opacity: 0.6 }}
+                      />
+                    </div>
+                  </div>
+                  {row.newCount > 0 ? (
+                    <span className="text-[9px] border border-[var(--ui-action)]/30 bg-[var(--ui-action)]/10 text-[var(--ui-action)] px-1.5 py-0.5">
+                      NEW {row.newCount}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 animate-pulse">

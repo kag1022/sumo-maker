@@ -11,13 +11,19 @@ import {
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
-import type { CareerOverviewModel } from "../utils/careerResultModel";
+import { StatCard } from "../../../shared/ui/StatCard";
+import { RankBadge } from "../../../shared/ui/RankBadge";
+import type { CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
+import { WinRateTrendChart } from "./WinRateTrendChart";
+import { BodyWeightChart } from "./BodyWeightChart";
+import { TraitTimeline } from "./TraitTimeline";
 
 interface CareerEncyclopediaChapterProps {
   status: RikishiStatus;
   overview: CareerOverviewModel;
   highestRankLabel: string;
+  ledgerPoints?: CareerLedgerPoint[];
   isSaved: boolean;
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
@@ -25,11 +31,20 @@ interface CareerEncyclopediaChapterProps {
   onReturnToScout: () => void;
 }
 
+
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   NORMAL: "均整型",
   SOPPU: "ソップ型",
   ANKO: "アンコ型",
   MUSCULAR: "筋骨型",
+};
+
+const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"]): string => {
+  if (raw && BODY_LABELS[raw as keyof typeof BODY_LABELS]) {
+    return BODY_LABELS[raw as keyof typeof BODY_LABELS];
+  }
+  if (raw && raw.length > 0) return raw;
+  return BODY_LABELS[fallback];
 };
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
@@ -72,6 +87,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   status,
   overview,
   highestRankLabel,
+  ledgerPoints,
   isSaved,
   detailState,
   detailBuildProgress,
@@ -109,9 +125,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         initial?.entryPathLabel ? { label: "入門経路", value: initial.entryPathLabel } : null,
         initial?.temperamentLabel ? { label: "気質", value: initial.temperamentLabel } : null,
         initial?.bodySeedLabel ? { label: "身体の素地", value: initial.bodySeedLabel } : null,
-        growth?.bodyTypeLabel || BODY_LABELS[status.bodyType]
-          ? { label: "体型", value: growth?.bodyTypeLabel ?? BODY_LABELS[status.bodyType] }
-          : null,
+        { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
       ].filter((row): row is { label: string; value: string } => Boolean(row)),
     [growth?.bodyTypeLabel, initial?.bodySeedLabel, initial?.entryPathLabel, initial?.temperamentLabel, status.bodyType],
   );
@@ -190,6 +204,23 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
     : "名鑑の内容を確認したうえで、この人生を残すか決められます。";
 
+  const kpiStats = React.useMemo(() => {
+    const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
+    const makuuchiBasho = nonMaezumoRecords.filter((r) => r.rank.division === "Makuuchi").length;
+    const totalBasho = nonMaezumoRecords.length;
+    const totalDecisions = status.history.totalWins + status.history.totalLosses;
+    const winRate = totalDecisions > 0 ? ((status.history.totalWins / totalDecisions) * 100).toFixed(1) : "-";
+    const yusho = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo;
+    const kinboshi = nonMaezumoRecords.reduce((sum, r) => sum + (r.kinboshi ?? 0), 0);
+    return { makuuchiBasho, totalBasho, winRate, yusho, kinboshi };
+  }, [status.history]);
+
+  const bodyTimeline = status.history.bodyTimeline ?? [];
+  const entryWeight = bodyTimeline.length > 0 ? bodyTimeline[0].weightKg : undefined;
+  const peakWeight = bodyTimeline.length > 0 ? Math.max(...bodyTimeline.map((b) => b.weightKg)) : undefined;
+  const traitAwakenings = status.history.traitAwakenings ?? [];
+  const totalBashoForTimeline = status.history.records.filter((r) => r.rank.division !== "Maezumo").length;
+
   return (
     <section className="career-encyclopedia-shell">
       <div className="career-encyclopedia-hero">
@@ -259,74 +290,162 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         )}
       </div>
 
-      <div className="career-encyclopedia-layout">
-        <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
-          <KeyValueGrid rows={profileRows} />
-          {subProfileRows.length > 0 ? (
-            <>
-              <div className="career-encyclopedia-subtitle">補足</div>
-              <KeyValueGrid rows={subProfileRows} />
-            </>
-          ) : null}
-        </InfoCard>
-
-        <InfoCard title="力士像の補足" icon={<Swords className="h-4 w-4" />}>
-          {signatureLines.length > 0 ? (
-            <div className="career-encyclopedia-stack">
-              {signatureLines.map((line) => (
-                <div key={line.label} className="career-encyclopedia-note">
-                  <span>{line.label}</span>
-                  <strong>{line.value}</strong>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="career-encyclopedia-empty">得意な技はまだ定まっていません。</div>
-          )}
-
-          <div className="career-encyclopedia-subtitle">人物メモ</div>
-          <div className="career-encyclopedia-stack">
-            {(memoLines.length > 1 ? memoLines.slice(1) : [overview.lifeSummary]).map((line) => (
-              <p key={line} className="career-encyclopedia-copyline">{line}</p>
-            ))}
-          </div>
-
-          <div className="career-encyclopedia-subtitle">特性</div>
-          {learnedTraits.length > 0 ? (
-            <div className="career-encyclopedia-traits">
-              {learnedTraits.map((entry) => (
-                <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className="career-encyclopedia-trait">
-                  <div className="career-encyclopedia-traithead">
-                    <strong>{entry.data?.name ?? entry.trait}</strong>
-                    <span>
-                      {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
-                    </span>
-                  </div>
-                  <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="career-encyclopedia-empty">記録された特性はありません。</div>
-          )}
-        </InfoCard>
-
-        <InfoCard title="主要実績" icon={<Trophy className="h-4 w-4" />}>
-          <KeyValueGrid rows={recordRows} />
-          {topMoves.length > 0 ? (
-            <div className="career-encyclopedia-recordnote">
-              <Star className="h-3.5 w-3.5" />
-              <span>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
-            </div>
-          ) : null}
-          {memoLines.length > 0 ? (
-            <div className="career-encyclopedia-recordnote">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{memoLines[0]}</span>
-            </div>
-          ) : null}
-        </InfoCard>
+      <div className="career-enc-section">
+        <div className="career-enc-section-head">
+          <span className="career-enc-section-mark" />
+          <span className="career-enc-section-title">名跡要覧</span>
+          <span className="career-enc-section-rule" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <StatCard
+            label="在位場所数"
+            value={kpiStats.totalBasho}
+            subtext={kpiStats.makuuchiBasho > 0 ? `幕内 ${kpiStats.makuuchiBasho}場所` : undefined}
+          />
+          <StatCard
+            label="通算勝率"
+            value={`${kpiStats.winRate}%`}
+            subtext={`${status.history.totalWins}勝${status.history.totalLosses}敗`}
+            tone="win"
+          />
+          <StatCard
+            label="最高位"
+            value={
+              <RankBadge
+                division={status.history.maxRank.division}
+                name={highestRankLabel}
+                size="sm"
+              />
+            }
+          />
+          <StatCard
+            label="幕内場所"
+            value={kpiStats.makuuchiBasho}
+            subtext="幕内在位"
+            tone="gold"
+          />
+          <StatCard
+            label="優勝"
+            value={`${kpiStats.yusho}回`}
+            subtext={status.history.yushoCount.makuuchi > 0 ? `幕内 ${status.history.yushoCount.makuuchi}回` : undefined}
+            tone={kpiStats.yusho > 0 ? "gold" : "default"}
+          />
+          <StatCard
+            label="金星"
+            value={`${kpiStats.kinboshi}個`}
+            tone={kpiStats.kinboshi > 0 ? "action" : "default"}
+          />
+        </div>
       </div>
+
+      {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
+        <div className="career-enc-section">
+          <div className="career-enc-section-head">
+            <span className="career-enc-section-mark" />
+            <span className="career-enc-section-title">軌跡図譜</span>
+            <span className="career-enc-section-rule" />
+          </div>
+          <div className="career-enc-chartgrid">
+            {ledgerPoints && ledgerPoints.length > 4 ? (
+              <WinRateTrendChart points={ledgerPoints} />
+            ) : null}
+            {bodyTimeline.length > 4 ? (
+              <BodyWeightChart
+                bodyTimeline={bodyTimeline}
+                entryWeight={entryWeight}
+                peakWeight={peakWeight}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="career-enc-section">
+        <div className="career-enc-section-head">
+          <span className="career-enc-section-mark" />
+          <span className="career-enc-section-title">基本帳面</span>
+          <span className="career-enc-section-rule" />
+        </div>
+        <div className="career-encyclopedia-layout">
+          <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
+            <KeyValueGrid rows={profileRows} />
+            {subProfileRows.length > 0 ? (
+              <>
+                <div className="career-encyclopedia-subtitle">補足</div>
+                <KeyValueGrid rows={subProfileRows} />
+              </>
+            ) : null}
+          </InfoCard>
+
+          <InfoCard title="力士像の補足" icon={<Swords className="h-4 w-4" />}>
+            {signatureLines.length > 0 ? (
+              <div className="career-encyclopedia-stack">
+                {signatureLines.map((line) => (
+                  <div key={line.label} className="career-encyclopedia-note">
+                    <span>{line.label}</span>
+                    <strong>{line.value}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="career-encyclopedia-empty">得意な技はまだ定まっていません。</div>
+            )}
+
+            <div className="career-encyclopedia-subtitle">人物メモ</div>
+            <div className="career-encyclopedia-stack">
+              {(memoLines.length > 1 ? memoLines.slice(1) : [overview.lifeSummary]).map((line) => (
+                <p key={line} className="career-encyclopedia-copyline">{line}</p>
+              ))}
+            </div>
+
+            <div className="career-encyclopedia-subtitle">特性</div>
+            {learnedTraits.length > 0 ? (
+              <div className="career-encyclopedia-traits">
+                {learnedTraits.map((entry) => (
+                  <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className="career-encyclopedia-trait">
+                    <div className="career-encyclopedia-traithead">
+                      <strong>{entry.data?.name ?? entry.trait}</strong>
+                      <span>
+                        {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
+                      </span>
+                    </div>
+                    <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="career-encyclopedia-empty">記録された特性はありません。</div>
+            )}
+          </InfoCard>
+
+          <InfoCard title="主要実績" icon={<Trophy className="h-4 w-4" />}>
+            <KeyValueGrid rows={recordRows} />
+            {topMoves.length > 0 ? (
+              <div className="career-encyclopedia-recordnote">
+                <Star className="h-3.5 w-3.5" />
+                <span>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
+              </div>
+            ) : null}
+            {memoLines.length > 0 ? (
+              <div className="career-encyclopedia-recordnote">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{memoLines[0]}</span>
+              </div>
+            ) : null}
+          </InfoCard>
+        </div>
+      </div>
+
+      {traitAwakenings.length > 0 ? (
+        <div className="career-enc-section">
+          <div className="career-enc-section-head">
+            <span className="career-enc-section-mark" />
+            <span className="career-enc-section-title">特性年譜</span>
+            <span className="career-enc-section-rule" />
+          </div>
+          <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
+        </div>
+      ) : null}
     </section>
   );
 };

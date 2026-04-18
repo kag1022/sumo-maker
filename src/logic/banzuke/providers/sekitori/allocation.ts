@@ -138,15 +138,6 @@ const pickTopCandidates = (
       ),
     );
   }
-  if (picked.length < count) {
-    picked.push(
-      ...takeCandidates(
-        pool.filter((candidate) => !picked.some((row) => row.snapshot.id === candidate.snapshot.id)),
-        count - picked.length,
-        () => true,
-      ),
-    );
-  }
   return uniqueById(picked).slice(0, count);
 };
 
