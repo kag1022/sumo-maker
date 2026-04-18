@@ -171,9 +171,9 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
 
                 return (
                   <React.Fragment key={band.key}>
-                    <div className="career-workspace-bandlabel">{band.label}</div>
-                    <div className="career-workspace-bandtrack" style={{ width: `${canvasWidth}px` }}>
-                      <div className="career-workspace-bandwash" />
+                    <div className="career-workspace-bandlabel" data-band={band.key}>{band.label}</div>
+                    <div className="career-workspace-bandtrack" data-band={band.key} style={{ width: `${canvasWidth}px` }}>
+                      <div className="career-workspace-bandwash" data-band={band.key} />
                       {groups.map((group) => (
                         <div
                           key={`${band.key}-${group.groupId}`}

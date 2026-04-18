@@ -17,12 +17,14 @@ interface WeightPoint {
   weightKg: number;
 }
 
-const TOOLTIP_STYLE = {
-  background: "#081223",
-  border: "1px solid rgba(76, 93, 121, 0.95)",
+const TOOLTIP_STYLE: React.CSSProperties = {
+  background: "rgba(14, 12, 8, 0.96)",
+  border: "1px solid rgba(196, 154, 77, 0.42)",
   borderRadius: 0,
+  fontFamily: "\"Shippori Mincho\", serif",
   fontSize: 11,
-  color: "#eef2f6",
+  color: "#f5ecd8",
+  padding: "0.45rem 0.6rem",
 };
 
 const CustomTooltip: React.FC<{
@@ -32,9 +34,11 @@ const CustomTooltip: React.FC<{
 }> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={TOOLTIP_STYLE} className="px-2.5 py-2">
-      <div className="text-[10px] text-text-dim">{label}</div>
-      <div className="text-[11px] text-text font-medium">{payload[0].value.toFixed(1)} kg</div>
+    <div style={TOOLTIP_STYLE}>
+      <div style={{ fontSize: 10, color: "rgba(228, 218, 192, 0.6)", letterSpacing: "0.08em" }}>{label}</div>
+      <div style={{ fontSize: 12, color: "#f5ecd8", fontFamily: "'DotGothic16', monospace", marginTop: 2 }}>
+        {payload[0].value.toFixed(1)} <span style={{ fontSize: 9, opacity: 0.6 }}>貫目（kg）</span>
+      </div>
     </div>
   );
 };
@@ -71,46 +75,60 @@ export const BodyWeightChart: React.FC<BodyWeightChartProps> = ({
     .map((d) => d.bashoSeq);
 
   return (
-    <ChartCard title="体重推移" subtitle={peakWeight ? `ピーク ${peakWeight.toFixed(0)}kg` : undefined}>
+    <ChartCard
+      title="体重推移"
+      subtitle={peakWeight ? `ピーク ${peakWeight.toFixed(0)}kg` : "貫目の歩み"}
+    >
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="2 4" stroke="var(--chart-grid)" vertical={false} />
+        <LineChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 4 }}>
+          <defs>
+            <linearGradient id="weightStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#c49a4d" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="#c49a4d" stopOpacity={1} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="1 5"
+            stroke="rgba(196, 154, 77, 0.12)"
+            vertical={false}
+          />
           <XAxis
             dataKey="bashoSeq"
             ticks={visibleTicks}
             tickFormatter={(seq) => data.find((d) => d.bashoSeq === seq)?.label ?? ""}
-            tick={{ fontSize: 9, fill: "rgba(238,242,246,0.4)" }}
-            axisLine={{ stroke: "var(--chart-axis)" }}
+            tick={{ fontSize: 9, fill: "rgba(228, 218, 192, 0.45)", fontFamily: "'Shippori Mincho', serif" }}
+            axisLine={{ stroke: "rgba(196, 154, 77, 0.28)", strokeWidth: 1 }}
             tickLine={false}
           />
           <YAxis
             domain={[minW, maxW]}
             tickFormatter={(v) => `${v}`}
-            tick={{ fontSize: 9, fill: "rgba(238,242,246,0.4)" }}
+            tick={{ fontSize: 9, fill: "rgba(228, 218, 192, 0.45)", fontFamily: "'DotGothic16', monospace" }}
             axisLine={false}
             tickLine={false}
+            width={28}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(196, 154, 77, 0.35)", strokeWidth: 1 }} />
           {entryWeight ? (
             <ReferenceLine
               y={entryWeight}
-              stroke="var(--chart-axis)"
-              strokeDasharray="3 3"
-              label={{ value: "入門時", position: "insideTopRight", fontSize: 9, fill: "rgba(238,242,246,0.4)" }}
+              stroke="rgba(142, 155, 176, 0.32)"
+              strokeDasharray="4 4"
+              label={{ value: "入門", position: "insideTopLeft", fontSize: 9, fill: "rgba(228, 218, 192, 0.5)", offset: 4 }}
             />
           ) : null}
           {peakWeight && peakWeight !== entryWeight ? (
             <ReferenceLine
               y={peakWeight}
-              stroke="var(--chart-makuuchi)"
-              strokeOpacity={0.4}
-              strokeDasharray="3 3"
+              stroke="rgba(196, 154, 77, 0.45)"
+              strokeDasharray="2 3"
+              label={{ value: "絶頂", position: "insideTopRight", fontSize: 9, fill: "rgba(196, 154, 77, 0.7)", offset: 4 }}
             />
           ) : null}
           <Line
             type="monotone"
             dataKey="weightKg"
-            stroke="var(--chart-sandanme)"
+            stroke="url(#weightStroke)"
             strokeWidth={2}
             dot={false}
             isAnimationActive={false}

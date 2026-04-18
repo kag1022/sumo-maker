@@ -1,4 +1,5 @@
 import React from "react";
+import { clsx } from "clsx";
 import type { CareerLedgerPoint } from "../utils/careerResultModel";
 
 interface BashoHeatmapStripProps {
@@ -7,15 +8,16 @@ interface BashoHeatmapStripProps {
   onSelectBasho: (seq: number) => void;
 }
 
-const getMarkStyle = (wins: number, losses: number, absent: number): { symbol: string; color: string } => {
+const winRateToColor = (wins: number, losses: number, absent: number): string => {
   const total = wins + losses;
-  if (total === 0) return { symbol: "休", color: "var(--chart-absent)" };
+  if (total === 0) return "rgba(76,93,121,0.3)";
   const rate = wins / total;
-  if (absent >= 10) return { symbol: "休", color: "var(--chart-absent)" };
-  if (rate >= 0.8) return { symbol: "◎", color: "var(--chart-win)" };
-  if (rate >= 0.534) return { symbol: "○", color: "rgba(88,181,135,0.75)" };
-  if (rate >= 0.5) return { symbol: "△", color: "rgba(184,155,104,0.65)" };
-  return { symbol: "●", color: "var(--chart-loss)" };
+  if (rate >= 0.8) return "rgba(88,181,135,0.85)";
+  if (rate >= 0.6) return "rgba(88,181,135,0.55)";
+  if (rate >= 0.5) return "rgba(88,181,135,0.35)";
+  if (rate >= 0.4) return "rgba(203,122,92,0.45)";
+  if (absent >= 15) return "rgba(76,93,121,0.5)";
+  return "rgba(203,122,92,0.7)";
 };
 
 export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
@@ -26,13 +28,14 @@ export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
   if (points.length === 0) return null;
 
   return (
-    <div className="basho-hoshi-strip">
-      <div className="basho-hoshi-strip-label">星取一覧</div>
-      <div className="basho-hoshi-strip-track" role="list">
+    <div className="border border-white/10 bg-white/[0.02] px-4 py-3">
+      <div className="mb-2 text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase">
+        場所別成績ヒートマップ
+      </div>
+      <div className="flex gap-0.5 overflow-x-auto pb-1" role="list">
         {points.map((point) => {
-          const mark = getMarkStyle(point.wins, point.losses, point.absent);
+          const color = winRateToColor(point.wins, point.losses, point.absent);
           const isSelected = point.bashoSeq === selectedBashoSeq;
-          const hasMilestone = point.milestoneTags.length > 0;
           return (
             <button
               key={point.bashoSeq}
@@ -40,20 +43,23 @@ export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
               type="button"
               title={`${point.bashoLabel} / ${point.rankShortLabel} / ${point.recordCompactLabel}`}
               onClick={() => onSelectBasho(point.bashoSeq)}
-              className={`basho-hoshi-mark${isSelected ? " selected" : ""}${hasMilestone ? " milestone" : ""}`}
-              style={{ color: mark.color }}
-            >
-              {mark.symbol}
-            </button>
+              className={clsx(
+                "flex-shrink-0 transition-all duration-100",
+                isSelected ? "ring-1 ring-[var(--ui-brand-line)]/60 ring-offset-0 scale-y-110" : "hover:scale-y-105",
+              )}
+              style={{
+                width: 8,
+                height: 24,
+                backgroundColor: color,
+              }}
+            />
           );
         })}
       </div>
-      <div className="basho-hoshi-strip-legend">
-        <span style={{ color: "var(--chart-win)" }}>◎ 大勝ち越し</span>
-        <span style={{ color: "rgba(88,181,135,0.75)" }}>○ 勝ち越し</span>
-        <span style={{ color: "rgba(184,155,104,0.65)" }}>△ 五分前後</span>
-        <span style={{ color: "var(--chart-loss)" }}>● 負け越し</span>
-        <span style={{ color: "var(--chart-absent)" }}>休 全休</span>
+      <div className="mt-1 flex gap-4 text-[9px] text-text-dim">
+        <span style={{ color: "rgba(88,181,135,0.85)" }}>■ 勝ち越し</span>
+        <span style={{ color: "rgba(203,122,92,0.7)" }}>■ 負け越し</span>
+        <span style={{ color: "rgba(76,93,121,0.5)" }}>■ 全休</span>
       </div>
     </div>
   );
