@@ -4438,6 +4438,87 @@
     rgba(248, 243, 228, 0.01);
 }
 
+/* --- Division-colored band backgrounds --- */
+.career-workspace-bandwash[data-band="YOKOZUNA"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.14), rgba(196, 154, 77, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 77, 0.1);
+}
+.career-workspace-bandwash[data-band="OZEKI"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.1), rgba(196, 154, 77, 0.02));
+}
+.career-workspace-bandwash[data-band="SEKIWAKE"],
+.career-workspace-bandwash[data-band="KOMUSUBI"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.07), rgba(196, 154, 77, 0.015));
+}
+.career-workspace-bandwash[data-band="MAEGASHIRA"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.04), rgba(196, 154, 77, 0.008));
+}
+.career-workspace-bandwash[data-band="JURYO"] {
+  background:
+    linear-gradient(180deg, rgba(76, 123, 255, 0.08), rgba(76, 123, 255, 0.015));
+}
+.career-workspace-bandwash[data-band="MAKUSHITA"] {
+  background:
+    linear-gradient(180deg, rgba(73, 185, 123, 0.06), rgba(73, 185, 123, 0.015));
+}
+.career-workspace-bandwash[data-band="SANDANME"] {
+  background:
+    linear-gradient(180deg, rgba(118, 164, 212, 0.05), rgba(118, 164, 212, 0.012));
+}
+.career-workspace-bandwash[data-band="JONIDAN"] {
+  background:
+    linear-gradient(180deg, rgba(142, 155, 176, 0.04), rgba(142, 155, 176, 0.01));
+}
+.career-workspace-bandwash[data-band="JONOKUCHI"] {
+  background:
+    linear-gradient(180deg, rgba(98, 112, 140, 0.04), rgba(98, 112, 140, 0.01));
+}
+
+/* --- Band label color-coding --- */
+.career-workspace-bandlabel[data-band="YOKOZUNA"] {
+  color: var(--chart-makuuchi);
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+}
+.career-workspace-bandlabel[data-band="OZEKI"] {
+  color: rgba(196, 154, 77, 0.9);
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.84rem;
+}
+.career-workspace-bandlabel[data-band="SEKIWAKE"],
+.career-workspace-bandlabel[data-band="KOMUSUBI"] {
+  color: rgba(196, 154, 77, 0.75);
+}
+.career-workspace-bandlabel[data-band="MAEGASHIRA"] {
+  color: rgba(196, 154, 77, 0.65);
+}
+.career-workspace-bandlabel[data-band="JURYO"] {
+  color: rgba(76, 123, 255, 0.75);
+}
+.career-workspace-bandlabel[data-band="MAKUSHITA"] {
+  color: rgba(73, 185, 123, 0.7);
+}
+.career-workspace-bandlabel[data-band="SANDANME"] {
+  color: rgba(118, 164, 212, 0.65);
+}
+.career-workspace-bandlabel[data-band="JONIDAN"],
+.career-workspace-bandlabel[data-band="JONOKUCHI"] {
+  color: rgba(142, 155, 176, 0.6);
+}
+
+/* --- Stronger horizontal separator between division groups --- */
+.career-workspace-bandtrack[data-band="JURYO"] {
+  border-top: 1px solid rgba(196, 154, 77, 0.22);
+}
+.career-workspace-bandtrack[data-band="MAKUSHITA"] {
+  border-top: 1px solid rgba(76, 123, 255, 0.18);
+}
+
 .career-workspace-continuity {
   position: absolute;
   top: 50%;
@@ -4454,56 +4535,57 @@
   transform: translateY(-50%);
   display: grid;
   justify-items: center;
-  gap: 0.22rem;
+  gap: 0.15rem;
   width: 46px;
-  min-height: 50px;
-  padding: 0.45rem 0.3rem 0.42rem;
-  border: 1px solid rgba(150, 170, 201, 0.18);
-  border-radius: 14px;
+  min-height: 46px;
+  padding: 0.36rem 0.28rem 0.32rem;
+  border: 1px solid rgba(196, 154, 77, 0.18);
+  border-radius: 2px;
   background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.12), rgba(255, 255, 255, 0.02)),
-    rgba(14, 18, 24, 0.95);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 22px rgba(0, 0, 0, 0.2);
+    linear-gradient(180deg, rgba(18, 22, 28, 0.6), rgba(12, 15, 20, 0.9));
   text-align: center;
-  font-family: "DotGothic16", monospace;
-  color: rgba(248, 243, 228, 0.92);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  color: rgba(248, 243, 228, 0.88);
 }
 
 .career-workspace-chip[data-selected="true"] {
   transform: translateY(-50%);
-  border-color: rgba(205, 174, 114, 0.38);
+  border-color: rgba(205, 174, 114, 0.7);
   background:
-    linear-gradient(180deg, rgba(205, 174, 114, 0.22), rgba(255, 255, 255, 0.02)),
-    rgba(14, 18, 24, 0.98);
+    linear-gradient(180deg, rgba(60, 40, 18, 0.55), rgba(22, 16, 10, 0.92));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(205, 174, 114, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.2);
+    inset 0 0 0 1px rgba(205, 174, 114, 0.18),
+    0 0 0 1px rgba(205, 174, 114, 0.28);
+  color: rgba(248, 240, 220, 0.98);
 }
 
 .career-workspace-chip[data-absence="true"] {
-  border-color: rgba(210, 107, 82, 0.4);
+  border-color: rgba(203, 122, 92, 0.42);
+  color: rgba(203, 122, 92, 0.75);
 }
 
 .career-workspace-chip[data-event="true"]::after {
   content: "";
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: -2px;
+  right: -2px;
   width: 5px;
   height: 5px;
-  background: rgba(154, 208, 255, 0.94);
+  background: var(--chart-makuuchi);
 }
 
 .career-workspace-chip-rank {
-  font-size: 0.64rem;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
 }
 
 .career-workspace-chip-record {
-  font-size: 0.53rem;
-  color: rgba(214, 223, 239, 0.68);
+  font-size: 0.54rem;
+  line-height: 1;
+  color: rgba(214, 223, 239, 0.6);
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0;
 }
 
 .career-workspace-tick {
@@ -6134,90 +6216,93 @@ input[type="range"]::-moz-range-thumb {
   transform: translateY(-50%);
   display: grid;
   justify-items: center;
-  gap: 0.1rem;
-  width: 52px;
-  min-height: 44px;
-  padding: 0.42rem 0.3rem 0.38rem;
-  border: 1px solid rgba(150, 170, 201, 0.15);
-  border-radius: 14px;
+  gap: 0.08rem;
+  width: 50px;
+  min-height: 42px;
+  padding: 0.34rem 0.26rem 0.3rem;
+  border: 1px solid rgba(196, 154, 77, 0.16);
+  border-radius: 2px;
   background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.08), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.94);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 22px rgba(0, 0, 0, 0.18);
+    linear-gradient(180deg, rgba(20, 24, 30, 0.72), rgba(10, 14, 20, 0.94));
   text-align: center;
-  font-family: "DotGothic16", monospace;
-  color: rgba(244, 247, 252, 0.9);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  color: rgba(244, 247, 252, 0.82);
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.career-workspace-chip:hover {
+  border-color: rgba(196, 154, 77, 0.38);
+  color: rgba(248, 243, 228, 0.95);
 }
 
 .career-workspace-chip[data-selected="true"] {
   transform: translateY(-50%);
-  border-color: rgba(205, 174, 114, 0.38);
+  border-color: rgba(205, 174, 114, 0.75);
   background:
-    linear-gradient(180deg, rgba(205, 174, 114, 0.2), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.98);
+    linear-gradient(180deg, rgba(60, 40, 18, 0.55), rgba(20, 14, 8, 0.96));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(205, 174, 114, 0.09),
-    0 10px 22px rgba(0, 0, 0, 0.18);
-  color: rgba(248, 243, 228, 0.98);
+    inset 0 0 0 1px rgba(205, 174, 114, 0.22),
+    0 0 0 1px rgba(205, 174, 114, 0.3);
+  color: rgba(248, 240, 220, 0.98);
 }
 
 .career-workspace-chip[data-emphasis="true"] {
-  border-color: rgba(132, 167, 255, 0.24);
+  border-color: rgba(196, 154, 77, 0.36);
   background:
-    linear-gradient(180deg, rgba(132, 167, 255, 0.16), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.95);
+    linear-gradient(180deg, rgba(196, 154, 77, 0.1), rgba(10, 14, 20, 0.96));
 }
 
 .career-workspace-chip[data-absence="true"] {
-  border-color: rgba(210, 107, 82, 0.4);
+  border-color: rgba(203, 122, 92, 0.42);
+  color: rgba(203, 122, 92, 0.75);
 }
 
 .career-workspace-chip[data-event="true"]::after {
   content: "";
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: -3px;
+  right: -3px;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
-  background: rgba(142, 194, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(142, 194, 255, 0.1);
+  background: var(--chart-makuuchi);
+  box-shadow: 0 0 6px rgba(196, 154, 77, 0.4);
 }
 
 .career-workspace-chip-badge {
   position: absolute;
-  bottom: calc(100% + 7px);
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   max-width: 88px;
-  border: 1px solid rgba(150, 170, 201, 0.14);
-  border-radius: 999px;
-  background: rgba(9, 14, 21, 0.96);
-  padding: 0.2rem 0.45rem;
-  font-size: 0.53rem;
-  letter-spacing: 0.04em;
+  border: 1px solid rgba(196, 154, 77, 0.2);
+  border-radius: 1px;
+  background: rgba(9, 14, 21, 0.98);
+  padding: 0.18rem 0.42rem;
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
   white-space: nowrap;
-  color: rgba(217, 225, 236, 0.66);
+  color: rgba(217, 225, 236, 0.62);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
 }
 
 .career-workspace-chip-badge[data-emphasis="true"] {
-  border-color: rgba(205, 174, 114, 0.3);
-  color: rgba(248, 243, 228, 0.9);
+  border-color: rgba(205, 174, 114, 0.5);
+  background: rgba(28, 20, 10, 0.96);
+  color: rgba(248, 243, 228, 0.95);
 }
 
 .career-workspace-chip-rank {
-  font-size: 0.64rem;
-  line-height: 1.2;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
 }
 
 .career-workspace-chip-record {
   font-size: 0.5rem;
-  line-height: 1.2;
-  color: rgba(214, 223, 239, 0.72);
+  line-height: 1;
+  color: rgba(214, 223, 239, 0.55);
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0;
 }
 
 .career-workspace-detailpanel {
@@ -7190,4 +7275,138 @@ input[type="range"]::-moz-range-thumb {
 .app-shell-navbutton-mobile:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* --- Career Encyclopedia section wrappers --- */
+.career-enc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.career-enc-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.career-enc-section-mark {
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(180deg, var(--chart-makuuchi), rgba(196, 154, 77, 0.3));
+  box-shadow: 0 0 10px rgba(196, 154, 77, 0.4);
+}
+
+.career-enc-section-title {
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.3em;
+  color: rgba(248, 240, 220, 0.92);
+}
+
+.career-enc-section-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(196, 154, 77, 0.38), rgba(196, 154, 77, 0.02));
+}
+
+.career-enc-chartgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .career-enc-chartgrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- ChartCard (和 ledger panel) --- */
+.chart-card {
+  position: relative;
+  padding: 1rem 1.1rem 0.9rem;
+  background:
+    linear-gradient(180deg, rgba(28, 24, 20, 0.35), rgba(14, 16, 22, 0.7)),
+    rgba(12, 16, 22, 0.55);
+  border: 1px solid rgba(196, 154, 77, 0.12);
+  border-left: 2px solid rgba(196, 154, 77, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 220, 0.02);
+}
+
+.chart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border: 1px solid rgba(196, 154, 77, 0.06);
+  pointer-events: none;
+}
+
+.chart-card-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.7rem;
+  border-bottom: 1px dashed rgba(196, 154, 77, 0.18);
+}
+
+.chart-card-titlerow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chart-card-title-mark {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--chart-makuuchi);
+  box-shadow: 0 0 6px rgba(196, 154, 77, 0.35);
+}
+
+.chart-card-title {
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.22em;
+  color: rgba(248, 240, 220, 0.92);
+}
+
+.chart-card-subtitle {
+  margin-top: 0.2rem;
+  padding-left: 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(214, 223, 239, 0.5);
+  font-family: "Shippori Mincho", serif;
+}
+
+.chart-card-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: rgba(214, 223, 239, 0.58);
+  font-family: "Shippori Mincho", serif;
+}
+
+.chart-card-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chart-card-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+}
+
+.chart-card-body {
+  position: relative;
 }
