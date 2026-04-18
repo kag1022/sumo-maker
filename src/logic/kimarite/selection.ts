@@ -328,6 +328,26 @@ const resolveBodyFit = (
     if (heightDiff >= 5) score *= 1.25;
   }
 
+  if (entry.name === '押し出し') {
+    if (dominance >= 0) score *= 1.14;
+    if (weightDiff >= 0) score *= 1.12;
+  }
+
+  if (entry.name === '寄り倒し') {
+    if (dominance < 0.25) score *= 0.42;
+    else if (dominance >= 0.6) score *= 1.1;
+  }
+
+  if (entry.name === '押し倒し' || entry.name === '突き倒し') {
+    if (dominance < 0.18) score *= 0.58;
+    else if (dominance >= 0.55) score *= 1.08;
+  }
+
+  if (entry.name === '突き出し') {
+    if (heightDiff < 4 && winner.traits.includes('LONG_REACH') === false) score *= 0.28;
+    else if (heightDiff >= 6 || winner.traits.includes('LONG_REACH')) score *= 1.15;
+  }
+
   if (entry.name === '小手投げ' || entry.name === 'とったり') {
     const kumi = winner.stats.kumi ?? 50;
     const waza = winner.stats.waza ?? 50;
@@ -640,7 +660,21 @@ const resolvePatternWeights = (
   const hasArawazashi = winner.traits.includes('ARAWAZASHI');
   const hasRearCraft = winner.traits.includes('READ_THE_BOUT');
   const edgeUnlocked = Boolean(context?.isEdgeCandidate && (profile.edgeCraft >= 0.16 || winner.traits.includes('DOHYOUGIWA_MAJUTSU') || winner.traits.includes('CLUTCH_REVERSAL')));
-  const rearUnlocked = Boolean((context?.isHighPressure || context?.isLastDay) && (hasRearCraft || winner.style === 'TECHNIQUE'));
+  const rearUnlocked = Boolean(
+    (
+      context?.isHighPressure ||
+      context?.isLastDay ||
+      context?.engagement?.phase === 'MIXED' ||
+      context?.engagement?.phase === 'EDGE_SCRAMBLE' ||
+      context?.engagement?.phase === 'QUICK_COLLAPSE' ||
+      normalizeStat(winner.stats, 'deashi') >= 0.7
+    ) && (
+      hasRearCraft ||
+      winner.style === 'TECHNIQUE' ||
+      normalizeStat(winner.stats, 'waza') >= 0.72 ||
+      normalizeStat(winner.stats, 'deashi') >= 0.82
+    ),
+  );
   const tripUnlocked = Boolean(
     winner.style === 'TECHNIQUE'
       ? hasArawazashi || profile.trickBias >= 0.2
@@ -653,8 +687,10 @@ const resolvePatternWeights = (
       winner.style === 'PUSH'
         ? 1
         : winner.style === 'BALANCE'
-          ? 0.55
-          : 0.18,
+          ? 0.76
+          : winner.style === 'GRAPPLE'
+            ? 0.4
+            : 0.28,
     BELT_FORCE:
       winner.style === 'GRAPPLE'
         ? 1
@@ -665,21 +701,30 @@ const resolvePatternWeights = (
             : 0.6,
     THROW_EXCHANGE:
       winner.style === 'TECHNIQUE'
-        ? 1
+        ? 0.7
         : winner.style === 'GRAPPLE'
-          ? 0.72
+          ? 0.38
           : winner.style === 'PUSH'
             ? 0.05
-            : 0.55,
+            : 0.42,
     PULL_DOWN:
       winner.style === 'PUSH'
-        ? 0.85
+        ? 0.96
         : winner.style === 'TECHNIQUE'
-          ? 0.82
+          ? 1
           : winner.style === 'GRAPPLE'
             ? 0.22
             : 0.55,
-    REAR_CONTROL: rearUnlocked ? (winner.style === 'TECHNIQUE' ? 0.42 : 0.18) : 0,
+    REAR_CONTROL:
+      rearUnlocked
+        ? winner.style === 'TECHNIQUE'
+          ? 1.05
+          : winner.style === 'BALANCE'
+            ? 0.58
+            : winner.style === 'PUSH'
+              ? 0.32
+              : 0.2
+        : 0,
     EDGE_REVERSAL: edgeUnlocked ? (winner.style === 'TECHNIQUE' ? 0.52 : 0.22) : 0,
     LEG_TRIP_PICK: tripUnlocked ? (winner.style === 'TECHNIQUE' ? 0.48 : 0.12) : 0,
     BACKWARD_ARCH: archUnlocked ? 0.2 : 0,
@@ -730,21 +775,26 @@ const resolvePatternWeights = (
     {
       pattern: 'THROW_EXCHANGE',
       weight:
-        (winner.style === 'TECHNIQUE' ? 2.4 : 1.1) +
+        (winner.style === 'TECHNIQUE' ? 1.55 : winner.style === 'GRAPPLE' ? 0.42 : 0.55) +
         normalizeStat(winner.stats, 'nage') +
         normalizeStat(winner.stats, 'waza'),
     },
     {
       pattern: 'PULL_DOWN',
       weight:
-        0.5 +
+        0.78 +
         (winner.bodyType === 'SOPPU' ? 0.4 : 0) +
-        (winner.style === 'PUSH' ? 0.55 : 0.22) +
-        normalizeStat(winner.stats, 'waza') * 0.35,
+        (winner.style === 'PUSH' ? 0.72 : winner.style === 'TECHNIQUE' ? 0.55 : 0.26) +
+        normalizeStat(winner.stats, 'waza') * 0.42,
     },
     {
       pattern: 'REAR_CONTROL',
-      weight: 0.12 + profile.versatility * 0.32 + (heightDiff >= 4 ? 0.12 : 0),
+      weight:
+        0.5 +
+        profile.versatility * 0.55 +
+        normalizeStat(winner.stats, 'deashi') * 0.35 +
+        (context?.engagement?.phase === 'MIXED' || context?.engagement?.phase === 'EDGE_SCRAMBLE' ? 0.25 : 0) +
+        (heightDiff >= 4 ? 0.18 : 0),
     },
     {
       pattern: 'EDGE_REVERSAL',
