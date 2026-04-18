@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, ScrollText } from "lucide-react";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { Button } from "../../../shared/ui/Button";
+import { BashoHeatmapStrip } from "./BashoHeatmapStrip";
 import {
   CAREER_LEDGER_BANDS,
   type CareerLedgerModel,
@@ -122,6 +123,12 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </button>
         </div>
       </div>
+
+      <BashoHeatmapStrip
+        points={ledger.points}
+        selectedBashoSeq={viewState.selectedBashoSeq}
+        onSelectBasho={onSelectBasho}
+      />
 
       <div className="career-workspace-layout">
         <div className="career-workspace-mainpanel">
