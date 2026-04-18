@@ -5,6 +5,8 @@ import {
   setActiveKimariteTuningPreset,
   summarizeKimariteUsage,
 } from '../../../src/logic/kimarite/selection';
+import { findOfficialKimariteEntry } from '../../../src/logic/kimarite/catalog';
+import { resolveEngagementPatternFit, resolveEngagementRouteBias } from '../../../src/logic/kimarite/engagement';
 import { reviewBoard } from '../../../src/logic/banzuke/committee/reviewBoard';
 import {
   evaluateYokozunaPromotion,
@@ -146,6 +148,62 @@ const cases: TestCase[] = [
       const warnings = consumeKimariteSelectionWarnings();
       assert.equal(outcome.isNonTechnique, false);
       assert.ok(warnings.some((item) => item.includes('no candidates')), 'expected fallback warning');
+    },
+  },
+  {
+    name: 'experience: oshidashi keeps practical access outside pure thrust battles',
+    run: () => {
+      const oshidashi = findOfficialKimariteEntry('押し出し');
+      if (!oshidashi) throw new Error('押し出し catalog entry not found');
+
+      assert.ok(
+        resolveEngagementPatternFit(oshidashi, {
+          phase: 'BELT_BATTLE',
+          defenderCollapsed: false,
+          edgeCrisis: false,
+          gripEstablished: true,
+          weightDomination: false,
+        }) >= 0.42,
+        'BELT_BATTLE should still allow practical oshidashi access',
+      );
+      assert.ok(
+        resolveEngagementPatternFit(oshidashi, {
+          phase: 'MIXED',
+          defenderCollapsed: false,
+          edgeCrisis: false,
+          gripEstablished: false,
+          weightDomination: false,
+        }) >= 0.9,
+        'MIXED should not over-suppress oshidashi',
+      );
+      assert.ok(
+        resolveEngagementPatternFit(oshidashi, {
+          phase: 'EDGE_SCRAMBLE',
+          defenderCollapsed: false,
+          edgeCrisis: true,
+          gripEstablished: false,
+          weightDomination: false,
+        }) >= 0.55,
+        'EDGE_SCRAMBLE should preserve tawara oshidashi endings',
+      );
+
+      const beltBias = resolveEngagementRouteBias({
+        phase: 'BELT_BATTLE',
+        defenderCollapsed: false,
+        edgeCrisis: false,
+        gripEstablished: true,
+        weightDomination: false,
+      });
+      const edgeBias = resolveEngagementRouteBias({
+        phase: 'EDGE_SCRAMBLE',
+        defenderCollapsed: false,
+        edgeCrisis: true,
+        gripEstablished: false,
+        weightDomination: false,
+      });
+
+      assert.ok((beltBias.PUSH_OUT ?? 0) >= 0.35, 'BELT_BATTLE route bias should not hard-kill PUSH_OUT');
+      assert.ok((edgeBias.PUSH_OUT ?? 0) >= 0.75, 'EDGE_SCRAMBLE route bias should allow oshidashi at the tawara');
     },
   },
 ];
