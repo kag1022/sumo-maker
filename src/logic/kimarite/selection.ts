@@ -1164,12 +1164,15 @@ export const resolveKimariteOutcome = (input: {
     : input.boutContext?.engagement
       ?? resolveBoutEngagement(input.winner, input.loser, input.boutContext, rng);
 
-  // historicalWeight を対数圧縮。生の値は 0.01〜24 の 2400 倍差で common 技が常に支配的だった。
-  // sqrt 圧縮で 0.1 倍〜5 倍程度の差に収め、style/pattern/novelty 係数が効くようにする。
+  // historicalWeight を圧縮。生の値は 0.01〜24 の 2400 倍差で common 技が常に支配的だった。
+  // ただし sqrt (指数 0.5) は圧縮が強すぎ、寄り切り:寄り倒し が 1.55x まで平坦化して
+  // 現実 (24:10 = 2.4x) の正典的な階層が失われていた。
+  // 指数 0.8 に緩めることで、寄り切り/押し出し の canonical dominance を復元しつつ、
+  // 極端に稀な技 (0.01) は依然十分に抑制される (0.01^0.8 ≈ 0.025、24^0.8 ≈ 12.6 → 500x)。
   const compressHistoricalWeight = (value: number): number => {
     const safe = Math.max(0, value);
     if (safe <= 0) return 0;
-    return Math.sqrt(safe);
+    return Math.pow(safe, 0.8);
   };
 
   const candidates: KimariteCandidate[] = OFFICIAL_WIN_KIMARITE_82.flatMap((entry) => {
