@@ -2798,8 +2798,6 @@
   }
 
   .scout-entry-ledger {
-    position: sticky;
-    top: 10rem;
     background:
       linear-gradient(180deg, rgba(184, 155, 104, 0.09), transparent 38%),
       rgba(13, 18, 25, 0.88);
@@ -3572,7 +3570,7 @@
     }
 
     .scout-entry-ledger {
-      position: static;
+      /* already static from desktop override */
     }
 
     .career-ledger-ribbon-shell {
