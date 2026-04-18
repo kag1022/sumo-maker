@@ -23,10 +23,14 @@ export const resolveSekitoriDeltaBand = (candidate: BanzukeCandidate): SekitoriD
   const diff = candidate.snapshot.wins - losses;
   const rise = diff > 0 ? diff * 2 : 0;
   const drop = diff < 0 ? Math.abs(diff) * 3 : 0;
+  const maxSlotDelta =
+    candidate.snapshot.absent >= 15 && drop > 0
+      ? -Math.max(1, Math.ceil(drop / 3))
+      : rise;
   return {
     zone: resolveSekitoriZone(candidate),
     minSlotDelta: -drop,
-    maxSlotDelta: rise,
+    maxSlotDelta,
   };
 };
 
