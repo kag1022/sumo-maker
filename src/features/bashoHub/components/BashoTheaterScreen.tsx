@@ -1,6 +1,8 @@
 import React from "react";
+import { motion } from "framer-motion";
 import type { LiveBashoViewModel } from "../../../logic/simulation/workerProtocol";
 import { Button } from "../../../shared/ui/Button";
+import { LiveHoshitoriGrid } from "./LiveHoshitoriGrid";
 
 interface BashoTheaterScreenProps {
   view: LiveBashoViewModel | null;
@@ -10,6 +12,42 @@ interface BashoTheaterScreenProps {
   onSecondaryAction?: () => void;
 }
 
+const parseRecord = (record: string): { wins: number; losses: number; absent: number } => {
+  const winMatch = /(\d+)勝/.exec(record);
+  const lossMatch = /(\d+)敗/.exec(record);
+  const absentMatch = /(\d+)休/.exec(record);
+  return {
+    wins: winMatch ? parseInt(winMatch[1], 10) : 0,
+    losses: lossMatch ? parseInt(lossMatch[1], 10) : 0,
+    absent: absentMatch ? parseInt(absentMatch[1], 10) : 0,
+  };
+};
+
+const getTone = (view: LiveBashoViewModel): "ending" | "rise" | "yusho" | "still" => {
+  if (view.chapterKind === "RETIREMENT" || view.chapterKind === "EPILOGUE") return "ending";
+  if (view.chapterKind === "TITLE_RACE" && view.titleImplication !== "NONE") return "yusho";
+  if (
+    view.chapterKind === "SANYAKU" ||
+    view.chapterKind === "SEKITORI" ||
+    view.chapterKind === "DEBUT"
+  ) return "rise";
+  return "still";
+};
+
+const TONE_ACCENT: Record<string, string> = {
+  ending: "border-[var(--chart-sandanme)]/30",
+  rise: "border-[var(--ui-action)]/25",
+  yusho: "border-[var(--chart-makuuchi)]/35",
+  still: "border-white/10",
+};
+
+const TONE_GLOW: Record<string, string> = {
+  ending: "rgba(118,164,212,0.06)",
+  rise: "rgba(132,167,255,0.07)",
+  yusho: "rgba(196,154,77,0.1)",
+  still: "transparent",
+};
+
 export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
   view,
   primaryActionLabel,
@@ -17,13 +55,6 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
   onPrimaryAction,
   onSecondaryAction,
 }) => {
-  const theaterTone =
-    view?.chapterKind === "RETIREMENT" || view?.chapterKind === "EPILOGUE"
-      ? "ending"
-      : view?.chapterKind === "SANYAKU" || view?.chapterKind === "SEKITORI" || view?.chapterKind === "DEBUT" || view?.chapterKind === "TITLE_RACE"
-        ? "rise"
-        : "still";
-
   if (!view) {
     return (
       <section className="basho-theater-shell">
@@ -38,9 +69,31 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
     );
   }
 
+  const tone = getTone(view);
+  const parsedRecord = parseRecord(view.currentRecord);
+
   return (
     <section className="basho-theater-shell">
-      <article className="basho-theater-card" data-tone={theaterTone}>
+      <motion.article
+        className={`basho-theater-card border ${TONE_ACCENT[tone]}`}
+        style={{ backgroundColor: TONE_GLOW[tone] !== "transparent" ? undefined : undefined }}
+        data-tone={tone}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        key={`${view.seq}-${view.day}`}
+      >
+        {tone === "yusho" ? (
+          <div className="absolute inset-0 pointer-events-none rounded-none">
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(ellipse at 50% 0%, rgba(196,154,77,0.12) 0%, transparent 70%)`,
+              }}
+            />
+          </div>
+        ) : null}
+
         <div className="basho-theater-meta">
           <div className="basho-theater-kicker">節目を見る</div>
           <div className="basho-theater-metaband">
@@ -67,22 +120,33 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
             <p className="basho-theater-featurecopy">{view.featuredBout?.summary ?? view.heroMoment}</p>
           </section>
 
+          <div className="mt-4 border border-white/8 bg-white/[0.02] p-3">
+            <LiveHoshitoriGrid
+              day={view.day}
+              wins={parsedRecord.wins}
+              losses={parsedRecord.losses}
+              absent={parsedRecord.absent}
+            />
+          </div>
+
           <div className="basho-theater-nextbeat">
             <span className="basho-theater-sectionlabel">次にすること</span>
             <strong>{view.nextBeatLabel}</strong>
           </div>
 
-          <details className="basho-theater-disclosure">
-            <summary>補足を見る</summary>
-            <div className="basho-theater-disclosure-grid">
-              {view.raceSummary.slice(0, 3).map((item) => (
-                <div key={item.id} className="basho-theater-disclosure-item">
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
-            </div>
-          </details>
+          {view.raceSummary.length > 0 ? (
+            <details className="basho-theater-disclosure">
+              <summary>補足を見る</summary>
+              <div className="basho-theater-disclosure-grid">
+                {view.raceSummary.slice(0, 3).map((item) => (
+                  <div key={item.id} className="basho-theater-disclosure-item">
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
 
         {(primaryActionLabel || secondaryActionLabel) ? (
@@ -99,7 +163,7 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
             ) : null}
           </div>
         ) : null}
-      </article>
+      </motion.article>
     </section>
   );
 };

@@ -3,6 +3,7 @@ import { Eye, ScrollText, Swords, Trophy } from "lucide-react";
 import type { CareerRivalryDigest, EraTitanEntry, NemesisEntry, RikishiStatus, TitleBlockerEntry } from "../../../logic/models";
 import { getCareerHeadToHead, listCareerBashoRecordsBySeq, listCareerPlayerBoutsByBasho } from "../../../logic/persistence/careerHistory";
 import { Button } from "../../../shared/ui/Button";
+import { WinLossBar } from "../../../shared/ui/WinLossBar";
 import { buildCareerRivalryDigest } from "../utils/reportRivalry";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
 import { useCareerBashoDetail } from "./useCareerBashoDetail";
@@ -134,6 +135,14 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                                 <Trophy className="w-3 h-3 text-warning" /> 通算
                               </div>
                               <div className="text-text">{headToHeadLabel(entry)}</div>
+                              <WinLossBar
+                                wins={entry.headToHead.wins}
+                                losses={entry.headToHead.losses}
+                                absent={entry.headToHead.absences}
+                                showLabels={false}
+                                height="sm"
+                                className="mt-1.5"
+                              />
                             </div>
                             <div className="border border-brand-muted/40 bg-bg/20 px-3 py-2">
                               <div className="mb-1 flex items-center gap-1">

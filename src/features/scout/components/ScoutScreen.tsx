@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowLeft, ArrowRight, RefreshCw, ScrollText } from "lucide-react";
 import { Oyakata, RikishiStatus } from "../../../logic/models";
+import { ScoutStatPreview } from "./ScoutStatPreview";
 import {
   buildInitialRikishiFromDraft,
   buildScoutResolvedSeed,
@@ -564,6 +565,9 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             previewBodyType={previewStatus.bodyType}
             mode="desktop"
           />
+          <section className="scout-preview-panel">
+            <ScoutStatPreview status={previewStatus} />
+          </section>
         </aside>
       </div>
     </div>

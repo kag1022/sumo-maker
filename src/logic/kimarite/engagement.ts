@@ -39,8 +39,8 @@ const ALL_PHASES: EngagementPhase[] = [
  * 各 Engagement × 各 KimaritePattern の相性係数。
  * 0 に近いほどその組み合わせでは選ばれにくく、1 以上はむしろ後押し。
  *
- * 例: BELT_BATTLE では PUSH_ADVANCE は 0.18 まで下がるため、押し出しの
- * historicalWeight = 18 がそのまま効かなくなる（= 押し出し一強の抑制）。
+ * 例: BELT_BATTLE では PUSH_ADVANCE は 0.72 まで下がるため、押し出しの
+ * historicalWeight は鈍るが、現実寄りに「組み切る前の押し切り」までは残す。
  */
 export const ENGAGEMENT_PATTERN_AFFINITY: Record<
   EngagementPhase,
@@ -57,18 +57,18 @@ export const ENGAGEMENT_PATTERN_AFFINITY: Record<
     BACKWARD_ARCH: 0.04,
   },
   BELT_BATTLE: {
-    BELT_FORCE: 1.0,
+    BELT_FORCE: 0.88,
     THROW_EXCHANGE: 0.48,
     LEG_TRIP_PICK: 0.4,
     REAR_CONTROL: 0.35,
     PULL_DOWN: 0.18,
-    PUSH_ADVANCE: 0.32,
+    PUSH_ADVANCE: 0.72,
     EDGE_REVERSAL: 0.2,
     BACKWARD_ARCH: 0.08,
   },
   MIXED: {
-    PUSH_ADVANCE: 0.78,
-    BELT_FORCE: 0.55,
+    PUSH_ADVANCE: 1.08,
+    BELT_FORCE: 0.48,
     PULL_DOWN: 0.82,
     THROW_EXCHANGE: 0.42,
     LEG_TRIP_PICK: 0.5,
@@ -80,14 +80,14 @@ export const ENGAGEMENT_PATTERN_AFFINITY: Record<
     EDGE_REVERSAL: 1.0,
     PULL_DOWN: 0.7,
     THROW_EXCHANGE: 0.75,
-    BELT_FORCE: 0.45,
+    BELT_FORCE: 0.4,
     REAR_CONTROL: 0.55,
-    PUSH_ADVANCE: 0.3,
+    PUSH_ADVANCE: 0.78,
     LEG_TRIP_PICK: 0.4,
     BACKWARD_ARCH: 0.18,
   },
   QUICK_COLLAPSE: {
-    PUSH_ADVANCE: 0.72,
+    PUSH_ADVANCE: 1.02,
     PULL_DOWN: 1.08,
     BELT_FORCE: 0.22,
     THROW_EXCHANGE: 0.25,
@@ -277,16 +277,16 @@ export const resolveEngagementRouteBias = (
       };
     case 'BELT_BATTLE':
       return {
-        BELT_FORCE: 1.7,
+        BELT_FORCE: 1.45,
         THROW_BREAK: 1.55,
-        PUSH_OUT: 0.2,
+        PUSH_OUT: 0.9,
         PULL_DOWN: 0.3,
         LEG_ATTACK: 0.8,
         REAR_FINISH: 0.5,
       };
     case 'MIXED':
       return {
-        PUSH_OUT: 0.85,
+        PUSH_OUT: 1.05,
         BELT_FORCE: 0.95,
         THROW_BREAK: 1.15,
         PULL_DOWN: 1.1,
@@ -299,13 +299,13 @@ export const resolveEngagementRouteBias = (
         PULL_DOWN: 1.15,
         THROW_BREAK: 1.25,
         BELT_FORCE: 0.6,
-        PUSH_OUT: 0.35,
+        PUSH_OUT: 0.95,
         REAR_FINISH: 0.75,
         LEG_ATTACK: 0.55,
       };
     case 'QUICK_COLLAPSE':
       return {
-        PUSH_OUT: 1.35,
+        PUSH_OUT: 1.55,
         PULL_DOWN: 1.25,
         BELT_FORCE: 0.55,
         THROW_BREAK: 0.4,
