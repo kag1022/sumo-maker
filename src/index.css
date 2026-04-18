@@ -2599,6 +2599,16 @@
     padding: 1.5rem 0 4rem;
   }
 
+  /* sidebar layout — override main padding to use 2rem horizontal */
+  .app-shell-sidebar-layout .app-shell-main {
+    padding: 1.5rem 0 4rem;
+  }
+
+  .app-shell-sidebar-layout .app-shell-main-inner {
+    margin: 0 auto;
+    width: min(1280px, calc(100% - 4rem));
+  }
+
   .scout-ritual-shell {
     display: grid;
     gap: 1.5rem;
@@ -6611,4 +6621,201 @@ input[type="range"]::-moz-range-thumb {
   .scout-mobile-ledger-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ============================================================
+   SIDEBAR LAYOUT (desktop only)
+   ============================================================ */
+
+.app-shell-sidebar-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---- Sidebar ---- */
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 216px;
+  height: 100vh;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 18, 0.98) 0%, rgba(10, 14, 20, 0.96) 100%);
+  border-right: 1px solid rgba(184, 155, 104, 0.14);
+  overflow: hidden;
+}
+
+.app-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.1rem 1.1rem;
+  border-bottom: 1px solid rgba(184, 155, 104, 0.12);
+}
+
+.app-sidebar-brand-mark {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.3rem;
+  color: var(--ui-brand-line);
+  border: 1px solid rgba(184, 155, 104, 0.3);
+  background: rgba(184, 155, 104, 0.08);
+}
+
+.app-sidebar-brand-title {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: rgba(238, 242, 246, 0.92);
+  line-height: 1.2;
+}
+
+.app-sidebar-brand-sub {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  color: rgba(184, 155, 104, 0.55);
+  margin-top: 0.2rem;
+  text-transform: uppercase;
+}
+
+.app-sidebar-nav {
+  flex: 1;
+  padding: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  overflow-y: auto;
+}
+
+.app-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1.1rem;
+  font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  font-size: 0.83rem;
+  color: rgba(238, 242, 246, 0.52);
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  white-space: nowrap;
+}
+
+.app-sidebar-item:hover:not(.disabled) {
+  color: rgba(238, 242, 246, 0.88);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-sidebar-item.active {
+  color: var(--ui-brand-line);
+  background: rgba(184, 155, 104, 0.1);
+  border-left-color: var(--ui-brand-line);
+}
+
+.app-sidebar-item.disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.app-sidebar-footer {
+  padding: 0.9rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-sidebar-footer-line {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: rgba(184, 155, 104, 0.28);
+  text-transform: uppercase;
+}
+
+/* ---- Content area (right of sidebar) ---- */
+.app-content-area {
+  margin-left: 216px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
+
+.app-content-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(9, 14, 20, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.app-content-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 2rem;
+}
+
+.app-content-title {
+  font-family: "DotGothic16", monospace;
+  font-size: clamp(1.1rem, 1.6vw, 1.55rem);
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  color: var(--ui-text-main);
+}
+
+.app-content-statusband {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(12, 18, 24, 0.6);
+}
+
+/* Mobile nav button (horizontal tabs) */
+.app-shell-navbutton-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: rgba(238, 242, 246, 0.55);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s, border-color 0.14s;
+  white-space: nowrap;
+}
+
+.app-shell-navbutton-mobile:hover {
+  color: rgba(238, 242, 246, 0.9);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-shell-navbutton-mobile.active {
+  color: var(--ui-brand-line);
+  border-color: rgba(184, 155, 104, 0.35);
+  background: rgba(184, 155, 104, 0.09);
+}
+
+.app-shell-navbutton-mobile:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
