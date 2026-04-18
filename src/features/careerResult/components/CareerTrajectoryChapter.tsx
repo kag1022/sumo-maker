@@ -62,7 +62,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
   detail,
   detailLoading,
   hasPersistence,
-  viewState: _viewState,
+  viewState,
   onSelectBasho,
   onWindowChange: _onWindowChange,
   onOpenChapter,
