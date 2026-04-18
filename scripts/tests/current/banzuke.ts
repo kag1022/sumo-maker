@@ -70,7 +70,7 @@ const assertUniqueSekitoriRosterSlots = (
 };
 
 export const tests: TestCase[] = [
-{
+  {
     name: 'ranking: yokozuna is never demoted',
     run: () => {
       const yokozuna: Rank = { division: 'Makuuchi', name: '横綱', side: 'East' };
@@ -79,7 +79,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.division, 'Makuuchi');
     },
   },
-{
+  {
     name: 'ranking: yokozuna promotion is blocked without consecutive yusho-equivalent',
     run: () => {
       const ozeki: Rank = { division: 'Makuuchi', name: '大関', side: 'East' };
@@ -91,7 +91,7 @@ export const tests: TestCase[] = [
       assert.equal(result.event, undefined);
     },
   },
-{
+  {
     name: 'ranking: yokozuna promotion requires a stronger two-basho total than 14Y-13JY',
     run: () => {
       const evalResult = evaluateYokozunaPromotion({
@@ -115,7 +115,7 @@ export const tests: TestCase[] = [
       assert.equal(evalResult.promote, false);
     },
   },
-{
+  {
     name: 'ranking: ozeki kadoban demotion sets return-chance flag',
     run: () => {
       const ozeki: Rank = { division: 'Makuuchi', name: '大関', side: 'East' };
@@ -125,7 +125,7 @@ export const tests: TestCase[] = [
       assert.equal(result.isKadoban, false);
     },
   },
-{
+  {
     name: 'ranking: sekiwake 10 wins with return-chance returns to ozeki',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -141,7 +141,7 @@ export const tests: TestCase[] = [
       assert.equal(result.isOzekiReturn, false);
     },
   },
-{
+  {
     name: 'ranking: 11-11-11 in sanyaku reaches ozeki',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -153,7 +153,7 @@ export const tests: TestCase[] = [
       assert.equal(result.event, 'PROMOTION_TO_OZEKI');
     },
   },
-{
+  {
     name: 'ranking: ozeki promotion requires all 3 basho at sekiwake/komusubi',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -164,7 +164,7 @@ export const tests: TestCase[] = [
       assert.ok(result.nextRank.name !== '大関', 'Maegashira basho should not count toward Ozeki promotion');
     },
   },
-{
+  {
     name: 'ranking: assigned top ozeki does not bypass 33-win sekiwake/komusubi gate',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -185,7 +185,7 @@ export const tests: TestCase[] = [
       assert.ok(result.nextRank.name !== '大関', 'Assigned Ozeki should be ignored when gate is not met');
     },
   },
-{
+  {
     name: 'ranking: npc/player ozeki gate parity on eligible 33-win sanyaku chain',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -212,7 +212,7 @@ export const tests: TestCase[] = [
       assert.equal(npcDirective.preferredTopName, '大関');
     },
   },
-{
+  {
     name: 'ranking: npc/player ozeki gate parity blocks maegashira-included chain',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -240,7 +240,7 @@ export const tests: TestCase[] = [
       assert.ok(npcDirective.preferredTopName !== '大関');
     },
   },
-{
+  {
     name: 'ranking: jonokuchi makekoshi does not demote to maezumo',
     run: () => {
       const jonokuchi: Rank = {
@@ -254,7 +254,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '序ノ口');
     },
   },
-{
+  {
     name: 'ranking: jonokuchi bottom makekoshi can rise when lower tail is wide',
     run: () => {
       const result = calculateLowerDivisionRankChange(
@@ -287,7 +287,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'ranking: jonokuchi full absence is clamped to jonokuchi bottom',
     run: () => {
       const jonokuchi: Rank = {
@@ -301,7 +301,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.number, LIMITS.JONOKUCHI_MAX);
     },
   },
-{
+  {
     name: 'ranking: maezumo promotes to jonokuchi even with zero wins if not full absence',
     run: () => {
       const maezumo: Rank = { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
@@ -310,7 +310,7 @@ export const tests: TestCase[] = [
       assert.equal(result.event, 'PROMOTION_TO_JONOKUCHI');
     },
   },
-{
+  {
     name: 'ranking: maezumo full absence stays in maezumo',
     run: () => {
       const maezumo: Rank = { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
@@ -318,7 +318,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.division, 'Maezumo');
     },
   },
-{
+  {
     name: 'ranking: quota can block juryo to makuuchi promotion',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 1 };
@@ -333,7 +333,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '十両');
     },
   },
-{
+  {
     name: 'ranking: quota can block makuuchi to juryo demotion',
     run: () => {
       const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'East', number: 16 };
@@ -348,7 +348,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '前頭');
     },
   },
-{
+  {
     name: 'ranking: sekitori quota can block juryo to makushita demotion',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 14 };
@@ -363,7 +363,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '十両');
     },
   },
-{
+  {
     name: 'ranking: juryo full absence follows same quota block as full losses',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 14 };
@@ -378,7 +378,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '十両');
     },
   },
-{
+  {
     name: 'ranking: sekitori quota can block makushita to juryo promotion',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 3 };
@@ -393,7 +393,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '幕下');
     },
   },
-{
+  {
     name: 'ranking: makushita head kachikoshi is blocked when quota says no slot',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 1 };
@@ -408,7 +408,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '幕下');
     },
   },
-{
+  {
     name: 'ranking: lower quota demotion flag is advisory (makushita makekoshi)',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 60 };
@@ -431,7 +431,7 @@ export const tests: TestCase[] = [
       assert.equal(flagged.nextRank.side, baseline.nextRank.side);
     },
   },
-{
+  {
     name: 'ranking: lower quota demotion flag is advisory (makushita full absence)',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 60 };
@@ -452,7 +452,7 @@ export const tests: TestCase[] = [
       assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
-{
+  {
     name: 'ranking: lower quota promotion flag is advisory (sandanme kachikoshi)',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 3 };
@@ -473,7 +473,7 @@ export const tests: TestCase[] = [
       assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
-{
+  {
     name: 'ranking: lower quota promotion flag is advisory (sandanme head kachikoshi)',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 1 };
@@ -494,7 +494,7 @@ export const tests: TestCase[] = [
       assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
-{
+  {
     name: 'ranking: lower quota demotion flag is advisory (jonidan makekoshi)',
     run: () => {
       const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'East', number: 100 };
@@ -515,7 +515,7 @@ export const tests: TestCase[] = [
       assert.equal(flagged.nextRank.number, baseline.nextRank.number);
     },
   },
-{
+  {
     name: 'ranking: juryo demotion width deepens with heavier makekoshi',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 14 };
@@ -526,7 +526,7 @@ export const tests: TestCase[] = [
       assert.ok((mild.nextRank.number || 99) < (heavy.nextRank.number || 0));
     },
   },
-{
+  {
     name: 'ranking: juryo enemy nudge can change movement by half-rank',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 10 };
@@ -543,7 +543,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.side, 'West');
     },
   },
-{
+  {
     name: 'ranking: lower-division enemy nudge can change movement by half-rank',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 40 };
@@ -566,7 +566,7 @@ export const tests: TestCase[] = [
       assert.equal(nudgedSlot, baseSlot + 1);
     },
   },
-{
+  {
     name: 'ranking: expected slot custom range treats kachikoshi as promotion direction',
     run: () => {
       const kachikoshi = resolveExpectedSlotBand({
@@ -595,7 +595,7 @@ export const tests: TestCase[] = [
       assert.ok(makekoshi.expectedSlot > 550, `Expected demotion-direction slot, got ${makekoshi.expectedSlot}`);
     },
   },
-{
+  {
     name: 'quota: sekitori resolver exposes juryo half-step nudge',
     run: () => {
       const sekitoriWorld = createSekitoriBoundaryWorld(() => 0.5);
@@ -609,7 +609,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.enemyHalfStepNudge, -1);
     },
   },
-{
+  {
     name: 'quota: juryo absent is counted as losses for nudge evaluation',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
@@ -657,7 +657,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.enemyHalfStepNudge, 1);
     },
   },
-{
+  {
     name: 'quota: lower resolver exposes half-step nudge',
     run: () => {
       const lowerWorld = createLowerDivisionQuotaWorld(() => 0.5);
@@ -671,7 +671,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.enemyHalfStepNudge, 1);
     },
   },
-{
+  {
     name: 'quota: ms13 7-0 reaches juryo when lower sekitori slots open widely',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
@@ -698,7 +698,7 @@ export const tests: TestCase[] = [
       assert.equal(exchange.reason, 'NORMAL');
     },
   },
-{
+  {
     name: 'quota: sekitori boundary never promotes makekoshi player from makushita',
     run: () => {
       const juryoResults: SekitoriBoundarySnapshot[] = [
@@ -750,7 +750,7 @@ export const tests: TestCase[] = [
       assert.equal(assigned?.name, '幕下');
     },
   },
-{
+  {
     name: 'quota: sekitori boundary representative fixture resolves player rank on fast path',
     run: () => {
       const assigned = resolveSekitoriBoundaryAssignedRank(
@@ -778,7 +778,7 @@ export const tests: TestCase[] = [
       assert.equal(assigned?.division, 'Makushita');
     },
   },
-{
+  {
     name: 'banzuke scoring: juryo absent never increases candidate score',
     run: () => {
       const baseSnapshot: BashoRecordSnapshot = {
@@ -809,7 +809,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: ms1 4-3 forces juryo promotion slot by tsukidashi chain',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
@@ -836,7 +836,7 @@ export const tests: TestCase[] = [
       assert.ok(exchange.slots >= 1);
     },
   },
-{
+  {
     name: 'quota: sandanme head kachikoshi forces makushita promotion slot',
     run: () => {
       const lowerWorld = createLowerDivisionQuotaWorld(() => 0.5);
@@ -851,7 +851,7 @@ export const tests: TestCase[] = [
       assert.ok(exchanges.MakushitaSandanme.slots >= 1);
     },
   },
-{
+  {
     name: 'quota: sekitori boundary resolves zero slot when makushita has no kachikoshi candidate',
     run: () => {
       const topWorld = createSimulationWorld(() => 0.5);
@@ -888,7 +888,7 @@ export const tests: TestCase[] = [
       assert.equal(exchange.slots, 0);
     },
   },
-{
+  {
     name: 'quota: sekitori exchange backfills one weak makushita fallback promotion when needed',
     run: () => {
       const juryoResults: SekitoriBoundarySnapshot[] = [
@@ -935,7 +935,7 @@ export const tests: TestCase[] = [
       assert.equal(resolved.exchange.promotedToJuryoIds.length, 1);
     },
   },
-{
+  {
     name: 'quota: representative lower-boundary optimizer fixture resolves without fallback',
     run: () => {
       const assignments = optimizeExpectedPlacements([
@@ -1020,7 +1020,7 @@ export const tests: TestCase[] = [
       assert.equal(assignments?.length, 5);
     },
   },
-{
+  {
     name: 'quota: lower boundary keeps at least one slot under neutral records',
     run: () => {
       const spec = LOWER_BOUNDARIES.find((boundary) => boundary.id === 'MakushitaSandanme');
@@ -1050,7 +1050,7 @@ export const tests: TestCase[] = [
       assert.ok(exchange.slots >= 1, `Expected at least 1 slot, got ${exchange.slots}`);
     },
   },
-{
+  {
     name: 'quota: lower boundary placements keep kachikoshi above makekoshi in representative fixture',
     run: () => {
       const results = {
@@ -1110,7 +1110,7 @@ export const tests: TestCase[] = [
       assertAbove('JK-KK', 'JK-MK');
     },
   },
-{
+  {
     name: 'quota: lower boundary full-absence player is force-demoted with mandatory reason',
     run: () => {
       const spec = LOWER_BOUNDARIES.find((boundary) => boundary.id === 'MakushitaSandanme');
@@ -1143,7 +1143,7 @@ export const tests: TestCase[] = [
       assert.equal(exchange.reason, 'MANDATORY_ABSENCE_DEMOTION');
     },
   },
-{
+  {
     name: 'ranking: makekoshi sets west side',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 7 };
@@ -1151,7 +1151,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.side, 'West');
     },
   },
-{
+  {
     name: 'ranking: juryo full-absence cannot move up or promote in committee model',
     run: () => {
       const records: BashoRecordSnapshot[] = [
@@ -1188,7 +1188,7 @@ export const tests: TestCase[] = [
       assert.ok((allocation?.nextRank.number || 99) >= 2);
     },
   },
-{
+  {
     name: 'ranking: maegashira6 8-7 does not overpromote to komusubi',
     run: () => {
       const base: BashoRecordSnapshot[] = [
@@ -1223,7 +1223,7 @@ export const tests: TestCase[] = [
       assert.ok((allocation?.nextRank.number || 99) <= 6);
     },
   },
-{
+  {
     name: 'ranking: top maegashira 8-7 does not jump into sanyaku',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row, index) => {
@@ -1253,7 +1253,7 @@ export const tests: TestCase[] = [
       assert.ok((allocation?.nextRank.number || 99) <= 1);
     },
   },
-{
+  {
     name: 'ranking: maegashira15 severe absence makekoshi demotes to juryo in committee',
     run: () => {
       const records: BashoRecordSnapshot[] = [
@@ -1296,7 +1296,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.division, 'Juryo');
     },
   },
-{
+  {
     name: 'ranking: komusubi 7-8 stays in upper maegashira lane',
     run: () => {
       const base: BashoRecordSnapshot[] = [
@@ -1333,7 +1333,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'ranking: komusubi 10+ is prioritized to sekiwake in committee',
     run: () => {
       const records: BashoRecordSnapshot[] = [
@@ -1392,7 +1392,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.name, '関脇');
     },
   },
-{
+  {
     name: 'ranking: komusubi 9-6 can fill open sekiwake slot before maegashira',
     run: () => {
       const records: BashoRecordSnapshot[] = [
@@ -1451,7 +1451,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.name, '関脇');
     },
   },
-{
+  {
     name: 'ranking: komusubi 9-6 stays komusubi when both sekiwake are solid kachikoshi',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1474,7 +1474,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.name, '小結');
     },
   },
-{
+  {
     name: 'ranking: maegashira2 9-6 does not pass strict sanyaku gate',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1500,7 +1500,7 @@ export const tests: TestCase[] = [
       assert.ok(allocation?.nextRank.name !== '小結');
     },
   },
-{
+  {
     name: 'ranking: maegashira2 10-5 can be promoted to komusubi by strict gate',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1525,7 +1525,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.name, '小結');
     },
   },
-{
+  {
     name: 'ranking: maegashira2 11-4 can be promoted to sekiwake by strict gate',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1550,7 +1550,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation?.nextRank.name, '関脇');
     },
   },
-{
+  {
     name: 'ranking: sekiwake count does not exceed cap in normal case',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1585,7 +1585,7 @@ export const tests: TestCase[] = [
       assert.ok(sekiwakeCount <= 5, `Expected <=5 sekiwake, got ${sekiwakeCount}`);
     },
   },
-{
+  {
     name: 'ranking: komusubi count does not exceed cap in normal case',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1620,7 +1620,7 @@ export const tests: TestCase[] = [
       assert.ok(komusubiCount <= 4, `Expected <=4 komusubi, got ${komusubiCount}`);
     },
   },
-{
+  {
     name: 'ranking: sanyaku minimum keeps east-west pair in stable case',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1649,7 +1649,7 @@ export const tests: TestCase[] = [
       assert.ok(komusubi.some((row) => row.nextRank.side === 'West'));
     },
   },
-{
+  {
     name: 'ranking: sanyaku fallback does not use deep maegashira marginal kachikoshi',
     run: () => {
       const records = buildNeutralSekitoriRecords().map((row) => {
@@ -1683,7 +1683,7 @@ export const tests: TestCase[] = [
       assert.ok(player?.nextRank.name !== '関脇');
     },
   },
-{
+  {
     name: 'ranking: forced sekiwake overflow is temporary and compressed next basho',
     run: () => {
       const round1: BashoRecordSnapshot[] = [
@@ -1712,7 +1712,7 @@ export const tests: TestCase[] = [
       assert.ok(sekiwakeCount2 <= 5, `Expected compressed sekiwake <=5, got ${sekiwakeCount2}`);
     },
   },
-{
+  {
     name: 'ranking: juryo11 full absence equals full losses when quota demotes',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 11 };
@@ -1734,7 +1734,7 @@ export const tests: TestCase[] = [
       assert.equal(absent.nextRank.number, losses.nextRank.number);
     },
   },
-{
+  {
     name: 'ranking: sekitori full absence always resolves as a demotion band',
     run: () => {
       const m = resolveSekitoriDeltaBand({
@@ -1782,7 +1782,7 @@ export const tests: TestCase[] = [
       assert.ok(m.maxSlotDelta <= j.maxSlotDelta);
     },
   },
-{
+  {
     name: 'ranking: makushita10 full absence equals full losses with controlled width',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 10 };
@@ -1798,7 +1798,7 @@ export const tests: TestCase[] = [
       assert.equal(absent.nextRank.number, losses.nextRank.number);
     },
   },
-{
+  {
     name: 'quota: strong juryo leader is resolved through global composition',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1846,7 +1846,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: makuuchi player keeps assigned sanyaku rank without enforced quota push',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1883,7 +1883,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.enforcedSanyaku, undefined);
     },
   },
-{
+  {
     name: 'quota: advanceTopDivisionBanzuke rebuilds sekitori rosters with one player and unique slots',
     run: () => {
       const makuuchiWorld = createSimulationWorld(() => 0.5);
@@ -1937,7 +1937,7 @@ export const tests: TestCase[] = [
       assertUniqueSekitoriRosterSlots(juryoWorld, 'advance-top-juryo');
     },
   },
-{
+  {
     name: 'quota: finalizeSekitoriPlayerPlacement inserts promoted player once and trims juryo tail',
     run: () => {
       const rng = lcg(20260407);
@@ -1965,7 +1965,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'ranking: assigned yokozuna cannot bypass ozeki-only promotion gate',
     run: () => {
       const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
@@ -1987,7 +1987,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.name, '関脇');
     },
   },
-{
+  {
     name: 'ranking: makekoshi ignores upward assigned top-division rank',
     run: () => {
       const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'West', number: 5 };
@@ -2008,7 +2008,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.side, 'West');
     },
   },
-{
+  {
     name: 'ranking: boundary assigned rank overrides lower-division movement',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 48 };
@@ -2026,7 +2026,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.number, 12);
     },
   },
-{
+  {
     name: 'ranking: sekitori assigned rank overrides default juryo demotion width',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'West', number: 14 };
@@ -2047,7 +2047,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.number, 3);
     },
   },
-{
+  {
     name: 'ranking: sekitori assigned rank limits deep juryo demotion width',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'West', number: 13 };
@@ -2068,7 +2068,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number || 99) <= 4, `Expected capped demotion, got ${result.nextRank.number}`);
     },
   },
-{
+  {
     name: 'ranking: sekitori assigned rank limits overly high makushita promotion',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 5 };
@@ -2089,7 +2089,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number || 0) >= 13, `Expected lower-juryo landing spot, got ${result.nextRank.number}`);
     },
   },
-{
+  {
     name: 'ranking: full absence applies assigned top-division rank consistently',
     run: () => {
       const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'West', number: 11 };
@@ -2110,7 +2110,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.number, 11);
     },
   },
-{
+  {
     name: 'ranking: makekoshi lower boundary assignment cannot move upward in lower divisions',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'West', number: 59 };
@@ -2130,7 +2130,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: same-division boundary assignment applies when direction is valid',
     run: () => {
       const jonidan: Rank = { division: 'Jonidan', name: '序二段', side: 'West', number: 70 };
@@ -2148,7 +2148,7 @@ export const tests: TestCase[] = [
       assert.equal(result.nextRank.number, 5);
     },
   },
-{
+  {
     name: 'ranking: makekoshi lower boundary assignment still cannot stay at same rank',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'West', number: 59 };
@@ -2168,7 +2168,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: full absence lower boundary assignment cannot move upward',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'West', number: 31 };
@@ -2187,7 +2187,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'quota: lower quota step can consume precomputed league snapshots',
     run: () => {
       const rng = (() => {
@@ -2234,7 +2234,7 @@ export const tests: TestCase[] = [
       assert.equal(applied?.losses, 0);
     },
   },
-{
+  {
     name: 'ranking: makekoshi juryo assignment cannot move upward',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'West', number: 10 };
@@ -2254,7 +2254,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: kachikoshi ignores same-division sekitori assignment demotion',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'West', number: 2 };
@@ -2271,7 +2271,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number ?? 99) <= 2, 'Kachikoshi should not be demoted in juryo');
     },
   },
-{
+  {
     name: 'ranking: makushita kachikoshi ignores downward lower-boundary assignment',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 30 };
@@ -2289,7 +2289,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number ?? 99) <= 30, 'Kachikoshi should not be demoted by boundary assignment');
     },
   },
-{
+  {
     name: 'ranking: juryo demotion to makushita is capped to calibrated depth',
     run: () => {
       const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 14 };
@@ -2306,7 +2306,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number ?? 999) <= 10, 'Demotion depth should stay in upper makushita zone');
     },
   },
-{
+  {
     name: 'quota: lower committee full absence applies deep demotion floor',
     run: () => {
       const results = {
@@ -2346,7 +2346,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: lower committee never promotes 0-0-7 full absence snapshot',
     run: () => {
       const results = {
@@ -2384,7 +2384,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'quota: lower committee can lift bottom jonokuchi makekoshi when tail expands',
     run: () => {
       const lowerWorld = createLowerDivisionQuotaWorld(() => 0.5);
@@ -2445,7 +2445,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: assigned juryo promotion rank is normalized into lower maegashira band',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2480,7 +2480,7 @@ export const tests: TestCase[] = [
       assert.ok((quota?.assignedNextRank?.number ?? 0) >= 14, 'Expected lower maegashira normalization');
     },
   },
-{
+  {
     name: 'quota: dominant juryo yusho lane shifts by upper-lane pressure',
     run: () => {
       const buildWorld = (wins: number, losses: number) => {
@@ -2534,7 +2534,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: komusubi 7-8 cannot be normalized below maegashira6',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2570,7 +2570,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: maegashira 8-7 jump is capped to realistic width',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2607,7 +2607,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: maegashira8 8-7 varies by upper-lane pressure',
     run: () => {
       const buildWorld = (wins: number, losses: number) => {
@@ -2659,7 +2659,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: maegashira1 7-8 stays above maegashira8 9-6 lane',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2696,7 +2696,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: maegashira8 9-6 does not jump above maegashira4',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2733,7 +2733,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: top maegashira 8-7 does not cross into sanyaku',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2768,7 +2768,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.assignedNextRank?.number, 1);
     },
   },
-{
+  {
     name: 'quota: slight kachikoshi can move half-rank by east-west slot',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2804,7 +2804,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.assignedNextRank?.side, 'West');
     },
   },
-{
+  {
     name: 'quota: slight kachikoshi in komusubi can rise by half-rank to sekiwake',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2837,7 +2837,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.assignedNextRank?.side, 'West');
     },
   },
-{
+  {
     name: 'quota: slight makekoshi in sekiwake can fall to komusubi by half-rank',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2870,7 +2870,7 @@ export const tests: TestCase[] = [
       assert.equal(quota?.assignedNextRank?.side, 'East');
     },
   },
-{
+  {
     name: 'quota: maegashira13 heavy makekoshi can demote below maegashira13',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2907,7 +2907,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: makekoshi maegashira is not promoted to sanyaku',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2944,7 +2944,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: heavy makekoshi in maegashira is never kept at same rank',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2981,7 +2981,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'quota: very heavy makekoshi in maegashira gets deep demotion width',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -3018,7 +3018,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'ranking: sandanme 7-0 gains large promotion width',
     run: () => {
       const sandanme: Rank = { division: 'Sandanme', name: '三段目', side: 'East', number: 80 };
@@ -3031,7 +3031,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: sandanme 6-1 promotion width is widened',
     run: () => {
       const sandanmeRecord = createBashoRecord(
@@ -3043,7 +3043,7 @@ export const tests: TestCase[] = [
       assert.ok(delta >= 26, `Expected widened sandanme 6-1 delta >= 26, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: sandanme 1-6 demotion width is widened',
     run: () => {
       const sandanmeRecord = createBashoRecord(
@@ -3055,7 +3055,7 @@ export const tests: TestCase[] = [
       assert.ok(delta <= -51, `Expected widened sandanme 1-6 delta <= -51, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: jonidan 0-7 drops with large width',
     run: () => {
       const jonidan: Rank = {
@@ -3073,7 +3073,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: jonidan 7-0 gets boosted promotion width',
     run: () => {
       const startNumber = Math.max(80, Math.floor(LIMITS.JONIDAN_MAX * 0.8));
@@ -3091,7 +3091,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking: jonidan 5-2 promotion width is widened',
     run: () => {
       const jonidanRecord = createBashoRecord(
@@ -3103,7 +3103,7 @@ export const tests: TestCase[] = [
       assert.ok(delta >= 18, `Expected widened jonidan delta >= 18, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: jonidan 2-5 demotion width is widened',
     run: () => {
       const jonidanRecord = createBashoRecord(
@@ -3115,7 +3115,7 @@ export const tests: TestCase[] = [
       assert.ok(delta <= -37, `Expected widened jonidan 2-5 delta <= -37, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: jonokuchi 5-2 promotion width is widened',
     run: () => {
       const jonokuchiRecord = createBashoRecord(
@@ -3127,7 +3127,7 @@ export const tests: TestCase[] = [
       assert.ok(delta >= 21, `Expected widened jonokuchi delta >= 21, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: jonokuchi 1-6 demotion width is widened',
     run: () => {
       const jonokuchiRecord = createBashoRecord(
@@ -3139,7 +3139,7 @@ export const tests: TestCase[] = [
       assert.ok(delta <= -57, `Expected widened jonokuchi 1-6 delta <= -57, got ${delta}`);
     },
   },
-{
+  {
     name: 'ranking: makushita 6-1 keeps clear but controlled promotion width',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 30 };
@@ -3148,7 +3148,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number || 999) <= 22);
     },
   },
-{
+  {
     name: 'ranking: makushita deep 7-0 gains large promotion without joi-jin teleport',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 56 };
@@ -3157,7 +3157,7 @@ export const tests: TestCase[] = [
       assert.ok((result.nextRank.number || 999) <= 40, '7-0 should still produce a large jump');
     },
   },
-{
+  {
     name: 'ranking: makushita 0-7 still has clear demotion width',
     run: () => {
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 30 };
@@ -3170,7 +3170,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'banzuke: variable headcount flow follows accounting equation with clamp',
     run: () => {
       const next = resolveVariableHeadcountByFlow(
@@ -3202,7 +3202,7 @@ export const tests: TestCase[] = [
       assert.equal(clampedMin, 20);
     },
   },
-{
+  {
     name: 'banzuke: rank scale roundtrip supports variable slot size',
     run: () => {
       const slot = rankNumberSideToSlot(38, 'West', 140);
@@ -3212,7 +3212,7 @@ export const tests: TestCase[] = [
       assert.equal(maxNumber('Jonokuchi', 140), 70);
     },
   },
-{
+  {
     name: 'banzuke: review board suppresses kachikoshi demotion and caps light makekoshi depth',
     run: () => {
       const out = composeNextBanzuke({
@@ -3258,7 +3258,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'banzuke: ozeki consecutive yusho promotes to yokozuna in compose pipeline',
     run: () => {
       const out = composeNextBanzuke({
@@ -3295,7 +3295,7 @@ export const tests: TestCase[] = [
       assert.equal(allocation.finalDecision.event, 'PROMOTION_TO_YOKOZUNA');
     },
   },
-{
+  {
     name: 'banzuke: lower-division 7-0 large promotion is not rejected as boundary jam',
     run: () => {
       const out = composeNextBanzuke({
@@ -3324,7 +3324,7 @@ export const tests: TestCase[] = [
       assert.equal(out.warnings.length, 0);
     },
   },
-{
+  {
     name: 'banzuke: makushita 7-0 correction is not rejected by review board',
     run: () => {
       const out = composeNextBanzuke({
@@ -3354,7 +3354,7 @@ export const tests: TestCase[] = [
       assert.equal(out.warnings.length, 0);
     },
   },
-{
+  {
     name: 'banzuke: maezumo non-absence stays promotable to jonokuchi in committee compose',
     run: () => {
       const out = composeNextBanzuke({
@@ -3385,7 +3385,7 @@ export const tests: TestCase[] = [
       assert.equal(out.warnings.length, 0);
     },
   },
-{
+  {
     name: 'torikumi: regular sekitori schedule keeps makuuchi and juryo separate',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3409,7 +3409,7 @@ export const tests: TestCase[] = [
       assert.ok(pairs.some((pair) => pair.a.division === 'Juryo' && pair.b.division === 'Juryo'));
     },
   },
-{
+  {
     name: 'torikumi: boundary pairing is not used when same-division pairs are sufficient',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3429,7 +3429,7 @@ export const tests: TestCase[] = [
       assert.ok(result.days[0].pairs.every((pair) => !pair.boundaryId));
     },
   },
-{
+  {
     name: 'torikumi: v3 intra-division pairing selects from top3 by weighted roll',
     run: () => {
       const pool: TorikumiParticipant[] = [
@@ -3454,7 +3454,7 @@ export const tests: TestCase[] = [
       assert.equal(chosenByBucket(0.95), 'MS4');
     },
   },
-{
+  {
     name: 'torikumi: late Juryo-Makushita reserves bubble rikishi for boundary playoffs',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3501,7 +3501,7 @@ export const tests: TestCase[] = [
       assert.ok(dayPairs.some((pair) => pair.a.id === 'MS4W' || pair.b.id === 'MS4W'));
     },
   },
-{
+  {
     name: 'torikumi: Juryo-Makushita exchange is blocked before day 12 and opens on day 12+',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3560,7 +3560,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'torikumi: no rematch and no same-stable constraints are preserved',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3594,7 +3594,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'torikumi: late makuuchi title race produces direct bout metadata',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3633,7 +3633,7 @@ export const tests: TestCase[] = [
       assert.equal(directPair?.phaseId, 'LATE');
     },
   },
-{
+  {
     name: 'torikumi: diagnostics expose repair histogram and boundary distribution',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3683,7 +3683,7 @@ export const tests: TestCase[] = [
       assert.equal(result.diagnostics.repairSuccessCount >= 0, true);
     },
   },
-{
+  {
     name: 'torikumi: early ozeki scheduling avoids deep maegashira when upper-rank options exist',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3721,7 +3721,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'torikumi policy: lower division schedule uses 7 days with 1-2 day rests',
     run: () => {
       const days = buildLowerDivisionBoutDays(lcg(99));
@@ -3733,7 +3733,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'banzuke: decision logs expose realism rule bucket fields',
     run: () => {
       const result = composeNextBanzuke({
@@ -3759,7 +3759,7 @@ export const tests: TestCase[] = [
       assert.equal(log.usedDiscretion, false);
     },
   },
-{
+  {
     name: 'torikumi policy: day 14/15 are rare but non-zero in lower schedules',
     run: () => {
       const rng = lcg(20260222);
@@ -3778,7 +3778,7 @@ export const tests: TestCase[] = [
       assert.ok(ratio15 > 0.03 && ratio15 < 0.2, `Expected day15 to be occasional, got ${ratio15}`);
     },
   },
-{
+  {
     name: 'torikumi policy: day map + eligibility follows generated schedule',
     run: () => {
       const participants: TorikumiParticipant[] = [
@@ -3797,7 +3797,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'ranking property: generated next ranks stay structurally valid',
     run: () => {
       const rand = lcg(42);

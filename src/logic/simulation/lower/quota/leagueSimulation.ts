@@ -39,10 +39,10 @@ const createDivisionParticipants = (
       const shikona = registryNpc?.shikona ?? npc.shikona;
       const stableId = registryNpc?.stableId ?? npc.stableId;
       const variance = resolveBashoFormDelta({
-          uncertainty: npc.uncertainty,
-          volatility: npc.volatility,
-          rng,
-        });
+        uncertainty: npc.uncertainty,
+        volatility: npc.volatility,
+        rng,
+      });
       const bashoFormDelta = variance?.bashoFormDelta ?? 0;
       const seasonalPower =
         npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 0.9);

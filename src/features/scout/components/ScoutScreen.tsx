@@ -108,24 +108,24 @@ const ChoiceGrid = <T extends string>({
   options: Array<{ value: T; label: string; note: string }>;
   onChange: (value: T) => void;
 }) => (
-  <div className="grid gap-3 md:grid-cols-2">
-    {options.map((option) => {
-      const active = option.value === value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className="scout-choice-card"
-          data-active={active}
-        >
-          <div className="text-base ui-text-heading text-text">{option.label}</div>
-          <div className="mt-2 text-sm text-text-dim">{option.note}</div>
-        </button>
-      );
-    })}
-  </div>
-);
+    <div className="grid gap-3 md:grid-cols-2">
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className="scout-choice-card"
+            data-active={active}
+          >
+            <div className="text-base ui-text-heading text-text">{option.label}</div>
+            <div className="mt-2 text-sm text-text-dim">{option.note}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
 
 const SectionCard: React.FC<{
   step: ScoutStepId;

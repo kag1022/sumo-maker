@@ -56,13 +56,13 @@ export const RecordTab: React.FC<RecordTabProps> = ({ status, careerId = null })
                         isExpanded
                           ? null
                           : {
-                              kind: "record",
-                              bashoSeq: row.bashoSeq,
-                              sourceLabel: "戦績",
-                              title: `${row.bashoLabel}の場所詳細`,
-                              subtitle: `${row.rankLabel} / ${row.recordText}`,
-                              highlightReason: "この場所の公式記録を確認します。",
-                            },
+                            kind: "record",
+                            bashoSeq: row.bashoSeq,
+                            sourceLabel: "戦績",
+                            title: `${row.bashoLabel}の場所詳細`,
+                            subtitle: `${row.rankLabel} / ${row.recordText}`,
+                            highlightReason: "この場所の公式記録を確認します。",
+                          },
                       )
                     }
                   >

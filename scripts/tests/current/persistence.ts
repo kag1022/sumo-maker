@@ -40,7 +40,7 @@ import {
 } from '../shared/currentHelpers';
 
 export const tests: TestCase[] = [
-{
+  {
     name: 'report: clear score favors stronger results over lower-division careers',
     run: () => {
       const eliteRecords = [
@@ -98,7 +98,7 @@ export const tests: TestCase[] = [
       assert.equal(buildCareerClearScoreSummary(eliteWithStory).clearScore, eliteScore.clearScore);
     },
   },
-{
+  {
     name: 'report: hero summary surfaces life cards and dominant narrative',
     run: () => {
       const status = createStatus({
@@ -152,7 +152,7 @@ export const tests: TestCase[] = [
       assert.equal(summary.narrative, '大舞台よりも、一場所ごとの積み上げが印象に残る力士人生です。');
     },
   },
-{
+  {
     name: 'report: record badges map milestone achievements to factual labels',
     run: () => {
       const status = createStatus({
@@ -185,7 +185,7 @@ export const tests: TestCase[] = [
       assert.ok(badgeKeys.includes('KACHIKOSHI_STREAK'));
     },
   },
-{
+  {
     name: 'collection: save incentive uses clear score and record collection progress',
     run: async () => {
       await resetDb();
@@ -263,7 +263,7 @@ export const tests: TestCase[] = [
       assert.ok(recordSummary.count > 0, 'Expected record collection entries after save');
     },
   },
-{
+  {
     name: 'collection: catalog exposes locked entries as masked placeholders',
     run: async () => {
       await resetDb();
@@ -274,7 +274,7 @@ export const tests: TestCase[] = [
       assert.ok(entries.every((entry) => entry.meta == null));
     },
   },
-{
+  {
     name: 'collection: legacy saved careers backfill collection entries without new flags',
     run: async () => {
       await resetDb();
@@ -317,7 +317,7 @@ export const tests: TestCase[] = [
       assert.ok(recordEntries.every((entry) => entry.state === 'UNLOCKED' ? entry.isNew !== true : true));
     },
   },
-{
+  {
     name: 'collection: achievement display uses factual names',
     run: () => {
       const names = new Set(ACHIEVEMENT_CATALOG.map((entry) => entry.name));
@@ -347,7 +347,7 @@ export const tests: TestCase[] = [
       assert.ok(labels.includes('幕内全勝優勝1回'));
     },
   },
-{
+  {
     name: 'collection: kimarite catalog includes 82 official moves plus non-tech metadata',
     run: async () => {
       const entries = await listCollectionCatalogEntries('KIMARITE');
@@ -358,7 +358,7 @@ export const tests: TestCase[] = [
       assert.equal(nonTechniqueCount, 7);
     },
   },
-{
+  {
     name: 'collection: dashboard summary and recent unlocks include factual labels',
     run: async () => {
       await resetDb();
@@ -404,7 +404,7 @@ export const tests: TestCase[] = [
       assert.ok(recordEntries.some((entry) => entry.state === 'UNLOCKED' && entry.label === '幕内到達'));
     },
   },
-{
+  {
     name: 'wallet: phase A starts at 50pt and regenerates 1 point per minute',
     run: async () => {
       await resetDb();
@@ -418,7 +418,7 @@ export const tests: TestCase[] = [
       assert.equal(at60Sec.nextRegenInSec, 60);
     },
   },
-{
+  {
     name: 'wallet: phase A cap is 100pt and offline regen stops at cap',
     run: async () => {
       await resetDb();
@@ -429,7 +429,7 @@ export const tests: TestCase[] = [
       assert.equal(longAfter.nextRegenInSec, 0);
     },
   },
-{
+  {
     name: 'wallet: spend fails when points are insufficient',
     run: async () => {
       await resetDb();
@@ -439,7 +439,7 @@ export const tests: TestCase[] = [
       assert.equal(denied.ok, false);
     },
   },
-{
+  {
     name: 'storage: draft stores career start year-month',
     run: async () => {
       await resetDb();
@@ -464,7 +464,7 @@ export const tests: TestCase[] = [
       assert.equal(raw?.careerEndYearMonth, null);
     },
   },
-{
+  {
     name: 'storage: completed career stores end year-month and sorts by end date desc',
     run: async () => {
       await resetDb();
@@ -504,7 +504,7 @@ export const tests: TestCase[] = [
       assert.equal(list[1].careerEndYearMonth, '2030-11');
     },
   },
-{
+  {
     name: 'storage: commitCareer still saves when legacy unofficial kimarite rows exist',
     run: async () => {
       await resetDb();
@@ -549,7 +549,7 @@ export const tests: TestCase[] = [
       assert.equal(saved?.state, 'shelved');
     },
   },
-{
+  {
     name: 'storage: commitCareer grants prize reward and still saves',
     run: async () => {
       await resetDb();
@@ -589,7 +589,7 @@ export const tests: TestCase[] = [
       assert.ok(wallet.points >= WALLET_INITIAL_POINTS, 'Expected wallet to remain readable after save');
     },
   },
-{
+  {
     name: 'storage: appendBashoChunk stores only player bout details',
     run: async () => {
       await resetDb();
@@ -637,7 +637,7 @@ export const tests: TestCase[] = [
       assert.ok(storedBouts.every((bout) => bout.playerDivision.length > 0));
     },
   },
-{
+  {
     name: 'storage: appendBashoChunk stores player sansho and kinboshi titles',
     run: async () => {
       await resetDb();
@@ -673,7 +673,7 @@ export const tests: TestCase[] = [
       assert.ok((row?.titles ?? []).includes('金星x2'));
     },
   },
-{
+  {
     name: 'storage: appendBashoChunk persists important torikumi notes',
     run: async () => {
       await resetDb();
@@ -733,7 +733,7 @@ export const tests: TestCase[] = [
       assert.equal(rows[0]?.day, 15);
     },
   },
-{
+  {
     name: 'report: listCareerBashoRecordsBySeq groups saved basho rows by sequence',
     run: async () => {
       await resetDb();
@@ -784,7 +784,7 @@ export const tests: TestCase[] = [
       assert.equal(rows[0]?.rows.some((row) => row.entityId === 'NPC-A'), true);
     },
   },
-{
+  {
     name: 'persistence: getCareerBashoDetail bundles rows bouts torikumi and banzuke logs by bashoSeq',
     run: async () => {
       await resetDb();
@@ -879,7 +879,7 @@ export const tests: TestCase[] = [
       assert.equal(detail?.banzukeDecisions[0]?.seq, 1);
     },
   },
-{
+  {
     name: 'persistence: simulated sekitori detail rows keep player once and rank keys unique',
     run: async () => {
       await resetDb();
@@ -943,7 +943,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'persistence: simulated lower-division detail rows keep player once and rank keys unique',
     run: async () => {
       await resetDb();
@@ -997,7 +997,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'persistence: lower-division detail persists sekitori and player-nearby npc rows only',
     run: async () => {
       await resetDb();
@@ -1186,7 +1186,7 @@ export const tests: TestCase[] = [
       assert.equal(decisions.length, 1);
     },
   },
-{
+  {
     name: 'storage: getCareerHeadToHead aggregates by opponent id and uses latest shikona',
     run: async () => {
       await resetDb();
@@ -1326,7 +1326,7 @@ export const tests: TestCase[] = [
       assert.equal(b.lastSeenSeq, 1);
     },
   },
-{
+  {
     name: 'storage: banzuke population and decision logs are persisted and listed',
     run: async () => {
       await resetDb();
@@ -1385,7 +1385,7 @@ export const tests: TestCase[] = [
       assert.equal(logs[0].finalRank.number, 10);
     },
   },
-{
+  {
     name: 'report: hoshitori records keep stored basho sequence after maezumo',
     run: () => {
       const records: BashoRecord[] = [
@@ -1417,7 +1417,7 @@ export const tests: TestCase[] = [
       assert.equal(joined[1]?.bouts[0]?.kimarite, '送り出し');
     },
   },
-{
+  {
     name: 'report: rank chart uses positive compressed basho slots only',
     run: () => {
       const records: BashoRecord[] = [
@@ -1443,7 +1443,7 @@ export const tests: TestCase[] = [
       assert.equal(chart[1]?.bashoLabel, '2026年7月');
     },
   },
-{
+  {
     name: 'report: timeline groups same basho events in priority order',
     run: () => {
       const groups = buildTimelineEventGroups([
@@ -1463,7 +1463,7 @@ export const tests: TestCase[] = [
       ]);
     },
   },
-{
+  {
     name: 'report: timeline labels trait awakening separately',
     run: () => {
       const groups = buildTimelineEventGroups([
@@ -1475,7 +1475,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(groups[0]?.descriptions, ['特性「長身長腕」が開花: 188cm到達']);
     },
   },
-{
+  {
     name: 'persistence: loading legacy career migrates traits into learned journey entries',
     run: async () => {
       await resetDb();
@@ -1503,7 +1503,7 @@ export const tests: TestCase[] = [
       assert.equal(loaded?.traitJourney?.[0]?.triggerLabel, '旧仕様で初期付与');
     },
   },
-{
+  {
     name: 'report: important banzuke digest includes sekitori and makuuchi promotions only when significant',
     run: () => {
       const status = createStatus();
@@ -1555,7 +1555,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(digests.map((entry) => entry.trigger), ['MAKUUCHI_PROMOTION', 'SEKITORI_PROMOTION']);
     },
   },
-{
+  {
     name: 'report: important banzuke digest flags kachikoshi hold and sanyaku slot jam',
     run: () => {
       const status = createStatus();
@@ -1595,7 +1595,7 @@ export const tests: TestCase[] = [
       assert.equal(digests[1]?.trigger, 'KACHIKOSHI_HELD');
     },
   },
-{
+  {
     name: 'report: important torikumi digest ignores ordinary nearby bouts and keeps yusho race',
     run: () => {
       const digests = buildImportantTorikumiDigests([
@@ -1637,7 +1637,7 @@ export const tests: TestCase[] = [
       assert.ok(digests[0]?.detailLine.includes('覇王山'));
     },
   },
-{
+  {
     name: 'report: important decision digest mixes banzuke and torikumi timeline items',
     run: () => {
       const digest = buildImportantDecisionDigest(
@@ -1681,7 +1681,7 @@ export const tests: TestCase[] = [
       assert.equal(digest.timelineItems[1]?.entryType, 'BANZUKE');
     },
   },
-{
+  {
     name: 'report: rivalry digest includes title blocker and era titan with strong evidence only',
     run: () => {
       const status = createStatus({
@@ -1848,7 +1848,7 @@ export const tests: TestCase[] = [
       assert.equal(digest.titleBlockers.some((entry) => entry.opponentId === 'F1'), false);
     },
   },
-{
+  {
     name: 'report: rivalry digest excludes nemesis with too few bouts',
     run: () => {
       const status = createStatus();
@@ -1910,7 +1910,7 @@ export const tests: TestCase[] = [
       assert.equal(digest.nemesis.length, 0);
     },
   },
-{
+  {
     name: 'report: banzuke snapshot keeps player division only and sorts east before west',
     run: () => {
       const snapshot = buildBanzukeSnapshotForSeq(2, 'Makuuchi', [
@@ -1958,7 +1958,7 @@ export const tests: TestCase[] = [
       assert.equal(snapshot.rows.some((row) => row.entityId === 'J1'), false);
     },
   },
-{
+  {
     name: 'report: banzuke snapshot can focus around player rank window while keeping highlighted rival',
     run: () => {
       const snapshot = buildBanzukeSnapshotForSeq(2, 'Makuuchi', [
@@ -2039,7 +2039,7 @@ export const tests: TestCase[] = [
       assert.equal(snapshot.focusWindow, 1);
     },
   },
-{
+  {
     name: 'collection: unofficial kimarite entries are filtered and aliases collapse to official names',
     run: async () => {
       await resetDb();
@@ -2078,7 +2078,7 @@ export const tests: TestCase[] = [
       assert.equal(details.filter((entry: { label: string }) => entry.label === '決まり手：掬い投げ').length, 1);
     },
   },
-{
+  {
     name: 'report: career rate metrics separate simple average from pooled legacy average',
     run: () => {
       const accumulator = createCareerRateAccumulator();
@@ -2099,7 +2099,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'report: career rate metrics treat absences as lower effective win rate and losing careers',
     run: () => {
       const sample = buildCareerRateSample({ wins: 10, losses: 8, absent: 20 });

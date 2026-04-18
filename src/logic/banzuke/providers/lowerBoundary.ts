@@ -213,8 +213,8 @@ const buildCandidate = (
       side: 'East' as const,
     }
     : deterministic.nextRank.division === 'Maezumo'
-    ? { ...deterministic.nextRank, division: 'Jonokuchi', name: '序ノ口' } as Rank
-    : deterministic.nextRank;
+      ? { ...deterministic.nextRank, division: 'Jonokuchi', name: '序ノ口' } as Rank
+      : deterministic.nextRank;
   const targetSlot = toGlobalSlot(
     targetRank.division as LowerDivision,
     ((targetRank.number ?? 1) - 1) * 2 + (targetRank.side === 'West' ? 2 : 1),

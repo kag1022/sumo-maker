@@ -1,4 +1,4 @@
-import type { BodyType, KimariteRepertoire, RikishiStatus, StyleArchetype, Trait, WinRoute } from '../models';
+import type { BodyType, RikishiStatus, Trait, WinRoute } from '../models';
 import type { RandomSource } from '../simulation/deps';
 import {
   type KimariteFamily,
@@ -13,50 +13,21 @@ import {
   NON_TECHNIQUE_CATALOG,
   OFFICIAL_WIN_KIMARITE_82,
 } from './catalog';
+import {
+  type BoutEngagement,
+  resolveBoutEngagement,
+  resolveEngagementPatternFit,
+} from './engagement';
 import { inferWinRouteFromMove, routeToPattern } from './repertoire';
+import type { KimariteBoutContext, KimariteCompetitorProfile } from './selection.types';
 import {
   resolveLoserFieldPenalty,
   resolveStyleSignatureFit,
 } from './styleSignatureMoves';
 
+export type { KimariteBoutContext, KimariteCompetitorProfile } from './selection.types';
+
 type StatKey = keyof RikishiStatus['stats'];
-
-export interface KimariteCompetitorProfile {
-  style: KimariteStyle;
-  bodyType: BodyType;
-  heightCm: number;
-  weightKg: number;
-  stats: Partial<Record<StatKey, number>>;
-  traits: Trait[];
-  preferredMove?: string;
-  historyCounts?: Record<string, number>;
-  designedPrimaryStyle?: KimariteStyle;
-  designedSecondaryStyle?: KimariteStyle;
-  designedSecretStyle?: KimariteStyle;
-  strongStyles?: StyleArchetype[];
-  weakStyles?: StyleArchetype[];
-  kataSettled?: boolean;
-  repertoire?: KimariteRepertoire;
-}
-
-export interface KimariteBoutContext {
-  isHighPressure?: boolean;
-  isLastDay?: boolean;
-  isUnderdog?: boolean;
-  isEdgeCandidate?: boolean;
-  weightDiff?: number;
-  heightDiff?: number;
-  /** 2*winProb - 1: +1 = dominant favorite, -1 = heavy underdog. */
-  dominance?: number;
-  /** 千秋楽 優勝決定 or 直接タイトル争いの結び */
-  isTitleDecider?: boolean;
-  /** 平幕が横綱/大関を倒す取組 */
-  isKinboshiChance?: boolean;
-  /** 敗者が大きく格下（番付差） */
-  loserRankGap?: number;
-  /** 敗者がスタミナ切れ・体勢崩壊しやすい */
-  loserExhausted?: boolean;
-}
 
 export interface KimariteVarietyProfile {
   coreFamilies: KimariteFamily[];
@@ -357,6 +328,26 @@ const resolveBodyFit = (
     if (heightDiff >= 5) score *= 1.25;
   }
 
+  if (entry.name === '押し出し') {
+    if (dominance >= 0) score *= 1.14;
+    if (weightDiff >= 0) score *= 1.12;
+  }
+
+  if (entry.name === '寄り倒し') {
+    if (dominance < 0.25) score *= 0.42;
+    else if (dominance >= 0.6) score *= 1.1;
+  }
+
+  if (entry.name === '押し倒し' || entry.name === '突き倒し') {
+    if (dominance < 0.18) score *= 0.58;
+    else if (dominance >= 0.55) score *= 1.08;
+  }
+
+  if (entry.name === '突き出し') {
+    if (heightDiff < 4 && winner.traits.includes('LONG_REACH') === false) score *= 0.28;
+    else if (heightDiff >= 6 || winner.traits.includes('LONG_REACH')) score *= 1.15;
+  }
+
   if (entry.name === '小手投げ' || entry.name === 'とったり') {
     const kumi = winner.stats.kumi ?? 50;
     const waza = winner.stats.waza ?? 50;
@@ -552,13 +543,95 @@ const resolveContextTagAccess = (
   });
 };
 
+/**
+ * engagement 経由で requiredPatterns 外のエントリが候補入りするケース専用の
+ * 「家族別アクセスゲート」。catalog.contextTags は MAIN 役には空配列として
+ * 入っているため、engagement 越境で送り出し・肩透かしなどを無制限に通さない
+ * よう、家族属性から逆引きで最低限の文脈要件を課す。
+ */
+const resolveCrossPatternFamilyGate = (
+  entry: OfficialKimariteEntry,
+  winner: KimariteCompetitorProfile,
+  context: KimariteBoutContext | undefined,
+): boolean => {
+  const nage = winner.stats.nage ?? 50;
+  const waza = winner.stats.waza ?? 50;
+  const kumi = winner.stats.kumi ?? 50;
+  // REAR 系（送り出し etc）は「相手の後ろに回る」必要がある → 実戦的には
+  // 高圧/千秋楽/READ_THE_BOUT 持ちに限定。
+  if (entry.family === 'REAR') {
+    return Boolean(
+      context?.isHighPressure ||
+      context?.isLastDay ||
+      winner.traits.includes('READ_THE_BOUT') ||
+      winner.style === 'TECHNIQUE',
+    );
+  }
+  // 土俵際系は EDGE_SCRAMBLE か edge candidate のときだけ許容。
+  if (entry.family === 'BACKWARD_BODY_DROP') {
+    return Boolean(context?.isEdgeCandidate);
+  }
+  // 足取り系は TECHNIQUE/ARAWAZASHI/SOPPU の実装者に限定。
+  if (entry.family === 'TRIP_PICK') {
+    return (
+      winner.style === 'TECHNIQUE' ||
+      winner.traits.includes('ARAWAZASHI') ||
+      winner.bodyType === 'SOPPU'
+    );
+  }
+  // 投げ系は nage/waza が十分（>= 62）な GRAPPLE/TECHNIQUE 主体。
+  // PUSH 専門（低 nage）が engagement=MIXED/BELT で throw を拾わないようにする。
+  if (entry.family === 'THROW') {
+    if (winner.style === 'GRAPPLE' || winner.style === 'TECHNIQUE') return true;
+    return nage >= 62 || waza >= 68;
+  }
+  // 寄り・極め系は kumi/koshi が一定以上。PUSH が突進で BELT 決まり手を拾うのを抑制。
+  if (entry.family === 'FORCE_OUT') {
+    if (winner.style === 'GRAPPLE' || winner.style === 'BALANCE' || winner.style === 'TECHNIQUE') return true;
+    return kumi >= 60;
+  }
+  // 押し・突き系（押し出し、突き出し、押し倒し、突き倒し）は tsuki/oshi が一定以上。
+  // GRAPPLE 専門（低 tsuki/oshi）が engagement=BELT で PUSH 決まり手を拾わないようにする。
+  if (entry.family === 'PUSH_THRUST') {
+    if (winner.style === 'PUSH' || winner.style === 'BALANCE') return true;
+    const tsuki = winner.stats.tsuki ?? 50;
+    const oshi = winner.stats.oshi ?? 50;
+    return tsuki >= 65 || oshi >= 65;
+  }
+  // 引き落とし・肩透かし・はたき込み系は TECHNIQUE または push/waza 持ち。
+  // GRAPPLE 専門が pull-down 系を engagement 越境で拾わないようにする。
+  if (entry.family === 'TWIST_DOWN') {
+    if (winner.style === 'PUSH' || winner.style === 'TECHNIQUE' || winner.style === 'BALANCE') return true;
+    const tsuki = winner.stats.tsuki ?? 50;
+    const oshi = winner.stats.oshi ?? 50;
+    return tsuki >= 60 || oshi >= 60 || waza >= 65;
+  }
+  return true;
+};
+
 const resolvePatternRoleFit = (
   entry: OfficialKimariteEntry,
   winner: KimariteCompetitorProfile,
   context: KimariteBoutContext | undefined,
   forcePattern: KimaritePattern | undefined,
+  pattern: KimaritePattern,
 ): number => {
   if (forcePattern) return 1;
+  // エントリの requiredPatterns に pattern が含まれているとき、そのパターンにおける
+  // エントリの役割（MAIN / ALT / CONTEXT / RARE）に応じた重みを返す。
+  // 含まれていない（＝ engagement 経由で混入してきた場合）は、役割に関係なく
+  // 家族別の crossPatternGate と contextTags の両方を課して過剰漏洩を抑える。
+  const patternInRole = entry.requiredPatterns.includes(pattern);
+  if (!patternInRole) {
+    if (!resolveCrossPatternFamilyGate(entry, winner, context)) return 0;
+    if (!resolveContextTagAccess(entry.contextTags, winner, context)) return 0;
+    if (entry.patternRole === 'MAIN') return 0.6;
+    if (entry.patternRole === 'ALT') return 0.36;
+    if (entry.patternRole === 'CONTEXT') {
+      return winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI') ? 0.28 : 0.16;
+    }
+    return winner.style === 'TECHNIQUE' && winner.traits.includes('ARAWAZASHI') ? 0.03 : 0.01;
+  }
   if (entry.patternRole === 'MAIN') return 2.4;
   if (entry.patternRole === 'ALT') return 0.72;
   if (!resolveContextTagAccess(entry.contextTags, winner, context)) return 0;
@@ -587,7 +660,21 @@ const resolvePatternWeights = (
   const hasArawazashi = winner.traits.includes('ARAWAZASHI');
   const hasRearCraft = winner.traits.includes('READ_THE_BOUT');
   const edgeUnlocked = Boolean(context?.isEdgeCandidate && (profile.edgeCraft >= 0.16 || winner.traits.includes('DOHYOUGIWA_MAJUTSU') || winner.traits.includes('CLUTCH_REVERSAL')));
-  const rearUnlocked = Boolean((context?.isHighPressure || context?.isLastDay) && (hasRearCraft || winner.style === 'TECHNIQUE'));
+  const rearUnlocked = Boolean(
+    (
+      context?.isHighPressure ||
+      context?.isLastDay ||
+      context?.engagement?.phase === 'MIXED' ||
+      context?.engagement?.phase === 'EDGE_SCRAMBLE' ||
+      context?.engagement?.phase === 'QUICK_COLLAPSE' ||
+      normalizeStat(winner.stats, 'deashi') >= 0.7
+    ) && (
+      hasRearCraft ||
+      winner.style === 'TECHNIQUE' ||
+      normalizeStat(winner.stats, 'waza') >= 0.72 ||
+      normalizeStat(winner.stats, 'deashi') >= 0.82
+    ),
+  );
   const tripUnlocked = Boolean(
     winner.style === 'TECHNIQUE'
       ? hasArawazashi || profile.trickBias >= 0.2
@@ -600,8 +687,10 @@ const resolvePatternWeights = (
       winner.style === 'PUSH'
         ? 1
         : winner.style === 'BALANCE'
-          ? 0.55
-          : 0.18,
+          ? 0.76
+          : winner.style === 'GRAPPLE'
+            ? 0.4
+            : 0.28,
     BELT_FORCE:
       winner.style === 'GRAPPLE'
         ? 1
@@ -612,21 +701,30 @@ const resolvePatternWeights = (
             : 0.6,
     THROW_EXCHANGE:
       winner.style === 'TECHNIQUE'
-        ? 1
+        ? 0.7
         : winner.style === 'GRAPPLE'
-          ? 0.72
+          ? 0.38
           : winner.style === 'PUSH'
             ? 0.05
-            : 0.55,
+            : 0.42,
     PULL_DOWN:
       winner.style === 'PUSH'
-        ? 0.85
+        ? 0.96
         : winner.style === 'TECHNIQUE'
-          ? 0.82
+          ? 1
           : winner.style === 'GRAPPLE'
             ? 0.22
             : 0.55,
-    REAR_CONTROL: rearUnlocked ? (winner.style === 'TECHNIQUE' ? 0.42 : 0.18) : 0,
+    REAR_CONTROL:
+      rearUnlocked
+        ? winner.style === 'TECHNIQUE'
+          ? 1.05
+          : winner.style === 'BALANCE'
+            ? 0.58
+            : winner.style === 'PUSH'
+              ? 0.32
+              : 0.2
+        : 0,
     EDGE_REVERSAL: edgeUnlocked ? (winner.style === 'TECHNIQUE' ? 0.52 : 0.22) : 0,
     LEG_TRIP_PICK: tripUnlocked ? (winner.style === 'TECHNIQUE' ? 0.48 : 0.12) : 0,
     BACKWARD_ARCH: archUnlocked ? 0.2 : 0,
@@ -677,21 +775,26 @@ const resolvePatternWeights = (
     {
       pattern: 'THROW_EXCHANGE',
       weight:
-        (winner.style === 'TECHNIQUE' ? 2.4 : 1.1) +
+        (winner.style === 'TECHNIQUE' ? 1.55 : winner.style === 'GRAPPLE' ? 0.42 : 0.55) +
         normalizeStat(winner.stats, 'nage') +
         normalizeStat(winner.stats, 'waza'),
     },
     {
       pattern: 'PULL_DOWN',
       weight:
-        0.5 +
+        0.78 +
         (winner.bodyType === 'SOPPU' ? 0.4 : 0) +
-        (winner.style === 'PUSH' ? 0.55 : 0.22) +
-        normalizeStat(winner.stats, 'waza') * 0.35,
+        (winner.style === 'PUSH' ? 0.72 : winner.style === 'TECHNIQUE' ? 0.55 : 0.26) +
+        normalizeStat(winner.stats, 'waza') * 0.42,
     },
     {
       pattern: 'REAR_CONTROL',
-      weight: 0.12 + profile.versatility * 0.32 + (heightDiff >= 4 ? 0.12 : 0),
+      weight:
+        0.5 +
+        profile.versatility * 0.55 +
+        normalizeStat(winner.stats, 'deashi') * 0.35 +
+        (context?.engagement?.phase === 'MIXED' || context?.engagement?.phase === 'EDGE_SCRAMBLE' ? 0.25 : 0) +
+        (heightDiff >= 4 ? 0.18 : 0),
     },
     {
       pattern: 'EDGE_REVERSAL',
@@ -1052,16 +1155,46 @@ export const resolveKimariteOutcome = (input: {
 
   const dominance = clamp(input.boutContext?.dominance ?? 0, -1, 1);
 
+  // 取組の「型」を両力士相互作用から確定。候補プールを winner.style だけで絞らず、
+  // engagement に整合する technique 全体から選ばせることで 押し出し一極化を解消。
+  // forcePattern が来ている場合は呼び出し側が厳密に限定したい意図なので、engagement を上書きしない。
+  // battle.ts 側で事前に sample 済み（route 決定と同じ rng 流）の engagement があればそれを流用する。
+  const engagement: BoutEngagement = input.forcePattern
+    ? { phase: 'MIXED', defenderCollapsed: false, edgeCrisis: false, gripEstablished: false, weightDomination: false }
+    : input.boutContext?.engagement
+      ?? resolveBoutEngagement(input.winner, input.loser, input.boutContext, rng);
+
+  // historicalWeight を対数圧縮。生の値は 0.01〜24 の 2400 倍差で common 技が常に支配的だった。
+  // sqrt 圧縮で 0.1 倍〜5 倍程度の差に収め、style/pattern/novelty 係数が効くようにする。
+  const compressHistoricalWeight = (value: number): number => {
+    const safe = Math.max(0, value);
+    if (safe <= 0) return 0;
+    return Math.sqrt(safe);
+  };
+
   const candidates: KimariteCandidate[] = OFFICIAL_WIN_KIMARITE_82.flatMap((entry) => {
-    if (!entry.requiredPatterns.includes(pattern)) return [];
+    // 旧 hard gate: if (!entry.requiredPatterns.includes(pattern)) return [];
+    // 新 soft gate: engagement との適合度をまず計算し、0 なら除外。
+    const engagementFit = input.forcePattern
+      ? (entry.requiredPatterns.includes(pattern) ? 1 : 0)
+      : resolveEngagementPatternFit(entry, engagement);
+    if (engagementFit <= 0) return [];
+
     const bodyFit = resolveBodyFit(entry, input.winner, input.loser, dominance);
     if (bodyFit <= 0) return [];
+
+    // pattern（= winner 由来の「主戦パターン」）との整合は soft boost。
+    // 整合するとき 1.0、しない場合 0.55 にディスカウントするだけで、プールからは除外しない。
+    const patternFit = entry.requiredPatterns.includes(pattern) ? 1 : 0.55;
+
     let weight =
-      entry.historicalWeight *
+      compressHistoricalWeight(entry.historicalWeight) *
+      engagementFit *
+      patternFit *
       resolveStyleFit(entry, input.winner.style) *
       resolveStatFit(entry, input.winner.stats) *
       resolveTraitFit(entry, input.winner.traits) *
-      resolvePatternRoleFit(entry, input.winner, input.boutContext, input.forcePattern) *
+      resolvePatternRoleFit(entry, input.winner, input.boutContext, input.forcePattern, pattern) *
       resolveFamilyFit(entry, profile) *
       resolvePreferredMoveFit(entry, input.winner.preferredMove) *
       resolveRepertoireFit(entry, input.winner, route, input.boutContext) *
@@ -1088,21 +1221,63 @@ export const resolveKimariteOutcome = (input: {
     return [{ entry, weight }];
   });
 
+  if (!candidates.length) {
+    // 一次候補プールが空になるのは、forcePattern が NON_TECHNIQUE のように
+    // 公式 82 手のどれにも該当しないときや、engagement/body フィルタが全拒否したとき。
+    // 以降は engagement 互換プールで救済するが、診断のため警告を残す。
+    pushSelectionWarning(
+      `resolveKimariteOutcome: no candidates for pattern=${pattern} engagement=${engagement.phase}`,
+    );
+  }
   const safeCandidates = candidates.length
     ? candidates
     : OFFICIAL_WIN_KIMARITE_82
-      .filter((entry) => entry.requiredPatterns.includes(pattern))
+      .filter((entry) => resolveEngagementPatternFit(entry, engagement) > 0)
       .filter((entry) => resolveBodyFit(entry, input.winner, input.loser, dominance) > 0)
-      .filter((entry) => !route || resolveRepertoireFit(entry, input.winner, route, input.boutContext) > 0)
-      .map((entry) => ({ entry, weight: Math.max(entry.floorRate * 10000, 1) }));
+      .map((entry) => ({
+        entry,
+        weight: Math.max(entry.floorRate * 10000, compressHistoricalWeight(entry.historicalWeight) * resolveEngagementPatternFit(entry, engagement)),
+      }));
 
   if (!safeCandidates.length) {
-    pushSelectionWarning(`resolveKimariteOutcome: no candidates for pattern=${pattern}`);
+    // Engagement 互換の候補が全く無いのは異常系。押し出し固定ではなく、
+    // engagement に最も近い pattern の中で historicalWeight 比例で拾う。
+    pushSelectionWarning(
+      `resolveKimariteOutcome: no candidates after fallback (pattern=${pattern} engagement=${engagement.phase})`,
+    );
+    const fallbackPool = OFFICIAL_WIN_KIMARITE_82
+      .map((entry) => ({
+        entry,
+        weight: compressHistoricalWeight(entry.historicalWeight) * resolveEngagementPatternFit(entry, engagement),
+      }))
+      .filter((item) => item.weight > 0);
+    if (!fallbackPool.length) {
+      // 完全フォールバック（engagement 全否定時のみ）: historicalWeight 比で抽選。
+      const universalFallback = OFFICIAL_WIN_KIMARITE_82.map((entry) => ({
+        entry,
+        weight: compressHistoricalWeight(entry.historicalWeight),
+      }));
+      const picked = weightedPick(
+        universalFallback.map((item) => ({ value: item.entry, weight: item.weight })),
+        rng,
+      );
+      return {
+        kimarite: picked.name,
+        pattern,
+        route,
+        rarityBucket: picked.rarityBucket,
+        isNonTechnique: false,
+      };
+    }
+    const picked = weightedPick(
+      fallbackPool.map((item) => ({ value: item.entry, weight: item.weight })),
+      rng,
+    );
     return {
-      kimarite: '押し出し',
+      kimarite: picked.name,
       pattern,
       route,
-      rarityBucket: 'COMMON',
+      rarityBucket: picked.rarityBucket,
       isNonTechnique: false,
     };
   }

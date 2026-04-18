@@ -168,9 +168,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         totalSansho > 0 ? { label: "三賞", value: `${totalSansho}回` } : null,
         (status.history.records.some((record) => (record.kinboshi ?? 0) > 0))
           ? {
-              label: "金星",
-              value: `${status.history.records.reduce((sum, record) => sum + (record.kinboshi ?? 0), 0)}個`,
-            }
+            label: "金星",
+            value: `${status.history.records.reduce((sum, record) => sum + (record.kinboshi ?? 0), 0)}個`,
+          }
           : null,
       ].filter((row): row is { label: string; value: string } => Boolean(row)),
     [status.history.records, status.history.totalAbsent, status.history.totalLosses, status.history.totalWins, status.history.yushoCount.makuuchi, totalSansho],

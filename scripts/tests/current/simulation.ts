@@ -95,7 +95,7 @@ const assertUniqueTopRosterSlots = (
 };
 
 export const tests: TestCase[] = [
-{
+  {
     name: 'battle: deterministic win path',
     run: () => {
       const rikishi = createStatus({
@@ -123,7 +123,7 @@ export const tests: TestCase[] = [
       assert.ok(result.kimarite.length > 0);
     },
   },
-{
+  {
     name: 'battle: deterministic win path (unified-v2-kimarite)',
     run: () => {
       const rikishi = createStatus({
@@ -151,7 +151,7 @@ export const tests: TestCase[] = [
       assert.ok(result.kimarite.length > 0);
     },
   },
-{
+  {
     name: 'battle: dohyougiwa reversal requires close high-pressure context',
     run: () => {
       const rikishi = createStatus({
@@ -206,7 +206,7 @@ export const tests: TestCase[] = [
       assert.equal(highPressure.isWin, true);
     },
   },
-{
+  {
     name: 'battle: body metrics size diff affects result',
     run: () => {
       const enemy: EnemyStats = {
@@ -229,7 +229,7 @@ export const tests: TestCase[] = [
       assert.ok(largeResult.winProbability > smallResult.winProbability);
     },
   },
-{
+  {
     name: 'battle: unified win probability stays inside hard clamp',
     run: () => {
       const strong = createStatus({
@@ -291,7 +291,7 @@ export const tests: TestCase[] = [
       assert.ok(low.winProbability >= 0.03 && low.winProbability <= 0.97);
     },
   },
-{
+  {
     name: 'battle: stronger stats monotonically raise unified win probability',
     run: () => {
       const low = createStatus({
@@ -342,7 +342,7 @@ export const tests: TestCase[] = [
       assert.ok(highResult.winProbability > lowResult.winProbability);
     },
   },
-{
+  {
     name: 'battle: player favorite compression applies half-strength B3 compression at 3-5 basho',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 10, side: 'East' };
@@ -356,7 +356,7 @@ export const tests: TestCase[] = [
       assert.ok(compressed < 0.74, `Expected B3 half compression before 6 basho, got ${compressed}`);
     },
   },
-{
+  {
     name: 'battle: opening bonus attenuation only reduces upside above baseline',
     run: () => {
       const attenuated = resolvePlayerOpeningBonusAttenuation({
@@ -374,7 +374,7 @@ export const tests: TestCase[] = [
       assert.equal(unchanged, 0.48);
     },
   },
-{
+  {
     name: 'battle: player favorite compression leaves underdog path untouched',
     run: () => {
       const rank: Rank = { division: 'Juryo', name: '十両', number: 3, side: 'East' };
@@ -387,7 +387,7 @@ export const tests: TestCase[] = [
       assert.equal(base, 0.49);
     },
   },
-{
+  {
     name: 'battle: player favorite compression is stronger in sanyaku than lower divisions',
     run: () => {
       const lower = resolvePlayerFavoriteCompression({
@@ -405,7 +405,7 @@ export const tests: TestCase[] = [
       assert.ok(sanyaku < lower, `Expected sanyaku compression < lower division, got ${sanyaku} >= ${lower}`);
     },
   },
-{
+  {
     name: 'retirement: last 6 bad results escalate from stalled to critical',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 18, side: 'East' };
@@ -443,7 +443,7 @@ export const tests: TestCase[] = [
       assert.equal(critical.band, 'CRITICAL');
     },
   },
-{
+  {
     name: 'retirement: makushita top without kachikoshi becomes stalled',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 12, side: 'East' };
@@ -467,7 +467,7 @@ export const tests: TestCase[] = [
       assert.equal(resolution.isMakushitaTop15, true);
     },
   },
-{
+  {
     name: 'retirement: young single full kyujo grace relaxes one level only',
     run: () => {
       const rank: Rank = { division: 'Sandanme', name: '三段目', number: 22, side: 'East' };
@@ -489,7 +489,7 @@ export const tests: TestCase[] = [
       assert.equal(resolution.graceApplied, true);
     },
   },
-{
+  {
     name: 'retirement: makekoshi-driven slide does not receive injury grace',
     run: () => {
       const rank: Rank = { division: 'Sandanme', name: '三段目', number: 22, side: 'East' };
@@ -511,7 +511,7 @@ export const tests: TestCase[] = [
       assert.equal(resolution.graceApplied, false);
     },
   },
-{
+  {
     name: 'battle: stagnation battle penalty only affects favorite side',
     run: () => {
       const stagnation = {
@@ -537,7 +537,7 @@ export const tests: TestCase[] = [
       assert.equal(underdogPenalty, 0);
     },
   },
-{
+  {
     name: 'battle: stalled lower-division compression is tighter than neutral',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 11, side: 'East' };
@@ -564,7 +564,7 @@ export const tests: TestCase[] = [
       assert.ok(stalled < neutral, `Expected stalled compression < neutral, got ${stalled} >= ${neutral}`);
     },
   },
-{
+  {
     name: 'battle: normal lower-division compression reaches full strength after 6 basho',
     run: () => {
       const rank: Rank = { division: 'Jonidan', name: '序二段', number: 35, side: 'East' };
@@ -582,7 +582,7 @@ export const tests: TestCase[] = [
       assert.equal(full, 0.08);
     },
   },
-{
+  {
     name: 'battle: pre-6 stagnation does not add battle penalty',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 11, side: 'East' };
@@ -611,7 +611,7 @@ export const tests: TestCase[] = [
       assert.equal(critical, neutral);
     },
   },
-{
+  {
     name: 'growth: full kyujo clamps positive player progress to zero',
     run: () => {
       const current = {
@@ -647,7 +647,7 @@ export const tests: TestCase[] = [
       assert.equal(clamped.form, current.form);
     },
   },
-{
+  {
     name: 'growth: early stagnation does not penalize pre-6-basho progress',
     run: () => {
       const current = {
@@ -693,7 +693,7 @@ export const tests: TestCase[] = [
       assert.equal(stalled.form, neutral.form);
     },
   },
-{
+  {
     name: 'growth: player empirical clamp applies age and division soft cap',
     run: () => {
       const current = {
@@ -722,7 +722,7 @@ export const tests: TestCase[] = [
       assert.ok(clamped.ability <= cap, `Expected clamped ability <= ${cap}, got ${clamped.ability}`);
     },
   },
-{
+  {
     name: 'growth: initial ability cap only compresses the upper side',
     run: () => {
       const rank: Rank = { division: 'Jonidan', name: '序二段', number: 50, side: 'East' };
@@ -740,7 +740,7 @@ export const tests: TestCase[] = [
       assert.ok(above > baseline + 8, `Expected soft cap, got ${above}`);
     },
   },
-{
+  {
     name: 'battle: higher player aptitudeFactor increases win rate under same stats',
     run: () => {
       const enemy: EnemyStats = {
@@ -802,7 +802,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'matchmaking: higher aptitudeFactor increases npc-vs-npc win rate',
     run: () => {
       const factors = [0.68, 0.84, 1.0, 1.08, 1.16];
@@ -853,7 +853,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'battle: momentum bonus is non-linear and spikes from 3-streak',
     run: () => {
       const s2 = calculateMomentumBonus(2);
@@ -869,7 +869,7 @@ export const tests: TestCase[] = [
       assert.ok(l5 < 0 && Math.abs(l5) > s3);
     },
   },
-{
+  {
     name: 'battle: momentum streak context widens win probability spread',
     run: () => {
       const status = createStatus({
@@ -953,7 +953,7 @@ export const tests: TestCase[] = [
       assert.ok(hot.winProbability - cold.winProbability > 0.2);
     },
   },
-{
+  {
     name: 'battle: trait bonus is capped in unified ability resolver',
     run: () => {
       const status = createStatus({
@@ -974,7 +974,7 @@ export const tests: TestCase[] = [
       assert.ok(Math.abs((base - dropped) - capDelta) < 1e-6);
     },
   },
-{
+  {
     name: 'rating: actual wins above expected increases ability',
     run: () => {
       const next = updateAbilityAfterBasho({
@@ -999,7 +999,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'rating: actual wins below expected decreases ability',
     run: () => {
       const next = updateAbilityAfterBasho({
@@ -1024,7 +1024,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'rating: mean reversion pulls ability toward rank baseline',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 40 };
@@ -1050,7 +1050,7 @@ export const tests: TestCase[] = [
       assert.ok(next.ability > baseline);
     },
   },
-{
+  {
     name: 'battle: clutch reversal does not flip overwhelming underdog losses',
     run: () => {
       const rikishi = createStatus({
@@ -1097,7 +1097,7 @@ export const tests: TestCase[] = [
       assert.equal(result.isWin, false);
     },
   },
-{
+  {
     name: 'battle: opponent metadata affects player-side win probability',
     run: () => {
       const rikishi = createStatus({
@@ -1141,7 +1141,7 @@ export const tests: TestCase[] = [
       assert.ok(favorable.winProbability > dangerous.winProbability);
     },
   },
-{
+  {
     name: 'battle: kyoushinzou only applies in clutch contexts',
     run: () => {
       const base = createStatus({
@@ -1203,7 +1203,7 @@ export const tests: TestCase[] = [
       assert.ok(titleClutch.winProbability > titleBase.winProbability);
     },
   },
-{
+  {
     name: 'battle: read-the-bout boosts after previous loss',
     run: () => {
       const rikishi = createStatus({
@@ -1255,7 +1255,7 @@ export const tests: TestCase[] = [
       assert.equal(foundWinFlip, true);
     },
   },
-{
+  {
     name: 'battle: kimarite alias normalized in v2',
     run: () => {
       const rikishi = createStatus({
@@ -1286,7 +1286,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'battle: kimariteDelta clamp is reflected in v2 winProbability',
     run: () => {
       const rikishi = createStatus({
@@ -1315,7 +1315,7 @@ export const tests: TestCase[] = [
       assert.ok(Math.abs(v3.winProbability - v2.winProbability) <= 0.061);
     },
   },
-{
+  {
     name: 'battle: makuuchi fallback enemy can represent yokozuna rank',
     run: () => {
       const enemy = generateEnemy('Makuuchi', 2026, sequenceRng([0, 0.5]));
@@ -1323,7 +1323,7 @@ export const tests: TestCase[] = [
       assert.equal(enemy.rankValue, 1);
     },
   },
-{
+  {
     name: 'battle: fallback enemy body metrics are stable for same seed slot',
     run: () => {
       const a = generateEnemy('Juryo', 2026, sequenceRng([0.25, 0.1]));
@@ -1332,7 +1332,7 @@ export const tests: TestCase[] = [
       assert.equal(a.weightKg, b.weightKg);
     },
   },
-{
+  {
     name: 'battle: fallback enemy applies era-based power drift',
     run: () => {
       const oldEra = generateEnemy('Makushita', 2026, sequenceRng([0.4, 0.5]));
@@ -1343,7 +1343,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'yusho: tie at top resolves to a single playoff winner',
     run: () => {
       const resolution = resolveYushoResolution(
@@ -1360,7 +1360,7 @@ export const tests: TestCase[] = [
       assert.ok(!resolution.junYushoIds.has(resolution.winnerId as string));
     },
   },
-{
+  {
     name: 'yusho: even low-win field still produces one winner',
     run: () => {
       const resolution = resolveYushoResolution(
@@ -1375,7 +1375,7 @@ export const tests: TestCase[] = [
       assert.equal(resolution.junYushoIds.has('B'), true);
     },
   },
-{
+  {
     name: 'growth: deterministic snapshot for balanced rikishi',
     run: () => {
       const result = applyGrowth(createStatus(), null, false, () => 0.5);
@@ -1395,7 +1395,7 @@ export const tests: TestCase[] = [
       assert.equal(result.injuryLevel, 0);
     },
   },
-{
+  {
     name: 'growth: recovery monster increases injury recovery by +1',
     run: () => {
       const base = createStatus({
@@ -1417,7 +1417,7 @@ export const tests: TestCase[] = [
       assert.ok((boosted.injuries[0]?.severity || 99) < (normal.injuries[0]?.severity || 0));
     },
   },
-{
+  {
     name: 'growth: healthy young rikishi regains weight toward baseline gradually',
     run: () => {
       const result = applyGrowth(createStatus({
@@ -1439,7 +1439,7 @@ export const tests: TestCase[] = [
       assert.ok(Math.abs(result.bodyMetrics.weightKg - 146.2) < 0.001);
     },
   },
-{
+  {
     name: 'growth: older rikishi regains weight more slowly than young rikishi',
     run: () => {
       const baseSummary = {
@@ -1468,7 +1468,7 @@ export const tests: TestCase[] = [
       assert.ok(Math.abs(veteran.bodyMetrics.weightKg - 145.6) < 0.001);
     },
   },
-{
+  {
     name: 'growth: 22-year-old entrant does not gain height after debut',
     run: () => {
       const result = applyGrowth(createStatus({
@@ -1492,7 +1492,7 @@ export const tests: TestCase[] = [
       assert.ok(result.bodyMetrics.weightKg > 149);
     },
   },
-{
+  {
     name: 'growth: severe injury and near-full absence cause sharp weight loss',
     run: () => {
       const heavy = applyGrowth(createStatus({
@@ -1559,7 +1559,7 @@ export const tests: TestCase[] = [
       assert.ok(light.bodyMetrics.weightKg > heavy.bodyMetrics.weightKg);
     },
   },
-{
+  {
     name: 'growth: consecutive absences compound weight loss',
     run: () => {
       const rank: Rank = { division: 'Makuuchi', name: '前頭', number: 10, side: 'East' };
@@ -1608,7 +1608,7 @@ export const tests: TestCase[] = [
       assert.ok(Math.abs(consecutive.bodyMetrics.weightKg - 144.9) < 0.001);
     },
   },
-{
+  {
     name: 'simulation: sekitori basho record totals 15 bouts',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1619,7 +1619,7 @@ export const tests: TestCase[] = [
       assert.equal(record.wins + record.losses + record.absent, 15);
     },
   },
-{
+  {
     name: 'simulation: sekitori division always has exactly one yusho winner',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1632,7 +1632,7 @@ export const tests: TestCase[] = [
       assert.equal(yushoCount, 1);
     },
   },
-{
+  {
     name: 'simulation: mild injured sekitori can still compete and updates world results',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1649,7 +1649,7 @@ export const tests: TestCase[] = [
       assert.equal(result.sameDivisionNpcRecords.length > 0, true);
     },
   },
-{
+  {
     name: 'simulation: severe injured sekitori is forced to sit out full basho',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1664,7 +1664,7 @@ export const tests: TestCase[] = [
       assert.ok((world.lastBashoResults.Makuuchi ?? []).length > 0);
     },
   },
-{
+  {
     name: 'simulation: healthy lower-division player finishes seven bouts in reproduced shortage seeds',
     run: () => {
       const cases: Array<{ seed: number; rank: Rank }> = [
@@ -1704,7 +1704,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'simulation: maegashira kinboshi can be recorded with sansho',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1730,7 +1730,7 @@ export const tests: TestCase[] = [
       assert.ok(kinboshi >= 0);
     },
   },
-{
+  {
     name: 'simulation: ozeki does not receive sansho',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -1751,7 +1751,7 @@ export const tests: TestCase[] = [
       assert.equal(result.playerRecord.specialPrizes.length, 0);
     },
   },
-{
+  {
     name: 'engine: makushita boundary resolver prioritizes sekitori promotion rank',
     run: () => {
       const resolved = resolveBoundaryAssignedRankForCurrentDivision(
@@ -1765,7 +1765,7 @@ export const tests: TestCase[] = [
       assert.equal(resolved?.number, 14);
     },
   },
-{
+  {
     name: 'simulation: deterministic with injected dependencies',
     run: async () => {
       const runOnce = async () => {
@@ -1801,7 +1801,7 @@ export const tests: TestCase[] = [
       assert.deepEqual(first, second);
     },
   },
-{
+  {
     name: 'simulation: model request keeps explicit model version in new runs',
     run: async () => {
       for (const requested of ['v3'] as const) {
@@ -1846,7 +1846,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'simulation: default new run model version is v3',
     run: async () => {
       const initial = createStatus({
@@ -1870,7 +1870,7 @@ export const tests: TestCase[] = [
       assert.equal(step.diagnostics?.simulationModelVersion, 'v3');
     },
   },
-{
+  {
     name: 'simulation: legacy model values normalize to v3 on load',
     run: () => {
       assert.equal(normalizeSimulationModelVersion('legacy-v6'), 'v3');
@@ -1882,7 +1882,7 @@ export const tests: TestCase[] = [
       assert.equal(normalizeSimulationModelVersion('unknown-model'), 'v3');
     },
   },
-{
+  {
     name: 'simulation: new run model normalizer defaults to v3',
     run: () => {
       assert.equal(normalizeNewRunModelVersion(undefined), 'v3');
@@ -1891,7 +1891,7 @@ export const tests: TestCase[] = [
       assert.equal(normalizeNewRunModelVersion('unified-v3-variance'), 'v3');
     },
   },
-{
+  {
     name: 'variance: same seed resolves identical bashoFormDelta and event',
     run: () => {
       const rollA = resolveBashoFormDelta({
@@ -1917,7 +1917,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'variance: tail event thresholds trigger expected event bands',
     run: () => {
       const cases: Array<{ tailRoll: number; expected: string }> = [
@@ -1938,7 +1938,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'simulation engine: completed result is sticky after retirement',
     run: async () => {
       const initial = createStatus({
@@ -1976,7 +1976,7 @@ export const tests: TestCase[] = [
       assert.equal(second.pauseReason, undefined);
     },
   },
-{
+  {
     name: 'simulation model normalization',
     run: async () => {
       const RUNS: Array<{ requested: any; expected: any }> = [
@@ -2026,7 +2026,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'simulation: makushita player stores sekitori + same-division npc aggregates',
     run: async () => {
       const initial = createStatus({
@@ -2085,7 +2085,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'simulation: makuuchi player stores only sekitori npc aggregates',
     run: async () => {
       const initial = createStatus({
@@ -2123,7 +2123,7 @@ export const tests: TestCase[] = [
       assert.ok(!divisions.has('Jonokuchi'));
     },
   },
-{
+  {
     name: 'simulation: logic-lab summary includes per-career timing totals and phase share',
     run: async () => {
       const { summary, logs } = await runLogicLabToEnd({
@@ -2145,7 +2145,7 @@ export const tests: TestCase[] = [
       assert.ok(summary.phaseTotalsMs.basho_simulation > 0);
     },
   },
-{
+  {
     name: 'simulation: offscreen sekitori lite path preserves roster sizes and result shapes',
     run: () => {
       const rng = lcg(44);
@@ -2168,7 +2168,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'simulation: sekitori roster sizes stay fixed at 42/28 across basho progression',
     run: async () => {
       const initial = createStatus({
@@ -2222,7 +2222,7 @@ export const tests: TestCase[] = [
       assert.ok(observedSteps >= 1);
     },
   },
-{
+  {
     name: 'matchmaking: staged fallback resolves strict byes with same-stable final stage',
     run: () => {
       const participants = Array.from({ length: 4 }, (_, i) => ({
@@ -2243,7 +2243,7 @@ export const tests: TestCase[] = [
       assert.equal(result.byeIds.length, 0);
     },
   },
-{
+  {
     name: 'simulation: 360-basho deterministic loop keeps top active shortage at zero',
     run: () => {
       const rng = lcg(7331);
@@ -2318,7 +2318,7 @@ export const tests: TestCase[] = [
       }
     },
   },
-{
+  {
     name: 'population realism: 5 seed x 20 year heisei band stays in range',
     suite: 'verification',
     run: () => {
@@ -2431,7 +2431,7 @@ export const tests: TestCase[] = [
       assert.ok(annualSwings.some((value) => value >= 45), 'Expected at least one annual swing >= 45');
     },
   },
-{
+  {
     name: 'retirement: player retention modifier is neutral only before age 24 and 18 basho',
     run: () => {
       const modifier = resolvePlayerRetentionModifier({
@@ -2449,7 +2449,7 @@ export const tests: TestCase[] = [
       assert.equal(modifier, 1);
     },
   },
-{
+  {
     name: 'retirement: pre-6 stagnation pressure stays neutral without double full kyujo',
     run: () => {
       const modifier = resolvePlayerRetentionModifier({
@@ -2470,7 +2470,7 @@ export const tests: TestCase[] = [
       assert.equal(modifier, 1);
     },
   },
-{
+  {
     name: 'retirement: pre-6 double full kyujo still raises retention modifier',
     run: () => {
       const modifier = resolvePlayerRetentionModifier({
@@ -2491,7 +2491,7 @@ export const tests: TestCase[] = [
       assert.ok(modifier > 1, `Expected double full kyujo modifier > 1, got ${modifier}`);
     },
   },
-{
+  {
     name: 'retirement: player retention modifier rises for non-sekitori stagnation and kyujo streak',
     run: () => {
       const currentRank: Rank = { division: 'Makushita', name: '幕下', number: 35, side: 'East' };
@@ -2525,7 +2525,7 @@ export const tests: TestCase[] = [
       assert.ok(stagnant > neutral, `Expected stagnant modifier > neutral, got ${stagnant} <= ${neutral}`);
     },
   },
-{
+  {
     name: 'retirement: makushita top15 stagnation adds extra retention pressure',
     run: () => {
       const top15Rank: Rank = { division: 'Makushita', name: '幕下', number: 12, side: 'East' };
@@ -2560,7 +2560,7 @@ export const tests: TestCase[] = [
       assert.ok(topPressure > lowerPressure, `Expected top15 pressure > lower pressure, got ${topPressure} <= ${lowerPressure}`);
     },
   },
-{
+  {
     name: 'retirement: critical top15 non-sekitori pressure reaches 3.75x before clamp',
     run: () => {
       const critical = resolvePlayerStagnationRetentionPressure({
@@ -2578,7 +2578,7 @@ export const tests: TestCase[] = [
       assert.equal(critical, 3.75);
     },
   },
-{
+  {
     name: 'retirement: profile bias ordering is EARLY_EXIT > STANDARD > IRONMAN',
     run: () => {
       const baseInput = {
@@ -2599,7 +2599,7 @@ export const tests: TestCase[] = [
       assert.ok(standard > ironman, `Expected STANDARD > IRONMAN, got ${standard} <= ${ironman}`);
     },
   },
-{
+  {
     name: 'retirement: hazard group age ordering keeps non-sekitori highest and active-sekitori lowest',
     run: () => {
       const common = {
@@ -2639,7 +2639,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'retirement: makekoshi penalty increase is stronger for non-sekitori than former sekitori lower',
     run: () => {
       const nonBase = resolveRetirementChance({
@@ -2695,7 +2695,7 @@ export const tests: TestCase[] = [
       assert.ok(nonDelta > formerDelta, `Expected non-sekitori delta > former-sekitori delta, got ${nonDelta} <= ${formerDelta}`);
     },
   },
-{
+  {
     name: 'retirement: weak lower-division career bands no longer receive survival protection',
     run: () => {
       const base = {
@@ -2727,7 +2727,7 @@ export const tests: TestCase[] = [
       assert.ok(washout > grinder, `Expected WASHOUT hazard > GRINDER, got ${washout} <= ${grinder}`);
     },
   },
-{
+  {
     name: 'retirement: former sekitori low win-rate longevity protection lowers hazard',
     run: () => {
       const base = {
@@ -2755,7 +2755,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'retirement: ironman losing protection triggers from 100 basho onward',
     run: () => {
       const base = {
@@ -2783,7 +2783,7 @@ export const tests: TestCase[] = [
       );
     },
   },
-{
+  {
     name: 'retirement: age limit always retires regardless of random roll',
     run: () => {
       const status = createStatus({ age: 50, retirementProfile: 'IRONMAN' });
@@ -2791,7 +2791,7 @@ export const tests: TestCase[] = [
       assert.equal(result.shouldRetire, true);
     },
   },
-{
+  {
     name: 'retirement: ten consecutive absences always retire regardless of random roll',
     run: () => {
       const rank: Rank = { division: 'Makushita', name: '幕下', number: 25, side: 'East' };

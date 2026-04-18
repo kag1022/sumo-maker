@@ -359,24 +359,24 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
   }, {});
 
   return {
-  seq: step.seq,
-  year: step.year,
-  month: step.month,
-  rankBefore: { ...step.playerRecord.rank },
-  rankAfter: { ...statusSnapshot.rank },
-  banzukeReasons: (playerDecision?.reasons ?? []).slice(0, 3),
-  record: {
-    wins: step.playerRecord.wins,
-    losses: step.playerRecord.losses,
-    absent: step.playerRecord.absent,
-    yusho: step.playerRecord.yusho,
-  },
-  events: step.events.map((event) => event.description),
-  injurySummary: buildInjurySummary(statusSnapshot),
-  ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
-  committeeWarnings: progress.lastCommitteeWarnings,
-  npcContext: buildNpcContext(),
-  kimariteCount,
+    seq: step.seq,
+    year: step.year,
+    month: step.month,
+    rankBefore: { ...step.playerRecord.rank },
+    rankAfter: { ...statusSnapshot.rank },
+    banzukeReasons: (playerDecision?.reasons ?? []).slice(0, 3),
+    record: {
+      wins: step.playerRecord.wins,
+      losses: step.playerRecord.losses,
+      absent: step.playerRecord.absent,
+      yusho: step.playerRecord.yusho,
+    },
+    events: step.events.map((event) => event.description),
+    injurySummary: buildInjurySummary(statusSnapshot),
+    ...(step.pauseReason ? { pauseReason: step.pauseReason } : {}),
+    committeeWarnings: progress.lastCommitteeWarnings,
+    npcContext: buildNpcContext(),
+    kimariteCount,
   };
 };
 

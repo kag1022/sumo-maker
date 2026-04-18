@@ -631,7 +631,7 @@ const resetDb = async (): Promise<void> => {
 };
 
 export const tests: TestCase[] = [
-{
+  {
     name: 'compat: initialize status patches missing profile/bodyMetrics',
     run: () => {
       const legacy = {

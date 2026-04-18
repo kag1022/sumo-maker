@@ -33,4 +33,3 @@ export const useSimulation = () => ({
   clearAllData: useSimulationStore((state) => state.clearAllData),
   resetView: useSimulationStore((state) => state.resetView),
 });
-
