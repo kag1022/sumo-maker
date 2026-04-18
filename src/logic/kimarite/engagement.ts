@@ -47,8 +47,8 @@ export const ENGAGEMENT_PATTERN_AFFINITY: Record<
   Partial<Record<KimaritePattern, number>>
 > = {
   THRUST_BATTLE: {
-    PUSH_ADVANCE: 1.0,
-    PULL_DOWN: 0.7,
+    PUSH_ADVANCE: 1.18,
+    PULL_DOWN: 0.64,
     LEG_TRIP_PICK: 0.22,
     THROW_EXCHANGE: 0.18,
     BELT_FORCE: 0.12,
@@ -58,21 +58,21 @@ export const ENGAGEMENT_PATTERN_AFFINITY: Record<
   },
   BELT_BATTLE: {
     BELT_FORCE: 1.0,
-    THROW_EXCHANGE: 0.95,
-    LEG_TRIP_PICK: 0.55,
+    THROW_EXCHANGE: 0.48,
+    LEG_TRIP_PICK: 0.4,
     REAR_CONTROL: 0.35,
     PULL_DOWN: 0.18,
-    PUSH_ADVANCE: 0.18,
+    PUSH_ADVANCE: 0.32,
     EDGE_REVERSAL: 0.2,
     BACKWARD_ARCH: 0.08,
   },
   MIXED: {
-    PUSH_ADVANCE: 0.55,
+    PUSH_ADVANCE: 0.78,
     BELT_FORCE: 0.55,
-    PULL_DOWN: 0.7,
-    THROW_EXCHANGE: 0.7,
+    PULL_DOWN: 0.82,
+    THROW_EXCHANGE: 0.42,
     LEG_TRIP_PICK: 0.5,
-    REAR_CONTROL: 0.35,
+    REAR_CONTROL: 0.55,
     EDGE_REVERSAL: 0.25,
     BACKWARD_ARCH: 0.08,
   },
@@ -87,12 +87,12 @@ export const ENGAGEMENT_PATTERN_AFFINITY: Record<
     BACKWARD_ARCH: 0.18,
   },
   QUICK_COLLAPSE: {
-    PUSH_ADVANCE: 0.85,
-    PULL_DOWN: 0.75,
-    BELT_FORCE: 0.35,
+    PUSH_ADVANCE: 0.72,
+    PULL_DOWN: 1.08,
+    BELT_FORCE: 0.22,
     THROW_EXCHANGE: 0.25,
     LEG_TRIP_PICK: 0.18,
-    REAR_CONTROL: 0.28,
+    REAR_CONTROL: 0.42,
     EDGE_REVERSAL: 0.15,
     BACKWARD_ARCH: 0.02,
   },
@@ -153,16 +153,16 @@ export const resolveBoutEngagement = (
   const w = winner.style;
   const l = loser.style;
   if (w === 'PUSH') {
-    weights.THRUST_BATTLE += 2.0;
-    weights.MIXED += 0.2;
+    weights.THRUST_BATTLE += 2.35;
+    weights.MIXED += 0.12;
   } else if (w === 'GRAPPLE') {
-    weights.BELT_BATTLE += 2.0;
+    weights.BELT_BATTLE += 1.8;
     weights.MIXED += 0.2;
   } else if (w === 'TECHNIQUE') {
-    weights.MIXED += 1.2;
-    weights.EDGE_SCRAMBLE += 0.35;
-    weights.BELT_BATTLE += 0.35;
-    weights.THRUST_BATTLE += 0.2;
+    weights.MIXED += 1.0;
+    weights.EDGE_SCRAMBLE += 0.4;
+    weights.BELT_BATTLE += 0.22;
+    weights.THRUST_BATTLE += 0.32;
   } else {
     // BALANCE
     weights.THRUST_BATTLE += 0.55;
