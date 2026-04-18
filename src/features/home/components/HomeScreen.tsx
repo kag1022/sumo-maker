@@ -6,7 +6,7 @@ import { StatCard } from "../../../shared/ui/StatCard";
 
 interface HomeScreenProps {
   savedCount: number;
-  unshelvedCount: number;
+  lifetimeCount: number;
   currentShikona?: string | null;
   resumeLabel?: string;
   onResume?: () => void;
@@ -70,7 +70,7 @@ const stagger = {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   savedCount,
-  unshelvedCount,
+  lifetimeCount,
   currentShikona,
   resumeLabel,
   onResume,
@@ -156,10 +156,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           tone="gold"
         />
         <StatCard
-          label="未保存の一代"
-          value={unshelvedCount}
-          subtext={unshelvedCount > 0 ? "まだシミュレーション中" : "進行中なし"}
-          tone={unshelvedCount > 0 ? "action" : "default"}
+          label="育成回数"
+          value={lifetimeCount}
+          subtext={lifetimeCount > 0 ? "これまでの一代" : "新弟子を迎えてみる"}
+          tone={lifetimeCount > 0 ? "action" : "default"}
         />
         <StatCard
           label="現在の注目"
