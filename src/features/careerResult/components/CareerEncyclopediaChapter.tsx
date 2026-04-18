@@ -11,19 +11,26 @@ import {
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
-import type { CareerOverviewModel } from "../utils/careerResultModel";
+import { StatCard } from "../../../shared/ui/StatCard";
+import { RankBadge } from "../../../shared/ui/RankBadge";
+import type { CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
+import { WinRateTrendChart } from "./WinRateTrendChart";
+import { BodyWeightChart } from "./BodyWeightChart";
+import { TraitTimeline } from "./TraitTimeline";
 
 interface CareerEncyclopediaChapterProps {
   status: RikishiStatus;
   overview: CareerOverviewModel;
   highestRankLabel: string;
+  ledgerPoints?: CareerLedgerPoint[];
   isSaved: boolean;
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
   onSave: () => void | Promise<void>;
   onReturnToScout: () => void;
 }
+
 
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   NORMAL: "均整型",
@@ -72,6 +79,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   status,
   overview,
   highestRankLabel,
+  ledgerPoints,
   isSaved,
   detailState,
   detailBuildProgress,
@@ -190,6 +198,23 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
     : "名鑑の内容を確認したうえで、この人生を残すか決められます。";
 
+  const kpiStats = React.useMemo(() => {
+    const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
+    const makuuchiBasho = nonMaezumoRecords.filter((r) => r.rank.division === "Makuuchi").length;
+    const totalBasho = nonMaezumoRecords.length;
+    const totalDecisions = status.history.totalWins + status.history.totalLosses;
+    const winRate = totalDecisions > 0 ? ((status.history.totalWins / totalDecisions) * 100).toFixed(1) : "-";
+    const yusho = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo;
+    const kinboshi = nonMaezumoRecords.reduce((sum, r) => sum + (r.kinboshi ?? 0), 0);
+    return { makuuchiBasho, totalBasho, winRate, yusho, kinboshi };
+  }, [status.history]);
+
+  const bodyTimeline = status.history.bodyTimeline ?? [];
+  const entryWeight = bodyTimeline.length > 0 ? bodyTimeline[0].weightKg : undefined;
+  const peakWeight = bodyTimeline.length > 0 ? Math.max(...bodyTimeline.map((b) => b.weightKg)) : undefined;
+  const traitAwakenings = status.history.traitAwakenings ?? [];
+  const totalBashoForTimeline = status.history.records.filter((r) => r.rank.division !== "Maezumo").length;
+
   return (
     <section className="career-encyclopedia-shell">
       <div className="career-encyclopedia-hero">
@@ -259,6 +284,51 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         )}
       </div>
 
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard
+          label="在位場所数"
+          value={kpiStats.totalBasho}
+          subtext={kpiStats.makuuchiBasho > 0 ? `幕内 ${kpiStats.makuuchiBasho}場所` : undefined}
+        />
+        <StatCard
+          label="通算勝率"
+          value={`${kpiStats.winRate}%`}
+          subtext={`${status.history.totalWins}勝${status.history.totalLosses}敗`}
+          tone="win"
+        />
+        <StatCard
+          label="最高位"
+          value={
+            <RankBadge
+              division={status.history.maxRank.division}
+              name={highestRankLabel}
+              size="sm"
+            />
+          }
+        />
+        <StatCard
+          label="幕内場所"
+          value={kpiStats.makuuchiBasho}
+          subtext="幕内在位"
+          tone="gold"
+        />
+        <StatCard
+          label="優勝"
+          value={`${kpiStats.yusho}回`}
+          subtext={status.history.yushoCount.makuuchi > 0 ? `幕内 ${status.history.yushoCount.makuuchi}回` : undefined}
+          tone={kpiStats.yusho > 0 ? "gold" : "default"}
+        />
+        <StatCard
+          label="金星"
+          value={`${kpiStats.kinboshi}個`}
+          tone={kpiStats.kinboshi > 0 ? "action" : "default"}
+        />
+      </div>
+
+      {ledgerPoints && ledgerPoints.length > 4 ? (
+        <WinRateTrendChart points={ledgerPoints} />
+      ) : null}
+
       <div className="career-encyclopedia-layout">
         <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
           <KeyValueGrid rows={profileRows} />
@@ -327,6 +397,18 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           ) : null}
         </InfoCard>
       </div>
+
+      {bodyTimeline.length > 4 ? (
+        <BodyWeightChart
+          bodyTimeline={bodyTimeline}
+          entryWeight={entryWeight}
+          peakWeight={peakWeight}
+        />
+      ) : null}
+
+      {traitAwakenings.length > 0 ? (
+        <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
+      ) : null}
     </section>
   );
 };

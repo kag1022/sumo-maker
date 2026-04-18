@@ -24,6 +24,23 @@
   --ui-color-sumi: #1a1a1a;
   --ui-color-washi: rgba(17, 25, 39, 0.85); /* No more white paper. Translucent deep blue. */
   --ui-color-aiiro: #165e83;
+
+  /* グラフ用番付バンドカラー */
+  --chart-makuuchi: #c49a4d;
+  --chart-juryo: #4c7bff;
+  --chart-makushita: #49b97b;
+  --chart-sandanme: #76a4d4;
+  --chart-jonidan: #8e9bb0;
+  --chart-jonokuchi: #62708c;
+
+  /* グラフ用成績カラー */
+  --chart-win: #58b587;
+  --chart-loss: #cb7a5c;
+  --chart-absent: #4c5d79;
+  --chart-win-dim: rgba(88, 181, 135, 0.25);
+  --chart-loss-dim: rgba(203, 122, 92, 0.25);
+  --chart-grid: rgba(48, 57, 69, 0.7);
+  --chart-axis: rgba(184, 155, 104, 0.35);
 }
 
 /* === ベースレイヤー: 和レトロゲームテーマ === */

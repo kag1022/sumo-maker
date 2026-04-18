@@ -234,6 +234,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 status={status}
                 overview={overview}
                 highestRankLabel={highestRankLabel}
+                ledgerPoints={ledger.points}
                 isSaved={isSaved}
                 detailState={detailState}
                 detailBuildProgress={detailBuildProgress}
