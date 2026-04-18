@@ -16,23 +16,22 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   className,
   children,
 }) => (
-  <div className={clsx("border border-white/10 bg-white/[0.02] px-4 py-4", className)}>
+  <div className={clsx("chart-card", className)}>
     {(title || legend) ? (
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
+      <div className="chart-card-head">
+        <div className="chart-card-titleblock">
           {title ? (
-            <div className="text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase">
-              {title}
+            <div className="chart-card-titlerow">
+              <span className="chart-card-title-mark" aria-hidden="true" />
+              <span className="chart-card-title">{title}</span>
             </div>
           ) : null}
-          {subtitle ? (
-            <div className="mt-0.5 text-xs text-text-dim">{subtitle}</div>
-          ) : null}
+          {subtitle ? <div className="chart-card-subtitle">{subtitle}</div> : null}
         </div>
-        {legend ? <div className="flex flex-wrap gap-3 text-[10px] text-text-dim">{legend}</div> : null}
+        {legend ? <div className="chart-card-legend">{legend}</div> : null}
       </div>
     ) : null}
-    {children}
+    <div className="chart-card-body">{children}</div>
   </div>
 );
 
@@ -42,8 +41,8 @@ interface ChartLegendItemProps {
 }
 
 export const ChartLegendItem: React.FC<ChartLegendItemProps> = ({ color, label }) => (
-  <span className="flex items-center gap-1">
-    <span className="inline-block h-2 w-2 rounded-none" style={{ backgroundColor: color }} />
+  <span className="chart-card-legend-item">
+    <span className="chart-card-legend-swatch" style={{ backgroundColor: color }} />
     {label}
   </span>
 );
