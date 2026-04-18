@@ -16,6 +16,7 @@ import {
 import {
   type BoutEngagement,
   resolveBoutEngagement,
+  resolveEngagementRouteBias,
   resolveEngagementPatternFit,
 } from './engagement';
 import { inferWinRouteFromMove, routeToPattern } from './repertoire';
@@ -681,6 +682,26 @@ const resolvePatternWeights = (
       : hasArawazashi && Boolean(context?.isHighPressure || context?.isEdgeCandidate),
   );
   const archUnlocked = Boolean((context?.isEdgeCandidate || context?.isHighPressure) && winner.bodyType === 'SOPPU' && hasArawazashi);
+  const engagementRouteBias = context?.engagement
+    ? resolveEngagementRouteBias(context.engagement)
+    : undefined;
+  const softenRouteBias = (value: number | undefined): number => {
+    if (typeof value !== 'number') return 1;
+    // route 決定のバイアスを pattern 抽選へそのまま移すと二重に効きすぎる。
+    // ここでは方向性だけを薄く反映し、最終的な route 固定は battle.ts 側に任せる。
+    return 1 + (value - 1) * 0.55;
+  };
+  const patternRouteBias: Record<KimaritePattern, number> = {
+    PUSH_ADVANCE: softenRouteBias(engagementRouteBias?.PUSH_OUT),
+    BELT_FORCE: softenRouteBias(engagementRouteBias?.BELT_FORCE),
+    THROW_EXCHANGE: softenRouteBias(engagementRouteBias?.THROW_BREAK),
+    PULL_DOWN: softenRouteBias(engagementRouteBias?.PULL_DOWN),
+    REAR_CONTROL: softenRouteBias(engagementRouteBias?.REAR_FINISH),
+    EDGE_REVERSAL: softenRouteBias(engagementRouteBias?.EDGE_REVERSAL),
+    LEG_TRIP_PICK: softenRouteBias(engagementRouteBias?.LEG_ATTACK),
+    BACKWARD_ARCH: 1,
+    NON_TECHNIQUE: 1,
+  };
 
   const availability: Record<KimaritePattern, number> = {
     PUSH_ADVANCE:
@@ -823,6 +844,7 @@ const resolvePatternWeights = (
       weight:
         entry.weight *
         availability[entry.pattern] *
+        patternRouteBias[entry.pattern] *
         resolveIdentityPatternFit(entry.pattern, winner) *
         patternDominanceMult[entry.pattern],
     }))
@@ -897,9 +919,15 @@ const resolveNoveltyMultiplier = (
 const resolveFamilyFit = (
   entry: OfficialKimariteEntry,
   profile: KimariteVarietyProfile,
+  winner: KimariteCompetitorProfile,
 ): number => {
   if (profile.coreFamilies.includes(entry.family)) return tuning().family.core;
-  if (profile.secondaryFamilies.includes(entry.family)) return tuning().family.secondary;
+  if (profile.secondaryFamilies.includes(entry.family)) {
+    if (winner.style === 'GRAPPLE' && entry.family === 'TWIST_DOWN') {
+      return tuning().family.secondary * 0.82;
+    }
+    return tuning().family.secondary;
+  }
   if (entry.rarityBucket === 'COMMON') return tuning().family.commonOther;
   return tuning().family.rareOther;
 };
@@ -1195,7 +1223,7 @@ export const resolveKimariteOutcome = (input: {
       resolveStatFit(entry, input.winner.stats) *
       resolveTraitFit(entry, input.winner.traits) *
       resolvePatternRoleFit(entry, input.winner, input.boutContext, input.forcePattern, pattern) *
-      resolveFamilyFit(entry, profile) *
+      resolveFamilyFit(entry, profile, input.winner) *
       resolvePreferredMoveFit(entry, input.winner.preferredMove) *
       resolveRepertoireFit(entry, input.winner, route, input.boutContext) *
       resolveStyleSignatureFit(entry.name, input.winner.strongStyles) *

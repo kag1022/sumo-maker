@@ -50,7 +50,11 @@ const ensureSanyakuFloor = (
       allocation.currentRank.division === 'Makuuchi' &&
       (allocation.currentRank.name === '関脇' || allocation.currentRank.name === '小結')
     ) {
-      return true;
+      if (target === '関脇') {
+        if (allocation.currentRank.name === '関脇') return allocation.recordDiff >= 0;
+        return allocation.recordDiff > 0;
+      }
+      return allocation.recordDiff >= 0;
     }
     if (allocation.nextRank.name !== '前頭') return false;
     if ((allocation.nextRank.number ?? 99) > (target === '関脇' ? 1 : 2)) return false;
@@ -89,7 +93,7 @@ const ensureSanyakuFloor = (
   while (countOf('関脇') < 2) {
     const source =
       makuuchi
-        .filter((allocation) => allocation.nextRank.name === '小結')
+        .filter((allocation) => allocation.nextRank.name === '小結' && allocation.recordDiff > 0)
         .sort(byScoreDesc)[0] ??
       makuuchi
         .filter(

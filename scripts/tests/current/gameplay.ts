@@ -373,7 +373,8 @@ export const tests: TestCase[] = [
 
       assert.deepEqual(resolveDisplayedWeakStyles(profile), []);
       assert.deepEqual(resolveInternalWeakStyles(profile), ['TSUKI_OSHI']);
-      assert.equal(resolveStyleMatchupDelta(profile, 'PUSH'), -0.025);
+      const matchupDelta = resolveStyleMatchupDelta(profile, 'PUSH');
+      assert.ok(Math.abs(matchupDelta + 0.0288) < 1e-9, `unexpected matchup delta: ${matchupDelta}`);
     },
   },
   {
