@@ -39,6 +39,14 @@ const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   MUSCULAR: "筋骨型",
 };
 
+const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"]): string => {
+  if (raw && BODY_LABELS[raw as keyof typeof BODY_LABELS]) {
+    return BODY_LABELS[raw as keyof typeof BODY_LABELS];
+  }
+  if (raw && raw.length > 0) return raw;
+  return BODY_LABELS[fallback];
+};
+
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
 
@@ -117,9 +125,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         initial?.entryPathLabel ? { label: "入門経路", value: initial.entryPathLabel } : null,
         initial?.temperamentLabel ? { label: "気質", value: initial.temperamentLabel } : null,
         initial?.bodySeedLabel ? { label: "身体の素地", value: initial.bodySeedLabel } : null,
-        growth?.bodyTypeLabel || BODY_LABELS[status.bodyType]
-          ? { label: "体型", value: growth?.bodyTypeLabel ?? BODY_LABELS[status.bodyType] }
-          : null,
+        { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
       ].filter((row): row is { label: string; value: string } => Boolean(row)),
     [growth?.bodyTypeLabel, initial?.bodySeedLabel, initial?.entryPathLabel, initial?.temperamentLabel, status.bodyType],
   );
