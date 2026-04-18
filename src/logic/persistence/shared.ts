@@ -827,7 +827,7 @@ export const markCareerReadyForReveal = async (
 ): Promise<RikishiStatus> => {
   const db = getDb();
   const now = new Date().toISOString();
-  let normalizedStatus = ensureCareerRecordStatus(finalStatus);
+  const normalizedStatus = ensureCareerRecordStatus(finalStatus);
   const breakdown = calculateCareerPrizeBreakdown(normalizedStatus);
   const rewardSummary = buildCareerRewardSummary(breakdown);
   normalizedStatus.history.prizeBreakdown = breakdown;
@@ -1030,8 +1030,8 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   oyakataProfile: row.oyakataProfile,
   kataLabel: row.finalStatus
     ? resolveStyleLabelsOrFallback(
-        resolveDisplayedStrengthStyles(ensureStyleIdentityProfile(row.finalStatus).styleIdentityProfile),
-      )
+      resolveDisplayedStrengthStyles(ensureStyleIdentityProfile(row.finalStatus).styleIdentityProfile),
+    )
     : 'なし',
   parentCareerId: row.parentCareerId,
   generation: row.generation,

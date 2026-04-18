@@ -107,11 +107,11 @@ const resolvePlayerRank = (playerRecord: CareerBashoDetail["playerRecord"] | Rik
   "rank" in playerRecord
     ? playerRecord.rank
     : {
-        division: playerRecord.division as Rank["division"],
-        name: playerRecord.rankName,
-        number: playerRecord.rankNumber,
-        side: playerRecord.rankSide,
-      };
+      division: playerRecord.division as Rank["division"],
+      name: playerRecord.rankName,
+      number: playerRecord.rankNumber,
+      side: playerRecord.rankSide,
+    };
 
 export const BashoDetailModal: React.FC<BashoDetailModalProps> = ({
   state,
@@ -245,28 +245,28 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({ state, detail,
   const snapshot =
     detail && playerRank
       ? buildBanzukeSnapshotForSeq(state.bashoSeq, playerRank.division, detail.rows, {
-          focusRank: playerRank,
-          focusEntityIds: [
-            "PLAYER",
-            ...relatedOpponentIds,
-            ...(state.highlightOpponentId ? [state.highlightOpponentId] : []),
-          ],
-          focusWindow: 4,
-          entryPoints: [state.sourceLabel],
-          highlightReason: state.highlightReason,
-        })
+        focusRank: playerRank,
+        focusEntityIds: [
+          "PLAYER",
+          ...relatedOpponentIds,
+          ...(state.highlightOpponentId ? [state.highlightOpponentId] : []),
+        ],
+        focusWindow: 4,
+        entryPoints: [state.sourceLabel],
+        highlightReason: state.highlightReason,
+      })
       : null;
   const boutMarks = snapshot && detail ? Object.fromEntries(buildSnapshotBoutMarks(snapshot, detail.bouts)) : {};
   const decisionDigests =
     detail && playerRank
       ? buildImportantBanzukeDecisionDigests(status, detail.banzukeDecisions, [
-          {
-            bashoSeq: detail.bashoSeq,
-            year: detail.year,
-            month: detail.month,
-            rows: detail.rows,
-          },
-        ])
+        {
+          bashoSeq: detail.bashoSeq,
+          year: detail.year,
+          month: detail.month,
+          rows: detail.rows,
+        },
+      ])
       : [];
   const torikumiDigests = detail ? buildImportantTorikumiDigests(detail.importantTorikumi) : [];
   const bashoLabel = detail ? formatBashoLabel(detail.year, detail.month) : state.title;

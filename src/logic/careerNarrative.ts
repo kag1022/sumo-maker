@@ -298,9 +298,9 @@ export const buildCounterfactualInjuryText = (status: RikishiStatus): string | n
   const avgWins = after.reduce((sum, record) => sum + record.wins, 0) / after.length;
   const nextTier =
     rankToNumericTier(status.history.maxRank) >= 6 ? '横綱・大関線' :
-    rankToNumericTier(status.history.maxRank) >= 5 ? '幕内上位線' :
-    rankToNumericTier(status.history.maxRank) >= 4 ? '関取上位線' :
-    '関取線';
+      rankToNumericTier(status.history.maxRank) >= 5 ? '幕内上位線' :
+        rankToNumericTier(status.history.maxRank) >= 4 ? '関取上位線' :
+          '関取線';
   return `もし${turningPoint.year}年${turningPoint.month}月の怪我がなければ、その後は平均${avgWins.toFixed(1)}勝ペースで${nextTier}まで届いた可能性がある。`;
 };
 
@@ -372,10 +372,10 @@ export const buildCareerNarrativeSummary = (status: RikishiStatus): CareerNarrat
   const styleLabel = strengths.length > 0 ? resolveStyleLabels(strengths).join(' / ') : '型未確立';
   const designEchoes = seed
     ? [
-        `${seed.entryPathLabel}として入ったことが、入口番付と序盤の見られ方を決めた。`,
-        `${seed.temperamentLabel}気質は、${status.history.totalAbsent > 0 ? "停滞や休場を含む波" : "踏みとどまり方"}に残った。`,
-        `${seed.bodySeedLabel}は、最終的な${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgと${styleLabel}の輪郭に繋がった。`,
-      ]
+      `${seed.entryPathLabel}として入ったことが、入口番付と序盤の見られ方を決めた。`,
+      `${seed.temperamentLabel}気質は、${status.history.totalAbsent > 0 ? "停滞や休場を含む波" : "踏みとどまり方"}に残った。`,
+      `${seed.bodySeedLabel}は、最終的な${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgと${styleLabel}の輪郭に繋がった。`,
+    ]
     : undefined;
   const initialConditions = seed
     ? `${seed.birthplace}から${seed.stableName}へ入り、${seed.entryAge}歳で土俵に立った。${seed.entryPathLabel}として見られ、${seed.temperamentLabel}気質と${seed.bodySeedLabel}が入口に置かれていた。`

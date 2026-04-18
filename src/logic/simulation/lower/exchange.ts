@@ -35,9 +35,9 @@ const buildBoundaryCandidates = (
   results: BoundarySnapshot[],
   rule: CandidateRule,
 ): BoundaryCandidate[] =>
-  {
-    const maxNumber = resolveMaxNumberFromResults(results);
-    return results
+{
+  const maxNumber = resolveMaxNumberFromResults(results);
+  return results
     .map((result) => {
       const number = toDivisionNumber(result.rankScore, maxNumber);
       const wins = result.wins;
@@ -51,16 +51,16 @@ const buildBoundaryCandidates = (
     })
     .filter((candidate): candidate is BoundaryCandidate => Boolean(candidate))
     .sort(compareBoundaryCandidate);
-  };
+};
 
 const buildFallbackDemotionCandidates = (
   upperResults: BoundarySnapshot[],
   rule: CandidateRule,
   excludeIds: Set<string>,
 ): BoundaryCandidate[] =>
-  {
-    const maxNumber = resolveMaxNumberFromResults(upperResults);
-    return upperResults
+{
+  const maxNumber = resolveMaxNumberFromResults(upperResults);
+  return upperResults
     .filter((result) => !excludeIds.has(result.id))
     .map((result) => {
       const number = toDivisionNumber(result.rankScore, maxNumber);
@@ -73,16 +73,16 @@ const buildFallbackDemotionCandidates = (
       if (b.score !== a.score) return b.score - a.score;
       return b.id.localeCompare(a.id);
     });
-  };
+};
 
 const buildFallbackPromotionCandidates = (
   lowerResults: BoundarySnapshot[],
   rule: CandidateRule,
   excludeIds: Set<string>,
 ): BoundaryCandidate[] =>
-  {
-    const maxNumber = resolveMaxNumberFromResults(lowerResults);
-    return lowerResults
+{
+  const maxNumber = resolveMaxNumberFromResults(lowerResults);
+  return lowerResults
     .filter((result) => !excludeIds.has(result.id))
     .map((result) => {
       const number = toDivisionNumber(result.rankScore, maxNumber);
@@ -95,7 +95,7 @@ const buildFallbackPromotionCandidates = (
       if (b.score !== a.score) return b.score - a.score;
       return b.id.localeCompare(a.id);
     });
-  };
+};
 
 export const resolveBoundaryExchange = (
   spec: BoundarySpec,

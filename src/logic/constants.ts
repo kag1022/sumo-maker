@@ -118,10 +118,10 @@ export const CONSTANTS = {
     CHRONIC_CONVERSION: 0.1, // 10%
     // 優勝判定 (勝利数に応じた確率)
     YUSHO: {
-        MAKUUCHI_14: 0.8,
-        MAKUUCHI_13: 0.3,
-        JURYO_14: 0.9,
-        LOWER_7: 0.9
+      MAKUUCHI_14: 0.8,
+      MAKUUCHI_13: 0.3,
+      JURYO_14: 0.9,
+      LOWER_7: 0.9
     }
   },
 

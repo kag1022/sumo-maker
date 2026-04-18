@@ -108,10 +108,10 @@ export const createDivisionParticipants = (
       rng,
     });
     const bashoVariance = resolveBashoFormDelta({
-        uncertainty: registryNpc?.uncertainty ?? npc.uncertainty,
-        volatility: npc.volatility,
-        rng,
-      });
+      uncertainty: registryNpc?.uncertainty ?? npc.uncertainty,
+      volatility: npc.volatility,
+      rng,
+    });
     const bashoFormDelta = bashoVariance?.bashoFormDelta ?? 0;
     const seasonalAbility =
       (registryNpc?.ability ?? npc.ability ?? npc.basePower) +
