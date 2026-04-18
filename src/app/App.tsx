@@ -17,6 +17,10 @@ import {
   type CareerBashoRecordsBySeq,
 } from "../logic/persistence/careerHistory";
 import { getCareerYokozunaOrdinal } from "../logic/persistence/careers";
+import {
+  getLifetimeCareerCount,
+  incrementLifetimeCareerCount,
+} from "../logic/persistence/lifetimeStats";
 import { formatRankDisplayName } from "../features/report/utils/reportShared";
 import { Button } from "../shared/ui/Button";
 import type { CareerResultViewState } from "../features/careerResult/components/CareerResultPage";
@@ -85,6 +89,10 @@ export const App: React.FC = () => {
     void loadHallOfFame();
     void loadUnshelvedCareers();
   }, [loadHallOfFame, loadUnshelvedCareers]);
+
+  const [lifetimeCareerCount, setLifetimeCareerCount] = React.useState<number>(() =>
+    getLifetimeCareerCount(),
+  );
 
   React.useEffect(() => {
     const showBashoSection =
@@ -253,6 +261,7 @@ export const App: React.FC = () => {
   const handleStart = React.useCallback(
     async (...args: Parameters<typeof startSimulation>) => {
       await startSimulation(...args);
+      setLifetimeCareerCount(incrementLifetimeCareerCount());
       setActiveSection(args[4] === "observe" || args[4] === "chaptered" ? "basho" : "career");
     },
     [startSimulation],
@@ -359,6 +368,7 @@ export const App: React.FC = () => {
         latestBashoView,
         hallOfFame,
         unshelvedCareers,
+        lifetimeCareerCount,
         currentCareerId,
         isCurrentCareerSaved,
         detail,
@@ -417,6 +427,7 @@ const renderSection = ({
   latestBashoView,
   hallOfFame,
   unshelvedCareers,
+  lifetimeCareerCount,
   currentCareerId,
   isCurrentCareerSaved,
   detail,
@@ -451,6 +462,7 @@ const renderSection = ({
   latestBashoView: ReturnType<typeof useSimulation>["latestBashoView"];
   hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
   unshelvedCareers: ReturnType<typeof useSimulation>["unshelvedCareers"];
+  lifetimeCareerCount: number;
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
   detail: CareerBashoDetail | null;
@@ -479,7 +491,7 @@ const renderSection = ({
     return (
       <HomeScreen
         savedCount={hallOfFame.length}
-        unshelvedCount={unshelvedCareers.length}
+        lifetimeCount={lifetimeCareerCount}
         currentShikona={status?.shikona}
         resumeLabel={homeResume?.label}
         onResume={homeResume?.onClick}

@@ -1,8 +1,10 @@
 import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { clsx } from "clsx";
 import { type Division } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
+import { WinLossBar } from "../../../shared/ui/WinLossBar";
 import type {
   CareerLedgerModel,
   CareerLedgerPoint,
@@ -23,6 +25,14 @@ interface CareerPlaceChapterProps {
   onSelectNpc: (entityId: string | null) => void;
   onPlaceTabChange: (tab: CareerPlaceTabId) => void;
 }
+
+type BoutResult = "WIN" | "LOSS" | "ABSENT";
+
+const RESULT_MARK: Record<BoutResult, { symbol: string; style: React.CSSProperties }> = {
+  WIN: { symbol: "○", style: { color: "var(--chart-win)" } },
+  LOSS: { symbol: "●", style: { color: "var(--chart-loss)" } },
+  ABSENT: { symbol: "休", style: { color: "var(--chart-absent)" } },
+};
 
 export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   ledger,
@@ -63,125 +73,121 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   const previousPoint = selectedIndex > 0 ? ledger.points[selectedIndex - 1] : null;
   const nextPoint = selectedIndex >= 0 && selectedIndex < ledger.points.length - 1 ? ledger.points[selectedIndex + 1] : null;
 
+  const wins = point?.wins ?? 0;
+  const losses = point?.losses ?? 0;
+  const absent = point?.absent ?? 0;
+
   return (
     <section className="career-archive-shell">
+      {/* Section header */}
       <div className="career-archive-head">
-        <div className="career-archive-kicker">場所別</div>
-        <h2 className="career-archive-title">{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
+        <div>
+          <div className="career-archive-kicker">場所別</div>
+          <h2 className="career-archive-title">{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="place-stepper"
+            onClick={() => previousPoint && onSelectBasho(previousPoint.bashoSeq)}
+            disabled={!previousPoint}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />前
+          </button>
+          <button
+            type="button"
+            className="place-stepper"
+            onClick={() => nextPoint && onSelectBasho(nextPoint.bashoSeq)}
+            disabled={!nextPoint}
+          >
+            次<ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
-      <div className="career-place-selector">
-        <div className="career-place-selector-head">
-          <div>
-            <div className="career-place-selector-kicker">場所選択</div>
-            <div className="career-place-selector-copy">この章の中で前後の場所を切り替えられます。</div>
-          </div>
-          <div className="career-place-selector-actions">
-            <button
-              type="button"
-              className="career-place-stepper"
-              onClick={() => previousPoint && onSelectBasho(previousPoint.bashoSeq)}
-              disabled={!previousPoint}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              前の場所
-            </button>
-            <button
-              type="button"
-              className="career-place-stepper"
-              onClick={() => nextPoint && onSelectBasho(nextPoint.bashoSeq)}
-              disabled={!nextPoint}
-            >
-              次の場所
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="career-place-selector-track" role="list" aria-label="場所一覧">
-          {nearbyPoints.map((entry) => (
+      {/* Place selector strip — ledger tab style */}
+      <div className="place-scroll-strip" role="list" aria-label="場所一覧">
+        {nearbyPoints.map((entry) => {
+          const isSelected = entry.bashoSeq === point?.bashoSeq;
+          const r = RESULT_MARK[entry.wins >= entry.losses + entry.absent ? "WIN" : entry.losses > entry.wins ? "LOSS" : "ABSENT"];
+          return (
             <button
               key={entry.bashoSeq}
               type="button"
               role="listitem"
-              className="career-place-selector-chip"
-              data-selected={entry.bashoSeq === point?.bashoSeq}
-              data-event={entry.milestoneTags.length > 0}
+              className={clsx("place-basho-chip", isSelected && "selected", entry.milestoneTags.length > 0 && "event")}
               onClick={() => onSelectBasho(entry.bashoSeq)}
             >
-              <span className="career-place-selector-chiplabel">{entry.bashoLabel}</span>
-              <strong className="career-place-selector-chiprank">{entry.rankShortLabel}</strong>
-              <span className="career-place-selector-chiprecord">{entry.recordCompactLabel}</span>
+              <span className="place-basho-chip-label">{entry.bashoLabel}</span>
+              <strong className="place-basho-chip-rank">{entry.rankShortLabel}</strong>
+              <span className="place-basho-chip-record" style={r.style}>{entry.recordCompactLabel}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      <div className="career-place-overview">
-        <div className="career-place-summaryboard" role="list" aria-label="場所の要約">
-          <article className="career-place-metric" role="listitem">
-            <span className="career-place-metric-label">場所</span>
-            <strong className="career-place-metric-value">{summary?.bashoLabel ?? "-"}</strong>
-          </article>
-          <article className="career-place-metric" role="listitem">
-            <span className="career-place-metric-label">番付</span>
-            <strong className="career-place-metric-value">{summary?.rankLabel ?? "-"}</strong>
-          </article>
-          <article className="career-place-metric" role="listitem">
-            <span className="career-place-metric-label">成績</span>
-            <strong className="career-place-metric-value">{summary?.recordLabel ?? "-"}</strong>
-          </article>
-          <article className="career-place-metric" role="listitem">
-            <span className="career-place-metric-label">昇降幅</span>
-            <strong className="career-place-metric-value">{summary?.deltaLabel ?? "-"}</strong>
-          </article>
+      {/* Summary — 帳面スタイル */}
+      <div className="place-ledger-summary">
+        <div className="place-ledger-summary-inner">
+          <div className="place-ledger-row">
+            <span className="place-ledger-key">番付</span>
+            <strong className="place-ledger-val">{summary?.rankLabel ?? "—"}</strong>
+          </div>
+          <div className="place-ledger-row">
+            <span className="place-ledger-key">成績</span>
+            <strong className="place-ledger-val">{summary?.recordLabel ?? "—"}</strong>
+          </div>
+          <div className="place-ledger-row">
+            <span className="place-ledger-key">昇降</span>
+            <strong className="place-ledger-val">{summary?.deltaLabel ?? "—"}</strong>
+          </div>
         </div>
-        <div className="career-place-notechips">
-          {(summary?.milestoneTags ?? []).map((tag) => (
-            <span key={tag} className="career-place-notechip">
-              {tag}
-            </span>
-          ))}
-        </div>
+        {(wins + losses + absent) > 0 && (
+          <div className="mt-3">
+            <WinLossBar wins={wins} losses={losses} absent={absent} height="md" />
+          </div>
+        )}
+        {(summary?.milestoneTags ?? []).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {(summary?.milestoneTags ?? []).map((tag) => (
+              <span key={tag} className="place-milestone-tag">{tag}</span>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="career-archive-switch" role="tablist" aria-label="場所別切替">
-        <button
-          type="button"
-          className="career-archive-switchbutton"
-          data-active={placeTab === "nearby"}
-          onClick={() => onPlaceTabChange("nearby")}
-        >
-          <span className="career-archive-switchlabel">近傍番付</span>
-          <span className="career-archive-switchmeta">近傍の顔ぶれを見る</span>
-        </button>
-        <button
-          type="button"
-          className="career-archive-switchbutton"
-          data-active={placeTab === "full"}
-          onClick={() => onPlaceTabChange("full")}
-        >
-          <span className="career-archive-switchlabel">全番付</span>
-          <span className="career-archive-switchmeta">同じ階級の全員を見る</span>
-        </button>
-        <button
-          type="button"
-          className="career-archive-switchbutton"
-          data-active={placeTab === "bouts"}
-          onClick={() => onPlaceTabChange("bouts")}
-        >
-          <span className="career-archive-switchlabel">全取組</span>
-          <span className="career-archive-switchmeta">十五日間の対戦を辿る</span>
-        </button>
+      {/* Tab strip */}
+      <div className="place-tabstrip" role="tablist" aria-label="場所別切替">
+        {(["nearby", "full", "bouts"] as CareerPlaceTabId[]).map((tab) => {
+          const LABELS: Record<CareerPlaceTabId, { main: string; sub: string }> = {
+            nearby: { main: "近傍番付", sub: "周辺の顔ぶれ" },
+            full: { main: "全番付", sub: "同階級の全員" },
+            bouts: { main: "全取組", sub: "十五日間" },
+          };
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={placeTab === tab}
+              className={clsx("place-tab", placeTab === tab && "active")}
+              onClick={() => onPlaceTabChange(tab)}
+            >
+              <span className="place-tab-main">{LABELS[tab].main}</span>
+              <span className="place-tab-sub">{LABELS[tab].sub}</span>
+            </button>
+          );
+        })}
       </div>
 
+      {/* Content panel */}
       {placeTab === "nearby" || placeTab === "full" ? (
-        <div className="career-archive-sheet">
+        <div className="place-content-panel">
           {isLoading ? (
             <div className="career-archive-empty">読込中</div>
           ) : (placeTab === "nearby" ? nearbyRows : fullRows).length > 0 ? (
             <div className="career-archive-scroll">
-              <table className="detail-table career-archive-table">
+              <table className="place-banzuke-table">
                 <thead>
                   <tr>
                     <th>四股名</th>
@@ -190,30 +196,41 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {(placeTab === "nearby" ? nearbyRows : fullRows).map((row) => (
-                    <tr key={`${row.entityType}-${row.entityId}`} data-player={row.entityType === "PLAYER"}>
-                      <td className="table-rikishi-name" data-player={row.entityType === "PLAYER"}>
-                        {row.entityType === "NPC" ? (
-                          <button type="button" className="table-link-button" onClick={() => onSelectNpc(row.entityId)}>
-                            {row.shikona}
-                          </button>
-                        ) : (
-                          row.shikona
-                        )}
-                      </td>
-                      <td>
-                        {formatRankDisplayName({
-                          division: row.division as Division,
-                          name: row.rankName,
-                          number: row.rankNumber ?? undefined,
-                          side: row.rankSide ?? undefined,
-                        })}
-                      </td>
-                      <td>
-                        {row.wins}勝{row.losses}敗{row.absent > 0 ? `${row.absent}休` : ""}
-                      </td>
-                    </tr>
-                  ))}
+                  {(placeTab === "nearby" ? nearbyRows : fullRows).map((row) => {
+                    const isPlayer = row.entityType === "PLAYER";
+                    const resultMark = row.wins > row.losses
+                      ? RESULT_MARK.WIN
+                      : row.losses > row.wins
+                        ? RESULT_MARK.LOSS
+                        : RESULT_MARK.ABSENT;
+                    return (
+                      <tr key={`${row.entityType}-${row.entityId}`} className={isPlayer ? "place-banzuke-player" : ""}>
+                        <td>
+                          <span className="place-banzuke-result-dot" style={resultMark.style}>{resultMark.symbol}</span>
+                          {row.entityType === "NPC" ? (
+                            <button type="button" className="table-link-button" onClick={() => onSelectNpc(row.entityId)}>
+                              {row.shikona}
+                            </button>
+                          ) : (
+                            <span className="font-medium">{row.shikona}</span>
+                          )}
+                        </td>
+                        <td>
+                          {formatRankDisplayName({
+                            division: row.division as Division,
+                            name: row.rankName,
+                            number: row.rankNumber ?? undefined,
+                            side: row.rankSide ?? undefined,
+                          })}
+                        </td>
+                        <td className="text-right tabular-nums">
+                          <span style={{ color: "var(--chart-win)" }}>{row.wins}勝</span>
+                          <span style={{ color: "var(--chart-loss)" }}>{row.losses}敗</span>
+                          {row.absent > 0 && <span style={{ color: "var(--chart-absent)" }}>{row.absent}休</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -222,44 +239,53 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
           )}
         </div>
       ) : (
-        <div className="career-archive-sheet">
+        /* 取組一覧 — 取組帳スタイル */
+        <div className="place-content-panel">
           {isLoading ? (
             <div className="career-archive-empty">読込中</div>
           ) : detail?.bouts?.length ? (
-            <div className="career-archive-bouts">
+            <div className="place-bout-list">
               {detail.bouts.map((bout) => {
+                const result = bout.result as BoutResult;
+                const mark = RESULT_MARK[result] ?? RESULT_MARK.ABSENT;
                 const importantNote = importantDayMap.get(bout.day);
                 return (
                   <div
                     key={`${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? bout.result}`}
-                    className="career-archive-bout"
-                    data-important={Boolean(importantNote)}
-                    data-absence={bout.result === "ABSENT"}
+                    className={clsx(
+                      "place-bout-row",
+                      importantNote && "important",
+                      result === "ABSENT" && "absent",
+                    )}
                   >
-                    <div className="career-archive-boutday">{bout.day}日目</div>
-                    <div className="career-archive-boutbody">
-                      <div className="career-archive-boutopponent">
+                    <span className="place-bout-day">{bout.day}<span className="place-bout-day-unit">日</span></span>
+                    <span className="place-bout-mark" style={mark.style}>{mark.symbol}</span>
+                    <div className="place-bout-body">
+                      <div className="place-bout-opponent">
                         {bout.opponentId ? (
                           <button type="button" className="table-link-button" onClick={() => onSelectNpc(bout.opponentId ?? null)}>
-                            {bout.opponentShikona ?? (bout.result === "ABSENT" ? "休場で取組なし" : "記録未詳")}
+                            {bout.opponentShikona ?? (result === "ABSENT" ? "休場" : "記録未詳")}
                           </button>
                         ) : (
-                          bout.opponentShikona ?? (bout.result === "ABSENT" ? "休場で取組なし" : "記録未詳")
+                          <span>{bout.opponentShikona ?? (result === "ABSENT" ? "休場で取組なし" : "記録未詳")}</span>
                         )}
-                        {bout.opponentRankName && point
-                          ? ` / ${formatRankDisplayName({
-                            division: point.rank.division,
-                            name: bout.opponentRankName,
-                            number: bout.opponentRankNumber ?? undefined,
-                            side: bout.opponentRankSide ?? undefined,
-                          })}`
-                          : ""}
+                        {bout.opponentRankName && point && (
+                          <span className="place-bout-rank">
+                            {formatRankDisplayName({
+                              division: point.rank.division,
+                              name: bout.opponentRankName,
+                              number: bout.opponentRankNumber ?? undefined,
+                              side: bout.opponentRankSide ?? undefined,
+                            })}
+                          </span>
+                        )}
                       </div>
-                      <div className="career-archive-boutresult">
-                        {bout.result}
-                        {bout.kimarite ? ` / ${bout.kimarite}` : ""}
-                      </div>
-                      {importantNote ? <div className="career-archive-boutnote">{importantNote.summary}</div> : null}
+                      {bout.kimarite && (
+                        <span className="place-bout-kimarite">{bout.kimarite}</span>
+                      )}
+                      {importantNote && (
+                        <p className="place-bout-note">{importantNote.summary}</p>
+                      )}
                     </div>
                   </div>
                 );

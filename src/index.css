@@ -24,6 +24,23 @@
   --ui-color-sumi: #1a1a1a;
   --ui-color-washi: rgba(17, 25, 39, 0.85); /* No more white paper. Translucent deep blue. */
   --ui-color-aiiro: #165e83;
+
+  /* グラフ用番付バンドカラー */
+  --chart-makuuchi: #c49a4d;
+  --chart-juryo: #4c7bff;
+  --chart-makushita: #49b97b;
+  --chart-sandanme: #76a4d4;
+  --chart-jonidan: #8e9bb0;
+  --chart-jonokuchi: #62708c;
+
+  /* グラフ用成績カラー */
+  --chart-win: #58b587;
+  --chart-loss: #cb7a5c;
+  --chart-absent: #4c5d79;
+  --chart-win-dim: rgba(88, 181, 135, 0.25);
+  --chart-loss-dim: rgba(203, 122, 92, 0.25);
+  --chart-grid: rgba(48, 57, 69, 0.7);
+  --chart-axis: rgba(184, 155, 104, 0.35);
 }
 
 /* === ベースレイヤー: 和レトロゲームテーマ === */
@@ -2582,6 +2599,16 @@
     padding: 1.5rem 0 4rem;
   }
 
+  /* sidebar layout — override main padding to use 2rem horizontal */
+  .app-shell-sidebar-layout .app-shell-main {
+    padding: 1.5rem 0 4rem;
+  }
+
+  .app-shell-sidebar-layout .app-shell-main-inner {
+    margin: 0 auto;
+    width: min(1280px, calc(100% - 4rem));
+  }
+
   .scout-ritual-shell {
     display: grid;
     gap: 1.5rem;
@@ -2771,8 +2798,6 @@
   }
 
   .scout-entry-ledger {
-    position: sticky;
-    top: 10rem;
     background:
       linear-gradient(180deg, rgba(184, 155, 104, 0.09), transparent 38%),
       rgba(13, 18, 25, 0.88);
@@ -3545,7 +3570,7 @@
     }
 
     .scout-entry-ledger {
-      position: static;
+      /* already static from desktop override */
     }
 
     .career-ledger-ribbon-shell {
@@ -4411,6 +4436,87 @@
     rgba(248, 243, 228, 0.01);
 }
 
+/* --- Division-colored band backgrounds --- */
+.career-workspace-bandwash[data-band="YOKOZUNA"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.14), rgba(196, 154, 77, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(196, 154, 77, 0.1);
+}
+.career-workspace-bandwash[data-band="OZEKI"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.1), rgba(196, 154, 77, 0.02));
+}
+.career-workspace-bandwash[data-band="SEKIWAKE"],
+.career-workspace-bandwash[data-band="KOMUSUBI"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.07), rgba(196, 154, 77, 0.015));
+}
+.career-workspace-bandwash[data-band="MAEGASHIRA"] {
+  background:
+    linear-gradient(180deg, rgba(196, 154, 77, 0.04), rgba(196, 154, 77, 0.008));
+}
+.career-workspace-bandwash[data-band="JURYO"] {
+  background:
+    linear-gradient(180deg, rgba(76, 123, 255, 0.08), rgba(76, 123, 255, 0.015));
+}
+.career-workspace-bandwash[data-band="MAKUSHITA"] {
+  background:
+    linear-gradient(180deg, rgba(73, 185, 123, 0.06), rgba(73, 185, 123, 0.015));
+}
+.career-workspace-bandwash[data-band="SANDANME"] {
+  background:
+    linear-gradient(180deg, rgba(118, 164, 212, 0.05), rgba(118, 164, 212, 0.012));
+}
+.career-workspace-bandwash[data-band="JONIDAN"] {
+  background:
+    linear-gradient(180deg, rgba(142, 155, 176, 0.04), rgba(142, 155, 176, 0.01));
+}
+.career-workspace-bandwash[data-band="JONOKUCHI"] {
+  background:
+    linear-gradient(180deg, rgba(98, 112, 140, 0.04), rgba(98, 112, 140, 0.01));
+}
+
+/* --- Band label color-coding --- */
+.career-workspace-bandlabel[data-band="YOKOZUNA"] {
+  color: var(--chart-makuuchi);
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+}
+.career-workspace-bandlabel[data-band="OZEKI"] {
+  color: rgba(196, 154, 77, 0.9);
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.84rem;
+}
+.career-workspace-bandlabel[data-band="SEKIWAKE"],
+.career-workspace-bandlabel[data-band="KOMUSUBI"] {
+  color: rgba(196, 154, 77, 0.75);
+}
+.career-workspace-bandlabel[data-band="MAEGASHIRA"] {
+  color: rgba(196, 154, 77, 0.65);
+}
+.career-workspace-bandlabel[data-band="JURYO"] {
+  color: rgba(76, 123, 255, 0.75);
+}
+.career-workspace-bandlabel[data-band="MAKUSHITA"] {
+  color: rgba(73, 185, 123, 0.7);
+}
+.career-workspace-bandlabel[data-band="SANDANME"] {
+  color: rgba(118, 164, 212, 0.65);
+}
+.career-workspace-bandlabel[data-band="JONIDAN"],
+.career-workspace-bandlabel[data-band="JONOKUCHI"] {
+  color: rgba(142, 155, 176, 0.6);
+}
+
+/* --- Stronger horizontal separator between division groups --- */
+.career-workspace-bandtrack[data-band="JURYO"] {
+  border-top: 1px solid rgba(196, 154, 77, 0.22);
+}
+.career-workspace-bandtrack[data-band="MAKUSHITA"] {
+  border-top: 1px solid rgba(76, 123, 255, 0.18);
+}
+
 .career-workspace-continuity {
   position: absolute;
   top: 50%;
@@ -4427,56 +4533,57 @@
   transform: translateY(-50%);
   display: grid;
   justify-items: center;
-  gap: 0.22rem;
+  gap: 0.15rem;
   width: 46px;
-  min-height: 50px;
-  padding: 0.45rem 0.3rem 0.42rem;
-  border: 1px solid rgba(150, 170, 201, 0.18);
-  border-radius: 14px;
+  min-height: 46px;
+  padding: 0.36rem 0.28rem 0.32rem;
+  border: 1px solid rgba(196, 154, 77, 0.18);
+  border-radius: 2px;
   background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.12), rgba(255, 255, 255, 0.02)),
-    rgba(14, 18, 24, 0.95);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 22px rgba(0, 0, 0, 0.2);
+    linear-gradient(180deg, rgba(18, 22, 28, 0.6), rgba(12, 15, 20, 0.9));
   text-align: center;
-  font-family: "DotGothic16", monospace;
-  color: rgba(248, 243, 228, 0.92);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  color: rgba(248, 243, 228, 0.88);
 }
 
 .career-workspace-chip[data-selected="true"] {
   transform: translateY(-50%);
-  border-color: rgba(205, 174, 114, 0.38);
+  border-color: rgba(205, 174, 114, 0.7);
   background:
-    linear-gradient(180deg, rgba(205, 174, 114, 0.22), rgba(255, 255, 255, 0.02)),
-    rgba(14, 18, 24, 0.98);
+    linear-gradient(180deg, rgba(60, 40, 18, 0.55), rgba(22, 16, 10, 0.92));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(205, 174, 114, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.2);
+    inset 0 0 0 1px rgba(205, 174, 114, 0.18),
+    0 0 0 1px rgba(205, 174, 114, 0.28);
+  color: rgba(248, 240, 220, 0.98);
 }
 
 .career-workspace-chip[data-absence="true"] {
-  border-color: rgba(210, 107, 82, 0.4);
+  border-color: rgba(203, 122, 92, 0.42);
+  color: rgba(203, 122, 92, 0.75);
 }
 
 .career-workspace-chip[data-event="true"]::after {
   content: "";
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: -2px;
+  right: -2px;
   width: 5px;
   height: 5px;
-  background: rgba(154, 208, 255, 0.94);
+  background: var(--chart-makuuchi);
 }
 
 .career-workspace-chip-rank {
-  font-size: 0.64rem;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
 }
 
 .career-workspace-chip-record {
-  font-size: 0.53rem;
-  color: rgba(214, 223, 239, 0.68);
+  font-size: 0.54rem;
+  line-height: 1;
+  color: rgba(214, 223, 239, 0.6);
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0;
 }
 
 .career-workspace-tick {
@@ -4565,14 +4672,12 @@
   gap: 0.4rem;
   min-height: 36px;
   padding: 0.55rem 0.8rem;
-  border: 1px solid rgba(150, 170, 201, 0.14);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.1), rgba(255, 255, 255, 0.02)),
-    rgba(11, 17, 27, 0.82);
+  border: 1px solid rgba(184, 155, 104, 0.2);
+  border-radius: 0;
+  background: rgba(184, 155, 104, 0.04);
   font-size: 0.76rem;
-  color: rgba(241, 245, 250, 0.86);
-  transition: border-color 140ms ease, transform 140ms ease, color 140ms ease;
+  color: rgba(241, 245, 250, 0.72);
+  transition: border-color 140ms ease, color 140ms ease;
 }
 
 .career-place-stepper:disabled {
@@ -4600,29 +4705,22 @@
   display: grid;
   gap: 0.26rem;
   justify-items: start;
-  min-height: 88px;
-  padding: 0.82rem 0.9rem 0.88rem;
-  border: 1px solid rgba(150, 170, 201, 0.14);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.12), rgba(255, 255, 255, 0.02)),
-    rgba(11, 17, 27, 0.84);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 24px rgba(0, 0, 0, 0.16);
+  min-height: 78px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0;
+  background: rgba(12, 16, 22, 0.65);
+  box-shadow: none;
   text-align: left;
-  transition: border-color 140ms ease, transform 140ms ease, background-color 140ms ease;
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
 .career-place-selector-chip[data-selected="true"] {
-  border-color: rgba(205, 174, 114, 0.36);
-  background:
-    linear-gradient(180deg, rgba(205, 174, 114, 0.18), rgba(255, 255, 255, 0.02)),
-    rgba(11, 17, 27, 0.9);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 1px rgba(205, 174, 114, 0.08),
-    0 10px 24px rgba(0, 0, 0, 0.16);
+  border-color: rgba(184, 155, 104, 0.4);
+  border-bottom-color: var(--ui-brand-line);
+  background: rgba(184, 155, 104, 0.08);
+  box-shadow: none;
 }
 
 .career-place-selector-chip[data-event="true"]::after {
@@ -6116,90 +6214,93 @@ input[type="range"]::-moz-range-thumb {
   transform: translateY(-50%);
   display: grid;
   justify-items: center;
-  gap: 0.1rem;
-  width: 52px;
-  min-height: 44px;
-  padding: 0.42rem 0.3rem 0.38rem;
-  border: 1px solid rgba(150, 170, 201, 0.15);
-  border-radius: 14px;
+  gap: 0.08rem;
+  width: 50px;
+  min-height: 42px;
+  padding: 0.34rem 0.26rem 0.3rem;
+  border: 1px solid rgba(196, 154, 77, 0.16);
+  border-radius: 2px;
   background:
-    linear-gradient(180deg, rgba(96, 124, 177, 0.08), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.94);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 22px rgba(0, 0, 0, 0.18);
+    linear-gradient(180deg, rgba(20, 24, 30, 0.72), rgba(10, 14, 20, 0.94));
   text-align: center;
-  font-family: "DotGothic16", monospace;
-  color: rgba(244, 247, 252, 0.9);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  color: rgba(244, 247, 252, 0.82);
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.career-workspace-chip:hover {
+  border-color: rgba(196, 154, 77, 0.38);
+  color: rgba(248, 243, 228, 0.95);
 }
 
 .career-workspace-chip[data-selected="true"] {
   transform: translateY(-50%);
-  border-color: rgba(205, 174, 114, 0.38);
+  border-color: rgba(205, 174, 114, 0.75);
   background:
-    linear-gradient(180deg, rgba(205, 174, 114, 0.2), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.98);
+    linear-gradient(180deg, rgba(60, 40, 18, 0.55), rgba(20, 14, 8, 0.96));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(205, 174, 114, 0.09),
-    0 10px 22px rgba(0, 0, 0, 0.18);
-  color: rgba(248, 243, 228, 0.98);
+    inset 0 0 0 1px rgba(205, 174, 114, 0.22),
+    0 0 0 1px rgba(205, 174, 114, 0.3);
+  color: rgba(248, 240, 220, 0.98);
 }
 
 .career-workspace-chip[data-emphasis="true"] {
-  border-color: rgba(132, 167, 255, 0.24);
+  border-color: rgba(196, 154, 77, 0.36);
   background:
-    linear-gradient(180deg, rgba(132, 167, 255, 0.16), rgba(255, 255, 255, 0.02)),
-    rgba(10, 16, 24, 0.95);
+    linear-gradient(180deg, rgba(196, 154, 77, 0.1), rgba(10, 14, 20, 0.96));
 }
 
 .career-workspace-chip[data-absence="true"] {
-  border-color: rgba(210, 107, 82, 0.4);
+  border-color: rgba(203, 122, 92, 0.42);
+  color: rgba(203, 122, 92, 0.75);
 }
 
 .career-workspace-chip[data-event="true"]::after {
   content: "";
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: -3px;
+  right: -3px;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
-  background: rgba(142, 194, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(142, 194, 255, 0.1);
+  background: var(--chart-makuuchi);
+  box-shadow: 0 0 6px rgba(196, 154, 77, 0.4);
 }
 
 .career-workspace-chip-badge {
   position: absolute;
-  bottom: calc(100% + 7px);
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   max-width: 88px;
-  border: 1px solid rgba(150, 170, 201, 0.14);
-  border-radius: 999px;
-  background: rgba(9, 14, 21, 0.96);
-  padding: 0.2rem 0.45rem;
-  font-size: 0.53rem;
-  letter-spacing: 0.04em;
+  border: 1px solid rgba(196, 154, 77, 0.2);
+  border-radius: 1px;
+  background: rgba(9, 14, 21, 0.98);
+  padding: 0.18rem 0.42rem;
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
   white-space: nowrap;
-  color: rgba(217, 225, 236, 0.66);
+  color: rgba(217, 225, 236, 0.62);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
 }
 
 .career-workspace-chip-badge[data-emphasis="true"] {
-  border-color: rgba(205, 174, 114, 0.3);
-  color: rgba(248, 243, 228, 0.9);
+  border-color: rgba(205, 174, 114, 0.5);
+  background: rgba(28, 20, 10, 0.96);
+  color: rgba(248, 243, 228, 0.95);
 }
 
 .career-workspace-chip-rank {
-  font-size: 0.64rem;
-  line-height: 1.2;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
 }
 
 .career-workspace-chip-record {
   font-size: 0.5rem;
-  line-height: 1.2;
-  color: rgba(214, 223, 239, 0.72);
+  line-height: 1;
+  color: rgba(214, 223, 239, 0.55);
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0;
 }
 
 .career-workspace-detailpanel {
@@ -6594,4 +6695,716 @@ input[type="range"]::-moz-range-thumb {
   .scout-mobile-ledger-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ============================================================
+   場所別 & 番付推移 — 和の帳面スタイル
+   ============================================================ */
+
+/* ---- 場所セレクターストリップ ---- */
+.place-scroll-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scrollbar-width: thin;
+}
+
+.place-basho-chip {
+  display: grid;
+  gap: 0.22rem;
+  justify-items: start;
+  padding: 0.7rem 0.85rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 18, 24, 0.6);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.place-basho-chip:hover {
+  border-color: rgba(184, 155, 104, 0.25);
+  background: rgba(16, 20, 28, 0.75);
+}
+
+.place-basho-chip.selected {
+  border-color: rgba(184, 155, 104, 0.45);
+  border-bottom-color: var(--ui-brand-line);
+  background: rgba(184, 155, 104, 0.08);
+}
+
+.place-basho-chip.event::after {
+  content: "◆";
+  font-size: 0.45rem;
+  color: rgba(142, 194, 255, 0.9);
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.place-basho-chip { position: relative; }
+
+.place-basho-chip-label {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgba(184, 155, 104, 0.6);
+}
+
+.place-basho-chip-rank {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.82rem;
+  color: rgba(248, 243, 228, 0.96);
+}
+
+.place-basho-chip-record {
+  font-size: 0.7rem;
+  font-family: "BIZ UDPGothic", sans-serif;
+}
+
+/* ---- 前後ステッパー ---- */
+.place-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(184, 155, 104, 0.2);
+  background: rgba(184, 155, 104, 0.05);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  color: rgba(248, 243, 228, 0.7);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.place-stepper:hover:not(:disabled) {
+  border-color: rgba(184, 155, 104, 0.4);
+  color: rgba(248, 243, 228, 0.98);
+}
+
+.place-stepper:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---- 場所サマリー — 帳面スタイル ---- */
+.place-ledger-summary {
+  padding: 1rem 0;
+  border-top: 1px solid rgba(184, 155, 104, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.place-ledger-summary-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.5rem;
+}
+
+.place-ledger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.35rem 0;
+  min-width: 160px;
+}
+
+.place-ledger-key {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: rgba(184, 155, 104, 0.65);
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.place-ledger-val {
+  font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  font-size: 0.95rem;
+  color: rgba(248, 243, 228, 0.96);
+}
+
+.place-milestone-tag {
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgba(184, 155, 104, 0.28);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: rgba(224, 190, 122, 0.92);
+  background: rgba(184, 155, 104, 0.06);
+}
+
+/* ---- タブストリップ — 短冊スタイル ---- */
+.place-tabstrip {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(184, 155, 104, 0.2);
+}
+
+.place-tab {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.65rem 1.1rem 0.7rem;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 2px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.place-tab:last-child {
+  border-right: none;
+}
+
+.place-tab:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.place-tab.active {
+  border-bottom-color: var(--ui-brand-line);
+  background: rgba(184, 155, 104, 0.05);
+}
+
+.place-tab-main {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  color: rgba(248, 243, 228, 0.88);
+}
+
+.place-tab.active .place-tab-main {
+  color: rgba(224, 190, 122, 0.98);
+}
+
+.place-tab-sub {
+  font-size: 0.65rem;
+  color: rgba(248, 243, 228, 0.42);
+}
+
+/* ---- コンテンツパネル ---- */
+.place-content-panel {
+  position: relative;
+  min-height: 200px;
+  padding: 0.85rem 0;
+}
+
+/* ---- 番付表 ---- */
+.place-banzuke-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.place-banzuke-table thead tr {
+  border-bottom: 1px solid rgba(184, 155, 104, 0.22);
+}
+
+.place-banzuke-table th {
+  padding: 0.45rem 0.7rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  color: rgba(184, 155, 104, 0.7);
+  text-align: left;
+  font-weight: normal;
+}
+
+.place-banzuke-table td {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(248, 243, 228, 0.82);
+  vertical-align: middle;
+}
+
+.place-banzuke-player td {
+  background: rgba(184, 155, 104, 0.06);
+  color: rgba(248, 243, 228, 0.98);
+}
+
+.place-banzuke-result-dot {
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* ---- 取組一覧 — 取組帳スタイル ---- */
+.place-bout-list {
+  display: grid;
+  gap: 0;
+}
+
+.place-bout-row {
+  display: grid;
+  grid-template-columns: 2.2rem 1.5rem 1fr;
+  align-items: start;
+  gap: 0 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.1s;
+}
+
+.place-bout-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.place-bout-row.important {
+  border-left: 2px solid rgba(184, 155, 104, 0.5);
+  padding-left: 0.6rem;
+}
+
+.place-bout-row.absent {
+  opacity: 0.6;
+}
+
+.place-bout-day {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.75rem;
+  color: rgba(248, 243, 228, 0.45);
+  padding-top: 0.05rem;
+  text-align: right;
+}
+
+.place-bout-day-unit {
+  font-size: 0.58rem;
+}
+
+.place-bout-mark {
+  font-family: "BIZ UDPGothic", sans-serif;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.place-bout-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.75rem;
+  min-width: 0;
+}
+
+.place-bout-opponent {
+  font-size: 0.88rem;
+  color: rgba(248, 243, 228, 0.92);
+}
+
+.place-bout-rank {
+  font-size: 0.72rem;
+  color: rgba(248, 243, 228, 0.48);
+}
+
+.place-bout-kimarite {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  color: rgba(184, 155, 104, 0.72);
+  padding: 0.05rem 0.4rem;
+  border: 1px solid rgba(184, 155, 104, 0.2);
+}
+
+.place-bout-note {
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: rgba(248, 243, 228, 0.55);
+  line-height: 1.55;
+}
+
+/* ---- 星取一覧ストリップ (番付推移) ---- */
+.basho-hoshi-strip {
+  padding: 0.75rem 0 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.basho-hoshi-strip-label {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(184, 155, 104, 0.5);
+  margin-bottom: 0.55rem;
+}
+
+.basho-hoshi-strip-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.basho-hoshi-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  font-family: "BIZ UDPGothic", sans-serif;
+  font-size: 0.7rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.1s;
+  opacity: 0.72;
+}
+
+.basho-hoshi-mark:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.basho-hoshi-mark.selected {
+  opacity: 1;
+  transform: scale(1.3);
+  outline: 1px solid rgba(184, 155, 104, 0.5);
+  outline-offset: 1px;
+  background: rgba(184, 155, 104, 0.08);
+}
+
+.basho-hoshi-mark.milestone {
+  opacity: 0.92;
+}
+
+.basho-hoshi-strip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.55rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.58rem;
+  color: rgba(248, 243, 228, 0.45);
+}
+
+/* ============================================================
+   SIDEBAR LAYOUT (desktop only)
+   ============================================================ */
+
+.app-shell-sidebar-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---- Sidebar ---- */
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 216px;
+  height: 100vh;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 18, 0.98) 0%, rgba(10, 14, 20, 0.96) 100%);
+  border-right: 1px solid rgba(184, 155, 104, 0.14);
+  overflow: hidden;
+}
+
+.app-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.1rem 1.1rem;
+  border-bottom: 1px solid rgba(184, 155, 104, 0.12);
+}
+
+.app-sidebar-brand-mark {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.3rem;
+  color: var(--ui-brand-line);
+  border: 1px solid rgba(184, 155, 104, 0.3);
+  background: rgba(184, 155, 104, 0.08);
+}
+
+.app-sidebar-brand-title {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: rgba(238, 242, 246, 0.92);
+  line-height: 1.2;
+}
+
+.app-sidebar-brand-sub {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  color: rgba(184, 155, 104, 0.55);
+  margin-top: 0.2rem;
+  text-transform: uppercase;
+}
+
+.app-sidebar-nav {
+  flex: 1;
+  padding: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  overflow-y: auto;
+}
+
+.app-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1.1rem;
+  font-family: "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  font-size: 0.83rem;
+  color: rgba(238, 242, 246, 0.52);
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  white-space: nowrap;
+}
+
+.app-sidebar-item:hover:not(.disabled) {
+  color: rgba(238, 242, 246, 0.88);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-sidebar-item.active {
+  color: var(--ui-brand-line);
+  background: rgba(184, 155, 104, 0.1);
+  border-left-color: var(--ui-brand-line);
+}
+
+.app-sidebar-item.disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.app-sidebar-footer {
+  padding: 0.9rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-sidebar-footer-line {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: rgba(184, 155, 104, 0.28);
+  text-transform: uppercase;
+}
+
+/* ---- Content area (right of sidebar) ---- */
+.app-content-area {
+  margin-left: 216px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
+
+.app-content-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(9, 14, 20, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.app-content-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 2rem;
+}
+
+.app-content-title {
+  font-family: "DotGothic16", monospace;
+  font-size: clamp(1.1rem, 1.6vw, 1.55rem);
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  color: var(--ui-text-main);
+}
+
+.app-content-statusband {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(12, 18, 24, 0.6);
+}
+
+/* Mobile nav button (horizontal tabs) */
+.app-shell-navbutton-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: rgba(238, 242, 246, 0.55);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s, border-color 0.14s;
+  white-space: nowrap;
+}
+
+.app-shell-navbutton-mobile:hover {
+  color: rgba(238, 242, 246, 0.9);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-shell-navbutton-mobile.active {
+  color: var(--ui-brand-line);
+  border-color: rgba(184, 155, 104, 0.35);
+  background: rgba(184, 155, 104, 0.09);
+}
+
+.app-shell-navbutton-mobile:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* --- Career Encyclopedia section wrappers --- */
+.career-enc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.career-enc-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.career-enc-section-mark {
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(180deg, var(--chart-makuuchi), rgba(196, 154, 77, 0.3));
+  box-shadow: 0 0 10px rgba(196, 154, 77, 0.4);
+}
+
+.career-enc-section-title {
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.3em;
+  color: rgba(248, 240, 220, 0.92);
+}
+
+.career-enc-section-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(196, 154, 77, 0.38), rgba(196, 154, 77, 0.02));
+}
+
+.career-enc-chartgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .career-enc-chartgrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- ChartCard (和 ledger panel) --- */
+.chart-card {
+  position: relative;
+  padding: 1rem 1.1rem 0.9rem;
+  background:
+    linear-gradient(180deg, rgba(28, 24, 20, 0.35), rgba(14, 16, 22, 0.7)),
+    rgba(12, 16, 22, 0.55);
+  border: 1px solid rgba(196, 154, 77, 0.12);
+  border-left: 2px solid rgba(196, 154, 77, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 220, 0.02);
+}
+
+.chart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border: 1px solid rgba(196, 154, 77, 0.06);
+  pointer-events: none;
+}
+
+.chart-card-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.7rem;
+  border-bottom: 1px dashed rgba(196, 154, 77, 0.18);
+}
+
+.chart-card-titlerow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chart-card-title-mark {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--chart-makuuchi);
+  box-shadow: 0 0 6px rgba(196, 154, 77, 0.35);
+}
+
+.chart-card-title {
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.22em;
+  color: rgba(248, 240, 220, 0.92);
+}
+
+.chart-card-subtitle {
+  margin-top: 0.2rem;
+  padding-left: 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(214, 223, 239, 0.5);
+  font-family: "Shippori Mincho", serif;
+}
+
+.chart-card-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: rgba(214, 223, 239, 0.58);
+  font-family: "Shippori Mincho", serif;
+}
+
+.chart-card-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chart-card-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+}
+
+.chart-card-body {
+  position: relative;
 }

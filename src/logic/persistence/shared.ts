@@ -47,6 +47,7 @@ import {
   resolveKimariteFamilyLabel,
   resolveKimariteRarityLabel,
 } from '../kimarite/catalog';
+import { getRankValueForChart } from '../ranking';
 import { deriveOyakataProfile } from '../oyakata/profile';
 import {
   ensureStyleIdentityProfile,
@@ -412,6 +413,8 @@ const normalizePersistentOpponentId = (opponentId?: string): string | undefined 
     : opponentId;
 };
 
+const LOWER_DIVISION_PERSIST_NEARBY_RANGE = 5;
+
 const filterPersistedNpcRecords = (
   chunk: Pick<AppendBashoChunkParams, 'playerRecord' | 'playerBouts' | 'npcRecords'>,
 ): NpcBashoAggregate[] => {
@@ -436,6 +439,7 @@ const filterPersistedNpcRecords = (
     playerDivision === 'Jonidan' ||
     playerDivision === 'Jonokuchi'
   ) {
+    const playerRankValue = getRankValueForChart(chunk.playerRecord.rank);
     for (const bout of chunk.playerBouts) {
       const normalizedId = normalizePersistentOpponentId(bout.opponentId);
       if (normalizedId && recordsById.has(normalizedId)) {
@@ -444,7 +448,17 @@ const filterPersistedNpcRecords = (
     }
     for (const record of recordsById.values()) {
       if (record.division !== playerDivision) continue;
-      selectedIds.add(record.entityId);
+      const rankValue = getRankValueForChart({
+        division: record.division,
+        name: record.rankName,
+        number: record.rankNumber,
+        side: record.rankSide,
+      });
+      const isNearby = Math.abs(rankValue - playerRankValue) <= LOWER_DIVISION_PERSIST_NEARBY_RANGE;
+      const isTitled = (record.titles?.length ?? 0) > 0;
+      if (isNearby || isTitled) {
+        selectedIds.add(record.entityId);
+      }
     }
   }
 
