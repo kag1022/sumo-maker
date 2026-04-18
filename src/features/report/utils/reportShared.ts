@@ -593,10 +593,10 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
   const makuuchiWinRate =
     makuuchiRecords.reduce((sum, record) => sum + record.wins + record.losses, 0) > 0
       ? (
-          (makuuchiRecords.reduce((sum, record) => sum + record.wins, 0) /
+        (makuuchiRecords.reduce((sum, record) => sum + record.wins, 0) /
             makuuchiRecords.reduce((sum, record) => sum + record.wins + record.losses, 0)) *
           100
-        ).toFixed(1)
+      ).toFixed(1)
       : null;
   const lowerTitles = history.yushoCount.juryo + history.yushoCount.makushita + history.yushoCount.others;
   const sanshoCount = history.records.reduce(
@@ -1111,7 +1111,6 @@ export const buildImportantDecisionDigest = (
   };
 };
 
-
 export const buildBanzukeSnapshotForSeq = (
   seq: number,
   playerDivision: Rank['division'],
@@ -1137,9 +1136,9 @@ export const buildBanzukeSnapshotForSeq = (
   const visibleRows =
     focusIndices.length > 0
       ? divisionRows.slice(
-          Math.max(0, Math.min(...focusIndices) - focusWindow),
-          Math.min(divisionRows.length, Math.max(...focusIndices) + focusWindow + 1),
-        )
+        Math.max(0, Math.min(...focusIndices) - focusWindow),
+        Math.min(divisionRows.length, Math.max(...focusIndices) + focusWindow + 1),
+      )
       : divisionRows;
 
   return {

@@ -625,7 +625,6 @@ const resetDb = async (): Promise<void> => {
   await db.open();
 };
 
-
 export {
   assert,
   fail,

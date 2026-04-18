@@ -17,7 +17,6 @@ import {
   LogicLabSummary,
 } from '../types';
 
-
 type StepOutcome = 'continue' | 'paused' | 'completed' | 'stale' | 'error';
 
 interface LogicLabStore {
@@ -207,8 +206,6 @@ export const useLogicLabStore = create<LogicLabStore>((set, get) => {
         }
       }
     },
-
-
 
     selectLogIndex: (index) => set({ selectedLogIndex: index }),
 

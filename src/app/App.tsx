@@ -214,10 +214,10 @@ export const App: React.FC = () => {
           setDetail(
             nextDetail
               ? {
-                  ...nextDetail,
-                  bashoSeq: targetBashoSeq,
-                  sourceBashoSeq,
-                }
+                ...nextDetail,
+                bashoSeq: targetBashoSeq,
+                sourceBashoSeq,
+              }
               : null,
           );
         }

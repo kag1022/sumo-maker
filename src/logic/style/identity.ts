@@ -24,10 +24,10 @@ const STYLE_IDS: StyleArchetype[] = [
   'POWER_PRESSURE',
 ];
 
-const STYLE_STRENGTH_THRESHOLD = 18;
-const STYLE_STRENGTH_GAP = 8;
-const STYLE_WEAKNESS_THRESHOLD = -18;
-const STYLE_WEAKNESS_GAP = 8;
+const STYLE_STRENGTH_THRESHOLD = 14;
+const STYLE_STRENGTH_GAP = 10;
+const STYLE_WEAKNESS_THRESHOLD = -14;
+const STYLE_WEAKNESS_GAP = 10;
 const INTERNAL_STYLE_MIN_SAMPLE = 45;
 const INTERNAL_STYLE_STRENGTH_THRESHOLD = 8;
 const INTERNAL_STYLE_STRENGTH_GAP = 10;
@@ -478,18 +478,33 @@ const buildResistanceDelta = (
     });
   };
 
+  // 得意:苦手 比率を自然に2:1 に寄せるため、WIN/LOSS の資格重みは対称に保つ。
+  // 「相手に負けた = 相手型が苦手」と短絡せず、実際の決まり手で使われた型を主信号にする。
   for (const bout of bouts ?? []) {
-    const amount = bout.result === 'WIN' ? 0.45 : bout.result === 'LOSS' ? -1.35 : 0;
-    if (amount === 0) continue;
-    if (bout.opponentStyleBias && bout.opponentStyleBias !== 'BALANCE') {
-      apply(inferEnemyStyles(bout.opponentStyleBias), amount);
-      continue;
-    }
+    if (bout.result !== 'WIN' && bout.result !== 'LOSS') continue;
+    const amount = bout.result === 'WIN' ? 0.75 : -0.75;
+
+    // 決まり手ベースの型推定を主信号に。
+    // 勝敗に実際に寄与した技の型だけが resistance を動かす設計。
     if (bout.kimarite) {
-      const inferred = Object.entries(resolveStyleCountScoreForKimarite(bout.kimarite))
-        .filter(([, score]) => (score ?? 0) >= 0.75)
-        .map(([style]) => style as StyleArchetype);
-      apply(inferred, amount * 0.35);
+      const moveScores = resolveStyleCountScoreForKimarite(bout.kimarite);
+      const topScore = Math.max(
+        0,
+        ...Object.values(moveScores).map((score) => score ?? 0),
+      );
+      if (topScore >= 0.5) {
+        const inferred = Object.entries(moveScores)
+          .filter(([, score]) => (score ?? 0) >= 0.5)
+          .map(([style]) => style as StyleArchetype);
+        apply(inferred, amount * 0.9);
+        continue;
+      }
+    }
+
+    // 決まり手が不明 or 汎用技のみの場合、粗い opponentStyleBias にフォールバック。
+    // こちらは情報量が低いので振幅を半減。
+    if (bout.opponentStyleBias && bout.opponentStyleBias !== 'BALANCE') {
+      apply(inferEnemyStyles(bout.opponentStyleBias), amount * 0.5);
     }
   }
 
@@ -522,8 +537,9 @@ export const updateStyleIdentityAfterBasho = (
     const aptitudeDelta = clamp((aptitudeSignals[style] - aptitudeAverage) * 6.1 * experienceScale, -4.2, 4.2);
     const resistanceDelta = clamp(resistanceSignals[style] * experienceScale, -3.8, 3.8);
     profile.styles[style] = {
-      aptitude: clamp(entry.aptitude * 0.94 + aptitudeDelta, -36, 36),
-      resistance: clamp(entry.resistance * 0.98 + resistanceDelta, -36, 36),
+      // 得意・苦手で減衰係数を対称に（以前は 0.94 / 0.98 で苦手のみ持続）。
+      aptitude: clamp(entry.aptitude * 0.96 + aptitudeDelta, -36, 36),
+      resistance: clamp(entry.resistance * 0.96 + resistanceDelta, -36, 36),
       sample: entry.sample + totalBouts,
       lastDelta: clamp(aptitudeDelta + resistanceDelta * 0.35, -12, 12),
     };

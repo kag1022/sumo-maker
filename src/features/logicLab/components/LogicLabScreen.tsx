@@ -35,8 +35,8 @@ const formatStopReason = (reason?: LogicLabStopReason): string =>
   !reason ? '-' :
     reason === 'PROMOTION' ? '昇進イベント' :
       reason === 'INJURY' ? '負傷イベント' :
-          reason === 'RETIREMENT' ? '引退' :
-            reason === 'MAX_BASHO_REACHED' ? '最大場所数到達' : reason;
+        reason === 'RETIREMENT' ? '引退' :
+          reason === 'MAX_BASHO_REACHED' ? '最大場所数到達' : reason;
 const formatDuration = (value: number): string =>
   value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${value.toFixed(1)}ms`;
 const formatShare = (value: number): string => `${(value * 100).toFixed(1)}%`;

@@ -47,4 +47,3 @@ export const optimizeExpectedPlacements = (
 
   return solved.assignments;
 };
-

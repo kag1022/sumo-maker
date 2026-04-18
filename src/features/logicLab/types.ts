@@ -3,7 +3,6 @@ import { KimariteTuningPresetId } from '../../logic/kimarite/selection';
 import { PauseReason } from '../../logic/simulation/engine';
 import { SimulationTimingPhase } from '../../logic/simulation/engine';
 
-
 export type LogicLabPresetId =
   | 'RANDOM_BASELINE'
   | 'LOW_TALENT_CD'
@@ -110,4 +109,3 @@ export interface LogicLabSummary {
   phaseShare: Record<SimulationTimingPhase, number>;
   stopReason?: LogicLabStopReason;
 }
-

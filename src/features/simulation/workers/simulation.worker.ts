@@ -89,26 +89,26 @@ const buildObservation = (
       stagnationWarning
         ? 'danger'
         :
-      chapterKind === 'INJURY'
-        ? 'danger'
-        : chapterKind === 'TITLE_RACE' || chapterKind === 'SEKITORI' || chapterKind === 'SANYAKU' || chapterKind === 'DEBUT'
-          ? 'milestone'
-          : 'result',
+        chapterKind === 'INJURY'
+          ? 'danger'
+          : chapterKind === 'TITLE_RACE' || chapterKind === 'SEKITORI' || chapterKind === 'SANYAKU' || chapterKind === 'DEBUT'
+            ? 'milestone'
+            : 'result',
     chapterKind,
     headline:
       stagnationWarning
         ? `${step.year}年${step.month}月場所で空気が変わる`
         : chapterKind === 'DEBUT'
-        ? `${step.year}年${step.month}月場所で初土俵を踏む`
-        : chapterKind === 'SEKITORI'
-          ? `${step.year}年${step.month}月場所で関取に届く`
-          : chapterKind === 'SANYAKU'
-            ? `${step.year}年${step.month}月場所で三役の景色へ入る`
-            : chapterKind === 'TITLE_RACE'
-              ? `${step.year}年${step.month}月場所で優勝線に絡む`
-              : chapterKind === 'INJURY'
-                ? `${step.year}年${step.month}月場所で影が差す`
-        : `${step.year}年${step.month}月場所を見届けた`,
+          ? `${step.year}年${step.month}月場所で初土俵を踏む`
+          : chapterKind === 'SEKITORI'
+            ? `${step.year}年${step.month}月場所で関取に届く`
+            : chapterKind === 'SANYAKU'
+              ? `${step.year}年${step.month}月場所で三役の景色へ入る`
+              : chapterKind === 'TITLE_RACE'
+                ? `${step.year}年${step.month}月場所で優勝線に絡む`
+                : chapterKind === 'INJURY'
+                  ? `${step.year}年${step.month}月場所で影が差す`
+                  : `${step.year}年${step.month}月場所を見届けた`,
     detail: stagnationWarning?.description ?? event?.description ?? `${rankLabel}で ${recordText}`,
   };
 };
