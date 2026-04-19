@@ -1,5 +1,4 @@
 import React from "react";
-import { Sparkles } from "lucide-react";
 import type { TraitAwakening } from "../../../logic/models";
 import { CONSTANTS } from "../../../logic/constants";
 
@@ -8,58 +7,161 @@ interface TraitTimelineProps {
   totalBasho: number;
 }
 
-export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, totalBasho }) => {
-  if (traitAwakenings.length === 0) return null;
+type Category = "BODY" | "MENTAL" | "TECHNIQUE" | "OTHER";
 
-  const sorted = [...traitAwakenings].sort((a, b) => a.bashoSeq - b.bashoSeq);
+const CAT_MAP: Record<Category, { label: string; color: string; bg: string }> = {
+  BODY:      { label: "体質", color: "#2d7a52", bg: "rgba(45,122,82,0.18)" },
+  MENTAL:    { label: "精神", color: "#4c7bff", bg: "rgba(76,123,255,0.18)" },
+  TECHNIQUE: { label: "技術", color: "#b88a3e", bg: "rgba(184,138,62,0.18)" },
+  OTHER:     { label: "その他", color: "#7a8499", bg: "rgba(122,132,153,0.18)" },
+};
+
+const resolveCategory = (raw: string | undefined): Category => {
+  if (raw === "BODY" || raw === "MENTAL" || raw === "TECHNIQUE") return raw;
+  return "OTHER";
+};
+
+interface TraitItem {
+  idx: number;
+  awakening: TraitAwakening;
+  traitName: string;
+  description: string;
+  rarity: string;
+  category: Category;
+  pct: number;
+}
+
+const buildTicks = (total: number): number[] => {
+  if (total <= 1) return [1];
+  const step = total <= 10 ? 2 : total <= 30 ? 5 : total <= 60 ? 10 : 15;
+  const ticks: number[] = [1];
+  for (let t = step; t < total; t += step) ticks.push(t);
+  if (ticks[ticks.length - 1] !== total) ticks.push(total);
+  return ticks;
+};
+
+export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, totalBasho }) => {
+  const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+
+  const items = React.useMemo<TraitItem[]>(() => {
+    const sorted = [...traitAwakenings].sort((a, b) => a.bashoSeq - b.bashoSeq);
+    const scale = Math.max(totalBasho, 1);
+    return sorted.map((awakening, i) => {
+      const data = CONSTANTS.TRAIT_DATA[awakening.trait] as
+        | { name?: string; category?: string; rarity?: string; description?: string }
+        | undefined;
+      return {
+        idx: i + 1,
+        awakening,
+        traitName: data?.name ?? awakening.trait,
+        description: data?.description ?? awakening.triggerDetail ?? "",
+        rarity: data?.rarity ?? "N",
+        category: resolveCategory(data?.category),
+        pct: Math.min(98, Math.max(1, (awakening.bashoSeq / scale) * 100)),
+      };
+    });
+  }, [traitAwakenings, totalBasho]);
+
+  const catCounts = React.useMemo(() => {
+    const c: Record<Category, number> = { BODY: 0, MENTAL: 0, TECHNIQUE: 0, OTHER: 0 };
+    items.forEach((item) => { c[item.category] += 1; });
+    return c;
+  }, [items]);
+
+  const ticks = React.useMemo(() => buildTicks(Math.max(totalBasho, 1)), [totalBasho]);
+
+  if (items.length === 0) return null;
 
   return (
-    <div className="border border-white/10 bg-white/[0.02] px-4 py-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-[var(--ui-brand-line)]/60" />
-        <div className="text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase">
-          特技覚醒
+    <div className="tt-root">
+      {/* ── ヘッダー ── */}
+      <div className="tt-header">
+        <span className="tt-title">特性の習得タイミング</span>
+        <div className="tt-legend">
+          {(Object.keys(CAT_MAP) as Category[]).map((cat) => {
+            const count = catCounts[cat];
+            if (count === 0) return null;
+            return (
+              <span key={cat} className="tt-legend-item">
+                <span className="tt-legend-dot" style={{ background: CAT_MAP[cat].color }} />
+                {CAT_MAP[cat].label}
+                <span className="tt-legend-count">{count}</span>
+              </span>
+            );
+          })}
         </div>
       </div>
 
-      <div className="relative">
-        <div className="absolute left-0 right-0 top-3 h-px bg-white/8" />
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {sorted.map((awakening) => {
-            const pct = totalBasho > 0 ? (awakening.bashoSeq / totalBasho) * 100 : 0;
-            const data = CONSTANTS.TRAIT_DATA[awakening.trait];
+      {/* ── タイムライン軸 ── */}
+      <div className="tt-axis-shell">
+        {/* 番号付きピン */}
+        <div className="tt-pins">
+          {items.map((item) => (
+            <button
+              key={item.idx}
+              type="button"
+              className="tt-pin"
+              data-active={hoveredIdx === item.idx}
+              style={{
+                left: `${item.pct}%`,
+                background: CAT_MAP[item.category].color,
+              }}
+              onMouseEnter={() => setHoveredIdx(item.idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onFocus={() => setHoveredIdx(item.idx)}
+              onBlur={() => setHoveredIdx(null)}
+              aria-label={`${item.traitName}（${item.awakening.bashoSeq}場所目）`}
+            >
+              {item.idx}
+            </button>
+          ))}
+        </div>
+        {/* 軸線 */}
+        <div className="tt-axis-line" />
+        {/* 目盛り */}
+        <div className="tt-ticks">
+          {ticks.map((tick) => {
+            const tickPct = totalBasho > 0 ? (tick / totalBasho) * 100 : 0;
             return (
-              <div
-                key={`${awakening.trait}-${awakening.bashoSeq}`}
-                className="group relative flex flex-col items-center gap-1.5 flex-shrink-0"
-                style={{ marginLeft: `${pct}%` }}
-                title={`${data?.name ?? awakening.trait}: ${awakening.triggerDetail}`}
-              >
-                <div className="h-2 w-2 border border-[var(--ui-brand-line)]/60 bg-[var(--ui-brand-line)]/30 z-10" />
-                <div className="text-[10px] text-text-dim whitespace-nowrap max-w-[80px] text-center leading-tight">
-                  {data?.name ?? awakening.trait}
-                </div>
-                <div className="text-[9px] text-[var(--ui-brand-line)]/40">
-                  {awakening.bashoSeq}場所目
-                </div>
+              <div key={tick} className="tt-tick" style={{ left: `${tickPct}%` }}>
+                <span className="tt-tick-mark" />
+                <span className="tt-tick-label">{tick}</span>
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {sorted.map((awakening) => {
-          const data = CONSTANTS.TRAIT_DATA[awakening.trait];
+      {/* ── 特性リスト ── */}
+      <div className="tt-list">
+        {items.map((item) => {
+          const cat = CAT_MAP[item.category];
+          const isHovered = hoveredIdx === item.idx;
           return (
-            <span
-              key={`chip-${awakening.trait}-${awakening.bashoSeq}`}
-              className="inline-flex items-center gap-1 border border-[var(--ui-brand-line)]/20 bg-[var(--ui-brand-line)]/5 px-2 py-0.5 text-[10px] text-[var(--ui-brand-line)]/70"
-              title={awakening.triggerDetail}
+            <div
+              key={item.idx}
+              className="tt-row"
+              data-active={isHovered}
+              onMouseEnter={() => setHoveredIdx(item.idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
             >
-              <Sparkles className="h-2.5 w-2.5" />
-              {data?.name ?? awakening.trait}
-            </span>
+              <span className="tt-row-num" style={{ background: cat.color }}>
+                {item.idx}
+              </span>
+              <div className="tt-row-main">
+                <div className="tt-row-top">
+                  <span className="tt-row-name">{item.traitName}</span>
+                  <span className="tt-row-meta">
+                    <span className="tt-row-cat" style={{ color: cat.color }}>{cat.label}</span>
+                    <span className="tt-row-rarity">{item.rarity}</span>
+                    <span className="tt-row-basho">{item.awakening.bashoSeq}場所目</span>
+                  </span>
+                </div>
+                {item.description && (
+                  <p className="tt-row-desc">{item.description}</p>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
