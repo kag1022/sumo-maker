@@ -22,7 +22,10 @@ import {
   incrementLifetimeCareerCount,
 } from "../logic/persistence/lifetimeStats";
 import { formatRankDisplayName } from "../features/report/utils/reportShared";
+import { cn } from "../shared/lib/cn";
 import { Button } from "../shared/ui/Button";
+import typography from "../shared/styles/typography.module.css";
+import surface from "../shared/styles/surface.module.css";
 import type { CareerResultViewState } from "../features/careerResult/components/CareerResultPage";
 
 const isMaezumoBashoRow = (row: CareerBashoRecordsBySeq) =>
@@ -277,6 +280,7 @@ export const App: React.FC = () => {
 
   const handleClearAllData = React.useCallback(async () => {
     await clearAllData();
+    setLifetimeCareerCount(0);
     setCareerViewState(DEFAULT_CAREER_VIEW_STATE);
     setDetail(null);
     setDetailLoading(false);
@@ -367,7 +371,6 @@ export const App: React.FC = () => {
         detailBuildProgress,
         latestBashoView,
         hallOfFame,
-        unshelvedCareers,
         lifetimeCareerCount,
         currentCareerId,
         isCurrentCareerSaved,
@@ -426,7 +429,6 @@ const renderSection = ({
   detailBuildProgress,
   latestBashoView,
   hallOfFame,
-  unshelvedCareers,
   lifetimeCareerCount,
   currentCareerId,
   isCurrentCareerSaved,
@@ -461,7 +463,6 @@ const renderSection = ({
   detailBuildProgress: ReturnType<typeof useSimulation>["detailBuildProgress"];
   latestBashoView: ReturnType<typeof useSimulation>["latestBashoView"];
   hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
-  unshelvedCareers: ReturnType<typeof useSimulation>["unshelvedCareers"];
   lifetimeCareerCount: number;
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
@@ -604,18 +605,18 @@ const SimulationProgressView: React.FC<{
   status: ReturnType<typeof useSimulation>["status"];
 }> = ({ progress, status }) => (
   <div className="mx-auto max-w-5xl">
-    <div className="surface-panel grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+    <div className={cn(surface.panel, "grid gap-8 lg:grid-cols-[1.2fr_0.8fr]")}>
       <div className="space-y-5">
         <div className="space-y-3">
-          <div className="app-kicker">結果を準備中</div>
-          <h2 className="text-3xl ui-text-heading text-text">力士人生を整理しています</h2>
+          <div className={typography.kicker}>結果を準備中</div>
+          <h2 className={cn(typography.heading, "text-3xl text-text")}>力士人生を整理しています</h2>
           <p className="max-w-2xl text-sm text-text-dim">
             番付や勝敗は伏せたまま、あとで読める記録帳を裏で整えています。
           </p>
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs ui-text-label text-text-dim">
+          <div className={cn(typography.label, "flex items-center justify-between text-xs text-text-dim")}>
             <span>整理済み</span>
             <span>{progress ? `${progress.bashoCount}場所` : "演算中"}</span>
           </div>
@@ -627,11 +628,11 @@ const SimulationProgressView: React.FC<{
 
       <div className="grid gap-3">
         <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">四股名</div>
-          <div className="mt-2 text-2xl ui-text-heading text-text">{status?.shikona ?? "記録編集中"}</div>
+          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>四股名</div>
+          <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{status?.shikona ?? "記録編集中"}</div>
         </div>
         <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-          <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">進み具合</div>
+          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>進み具合</div>
           <div className="mt-2 text-xl text-text">{progress ? `${progress.bashoCount}場所を整理済み` : "-"}</div>
         </div>
       </div>
@@ -656,10 +657,10 @@ const RevealReadyView: React.FC<{
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="surface-panel space-y-8">
+      <div className={cn(surface.panel, "space-y-8")}>
         <div className="space-y-3 text-center">
-          <div className="app-kicker">開封の前</div>
-          <h2 className="text-3xl ui-text-heading text-text">結果の準備ができました</h2>
+          <div className={typography.kicker}>開封の前</div>
+          <h2 className={cn(typography.heading, "text-3xl text-text")}>結果の準備ができました</h2>
           <p className="mx-auto max-w-2xl text-sm text-text-dim">
             表紙はすぐ開けます。細部の帳面は裏で整理を続けています。
           </p>
@@ -667,18 +668,18 @@ const RevealReadyView: React.FC<{
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">最高位</div>
-            <div className="mt-2 text-2xl ui-text-heading text-text">
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>最高位</div>
+            <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>
               {status ? formatRankDisplayName(status.history.maxRank) : "-"}
             </div>
           </div>
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">通算</div>
-            <div className="mt-2 text-2xl ui-text-heading text-text">{totalRecordLabel}</div>
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>通算</div>
+            <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{totalRecordLabel}</div>
           </div>
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className="text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase">在位</div>
-            <div className="mt-2 text-2xl ui-text-heading text-text">{progress ? `${progress.bashoCount}場所` : "-"}</div>
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>在位</div>
+            <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{progress ? `${progress.bashoCount}場所` : "-"}</div>
           </div>
         </div>
 
@@ -695,7 +696,7 @@ const RevealReadyView: React.FC<{
 };
 
 const EmptyCareerState: React.FC = () => (
-  <section className="premium-panel p-5 sm:p-6">
+  <section className={cn(surface.premium, "p-5 sm:p-6")}>
     <div className="border border-gold/10 bg-bg/20 px-4 py-10 text-center text-sm text-text-dim">
       読み込める記録がありません。ホームから新弟子設計または保存済み記録を開いてください。
     </div>

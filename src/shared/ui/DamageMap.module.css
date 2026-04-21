@@ -1,0 +1,5 @@
+.pixelSurface,
+.pixelSurface image {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

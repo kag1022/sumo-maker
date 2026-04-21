@@ -1,7 +1,11 @@
 import React from "react";
 import { AlertTriangle, Moon, Sun, Trash2 } from "lucide-react";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { useTheme, type ThemeMode } from "../../../shared/hooks/useTheme";
+import styles from "./SettingsScreen.module.css";
 
 interface SettingsScreenProps {
   onClearAllData: () => Promise<void>;
@@ -48,20 +52,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClearAllData }
   }, [onClearAllData]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <section className="surface-panel space-y-1">
-        <div className="app-kicker">設定</div>
-        <h2 className="text-2xl ui-text-heading text-text">設定</h2>
+    <div className={cn(styles.wrapper, "space-y-6")}>
+      <section className={cn(surface.panel, "space-y-1")}>
+        <div className={typography.kicker}>設定</div>
+        <h2 className={cn(typography.heading, "text-2xl text-text")}>設定</h2>
         <p className="text-sm text-text-dim">表示テーマの変更やデータの管理ができます。</p>
       </section>
 
       {/* テーマ選択 */}
-      <section className="surface-panel space-y-4">
+      <section className={cn(surface.panel, "space-y-4")}>
         <div>
-          <h3 className="text-base ui-text-heading text-text mb-1">テーマ</h3>
+          <h3 className={cn(typography.heading, "mb-1 text-base text-text")}>テーマ</h3>
           <p className="text-xs text-text-dim">切り替えは即座に反映され、次回起動時も維持されます。</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className={styles.themeGrid}>
           {THEME_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isActive = theme === option.id;
@@ -70,29 +74,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClearAllData }
                 key={option.id}
                 type="button"
                 onClick={() => setTheme(option.id)}
-                className="flex items-center gap-3 border px-4 py-3 text-left transition-colors text-sm"
-                style={{
-                  borderColor: isActive
-                    ? "var(--ui-brand-line)"
-                    : "rgba(138, 138, 138, 0.22)",
-                  background: isActive ? "var(--ui-brand-soft, rgba(184,155,104,0.1))" : "transparent",
-                }}
+                className={styles.themeCard}
+                data-active={isActive}
                 aria-pressed={isActive}
               >
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center border"
-                  style={{
-                    borderColor: isActive ? "var(--ui-brand-line)" : "rgba(138,138,138,0.28)",
-                    color: isActive ? "var(--ui-brand-line)" : "var(--ui-text-sub)",
-                  }}
-                >
+                <span className={styles.themeIcon}>
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-text">{option.label}</span>
                     {isActive && (
-                      <span className="text-[10px] ui-text-label tracking-wider" style={{ color: "var(--ui-brand-line)" }}>
+                      <span className={cn(typography.label, styles.activeBadge)}>
                         使用中
                       </span>
                     )}
@@ -106,13 +99,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClearAllData }
       </section>
 
       {/* データ削除 */}
-      <section className="surface-panel border border-warning/30 bg-warning/5 space-y-4">
+      <section className={cn(surface.panel, styles.warningPanel, "space-y-4")}>
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-warning/30 bg-warning/10 text-warning-bright">
+          <div className={styles.warningIcon}>
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-base ui-text-heading text-text mb-1">全データ削除</h3>
+            <h3 className={cn(typography.heading, "mb-1 text-base text-text")}>全データ削除</h3>
             <p className="text-xs text-text-dim leading-relaxed">
               保存済みの記録・資料館の進捗・財布・内部統計をまとめて削除します。削除後はホームへ戻ります。
             </p>

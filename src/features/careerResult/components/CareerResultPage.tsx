@@ -22,6 +22,7 @@ import {
   type CareerWindowState,
 } from "../utils/careerResultModel";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
+import styles from "./CareerResultPage.module.css";
 
 export interface CareerResultViewState extends CareerWindowState {
   selectedBashoSeq: number | null;
@@ -140,24 +141,24 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   );
 
   return (
-    <div className="career-ledger-page">
-      <div className="career-ledger-ribbon-shell">
-        <div className="career-ledger-ribbon">
-          <div className="career-ledger-ribbon-current">
-            <div className="career-ledger-ribbon-label">{activeChapterLabel}</div>
-            <div className="career-ledger-ribbon-meta">
+    <div className={styles.page}>
+      <div className={styles.ribbonShell}>
+        <div className={styles.ribbon}>
+          <div className={styles.ribbonCurrent}>
+            <div className={styles.ribbonLabel}>{activeChapterLabel}</div>
+            <div className={styles.ribbonMeta}>
               {selectedMeta}
             </div>
           </div>
 
-          <div className="career-ledger-ribbon-track" role="tablist" aria-label="キャリア結果ナビゲーション">
+          <div className={styles.ribbonTrack} role="tablist" aria-label="キャリア結果ナビゲーション">
             {CHAPTERS.map((chapter) => {
               const Icon = chapter.icon;
               return (
                 <button
                   key={chapter.id}
                   type="button"
-                  className="career-ledger-ribbon-tab disabled:cursor-not-allowed disabled:opacity-40"
+                  className={styles.ribbonTab}
                   data-active={viewState.activeChapter === chapter.id}
                   disabled={!canReadDetails && chapter.id !== "encyclopedia"}
                   onClick={() => setChapter(chapter.id)}
@@ -172,7 +173,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="career-ledger-ribbon-mobile-toggle"
+            className={styles.mobileToggle}
             onClick={() => setMobileNavOpen((current) => !current)}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -182,24 +183,24 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         <AnimatePresence initial={false}>
           {mobileNavOpen ? (
             <motion.div
-              className="career-ledger-ribbon-drawer"
+              className={styles.drawer}
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.16, ease: "easeOut" }}
             >
-              <div className="career-ledger-ribbon-drawer-current">
+              <div className={styles.drawerCurrent}>
                 <div>{selectedPoint?.bashoLabel ?? "-"}</div>
                 <div>{selectedPoint?.rankLabel ?? highestRankLabel}</div>
               </div>
-              <div className="career-ledger-ribbon-drawer-list">
+              <div className={styles.drawerList}>
                 {CHAPTERS.map((chapter) => {
                   const Icon = chapter.icon;
                   return (
                     <button
                       key={`mobile-${chapter.id}`}
                       type="button"
-                      className="career-ledger-ribbon-drawer-tab disabled:cursor-not-allowed disabled:opacity-40"
+                      className={styles.drawerTab}
                       data-active={viewState.activeChapter === chapter.id}
                       disabled={!canReadDetails && chapter.id !== "encyclopedia"}
                       onClick={() => setChapter(chapter.id)}
@@ -215,16 +216,16 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         </AnimatePresence>
       </div>
 
-      <div ref={chapterRef} className="career-ledger-body">
+      <div ref={chapterRef} className={styles.body}>
         <AnimatePresence mode="wait" initial={false}>
           {viewState.activeChapter === "encyclopedia" ? (
             <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
-              <section className="career-ledger-reading-note">
-                <div className="career-ledger-reading-kicker">閲覧ガイド</div>
-                <div className="career-ledger-reading-title">
+              <section className={styles.readingNote}>
+                <div className={styles.readingKicker}>閲覧ガイド</div>
+                <div className={styles.readingTitle}>
                   {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
                 </div>
-                <p className="career-ledger-reading-copy">
+                <p className={styles.readingCopy}>
                   {canReadDetails
                     ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
                     : detailLoadingLabel}
@@ -262,8 +263,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
           ) : null}
 
           {viewState.activeChapter === "place" && canReadDetails ? (
-            <motion.div key="place" className="career-ledger-split" {...chapterTransition}>
-              <div className="career-ledger-mainpane">
+            <motion.div key="place" className={styles.split} {...chapterTransition}>
+              <div className={styles.mainPane}>
                 <CareerPlaceChapter
                   ledger={ledger}
                   point={selectedPoint}
@@ -277,14 +278,14 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                   onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
                 />
               </div>
-              <aside className="career-ledger-sidepane">
+              <aside className={styles.sidePane}>
                 {selectedNpc ? (
                   <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
                 ) : (
-                  <div className="career-ledger-sideempty">
-                    <div className="career-ledger-sideempty-kicker">補助欄</div>
-                    <div className="career-ledger-sideempty-title">近傍力士を開く</div>
-                    <p>番付や取組に表示される力士名を選ぶと、この場所で接していた相手の略歴を右側に表示します。</p>
+                  <div className={styles.sideEmpty}>
+                    <div className={styles.sideEmptyKicker}>補助欄</div>
+                    <div className={styles.sideEmptyTitle}>近傍力士を開く</div>
+                    <p className={styles.sideEmptyCopy}>番付や取組に表示される力士名を選ぶと、この場所で接していた相手の略歴を右側に表示します。</p>
                   </div>
                 )}
               </aside>
@@ -292,10 +293,10 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
           ) : null}
 
           {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
-            <motion.section key="detail-lock" className="career-ledger-reading-note" {...chapterTransition}>
-              <div className="career-ledger-reading-kicker">記録整理中</div>
-              <div className="career-ledger-reading-title">詳細章はまだ開けません。</div>
-              <p className="career-ledger-reading-copy">{detailLoadingLabel}</p>
+            <motion.section key="detail-lock" className={styles.readingNote} {...chapterTransition}>
+              <div className={styles.readingKicker}>記録整理中</div>
+              <div className={styles.readingTitle}>詳細章はまだ開けません。</div>
+              <p className={styles.readingCopy}>{detailLoadingLabel}</p>
             </motion.section>
           ) : null}
         </AnimatePresence>

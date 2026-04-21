@@ -1,5 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { cn } from "../../../shared/lib/cn";
+import typography from "../../../shared/styles/typography.module.css";
 
 interface LiveHoshitoriGridProps {
   day: number | null;
@@ -71,7 +73,7 @@ export const LiveHoshitoriGrid: React.FC<LiveHoshitoriGridProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase">
+        <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase")}>
           星取
         </div>
         <div className="flex items-center gap-2 text-[11px]">

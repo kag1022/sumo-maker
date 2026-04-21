@@ -2,7 +2,11 @@ import React from "react";
 import { Archive, Search, Star, Trash2 } from "lucide-react";
 import { resolveCareerRecordBadgeLabel } from "../../../logic/career/clearScore";
 import { Rank } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
+import styles from "./ArchiveScreen.module.css";
 
 interface ArchiveItem {
   id: string;
@@ -115,14 +119,14 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
   }, [selectedId, selectedItem]);
 
   return (
-    <div className="archive-ledger-layout">
-      <section className="archive-ledger-filter surface-panel space-y-4">
+    <div className={styles.layout}>
+      <section className={cn(surface.panel, "space-y-4")}>
         <div>
-          <div className="record-page-kicker">私設書架</div>
-          <div className="panel-title">書架の索引</div>
+          <div className={typography.kicker}>私設書架</div>
+          <div className={typography.panelTitle}>書架の索引</div>
         </div>
 
-        <div className="search-field">
+        <div className={styles.searchField}>
           <Search className="h-4 w-4 text-text-faint" />
           <input
             value={keyword}
@@ -149,7 +153,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             <button
               key={entry.id}
               type="button"
-              className="filter-chip"
+              className={styles.filterChip}
               data-active={filter === entry.id}
               onClick={() => setFilter(entry.id)}
             >
@@ -160,7 +164,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         </div>
 
         <div className="space-y-2 border-t border-line pt-3">
-          <div className="panel-title">並び順</div>
+          <div className={typography.panelTitle}>並び順</div>
           <div className="space-y-2">
             {[
               { id: "RECENT" as const, label: "新しい順" },
@@ -169,7 +173,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               <button
                 key={entry.id}
                 type="button"
-                className="filter-chip"
+                className={styles.filterChip}
                 data-active={sortBy === entry.id}
                 onClick={() => setSortBy(entry.id)}
               >
@@ -180,44 +184,44 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         </div>
       </section>
 
-      <section className="archive-ledger-shelf surface-panel min-w-0">
-        <div className="archive-ledger-shelf-head">
+      <section className={cn(surface.panel, "min-w-0")}>
+        <div className={styles.shelfHead}>
           <div>
-            <div className="record-page-kicker">保存した人生</div>
-            <div className="panel-title">保存済み記録</div>
+            <div className={typography.kicker}>保存した人生</div>
+            <div className={typography.panelTitle}>保存済み記録</div>
             <div className="text-sm text-text-dim">書架から一冊選ぶと、右側に開きかけの記録帳を表示します。</div>
           </div>
           <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
         </div>
 
         {filteredItems.length === 0 ? (
-          <div className="empty-state min-h-[320px]">
+          <div className={cn(surface.emptyState, "min-h-[320px]")}>
             <Archive className="h-10 w-10" />
-            <div className="empty-state-title">条件に合う保存済み記録はありません</div>
+            <div className={surface.emptyStateTitle}>条件に合う保存済み記録はありません</div>
           </div>
         ) : (
-          <div className="archive-ledger-shelf-list">
+          <div className={styles.shelfList}>
             {filteredItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className="archive-ledger-card"
+                className={styles.card}
                 data-active={selectedItem?.id === item.id}
                 onClick={() => setSelectedId(item.id)}
               >
-                <div className="archive-ledger-card-head">
+                <div className={styles.cardHead}>
                   <div>
-                    <div className="archive-ledger-card-title">{item.shikona}</div>
-                    <div className="archive-ledger-card-label">{resolveArchiveLabel(item)}</div>
+                    <div className={styles.cardTitle}>{item.shikona}</div>
+                    <div className={styles.cardLabel}>{resolveArchiveLabel(item)}</div>
                   </div>
-                  <div className="archive-ledger-card-date">{toDateText(item.savedAt || item.updatedAt)}</div>
+                  <div className={styles.cardDate}>{toDateText(item.savedAt || item.updatedAt)}</div>
                 </div>
-                <div className="archive-ledger-card-meta">
+                <div className={styles.cardMeta}>
                   <span>{formatRankName(item.maxRank)}</span>
                   <span>{item.yushoCount.makuuchi}回</span>
                   <span>{item.clearScore ?? 0}点</span>
                 </div>
-                <div className="archive-ledger-card-record">
+                <div className={styles.cardRecord}>
                   {item.totalWins}勝 {item.totalLosses}敗{item.totalAbsent > 0 ? ` ${item.totalAbsent}休` : ""}
                 </div>
               </button>
@@ -226,47 +230,47 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         )}
       </section>
 
-      <section className="archive-ledger-detail surface-panel space-y-4">
+      <section className={cn(surface.panel, styles.detailPanel, "space-y-4")}>
         <div>
-          <div className="record-page-kicker">閲覧面</div>
-          <div className="panel-title">開きかけの記録帳</div>
+          <div className={typography.kicker}>閲覧面</div>
+          <div className={typography.panelTitle}>開きかけの記録帳</div>
         </div>
 
         {selectedItem ? (
           <>
-            <div className="archive-ledger-detail-head">
-              <div className="archive-ledger-detail-chip">
+            <div className={styles.detailHead}>
+              <div className={styles.detailChip}>
                 <Star className="h-3.5 w-3.5" />
                 {resolveArchiveLabel(selectedItem)}
               </div>
-              <div className="archive-ledger-detail-title">{selectedItem.shikona}</div>
-              <div className="archive-ledger-detail-subtitle">
+              <div className={styles.detailTitle}>{selectedItem.shikona}</div>
+              <div className={styles.detailSubtitle}>
                 最高位 {formatRankName(selectedItem.maxRank)}
                 {selectedItem.title ? ` / ${selectedItem.title}` : ""}
               </div>
             </div>
 
-            <div className="archive-ledger-metrics">
-              <div className="archive-ledger-metric">
-                <div className="archive-ledger-metric-label">総評点</div>
-                <div className="archive-ledger-metric-value">{selectedItem.clearScore ?? 0}</div>
+            <div className={styles.metrics}>
+              <div className={styles.metric}>
+                <div className={styles.metricLabel}>総評点</div>
+                <div className={styles.metricValue}>{selectedItem.clearScore ?? 0}</div>
               </div>
-              <div className="archive-ledger-metric">
-                <div className="archive-ledger-metric-label">通算成績</div>
-                <div className="archive-ledger-metric-value">
+              <div className={styles.metric}>
+                <div className={styles.metricLabel}>通算成績</div>
+                <div className={styles.metricValue}>
                   {selectedItem.totalWins}勝 {selectedItem.totalLosses}敗
                 </div>
               </div>
-              <div className="archive-ledger-metric">
-                <div className="archive-ledger-metric-label">幕内優勝</div>
-                <div className="archive-ledger-metric-value">{selectedItem.yushoCount.makuuchi}回</div>
+              <div className={styles.metric}>
+                <div className={styles.metricLabel}>幕内優勝</div>
+                <div className={styles.metricValue}>{selectedItem.yushoCount.makuuchi}回</div>
               </div>
             </div>
 
             {!!selectedItem.recordBadgeKeys?.length && (
-              <div className="archive-ledger-badges">
+              <div className={styles.badges}>
                 {selectedItem.recordBadgeKeys.slice(0, 3).map((badgeKey) => (
-                  <span key={badgeKey} className="report-pill" data-tone="state">
+                  <span key={badgeKey} className={styles.pill} data-tone="state">
                     {resolveCareerRecordBadgeLabel(
                       badgeKey as Parameters<typeof resolveCareerRecordBadgeLabel>[0],
                     )}
@@ -275,24 +279,24 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               </div>
             )}
 
-            <div className="archive-ledger-detail-rows">
-              <div className="info-row">
+            <div className={styles.detailRows}>
+              <div className={styles.infoRow}>
                 <span>在位期間</span>
                 <span>
                   {selectedItem.careerStartYearMonth} 〜 {selectedItem.careerEndYearMonth || "現在"}
                 </span>
               </div>
-              <div className="info-row">
+              <div className={styles.infoRow}>
                 <span>保存日</span>
                 <span>{toDateText(selectedItem.savedAt || selectedItem.updatedAt)}</span>
               </div>
-              <div className="info-row">
+              <div className={styles.infoRow}>
                 <span>休場</span>
                 <span>{selectedItem.totalAbsent}休</span>
               </div>
             </div>
 
-            <div className="archive-ledger-detail-actions">
+            <div className={styles.actions}>
               <Button className="w-full" onClick={() => onOpen(selectedItem.id)}>
                 この記録を開く
               </Button>
@@ -311,9 +315,9 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             </div>
           </>
         ) : (
-          <div className="empty-state min-h-[240px]">
+          <div className={cn(surface.emptyState, "min-h-[240px]")}>
             <Archive className="h-10 w-10" />
-            <div className="empty-state-title">まだ保存済み記録がありません</div>
+            <div className={surface.emptyStateTitle}>まだ保存済み記録がありません</div>
           </div>
         )}
       </section>

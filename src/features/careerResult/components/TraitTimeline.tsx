@@ -1,6 +1,7 @@
 import React from "react";
 import type { TraitAwakening } from "../../../logic/models";
 import { CONSTANTS } from "../../../logic/constants";
+import styles from "./TraitTimeline.module.css";
 
 interface TraitTimelineProps {
   traitAwakenings: TraitAwakening[];
@@ -73,19 +74,19 @@ export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, t
   if (items.length === 0) return null;
 
   return (
-    <div className="tt-root">
+    <div className={styles.root}>
       {/* ── ヘッダー ── */}
-      <div className="tt-header">
-        <span className="tt-title">特性の習得タイミング</span>
-        <div className="tt-legend">
+      <div className={styles.header}>
+        <span className={styles.title}>特性の習得タイミング</span>
+        <div className={styles.legend}>
           {(Object.keys(CAT_MAP) as Category[]).map((cat) => {
             const count = catCounts[cat];
             if (count === 0) return null;
             return (
-              <span key={cat} className="tt-legend-item">
-                <span className="tt-legend-dot" style={{ background: CAT_MAP[cat].color }} />
+              <span key={cat} className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: CAT_MAP[cat].color }} />
                 {CAT_MAP[cat].label}
-                <span className="tt-legend-count">{count}</span>
+                <span className={styles.legendCount}>{count}</span>
               </span>
             );
           })}
@@ -93,14 +94,14 @@ export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, t
       </div>
 
       {/* ── タイムライン軸 ── */}
-      <div className="tt-axis-shell">
+      <div className={styles.axisShell}>
         {/* 番号付きピン */}
-        <div className="tt-pins">
+        <div className={styles.pins}>
           {items.map((item) => (
             <button
               key={item.idx}
               type="button"
-              className="tt-pin"
+              className={styles.pin}
               data-active={hoveredIdx === item.idx}
               style={{
                 left: `${item.pct}%`,
@@ -117,15 +118,15 @@ export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, t
           ))}
         </div>
         {/* 軸線 */}
-        <div className="tt-axis-line" />
+        <div className={styles.axisLine} />
         {/* 目盛り */}
-        <div className="tt-ticks">
+        <div className={styles.ticks}>
           {ticks.map((tick) => {
             const tickPct = totalBasho > 0 ? (tick / totalBasho) * 100 : 0;
             return (
-              <div key={tick} className="tt-tick" style={{ left: `${tickPct}%` }}>
-                <span className="tt-tick-mark" />
-                <span className="tt-tick-label">{tick}</span>
+              <div key={tick} className={styles.tick} style={{ left: `${tickPct}%` }}>
+                <span className={styles.tickMark} />
+                <span className={styles.tickLabel}>{tick}</span>
               </div>
             );
           })}
@@ -133,32 +134,32 @@ export const TraitTimeline: React.FC<TraitTimelineProps> = ({ traitAwakenings, t
       </div>
 
       {/* ── 特性リスト ── */}
-      <div className="tt-list">
+      <div className={styles.list}>
         {items.map((item) => {
           const cat = CAT_MAP[item.category];
           const isHovered = hoveredIdx === item.idx;
           return (
             <div
               key={item.idx}
-              className="tt-row"
+              className={styles.row}
               data-active={isHovered}
               onMouseEnter={() => setHoveredIdx(item.idx)}
               onMouseLeave={() => setHoveredIdx(null)}
             >
-              <span className="tt-row-num" style={{ background: cat.color }}>
+              <span className={styles.rowNum} style={{ background: cat.color }}>
                 {item.idx}
               </span>
-              <div className="tt-row-main">
-                <div className="tt-row-top">
-                  <span className="tt-row-name">{item.traitName}</span>
-                  <span className="tt-row-meta">
-                    <span className="tt-row-cat" style={{ color: cat.color }}>{cat.label}</span>
-                    <span className="tt-row-rarity">{item.rarity}</span>
-                    <span className="tt-row-basho">{item.awakening.bashoSeq}場所目</span>
+              <div className={styles.rowMain}>
+                <div className={styles.rowTop}>
+                  <span className={styles.rowName}>{item.traitName}</span>
+                  <span className={styles.rowMeta}>
+                    <span className={styles.rowCat} style={{ color: cat.color }}>{cat.label}</span>
+                    <span className={styles.rowRarity}>{item.rarity}</span>
+                    <span className={styles.rowBasho}>{item.awakening.bashoSeq}場所目</span>
                   </span>
                 </div>
                 {item.description && (
-                  <p className="tt-row-desc">{item.description}</p>
+                  <p className={styles.rowDesc}>{item.description}</p>
                 )}
               </div>
             </div>
