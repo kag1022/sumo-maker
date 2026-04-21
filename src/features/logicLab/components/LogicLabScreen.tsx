@@ -4,6 +4,9 @@ import { Rank } from '../../../logic/models';
 import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
 import { useLogicLabStore } from '../store/logicLabStore';
 import { LogicLabBashoLogRow, LogicLabStopReason } from '../types';
+import { cn } from '../../../shared/lib/cn';
+import surface from '../../../shared/styles/surface.module.css';
+import typography from '../../../shared/styles/typography.module.css';
 import { CaptionText, Heading, MetricText } from '../../../shared/ui/Typography';
 import { Activity, ScrollText, Sparkles, RefreshCw, Trash2, Trophy, AlertTriangle, ChevronDown } from "lucide-react";
 
@@ -127,14 +130,14 @@ export const LogicLabScreen: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <section className="surface-panel overflow-hidden relative p-6 border-t-4 border-gold shadow-2xl">
+      <section className={cn(surface.panel, "overflow-hidden relative p-6 border-t-4 border-gold shadow-2xl")}>
         <div className="absolute inset-0 bg-gradient-to-r from-gold/5 via-transparent to-transparent pointer-events-none" />
         <div className="flex flex-wrap items-end justify-between gap-4 relative z-10">
           <div className="space-y-1">
-            <div className="ui-text-label text-[10px] text-gold/60 uppercase tracking-widest">
+            <div className={cn(typography.label, "text-[10px] text-gold/60 uppercase tracking-widest")}>
               内部論理検証環境 - LOGIC PROVING GROUND
             </div>
-            <Heading as="h2" className="text-2xl sm:text-3xl ui-text-heading text-text tracking-tighter">
+            <Heading as="h2" className="text-2xl sm:text-3xl text-text tracking-tighter">
               八百萬ロジックラボ
             </Heading>
             <CaptionText as="p" className="text-text-dim text-xs italic">
@@ -142,7 +145,7 @@ export const LogicLabScreen: React.FC = () => {
             </CaptionText>
           </div>
           <div className="flex items-center gap-3">
-            <div className={`px-3 py-1.5 border ui-text-label text-[11px] font-bold shadow-inner ${phase === 'running' ? 'border-hp/40 bg-hp/10 text-hp animate-pulse' : 'border-gold-muted/30 bg-bg-panel/50 text-text-dim'}`}>
+            <div className={cn(typography.label, `px-3 py-1.5 border text-[11px] font-bold shadow-inner ${phase === 'running' ? 'border-hp/40 bg-hp/10 text-hp animate-pulse' : 'border-gold-muted/30 bg-bg-panel/50 text-text-dim'}`)}>
               <Activity className={`w-3.5 h-3.5 inline mr-2 ${phase === 'running' ? 'animate-spin' : ''}`} />
               LAB STATE: {formatPhase(phase)}
             </div>
@@ -152,15 +155,15 @@ export const LogicLabScreen: React.FC = () => {
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-4">
-          <div className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/40">
-            <div className="flex items-center gap-2 text-gold/60 mb-2 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+          <div className={cn(surface.panel, "p-5 space-y-4 border-gold/10 bg-bg-panel/40")}>
+            <div className={cn(typography.label, "flex items-center gap-2 text-gold/60 mb-2 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px]")}>
               <ScrollText className="w-3.5 h-3.5" />
               環境構成 - Configuration
             </div>
             
             <div className="space-y-4">
               <label className="block space-y-2">
-                <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">シナリオ・プリセット</span>
+                <span className={cn(typography.label, "text-[10px] text-text-dim uppercase tracking-tighter")}>シナリオ・プリセット</span>
                 <select
                   value={presetId}
                   onChange={(event) => setPresetId(event.target.value as typeof presetId)}
@@ -173,11 +176,11 @@ export const LogicLabScreen: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <label className="block space-y-2">
-                  <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">初期種子 (Seed)</span>
+                  <span className={cn(typography.label, "text-[10px] text-text-dim uppercase tracking-tighter")}>初期種子 (Seed)</span>
                   <input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} className="w-full border border-gold/20 bg-bg/60 text-text px-3 py-2 text-sm focus:border-gold focus:outline-none transition-all shadow-inner font-mono" disabled={autoPlay} />
                 </label>
                 <label className="block space-y-2">
-                  <span className="text-[10px] ui-text-label text-text-dim uppercase tracking-tighter">最大刻み (Basho)</span>
+                  <span className={cn(typography.label, "text-[10px] text-text-dim uppercase tracking-tighter")}>最大刻み (Basho)</span>
                   <input value={maxBashoInput} onChange={(event) => setMaxBashoInput(event.target.value)} className="w-full border border-gold/20 bg-bg/60 text-text px-3 py-2 text-sm focus:border-gold focus:outline-none transition-all shadow-inner font-mono" disabled={autoPlay} />
                 </label>
               </div>
@@ -190,46 +193,46 @@ export const LogicLabScreen: React.FC = () => {
         </div>
 
         <div className="lg:col-span-8 space-y-4">
-          <div className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/40 flex flex-col justify-between h-full">
-            <div className="flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+          <div className={cn(surface.panel, "p-5 space-y-4 border-gold/10 bg-bg-panel/40 flex flex-col justify-between h-full")}>
+            <div className={cn(typography.label, "flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px]")}>
               <Sparkles className="w-3.5 h-3.5" />
               計器操作 - Cockpit
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <button onClick={() => void startRun()} className="surface-card flex flex-col items-center justify-center p-4 border-gold/30 hover:border-gold bg-gold/5 text-gold group transition-all">
+              <button onClick={() => void startRun()} className={cn(surface.card, surface.interactiveCard, "flex flex-col items-center justify-center p-4 border-gold/30 hover:border-gold bg-gold/5 text-gold group transition-all")}>
                 <Activity className="w-6 h-6 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">開始</span>
+                <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>開始</span>
               </button>
               <button 
                 onClick={() => void stepOne()} 
                 disabled={autoPlay} 
-                className={`surface-card flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`}
+                className={cn(surface.card, surface.interactiveCard, `flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`)}
               >
                 <ChevronDown className="w-6 h-6 mb-2" />
-                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">1場所進む</span>
+                <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>1場所進む</span>
               </button>
               {!autoPlay ? (
-                <button onClick={() => void startAutoPlay()} className="surface-card flex flex-col items-center justify-center p-4 border-action/30 hover:border-action bg-action/5 text-action group transition-all">
+                <button onClick={() => void startAutoPlay()} className={cn(surface.card, surface.interactiveCard, "flex flex-col items-center justify-center p-4 border-action/30 hover:border-action bg-action/5 text-action group transition-all")}>
                   <RefreshCw className="w-6 h-6 mb-2 group-hover:rotate-180 transition-transform duration-700" />
-                  <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">自動再生</span>
+                  <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>自動再生</span>
                 </button>
               ) : (
-                <button onClick={pauseAutoPlay} className="surface-card flex flex-col items-center justify-center p-4 border-crimson/30 hover:border-crimson bg-crimson/10 text-crimson animate-pulse group">
+                <button onClick={pauseAutoPlay} className={cn(surface.card, surface.interactiveCard, "flex flex-col items-center justify-center p-4 border-crimson/30 hover:border-crimson bg-crimson/10 text-crimson animate-pulse group")}>
                   <AlertTriangle className="w-6 h-6 mb-2 group-hover:scale-90 transition-transform" />
-                  <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">停止</span>
+                  <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>停止</span>
                 </button>
               )}
               <button 
                 onClick={() => void runToEnd()} 
                 disabled={autoPlay} 
-                className={`surface-card flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`}
+                className={cn(surface.card, surface.interactiveCard, `flex flex-col items-center justify-center p-4 transition-all ${autoPlay ? 'opacity-30 grayscale cursor-not-allowed' : 'border-gold-muted/20 hover:border-gold/40 text-text-dim hover:text-text'}`)}
               >
                 <Trophy className="w-6 h-6 mb-2" />
-                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">最後まで</span>
+                <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>最後まで</span>
               </button>
-              <button onClick={resetRun} className="surface-card flex flex-col items-center justify-center p-4 border-gold-muted/10 hover:border-crimson/40 text-text-faint hover:text-crimson transition-all">
+              <button onClick={resetRun} className={cn(surface.card, surface.interactiveCard, "flex flex-col items-center justify-center p-4 border-gold-muted/10 hover:border-crimson/40 text-text-faint hover:text-crimson transition-all")}>
                 <Trash2 className="w-6 h-6 mb-2" />
-                <span className="text-[10px] ui-text-label uppercase tracking-widest font-bold">リセット</span>
+                <span className={cn(typography.label, "text-[10px] uppercase tracking-widest font-bold")}>リセット</span>
               </button>
             </div>
             
@@ -251,9 +254,9 @@ export const LogicLabScreen: React.FC = () => {
           { label: "負傷・欠場", val: stats.injury, color: "text-text", icon: <Activity className="w-3.5 h-3.5" /> },
           { label: "本場所優勝", val: stats.yusho, color: "text-gold", icon: <Sparkles className="w-3.5 h-3.5" /> },
         ].map(s => (
-          <div key={s.label} className="surface-card p-4 border-gold-muted/10 bg-bg-panel/20 flex items-center justify-between group hover:border-gold/20 transition-all">
+          <div key={s.label} className={cn(surface.card, surface.interactiveCard, "p-4 border-gold-muted/10 bg-bg-panel/20 flex items-center justify-between group hover:border-gold/20 transition-all")}>
             <div className="space-y-1">
-              <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter group-hover:text-text-dim transition-colors">{s.label}</div>
+              <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter group-hover:text-text-dim transition-colors")}>{s.label}</div>
               <MetricText as="div" className={`text-xl ${s.color}`}>{s.val}</MetricText>
             </div>
             <div className="opacity-20 group-hover:opacity-60 transition-opacity">{s.icon}</div>
@@ -262,9 +265,9 @@ export const LogicLabScreen: React.FC = () => {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7 rpg-panel p-4 space-y-2">
+        <div className={cn(surface.rpgPanel, "lg:col-span-7 p-4 space-y-2")}>
           <div className="flex flex-wrap gap-2 items-center justify-between">
-            <p className="section-header">場所ログ</p>
+            <p className={typography.sectionHeader}>場所ログ</p>
             <div className="flex flex-wrap gap-2">
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="検索" className="border-2 border-gold-muted px-2 py-1 text-xs bg-bg shadow-[inset_0_0_4px_rgba(0,0,0,0.5)] focus:outline-none focus:border-gold transition-none" />
               <button onClick={() => setDesc((v) => !v)} className="border-2 border-gold-muted px-2 py-1 text-xs font-bold hover:border-gold hover:bg-gold/10 transition-none">{desc ? '新しい順' : '古い順'}</button>
@@ -297,8 +300,8 @@ export const LogicLabScreen: React.FC = () => {
         </div>
 
         <div className="lg:col-span-5 space-y-4">
-          <div className="surface-panel p-5 border-gold/10 bg-bg-panel/40 h-full flex flex-col">
-            <div className="flex items-center gap-2 text-gold/60 mb-4 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+          <div className={cn(surface.panel, "p-5 border-gold/10 bg-bg-panel/40 h-full flex flex-col")}>
+            <div className={cn(typography.label, "flex items-center gap-2 text-gold/60 mb-4 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px]")}>
               <ScrollText className="w-3.5 h-3.5" />
               明細解析 - Detailed Analysis
             </div>
@@ -309,12 +312,12 @@ export const LogicLabScreen: React.FC = () => {
               </div>
             ) : (
               <div className="flex-1 space-y-6 animate-in fade-in slide-in-from-right-2">
-                <div className="surface-card p-4 border-gold/20 bg-bg/40 relative overflow-hidden group">
+                <div className={cn(surface.card, surface.interactiveCard, "p-4 border-gold/20 bg-bg/40 relative overflow-hidden group")}>
                   <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Trophy className="w-12 h-12" />
                   </div>
-                  <div className="ui-text-label text-[9px] text-gold/60 uppercase tracking-tighter mb-1 select-none">場所・時刻</div>
-                  <div className="text-lg ui-text-heading text-text">{selectedRow.year}年 {selectedRow.month}月場所</div>
+                  <div className={cn(typography.label, "text-[9px] text-gold/60 uppercase tracking-tighter mb-1 select-none")}>場所・時刻</div>
+                  <div className={cn(typography.heading, "text-lg text-text")}>{selectedRow.year}年 {selectedRow.month}月場所</div>
                   <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gold/10 pt-4">
                     <InfoField label="始点番付" value={formatRankName(selectedRow.rankBefore)} />
                     <InfoField label="終点番付" value={formatRankName(selectedRow.rankAfter)} tone="gold" />
@@ -324,14 +327,14 @@ export const LogicLabScreen: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-4">
                     <section className="space-y-2">
-                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">取組成績</div>
+                      <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1")}>取組成績</div>
                       <div className="text-sm font-bold text-text">
                         {formatRecord(selectedRow.record.wins, selectedRow.record.losses, selectedRow.record.absent)}
                         {selectedRow.record.yusho && <span className="text-gold ml-2">★ 優勝成就</span>}
                       </div>
                     </section>
                     <section className="space-y-2">
-                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">番付編成理由</div>
+                      <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1")}>番付編成理由</div>
                       <div className="text-[10px] text-text-dim leading-relaxed italic">
                         {selectedRow.banzukeReasons.length ? selectedRow.banzukeReasons.join(' / ') : '特記事項なし'}
                       </div>
@@ -339,7 +342,7 @@ export const LogicLabScreen: React.FC = () => {
                   </div>
                   <div className="space-y-4">
                     <section className="space-y-2">
-                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">健康・コンディション</div>
+                      <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1")}>健康・コンディション</div>
                       <div className="text-[10px] text-text-dim">
                         怪我度: Lv{selectedRow.injurySummary.injuryLevel}
                         <div className="mt-1 flex items-center gap-1">
@@ -349,7 +352,7 @@ export const LogicLabScreen: React.FC = () => {
                       </div>
                     </section>
                     <section className="space-y-2">
-                      <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1">NPC環境文脈</div>
+                      <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter border-b border-gold-muted/10 pb-1")}>NPC環境文脈</div>
                       <div className="text-[10px] text-text-dim">
                         同階級NPC: {selectedRow.npcContext ? `${selectedRow.npcContext.rows.length}件` : '記録なし'}
                       </div>
@@ -377,12 +380,12 @@ export const LogicLabScreen: React.FC = () => {
       </section>
 
       {summary && (
-        <section className="surface-panel p-6 border-gold/10 bg-gradient-to-r from-bg-panel/40 to-transparent flex flex-wrap items-center justify-between gap-6 animate-in slide-in-from-bottom-4">
+        <section className={cn(surface.panel, "p-6 border-gold/10 bg-gradient-to-r from-bg-panel/40 to-transparent flex flex-wrap items-center justify-between gap-6 animate-in slide-in-from-bottom-4")}>
           <div className="flex items-center gap-4 border-r border-gold/10 pr-6">
-            <div className="ui-text-label text-[10px] text-gold/60 uppercase vertical-rl tracking-widest hidden sm:block">CURRENT STATE</div>
+            <div className={cn(typography.label, "text-[10px] text-gold/60 uppercase vertical-rl tracking-widest hidden sm:block")}>CURRENT STATE</div>
             <div className="space-y-1">
-              <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">現在 / 最高</div>
-              <div className="text-xl ui-text-metric text-gold uppercase tracking-tighter">
+              <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter")}>現在 / 最高</div>
+              <div className={cn(typography.metric, "text-xl text-gold uppercase tracking-tighter")}>
                 {formatRankName(summary.currentRank)} <span className="text-text-faint mx-2 opacity-30">/</span> {formatRankName(summary.maxRank)}
               </div>
             </div>
@@ -398,15 +401,15 @@ export const LogicLabScreen: React.FC = () => {
             <MetricSmall label="終了因" value={formatStopReason(summary.stopReason)} tone="dim" />
           </div>
           
-          <div className="p-2 border border-gold-muted/20 bg-bg-panel/20 text-[9px] ui-text-label text-text-faint tracking-widest">
+          <div className={cn(typography.label, "p-2 border border-gold-muted/20 bg-bg-panel/20 text-[9px] text-text-faint tracking-widest")}>
             LOGIC LAB VERIFICATION PASSED
           </div>
         </section>
       )}
 
       {summary && (
-        <section className="surface-panel p-5 space-y-4 border-gold/10 bg-bg-panel/30 animate-in fade-in">
-          <div className="flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px] ui-text-label">
+        <section className={cn(surface.panel, "p-5 space-y-4 border-gold/10 bg-bg-panel/30 animate-in fade-in")}>
+          <div className={cn(typography.label, "flex items-center gap-2 text-gold/60 border-b border-gold/10 pb-2 uppercase tracking-widest text-[10px]")}>
             <Activity className="w-3.5 h-3.5" />
             時間統計 - Timing
           </div>
@@ -418,9 +421,9 @@ export const LogicLabScreen: React.FC = () => {
               { label: '保守処理', key: 'post_basho_maintenance' as const },
               { label: '後処理', key: 'postprocess' as const },
             ].map((item) => (
-              <div key={item.key} className="surface-card p-4 border-gold-muted/10 bg-bg-panel/20 space-y-1">
-                <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">{item.label}</div>
-                <div className="text-base ui-text-metric text-text">{formatDuration(summary.phaseTotalsMs[item.key])}</div>
+              <div key={item.key} className={cn(surface.card, "p-4 border-gold-muted/10 bg-bg-panel/20 space-y-1")}>
+                <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter")}>{item.label}</div>
+                <div className={cn(typography.metric, "text-base text-text")}>{formatDuration(summary.phaseTotalsMs[item.key])}</div>
                 <div className="text-[10px] text-text-dim">{formatShare(summary.phaseShare[item.key])}</div>
               </div>
             ))}
@@ -433,14 +436,14 @@ export const LogicLabScreen: React.FC = () => {
 
 const InfoField: React.FC<{ label: string; value: string; tone?: 'gold' | 'dim' }> = ({ label, value, tone }) => (
   <div className="space-y-1">
-    <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter">{label}</div>
+    <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter")}>{label}</div>
     <div className={`text-sm font-bold ${tone === 'gold' ? 'text-gold' : 'text-text-dim'}`}>{value}</div>
   </div>
 );
 
 const MetricSmall: React.FC<{ label: string; value: string; tone?: 'dim' }> = ({ label, value, tone }) => (
   <div className="space-y-0.5 min-w-fit">
-    <div className="text-[9px] ui-text-label text-text-faint uppercase tracking-tighter opacity-60">{label}</div>
-    <div className={`text-sm ui-text-metric whitespace-nowrap ${tone === 'dim' ? 'text-text-faint' : 'text-text'}`}>{value}</div>
+    <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter opacity-60")}>{label}</div>
+    <div className={cn(typography.metric, `text-sm whitespace-nowrap ${tone === 'dim' ? 'text-text-faint' : 'text-text'}`)}>{value}</div>
   </div>
 );

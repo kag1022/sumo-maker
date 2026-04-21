@@ -14,6 +14,7 @@ import {
   shelveCareer,
   type CareerListItem,
 } from '../../../logic/persistence/careers';
+import { resetLifetimeCareerCount } from '../../../logic/persistence/lifetimeStats';
 import { PauseReason } from '../../../logic/simulation/engine';
 import {
   resolveSimulationPhaseOnCompletion,
@@ -29,6 +30,7 @@ import {
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
+import { clearStoredTheme } from '../../../shared/lib/theme';
 
 export type SimulationPhase =
   | 'idle'
@@ -460,6 +462,8 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   clearAllData: async () => {
     terminateWorker();
     await clearAllStoredData();
+    resetLifetimeCareerCount();
+    clearStoredTheme();
     set({
       phase: 'idle',
       status: null,

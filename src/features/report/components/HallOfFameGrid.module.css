@@ -1,0 +1,11 @@
+.glowGold {
+  box-shadow:
+    0 0 10px rgb(var(--twc-gold-bright) / 0.3),
+    0 0 24px rgb(var(--twc-gold-bright) / 0.1);
+}
+
+.glowRed {
+  box-shadow:
+    0 0 10px rgb(var(--twc-crimson) / 0.4),
+    0 0 20px rgb(var(--twc-crimson) / 0.15);
+}

@@ -1,6 +1,5 @@
 import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { clsx } from "clsx";
 import { type Division } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
@@ -12,6 +11,8 @@ import type {
   CareerPlaceTabId,
 } from "../utils/careerResultModel";
 import { groupNearbyRanks, listDivisionRows } from "../utils/careerResultModel";
+import styles from "./CareerPlaceChapter.module.css";
+import table from "../../../shared/styles/table.module.css";
 
 interface CareerPlaceChapterProps {
   ledger: CareerLedgerModel;
@@ -78,17 +79,16 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   const absent = point?.absent ?? 0;
 
   return (
-    <section className="career-archive-shell">
-      {/* Section header */}
-      <div className="career-archive-head">
+    <section className={styles.shell}>
+      <div className={styles.head}>
         <div>
-          <div className="career-archive-kicker">場所別</div>
-          <h2 className="career-archive-title">{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
+          <div className={styles.kicker}>場所別</div>
+          <h2 className={styles.title}>{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="place-stepper"
+            className={styles.stepper}
             onClick={() => previousPoint && onSelectBasho(previousPoint.bashoSeq)}
             disabled={!previousPoint}
           >
@@ -96,7 +96,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
           </button>
           <button
             type="button"
-            className="place-stepper"
+            className={styles.stepper}
             onClick={() => nextPoint && onSelectBasho(nextPoint.bashoSeq)}
             disabled={!nextPoint}
           >
@@ -105,8 +105,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         </div>
       </div>
 
-      {/* Place selector strip — ledger tab style */}
-      <div className="place-scroll-strip" role="list" aria-label="場所一覧">
+      <div className={styles.scrollStrip} role="list" aria-label="場所一覧">
         {nearbyPoints.map((entry) => {
           const isSelected = entry.bashoSeq === point?.bashoSeq;
           const r = RESULT_MARK[entry.wins >= entry.losses + entry.absent ? "WIN" : entry.losses > entry.wins ? "LOSS" : "ABSENT"];
@@ -115,31 +114,32 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               key={entry.bashoSeq}
               type="button"
               role="listitem"
-              className={clsx("place-basho-chip", isSelected && "selected", entry.milestoneTags.length > 0 && "event")}
+              className={styles.bashoChip}
+              data-selected={isSelected}
+              data-event={entry.milestoneTags.length > 0}
               onClick={() => onSelectBasho(entry.bashoSeq)}
             >
-              <span className="place-basho-chip-label">{entry.bashoLabel}</span>
-              <strong className="place-basho-chip-rank">{entry.rankShortLabel}</strong>
-              <span className="place-basho-chip-record" style={r.style}>{entry.recordCompactLabel}</span>
+              <span className={styles.bashoChipLabel}>{entry.bashoLabel}</span>
+              <strong className={styles.bashoChipRank}>{entry.rankShortLabel}</strong>
+              <span className={styles.bashoChipRecord} style={r.style}>{entry.recordCompactLabel}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Summary — 帳面スタイル */}
-      <div className="place-ledger-summary">
-        <div className="place-ledger-summary-inner">
-          <div className="place-ledger-row">
-            <span className="place-ledger-key">番付</span>
-            <strong className="place-ledger-val">{summary?.rankLabel ?? "—"}</strong>
+      <div className={styles.ledgerSummary}>
+        <div className={styles.ledgerSummaryInner}>
+          <div className={styles.ledgerRow}>
+            <span className={styles.ledgerKey}>番付</span>
+            <strong className={styles.ledgerValue}>{summary?.rankLabel ?? "—"}</strong>
           </div>
-          <div className="place-ledger-row">
-            <span className="place-ledger-key">成績</span>
-            <strong className="place-ledger-val">{summary?.recordLabel ?? "—"}</strong>
+          <div className={styles.ledgerRow}>
+            <span className={styles.ledgerKey}>成績</span>
+            <strong className={styles.ledgerValue}>{summary?.recordLabel ?? "—"}</strong>
           </div>
-          <div className="place-ledger-row">
-            <span className="place-ledger-key">昇降</span>
-            <strong className="place-ledger-val">{summary?.deltaLabel ?? "—"}</strong>
+          <div className={styles.ledgerRow}>
+            <span className={styles.ledgerKey}>昇降</span>
+            <strong className={styles.ledgerValue}>{summary?.deltaLabel ?? "—"}</strong>
           </div>
         </div>
         {(wins + losses + absent) > 0 && (
@@ -150,14 +150,13 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         {(summary?.milestoneTags ?? []).length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(summary?.milestoneTags ?? []).map((tag) => (
-              <span key={tag} className="place-milestone-tag">{tag}</span>
+              <span key={tag} className={styles.milestoneTag}>{tag}</span>
             ))}
           </div>
         )}
       </div>
 
-      {/* Tab strip */}
-      <div className="place-tabstrip" role="tablist" aria-label="場所別切替">
+      <div className={styles.tabStrip} role="tablist" aria-label="場所別切替">
         {(["nearby", "full", "bouts"] as CareerPlaceTabId[]).map((tab) => {
           const LABELS: Record<CareerPlaceTabId, { main: string; sub: string }> = {
             nearby: { main: "近傍番付", sub: "周辺の顔ぶれ" },
@@ -170,24 +169,24 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               type="button"
               role="tab"
               aria-selected={placeTab === tab}
-              className={clsx("place-tab", placeTab === tab && "active")}
+              className={styles.tab}
+              data-active={placeTab === tab}
               onClick={() => onPlaceTabChange(tab)}
             >
-              <span className="place-tab-main">{LABELS[tab].main}</span>
-              <span className="place-tab-sub">{LABELS[tab].sub}</span>
+              <span className={styles.tabMain}>{LABELS[tab].main}</span>
+              <span className={styles.tabSub}>{LABELS[tab].sub}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Content panel */}
       {placeTab === "nearby" || placeTab === "full" ? (
-        <div className="place-content-panel">
+        <div className={styles.contentPanel}>
           {isLoading ? (
-            <div className="career-archive-empty">読込中</div>
+            <div className={styles.empty}>読込中</div>
           ) : (placeTab === "nearby" ? nearbyRows : fullRows).length > 0 ? (
-            <div className="career-archive-scroll">
-              <table className="place-banzuke-table">
+            <div className={styles.scroll}>
+              <table className={styles.banzukeTable}>
                 <thead>
                   <tr>
                     <th>四股名</th>
@@ -204,11 +203,11 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                         ? RESULT_MARK.LOSS
                         : RESULT_MARK.ABSENT;
                     return (
-                      <tr key={`${row.entityType}-${row.entityId}`} className={isPlayer ? "place-banzuke-player" : ""}>
+                      <tr key={`${row.entityType}-${row.entityId}`} className={isPlayer ? styles.banzukePlayer : undefined}>
                         <td>
-                          <span className="place-banzuke-result-dot" style={resultMark.style}>{resultMark.symbol}</span>
+                          <span className={styles.banzukeResultDot} style={resultMark.style}>{resultMark.symbol}</span>
                           {row.entityType === "NPC" ? (
-                            <button type="button" className="table-link-button" onClick={() => onSelectNpc(row.entityId)}>
+                            <button type="button" className={table.linkButton} onClick={() => onSelectNpc(row.entityId)}>
                               {row.shikona}
                             </button>
                           ) : (
@@ -235,16 +234,15 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               </table>
             </div>
           ) : (
-            <div className="career-archive-empty">{hasPersistence ? "該当データなし" : "保存後に利用可能"}</div>
+            <div className={styles.empty}>{hasPersistence ? "該当データなし" : "保存後に利用可能"}</div>
           )}
         </div>
       ) : (
-        /* 取組一覧 — 取組帳スタイル */
-        <div className="place-content-panel">
+        <div className={styles.contentPanel}>
           {isLoading ? (
-            <div className="career-archive-empty">読込中</div>
+            <div className={styles.empty}>読込中</div>
           ) : detail?.bouts?.length ? (
-            <div className="place-bout-list">
+            <div className={styles.boutList}>
               {detail.bouts.map((bout) => {
                 const result = bout.result as BoutResult;
                 const mark = RESULT_MARK[result] ?? RESULT_MARK.ABSENT;
@@ -252,25 +250,23 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                 return (
                   <div
                     key={`${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? bout.result}`}
-                    className={clsx(
-                      "place-bout-row",
-                      importantNote && "important",
-                      result === "ABSENT" && "absent",
-                    )}
+                    className={styles.boutRow}
+                    data-important={Boolean(importantNote)}
+                    data-absence={result === "ABSENT"}
                   >
-                    <span className="place-bout-day">{bout.day}<span className="place-bout-day-unit">日</span></span>
-                    <span className="place-bout-mark" style={mark.style}>{mark.symbol}</span>
-                    <div className="place-bout-body">
-                      <div className="place-bout-opponent">
+                    <span className={styles.boutDay}>{bout.day}<span className={styles.boutDayUnit}>日</span></span>
+                    <span className={styles.boutMark} style={mark.style}>{mark.symbol}</span>
+                    <div className={styles.boutBody}>
+                      <div className={styles.boutOpponent}>
                         {bout.opponentId ? (
-                          <button type="button" className="table-link-button" onClick={() => onSelectNpc(bout.opponentId ?? null)}>
+                          <button type="button" className={table.linkButton} onClick={() => onSelectNpc(bout.opponentId ?? null)}>
                             {bout.opponentShikona ?? (result === "ABSENT" ? "休場" : "記録未詳")}
                           </button>
                         ) : (
                           <span>{bout.opponentShikona ?? (result === "ABSENT" ? "休場で取組なし" : "記録未詳")}</span>
                         )}
                         {bout.opponentRankName && point && (
-                          <span className="place-bout-rank">
+                          <span className={styles.boutRank}>
                             {formatRankDisplayName({
                               division: point.rank.division,
                               name: bout.opponentRankName,
@@ -281,10 +277,10 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                         )}
                       </div>
                       {bout.kimarite && (
-                        <span className="place-bout-kimarite">{bout.kimarite}</span>
+                        <span className={styles.boutKimarite}>{bout.kimarite}</span>
                       )}
                       {importantNote && (
-                        <p className="place-bout-note">{importantNote.summary}</p>
+                        <p className={styles.boutNote}>{importantNote.summary}</p>
                       )}
                     </div>
                   </div>
@@ -292,7 +288,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               })}
             </div>
           ) : (
-            <div className="career-archive-empty">{hasPersistence ? "取組データなし" : "保存後に利用可能"}</div>
+            <div className={styles.empty}>{hasPersistence ? "取組データなし" : "保存後に利用可能"}</div>
           )}
         </div>
       )}

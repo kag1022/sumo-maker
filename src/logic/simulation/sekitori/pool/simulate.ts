@@ -40,13 +40,11 @@ const createMakushitaParticipants = (
     .slice(0, MAKUSHITA_POOL_SIZE);
 
   return roster.map((npc) => {
-    const bashoFormDelta = true
-      ? resolveBashoFormDelta({
-        uncertainty: npc.uncertainty,
-        volatility: npc.volatility,
-        rng,
-      }).bashoFormDelta
-      : 0;
+    const bashoFormDelta = resolveBashoFormDelta({
+      uncertainty: npc.uncertainty,
+      volatility: npc.volatility,
+      rng,
+    }).bashoFormDelta;
     const seasonalPower =
       npc.basePower * npc.form + randomNoise(rng, npc.volatility) + randomNoise(rng, 0.8);
     return {

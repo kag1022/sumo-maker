@@ -1,0 +1,485 @@
+.shell {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.14);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgb(var(--twc-action) / 0.08), rgb(255 255 255 / 0.02)),
+    rgb(var(--twc-bg) / 0.9);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 18px 40px rgb(0 0 0 / 0.18);
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgb(255 255 255 / 0.03);
+  pointer-events: none;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kicker,
+.summaryKicker,
+.detailNoteLabel {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.76);
+}
+
+.title {
+  margin-top: 0.35rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.8rem, 2.4vw, 2.6rem);
+  line-height: 1.12;
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.modeBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.modeChip {
+  min-height: 34px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgb(var(--twc-line) / 0.4);
+  border-radius: 999px;
+  background: rgb(var(--twc-bg) / 0.74);
+  font-size: 0.74rem;
+  color: rgb(var(--twc-text) / 0.68);
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.modeChip[data-active="true"] {
+  border-color: rgb(var(--twc-brand) / 0.32);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.14), rgb(255 255 255 / 0.02)),
+    rgb(var(--twc-bg) / 0.84);
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.layout {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.85fr);
+}
+
+.mainPanel {
+  min-width: 0;
+}
+
+.scroll {
+  overflow-x: auto;
+  padding-bottom: 0.3rem;
+}
+
+.yearStrip {
+  display: grid;
+  grid-template-columns: 94px auto;
+  margin-bottom: 0.45rem;
+}
+
+.yearStripGutter {
+  border-right: 1px solid rgb(255 255 255 / 0.04);
+}
+
+.yearStripTrack {
+  position: relative;
+  min-height: 28px;
+}
+
+.yearLabel {
+  position: absolute;
+  top: 0;
+  padding-left: 0.5rem;
+  border-left: 1px solid rgb(var(--twc-brand) / 0.16);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.16em;
+  color: rgb(var(--twc-text-bright) / 0.62);
+}
+
+.ledger {
+  display: grid;
+}
+
+.bandLabel {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-text) / 0.72);
+}
+
+.bandTrack,
+.axisTrack {
+  position: relative;
+  overflow: visible;
+}
+
+.bandTrack {
+  min-height: 62px;
+}
+
+.axisTrack {
+  min-height: 28px;
+}
+
+.axisLabel {
+  color: rgb(var(--twc-brand) / 0.76);
+}
+
+.bandWash {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+}
+
+.bandWash[data-band="YOKOZUNA"] {
+  background: linear-gradient(90deg, rgb(var(--twc-award) / 0.18), transparent 70%);
+}
+
+.bandWash[data-band="OZEKI"] {
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.14), transparent 70%);
+}
+
+.bandWash[data-band="SEKIWAKE"],
+.bandWash[data-band="KOMUSUBI"] {
+  background: linear-gradient(90deg, rgb(var(--twc-action) / 0.12), transparent 70%);
+}
+
+.bandWash[data-band="MAEGASHIRA"] {
+  background: linear-gradient(90deg, rgb(var(--twc-state) / 0.12), transparent 70%);
+}
+
+.bandWash[data-band="JURYO"] {
+  background: linear-gradient(90deg, rgb(var(--twc-action) / 0.14), transparent 70%);
+}
+
+.bandWash[data-band="MAKUSHITA"] {
+  background: linear-gradient(90deg, rgb(var(--twc-state) / 0.14), transparent 70%);
+}
+
+.bandWash[data-band="SANDANME"] {
+  background: linear-gradient(90deg, rgb(var(--twc-brand-muted) / 0.16), transparent 70%);
+}
+
+.bandWash[data-band="JONIDAN"],
+.bandWash[data-band="JONOKUCHI"] {
+  background: linear-gradient(90deg, rgb(var(--twc-line) / 0.18), transparent 70%);
+}
+
+.bandLabel[data-band="YOKOZUNA"] {
+  color: rgb(var(--twc-award) / 0.92);
+}
+
+.bandLabel[data-band="OZEKI"] {
+  color: rgb(var(--twc-brand) / 0.88);
+}
+
+.bandLabel[data-band="SEKIWAKE"],
+.bandLabel[data-band="KOMUSUBI"] {
+  color: rgb(var(--twc-action) / 0.84);
+}
+
+.bandLabel[data-band="MAEGASHIRA"] {
+  color: rgb(var(--twc-state) / 0.8);
+}
+
+.bandLabel[data-band="JURYO"] {
+  color: rgb(var(--twc-action) / 0.76);
+}
+
+.bandLabel[data-band="MAKUSHITA"] {
+  color: rgb(var(--twc-state) / 0.74);
+}
+
+.bandLabel[data-band="SANDANME"] {
+  color: rgb(var(--twc-brand-muted) / 0.82);
+}
+
+.bandLabel[data-band="JONIDAN"],
+.bandLabel[data-band="JONOKUCHI"] {
+  color: rgb(var(--twc-text-faint) / 0.9);
+}
+
+.continuity {
+  position: absolute;
+  top: 50%;
+  height: 10px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.24), rgb(var(--twc-brand) / 0.08));
+}
+
+.chip {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  width: 50px;
+  min-height: 42px;
+  padding: 0.34rem 0.26rem 0.3rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.72), rgb(var(--twc-bg) / 0.94));
+  text-align: center;
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  color: rgb(var(--twc-text) / 0.82);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.chip:hover {
+  border-color: rgb(var(--twc-brand) / 0.38);
+  color: rgb(var(--twc-text) / 0.95);
+}
+
+.chip[data-selected="true"] {
+  border-color: rgb(var(--twc-brand) / 0.75);
+  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.34), rgb(var(--twc-bg) / 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--twc-brand) / 0.22),
+    0 0 0 1px rgb(var(--twc-brand) / 0.3);
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.chip[data-emphasis="true"] {
+  border-color: rgb(var(--twc-brand) / 0.36);
+  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.16), rgb(var(--twc-bg) / 0.96));
+}
+
+.chip[data-absence="true"] {
+  border-color: rgb(var(--twc-warning) / 0.42);
+  color: rgb(var(--twc-warning) / 0.8);
+}
+
+.chip[data-event="true"]::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  background: var(--chart-makuuchi);
+  box-shadow: 0 0 6px rgb(var(--twc-brand) / 0.4);
+}
+
+.chipBadge {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 88px;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  border-radius: 1px;
+  background: rgb(var(--twc-bg) / 0.98);
+  padding: 0.18rem 0.42rem;
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: rgb(var(--twc-text-bright) / 0.62);
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+}
+
+.chipBadge[data-emphasis="true"] {
+  border-color: rgb(var(--twc-brand) / 0.5);
+  background: rgb(var(--twc-brand-ink) / 0.96);
+  color: rgb(var(--twc-text) / 0.95);
+}
+
+.chipRank {
+  font-size: 0.7rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+.chipRecord {
+  font-size: 0.5rem;
+  line-height: 1;
+  color: rgb(var(--twc-text-bright) / 0.55);
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  color: rgb(var(--twc-text) / 0.54);
+}
+
+.detailPanel {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+  border: 1px solid rgb(var(--twc-line) / 0.4);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgb(var(--twc-action) / 0.1), rgb(255 255 255 / 0.02)),
+    rgb(var(--twc-bg) / 0.86);
+  padding: 1.05rem;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 18px 40px rgb(0 0 0 / 0.18);
+}
+
+.detailTitle {
+  margin-top: 0.2rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  line-height: 1.15;
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.detailCopy {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: rgb(var(--twc-text-bright) / 0.64);
+}
+
+.detailMetrics {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detailMetric {
+  display: grid;
+  gap: 0.22rem;
+  border: 1px solid rgb(var(--twc-line) / 0.34);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.02);
+  padding: 0.72rem 0.8rem;
+}
+
+.detailMetricLabel {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-text-bright) / 0.58);
+}
+
+.detailMetricValue {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.detailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.detailTag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  border-radius: 999px;
+  background: rgb(var(--twc-brand) / 0.08);
+  padding: 0.32rem 0.7rem;
+  font-size: 0.74rem;
+  color: rgb(var(--twc-text) / 0.86);
+}
+
+.detailNote {
+  display: grid;
+  gap: 0.35rem;
+  border-top: 1px solid rgb(255 255 255 / 0.06);
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  padding: 0.8rem 0;
+}
+
+.detailNoteText {
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: rgb(var(--twc-text) / 0.78);
+}
+
+.detailCompare {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.detailCompareGrid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.detailCompareItem {
+  display: grid;
+  gap: 0.16rem;
+  border: 1px solid rgb(var(--twc-line) / 0.32);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.02);
+  padding: 0.7rem 0.8rem;
+}
+
+.detailCompareLabel {
+  font-size: 0.68rem;
+  color: rgb(var(--twc-text-bright) / 0.54);
+}
+
+.detailCompareValue {
+  font-size: 0.78rem;
+  color: rgb(var(--twc-text) / 0.94);
+}
+
+.detailCompareMeta {
+  font-style: normal;
+  font-size: 0.74rem;
+  color: rgb(var(--twc-text-bright) / 0.64);
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding-top: 0.1rem;
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detailPanel {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .detailMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .modeBar {
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+  }
+}

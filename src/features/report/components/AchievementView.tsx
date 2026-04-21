@@ -2,6 +2,8 @@ import React from "react";
 import { RikishiStatus } from "../../../logic/models";
 import { Achievement, evaluateAchievements } from "../../../logic/achievements";
 import { Award, Star, Medal, Sparkles, Trophy, Swords, Activity, Sun, TrendingUp, BarChart3, Shield } from "lucide-react";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
 import { BodyText, Heading, LabelText } from "../../../shared/ui/Typography";
 
 interface AchievementViewProps {
@@ -83,7 +85,7 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
 
   if (achievements.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-sumi-light game-panel">
+      <div className={cn(surface.gamePanel, "flex flex-col items-center justify-center p-12 text-sumi-light")}>
         <Award className="w-16 h-16 mb-4 opacity-20" />
         <BodyText as="p">まだ実績はありません</BodyText>
       </div>
@@ -107,7 +109,7 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between game-panel p-4">
+      <div className={cn(surface.gamePanel, "flex items-center justify-between p-4")}>
         <div className="flex items-center gap-3">
           <div className="p-3 bg-shuiro/15 border border-shuiro/30 text-shuiro">
             <Award className="w-6 h-6" />
