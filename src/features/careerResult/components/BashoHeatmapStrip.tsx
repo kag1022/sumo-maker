@@ -1,6 +1,7 @@
 import React from "react";
 import { clsx } from "clsx";
 import type { CareerLedgerPoint } from "../utils/careerResultModel";
+import typography from "../../../shared/styles/typography.module.css";
 
 interface BashoHeatmapStripProps {
   points: CareerLedgerPoint[];
@@ -29,7 +30,7 @@ export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
 
   return (
     <div className="border border-white/10 bg-white/[0.02] px-4 py-3">
-      <div className="mb-2 text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase">
+      <div className={clsx(typography.kicker, "mb-2")}>
         場所別成績ヒートマップ
       </div>
       <div className="flex gap-0.5 overflow-x-auto pb-1" role="list">

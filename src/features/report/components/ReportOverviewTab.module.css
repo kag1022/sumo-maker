@@ -1,0 +1,145 @@
+.root {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.heroGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.heroLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(var(--twc-award) / 0.7);
+}
+
+.heroSummary {
+  padding: 0.5rem 0 0.5rem 1.5rem;
+  font-size: clamp(1.125rem, 1.8vw, 1.8rem);
+  line-height: 1.7;
+  border-left: 4px solid rgb(var(--twc-award) / 0.2);
+  background: linear-gradient(90deg, rgb(var(--twc-award) / 0.05), transparent);
+}
+
+.scorePanel {
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.04), transparent 55%),
+    var(--surface-panel-bg);
+}
+
+.scoreHeader {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgb(var(--twc-award) / 0.1);
+}
+
+.sectionLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(var(--twc-award) / 0.7);
+}
+
+.badgeGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.badgeCard {
+  padding: 1rem;
+}
+
+.badgeLabel {
+  transition: color 180ms ease;
+}
+
+.badgeCard:hover .badgeLabel {
+  color: rgb(var(--twc-award) / 0.88);
+}
+
+.badgeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.factCard {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.factHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.factLabel {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  color: var(--ui-text-sub);
+}
+
+.factIcon {
+  opacity: 0.4;
+  transition: opacity 180ms ease;
+}
+
+.factCard:hover .factIcon {
+  opacity: 1;
+}
+
+.factValue {
+  font-size: 1.25rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.factValue[data-tone="award"] {
+  color: rgb(var(--twc-award));
+  filter: drop-shadow(0 0 8px rgb(var(--twc-award) / 0.3));
+}
+
+.hintCard {
+  padding: 1rem;
+  background: rgb(var(--twc-bg) / 0.2);
+  backdrop-filter: blur(6px);
+}
+
+.hintHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--ui-text-main);
+}
+
+.hintCopy {
+  padding-left: 0.75rem;
+  border-left: 1px solid rgb(var(--twc-award) / 0.2);
+}
+
+@media (min-width: 1024px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  }
+}
+
+@media (min-width: 640px) {
+  .badgeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .badgeGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

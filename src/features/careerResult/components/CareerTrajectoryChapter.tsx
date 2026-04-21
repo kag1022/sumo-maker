@@ -11,6 +11,7 @@ import {
   type CareerPlaceSummaryModel,
   type CareerWindowState,
 } from "../utils/careerResultModel";
+import styles from "./CareerTrajectoryChapter.module.css";
 
 interface CareerTrajectoryChapterProps {
   ledger: CareerLedgerModel;
@@ -95,19 +96,19 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
     (hasPersistence ? "この場所では大きな節目は記録されていません。" : "保存後にこの場所の要点を確認できます。");
 
   return (
-    <section className="career-workspace-shell">
-      <div className="career-workspace-head">
+    <section className={styles.shell}>
+      <div className={styles.head}>
         <div>
-          <div className="career-workspace-kicker">番付推移</div>
-          <h2 className="career-workspace-title">番付履歴簿</h2>
+          <div className={styles.kicker}>番付推移</div>
+          <h2 className={styles.title}>番付履歴簿</h2>
         </div>
       </div>
 
-      <div className="career-workspace-filters">
-        <div className="career-workspace-modebar" role="tablist" aria-label="番付推移の表示モード">
+      <div className={styles.filters}>
+        <div className={styles.modeBar} role="tablist" aria-label="番付推移の表示モード">
           <button
             type="button"
-            className="career-workspace-modechip"
+            className={styles.modeChip}
             data-active={mode === "standard"}
             onClick={() => setMode("standard")}
           >
@@ -115,7 +116,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </button>
           <button
             type="button"
-            className="career-workspace-modechip"
+            className={styles.modeChip}
             data-active={mode === "milestones"}
             onClick={() => setMode("milestones")}
           >
@@ -130,16 +131,16 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         onSelectBasho={onSelectBasho}
       />
 
-      <div className="career-workspace-layout">
-        <div className="career-workspace-mainpanel">
-          <div className="career-workspace-scroll">
-            <div className="career-workspace-yearstrip" style={{ width: `${canvasWidth + 94}px` }}>
-              <div className="career-workspace-yearstrip-gutter" />
-              <div className="career-workspace-yearstrip-track" style={{ width: `${canvasWidth}px` }}>
+      <div className={styles.layout}>
+        <div className={styles.mainPanel}>
+          <div className={styles.scroll}>
+            <div className={styles.yearStrip} style={{ width: `${canvasWidth + 94}px` }}>
+              <div className={styles.yearStripGutter} />
+              <div className={styles.yearStripTrack} style={{ width: `${canvasWidth}px` }}>
                 {ledger.yearBands.map((band) => (
                   <div
                     key={`year-strip-${band.year}`}
-                    className="career-workspace-yearlabel"
+                    className={styles.yearLabel}
                     style={{
                       left: `${(band.startSeq - 1) * SLOT_WIDTH}px`,
                       width: `${Math.max(72, band.size * SLOT_WIDTH)}px`,
@@ -152,7 +153,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
             </div>
 
             <div
-              className="career-workspace-ledger"
+              className={styles.ledger}
               style={{
                 gridTemplateRows: `${CAREER_LEDGER_BANDS.map((band) => `${band.weight}fr`).join(" ")} auto`,
               }}
@@ -171,13 +172,13 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
 
                 return (
                   <React.Fragment key={band.key}>
-                    <div className="career-workspace-bandlabel" data-band={band.key}>{band.label}</div>
-                    <div className="career-workspace-bandtrack" data-band={band.key} style={{ width: `${canvasWidth}px` }}>
-                      <div className="career-workspace-bandwash" data-band={band.key} />
+                    <div className={styles.bandLabel} data-band={band.key}>{band.label}</div>
+                    <div className={styles.bandTrack} data-band={band.key} style={{ width: `${canvasWidth}px` }}>
+                      <div className={styles.bandWash} data-band={band.key} />
                       {groups.map((group) => (
                         <div
                           key={`${band.key}-${group.groupId}`}
-                          className="career-workspace-continuity"
+                          className={styles.continuity}
                           style={{
                             left: `${group.start * SLOT_WIDTH + 16}px`,
                             width: `${Math.max(20, (group.end - group.start) * SLOT_WIDTH + 32)}px`,
@@ -194,7 +195,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                             layout
                             key={`ledger-${point.bashoSeq}`}
                             type="button"
-                            className="career-workspace-chip"
+                            className={styles.chip}
                             data-selected={isSelected}
                             data-absence={point.isFullAbsence}
                             data-event={hasMilestone}
@@ -204,12 +205,12 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                             onClick={() => onSelectBasho(point.bashoSeq)}
                           >
                             {primaryMilestone ? (
-                              <span className="career-workspace-chip-badge" data-emphasis={mode === "milestones" && hasMilestone}>
+                              <span className={styles.chipBadge} data-emphasis={mode === "milestones" && hasMilestone}>
                                 {primaryMilestone}
                               </span>
                             ) : null}
-                            <span className="career-workspace-chip-rank">{point.rankShortLabel}</span>
-                            {isSelected ? <span className="career-workspace-chip-record">{point.recordCompactLabel}</span> : null}
+                            <span className={styles.chipRank}>{point.rankShortLabel}</span>
+                            {isSelected ? <span className={styles.chipRecord}>{point.recordCompactLabel}</span> : null}
                           </motion.button>
                         );
                       })}
@@ -218,12 +219,14 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                 );
               })}
 
-              <div className="career-workspace-bandlabel career-workspace-axislabel">時</div>
-              <div className="career-workspace-axistrack" style={{ width: `${canvasWidth}px` }}>
+              <div className={styles.bandLabel} data-band="axis">
+                <span className={styles.axisLabel}>時</span>
+              </div>
+              <div className={styles.axisTrack} style={{ width: `${canvasWidth}px` }}>
                 {visiblePoints.map((point, index) => (
                   <span
                     key={`axis-${point.bashoSeq}`}
-                    className="career-workspace-tick"
+                    className={styles.tick}
                     style={{ left: `${index * SLOT_WIDTH + 8}px` }}
                   >
                     {point.axisLabel}
@@ -234,73 +237,73 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </div>
         </div>
 
-        <aside className="career-workspace-detailpanel">
-          <div className="career-workspace-detailhead">
-            <div className="career-workspace-summary-kicker">選択中の場所</div>
-            <h3 className="career-workspace-detailtitle">
+        <aside className={styles.detailPanel}>
+          <div>
+            <div className={styles.summaryKicker}>選択中の場所</div>
+            <h3 className={styles.detailTitle}>
               {selectionSummary?.bashoLabel ?? selectedPoint?.bashoLabel ?? "場所未選択"}
             </h3>
-            <p className="career-workspace-detailcopy">
+            <p className={styles.detailCopy}>
               {selectionSummary?.recordLabel ?? "場所を選ぶと、この場所の意味を右側で読めます。"}
             </p>
           </div>
 
-          <div className="career-workspace-detailmetrics">
-            <article className="career-workspace-detailmetric">
-              <span>場所</span>
-              <strong>{selectionSummary?.bashoLabel ?? "-"}</strong>
+          <div className={styles.detailMetrics}>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>場所</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.bashoLabel ?? "-"}</strong>
             </article>
-            <article className="career-workspace-detailmetric">
-              <span>番付</span>
-              <strong>{selectionSummary?.rankLabel ?? "-"}</strong>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>番付</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.rankLabel ?? "-"}</strong>
             </article>
-            <article className="career-workspace-detailmetric">
-              <span>成績</span>
-              <strong>{selectionSummary?.recordLabel ?? "-"}</strong>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>成績</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.recordLabel ?? "-"}</strong>
             </article>
-            <article className="career-workspace-detailmetric">
-              <span>昇降幅</span>
-              <strong>{selectionSummary?.deltaLabel ?? "-"}</strong>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>昇降幅</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.deltaLabel ?? "-"}</strong>
             </article>
           </div>
 
-          <div className="career-workspace-detailtags">
+          <div className={styles.detailTags}>
             {(detailTags.length ? detailTags : headlineMilestone ? [headlineMilestone] : []).map((tag) => (
-              <span key={tag} className="career-workspace-detailtag">
+              <span key={tag} className={styles.detailTag}>
                 {tag}
               </span>
             ))}
           </div>
 
-          <div className="career-workspace-detailnote">
-            <div className="career-workspace-detailnote-label">この場所の要点</div>
-            <p>{detailLoading ? "読込中" : summaryNote}</p>
+          <div className={styles.detailNote}>
+            <div className={styles.detailNoteLabel}>この場所の要点</div>
+            <p className={styles.detailNoteText}>{detailLoading ? "読込中" : summaryNote}</p>
           </div>
 
-          <div className="career-workspace-detailcompare">
-            <div className="career-workspace-detailnote-label">前後比較</div>
-            <div className="career-workspace-detailcompare-grid">
-              <article className="career-workspace-detailcompare-item">
-                <span>前の場所</span>
-                <strong>{previousPoint ? `${previousPoint.bashoLabel} / ${previousPoint.rankLabel}` : "なし"}</strong>
-                <em>{previousPoint?.recordLabel ?? "比較対象なし"}</em>
+          <div className={styles.detailCompare}>
+            <div className={styles.detailNoteLabel}>前後比較</div>
+            <div className={styles.detailCompareGrid}>
+              <article className={styles.detailCompareItem}>
+                <span className={styles.detailCompareLabel}>前の場所</span>
+                <strong className={styles.detailCompareValue}>{previousPoint ? `${previousPoint.bashoLabel} / ${previousPoint.rankLabel}` : "なし"}</strong>
+                <em className={styles.detailCompareMeta}>{previousPoint?.recordLabel ?? "比較対象なし"}</em>
               </article>
-              <article className="career-workspace-detailcompare-item">
-                <span>次の場所</span>
-                <strong>{nextPoint ? `${nextPoint.bashoLabel} / ${nextPoint.rankLabel}` : "なし"}</strong>
-                <em>{nextPoint?.recordLabel ?? "比較対象なし"}</em>
+              <article className={styles.detailCompareItem}>
+                <span className={styles.detailCompareLabel}>次の場所</span>
+                <strong className={styles.detailCompareValue}>{nextPoint ? `${nextPoint.bashoLabel} / ${nextPoint.rankLabel}` : "なし"}</strong>
+                <em className={styles.detailCompareMeta}>{nextPoint?.recordLabel ?? "比較対象なし"}</em>
               </article>
             </div>
           </div>
 
-          <div className="career-workspace-detailactions">
+          <div className={styles.detailActions}>
             <Button type="button" variant="secondary" onClick={() => selectedPoint && onOpenChapter("place")} disabled={!selectedPoint}>
               <ArrowRight className="mr-2 h-4 w-4" />
-            場所別を開く
+              場所別を開く
             </Button>
             <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
               <ScrollText className="mr-2 h-4 w-4" />
-            力士名鑑へ戻る
+              力士名鑑へ戻る
             </Button>
           </div>
         </aside>

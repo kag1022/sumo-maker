@@ -2,10 +2,14 @@ import React from "react";
 import { Eye, ScrollText, Swords, Trophy } from "lucide-react";
 import type { CareerRivalryDigest, EraTitanEntry, NemesisEntry, RikishiStatus, TitleBlockerEntry } from "../../../logic/models";
 import { getCareerHeadToHead, listCareerBashoRecordsBySeq, listCareerPlayerBoutsByBasho } from "../../../logic/persistence/careerHistory";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { WinLossBar } from "../../../shared/ui/WinLossBar";
 import { buildCareerRivalryDigest } from "../utils/reportRivalry";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
+import reportCommon from "./reportCommon.module.css";
 import { useCareerBashoDetail } from "./useCareerBashoDetail";
 
 type RivalryEntry = TitleBlockerEntry | EraTitanEntry | NemesisEntry;
@@ -97,11 +101,11 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
 
   return (
     <div className="space-y-4">
-      <section className="report-detail-card relative overflow-hidden p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "relative overflow-hidden p-4 sm:p-5")}>
         <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
-            <h3 className="section-header">
+            <h3 className={typography.sectionHeader}>
               <Swords className="w-4 h-4 text-warning" /> 立ちはだかったライバル
             </h3>
             <p className="mt-1 text-xs text-text-dim">大量の対戦表ではなく、この人生を揺らした相手だけを残します。</p>
@@ -111,11 +115,11 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
           {sections.map((section) => (
             <div key={section.title} className="space-y-3">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between border-b border-brand-muted/30 pb-2">
-                <div className="ui-text-label text-sm text-text font-bold">{section.title}</div>
+                <div className={cn(typography.label, "text-sm text-text font-bold")}>{section.title}</div>
                 <div className="text-[11px] text-text-dim italic">{section.description}</div>
               </div>
               {section.entries.length === 0 ? (
-                <div className="report-empty text-[11px]">
+                <div className={cn(reportCommon.empty, "text-[11px]")}>
                   {isLoading ? "対戦史を読み込んでいます..." : "この軸で残すべき相手は見つかりませんでした。"}
                 </div>
               ) : (
@@ -125,7 +129,7 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
-                            <div className="text-lg ui-text-heading text-text tracking-wide">{entry.shikona}</div>
+                            <div className={cn(typography.heading, "text-lg text-text tracking-wide")}>{entry.shikona}</div>
                             <div className="text-[10px] uppercase tracking-[0.2em] text-text-dim">{entry.representativeRankLabel}</div>
                           </div>
                           <p className="text-sm leading-relaxed text-text/80">「{entry.summary}」</p>
@@ -191,8 +195,8 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                     {selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId && (
                       <div className="border border-warning/35 bg-bg/18 px-4 py-4">
                         <div className="mb-4 border-b border-brand-muted/40 pb-3">
-                          <div className="ui-text-label text-[10px] tracking-[0.25em] text-warning/80 uppercase">宿敵詳細</div>
-                          <div className="mt-1 text-sm ui-text-heading text-text">{entry.featuredBashoLabel}の因縁</div>
+                          <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>宿敵詳細</div>
+                          <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{entry.featuredBashoLabel}の因縁</div>
                           <div className="mt-1 text-xs text-text-dim">{section.title} / {entry.shikona}</div>
                         </div>
                         <BashoDetailBody

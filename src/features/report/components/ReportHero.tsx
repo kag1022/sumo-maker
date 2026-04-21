@@ -12,6 +12,9 @@ import {
   YAxis,
 } from "recharts";
 import { Rank } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 
 import {
@@ -22,6 +25,8 @@ import {
 import {
   formatRankDisplayName,
 } from "../utils/reportFormatters";
+import reportCommon from "./reportCommon.module.css";
+import styles from "./ReportHero.module.css";
 
 const RANK_CHART_BANDS: Array<{
   key: "Makuuchi" | "Juryo" | "Makushita" | "Sandanme" | "Jonidan" | "Jonokuchi";
@@ -123,13 +128,13 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
   return (
     <>
       <section className="relative overflow-hidden mb-8 lg:mb-12 animate-in fade-in duration-1000">
-        <div className="absolute inset-0 bg-asanoha opacity-5 pointer-events-none" />
+        <div className={cn(styles.asanoha, "absolute inset-0 opacity-5 pointer-events-none")} />
         <div className="absolute inset-0 bg-gradient-to-b from-washi/40 to-transparent pointer-events-none" />
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-8 relative z-10 p-6 sm:p-10">
           {/* 左: 力士肖像 (New) */}
           <div className="flex flex-col items-center space-y-4">
-            <div className="rpg-panel p-2 shadow-2xl relative group bg-bg-panel/40">
+            <div className={cn(surface.rpgPanel, "p-2 shadow-2xl relative group bg-bg-panel/40")}>
               <div className="absolute inset-0 bg-gold/5 pointer-events-none" />
               <div className="h-64 sm:h-80 w-48 sm:w-56 overflow-hidden flex items-end justify-center bg-bg/20">
                 {/* bodyType情報がない場合はNormalと仮定するか、propsに追加する必要がある。現状は画像パス構築の都合上適当な対応が必要 */}
@@ -140,8 +145,8 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                 />
               </div>
             </div>
-            <div className="washi-surface px-4 py-2 border-gold/20 text-center bg-bg-panel/60">
-              <p className="text-[10px] ui-text-label text-gold uppercase tracking-widest">{summary.titleBadge}</p>
+            <div className={cn(surface.washi, "px-4 py-2 border-gold/20 text-center bg-bg-panel/60")}>
+              <p className={cn(typography.label, "text-[10px] text-gold uppercase tracking-widest")}>{summary.titleBadge}</p>
             </div>
           </div>
 
@@ -150,12 +155,12 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-sumi/20" />
-                <p className="text-sm ui-text-label text-gold italic">{summary.journeyLabel}</p>
+                <p className={cn(typography.label, "text-sm text-gold italic")}>{summary.journeyLabel}</p>
               </div>
-              <h1 className="text-5xl sm:text-7xl ui-text-heading text-text leading-tight drop-shadow-sm font-bold">
+              <h1 className={cn(typography.heading, "text-5xl sm:text-7xl text-text leading-tight drop-shadow-sm font-bold")}>
                 {shikona}
               </h1>
-              <p className="text-xl sm:text-2xl text-text/80 ui-text-label border-b border-gold/20 pb-4 inline-block">
+              <p className={cn(typography.label, "text-xl sm:text-2xl text-text/80 border-b border-gold/20 pb-4 inline-block")}>
                 {summary.careerHeadline}
               </p>
               <div className="relative">
@@ -170,18 +175,18 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
               {summary.lifeCards.map((card) => (
                 <span
                   key={`${card.slot}-${card.label}`}
-                  className="px-3 py-1 bg-brand-line/10 border border-brand-line/20 text-[10px] ui-text-label text-brand-line"
+                  className={cn(typography.label, "px-3 py-1 bg-brand-line/10 border border-brand-line/20 text-[10px] text-brand-line")}
                 >
                   {card.slot} | {card.label}
                 </span>
               ))}
               {summary.profileFacts.map((fact) => (
-                <span key={fact} className="px-3 py-1 bg-bg-light/40 border border-gold/10 text-[10px] ui-text-label text-text/60">
+                <span key={fact} className={cn(typography.label, "px-3 py-1 bg-bg-light/40 border border-gold/10 text-[10px] text-text/60")}>
                   {fact}
                 </span>
               ))}
               {summary.pills.map((pill) => (
-                <span key={pill.label} className="px-3 py-1 bg-gold/20 border border-gold/30 text-[10px] ui-text-label text-gold">
+                <span key={pill.label} className={cn(typography.label, "px-3 py-1 bg-gold/20 border border-gold/30 text-[10px] text-gold")}>
                   {pill.label}
                 </span>
               ))}
@@ -189,10 +194,10 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
           </div>
 
           {/* 右: 主要戦績スタッツ */}
-          <div className="washi-surface p-8 border-gold/20 shadow-2xl space-y-6 flex flex-col justify-center bg-bg-panel/60">
+          <div className={cn(surface.washi, "p-8 border-gold/20 shadow-2xl space-y-6 flex flex-col justify-center bg-bg-panel/60")}>
             <div className="text-center border-b border-gold/10 pb-4">
-              <div className="text-[10px] ui-text-label text-gold/60 mb-2 uppercase tracking-widest">最高位</div>
-              <div className="text-4xl ui-text-metric text-text">
+              <div className={cn(typography.label, "text-[10px] text-gold/60 mb-2 uppercase tracking-widest")}>最高位</div>
+              <div className={cn(typography.metric, "text-4xl text-text")}>
                 {formatRankDisplayName(maxRank)}
               </div>
             </div>
@@ -205,7 +210,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                 { label: "金星 / 三賞", val: `${awardsSummary.kinboshi} / ${awardsSummary.totalSansho}` },
               ].map((item) => (
                 <div key={item.label} className="flex justify-between items-end border-b border-gold/5 pb-2">
-                  <div className="text-[10px] ui-text-label text-text/40">{item.label}</div>
+                  <div className={cn(typography.label, "text-[10px] text-text/40")}>{item.label}</div>
                   <div className="text-sm font-bold text-text">{item.val}</div>
                 </div>
               ))}
@@ -220,12 +225,12 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
         </div>
       </section>
 
-      <section className="px-4 sm:px-10 py-10 washi-surface border-gold/20 bg-bg-panel/40 relative overflow-hidden group">
+      <section className={cn(surface.washi, "px-4 sm:px-10 py-10 border-gold/20 bg-bg-panel/40 relative overflow-hidden group")}>
         <div className="absolute inset-0 bg-bg/20 pointer-events-none" />
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 relative z-10">
           <div className="space-y-2">
-            <p className="text-[10px] ui-text-label tracking-[0.4em] text-text/40 uppercase">番付の推移</p>
-            <h2 className="text-3xl ui-text-heading text-text flex items-center gap-3">
+            <p className={cn(typography.label, "text-[10px] tracking-[0.4em] text-text/40 uppercase")}>番付の推移</p>
+            <h2 className={cn(typography.heading, "text-3xl text-text flex items-center gap-3")}>
               <ScrollText className="w-8 h-8 text-gold" />
               <span>これまでの番付の動き</span>
             </h2>
@@ -237,7 +242,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
 
         {spotlight.points.length > 1 ? (
           <>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] ui-text-label text-text-dim mb-6 bg-bg/30 p-2 border border-gold-muted/10">
+            <div className={cn(typography.label, "flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-text-dim mb-6 bg-bg/30 p-2 border border-gold-muted/10")}>
               {RANK_CHART_BANDS.map((band) => (
                 <span key={band.key} className="inline-flex items-center gap-2">
                   <span
@@ -337,7 +342,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                 {spotlight.events.map((event) => (
                   <div
                     key={event.key}
-                    className="surface-card p-3 border-l-4 transition-all hover:translate-x-1"
+                    className={cn(surface.card, surface.interactiveCard, "p-3 border-l-4 transition-all hover:translate-x-1")}
                     style={{
                       borderLeftColor:
                         event.tone === "state"
@@ -348,7 +353,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                       background: "rgba(12, 18, 27, 0.5)"
                     }}
                   >
-                    <div className="text-[10px] ui-text-label text-text-dim mb-1">{event.bashoLabel}</div>
+                    <div className={cn(typography.label, "text-[10px] text-text-dim mb-1")}>{event.bashoLabel}</div>
                     <div className="text-xs text-text leading-relaxed">{event.label}</div>
                   </div>
                 ))}
@@ -356,7 +361,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             )}
           </>
         ) : (
-          <div className="report-empty border-dashed border-gold-muted/20 text-center py-20 flex flex-col items-center gap-3">
+          <div className={cn(reportCommon.empty, "border-dashed border-gold-muted/20 text-center py-20 flex flex-col items-center gap-3")}>
             <Activity className="w-8 h-8 text-gold/20" />
             <p className="text-sm italic">番付推移を描くほどの記録がまだありません。</p>
           </div>
@@ -366,10 +371,10 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.4fr)] gap-4 items-stretch">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {summary.metrics.map((metric) => (
-            <div key={metric.label} className="surface-card p-4 flex flex-col justify-between min-h-[100px] border-gold-muted/10 group hover:border-gold/30 transition-all" data-tone={metric.tone}>
-              <div className="text-[10px] ui-text-label tracking-widest text-text-dim group-hover:text-gold/70 transition-colors uppercase">{metric.label}</div>
+            <div key={metric.label} className={cn(surface.card, surface.interactiveCard, "p-4 flex flex-col justify-between min-h-[100px] border-gold-muted/10 group hover:border-gold/30 transition-all")} data-tone={metric.tone}>
+              <div className={cn(typography.label, "text-[10px] tracking-widest text-text-dim group-hover:text-gold/70 transition-colors uppercase")}>{metric.label}</div>
               <div
-                className="text-xl ui-text-metric leading-tight break-words"
+                className={cn(typography.metric, "text-xl leading-tight break-words")}
                 style={{ color: resolveMetricToneColor(metric.tone) }}
               >
                 {metric.value}
@@ -379,8 +384,8 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
           ))}
         </div>
 
-        <div className="surface-panel p-4 flex flex-col gap-2.5 border-gold/20 bg-bg-panel/40">
-          <Button size="sm" variant="outline" onClick={onReset} className="w-full justify-start text-[10px] ui-text-label opacity-60 hover:opacity-100 italic transition-all">
+        <div className={cn(surface.panel, "p-4 flex flex-col gap-2.5 border-gold/20 bg-bg-panel/40")}>
+          <Button size="sm" variant="outline" onClick={onReset} className={cn(typography.label, "w-full justify-start text-[10px] opacity-60 hover:opacity-100 italic transition-all")}>
             <ArrowLeft className="w-3.5 h-3.5 mr-2" /> 新弟子を待つ
           </Button>
           <Button
@@ -388,7 +393,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             variant={saveState === "saved" || isSaved ? "success" : saveState === "error" ? "danger" : "primary"}
             onClick={onSave}
             disabled={saveState === "saving" || isSaved}
-            className="w-full justify-start text-[10px] ui-text-label font-bold"
+            className={cn(typography.label, "w-full justify-start text-[10px] font-bold")}
           >
             {saveState === "saved" || isSaved ? (
               <>
@@ -404,13 +409,13 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
               </>
             )}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onShowTimeline} className="w-full justify-start text-[10px] ui-text-label opacity-80 hover:opacity-100 hover:bg-gold/5">
+          <Button size="sm" variant="ghost" onClick={onShowTimeline} className={cn(typography.label, "w-full justify-start text-[10px] opacity-80 hover:opacity-100 hover:bg-gold/5")}>
             <ScrollText className="w-3.5 h-3.5 mr-2" /> 転機を振り返る
           </Button>
         </div>
       </section>
 
-      <section className="surface-panel p-1 border-gold/10 bg-bg-panel/40 backdrop-blur-sm sticky bottom-2 z-30 shadow-2xl">
+      <section className={cn(surface.panel, "p-1 border-gold/10 bg-bg-panel/40 backdrop-blur-sm sticky bottom-2 z-30 shadow-2xl")}>
         <nav className="flex flex-wrap gap-1" aria-label="詳細分析タブ">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -418,7 +423,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className="report-tab-button flex-1 min-w-[80px]"
+                className={cn(reportCommon.tabButton, "flex-1 min-w-[80px]")}
                 data-active={activeTab === tab.id}
                 aria-pressed={activeTab === tab.id}
               >

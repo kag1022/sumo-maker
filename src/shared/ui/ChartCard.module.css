@@ -1,0 +1,83 @@
+.root {
+  position: relative;
+  padding: 1rem 1.1rem 0.9rem;
+  background: var(--chart-card-bg);
+  border: 1px solid var(--chart-card-border);
+  border-left: 2px solid var(--chart-card-accent);
+  box-shadow: inset 0 1px 0 rgb(255 245 220 / 0.02);
+}
+
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border: 1px solid var(--chart-card-outline);
+  pointer-events: none;
+}
+
+.head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.7rem;
+  border-bottom: 1px dashed var(--chart-card-head-border);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.titleMark {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--chart-card-accent);
+  box-shadow: 0 0 6px rgb(var(--twc-award) / 0.35);
+}
+
+.title {
+  font-family: "Yuji Syuku", "Shippori Mincho", serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.22em;
+  color: var(--chart-card-title);
+}
+
+.subtitle {
+  margin-top: 0.2rem;
+  padding-left: 0.55rem;
+  font-family: "Shippori Mincho", serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--chart-card-subtitle);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  font-family: "Shippori Mincho", serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--chart-card-legend);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+}
+
+.body {
+  position: relative;
+}

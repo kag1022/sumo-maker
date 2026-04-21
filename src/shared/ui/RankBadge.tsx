@@ -1,5 +1,6 @@
 import React from "react";
 import { clsx } from "clsx";
+import typography from "../styles/typography.module.css";
 import type { Division } from "../../logic/models";
 
 type BadgeDivision = Division | "Maezumo";
@@ -27,7 +28,8 @@ export const RankBadge: React.FC<RankBadgeProps> = ({ division, name, size = "xs
   return (
     <span
       className={clsx(
-        "inline-flex items-center px-1.5 py-0.5 ui-text-label font-medium",
+        typography.label,
+        "inline-flex items-center px-1.5 py-0.5 font-medium",
         size === "xs" ? "text-[10px]" : "text-xs",
         style.bg,
         style.text,

@@ -1,0 +1,185 @@
+.shell {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.14);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.05), transparent 26%),
+    rgb(var(--twc-surface-panel) / 0.88);
+}
+
+.shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.06), transparent 35%);
+}
+
+.head,
+.summary,
+.ledger,
+.appendixBlock {
+  position: relative;
+  z-index: 1;
+}
+
+.head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.kicker,
+.summaryKicker,
+.laneLabel,
+.blockTitle {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.72);
+}
+
+.title {
+  font-family: "DotGothic16", monospace;
+  font-size: 1.05rem;
+  color: var(--ui-text-main);
+}
+
+.summary {
+  padding: 0.9rem 1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(255 255 255 / 0.025);
+}
+
+.summaryLines {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+  color: rgb(245 240 225 / 0.82);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.lane {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+}
+
+.laneCell,
+.laneBand {
+  min-height: 88px;
+  padding: 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.06);
+  background: rgb(8 12 18 / 0.55);
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+}
+
+.laneBand {
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.12), rgb(8 12 18 / 0.55)),
+    rgb(8 12 18 / 0.55);
+}
+
+.laneBand[data-basis="RULE_OVERRIDE"] {
+  background:
+    linear-gradient(180deg, rgb(var(--twc-warning) / 0.18), rgb(8 12 18 / 0.55)),
+    rgb(8 12 18 / 0.55);
+}
+
+.ledger {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.logList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.logItem,
+.supplement {
+  padding: 0.75rem 0.8rem;
+  border-left: 3px solid rgb(255 255 255 / 0.08);
+  background: rgb(8 12 18 / 0.5);
+  display: grid;
+  gap: 0.3rem;
+  color: rgb(245 240 225 / 0.74);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.logItem[data-tone="empirical"] {
+  border-left-color: rgb(var(--twc-state) / 0.72);
+}
+
+.logItem[data-tone="override"] {
+  border-left-color: rgb(var(--twc-warning) / 0.72);
+}
+
+.logItem[data-tone="info"] {
+  border-left-color: rgb(var(--twc-action) / 0.72);
+}
+
+.logTitle,
+.supplementTitle {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  color: rgb(245 240 225 / 0.92);
+}
+
+.appendix {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.appendixBlock {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tableWrap {
+  overflow: auto;
+  max-height: 20rem;
+}
+
+.supplements {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.supplementEmpty {
+  border-style: dashed;
+  color: var(--ui-text-sub);
+}
+
+.empty {
+  position: relative;
+  z-index: 1;
+  padding: 1rem;
+  border: 1px dashed rgb(var(--twc-brand) / 0.18);
+  background: rgb(255 255 255 / 0.03);
+  color: var(--ui-text-sub);
+}
+
+@media (max-width: 900px) {
+  .appendix {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lane {
+    grid-template-columns: 1fr;
+  }
+}

@@ -13,6 +13,9 @@ import {
 } from "../../../logic/persistence/careers";
 import { CONSTANTS } from "../../../logic/constants";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { BanzukeReviewTab } from "./BanzukeReviewTab";
 import { formatRankDisplayName } from "../utils/reportFormatters";
@@ -54,12 +57,12 @@ const formatRecordText = (wins: number, losses: number, absent: number): string 
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex items-center justify-between gap-4 border-b border-gold/10 py-2 text-sm">
-    <span className="ui-text-label text-gold/60">{label}</span>
+    <span className={cn(typography.label, "text-gold/60")}>{label}</span>
     <span className="text-right text-text">{value}</span>
   </div>
 );
 
-const surface = "surface-panel border border-gold/10 bg-bg-panel/70";
+const panelClassName = cn(surface.panel, "border border-gold/10 bg-bg-panel/70");
 const insetSurface = "border border-gold/10 bg-bg/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
 export const ReportScreen: React.FC<ReportScreenProps> = ({
@@ -192,15 +195,15 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <section className="premium-panel relative overflow-hidden p-6 sm:p-8">
+      <section className={cn(surface.premium, "relative overflow-hidden p-6 sm:p-8")}>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(196,154,77,0.12),transparent_32%),linear-gradient(180deg,rgba(8,18,35,0.16),transparent_38%)]" />
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-end">
           <div className="relative space-y-5">
             <div className="space-y-3">
-              <p className="text-[10px] ui-text-label tracking-[0.5em] text-gold/60 uppercase">Rikishi Record</p>
+              <p className={cn(typography.label, "text-[10px] tracking-[0.5em] text-gold/60 uppercase")}>Rikishi Record</p>
               <div className="flex flex-wrap items-end gap-4">
-                <h1 className="text-5xl sm:text-7xl ui-text-heading text-text">{status.shikona}</h1>
-                <div className="mb-2 inline-flex items-center border border-gold/15 bg-bg/30 px-3 py-1 text-[10px] ui-text-label tracking-[0.3em] text-gold/70 uppercase">
+                <h1 className={cn(typography.heading, "text-5xl sm:text-7xl text-text")}>{status.shikona}</h1>
+                <div className={cn(typography.label, "mb-2 inline-flex items-center border border-gold/15 bg-bg/30 px-3 py-1 text-[10px] tracking-[0.3em] text-gold/70 uppercase")}>
                   最高位 {formatRankDisplayName(status.history.maxRank)}
                 </div>
               </div>
@@ -210,9 +213,9 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className={`${surface} relative overflow-hidden p-5`}>
+              <div className={cn(panelClassName, "relative overflow-hidden p-5")}>
                 <div className="absolute inset-y-0 left-0 w-1 bg-gold/35" />
-                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">到達点</p>
+                <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>到達点</p>
                 <div className="mt-3 space-y-2">
                   <InfoRow label="最高位" value={formatRankDisplayName(status.history.maxRank)} />
                   <InfoRow label="通算成績" value={totalRecord} />
@@ -221,13 +224,13 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 </div>
               </div>
 
-              <div className={`${surface} relative overflow-hidden p-5`}>
+              <div className={cn(panelClassName, "relative overflow-hidden p-5")}>
                 <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
-                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">入門時と晩年</p>
+                <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>入門時と晩年</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div className={`${insetSurface} p-4`}>
                     <div className="text-xs text-text/58">入門時</div>
-                    <div className="mt-2 text-lg ui-text-heading text-text">
+                    <div className={cn(typography.heading, "mt-2 text-lg text-text")}>
                       {initial ? `${initial.initialHeightCm}cm / ${initial.initialWeightKg}kg` : "-"}
                     </div>
                     <div className="mt-1 text-xs text-text/58">
@@ -236,7 +239,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                   </div>
                   <div className={`${insetSurface} p-4`}>
                     <div className="text-xs text-text/58">晩年時点</div>
-                    <div className="mt-2 text-lg ui-text-heading text-text">
+                    <div className={cn(typography.heading, "mt-2 text-lg text-text")}>
                       {currentHeight}cm / {currentWeight}kg
                     </div>
                     <div className="mt-1 text-xs text-text/58">
@@ -264,9 +267,9 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
             </div>
           </div>
 
-          <aside className={`${surface} relative overflow-hidden p-5`}>
+          <aside className={cn(panelClassName, "relative overflow-hidden p-5")}>
             <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
-            <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">記録メモ</p>
+            <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>記録メモ</p>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-text/70">
               <p className={`${insetSurface} p-3`}>{narrative?.initialConditions ?? "この力士の入口は、記録の行間に残ります。"}</p>
               <p className={`${insetSurface} p-3`}>{narrativeTurningNotes[0] ?? status.history.careerTurningPoint?.reason ?? "転機は番付推移と対戦史の中から読み取ります。"}</p>
@@ -281,7 +284,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
         </div>
       </section>
 
-      <section className={`${surface} p-2`}>
+      <section className={cn(panelClassName, "p-2")}>
         <nav className="grid gap-2 sm:grid-cols-5" aria-label="力士記録タブ">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -302,7 +305,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 </span>
                 <span className="flex flex-col">
                   <span className="text-sm">{tab.label}</span>
-                  <span className="text-[10px] ui-text-label tracking-[0.2em] text-gold/45 uppercase">
+                  <span className={cn(typography.label, "text-[10px] tracking-[0.2em] text-gold/45 uppercase")}>
                     {tab.id === "review"
                       ? "Review"
                       : tab.id === "profile"
@@ -321,7 +324,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       </section>
 
       {activeTab === "review" && (
-        <section className={`${surface} p-4 sm:p-5`}>
+        <section className={cn(panelClassName, "p-4 sm:p-5")}>
           <BanzukeReviewTab
             model={reviewModel}
             isLoading={detailLoading}
@@ -333,11 +336,11 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
       {activeTab === "profile" && (
         <section className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
-            <div className={`${surface} relative overflow-hidden p-5`}>
+            <div className={cn(panelClassName, "relative overflow-hidden p-5")}>
               <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
               <div className="mb-4">
-                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物の入口</p>
-                <h2 className="mt-2 text-2xl ui-text-heading text-text">プロフィール</h2>
+                <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>人物の入口</p>
+                <h2 className={cn(typography.heading, "mt-2 text-2xl text-text")}>プロフィール</h2>
               </div>
               <div className="space-y-2">
                 <InfoRow label="出身地" value={initial?.birthplace ?? status.profile.birthplace} />
@@ -352,11 +355,11 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               </div>
             </div>
 
-            <div className={`${surface} relative overflow-hidden p-5`}>
+            <div className={cn(panelClassName, "relative overflow-hidden p-5")}>
               <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
               <div className="mb-4">
-                <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">人物像の読み口</p>
-                <h2 className="mt-2 text-2xl ui-text-heading text-text">記録から見えること</h2>
+                <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>人物像の読み口</p>
+                <h2 className={cn(typography.heading, "mt-2 text-2xl text-text")}>記録から見えること</h2>
               </div>
               <div className="space-y-3 text-sm leading-relaxed text-text/70">
                 <p>{narrative?.growthArc ?? "身体の伸び方と残り方は、番付の浮沈と共に現れます。"}</p>
@@ -373,11 +376,11 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
             </div>
           </div>
 
-          <div className={`${surface} relative overflow-hidden p-5`}>
+          <div className={cn(panelClassName, "relative overflow-hidden p-5")}>
             <div className="absolute inset-y-0 left-0 w-1 bg-gold/35" />
             <div className="mb-4">
-              <p className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">習得した特性</p>
-              <h2 className="mt-2 text-2xl ui-text-heading text-text">特性</h2>
+              <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>習得した特性</p>
+              <h2 className={cn(typography.heading, "mt-2 text-2xl text-text")}>特性</h2>
             </div>
             {learnedTraits.length > 0 ? (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -385,12 +388,12 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                   <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className={`${insetSurface} p-4 space-y-2`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-lg ui-text-heading text-text">{entry.data?.name ?? entry.trait}</div>
+                        <div className={cn(typography.heading, "text-lg text-text")}>{entry.data?.name ?? entry.trait}</div>
                         <div className="text-xs text-gold/70">
                           {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
                         </div>
                       </div>
-                      <span className={`px-2 py-1 text-[10px] ui-text-label border ${entry.data?.isNegative ? "border-warning/30 text-warning-bright" : "border-state/30 text-state-bright"}`}>
+                      <span className={cn(typography.label, `px-2 py-1 text-[10px] border ${entry.data?.isNegative ? "border-warning/30 text-warning-bright" : "border-state/30 text-state-bright"}`)}>
                         {entry.data?.isNegative ? "発現" : "習得"}
                       </span>
                     </div>

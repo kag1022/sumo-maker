@@ -18,6 +18,7 @@ import type { DetailBuildProgress } from "../../../logic/simulation/workerProtoc
 import { WinRateTrendChart } from "./WinRateTrendChart";
 import { BodyWeightChart } from "./BodyWeightChart";
 import { TraitTimeline } from "./TraitTimeline";
+import styles from "./CareerEncyclopediaChapter.module.css";
 
 interface CareerEncyclopediaChapterProps {
   status: RikishiStatus;
@@ -30,7 +31,6 @@ interface CareerEncyclopediaChapterProps {
   onSave: () => void | Promise<void>;
   onReturnToScout: () => void;
 }
-
 
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   NORMAL: "均整型",
@@ -61,10 +61,10 @@ const InfoCard: React.FC<{
   icon: React.ReactNode;
   children: React.ReactNode;
 }> = ({ title, icon, children }) => (
-  <section className="career-encyclopedia-card">
-    <div className="career-encyclopedia-cardhead">
-      <span className="career-encyclopedia-cardicon">{icon}</span>
-      <div className="career-encyclopedia-cardtitle">{title}</div>
+  <section className={styles.card}>
+    <div className={styles.cardHead}>
+      <span className={styles.cardIcon}>{icon}</span>
+      <div className={styles.cardTitle}>{title}</div>
     </div>
     {children}
   </section>
@@ -73,13 +73,21 @@ const InfoCard: React.FC<{
 const KeyValueGrid: React.FC<{
   rows: Array<{ label: string; value: string }>;
 }> = ({ rows }) => (
-  <div className="career-encyclopedia-grid">
+  <div className={styles.grid}>
     {rows.map((row) => (
-      <div key={row.label} className="career-encyclopedia-griditem">
-        <span>{row.label}</span>
-        <strong>{row.value}</strong>
+      <div key={row.label} className={styles.gridItem}>
+        <span className={styles.gridItemLabel}>{row.label}</span>
+        <strong className={styles.gridItemValue}>{row.value}</strong>
       </div>
     ))}
+  </div>
+);
+
+const SectionHeading: React.FC<{ title: string }> = ({ title }) => (
+  <div className={styles.sectionHead}>
+    <span className={styles.sectionMark} />
+    <span className={styles.sectionTitle}>{title}</span>
+    <span className={styles.sectionRule} />
   </div>
 );
 
@@ -127,7 +135,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         initial?.bodySeedLabel ? { label: "身体の素地", value: initial.bodySeedLabel } : null,
         { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
       ].filter((row): row is { label: string; value: string } => Boolean(row)),
-    [growth?.bodyTypeLabel, initial?.bodySeedLabel, initial?.entryPathLabel, initial?.temperamentLabel, status.bodyType],
+    [growth?.bodyTypeLabel, initial, status.bodyType],
   );
   const totalSansho = React.useMemo(
     () => status.history.records.reduce((sum, record) => sum + (record.specialPrizes?.length ?? 0), 0),
@@ -222,52 +230,52 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const totalBashoForTimeline = status.history.records.filter((r) => r.rank.division !== "Maezumo").length;
 
   return (
-    <section className="career-encyclopedia-shell">
-      <div className="career-encyclopedia-hero">
-        <div className="career-encyclopedia-copy">
-          <p className="career-encyclopedia-kicker">力士名鑑</p>
-          <h1 className="career-encyclopedia-name">{status.shikona}</h1>
-          <div className="career-encyclopedia-rank">{highestRankLabel}</div>
-          <div className="career-encyclopedia-origin">
+    <section className={styles.shell}>
+      <div className={styles.hero}>
+        <div className={styles.copy}>
+          <p className={styles.label}>力士名鑑</p>
+          <h1 className={styles.name}>{status.shikona}</h1>
+          <div className={styles.rank}>{highestRankLabel}</div>
+          <div className={styles.origin}>
             {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
           </div>
-          <p className="career-encyclopedia-summary">
+          <p className={styles.summary}>
             {memoLines[0] ?? overview.lifeSummary}
           </p>
-          <div className="career-encyclopedia-summaryrow">
-            <div className="career-encyclopedia-summarymetric">
-              <span>通算</span>
-              <strong>{overview.totalRecordLabel}</strong>
+          <div className={styles.summaryRow}>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryMetricLabel}>通算</span>
+              <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
             </div>
-            <div className="career-encyclopedia-summarymetric">
-              <span>勝率</span>
-              <strong>{overview.winRateLabel}</strong>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryMetricLabel}>勝率</span>
+              <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
             </div>
-            <div className="career-encyclopedia-summarymetric">
-              <span>在位</span>
-              <strong>{overview.careerPeriodLabel}</strong>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryMetricLabel}>在位</span>
+              <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
             </div>
           </div>
         </div>
 
-        <div className="career-encyclopedia-portraitdock">
+        <div className={styles.portraitDock}>
           <RikishiPortrait
             bodyType={status.bodyType}
-            className="career-encyclopedia-portrait"
-            innerClassName="career-encyclopedia-portrait-inner"
+            className={styles.portrait}
+            innerClassName={styles.portraitInner}
             presentation="blend"
           />
         </div>
       </div>
 
-      <div className="career-encyclopedia-actions">
+      <div className={styles.actions}>
         {!isSaved ? (
           <>
-            <div className="career-encyclopedia-actioncopy">
-              <div className="career-encyclopedia-actionkicker">保存判断</div>
-              <div>{saveCopy}</div>
+            <div className={styles.actionCopy}>
+              <div className={styles.label}>保存判断</div>
+              <div className={styles.text}>{saveCopy}</div>
             </div>
-            <div className="career-encyclopedia-actionbuttons">
+            <div className={styles.actionButtons}>
               <Button size="lg" disabled={saveDisabled} onClick={() => void onSave()}>
                 <Save className="mr-2 h-4 w-4" />
                 {saveDisabled ? "記録整理中" : "この人生を保存する"}
@@ -279,9 +287,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </>
         ) : (
           <>
-            <div className="career-encyclopedia-actioncopy">
-              <div className="career-encyclopedia-actionkicker">保存済み</div>
-              <div>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
+            <div className={styles.actionCopy}>
+              <div className={styles.label}>保存済み</div>
+              <div className={styles.text}>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
             </div>
             <Button variant="ghost" size="sm" onClick={onReturnToScout}>
               新弟子設計へ戻る
@@ -290,12 +298,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         )}
       </div>
 
-      <div className="career-enc-section">
-        <div className="career-enc-section-head">
-          <span className="career-enc-section-mark" />
-          <span className="career-enc-section-title">名跡要覧</span>
-          <span className="career-enc-section-rule" />
-        </div>
+      <div className={styles.section}>
+        <SectionHeading title="名跡要覧" />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
             label="在位場所数"
@@ -310,13 +314,13 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           />
           <StatCard
             label="最高位"
-            value={
+            value={(
               <RankBadge
                 division={status.history.maxRank.division}
                 name={highestRankLabel}
                 size="sm"
               />
-            }
+            )}
           />
           <StatCard
             label="幕内場所"
@@ -339,13 +343,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       </div>
 
       {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
-        <div className="career-enc-section">
-          <div className="career-enc-section-head">
-            <span className="career-enc-section-mark" />
-            <span className="career-enc-section-title">軌跡図譜</span>
-            <span className="career-enc-section-rule" />
-          </div>
-          <div className="career-enc-chartgrid">
+        <div className={styles.section}>
+          <SectionHeading title="軌跡図譜" />
+          <div className={styles.chartGrid}>
             {ledgerPoints && ledgerPoints.length > 4 ? (
               <WinRateTrendChart points={ledgerPoints} />
             ) : null}
@@ -360,18 +360,14 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </div>
       ) : null}
 
-      <div className="career-enc-section">
-        <div className="career-enc-section-head">
-          <span className="career-enc-section-mark" />
-          <span className="career-enc-section-title">基本帳面</span>
-          <span className="career-enc-section-rule" />
-        </div>
-        <div className="career-encyclopedia-layout">
+      <div className={styles.section}>
+        <SectionHeading title="基本帳面" />
+        <div className={styles.layout}>
           <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
             <KeyValueGrid rows={profileRows} />
             {subProfileRows.length > 0 ? (
               <>
-                <div className="career-encyclopedia-subtitle">補足</div>
+                <div className={styles.subtitle}>補足</div>
                 <KeyValueGrid rows={subProfileRows} />
               </>
             ) : null}
@@ -379,57 +375,57 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
           <InfoCard title="力士像の補足" icon={<Swords className="h-4 w-4" />}>
             {signatureLines.length > 0 ? (
-              <div className="career-encyclopedia-stack">
+              <div className={styles.stack}>
                 {signatureLines.map((line) => (
-                  <div key={line.label} className="career-encyclopedia-note">
-                    <span>{line.label}</span>
-                    <strong>{line.value}</strong>
+                  <div key={line.label} className={styles.note}>
+                    <span className={styles.noteLabel}>{line.label}</span>
+                    <strong className={styles.noteValue}>{line.value}</strong>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="career-encyclopedia-empty">得意な技はまだ定まっていません。</div>
+              <div className={styles.empty}>得意な技はまだ定まっていません。</div>
             )}
 
-            <div className="career-encyclopedia-subtitle">人物メモ</div>
-            <div className="career-encyclopedia-stack">
+            <div className={styles.subtitle}>人物メモ</div>
+            <div className={styles.stack}>
               {(memoLines.length > 1 ? memoLines.slice(1) : [overview.lifeSummary]).map((line) => (
-                <p key={line} className="career-encyclopedia-copyline">{line}</p>
+                <p key={line} className={styles.copyLine}>{line}</p>
               ))}
             </div>
 
-            <div className="career-encyclopedia-subtitle">特性</div>
+            <div className={styles.subtitle}>特性</div>
             {learnedTraits.length > 0 ? (
-              <div className="career-encyclopedia-traits">
+              <div className={styles.traits}>
                 {learnedTraits.map((entry) => (
-                  <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className="career-encyclopedia-trait">
-                    <div className="career-encyclopedia-traithead">
-                      <strong>{entry.data?.name ?? entry.trait}</strong>
-                      <span>
+                  <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className={styles.trait}>
+                    <div className={styles.traitHead}>
+                      <strong className={styles.traitTitle}>{entry.data?.name ?? entry.trait}</strong>
+                      <span className={styles.traitMeta}>
                         {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
                       </span>
                     </div>
-                    <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                    <p className={styles.traitBody}>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="career-encyclopedia-empty">記録された特性はありません。</div>
+              <div className={styles.empty}>記録された特性はありません。</div>
             )}
           </InfoCard>
 
           <InfoCard title="主要実績" icon={<Trophy className="h-4 w-4" />}>
             <KeyValueGrid rows={recordRows} />
             {topMoves.length > 0 ? (
-              <div className="career-encyclopedia-recordnote">
+              <div className={styles.recordNote}>
                 <Star className="h-3.5 w-3.5" />
-                <span>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
+                <span className={styles.text}>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
               </div>
             ) : null}
             {memoLines.length > 0 ? (
-              <div className="career-encyclopedia-recordnote">
+              <div className={styles.recordNote}>
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>{memoLines[0]}</span>
+                <span className={styles.text}>{memoLines[0]}</span>
               </div>
             ) : null}
           </InfoCard>
@@ -437,12 +433,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       </div>
 
       {traitAwakenings.length > 0 ? (
-        <div className="career-enc-section">
-          <div className="career-enc-section-head">
-            <span className="career-enc-section-mark" />
-            <span className="career-enc-section-title">特性年譜</span>
-            <span className="career-enc-section-rule" />
-          </div>
+        <div className={styles.section}>
+          <SectionHeading title="特性年譜" />
           <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
         </div>
       ) : null}
