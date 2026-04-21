@@ -8,6 +8,9 @@ import {
   listCareerPlayerBoutsByBasho,
 } from "../../../logic/persistence/careerHistory";
 import type { BashoRecordRow } from "../../../logic/persistence/db";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { HoshitoriCareerRecord, HoshitoriTable } from "./HoshitoriTable";
 import {
   buildBanzukeSnapshotForSeq,
@@ -22,6 +25,7 @@ import {
   type ReportImportantDecisionDigest,
   type ReportTimelineDigestItem,
 } from "../utils/reportTimeline";
+import reportCommon from "./reportCommon.module.css";
 
 interface ReportTimelineTabProps {
   items: ReportTimelineDigestItem[];
@@ -182,10 +186,10 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
 
   return (
     <div className="space-y-4 animate-in">
-      <div className="report-detail-card p-4 sm:p-5">
+      <div className={cn(surface.detailCard, "p-4 sm:p-5")}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
-            <h3 className="section-header">
+            <h3 className={typography.sectionHeader}>
               <ScrollText className="w-4 h-4 text-brand-line" /> 転機の履歴
             </h3>
             <p className="text-xs text-text-dim mt-1">
@@ -197,7 +201,7 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
               <button
                 key={nextFilter}
                 onClick={() => onFilterChange(nextFilter)}
-                className="report-tab-button"
+                className={reportCommon.tabButton}
                 data-active={filter === nextFilter}
               >
                 {nextFilter === "IMPORTANT" ? "主な転機" : "全件"}
@@ -206,7 +210,7 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
           </div>
         </div>
 
-        {loading && <div className="report-empty">重要判断を読み込んでいます。</div>}
+        {loading && <div className={reportCommon.empty}>重要判断を読み込んでいます。</div>}
         {!loading && visibleItems.length > 0 ? (
           <div className="space-y-3">
             {visibleItems.map((item) => (
@@ -214,7 +218,7 @@ export const ReportTimelineTab: React.FC<ReportTimelineTabProps> = ({
             ))}
           </div>
         ) : !loading ? (
-          <div className="report-empty">
+          <div className={reportCommon.empty}>
             表示する転機がありません。まだ静かなキャリアか、出来事ログが不足しています。
           </div>
         ) : null}
@@ -249,22 +253,22 @@ const TimelineDigestCard: React.FC<{
           : "border-brand-muted/60 bg-surface-base/75";
 
   return (
-    <div className={`report-timeline-group p-3 sm:p-4 ${toneClasses}`}>
+    <div className={cn(reportCommon.timelineGroup, "p-3 sm:p-4", toneClasses)}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-text ui-text-label">{item.dateLabel}</span>
+          <span className={cn(typography.label, "text-text")}>{item.dateLabel}</span>
           <span className="text-[11px] text-text-dim border border-brand-muted/50 px-2 py-0.5">
             {item.age}歳
           </span>
-          <span className="text-[11px] ui-text-label text-text px-2 py-0.5 border border-current/30">
+          <span className={cn(typography.label, "text-[11px] text-text px-2 py-0.5 border border-current/30")}>
             {item.label}
           </span>
-          {item.isMajor && <span className="text-[11px] ui-text-label text-brand-line">重要</span>}
+          {item.isMajor && <span className={cn(typography.label, "text-[11px] text-brand-line")}>重要</span>}
         </div>
         {item.entryType === "BANZUKE" && item.bashoSeq && (
           <button
             type="button"
-            className="text-[11px] ui-text-label text-brand-line border border-brand-muted/60 px-2 py-1 hover:border-brand-line/50"
+            className={cn(typography.label, "text-[11px] text-brand-line border border-brand-muted/60 px-2 py-1 hover:border-brand-line/50")}
             onClick={() => onOpen(item)}
           >
             <span className="inline-flex items-center gap-1">
@@ -294,12 +298,12 @@ const DecisionSnapshotModal: React.FC<{
     onClick={onClose}
   >
     <div
-      className="w-full max-w-4xl max-h-[88vh] overflow-hidden border border-brand-muted/70 bg-surface-panel shadow-rpg"
+      className={cn(surface.detailCard, "w-full max-w-4xl max-h-[88vh] overflow-hidden border border-brand-muted/70 shadow-rpg")}
       onClick={(event) => event.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-4 border-b border-brand-muted/60 px-4 py-3 sm:px-5">
         <div className="space-y-1">
-          <div className="ui-text-label text-xs text-warning-bright">重要番付判断</div>
+          <div className={cn(typography.label, "text-xs text-warning-bright")}>重要番付判断</div>
           <h4 className="text-sm sm:text-base text-text">{state.title}の番付表</h4>
           <p className="text-xs text-text-dim">{state.summary}</p>
         </div>
@@ -314,7 +318,7 @@ const DecisionSnapshotModal: React.FC<{
       </div>
       <div className="space-y-2 px-4 py-3 sm:px-5 sm:py-4 overflow-y-auto max-h-[calc(88vh-72px)]">
         {state.snapshot.rows.length === 0 ? (
-          <div className="report-empty">この場所の番付表は保存されていません。</div>
+          <div className={reportCommon.empty}>この場所の番付表は保存されていません。</div>
         ) : (
           state.snapshot.rows.map((row) => {
             const boutMark = state.boutMarks[row.entityId];
@@ -331,12 +335,12 @@ const DecisionSnapshotModal: React.FC<{
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`${row.isPlayer ? "text-text" : "text-text-dim"} truncate`}>{row.shikona}</span>
                     {boutMark && (
-                      <span className="ui-text-label border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line">
+                      <span className={cn(typography.label, "border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line")}>
                         {boutMark}
                       </span>
                     )}
                     {row.isYushoWinner && (
-                      <span className="ui-text-label border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright">
+                      <span className={cn(typography.label, "border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright")}>
                         優勝
                       </span>
                     )}

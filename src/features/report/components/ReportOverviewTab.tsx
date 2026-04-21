@@ -2,7 +2,11 @@ import React from "react";
 import { Award, Gauge, Sparkles, Trophy, Activity } from "lucide-react";
 import { CareerClearScoreSummary, resolveCareerRecordBadgeLabel } from "../../../logic/career/clearScore";
 import { RikishiStatus } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { formatRankDisplayName } from "../utils/reportFormatters";
+import styles from "./ReportOverviewTab.module.css";
 
 interface ReportOverviewTabProps {
   status: RikishiStatus;
@@ -22,14 +26,14 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
   clearScore,
   awardsSummary,
 }) => (
-  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
-      <section className="surface-panel space-y-6 flex flex-col justify-center">
-        <div className="flex items-center gap-2 text-gold/70">
+  <div className={cn(styles.root, "animate-in fade-in slide-in-from-bottom-2 duration-500")}>
+    <div className={styles.heroGrid}>
+      <section className={cn(surface.panel, "flex flex-col justify-center space-y-6")}>
+        <div className={styles.heroLabelRow}>
           <Sparkles className="h-4 w-4" />
-          <span className="ui-text-label text-[10px] uppercase tracking-widest">力士総括 - CAREER SUMMARY</span>
+          <span className={cn(typography.label, "text-[10px] uppercase tracking-widest")}>力士総括 - CAREER SUMMARY</span>
         </div>
-        <p className="text-lg leading-relaxed text-text sm:text-2xl ui-text-heading tracking-tight border-l-4 border-gold/20 pl-6 py-2 bg-gradient-to-r from-gold/5 to-transparent">
+        <p className={cn(styles.heroSummary, typography.heading, "text-text")}>
           {achievementSummary}
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-4">
@@ -52,8 +56,8 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
         </div>
       </section>
 
-      <section className="surface-panel space-y-4 border-gold/10 bg-bg-panel/30 backdrop-blur-sm">
-        <div className="panel-title text-[10px] ui-text-label text-gold/60 border-b border-gold/10 pb-2">総評点内訳</div>
+      <section className={cn(surface.panel, styles.scorePanel, "space-y-4 backdrop-blur-sm")}>
+        <div className={cn(styles.scoreHeader, typography.label, "text-[10px] text-gold/60")}>総評点内訳</div>
         <div className="grid gap-3 sm:grid-cols-3">
           <OverviewFact label="総合" value={`${clearScore.clearScore}`} tone="award" />
           <OverviewFact label="競技" value={`${clearScore.competitiveScore}`} />
@@ -80,24 +84,24 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
     </div>
 
     <section className="space-y-4 pt-4">
-      <div className="flex items-center gap-2 text-gold/70">
+      <div className={styles.sectionLabelRow}>
         <Award className="h-4 w-4" />
-        <span className="ui-text-label text-[10px] uppercase tracking-widest">記録バッジ明細 - BADGE DETAILS</span>
+        <span className={cn(typography.label, "text-[10px] uppercase tracking-widest")}>記録バッジ明細 - BADGE DETAILS</span>
       </div>
       {clearScore.badges.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className={styles.badgeGrid}>
           {clearScore.badges.map((badge) => (
-            <div key={badge.key} className="surface-card p-4 border-gold/10 hover:border-gold/40 group transition-all duration-300">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="ui-text-label text-sm text-text group-hover:text-gold transition-colors">{resolveCareerRecordBadgeLabel(badge.key)}</div>
-                <div className="text-xs ui-text-metric text-award">+{badge.scoreBonus}</div>
+            <div key={badge.key} className={cn(surface.card, surface.interactiveCard, styles.badgeCard)}>
+              <div className={styles.badgeHeader}>
+                <div className={cn(styles.badgeLabel, typography.label, "text-sm text-text")}>{resolveCareerRecordBadgeLabel(badge.key)}</div>
+                <div className={cn(typography.metric, "text-xs text-award")}>+{badge.scoreBonus}</div>
               </div>
-              <p className="text-xs leading-relaxed text-text-dim group-hover:text-text transition-colors italic">{badge.detail}</p>
+              <p className="text-xs leading-relaxed text-text-dim italic">{badge.detail}</p>
             </div>
           ))}
         </div>
       ) : (
-        <div className="surface-panel p-8 text-center text-text-dim text-sm italic border-dashed border-gold-muted/20">
+        <div className={cn(surface.emptyState, "p-8 text-center text-sm italic text-text-dim")}>
           特筆すべき記録バッジはまだありません。今後の精進が期待されます。
         </div>
       )}
@@ -111,12 +115,12 @@ const OverviewFact: React.FC<{ label: string; value: string; icon?: React.ReactN
   icon,
   tone,
 }) => (
-  <div className="metric-card border-gold-muted/10 group hover:border-gold/30 transition-all flex flex-col justify-between min-h-[80px]">
-    <div className="flex items-center justify-between mb-1">
-      <div className="text-[10px] ui-text-label text-text-dim group-hover:text-gold/70 transition-colors uppercase">{label}</div>
-      {icon && <div className="opacity-40 group-hover:opacity-100 transition-opacity">{icon}</div>}
+  <div className={cn(surface.metric, styles.factCard, "border-gold-muted/10")}>
+    <div className={styles.factHeader}>
+      <div className={cn(styles.factLabel, typography.label)}>{label}</div>
+      {icon && <div className={styles.factIcon}>{icon}</div>}
     </div>
-    <div className={`text-xl ui-text-metric leading-tight break-words ${tone === "award" ? "text-award drop-shadow-[0_0_8px_rgba(196,154,77,0.3)]" : "text-text"}`}>
+    <div className={cn(styles.factValue, typography.metric, tone === "award" ? "text-award" : "text-text")} data-tone={tone === "award" ? "award" : "default"}>
       {value}
     </div>
   </div>
@@ -127,11 +131,11 @@ const OverviewHint: React.FC<{
   title: string;
   text: string;
 }> = ({ icon, title, text }) => (
-  <div className="surface-card p-4 border-gold/10 bg-bg/20 backdrop-blur-sm">
-    <div className="mb-2 flex items-center gap-2 text-text">
+  <div className={cn(surface.card, styles.hintCard, "border-gold/10")}>
+    <div className={styles.hintHeader}>
       {icon}
-      <span className="ui-text-label text-xs tracking-wider">{title}</span>
+      <span className={cn(typography.label, "text-xs tracking-wider")}>{title}</span>
     </div>
-    <p className="text-xs leading-relaxed text-text-dim italic border-l border-gold/20 pl-3">{text}</p>
+    <p className={cn(styles.hintCopy, "text-xs leading-relaxed text-text-dim italic")}>{text}</p>
   </div>
 );

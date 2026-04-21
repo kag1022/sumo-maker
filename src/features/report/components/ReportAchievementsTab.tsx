@@ -1,6 +1,9 @@
 import React from "react";
 import { Award, Trophy } from "lucide-react";
 import { RikishiStatus } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { AchievementView } from "./AchievementView";
 import { formatRankDisplayName } from "../utils/reportFormatters";
 
@@ -22,8 +25,8 @@ export const ReportAchievementsTab: React.FC<ReportAchievementsTabProps> = ({
 }) => (
   <div className="space-y-4 animate-in">
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] gap-4">
-      <div className="report-detail-card p-4 sm:p-5">
-        <h3 className="section-header mb-2">
+      <div className={cn(surface.detailCard, "p-4 sm:p-5")}>
+        <h3 className={cn(typography.sectionHeader, "mb-2")}>
           <Award className="w-4 h-4 text-brand-line" /> 何を成し遂げた力士か
         </h3>
         <p className="text-sm text-text leading-relaxed">{achievementSummary}</p>
@@ -35,8 +38,8 @@ export const ReportAchievementsTab: React.FC<ReportAchievementsTabProps> = ({
         </div>
       </div>
 
-      <div className="report-detail-card p-4 sm:p-5">
-        <h3 className="section-header mb-2">
+      <div className={cn(surface.detailCard, "p-4 sm:p-5")}>
+        <h3 className={cn(typography.sectionHeader, "mb-2")}>
           <Trophy className="w-4 h-4 text-action" /> 記録の読みどころ
         </h3>
         <ul className="space-y-2 text-sm text-text-dim list-disc list-inside">
@@ -54,6 +57,6 @@ export const ReportAchievementsTab: React.FC<ReportAchievementsTabProps> = ({
 const AchievementFact: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="border border-brand-muted/60 bg-surface-base/80 p-3">
     <div className="text-text-dim mb-1">{label}</div>
-    <div className="text-text ui-text-label break-words">{value}</div>
+    <div className={cn(typography.label, "break-words text-text")}>{value}</div>
   </div>
 );

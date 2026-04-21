@@ -1,6 +1,9 @@
 import React from "react";
 import { ScrollText } from "lucide-react";
 import type { RikishiStatus } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { buildReportRecordDigest } from "../utils/reportRecordDigest";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
@@ -24,11 +27,11 @@ export const RecordTab: React.FC<RecordTabProps> = ({ status, careerId = null })
 
   return (
     <div className="space-y-4">
-      <section className="report-detail-card relative overflow-hidden p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "relative overflow-hidden p-4 sm:p-5")}>
         <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
-            <h3 className="section-header">
+            <h3 className={typography.sectionHeader}>
               <ScrollText className="w-4 h-4 text-brand-line" /> 場所別戦績
             </h3>
             <p className="mt-1 text-xs text-text-dim">公式記録として、各場所の番付と成績を順に読みます。</p>
@@ -46,7 +49,7 @@ export const RecordTab: React.FC<RecordTabProps> = ({ status, careerId = null })
                     <div className="truncate text-sm text-text">{row.rankLabel}</div>
                     <div className="text-text-dim">{row.recordText}</div>
                   </div>
-                  <div className={`truncate ui-text-label ${toneClass[row.emphasis]}`}>{row.achievementText}</div>
+                  <div className={cn(typography.label, "truncate", toneClass[row.emphasis])}>{row.achievementText}</div>
                   <Button
                     variant={isExpanded ? "secondary" : "outline"}
                     size="sm"
@@ -73,8 +76,8 @@ export const RecordTab: React.FC<RecordTabProps> = ({ status, careerId = null })
                   <div className="border border-brand-line/35 bg-bg/18 px-4 py-4">
                     <div className="mb-4 border-b border-brand-muted/40 pb-3">
                       <div>
-                        <div className="ui-text-label text-[10px] tracking-[0.25em] text-brand-line/70 uppercase">戦績詳細</div>
-                        <div className="mt-1 text-sm ui-text-heading text-text">{row.bashoLabel}の公式記録</div>
+                        <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-brand-line/70 uppercase")}>戦績詳細</div>
+                        <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{row.bashoLabel}の公式記録</div>
                         <div className="mt-1 text-xs text-text-dim">{row.rankLabel} / {row.recordText}</div>
                       </div>
                     </div>

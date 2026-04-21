@@ -1,5 +1,6 @@
 import React from "react";
 import { clsx } from "clsx";
+import styles from "./Tabs.module.css";
 
 interface TabItem<T extends string> {
   id: T;
@@ -29,10 +30,10 @@ export function Tabs<T extends string>({
     <div
       role="tablist"
       className={clsx(
-        "flex",
-        variant === "underline" ? "border-b border-white/10 gap-0" : "gap-1 flex-wrap",
+        styles.root,
         className,
       )}
+      data-variant={variant}
     >
       {items.map((item) => {
         const Icon = item.icon;
@@ -46,22 +47,11 @@ export function Tabs<T extends string>({
             disabled={item.disabled}
             onClick={() => onChange(item.id)}
             className={clsx(
-              "inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed",
-              size === "sm" ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm",
-              variant === "underline"
-                ? clsx(
-                    "border-b-2 -mb-px ui-text-label",
-                    isActive
-                      ? "border-[var(--ui-brand-line)] text-text"
-                      : "border-transparent text-text-dim hover:text-text hover:border-white/20",
-                  )
-                : clsx(
-                    "border ui-text-label",
-                    isActive
-                      ? "border-[var(--ui-brand-line)]/45 bg-[var(--ui-brand-line)]/12 text-text"
-                      : "border-white/10 bg-transparent text-text-dim hover:border-white/20 hover:text-text",
-                  ),
+              styles.tab,
             )}
+            data-active={isActive}
+            data-size={size}
+            data-variant={variant}
           >
             {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
             {item.label}

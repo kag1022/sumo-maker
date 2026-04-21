@@ -17,8 +17,12 @@ import {
   type CollectionCatalogType,
   type CollectionDashboardSummary,
 } from "../../../logic/persistence/collections";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { ProgressRing } from "../../../shared/ui/ProgressRing";
+import styles from "./CollectionScreen.module.css";
 
 const TAB_DEFS: Array<{
   id: CollectionCatalogType;
@@ -93,10 +97,10 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
   const totalPct = totalAll > 0 ? Math.round((totalUnlocked / totalAll) * 100) : 0;
 
   return (
-    <div className="coll-shell">
+    <div className={styles.shell}>
       {/* ── ヘッダー ── */}
-      <div className="coll-header surface-panel">
-        <div className="coll-header-left">
+      <div className={cn(surface.panel, styles.header)}>
+        <div className={styles.headerLeft}>
           <ProgressRing
             value={totalUnlocked}
             max={Math.max(1, totalAll)}
@@ -106,7 +110,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
           />
           <div>
             <div className="text-xs text-text-dim mb-0.5">資料館</div>
-            <div className="text-lg ui-text-heading text-text leading-tight">
+            <div className={cn(typography.heading, "text-lg leading-tight text-text")}>
               {isLoading ? "読み込み中…" : `全${totalAll}件中 ${totalUnlocked}件を解放`}
             </div>
             {dashboard?.totalNew ? (
@@ -122,7 +126,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 
       {/* ── カテゴリ進捗 ── */}
       {!isLoading && dashboard && (
-        <div className="coll-cats">
+        <div className={styles.categoryGrid}>
           {dashboard.rows.map((row) => {
             const pct = row.total > 0 ? (row.unlocked / row.total) * 100 : 0;
             const tabDef = TAB_DEFS.find((t) => t.id === row.type);
@@ -131,25 +135,25 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
               <button
                 key={row.type}
                 type="button"
-                className="coll-cat-card"
+                className={styles.categoryCard}
                 data-active={activeTab === row.type}
                 onClick={() => setActiveTab(row.type)}
               >
-                <div className="coll-cat-card-top">
-                  <span className="coll-cat-card-icon">
+                <div className={styles.categoryTop}>
+                  <span className={styles.categoryIcon}>
                     <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="coll-cat-card-label">{row.label}</span>
+                  <span className={styles.categoryLabel}>{row.label}</span>
                   {row.newCount > 0 && (
-                    <span className="coll-cat-card-new">NEW {row.newCount}</span>
+                    <span className={styles.categoryNew}>NEW {row.newCount}</span>
                   )}
                 </div>
-                <div className="coll-cat-card-count">
-                  {row.unlocked}<span className="coll-cat-card-total">/{row.total}</span>
+                <div className={styles.categoryCount}>
+                  {row.unlocked}<span className={styles.categoryTotal}>/{row.total}</span>
                 </div>
-                <div className="coll-cat-card-bar">
+                <div className={styles.categoryBar}>
                   <div
-                    className="coll-cat-card-bar-fill"
+                    className={styles.categoryBarFill}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -161,7 +165,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 
       {/* ── ローディング ── */}
       {isLoading && (
-        <div className="coll-loading">
+        <div className={styles.loading}>
           <Activity className="h-6 w-6 text-text-dim animate-pulse" />
           <span className="text-sm text-text-dim">読み込み中…</span>
         </div>
@@ -169,11 +173,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 
       {/* ── メインコンテンツ ── */}
       {!isLoading && (
-        <div className="coll-body">
+        <div className={styles.body}>
           {/* 左: カタログ */}
-          <section className="coll-catalog surface-panel">
+          <section className={cn(surface.panel, styles.catalog)}>
             {/* タブ */}
-            <div className="coll-tabs">
+            <div className={styles.tabs}>
               {TAB_DEFS.map((tab) => {
                 const Icon = tab.icon;
                 const row = dashboard?.rows.find((r) => r.type === tab.id);
@@ -181,14 +185,14 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                   <button
                     key={tab.id}
                     type="button"
-                    className="coll-tab"
+                    className={styles.tab}
                     data-active={activeTab === tab.id}
                     onClick={() => setActiveTab(tab.id)}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     <span>{tab.label}</span>
                     {row && (
-                      <span className="coll-tab-count">{row.unlocked}/{row.total}</span>
+                      <span className={styles.tabCount}>{row.unlocked}/{row.total}</span>
                     )}
                   </button>
                 );
@@ -197,12 +201,12 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 
             {/* 決まり手フィルター */}
             {activeTab === "KIMARITE" && (
-              <div className="coll-filter">
+              <div className={styles.filterRow}>
                 {KIMARITE_FILTERS.map((f) => (
                   <button
                     key={f}
                     type="button"
-                    className="coll-chip"
+                    className={styles.chip}
                     data-active={kimariteFilter === f}
                     onClick={() => setKimariteFilter(f)}
                   >
@@ -213,9 +217,9 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
             )}
 
             {/* エントリーリスト */}
-            <div className="coll-list">
+            <div className={styles.list}>
               {filteredEntries.length === 0 && (
-                <div className="coll-empty">
+                <div className={styles.empty}>
                   <span className="text-sm text-text-dim">該当する項目がありません</span>
                 </div>
               )}
@@ -226,21 +230,21 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                   <button
                     key={entry.id}
                     type="button"
-                    className="coll-entry"
+                    className={styles.entry}
                     data-active={isActive}
                     data-unlocked={isUnlocked}
                     onClick={() => setSelectedById((prev) => ({ ...prev, [activeTab]: entry.id }))}
                   >
-                    <span className="coll-entry-icon">
+                    <span className={styles.entryIcon}>
                       {isUnlocked
                         ? <CheckCircle2 className="h-3.5 w-3.5" />
                         : <Lock className="h-3 w-3" />}
                     </span>
-                    <span className="coll-entry-name">
+                    <span className={styles.entryName}>
                       {isUnlocked ? entry.label : "?????"}
                     </span>
                     {entry.tier && isUnlocked && (
-                      <span className="coll-entry-tier" data-tier={entry.tier}>
+                      <span className={styles.entryTier} data-tier={entry.tier}>
                         {entry.tier === "GOLD" ? "金" : entry.tier === "SILVER" ? "銀" : "銅"}
                       </span>
                     )}
@@ -251,11 +255,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
           </section>
 
           {/* 右: 詳細パネル */}
-          <section className="coll-detail surface-panel">
+          <section className={cn(surface.panel, styles.detail)}>
             {selectedEntry ? (
               <EntryDetail entry={selectedEntry} />
             ) : (
-              <div className="coll-detail-empty">
+              <div className={styles.detailEmpty}>
                 <BookOpenText className="h-8 w-8 text-text-dim/40" />
                 <span className="text-sm text-text-dim">左のリストから項目を選択してください</span>
               </div>
@@ -266,16 +270,16 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 
       {/* ── 最近の解放 ── */}
       {!isLoading && !!dashboard?.recentUnlocks.length && (
-        <div className="coll-recent surface-panel">
-          <div className="coll-recent-header">
+        <div className={cn(surface.panel, styles.recent)}>
+          <div className={styles.recentHeader}>
             <Clock className="h-3.5 w-3.5 text-text-dim" />
             <span className="text-xs text-text-dim">最近の解放</span>
           </div>
-          <div className="coll-recent-list">
+          <div className={styles.recentList}>
             {dashboard.recentUnlocks.slice(0, 8).map((item) => (
-              <div key={item.id} className="coll-recent-item">
-                <span className="coll-recent-name">{item.label}</span>
-                <span className="coll-recent-date">{formatDate(item.unlockedAt)}</span>
+              <div key={item.id} className={styles.recentItem}>
+                <span className={styles.recentName}>{item.label}</span>
+                <span className={styles.recentDate}>{formatDate(item.unlockedAt)}</span>
               </div>
             ))}
           </div>
@@ -289,24 +293,24 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => {
   const isUnlocked = entry.state === "UNLOCKED";
   return (
-    <div className="coll-detail-inner animate-in fade-in duration-300">
+    <div className={cn(styles.detailInner, "animate-in fade-in duration-300")}>
       {/* カテゴリバッジ */}
-      <div className="coll-detail-type">{resolveTypeLabel(entry.type)}</div>
+      <div className={styles.detailType}>{resolveTypeLabel(entry.type)}</div>
 
       {/* タイトル */}
-      <div className="coll-detail-title">
+      <div className={styles.detailTitle}>
         {isUnlocked ? entry.label : "?????"}
       </div>
 
       {/* 説明 */}
-      <div className="coll-detail-desc">
+      <div className={styles.detailDesc}>
         {isUnlocked
           ? entry.description
           : "条件を満たすと解放されます。"}
       </div>
 
       {/* メタ情報 */}
-      <div className="coll-detail-meta">
+      <div className={styles.detailMeta}>
         <MetaRow label="状態" value={isUnlocked ? "解放済み" : "未解放"} highlight={isUnlocked} />
         {entry.tier && <MetaRow label="レアリティ" value={resolveTierLabel(entry.tier)} />}
         {entry.unlockedAt && <MetaRow label="解放日" value={formatDate(entry.unlockedAt)} />}
@@ -325,14 +329,14 @@ const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => 
 
       {/* 進捗バー */}
       {typeof entry.progress === "number" && typeof entry.target === "number" && entry.target > 0 && (
-        <div className="coll-detail-progress-wrap">
-          <div className="coll-detail-progress-bar">
+        <div className={styles.progressWrap}>
+          <div className={styles.progressBar}>
             <div
-              className="coll-detail-progress-fill"
+              className={styles.progressFill}
               style={{ width: `${Math.min(100, (entry.progress / entry.target) * 100)}%` }}
             />
           </div>
-          <span className="coll-detail-progress-label">
+          <span className={styles.progressLabel}>
             {Math.round((entry.progress / entry.target) * 100)}%
           </span>
         </div>
@@ -340,7 +344,7 @@ const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => 
 
       {/* 未解放ヒント */}
       {!isUnlocked && (
-        <div className="coll-detail-hint">
+        <div className={styles.detailHint}>
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           <span>条件を達成すると解放されます。特定の成績・実績が必要です。</span>
         </div>
@@ -352,9 +356,9 @@ const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => 
 const MetaRow: React.FC<{ label: string; value: string; highlight?: boolean }> = ({
   label, value, highlight,
 }) => (
-  <div className="coll-meta-row">
-    <span className="coll-meta-label">{label}</span>
-    <span className={`coll-meta-value${highlight ? " coll-meta-value--highlight" : ""}`}>{value}</span>
+  <div className={styles.metaRow}>
+    <span className={styles.metaLabel}>{label}</span>
+    <span className={cn(styles.metaValue, highlight && styles.metaValueHighlight)}>{value}</span>
   </div>
 );
 

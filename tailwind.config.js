@@ -1,111 +1,113 @@
 /** @type {import('tailwindcss').Config} */
+const withOpacity = (variable) => `rgb(var(${variable}) / <alpha-value>)`;
+
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        app: "#0b1018",
-        line: "#2a3444",
+        app: withOpacity("--twc-app"),
+        line: withOpacity("--twc-line"),
         brand: {
-          DEFAULT: "#c49a4d",
-          ink: "#081223",
-          panel: "#101d33",
-          raised: "#162542",
-          line: "#c49a4d",
-          muted: "#4c5d79",
+          DEFAULT: withOpacity("--twc-brand"),
+          ink: withOpacity("--twc-brand-ink"),
+          panel: withOpacity("--twc-brand-panel"),
+          raised: withOpacity("--twc-brand-raised"),
+          line: withOpacity("--twc-brand-line"),
+          muted: withOpacity("--twc-brand-muted"),
         },
         surface: {
-          DEFAULT: "#111b2e",
-          base: "#0d141e",
-          panel: "#111927",
-          raised: "#162238",
-          soft: "#1d2c4d",
+          DEFAULT: withOpacity("--twc-surface"),
+          base: withOpacity("--twc-surface-base"),
+          panel: withOpacity("--twc-surface-panel"),
+          raised: withOpacity("--twc-surface-raised"),
+          soft: withOpacity("--twc-surface-soft"),
         },
         action: {
-          DEFAULT: "#4c7bff",
-          dim: "#3156bf",
-          bright: "#dbe5ff",
+          DEFAULT: withOpacity("--twc-action"),
+          dim: withOpacity("--twc-action-dim"),
+          bright: withOpacity("--twc-action-bright"),
         },
         state: {
-          DEFAULT: "#49b97b",
-          dim: "#2f7b52",
-          bright: "#dbffea",
+          DEFAULT: withOpacity("--twc-state"),
+          dim: withOpacity("--twc-state-dim"),
+          bright: withOpacity("--twc-state-bright"),
         },
         warning: {
-          DEFAULT: "#d26b52",
-          dim: "#8d4334",
-          bright: "#ffe2d8",
+          DEFAULT: withOpacity("--twc-warning"),
+          dim: withOpacity("--twc-warning-dim"),
+          bright: withOpacity("--twc-warning-bright"),
         },
         danger: {
-          DEFAULT: "#d26b52",
-          bright: "#ffe2d8",
+          DEFAULT: withOpacity("--twc-danger"),
+          bright: withOpacity("--twc-danger-bright"),
         },
         award: {
-          DEFAULT: "#c49a4d",
-          bright: "#f2ddb0",
+          DEFAULT: withOpacity("--twc-award"),
+          bright: withOpacity("--twc-award-bright"),
         },
         // === 背景系（藍色ベース） ===
         bg: {
-          DEFAULT: "#0d141e",   // わずかに明度を上げたメイン背景
-          panel: "#111927",     // パネル内側
-          hover: "#1a253d",     // ホバー/アクティブ
-          light: "#212d45",     // 明るめパネル
+          DEFAULT: withOpacity("--twc-bg"),
+          panel: withOpacity("--twc-bg-panel"),
+          hover: withOpacity("--twc-bg-hover"),
+          light: withOpacity("--twc-bg-light"),
         },
         // === テキスト系 ===
         text: {
-          DEFAULT: "#f5f0e1",   // Light on dark
-          dark: "#f5f0e1",      // Now used on dark blue panels
-          dim: "#8a8472",
-          faint: "#6d7a92",
-          bright: "#ffffff",
+          DEFAULT: withOpacity("--twc-text"),
+          dark: withOpacity("--twc-text-dark"),
+          dim: withOpacity("--twc-text-dim"),
+          faint: withOpacity("--twc-text-faint"),
+          bright: withOpacity("--twc-text-bright"),
         },
         // === アクセント: ゴールド（RPG風） ===
         gold: {
-          DEFAULT: "#b88a3e", // 古金
-          dim: "#8B6914",
-          bright: "#D4A017",
-          muted: "#6B5010",
+          DEFAULT: withOpacity("--twc-gold"),
+          dim: withOpacity("--twc-gold-dim"),
+          bright: withOpacity("--twc-gold-bright"),
+          muted: withOpacity("--twc-gold-muted"),
         },
         // === アクセント: 朱色 ===
         crimson: {
-          DEFAULT: "#C84040",
-          dim: "#8B2020",
-          bright: "#FF5555",
+          DEFAULT: withOpacity("--twc-crimson"),
+          dim: withOpacity("--twc-crimson-dim"),
+          bright: withOpacity("--twc-crimson-bright"),
         },
         // === ステータスカラー ===
-        hp: "#44AA44",
-        mp: "#4488DD",
+        hp: withOpacity("--twc-hp"),
+        mp: withOpacity("--twc-mp"),
         // === 旧名互換エイリアス（段階的に除去） ===
         washi: {
-          DEFAULT: "rgba(17, 25, 39, 0.85)",
-          dark: "rgba(12, 18, 27, 0.9)",
-          light: "rgba(22, 34, 56, 0.8)",
+          DEFAULT: withOpacity("--twc-washi"),
+          dark: withOpacity("--twc-washi-dark"),
+          light: withOpacity("--twc-washi-light"),
         },
         sumi: {
-          DEFAULT: "#1a1a1a",
-          light: "#3a3a3a",
-          dark: "#0a0a0a",
+          DEFAULT: withOpacity("--twc-sumi"),
+          light: withOpacity("--twc-sumi-light"),
+          dark: withOpacity("--twc-sumi-dark"),
         },
         kiniro: {
-          DEFAULT: "#b88a3e",
-          light: "#D4A017",
-          dark: "#8B6914",
-          muted: "#6B5010",
+          DEFAULT: withOpacity("--twc-kiniro"),
+          light: withOpacity("--twc-kiniro-light"),
+          dark: withOpacity("--twc-kiniro-dark"),
+          muted: withOpacity("--twc-kiniro-muted"),
         },
         shuiro: {
-          DEFAULT: "#C84040",
-          light: "#FF5555",
-          dark: "#8B2020",
+          DEFAULT: withOpacity("--twc-shuiro"),
+          light: withOpacity("--twc-shuiro-light"),
+          dark: withOpacity("--twc-shuiro-dark"),
         },
         matcha: {
-          DEFAULT: "#44AA44",
-          light: "#55CC55",
+          DEFAULT: withOpacity("--twc-matcha"),
+          light: withOpacity("--twc-matcha-light"),
         },
         kassairo: {
-          DEFAULT: "#0a0e1a",
-          light: "#111b2e",
+          DEFAULT: withOpacity("--twc-kassairo"),
+          light: withOpacity("--twc-kassairo-light"),
         },
-        kuroboshi: "#0a0a0a",
+        kuroboshi: withOpacity("--twc-kuroboshi"),
       },
       fontFamily: {
         pixel: ['"DotGothic16"', 'monospace'],

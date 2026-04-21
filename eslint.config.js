@@ -9,6 +9,7 @@ export default tseslint.config(
       'dist',
       'node_modules',
       '.tmp',
+      '.lint-report.json',
       'scripts/tests/run_sim_tests.cjs',
       'scripts/reports/**',
       'scripts/remove_bg.cjs',
@@ -32,6 +33,33 @@ export default tseslint.config(
       'indent': ['warn', 2, { SwitchCase: 1 }],
       'no-multiple-empty-lines': ['warn', { max: 1, maxEOF: 0 }],
       'eol-last': ['warn', 'always'],
+    },
+  },
+  {
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        console: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
+    files: [
+      'scripts/tests/current/**/*.ts',
+      'scripts/tests/compat/index.ts',
+      'scripts/tests/shared/currentHelpers.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

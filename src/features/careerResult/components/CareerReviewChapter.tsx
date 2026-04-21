@@ -1,5 +1,7 @@
 import React from "react";
 import type { BanzukeReviewTabModel } from "../../report/utils/banzukeReview";
+import table from "../../../shared/styles/table.module.css";
+import styles from "./CareerReviewChapter.module.css";
 
 interface CareerReviewChapterProps {
   model: BanzukeReviewTabModel | null;
@@ -16,68 +18,68 @@ export const CareerReviewChapter: React.FC<CareerReviewChapterProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <section className="career-clerk-shell">
-        <div className="career-clerk-empty">番付審議を読み込み中です。</div>
+      <section className={styles.shell}>
+        <div className={styles.empty}>番付審議を読み込み中です。</div>
       </section>
     );
   }
 
   if (!model) {
     return (
-      <section className="career-clerk-shell">
-        <div className="career-clerk-empty">{emptyLabel}</div>
+      <section className={styles.shell}>
+        <div className={styles.empty}>{emptyLabel}</div>
       </section>
     );
   }
 
   return (
-    <section className="career-clerk-shell">
-      <div className="career-clerk-head">
-        <div className="career-clerk-kicker">審議録</div>
-        <h2 className="career-clerk-title">{model.bashoLabel}</h2>
+    <section className={styles.shell}>
+      <div className={styles.head}>
+        <div className={styles.kicker}>審議録</div>
+        <h2 className={styles.title}>{model.bashoLabel}</h2>
       </div>
 
-      <div className="career-clerk-summary">
-        <div className="career-clerk-summary-kicker">争点サマリー</div>
-        <div className="career-clerk-summary-lines">
+      <div className={styles.summary}>
+        <div className={styles.summaryKicker}>争点サマリー</div>
+        <div className={styles.summaryLines}>
           {model.summaryLines.map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
       </div>
 
-      <div className="career-clerk-lane">
-        <article className="career-clerk-lanecell">
-          <span className="career-clerk-lanelabel">旧番付</span>
+      <div className={styles.lane}>
+        <article className={styles.laneCell}>
+          <span className={styles.laneLabel}>旧番付</span>
           <strong>{model.lane.fromRankLabel}</strong>
         </article>
-        <article className="career-clerk-laneband" data-basis={model.lane.proposalBasis}>
-          <span className="career-clerk-lanelabel">実測帯</span>
+        <article className={styles.laneBand} data-basis={model.lane.proposalBasis}>
+          <span className={styles.laneLabel}>実測帯</span>
           <strong>{model.lane.empiricalBandLabel}</strong>
         </article>
-        <article className="career-clerk-lanecell">
-          <span className="career-clerk-lanelabel">新番付</span>
+        <article className={styles.laneCell}>
+          <span className={styles.laneLabel}>新番付</span>
           <strong>{model.lane.toRankLabel}</strong>
         </article>
       </div>
 
-      <div className="career-clerk-ledger">
-        <div className="career-clerk-blocktitle">重要判断ログ</div>
-        <div className="career-clerk-loglist">
+      <div className={styles.ledger}>
+        <div className={styles.blockTitle}>重要判断ログ</div>
+        <div className={styles.logList}>
           {model.decisionItems.map((item) => (
-            <article key={item.id} className="career-clerk-logitem" data-tone={item.tone}>
-              <div className="career-clerk-logtitle">{item.title}</div>
+            <article key={item.id} className={styles.logItem} data-tone={item.tone}>
+              <div className={styles.logTitle}>{item.title}</div>
               <p>{item.detail}</p>
             </article>
           ))}
         </div>
       </div>
 
-      <div className="career-clerk-appendix">
-        <section className="career-clerk-appendixblock">
-          <div className="career-clerk-blocktitle">近傍番付</div>
-          <div className="career-clerk-tablewrap">
-            <table className="detail-table career-clerk-table">
+      <div className={styles.appendix}>
+        <section className={styles.appendixBlock}>
+          <div className={styles.blockTitle}>近傍番付</div>
+          <div className={styles.tableWrap}>
+            <table className={table.detailTable}>
               <thead>
                 <tr>
                   <th>四股名</th>
@@ -88,10 +90,10 @@ export const CareerReviewChapter: React.FC<CareerReviewChapterProps> = ({
               </thead>
               <tbody>
                 {model.nearbyRows.map((row) => (
-                  <tr key={row.entityId} data-player={row.isPlayer}>
-                    <td className="table-rikishi-name" data-player={row.isPlayer}>
+                  <tr key={row.entityId} className={row.isPlayer ? table.playerRow : undefined} data-player={row.isPlayer}>
+                    <td className={table.playerNameCell} data-player={row.isPlayer}>
                       {!row.isPlayer ? (
-                        <button type="button" className="table-link-button" onClick={() => onSelectNpc(row.entityId)}>
+                        <button type="button" className={table.linkButton} onClick={() => onSelectNpc(row.entityId)}>
                           {row.shikona}
                         </button>
                       ) : (
@@ -108,18 +110,18 @@ export const CareerReviewChapter: React.FC<CareerReviewChapterProps> = ({
           </div>
         </section>
 
-        <section className="career-clerk-appendixblock">
-          <div className="career-clerk-blocktitle">補助取組</div>
-          <div className="career-clerk-supplements">
+        <section className={styles.appendixBlock}>
+          <div className={styles.blockTitle}>補助取組</div>
+          <div className={styles.supplements}>
             {model.supplementalTorikumi.length > 0 ? (
               model.supplementalTorikumi.map((item) => (
-                <article key={item.id} className="career-clerk-supplement">
-                  <div className="career-clerk-supplementtitle">{item.label}</div>
+                <article key={item.id} className={styles.supplement}>
+                  <div className={styles.supplementTitle}>{item.label}</div>
                   <p>{item.detail}</p>
                 </article>
               ))
             ) : (
-              <div className="career-clerk-supplement career-clerk-supplement-empty">
+              <div className={`${styles.supplement} ${styles.supplementEmpty}`}>
                 補助取組は記録されていません。
               </div>
             )}

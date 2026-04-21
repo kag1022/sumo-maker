@@ -1,0 +1,377 @@
+.shell {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.14);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.06), rgb(255 255 255 / 0.02)),
+    rgb(var(--twc-bg) / 0.9);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 18px 40px rgb(0 0 0 / 0.18);
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgb(255 255 255 / 0.03);
+  pointer-events: none;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kicker,
+.ledgerKey,
+.tabMain,
+.empty {
+  font-family: "DotGothic16", monospace;
+}
+
+.kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.76);
+}
+
+.title {
+  margin-top: 0.35rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.7rem, 2.3vw, 2.5rem);
+  line-height: 1.1;
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  background: rgb(var(--twc-brand) / 0.05);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  color: rgb(var(--twc-text) / 0.7);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.stepper:hover:not(:disabled) {
+  border-color: rgb(var(--twc-brand) / 0.4);
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.stepper:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.scrollStrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scrollbar-width: thin;
+}
+
+.bashoChip {
+  position: relative;
+  display: grid;
+  gap: 0.22rem;
+  justify-items: start;
+  padding: 0.7rem 0.85rem 0.75rem;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-bottom: 2px solid rgb(255 255 255 / 0.06);
+  background: rgb(var(--twc-bg-panel) / 0.6);
+  text-align: left;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.bashoChip:hover {
+  border-color: rgb(var(--twc-brand) / 0.25);
+  background: rgb(var(--twc-bg-panel) / 0.75);
+}
+
+.bashoChip[data-selected="true"] {
+  border-color: rgb(var(--twc-brand) / 0.45);
+  border-bottom-color: var(--ui-brand-line);
+  background: rgb(var(--twc-brand) / 0.08);
+}
+
+.bashoChip[data-event="true"]::after {
+  content: "●";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 0.45rem;
+  color: rgb(var(--twc-action) / 0.9);
+}
+
+.bashoChipLabel {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgb(var(--twc-brand) / 0.6);
+}
+
+.bashoChipRank {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.82rem;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.bashoChipRecord {
+  font-size: 0.7rem;
+  font-family: "BIZ UDPGothic", sans-serif;
+}
+
+.ledgerSummary {
+  padding: 1rem 0;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.2);
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.ledgerSummaryInner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.5rem;
+}
+
+.ledgerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.35rem 0;
+  min-width: 160px;
+}
+
+.ledgerKey {
+  width: 2rem;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: rgb(var(--twc-brand) / 0.65);
+}
+
+.ledgerValue {
+  font-size: 0.95rem;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.milestoneTag {
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: rgb(var(--twc-brand) / 0.92);
+  background: rgb(var(--twc-brand) / 0.06);
+}
+
+.tabStrip {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.2);
+}
+
+.tab {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.65rem 1.1rem 0.7rem;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgb(255 255 255 / 0.06);
+  border-bottom: 2px solid transparent;
+  text-align: left;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.tab:last-child {
+  border-right: none;
+}
+
+.tab:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+
+.tab[data-active="true"] {
+  border-bottom-color: var(--ui-brand-line);
+  background: rgb(var(--twc-brand) / 0.05);
+}
+
+.tabMain {
+  font-size: 0.78rem;
+  color: rgb(var(--twc-text) / 0.88);
+}
+
+.tab[data-active="true"] .tabMain {
+  color: rgb(var(--twc-brand) / 0.98);
+}
+
+.tabSub {
+  font-size: 0.65rem;
+  color: rgb(var(--twc-text) / 0.42);
+}
+
+.contentPanel {
+  position: relative;
+  min-height: 200px;
+  padding: 0.85rem 0;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: rgb(var(--twc-text) / 0.58);
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.banzukeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.banzukeTable thead tr {
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.22);
+}
+
+.banzukeTable th {
+  padding: 0.45rem 0.7rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  color: rgb(var(--twc-brand) / 0.7);
+  text-align: left;
+  font-weight: normal;
+}
+
+.banzukeTable td {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.04);
+  color: rgb(var(--twc-text) / 0.82);
+  vertical-align: middle;
+}
+
+.banzukePlayer td {
+  background: rgb(var(--twc-brand) / 0.06);
+  color: rgb(var(--twc-text) / 0.98);
+}
+
+.banzukeResultDot {
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.boutList {
+  display: grid;
+  gap: 0;
+}
+
+.boutRow {
+  display: grid;
+  grid-template-columns: 2.2rem 1.5rem 1fr;
+  align-items: start;
+  gap: 0 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.05);
+  transition: background-color 100ms ease;
+}
+
+.boutRow:hover {
+  background: rgb(255 255 255 / 0.02);
+}
+
+.boutRow[data-important="true"] {
+  border-left: 2px solid rgb(var(--twc-brand) / 0.5);
+  padding-left: 0.6rem;
+}
+
+.boutRow[data-absence="true"] {
+  opacity: 0.6;
+}
+
+.boutDay {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.75rem;
+  color: rgb(var(--twc-text) / 0.45);
+  padding-top: 0.05rem;
+  text-align: right;
+}
+
+.boutDayUnit {
+  font-size: 0.58rem;
+}
+
+.boutMark {
+  font-family: "BIZ UDPGothic", sans-serif;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.boutBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.75rem;
+  min-width: 0;
+}
+
+.boutOpponent {
+  font-size: 0.88rem;
+  color: rgb(var(--twc-text) / 0.92);
+}
+
+.boutRank {
+  font-size: 0.72rem;
+  color: rgb(var(--twc-text) / 0.48);
+}
+
+.boutKimarite {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  color: rgb(var(--twc-brand) / 0.72);
+  padding: 0.05rem 0.4rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+}
+
+.boutNote {
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: rgb(var(--twc-text) / 0.55);
+  line-height: 1.55;
+}
+
+@media (max-width: 767px) {
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .scrollStrip {
+    grid-auto-columns: minmax(132px, 76%);
+  }
+
+  .ledgerSummaryInner {
+    gap: 0 1rem;
+  }
+
+  .tabStrip {
+    overflow-x: auto;
+  }
+}

@@ -131,17 +131,13 @@ export const runTopDivisionBasho = (
     throw new Error('Player participant was not initialized for top division basho');
   }
   const playerBashoFormDelta =
-    true
-      ? (
-        Number.isFinite(forcedPlayerBashoFormDelta)
-          ? (forcedPlayerBashoFormDelta as number)
-          : resolveBashoFormDelta({
-            uncertainty: status.ratingState.uncertainty,
-            volatility: 1.2,
-            rng,
-          }).bashoFormDelta
-      )
-      : 0;
+    Number.isFinite(forcedPlayerBashoFormDelta)
+      ? (forcedPlayerBashoFormDelta as number)
+      : resolveBashoFormDelta({
+        uncertainty: status.ratingState.uncertainty,
+        volatility: 1.2,
+        rng,
+      }).bashoFormDelta;
   player.bashoFormDelta = playerBashoFormDelta;
   if (resolveInjuryParticipation(status).mustSitOut) {
     player.active = false;

@@ -221,13 +221,11 @@ export const runLowerDivisionBasho = (
       .slice()
       .sort((a, b) => a.rankScore - b.rankScore)
       .map((npc) => {
-        const bashoFormDelta = true
-          ? resolveBashoFormDelta({
-            uncertainty: npc.uncertainty,
-            volatility: npc.volatility,
-            rng,
-          }).bashoFormDelta
-          : 0;
+        const bashoFormDelta = resolveBashoFormDelta({
+          uncertainty: npc.uncertainty,
+          volatility: npc.volatility,
+          rng,
+        }).bashoFormDelta;
         return {
           id: npc.id,
           shikona: lowerWorld.npcRegistry.get(npc.id)?.shikona ?? npc.shikona,
@@ -276,13 +274,11 @@ export const runLowerDivisionBasho = (
       const guestId = `JURYO_GUEST_${guest.id}`;
       const rank = decodeJuryoRankFromScore(guest.rankScore);
       juryoGuestRankById.set(guestId, rank);
-      const guestBashoFormDelta = true
-        ? resolveBashoFormDelta({
-          uncertainty: guest.uncertainty,
-          volatility: guest.volatility,
-          rng,
-        }).bashoFormDelta
-        : 0;
+      const guestBashoFormDelta = resolveBashoFormDelta({
+        uncertainty: guest.uncertainty,
+        volatility: guest.volatility,
+        rng,
+      }).bashoFormDelta;
       participants.push({
         id: guestId,
         shikona: topWorld.npcRegistry.get(guest.id)?.shikona ?? guest.shikona,
@@ -319,17 +315,13 @@ export const runLowerDivisionBasho = (
     throw new Error('Player participant was not initialized for lower division basho');
   }
   const playerBashoFormDelta =
-    true
-      ? (
-        Number.isFinite(forcedPlayerBashoFormDelta)
-          ? (forcedPlayerBashoFormDelta as number)
-          : resolveBashoFormDelta({
-            uncertainty: status.ratingState.uncertainty,
-            volatility: 1.2,
-            rng,
-          }).bashoFormDelta
-      )
-      : 0;
+    Number.isFinite(forcedPlayerBashoFormDelta)
+      ? (forcedPlayerBashoFormDelta as number)
+      : resolveBashoFormDelta({
+        uncertainty: status.ratingState.uncertainty,
+        volatility: 1.2,
+        rng,
+      }).bashoFormDelta;
   player.bashoFormDelta = playerBashoFormDelta;
   player.shikona = status.shikona;
   player.stableId = status.stableId;

@@ -303,13 +303,11 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   }
   const conditionBeforeBasho = state.status.currentCondition;
   const playerBashoFormDelta =
-    true
-      ? resolveBashoFormDelta({
-        uncertainty: state.status.ratingState.uncertainty,
-        volatility: 1.2,
-        rng: deps.random,
-      }).bashoFormDelta
-      : 0;
+    resolveBashoFormDelta({
+      uncertainty: state.status.ratingState.uncertainty,
+      volatility: 1.2,
+      rng: deps.random,
+    }).bashoFormDelta;
 
   const bashoResult: BashoSimulationResult = runBashoDetailed(
     state.status,
@@ -670,15 +668,13 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   pushBodyTimelinePoint(state.status.history, bashoRecord, bashoSeq, state.status.bodyMetrics.weightKg);
   state.status = ensureCareerRecordStatus(state.status);
   state.status.history.realismKpi = buildCareerRealismSnapshot(state.status);
-  if (true) {
-    state.status.currentCondition = updateConditionForV3({
-      previousCondition: conditionBeforeBasho,
-      actualWins: bashoRecord.wins,
-      expectedWins: bashoRecord.expectedWins ?? bashoRecord.wins,
-      bashoFormDelta: playerBashoFormDelta,
-      rng: deps.random,
-    });
-  }
+  state.status.currentCondition = updateConditionForV3({
+    previousCondition: conditionBeforeBasho,
+    actualWins: bashoRecord.wins,
+    expectedWins: bashoRecord.expectedWins ?? bashoRecord.wins,
+    bashoFormDelta: playerBashoFormDelta,
+    rng: deps.random,
+  });
   syncPlayerActorInWorld(world, state.status, deps.random);
   if (
     (currentRank.division !== 'Juryo' && currentRank.division !== 'Makuuchi') &&
@@ -767,15 +763,11 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     sanyakuRoundRobinCoverageRate: bashoResult.torikumiDiagnostics?.sanyakuRoundRobinCoverageRate,
     joiAssignmentCoverageRate: bashoResult.torikumiDiagnostics?.joiAssignmentCoverageRate,
     yokozunaOzekiTailBoutRatio: bashoResult.torikumiDiagnostics?.yokozunaOzekiTailBoutRatio,
-    ...(true
-      ? {
-        bashoVariance: {
-          playerBashoFormDelta,
-          conditionBefore: conditionBeforeBasho,
-          conditionAfter: state.status.currentCondition,
-        },
-      }
-      : {}),
+    bashoVariance: {
+      playerBashoFormDelta,
+      conditionBefore: conditionBeforeBasho,
+      conditionAfter: state.status.currentCondition,
+    },
   };
 
   const sekitoriNpc = buildSekitoriNpcRecords(world, bashoMakuuchiLayout);

@@ -1,0 +1,28 @@
+.empty {
+  padding: 1rem;
+  border: 1px dashed rgb(76 93 121 / 0.85);
+  background: rgb(8 18 35 / 0.72);
+  color: var(--ui-text-sub);
+  font-size: 0.85rem;
+}
+
+.tabButton {
+  padding: 0.7rem 0.95rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ui-text-sub);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.82rem;
+  transition: 140ms ease;
+}
+
+.tabButton[data-active="true"] {
+  border-color: rgb(76 123 255 / 0.45);
+  background: rgb(76 123 255 / 0.14);
+  color: #dbe5ff;
+}
+
+.timelineGroup {
+  border: 1px solid rgb(76 93 121 / 0.8);
+  background: rgb(11 19 36 / 0.92);
+}

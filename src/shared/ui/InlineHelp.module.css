@@ -1,0 +1,73 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--inline-help-button-color);
+  background: var(--inline-help-button-bg);
+  border: 1px solid var(--inline-help-button-border);
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.button:hover,
+.button:focus-visible,
+.button[aria-expanded="true"] {
+  color: var(--ui-text-main);
+  border-color: rgb(var(--twc-brand-line) / 0.4);
+  background: rgb(var(--twc-brand-line) / 0.08);
+}
+
+.button:focus-visible {
+  outline: none;
+}
+
+.popover {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  min-width: 16rem;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.7rem 0.8rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(0.25rem);
+  transition: opacity 140ms ease, transform 140ms ease;
+  background: var(--inline-help-popover-bg);
+  border: 1px solid var(--inline-help-popover-border);
+  box-shadow: var(--inline-help-popover-shadow);
+}
+
+.popover[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.popover[data-placement="top"] {
+  bottom: calc(100% + 0.5rem);
+}
+
+.popover[data-placement="bottom"] {
+  top: calc(100% + 0.5rem);
+}
+
+.popover strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--inline-help-popover-strong);
+}
+
+.popover span {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--inline-help-popover-text);
+}
