@@ -1,5 +1,6 @@
 import React from "react";
 import { Info } from "lucide-react";
+import styles from "./InlineHelp.module.css";
 
 type HelpPlacement = "top" | "bottom";
 type HelpTriggerMode = "hover-focus-press";
@@ -25,7 +26,7 @@ export const InlineHelp: React.FC<InlineHelpProps> = ({
   return (
     <span
       ref={wrapperRef}
-      className="inline-help"
+      className={styles.root}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onBlur={(event) => {
@@ -36,7 +37,7 @@ export const InlineHelp: React.FC<InlineHelpProps> = ({
     >
       <button
         type="button"
-        className="inline-help-button"
+        className={styles.button}
         aria-label={label}
         aria-expanded={open}
         aria-controls={helpId}
@@ -53,7 +54,7 @@ export const InlineHelp: React.FC<InlineHelpProps> = ({
       <span
         id={helpId}
         role="tooltip"
-        className="inline-help-popover"
+        className={styles.popover}
         data-open={open}
         data-placement={placement}
       >

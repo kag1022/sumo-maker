@@ -2,6 +2,9 @@ import React from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ScrollText } from "lucide-react";
 import type { RikishiStatus } from "../../../logic/models";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { buildReportRankArcDigest } from "../utils/reportRankArcDigest";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
 import { useCareerBashoDetail } from "./useCareerBashoDetail";
@@ -34,11 +37,11 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
 
   return (
     <div className="space-y-4">
-      <section className="report-detail-card relative overflow-hidden p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "relative overflow-hidden p-4 sm:p-5")}>
         <div className="absolute inset-y-0 left-0 w-1 bg-warning/35" />
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
-            <h3 className="section-header">
+            <h3 className={typography.sectionHeader}>
               <ScrollText className="w-4 h-4 text-warning" /> 番付の山谷
             </h3>
             <p className="mt-1 text-xs text-text-dim">昇進の数ではなく、上がり方、落ち方、停滞の重さを読みます。</p>
@@ -48,8 +51,8 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
         <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {digest.summaryCards.map((item) => (
             <div key={item.label} className="border border-brand-muted/50 bg-surface-base/75 px-3 py-3 transition-colors hover:border-gold/20 hover:bg-bg/25">
-              <div className="text-[10px] ui-text-label tracking-[0.2em] text-text-dim uppercase">{item.label}</div>
-              <div className="mt-2 text-sm ui-text-heading text-text">{item.value}</div>
+              <div className={cn(typography.label, "text-[10px] tracking-[0.2em] text-text-dim uppercase")}>{item.label}</div>
+              <div className={cn(typography.heading, "mt-2 text-sm text-text")}>{item.value}</div>
               <div className="mt-2 text-xs leading-relaxed text-text-dim">{item.detail}</div>
             </div>
           ))}
@@ -107,8 +110,8 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
               <div className="border border-brand-muted/50 bg-surface-base/75 px-4 py-4 transition-colors hover:border-gold/20 hover:bg-bg/25">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <div className="text-[10px] ui-text-label tracking-[0.2em] text-text-dim uppercase">{item.bashoLabel}</div>
-                    <div className="mt-1 text-sm ui-text-heading text-text">{item.title}</div>
+                    <div className={cn(typography.label, "text-[10px] tracking-[0.2em] text-text-dim uppercase")}>{item.bashoLabel}</div>
+                    <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{item.title}</div>
                   </div>
                   {careerId && (
                     <button
@@ -139,8 +142,8 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                 <div className="border border-warning/35 bg-bg/18 px-4 py-4">
                   <div className="mb-4 border-b border-brand-muted/40 pb-3">
                     <div>
-                      <div className="ui-text-label text-[10px] tracking-[0.25em] text-warning/80 uppercase">番付推移詳細</div>
-                      <div className="mt-1 text-sm ui-text-heading text-text">{item.bashoLabel}の山場</div>
+                      <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>番付推移詳細</div>
+                      <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{item.bashoLabel}の山場</div>
                       <div className="mt-1 text-xs text-text-dim">{item.summary}</div>
                     </div>
                   </div>
@@ -157,10 +160,10 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
           ))}
         </div>
       </section>
-      <section className="report-detail-card relative overflow-hidden p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "relative overflow-hidden p-4 sm:p-5")}>
         <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className="section-header">
+          <h3 className={typography.sectionHeader}>
             <ScrollText className="w-4 h-4 text-brand-line" /> 番付変動の比較表
           </h3>
           <p className="text-xs text-text-dim">各場所の成績と次場所への移動だけを並べます。</p>

@@ -21,7 +21,7 @@ interface WinRatePoint {
 
 const ROLLING_WINDOW = 5;
 
-export const buildWinRateSeries = (points: CareerLedgerPoint[]): WinRatePoint[] => {
+const buildWinRateSeries = (points: CareerLedgerPoint[]): WinRatePoint[] => {
   let cumWins = 0;
   let cumDecisions = 0;
   return points.map((p, i) => {

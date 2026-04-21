@@ -71,14 +71,12 @@ export const resolvePairScore = (
     scoreDistanceWeight(day),
   );
   let rankWeight = rankDistanceWeight(day);
-  if (true) {
-    if (day >= 6 && day <= 10) {
-      scoreWeight *= 0.55;
-      rankWeight *= 1.35;
-    } else if (day >= 11) {
-      scoreWeight *= options?.boundaryId ? 0.72 : 0.48;
-      rankWeight *= options?.boundaryId ? 1.22 : 1.5;
-    }
+  if (day >= 6 && day <= 10) {
+    scoreWeight *= 0.55;
+    rankWeight *= 1.35;
+  } else if (day >= 11) {
+    scoreWeight *= options?.boundaryId ? 0.72 : 0.48;
+    rankWeight *= options?.boundaryId ? 1.22 : 1.5;
   }
   const lossWeight = Math.max(4, Math.round(scoreWeight * 0.1));
   let score =

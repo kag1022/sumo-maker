@@ -1,6 +1,9 @@
 import React from "react";
 import { Rank } from "../../../logic/models";
 import { PlayerBoutDetail } from "../../../logic/simulation/basho";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import { buildHoshitoriGrid } from "../utils/hoshitori";
 
 export interface HoshitoriCareerRecord {
@@ -90,9 +93,9 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
   const hasRows = sortedRecords.length > 0;
 
   return (
-    <div className="game-panel overflow-hidden">
+    <div className={cn(surface.gamePanel, "overflow-hidden")}>
       <div className="px-3 sm:px-5 pt-4 pb-3 border-b border-kiniro-muted/15 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="section-header">生涯星取表</h3>
+        <h3 className={typography.sectionHeader}>生涯星取表</h3>
         <div className="flex items-center gap-0.5 border border-kiniro-muted/20 p-0.5 text-xs">
           <button
             type="button"

@@ -159,11 +159,7 @@ export const pairAcrossBoundary = (
         bestLower = lower;
       }
     }
-    if (
-      true &&
-      rng &&
-      scoredCandidates.length > 1
-    ) {
+    if (rng && scoredCandidates.length > 1) {
       scoredCandidates.sort((a, b) => a.score - b.score);
       const top = scoredCandidates.slice(0, 3);
       const rawWeights = [0.7, 0.2, 0.1].slice(0, top.length);

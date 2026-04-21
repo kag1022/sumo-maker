@@ -1,9 +1,11 @@
-// @ts-nocheck
 import React from "react";
 import { Eye, ScrollText, Swords, X } from "lucide-react";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { type PlayerBoutDetail } from "../../../logic/simulation/basho";
+import { cn } from "../../../shared/lib/cn";
+import surface from "../../../shared/styles/surface.module.css";
+import typography from "../../../shared/styles/typography.module.css";
 import {
   buildBanzukeSnapshotForSeq,
   buildSnapshotBoutMarks,
@@ -13,6 +15,7 @@ import {
   buildImportantBanzukeDecisionDigests,
   buildImportantTorikumiDigests,
 } from "../utils/reportTimeline";
+import reportCommon from "./reportCommon.module.css";
 
 export interface BashoDetailModalState {
   kind?: "record" | "rank" | "rival";
@@ -103,7 +106,9 @@ const resolveBoutSecondaryLabel = (bout: PlayerBoutDetail, playerRank: Rank): st
   return bout.kimarite ? bout.kimarite : "番付記録なし";
 };
 
-const resolvePlayerRank = (playerRecord: CareerBashoDetail["playerRecord"] | RikishiStatus["history"]["records"][number]): Rank =>
+const resolvePlayerRank = (
+  playerRecord: NonNullable<CareerBashoDetail["playerRecord"]> | RikishiStatus["history"]["records"][number],
+): Rank =>
   "rank" in playerRecord
     ? playerRecord.rank
     : {
@@ -174,7 +179,6 @@ export const BashoDetailModal: React.FC<BashoDetailModalProps> = ({
     const estimatedHeight = Math.min(maxHeight, 720);
 
     const spaceBelow = viewportHeight - anchor.bottom - verticalPadding;
-    const spaceAbove = anchor.top - verticalPadding;
     const top =
       spaceBelow >= Math.min(estimatedHeight, 320)
         ? Math.min(anchor.bottom + gap, viewportHeight - estimatedHeight - verticalPadding)
@@ -205,13 +209,13 @@ export const BashoDetailModal: React.FC<BashoDetailModalProps> = ({
         onClick={onClose}
       />
       <div
-        className="fixed overflow-hidden border border-brand-muted/70 bg-surface-panel shadow-rpg"
+        className={cn(surface.detailCard, "fixed overflow-hidden border border-brand-muted/70 shadow-rpg")}
         style={modalStyle}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-brand-muted/60 px-4 py-3 sm:px-5">
           <div className="space-y-1">
-            <div className="ui-text-label text-xs text-warning-bright">{state.sourceLabel}</div>
+            <div className={cn(typography.label, "text-xs text-warning-bright")}>{state.sourceLabel}</div>
             <h4 className="text-sm sm:text-base text-text">{state.title}</h4>
             <p className="text-xs text-text-dim">
               {state.subtitle ?? "場所の詳細を読み込みます。"}
@@ -271,8 +275,8 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({ state, detail,
   const torikumiDigests = detail ? buildImportantTorikumiDigests(detail.importantTorikumi) : [];
   const bashoLabel = detail ? formatBashoLabel(detail.year, detail.month) : state.title;
 
-  if (isLoading) return <div className="report-empty">場所詳細を読み込んでいます。</div>;
-  if (errorMessage) return <div className="report-empty text-warning-bright">{errorMessage}</div>;
+  if (isLoading) return <div className={reportCommon.empty}>場所詳細を読み込んでいます。</div>;
+  if (errorMessage) return <div className={cn(reportCommon.empty, "text-warning-bright")}>{errorMessage}</div>;
   if (!detail || !playerRecord || !playerRank) return null;
 
   return detailMode === "record" ? (
@@ -312,15 +316,15 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({ state, detail,
 };
 
 const MetricCard: React.FC<{ label: string; value: string; meta: string }> = ({ label, value, meta }) => (
-  <div className="report-detail-card p-4">
-    <div className="text-[10px] ui-text-label tracking-[0.3em] text-gold/55 uppercase">{label}</div>
-    <div className="mt-3 text-lg ui-text-heading text-text">{value}</div>
+  <div className={cn(surface.detailCard, "p-4")}>
+    <div className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>{label}</div>
+    <div className={cn(typography.heading, "mt-3 text-lg text-text")}>{value}</div>
     <div className="mt-1 text-xs text-text-dim">{meta}</div>
   </div>
 );
 
 const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>; highlightOpponentId?: string }> = ({ snapshot, boutMarks, highlightOpponentId }) => {
-  if (!snapshot) return <div className="report-empty">この場所の番付表は保存されていません。</div>;
+  if (!snapshot) return <div className={reportCommon.empty}>この場所の番付表は保存されていません。</div>;
   return (
     <div className="space-y-2">
       {snapshot.highlightReason && (
@@ -344,8 +348,8 @@ const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>;
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 min-w-0">
                 <span className={`truncate ${row.isPlayer || row.entityId === highlightOpponentId ? "text-text" : "text-text-dim"}`}>{row.shikona}</span>
-                {boutMark && <span className="ui-text-label border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line">{boutMark}</span>}
-                {row.isYushoWinner && <span className="ui-text-label border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright">優勝</span>}
+                {boutMark && <span className={cn(typography.label, "border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line")}>{boutMark}</span>}
+                {row.isYushoWinner && <span className={cn(typography.label, "border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright")}>優勝</span>}
               </div>
             </div>
             <div className="text-text">{row.recordText}</div>
@@ -367,9 +371,9 @@ const RecordDetailLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
     </section>
 
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)]">
-      <section className="report-detail-card p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className="section-header">
+          <h3 className={typography.sectionHeader}>
             <Swords className="w-4 h-4 text-action" /> 本割一覧
           </h3>
           <p className="text-xs text-text-dim">{detail.bouts.length}番を記録</p>
@@ -390,13 +394,13 @@ const RecordDetailLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
             ))}
           </div>
         ) : (
-          <div className="report-empty">本割詳細は保存されていません。</div>
+          <div className={reportCommon.empty}>本割詳細は保存されていません。</div>
         )}
       </section>
 
-      <section className="report-detail-card p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className="section-header">
+          <h3 className={typography.sectionHeader}>
             <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
           </h3>
           {snapshot && snapshot.totalRowCount > snapshot.rows.length && <p className="text-xs text-text-dim">{snapshot.totalRowCount}枠中 {snapshot.rows.length}件を表示</p>}
@@ -415,9 +419,9 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
       <MetricCard label="場所成績" value={formatRecordText(playerRecord.wins, playerRecord.losses, playerRecord.absent)} meta="この成績が次の景色を決めた" />
     </section>
 
-    <section className="report-detail-card p-4 sm:p-5">
+    <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
       <div className="mb-3">
-        <h3 className="section-header">
+        <h3 className={typography.sectionHeader}>
           <ScrollText className="w-4 h-4 text-warning" /> この場所が山場である理由
         </h3>
       </div>
@@ -426,8 +430,8 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
           <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm leading-relaxed text-text">
             {state.highlightReason ?? "この場所の番付判断と取組内容が、番付推移の折れ目を作った。"}
           </div>
-          <div className="report-detail-card p-4">
-            <div className="mb-2 text-[10px] ui-text-label tracking-[0.25em] text-text-dim uppercase">番付判断</div>
+          <div className={cn(surface.detailCard, "p-4")}>
+            <div className={cn(typography.label, "mb-2 text-[10px] tracking-[0.25em] text-text-dim uppercase")}>番付判断</div>
             {decisionDigests.length > 0 ? (
               <div className="space-y-2">
                 {decisionDigests.slice(0, 2).map((entry: any) => (
@@ -439,11 +443,11 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
                 ))}
               </div>
             ) : (
-              <div className="report-empty">この場所に残された番付判断ログはありません。</div>
+              <div className={reportCommon.empty}>この場所に残された番付判断ログはありません。</div>
             )}
           </div>
-          <div className="report-detail-card p-4">
-            <div className="mb-2 text-[10px] ui-text-label tracking-[0.25em] text-text-dim uppercase">象徴の一番</div>
+          <div className={cn(surface.detailCard, "p-4")}>
+            <div className={cn(typography.label, "mb-2 text-[10px] tracking-[0.25em] text-text-dim uppercase")}>象徴の一番</div>
             {torikumiDigests.length > 0 ? (
               <div className="space-y-2">
                 {torikumiDigests.slice(0, 2).map((entry: any) => (
@@ -454,23 +458,23 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
                 ))}
               </div>
             ) : (
-              <div className="report-empty">この場所を象徴する取組は保存されていません。</div>
+              <div className={reportCommon.empty}>この場所を象徴する取組は保存されていません。</div>
             )}
           </div>
         </div>
 
         <div className="space-y-4">
-          <section className="report-detail-card p-4 sm:p-5">
+          <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
             <div className="flex items-center justify-between gap-3 mb-3">
-              <h3 className="section-header">
+              <h3 className={typography.sectionHeader}>
                 <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
               </h3>
             </div>
             <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
           </section>
-          <section className="report-detail-card p-4 sm:p-5">
+          <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
             <div className="flex items-center justify-between gap-3 mb-3">
-              <h3 className="section-header">
+              <h3 className={typography.sectionHeader}>
                 <Swords className="w-4 h-4 text-action" /> 本割抜粋
               </h3>
             </div>
@@ -488,7 +492,7 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
                 ))}
               </div>
             ) : (
-              <div className="report-empty">本割抜粋は保存されていません。</div>
+              <div className={reportCommon.empty}>本割抜粋は保存されていません。</div>
             )}
           </section>
         </div>
@@ -518,17 +522,17 @@ const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
         />
       </section>
 
-      <section className="report-detail-card p-4 sm:p-5">
+      <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
         <div className="mb-3">
-          <h3 className="section-header">
+          <h3 className={typography.sectionHeader}>
             <Swords className="w-4 h-4 text-warning" /> なぜこの相手が残ったか
           </h3>
         </div>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div className="space-y-3">
             <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm leading-relaxed text-text">{rivalSummary}</div>
-            <div className="report-detail-card p-4">
-              <div className="mb-2 text-[10px] ui-text-label tracking-[0.25em] text-text-dim uppercase">直接対決の断面</div>
+            <div className={cn(surface.detailCard, "p-4")}>
+              <div className={cn(typography.label, "mb-2 text-[10px] tracking-[0.25em] text-text-dim uppercase")}>直接対決の断面</div>
               {featuredBouts.length > 0 ? (
                 <div className="space-y-2">
                   {featuredBouts.slice(0, 5).map((bout: any) => (
@@ -548,11 +552,11 @@ const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
                   ))}
                 </div>
               ) : (
-                <div className="report-empty">この相手との直接対決は保存されていません。</div>
+                <div className={reportCommon.empty}>この相手との直接対決は保存されていません。</div>
               )}
             </div>
-            <div className="report-detail-card p-4">
-              <div className="mb-2 text-[10px] ui-text-label tracking-[0.25em] text-text-dim uppercase">この場所に残った意味</div>
+            <div className={cn(surface.detailCard, "p-4")}>
+              <div className={cn(typography.label, "mb-2 text-[10px] tracking-[0.25em] text-text-dim uppercase")}>この場所に残った意味</div>
               {torikumiDigests.length > 0 ? (
                 <div className="space-y-2">
                   {torikumiDigests.slice(0, 2).map((entry: any) => (
@@ -563,23 +567,23 @@ const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
                   ))}
                 </div>
               ) : (
-                <div className="report-empty">この場所を象徴する一番は保存されていません。</div>
+                <div className={reportCommon.empty}>この場所を象徴する一番は保存されていません。</div>
               )}
             </div>
           </div>
 
           <div className="space-y-4">
-            <section className="report-detail-card p-4 sm:p-5">
+            <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
               <div className="flex items-center justify-between gap-3 mb-3">
-                <h3 className="section-header">
+                <h3 className={typography.sectionHeader}>
                   <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
                 </h3>
               </div>
               <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
             </section>
-            <section className="report-detail-card p-4 sm:p-5">
+            <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
               <div className="flex items-center justify-between gap-3 mb-3">
-                <h3 className="section-header">
+                <h3 className={typography.sectionHeader}>
                   <Eye className="w-4 h-4 text-action" /> 場所の見取り図
                 </h3>
               </div>

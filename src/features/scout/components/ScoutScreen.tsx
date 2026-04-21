@@ -20,6 +20,9 @@ import { Button } from "../../../shared/ui/Button";
 import { InlineHelp } from "../../../shared/ui/InlineHelp";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { useViewportMode } from "../../../shared/hooks/useViewportMode";
+import { cn } from "../../../shared/lib/cn";
+import typography from "../../../shared/styles/typography.module.css";
+import styles from "./ScoutScreen.module.css";
 
 interface ScoutScreenProps {
   onStart: (
@@ -31,7 +34,6 @@ interface ScoutScreenProps {
 
 type ScoutStepId = "identity" | "seed" | "body";
 
-const SECTION_TITLE = "text-[10px] ui-text-label tracking-[0.35em] text-gold/55 uppercase";
 const STEP_ORDER: ScoutStepId[] = ["identity", "seed", "body"];
 
 const ENTRY_AGE_OPTIONS = [15, 18, 22] as const;
@@ -94,8 +96,8 @@ const FieldLegend: React.FC<{
   label: string;
   description: string;
 }> = ({ label, description }) => (
-  <span className="scout-field-legend">
-    <span className={SECTION_TITLE}>{label}</span>
+  <span className={styles.fieldLegend}>
+    <span className={styles.sectionTitle}>{label}</span>
     <InlineHelp label={label} description={description} placement="top" />
   </span>
 );
@@ -109,7 +111,7 @@ const ChoiceGrid = <T extends string>({
   options: Array<{ value: T; label: string; note: string }>;
   onChange: (value: T) => void;
 }) => (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className={styles.choiceGrid}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -117,11 +119,11 @@ const ChoiceGrid = <T extends string>({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className="scout-choice-card"
+            className={styles.choiceCard}
             data-active={active}
           >
-            <div className="text-base ui-text-heading text-text">{option.label}</div>
-            <div className="mt-2 text-sm text-text-dim">{option.note}</div>
+            <div className={cn(styles.choiceTitle, typography.heading)}>{option.label}</div>
+            <div className={styles.choiceNote}>{option.note}</div>
           </button>
         );
       })}
@@ -139,12 +141,12 @@ const SectionCard: React.FC<{
 }> = ({ step, activeStep, summary, children, onActivate, onNext, onBack }) => {
   const active = step === activeStep;
   return (
-    <section className="scout-ritual-section" data-active={active}>
-      <div className="scout-ritual-section-head">
+    <section className={styles.section} data-active={active}>
+      <div className={styles.sectionHead}>
         <div>
-          <div className="scout-ritual-section-step">区画 {STEP_ORDER.indexOf(step) + 1}</div>
-          <h2 className="scout-ritual-section-title">{STEP_COPY[step].title}</h2>
-          <p className="scout-ritual-section-copy">{active ? STEP_COPY[step].body : summary}</p>
+          <div className={styles.sectionStep}>区画 {STEP_ORDER.indexOf(step) + 1}</div>
+          <h2 className={styles.sectionTitleText}>{STEP_COPY[step].title}</h2>
+          <p className={styles.sectionCopy}>{active ? STEP_COPY[step].body : summary}</p>
         </div>
         <Button variant={active ? "secondary" : "outline"} size="sm" onClick={() => onActivate(step)}>
           {active ? "入力中" : "開く"}
@@ -152,9 +154,9 @@ const SectionCard: React.FC<{
       </div>
 
       {active ? (
-        <div className="scout-ritual-section-body">
+        <div className={styles.sectionBody}>
           {children}
-          <div className="scout-ritual-section-footer">
+          <div className={styles.sectionFooter}>
             {onBack ? (
               <Button variant="ghost" onClick={onBack}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -178,15 +180,15 @@ const ScoutHero: React.FC<{
   activeStep: ScoutStepId;
   onActivateStep: (step: ScoutStepId) => void;
 }> = ({ activeStep, onActivateStep }) => (
-  <section className="scout-ritual-hero">
-    <div className="scout-ritual-hero-copy">
-      <div className="scout-ritual-kicker">新弟子設計</div>
-      <h1 className="scout-ritual-title">入門の帳面を整える</h1>
-      <p className="scout-ritual-description">
+  <section className={styles.hero}>
+    <div className={styles.heroCopy}>
+      <div className={styles.kicker}>新弟子設計</div>
+      <h1 className={styles.heroTitle}>入門の帳面を整える</h1>
+      <p className={styles.heroDescription}>
         入口の条件だけを決めます。相撲人生そのものは、このあと静かに立ち上がります。
       </p>
     </div>
-    <div className="scout-ritual-progress" aria-label="設計の進行状況">
+    <div className={styles.progress} aria-label="設計の進行状況">
       {STEP_ORDER.map((step) => {
         const stepIndex = STEP_ORDER.indexOf(step);
         const activeIndex = STEP_ORDER.indexOf(activeStep);
@@ -194,13 +196,13 @@ const ScoutHero: React.FC<{
           <button
             key={step}
             type="button"
-            className="scout-ritual-progress-step"
+            className={styles.progressStep}
             data-active={step === activeStep}
             data-complete={stepIndex < activeIndex}
             onClick={() => onActivateStep(step)}
           >
-            <span className="scout-ritual-progress-number">〇{stepIndex + 1}</span>
-            <span className="scout-ritual-progress-label">{STEP_COPY[step].title}</span>
+            <span className={styles.progressNumber}>〇{stepIndex + 1}</span>
+            <span className={styles.progressLabel}>{STEP_COPY[step].title}</span>
           </button>
         );
       })}
@@ -213,13 +215,13 @@ const ScoutDecisionPanel: React.FC<{
   onRegister: () => void;
   mode: "desktop" | "mobile";
 }> = ({ isRegistering, onRegister, mode }) => (
-  <section className={mode === "desktop" ? "scout-ritual-decision" : "scout-mobile-decision"}>
+  <section className={mode === "desktop" ? styles.decision : styles.decisionMobile}>
     <div>
-      <p className={SECTION_TITLE}>{mode === "desktop" ? "決裁" : "開始"}</p>
-      <h2 className="mt-2 text-2xl ui-text-heading text-text">この新弟子で始める</h2>
-      <p className="mt-2 text-sm text-text-dim">標準モードでは全場所を追わず、節目だけを読みます。</p>
+      <p className={styles.sectionTitle}>{mode === "desktop" ? "決裁" : "開始"}</p>
+      <h2 className={styles.decisionTitle}>この新弟子で始める</h2>
+      <p className={styles.decisionCopy}>標準モードでは全場所を追わず、節目だけを読みます。</p>
     </div>
-    <Button size="lg" onClick={onRegister} disabled={isRegistering}>
+    <Button size="lg" onClick={onRegister} disabled={isRegistering} className={styles.decisionButton}>
       <ScrollText className="mr-3 h-5 w-5" />
       {isRegistering ? "節目を整えています..." : "この新弟子で始める"}
     </Button>
@@ -233,18 +235,18 @@ const ScoutCandidateShelf: React.FC<{
   onCycleCandidate,
   mode,
 }) => (
-  <section className={mode === "desktop" ? "scout-candidate-shelf" : "scout-candidate-shelf scout-candidate-shelf-mobile"}>
-    <div className="scout-candidate-shelf-head">
+  <section className={cn(styles.candidateShelf, mode === "mobile" && styles.candidateShelfMobile)}>
+    <div className={styles.candidateShelfHead}>
       <div>
-        <p className={SECTION_TITLE}>候補札</p>
-        <h2 className="mt-2 text-xl ui-text-heading text-text">次の候補へ切り替える</h2>
+        <p className={styles.sectionTitle}>候補札</p>
+        <h2 className={styles.decisionTitle}>次の候補へ切り替える</h2>
         {mode === "mobile" ? (
-          <p className="mt-2 text-sm text-text-dim">入力中の流れを止めずに、次の入口案へ差し替えます。</p>
+          <p className={styles.decisionCopy}>入力中の流れを止めずに、次の入口案へ差し替えます。</p>
         ) : null}
       </div>
     </div>
-    <div className="scout-candidate-actions">
-      <Button variant="outline" size="sm" onClick={onCycleCandidate}>
+    <div className={styles.candidateActions}>
+      <Button variant="outline" size="sm" onClick={onCycleCandidate} className={styles.candidateButton}>
         <RefreshCw className="mr-2 h-4 w-4" />
         次の候補
       </Button>
@@ -259,64 +261,64 @@ const ScoutEntryLedger: React.FC<{
   previewBodyType: ReturnType<typeof buildInitialRikishiFromDraft>["bodyType"];
   mode: "desktop" | "mobile";
 }> = ({ draft, entryLabel, stableName, previewBodyType, mode }) => (
-  <section className={mode === "desktop" ? "scout-preview-panel scout-entry-ledger" : "scout-mobile-ledger"}>
-    <div className="scout-entry-ledger-head">
-      <p className={SECTION_TITLE}>{mode === "desktop" ? "入門帳" : "現在の入口"}</p>
-      <h2 className={`ui-text-heading text-text ${mode === "desktop" ? "mt-2 text-4xl" : "mt-2 text-3xl"}`}>
+  <section className={mode === "desktop" ? cn(styles.previewPanel, styles.entryLedger) : styles.mobileLedger}>
+    <div className={styles.entryLedgerHead}>
+      <p className={styles.sectionTitle}>{mode === "desktop" ? "入門帳" : "現在の入口"}</p>
+      <h2 className={cn(styles.entryLedgerName, mode === "mobile" && styles.entryLedgerNameMobile)}>
         {draft.shikona}
       </h2>
-      <p className="mt-2 text-sm text-text/65">
+      <p className={styles.entryLedgerSub}>
         {draft.birthplace} / {stableName}
       </p>
     </div>
 
     {mode === "desktop" ? (
       <>
-        <div className="scout-entry-ledger-portrait">
+        <div className={styles.entryLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
         </div>
-        <div className="scout-entry-ledger-note">
+        <div className={styles.entryLedgerNote}>
           {draft.personaLine ?? "どこで人生の輪郭が立つかは、まだ白紙です。"}
         </div>
-        <div className="scout-entry-ledger-rows">
+        <div className={styles.entryLedgerRows}>
           {[
             ["四股名", draft.shikona],
             ["出身", draft.birthplace],
             ["所属部屋", stableName],
             ["入口", entryLabel],
           ].map(([label, value]) => (
-            <div key={label} className="scout-entry-ledger-row">
-              <span className="ui-text-label text-gold/60">{label}</span>
-              <span className="text-right text-text">{value ?? "-"}</span>
+            <div key={label} className={styles.entryLedgerRow}>
+              <span className={styles.metaLabel}>{label}</span>
+              <span className={styles.entryLedgerValue}>{value ?? "-"}</span>
             </div>
           ))}
         </div>
       </>
     ) : (
-      <div className="scout-mobile-ledger-body">
-        <div className="scout-mobile-ledger-portrait">
+      <div className={styles.mobileLedgerBody}>
+        <div className={styles.mobileLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
         </div>
-        <div className="scout-mobile-ledger-copy">
-          <div className="scout-entry-ledger-note">
+        <div className={styles.mobileLedgerCopy}>
+          <div className={styles.entryLedgerNote}>
             {draft.personaLine ?? "どこで人生の輪郭が立つかは、まだ白紙です。"}
           </div>
-          <div className="scout-mobile-ledger-grid">
+          <div className={styles.mobileLedgerGrid}>
             {[
               ["所属部屋", stableName],
               ["入口", entryLabel],
             ].map(([label, value]) => (
-              <div key={label} className="scout-mobile-ledger-cell">
-                <span className="ui-text-label text-gold/60">{label}</span>
-                <span className="text-text">{value}</span>
+              <div key={label} className={styles.mobileLedgerCell}>
+                <span className={styles.metaLabel}>{label}</span>
+                <span className={styles.entryLedgerValue}>{value}</span>
               </div>
             ))}
           </div>
@@ -381,7 +383,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             <input
               value={draft.shikona}
               onChange={(event) => updateDraft("shikona", event.target.value)}
-              className="w-full border border-gold/20 bg-bg/30 px-4 py-3 text-xl ui-text-heading text-text outline-none"
+              className={cn(styles.textInput, styles.nameInput)}
             />
           </label>
           <label className="space-y-2">
@@ -389,7 +391,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             <input
               value={draft.birthplace}
               onChange={(event) => updateDraft("birthplace", event.target.value)}
-              className="w-full border border-gold/20 bg-bg/30 px-4 py-3 text-base text-text outline-none"
+              className={styles.textInput}
             />
           </label>
         </div>
@@ -399,7 +401,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             value={draft.personaLine ?? ""}
             rows={3}
             onChange={(event) => updateDraft("personaLine", event.target.value)}
-            className="w-full border border-gold/20 bg-bg/30 px-4 py-3 text-sm text-text outline-none"
+            className={styles.textArea}
           />
         </label>
       </SectionCard>
@@ -421,10 +423,10 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   key={age}
                   type="button"
                   onClick={() => updateDraft("entryAge", age)}
-                  className="scout-choice-card"
+                  className={styles.choiceCard}
                   data-active={draft.entryAge === age}
                 >
-                  <div className="text-base ui-text-heading text-text">{age}歳入門</div>
+                  <div className={cn(styles.choiceTitle, typography.heading)}>{age}歳入門</div>
                 </button>
               ))}
             </div>
@@ -465,7 +467,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                     key={height}
                     type="button"
                     onClick={() => updateDraft("startingHeightCm", height)}
-                    className="scout-size-chip"
+                    className={styles.sizeChip}
                     data-active={draft.startingHeightCm === height}
                   >
                     {height}cm
@@ -481,7 +483,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                     key={weight}
                     type="button"
                     onClick={() => updateDraft("startingWeightKg", weight)}
-                    className="scout-size-chip"
+                    className={styles.sizeChip}
                     data-active={draft.startingWeightKg === weight}
                   >
                     {weight}kg
@@ -506,11 +508,11 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
                   key={stable.value}
                   type="button"
                   onClick={() => updateDraft("selectedStableId", stable.value)}
-                  className="scout-choice-card"
+                  className={styles.choiceCard}
                   data-active={draft.selectedStableId === stable.value}
                 >
-                  <div className="text-base ui-text-heading text-text">{stable.label}</div>
-                  <div className="mt-2 text-xs text-text-dim">{stable.note}</div>
+                  <div className={cn(styles.choiceTitle, typography.heading)}>{stable.label}</div>
+                  <div className={styles.choiceNote}>{stable.note}</div>
                 </button>
               ))}
             </div>
@@ -522,7 +524,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
 
   if (isMobileViewport) {
     return (
-      <div className="scout-ritual-shell scout-ritual-shell-mobile">
+      <div className={cn(styles.shell, styles.shellMobile)}>
         <ScoutHero activeStep={activeStep} onActivateStep={setActiveStep} />
         <ScoutEntryLedger
           draft={draft}
@@ -531,7 +533,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
           previewBodyType={previewStatus.bodyType}
           mode="mobile"
         />
-        <div className="scout-mobile-main">
+        <div className={styles.mobileMain}>
           {sections}
           <ScoutCandidateShelf
             onCycleCandidate={handleCycleCandidate}
@@ -544,16 +546,16 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
   }
 
   return (
-    <div className="scout-ritual-shell">
+    <div className={styles.shell}>
       <ScoutHero activeStep={activeStep} onActivateStep={setActiveStep} />
 
-      <div className="scout-ritual-layout">
-        <main className="scout-ritual-main">
+      <div className={styles.layout}>
+        <main className={styles.main}>
           {sections}
           <ScoutDecisionPanel isRegistering={isRegistering} onRegister={register} mode="desktop" />
         </main>
 
-        <aside className="scout-ritual-aside">
+        <aside className={styles.aside}>
           <ScoutCandidateShelf
             onCycleCandidate={handleCycleCandidate}
             mode="desktop"
@@ -565,7 +567,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ onStart }) => {
             previewBodyType={previewStatus.bodyType}
             mode="desktop"
           />
-          <section className="scout-preview-panel">
+          <section className={styles.previewPanel}>
             <ScoutStatPreview status={previewStatus} />
           </section>
         </aside>

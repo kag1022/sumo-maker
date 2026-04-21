@@ -1,5 +1,6 @@
 import React from "react";
-import { clsx } from "clsx";
+import { cn } from "../lib/cn";
+import styles from "./ChartCard.module.css";
 
 interface ChartCardProps {
   title?: string;
@@ -16,22 +17,22 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   className,
   children,
 }) => (
-  <div className={clsx("chart-card", className)}>
+  <div className={cn(styles.root, className)}>
     {(title || legend) ? (
-      <div className="chart-card-head">
-        <div className="chart-card-titleblock">
+      <div className={styles.head}>
+        <div>
           {title ? (
-            <div className="chart-card-titlerow">
-              <span className="chart-card-title-mark" aria-hidden="true" />
-              <span className="chart-card-title">{title}</span>
+            <div className={styles.titleRow}>
+              <span className={styles.titleMark} aria-hidden="true" />
+              <span className={styles.title}>{title}</span>
             </div>
           ) : null}
-          {subtitle ? <div className="chart-card-subtitle">{subtitle}</div> : null}
+          {subtitle ? <div className={styles.subtitle}>{subtitle}</div> : null}
         </div>
-        {legend ? <div className="chart-card-legend">{legend}</div> : null}
+        {legend ? <div className={styles.legend}>{legend}</div> : null}
       </div>
     ) : null}
-    <div className="chart-card-body">{children}</div>
+    <div className={styles.body}>{children}</div>
   </div>
 );
 
@@ -41,8 +42,8 @@ interface ChartLegendItemProps {
 }
 
 export const ChartLegendItem: React.FC<ChartLegendItemProps> = ({ color, label }) => (
-  <span className="chart-card-legend-item">
-    <span className="chart-card-legend-swatch" style={{ backgroundColor: color }} />
+  <span className={styles.legendItem}>
+    <span className={styles.legendSwatch} style={{ backgroundColor: color }} />
     {label}
   </span>
 );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Injury, InjuryType, BodyType } from '../../logic/models';
+import styles from './DamageMap.module.css';
 
 type Point = { x: number; y: number };
 
@@ -232,7 +233,7 @@ export const DamageMap: React.FC<DamageMapProps> = ({
         <svg
           viewBox={viewBox}
           xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full drop-shadow-md pixel-art-surface"
+          className={`w-full h-full drop-shadow-md ${styles.pixelSurface}`}
         >
           <defs>
             <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
