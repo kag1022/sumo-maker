@@ -3,6 +3,9 @@ import { Archive, LibraryBig, ScrollText, Settings, Waypoints } from "lucide-rea
 import { motion } from "framer-motion";
 import { Button } from "../../../shared/ui/Button";
 import { StatCard } from "../../../shared/ui/StatCard";
+import { cn } from "../../../shared/lib/cn";
+import typography from "../../../shared/styles/typography.module.css";
+import styles from "./HomeScreen.module.css";
 
 interface HomeScreenProps {
   savedCount: number;
@@ -83,7 +86,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <div className="space-y-8">
       {/* Hero */}
       <motion.section
-        className="home-hero relative overflow-hidden border border-[var(--ui-brand-line)]/22 px-8 py-10 sm:px-10 sm:py-12"
+        className={cn(styles.hero, "relative overflow-hidden border border-[var(--ui-brand-line)]/22 px-8 py-10 sm:px-10 sm:py-12")}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32 }}
@@ -101,11 +104,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="absolute left-0 top-0 h-full w-0.5 bg-gradient-to-b from-[var(--ui-brand-line)]/60 via-[var(--ui-brand-line)]/30 to-transparent" />
         <div className="relative">
           <div className="mb-4 inline-flex items-center gap-2 border border-[var(--ui-brand-line)]/25 bg-[var(--ui-brand-line)]/8 px-3 py-1.5">
-            <span className="text-[9px] ui-text-label tracking-[0.45em] text-[var(--ui-brand-line)] uppercase">
+            <span className={cn(typography.label, "text-[9px] tracking-[0.45em] text-[var(--ui-brand-line)] uppercase")}>
               相撲記録帳 · SUMO MAKER
             </span>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl ui-text-heading text-text leading-tight tracking-wide">
+          <h2 className={cn(typography.heading, "text-3xl sm:text-4xl lg:text-5xl text-text leading-tight tracking-wide")}>
             一人の力士の一生を、<br />記録として読む。
           </h2>
           <p className="mt-4 max-w-xl text-sm sm:text-base text-text-dim leading-relaxed">
@@ -154,11 +157,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.22, delay: 0.14 }}
-          className="home-resume-banner flex flex-col gap-4 border border-[var(--ui-brand-line)]/30 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
+          className={cn(styles.resumeBanner, "flex flex-col gap-4 border border-[var(--ui-brand-line)]/30 px-6 py-5 sm:flex-row sm:items-center sm:justify-between")}
         >
           <div>
-            <div className="text-[9px] ui-text-label tracking-[0.4em] text-[var(--ui-brand-line)]/60 uppercase mb-2">続きから</div>
-            <div className="text-lg ui-text-heading text-text">{currentShikona}</div>
+            <div className={cn(typography.label, "mb-2 text-[9px] tracking-[0.4em] text-[var(--ui-brand-line)]/60 uppercase")}>続きから</div>
+            <div className={cn(typography.heading, "text-lg text-text")}>{currentShikona}</div>
             <div className="mt-1 text-sm text-text-dim">前回の記録を続きから開けます。</div>
           </div>
           <Button variant="secondary" onClick={onResume}>
@@ -170,7 +173,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Nav cards */}
       <div>
-        <div className="mb-4 text-[9px] ui-text-label tracking-[0.4em] text-[var(--ui-brand-line)]/50 uppercase">
+        <div className={cn(typography.label, "mb-4 text-[9px] tracking-[0.4em] text-[var(--ui-brand-line)]/50 uppercase")}>
           メニュー
         </div>
         <motion.section
@@ -184,19 +187,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             return (
               <motion.article
                 key={card.key}
-                className="home-nav-card group flex flex-col justify-between gap-5 border p-6 transition-all duration-200"
+                className={cn(styles.navCard, "group flex flex-col justify-between gap-5 border p-6 transition-all duration-200")}
                 variants={stagger.item}
               >
                 <div className="space-y-3">
-                  <div className="home-nav-card-icon flex h-10 w-10 items-center justify-center border border-[var(--ui-brand-line)]/25 bg-[var(--ui-brand-line)]/8 transition-colors group-hover:border-[var(--ui-brand-line)]/40">
+                  <div className={cn(styles.navCardIcon, "flex h-10 w-10 items-center justify-center border border-[var(--ui-brand-line)]/25 bg-[var(--ui-brand-line)]/8 transition-colors group-hover:border-[var(--ui-brand-line)]/40")}>
                     <Icon className="h-5 w-5 text-[var(--ui-brand-line)]/70" />
                   </div>
-                  <div className="text-sm ui-text-heading text-text">{card.title}</div>
+                  <div className={cn(typography.heading, "text-sm text-text")}>{card.title}</div>
                   <p className="text-xs text-text-dim leading-relaxed">{card.body}</p>
                 </div>
                 <button
                   type="button"
-                  className="home-nav-action w-full px-3 py-2 text-xs transition-all ui-text-label tracking-wide"
+                  className={cn(styles.navAction, typography.label, "w-full px-3 py-2 text-xs transition-all tracking-wide")}
                   onClick={handlers[card.key]}
                 >
                   {card.actionLabel} →

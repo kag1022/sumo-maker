@@ -1,0 +1,53 @@
+.flatTitle {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.8);
+}
+
+.scroll {
+  overflow: auto;
+  min-height: 0;
+  max-height: 20rem;
+}
+
+.detailTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.detailTable thead {
+  background: rgb(255 255 255 / 0.03);
+}
+
+.detailTable th,
+.detailTable td {
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  border-top: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.playerRow {
+  background: rgb(var(--twc-brand) / 0.09);
+}
+
+.linkButton {
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
+.linkButton:hover {
+  color: rgb(226 186 110 / 0.96);
+}
+
+.playerNameCell[data-player="true"]::before {
+  content: '■';
+  margin-right: 0.45rem;
+  color: rgb(226 186 110 / 0.96);
+}

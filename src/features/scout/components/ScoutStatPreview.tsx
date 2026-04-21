@@ -7,6 +7,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { RikishiStatus } from "../../../logic/models";
+import { clsx } from "clsx";
+import typography from "../../../shared/styles/typography.module.css";
 
 const STAT_LABELS: Record<keyof RikishiStatus["stats"], string> = {
   tsuki: "突き",
@@ -48,7 +50,7 @@ export const ScoutStatPreview: React.FC<ScoutStatPreviewProps> = ({ status }) =>
   return (
     <div className="space-y-4">
       <div>
-        <div className="text-[10px] ui-text-label tracking-[0.35em] text-[var(--ui-brand-line)]/55 uppercase mb-2">
+        <div className={clsx(typography.kicker, "mb-2")}>
           初期能力プレビュー
         </div>
         <ResponsiveContainer width="100%" height={200}>

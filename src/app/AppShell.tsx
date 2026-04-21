@@ -10,6 +10,8 @@ import {
   Waypoints,
 } from "lucide-react";
 import { useViewportMode } from "../shared/hooks/useViewportMode";
+import { cn } from "../shared/lib/cn";
+import styles from "./AppShell.module.css";
 
 export type AppSection =
   | "home"
@@ -70,19 +72,19 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   if (isMobileViewport) {
     return (
-      <div className="app-shell app-shell-mobile" data-layout="mobile">
-        <header className="app-shell-mobile-header">
-          <div className="app-shell-mobile-header-inner">
-            <div className="app-shell-titleblock">
-              <div className="app-shell-overline">相撲記録帳</div>
-              <h1 className="app-shell-title">{title}</h1>
-              {subtitle ? <div className="app-shell-subtitle">{subtitle}</div> : null}
+      <div className={cn(styles.shell, styles.mobileShell)} data-layout="mobile">
+        <header className={styles.mobileHeader}>
+          <div className={styles.mobileHeaderInner}>
+            <div className={styles.titleBlock}>
+              <div className={styles.overline}>相撲記録帳</div>
+              <h1 className={styles.title}>{title}</h1>
+              {subtitle ? <div className={styles.subtitle}>{subtitle}</div> : null}
             </div>
-            {actions ? <div className="app-shell-mobile-actions">{actions}</div> : null}
+            {actions ? <div className={styles.mobileActions}>{actions}</div> : null}
           </div>
-          <div className="app-shell-navband">
-            <div className="app-shell-navband-inner">
-              <nav className="app-shell-primarynav" aria-label="画面切替">
+          <div className={styles.mobileNavBand}>
+            <div className={styles.mainInner}>
+              <nav className={styles.mobilePrimaryNav} aria-label="画面切替">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.id;
@@ -90,7 +92,8 @@ export const AppShell: React.FC<AppShellProps> = ({
                     <button
                       key={item.id}
                       type="button"
-                      className={`app-shell-navbutton-mobile${isActive ? " active" : ""}`}
+                      className={styles.mobileNavButton}
+                      data-active={isActive}
                       disabled={disableSections.includes(item.id)}
                       onClick={() => onSectionChange(item.id)}
                     >
@@ -103,32 +106,31 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
           {statusLine ? (
-            <div className="app-shell-mobile-statusband">
-              <div className="app-shell-statuslabel">状況</div>
-              <div className="app-shell-mobile-statusline">{statusLine}</div>
+            <div className={styles.mobileStatusBand}>
+              <div className={styles.statusLabel}>状況</div>
+              <div className={styles.statusLine}>{statusLine}</div>
             </div>
           ) : null}
         </header>
-        <main className="app-shell-main app-shell-main-mobile">
-          <div className="app-shell-main-inner">{children}</div>
+        <main className={styles.main}>
+          <div className={styles.mainInner}>{children}</div>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="app-shell app-shell-sidebar-layout" data-layout="desktop">
-      {/* Left sidebar */}
-      <aside className="app-sidebar">
-        <div className="app-sidebar-brand">
-          <div className="app-sidebar-brand-mark">相</div>
-          <div className="app-sidebar-brand-text">
-            <div className="app-sidebar-brand-title">相撲記録帳</div>
-            <div className="app-sidebar-brand-sub">SUMO MAKER</div>
+    <div className={cn(styles.shell, styles.desktopShell)} data-layout="desktop">
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          <div className={styles.brandMark}>相</div>
+          <div>
+            <div className={styles.brandTitle}>相撲記録帳</div>
+            <div className={styles.brandSub}>SUMO MAKER</div>
           </div>
         </div>
 
-        <nav className="app-sidebar-nav" aria-label="画面切替">
+        <nav className={styles.nav} aria-label="画面切替">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
@@ -137,7 +139,8 @@ export const AppShell: React.FC<AppShellProps> = ({
               <button
                 key={item.id}
                 type="button"
-                className={`app-sidebar-item${isActive ? " active" : ""}${isDisabled ? " disabled" : ""}`}
+                className={styles.navItem}
+                data-active={isActive}
                 disabled={isDisabled}
                 onClick={() => onSectionChange(item.id)}
               >
@@ -148,31 +151,30 @@ export const AppShell: React.FC<AppShellProps> = ({
           })}
         </nav>
 
-        <div className="app-sidebar-footer">
-          <div className="app-sidebar-footer-line">© SUMO MAKER</div>
+        <div className={styles.sidebarFooter}>
+          <div className={styles.sidebarFooterLine}>© SUMO MAKER</div>
         </div>
       </aside>
 
-      {/* Right content area */}
-      <div className="app-content-area">
-        <header className="app-content-header">
-          <div className="app-content-header-inner">
-            <div className="app-shell-titleblock">
-              <h1 className="app-content-title">{title}</h1>
-              {subtitle ? <div className="app-shell-subtitle">{subtitle}</div> : null}
+      <div className={styles.contentArea}>
+        <header className={styles.contentHeader}>
+          <div className={styles.contentHeaderInner}>
+            <div className={styles.titleBlock}>
+              <h1 className={styles.title}>{title}</h1>
+              {subtitle ? <div className={styles.subtitle}>{subtitle}</div> : null}
             </div>
-            {actions ? <div className="app-shell-actions">{actions}</div> : null}
+            {actions ? <div className={styles.actions}>{actions}</div> : null}
           </div>
           {statusLine ? (
-            <div className="app-content-statusband">
-              <span className="app-shell-statuslabel">状況</span>
-              <span className="app-shell-statusline">{statusLine}</span>
+            <div className={styles.contentStatusBand}>
+              <span className={styles.statusLabel}>状況</span>
+              <span className={styles.statusLine}>{statusLine}</span>
             </div>
           ) : null}
         </header>
 
-        <main className="app-shell-main">
-          <div className="app-shell-main-inner">{children}</div>
+        <main className={styles.main}>
+          <div className={styles.mainInner}>{children}</div>
         </main>
       </div>
     </div>

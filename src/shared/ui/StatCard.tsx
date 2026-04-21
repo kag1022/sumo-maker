@@ -1,5 +1,6 @@
 import React from "react";
 import { clsx } from "clsx";
+import typography from "../styles/typography.module.css";
 
 type Tone = "default" | "gold" | "win" | "loss" | "action" | "warning";
 
@@ -49,10 +50,10 @@ export const StatCard: React.FC<StatCardProps> = ({
 }) => (
   <div className={clsx("relative border px-5 py-5 overflow-hidden", TONE_CLASSES[tone], className)}>
     <div className={clsx("absolute top-0 left-0 w-0.5 h-full", TONE_ACCENT[tone])} />
-    <div className={clsx("text-[10px] ui-text-label tracking-[0.35em] uppercase mb-3", TONE_LABEL_CLASSES[tone])}>
+    <div className={clsx(typography.label, "text-[10px] tracking-[0.35em] uppercase mb-3", TONE_LABEL_CLASSES[tone])}>
       {label}
     </div>
-    <div className="text-2xl sm:text-3xl ui-text-heading text-text leading-none">{value}</div>
+    <div className={clsx(typography.heading, "text-2xl sm:text-3xl text-text leading-none")}>{value}</div>
     {subtext ? <div className="mt-2 text-xs text-text-dim">{subtext}</div> : null}
     {children}
   </div>

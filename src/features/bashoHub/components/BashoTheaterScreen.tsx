@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import type { LiveBashoViewModel } from "../../../logic/simulation/workerProtocol";
 import { Button } from "../../../shared/ui/Button";
 import { LiveHoshitoriGrid } from "./LiveHoshitoriGrid";
+import { cn } from "../../../shared/lib/cn";
+import styles from "./BashoTheaterScreen.module.css";
 
 interface BashoTheaterScreenProps {
   view: LiveBashoViewModel | null;
@@ -57,11 +59,11 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
 }) => {
   if (!view) {
     return (
-      <section className="basho-theater-shell">
-        <div className="basho-theater-card" data-tone="still">
-          <div className="basho-theater-kicker">節目を見る</div>
-          <h2 className="basho-theater-title">次の節目を待っています</h2>
-          <p className="basho-theater-summary">
+      <section className={styles.shell}>
+        <div className={styles.card} data-tone="still">
+          <div className={styles.kicker}>節目を見る</div>
+          <h2 className={styles.title}>次の節目を待っています</h2>
+          <p className={styles.summary}>
             まだ止めるべき場面は来ていません。相撲人生の流れを裏で進めています。
           </p>
         </div>
@@ -73,9 +75,9 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
   const parsedRecord = parseRecord(view.currentRecord);
 
   return (
-    <section className="basho-theater-shell">
+    <section className={styles.shell}>
       <motion.article
-        className={`basho-theater-card border ${TONE_ACCENT[tone]}`}
+        className={cn(styles.card, "border", TONE_ACCENT[tone])}
         style={{ backgroundColor: TONE_GLOW[tone] !== "transparent" ? undefined : undefined }}
         data-tone={tone}
         initial={{ opacity: 0, y: 8 }}
@@ -94,9 +96,9 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
           </div>
         ) : null}
 
-        <div className="basho-theater-meta">
-          <div className="basho-theater-kicker">節目を見る</div>
-          <div className="basho-theater-metaband">
+        <div className={styles.meta}>
+          <div className={styles.kicker}>節目を見る</div>
+          <div className={styles.metaBand}>
             <span>{view.year}年{view.month}月場所</span>
             <span>{view.currentRank}</span>
             <span>{view.currentAge ? `${view.currentAge}歳` : "年齢不詳"}</span>
@@ -104,20 +106,20 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
           </div>
         </div>
 
-        <div className="basho-theater-body">
-          <header className="basho-theater-headline">
-            <h2 className="basho-theater-title">{view.chapterTitle}</h2>
-            <p className="basho-theater-summary">{view.chapterReason}</p>
+        <div className={styles.body}>
+          <header>
+            <h2 className={styles.title}>{view.chapterTitle}</h2>
+            <p className={styles.summary}>{view.chapterReason}</p>
           </header>
 
-          <section className="basho-theater-feature">
-            <div className="basho-theater-sectionlabel">
+          <section className={styles.feature}>
+            <div className={styles.sectionLabel}>
               {view.featuredBout?.kindLabel ?? "代表的な一番または転機"}
             </div>
-            <div className="basho-theater-highlight">
+            <div className={styles.highlight}>
               {view.featuredBout?.matchup ?? `${view.currentRank} / ${view.currentRecord}`}
             </div>
-            <p className="basho-theater-featurecopy">{view.featuredBout?.summary ?? view.heroMoment}</p>
+            <p className={styles.featureCopy}>{view.featuredBout?.summary ?? view.heroMoment}</p>
           </section>
 
           <div className="mt-4 border border-white/8 bg-white/[0.02] p-3">
@@ -129,17 +131,17 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
             />
           </div>
 
-          <div className="basho-theater-nextbeat">
-            <span className="basho-theater-sectionlabel">次にすること</span>
+          <div className={styles.nextBeatBox}>
+            <span className={styles.sectionLabel}>次にすること</span>
             <strong>{view.nextBeatLabel}</strong>
           </div>
 
           {view.raceSummary.length > 0 ? (
-            <details className="basho-theater-disclosure">
+            <details className={styles.disclosure}>
               <summary>補足を見る</summary>
-              <div className="basho-theater-disclosure-grid">
+              <div className={styles.disclosureGrid}>
                 {view.raceSummary.slice(0, 3).map((item) => (
-                  <div key={item.id} className="basho-theater-disclosure-item">
+                  <div key={item.id} className={styles.disclosureItem}>
                     <span>{item.label}</span>
                     <strong>{item.value}</strong>
                   </div>
@@ -150,7 +152,7 @@ export const BashoTheaterScreen: React.FC<BashoTheaterScreenProps> = ({
         </div>
 
         {(primaryActionLabel || secondaryActionLabel) ? (
-          <div className="basho-theater-cta">
+          <div className={styles.cta}>
             {primaryActionLabel && onPrimaryAction ? (
               <Button size="lg" onClick={onPrimaryAction}>
                 {primaryActionLabel}

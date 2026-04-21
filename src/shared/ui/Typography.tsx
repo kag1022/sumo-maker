@@ -1,8 +1,6 @@
 import React from 'react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+import { cn } from '../lib/cn';
+import styles from '../styles/typography.module.css';
 
 type ElementTag = keyof JSX.IntrinsicElements;
 
@@ -21,16 +19,16 @@ const renderText = (
 };
 
 export const Heading: React.FC<BaseTypographyProps> = (props) =>
-  renderText('ui-text-heading', props);
+  renderText(styles.heading, props);
 
 export const LabelText: React.FC<BaseTypographyProps> = (props) =>
-  renderText('ui-text-label', props);
+  renderText(styles.label, props);
 
 export const BodyText: React.FC<BaseTypographyProps> = (props) =>
-  renderText('ui-text-body', props);
+  renderText(styles.body, props);
 
 export const MetricText: React.FC<BaseTypographyProps> = (props) =>
-  renderText('ui-text-metric', props);
+  renderText(styles.metric, props);
 
 export const CaptionText: React.FC<BaseTypographyProps> = (props) =>
-  renderText('ui-text-caption', props);
+  renderText(styles.caption, props);
