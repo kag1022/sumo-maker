@@ -11,9 +11,12 @@ import {
   createSimulationEngine,
   createSimulationRuntime,
   prepareLeagueForBasho,
+  runCareerObservation,
+  runObservationVerificationSample,
   resumeRuntime,
   resolveBoundaryAssignedRankForCurrentDivision,
   resolveSimulationModelBundle,
+  type CareerObservationSummary,
   type SimulationProgressSnapshot,
 } from '../../../src/logic/simulation/engine';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
@@ -2292,78 +2295,79 @@ export const tests: TestCase[] = [
   {
     name: 'population realism: 5 seed x 20 year heisei band stays in range',
     suite: 'verification',
-    run: () => {
-      const months = [1, 3, 5, 7, 9, 11] as const;
-      const median = (values: number[]): number => {
-        const sorted = [...values].sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-      };
-      const quantile = (values: number[], ratio: number): number => {
-        const sorted = [...values].sort((a, b) => a - b);
-        const pos = (sorted.length - 1) * ratio;
-        const lo = Math.floor(pos);
-        const hi = Math.ceil(pos);
-        if (lo === hi) return sorted[lo];
-        return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
-      };
+    run: async () => {
+      const aggregate = await runObservationVerificationSample(
+        Array.from({ length: 5 }, (_, index) => ({
+          seed: 9601 + index,
+          startYear: 2026,
+          initialStatus: createStatus({
+            age: 18,
+            entryAge: 18,
+            rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
+          }),
+        })),
+      );
 
-      const annualTotals: number[] = [];
-      const annualAbsDeltas: number[] = [];
-      const annualSwings: number[] = [];
-      const annualJonidanSwings: number[] = [];
-      const annualJonokuchiSwings: number[] = [];
+      assert.ok(
+        aggregate.population.annualTotalMedian >= 690 &&
+        aggregate.population.annualTotalMedian <= 740,
+        `Unexpected total median: ${aggregate.population.annualTotalMedian}`,
+      );
+      assert.ok(
+        aggregate.population.annualAbsDeltaMedian >= 10 &&
+        aggregate.population.annualAbsDeltaMedian <= 18,
+        `Unexpected abs(delta) median: ${aggregate.population.annualAbsDeltaMedian}`,
+      );
+      assert.ok(
+        aggregate.population.annualAbsDeltaP90 >= 30 &&
+        aggregate.population.annualAbsDeltaP90 <= 50,
+        `Unexpected abs(delta) p90: ${aggregate.population.annualAbsDeltaP90}`,
+      );
+      assert.ok(
+        aggregate.population.annualSwingMedian >= 40 &&
+        aggregate.population.annualSwingMedian <= 60,
+        `Unexpected annual swing median: ${aggregate.population.annualSwingMedian}`,
+      );
+      assert.ok(
+        aggregate.population.annualSwingP90 >= 60 &&
+        aggregate.population.annualSwingP90 <= 80,
+        `Unexpected annual swing p90: ${aggregate.population.annualSwingP90}`,
+      );
+      assert.ok(
+        aggregate.population.annualJonidanSwingMedian >= 24 &&
+        aggregate.population.annualJonidanSwingMedian <= 34,
+        `Unexpected Jonidan swing median: ${aggregate.population.annualJonidanSwingMedian}`,
+      );
+      assert.ok(
+        aggregate.population.annualJonokuchiSwingMedian >= 16 &&
+        aggregate.population.annualJonokuchiSwingMedian <= 24,
+        `Unexpected Jonokuchi swing median: ${aggregate.population.annualJonokuchiSwingMedian}`,
+      );
+    },
+  },
+  {
+    name: 'observation: career summary and runtime snapshot stay aligned',
+    run: async () => {
+      const result = await runCareerObservation({
+        seed: 777,
+        startYear: 2026,
+        initialStatus: createStatus({
+          age: 18,
+          entryAge: 18,
+          rank: { division: 'Makushita', name: '幕下', side: 'East', number: 18 },
+        }),
+      });
 
-      for (let seed = 1; seed <= 5; seed += 1) {
-        const rng = lcg(9600 + seed);
-        const leagueFlow = createLeagueFlowRuntime(rng);
-        const { world, lowerWorld } = leagueFlow;
-        const status = createStatus({
-          rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
-        });
-        let seq = 0;
-        let year = 2026;
-        let yearTotals: number[] = [];
-        let yearJonidan: number[] = [];
-        let yearJonokuchi: number[] = [];
-
-        for (let bashoIndex = 0; bashoIndex < 120; bashoIndex += 1) {
-          const month = months[bashoIndex % months.length];
-          prepareLeagueForBasho(leagueFlow, rng, year, seq, month);
-
-          runBashoDetailed(status, year, month, rng, world, lowerWorld);
-          advanceTopDivisionBanzuke(world);
-          applyLeaguePromotionFlow(leagueFlow, rng);
-
-          seq += 1;
-          advanceLeaguePopulation(leagueFlow, rng, seq, month);
-          yearTotals.push(countActiveBanzukeHeadcountExcludingMaezumo(world));
-          yearJonidan.push(lowerWorld.rosters.Jonidan.length);
-          yearJonokuchi.push(lowerWorld.rosters.Jonokuchi.length);
-
-          if (month === 11) {
-            annualTotals.push(...yearTotals);
-            annualAbsDeltas.push(Math.abs(yearTotals[yearTotals.length - 1] - yearTotals[0]));
-            annualSwings.push(Math.max(...yearTotals) - Math.min(...yearTotals));
-            annualJonidanSwings.push(Math.max(...yearJonidan) - Math.min(...yearJonidan));
-            annualJonokuchiSwings.push(Math.max(...yearJonokuchi) - Math.min(...yearJonokuchi));
-            yearTotals = [];
-            yearJonidan = [];
-            yearJonokuchi = [];
-            year += 1;
-          }
-        }
-      }
-
-      assert.ok(median(annualTotals) >= 690 && median(annualTotals) <= 740, `Unexpected total median: ${median(annualTotals)}`);
-      assert.ok(median(annualAbsDeltas) >= 10 && median(annualAbsDeltas) <= 18, `Unexpected abs(delta) median: ${median(annualAbsDeltas)}`);
-      assert.ok(quantile(annualAbsDeltas, 0.9) >= 30 && quantile(annualAbsDeltas, 0.9) <= 50, `Unexpected abs(delta) p90: ${quantile(annualAbsDeltas, 0.9)}`);
-      assert.ok(median(annualSwings) >= 40 && median(annualSwings) <= 60, `Unexpected annual swing median: ${median(annualSwings)}`);
-      assert.ok(quantile(annualSwings, 0.9) >= 60 && quantile(annualSwings, 0.9) <= 80, `Unexpected annual swing p90: ${quantile(annualSwings, 0.9)}`);
-      assert.ok(median(annualJonidanSwings) >= 24 && median(annualJonidanSwings) <= 34, `Unexpected Jonidan swing median: ${median(annualJonidanSwings)}`);
-      assert.ok(median(annualJonokuchiSwings) >= 16 && median(annualJonokuchiSwings) <= 24, `Unexpected Jonokuchi swing median: ${median(annualJonokuchiSwings)}`);
-      assert.ok(annualAbsDeltas.some((value) => value >= 25), 'Expected at least one |delta| >= 25');
-      assert.ok(annualSwings.some((value) => value >= 45), 'Expected at least one annual swing >= 45');
+      const summary: CareerObservationSummary = result.summary;
+      assert.equal(summary.careerOutcome.bashoCount, result.finalStatus.history.records.length);
+      assert.equal(summary.rankOutcome.maxRank.division, result.finalStatus.history.maxRank.division);
+      assert.equal(summary.rankOutcome.maxRank.name, result.finalStatus.history.maxRank.name);
+      assert.equal(result.runtime.actor.status.history.records.length, result.finalStatus.history.records.length);
+      assert.ok(result.frames.length >= 1, 'Expected at least one observation frame');
+      assert.ok(
+        result.frames.every((frame) => frame.runtime.bundle.id === result.runtime.bundle.id),
+        'Expected stable bundle id across observation frames',
+      );
     },
   },
   {
