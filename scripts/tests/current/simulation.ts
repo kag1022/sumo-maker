@@ -4,10 +4,18 @@ import { runSimulation } from '../../../src/logic/simulation/runner';
 import { runBasho, runBashoDetailed } from '../../../src/logic/simulation/basho';
 import { normalizeNewRunModelVersion, normalizeSimulationModelVersion } from '../../../src/logic/simulation/modelVersion';
 import { resolveYushoResolution } from '../../../src/logic/simulation/yusho';
-import { createSimulationEngine, resolveBoundaryAssignedRankForCurrentDivision, type SimulationProgressSnapshot } from '../../../src/logic/simulation/engine';
-import { intakeNewNpcRecruits } from '../../../src/logic/simulation/npc/intake';
-import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
-import { ensurePopulationPlan } from '../../../src/logic/simulation/npc/populationPlan';
+import {
+  advanceLeaguePopulation,
+  applyLeaguePromotionFlow,
+  createLeagueFlowRuntime,
+  createSimulationEngine,
+  createSimulationRuntime,
+  prepareLeagueForBasho,
+  resumeRuntime,
+  resolveBoundaryAssignedRankForCurrentDivision,
+  resolveSimulationModelBundle,
+  type SimulationProgressSnapshot,
+} from '../../../src/logic/simulation/engine';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
 import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../../../src/logic/simulation/matchmaking';
 import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from '../../../src/logic/simulation/lowerQuota';
@@ -17,7 +25,6 @@ import {
   createSimulationWorld,
   simulateOffscreenSekitoriBasho,
 } from '../../../src/logic/simulation/world';
-import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
 import { resolveRetirementChance } from '../../../src/logic/simulation/retirement/shared';
 import { Rank } from '../../../src/logic/models';
 import {
@@ -2247,12 +2254,8 @@ export const tests: TestCase[] = [
     name: 'simulation: 360-basho deterministic loop keeps top active shortage at zero',
     run: () => {
       const rng = lcg(7331);
-      const world = createSimulationWorld(rng);
-      const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
-      const boundaryWorld = createSekitoriBoundaryWorld(rng);
-      boundaryWorld.npcRegistry = world.npcRegistry;
-      boundaryWorld.makushitaPool =
-        lowerWorld.rosters.Makushita as unknown as typeof boundaryWorld.makushitaPool;
+      const leagueFlow = createLeagueFlowRuntime(rng);
+      const { world, lowerWorld } = leagueFlow;
       const status = createStatus({
         rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
       });
@@ -2262,46 +2265,14 @@ export const tests: TestCase[] = [
       for (let i = 0; i < 360; i += 1) {
         const month = months[i % months.length];
         const year = 2026 + Math.floor(i / 6);
-        const populationPlan = ensurePopulationPlan(world, year, rng);
-        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+        prepareLeagueForBasho(leagueFlow, rng, year, seq, month);
 
         runBashoDetailed(status, year, month, rng, world, lowerWorld);
         advanceTopDivisionBanzuke(world);
-        runLowerDivisionQuotaStep(lowerWorld, rng);
-        runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
+        applyLeaguePromotionFlow(leagueFlow, rng);
 
         seq += 1;
-        runNpcRetirementStep(
-          world.npcRegistry.values(),
-          seq,
-          rng,
-          populationPlan,
-        );
-
-        const intake = intakeNewNpcRecruits(
-          {
-            registry: world.npcRegistry,
-            maezumoPool: world.maezumoPool,
-            nameContext: world.npcNameContext,
-            nextNpcSerial: world.nextNpcSerial,
-          },
-          seq,
-          month,
-          countActiveBanzukeHeadcountExcludingMaezumo(world),
-          populationPlan,
-          rng,
-        );
-        world.nextNpcSerial = intake.nextNpcSerial;
-        lowerWorld.nextNpcSerial = intake.nextNpcSerial;
-        if (lowerWorld.maezumoPool !== world.maezumoPool) {
-          lowerWorld.maezumoPool.push(
-            ...intake.recruits.map((npc) => ({
-              ...(npc as unknown as typeof lowerWorld.maezumoPool[number]),
-            })),
-          );
-        }
-
-        reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+        advanceLeaguePopulation(leagueFlow, rng, seq, month);
 
         const activeMakuuchi = world.rosters.Makuuchi.filter(
           (row) => world.npcRegistry.get(row.id)?.active !== false,
@@ -2345,12 +2316,8 @@ export const tests: TestCase[] = [
 
       for (let seed = 1; seed <= 5; seed += 1) {
         const rng = lcg(9600 + seed);
-        const world = createSimulationWorld(rng);
-        const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
-        const boundaryWorld = createSekitoriBoundaryWorld(rng);
-        boundaryWorld.npcRegistry = world.npcRegistry;
-        boundaryWorld.makushitaPool =
-          lowerWorld.rosters.Makushita as unknown as typeof boundaryWorld.makushitaPool;
+        const leagueFlow = createLeagueFlowRuntime(rng);
+        const { world, lowerWorld } = leagueFlow;
         const status = createStatus({
           rank: { division: 'Juryo', name: '十両', side: 'East', number: 8 },
         });
@@ -2362,46 +2329,14 @@ export const tests: TestCase[] = [
 
         for (let bashoIndex = 0; bashoIndex < 120; bashoIndex += 1) {
           const month = months[bashoIndex % months.length];
-          const populationPlan = ensurePopulationPlan(world, year, rng);
-          reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+          prepareLeagueForBasho(leagueFlow, rng, year, seq, month);
 
           runBashoDetailed(status, year, month, rng, world, lowerWorld);
           advanceTopDivisionBanzuke(world);
-          runLowerDivisionQuotaStep(lowerWorld, rng);
-          runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
+          applyLeaguePromotionFlow(leagueFlow, rng);
 
           seq += 1;
-          runNpcRetirementStep(
-            world.npcRegistry.values(),
-            seq,
-            rng,
-            populationPlan,
-          );
-
-          const intake = intakeNewNpcRecruits(
-            {
-              registry: world.npcRegistry,
-              maezumoPool: world.maezumoPool,
-              nameContext: world.npcNameContext,
-              nextNpcSerial: world.nextNpcSerial,
-            },
-            seq,
-            month,
-            countActiveBanzukeHeadcountExcludingMaezumo(world),
-            populationPlan,
-            rng,
-          );
-          world.nextNpcSerial = intake.nextNpcSerial;
-          lowerWorld.nextNpcSerial = intake.nextNpcSerial;
-          if (lowerWorld.maezumoPool !== world.maezumoPool) {
-            lowerWorld.maezumoPool.push(
-              ...intake.recruits.map((npc) => ({
-                ...(npc as unknown as typeof lowerWorld.maezumoPool[number]),
-              })),
-            );
-          }
-
-          reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month, populationPlan);
+          advanceLeaguePopulation(leagueFlow, rng, seq, month);
           yearTotals.push(countActiveBanzukeHeadcountExcludingMaezumo(world));
           yearJonidan.push(lowerWorld.rosters.Jonidan.length);
           yearJonokuchi.push(lowerWorld.rosters.Jonokuchi.length);
@@ -2812,6 +2747,112 @@ export const tests: TestCase[] = [
       });
       const result = checkRetirement(status, () => 0.9999);
       assert.equal(result.shouldRetire, true);
+    },
+  },
+  {
+    name: 'simulation runtime: initial snapshot centralizes bundle league actor and timeline',
+    run: () => {
+      const initialStats = createStatus({
+        rank: { division: 'Makushita', name: '幕下', number: 18, side: 'East' },
+      });
+      const runtime = createSimulationRuntime(
+        {
+          initialStats,
+          oyakata: null,
+          simulationModelVersion: 'v3',
+          progressSnapshotMode: 'full',
+          bashoSnapshotMode: 'full',
+        },
+        {
+          random: lcg(1401),
+          getCurrentYear: () => 2026,
+          now: () => 0,
+          yieldControl: async () => {},
+        },
+      );
+      const snapshot = runtime.getSnapshot();
+      const bundle = resolveSimulationModelBundle('v3');
+
+      assert.equal(runtime.bundle.id, bundle.id);
+      assert.equal(snapshot.bundle.id, bundle.id);
+      assert.equal(snapshot.actor.status.shikona, initialStats.shikona);
+      assert.equal(snapshot.league.currentSeason.seq, 0);
+      assert.ok(snapshot.league.population.totalHeadcount > 0);
+      assert.ok(snapshot.league.divisions.Makushita.headcount > 0);
+      assert.equal(snapshot.timeline.domainEvents.length, 0);
+    },
+  },
+  {
+    name: 'simulation runtime: season step emits runtime snapshot and domain events array',
+    run: async () => {
+      const runtime = createSimulationRuntime(
+        {
+          initialStats: createStatus({
+            rank: { division: 'Makushita', name: '幕下', number: 24, side: 'East' },
+          }),
+          oyakata: null,
+          simulationModelVersion: 'v3',
+          progressSnapshotMode: 'full',
+          bashoSnapshotMode: 'full',
+        },
+        {
+          random: lcg(1402),
+          getCurrentYear: () => 2026,
+          now: () => 0,
+          yieldControl: async () => {},
+        },
+      );
+      const step = expectBashoStep(
+        await runtime.runNextSeasonStep(),
+        'runtime snapshot emission',
+      );
+      assert.ok(Array.isArray(step.domainEvents));
+      assert.ok(step.runtime !== undefined);
+      assert.equal(step.runtime?.league.currentSeason.seq, step.seq);
+      assert.equal(
+        step.runtime?.timeline.domainEvents.length,
+        step.domainEvents?.length ?? 0,
+      );
+    },
+  },
+  {
+    name: 'simulation runtime: resumeRuntime preserves state graph and continues progression',
+    run: async () => {
+      const runtime = createSimulationRuntime(
+        {
+          initialStats: createStatus({
+            rank: { division: 'Sandanme', name: '三段目', number: 32, side: 'East' },
+          }),
+          oyakata: null,
+          simulationModelVersion: 'v3',
+          progressSnapshotMode: 'full',
+          bashoSnapshotMode: 'full',
+        },
+        {
+          random: lcg(1403),
+          getCurrentYear: () => 2026,
+          now: () => 0,
+          yieldControl: async () => {},
+        },
+      );
+      const firstStep = expectBashoStep(
+        await runtime.runNextSeasonStep(),
+        'runtime resume first step',
+      );
+
+      const resumed = resumeRuntime(runtime.serialize());
+      const resumedSnapshot = resumed.getSnapshot();
+      assert.equal(resumedSnapshot.league.currentSeason.seq, 1);
+      assert.equal(
+        resumedSnapshot.timeline.domainEvents.length,
+        runtime.getSnapshot().timeline.domainEvents.length,
+      );
+
+      const secondStep = expectBashoStep(
+        await resumed.runNextSeasonStep(),
+        'runtime resume second step',
+      );
+      assert.equal(secondStep.seq, 2);
     },
   }
 ];

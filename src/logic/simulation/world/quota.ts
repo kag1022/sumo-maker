@@ -7,6 +7,7 @@ import { Rank } from '../../models';
 import { buildTopDivisionRecords, resolvePlayerSanyakuQuota } from '../topDivision/banzuke';
 import { generateNextBanzuke } from '../../banzuke/providers/topDivision';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
+import { resolvePressureAdjustedMakuuchiPromotionLandingNumber } from '../sekitori/boundaryTuning';
 import { decodeMakuuchiRankFromScore, resolveTopDivisionFromRank } from './shared';
 import { PlayerTopDivisionQuota, SimulationWorld, TopDivision } from './types';
 
@@ -110,21 +111,13 @@ const normalizeManualAssignedJuryoRank = (
 ): Rank => {
   if (assignedRank.division !== 'Makuuchi') return assignedRank;
   const currentNumber = currentRank.number ?? 14;
-  const losses = playerResult.losses + (playerResult.absent ?? 0);
   const wins = playerResult.wins;
-  const diff = wins - losses;
   const pressure = resolveUpperLanePressure(world);
-
-  let targetNumber = currentNumber <= 2 ? 14 : currentNumber <= 4 ? 15 : 16;
-  if (wins >= 15 && currentNumber <= 2) {
-    targetNumber = pressure > 0 ? 10 : 11;
-  } else if (wins >= 11 && currentNumber <= 2) {
-    targetNumber = 14;
-  } else if (wins >= 10 && currentNumber <= 4) {
-    targetNumber = pressure > 0 ? 12 : 13;
-  } else if (diff >= 4 && currentNumber <= 7) {
-    targetNumber = pressure > 0 ? 13 : 14;
-  }
+  const targetNumber = resolvePressureAdjustedMakuuchiPromotionLandingNumber(
+    currentNumber,
+    wins,
+    pressure,
+  );
 
   return {
     division: 'Makuuchi',
