@@ -131,6 +131,14 @@ export const buildDomainEvents = (input: {
       title: event.type,
       description: event.description,
       relatedRank: input.currentStatus.rank,
+      metadata: {
+        eventType: event.type,
+        toDivision: input.currentStatus.rank.division,
+        toRankName: input.currentStatus.rank.name,
+        toRankNumber: input.currentStatus.rank.number ?? 0,
+        year: input.year,
+        month: input.month,
+      },
     });
   });
 
