@@ -58,12 +58,17 @@ const uniqueById = (candidates: BanzukeCandidate[]): BanzukeCandidate[] => {
   return unique;
 };
 
-const isStrictSekiwakeCandidate = (candidate: BanzukeCandidate): boolean => {
+const isStrictSekiwakeCandidate = (
+  candidate: BanzukeCandidate,
+  openSekiwakeSlots: number,
+): boolean => {
   const rank = candidate.snapshot.rank;
   if (candidate.directive.preferredTopName === '関脇') return true;
   if (rank.division !== 'Makuuchi') return false;
   if (rank.name === '関脇') return candidate.snapshot.wins >= 8;
-  if (rank.name === '小結') return candidate.snapshot.wins >= 10;
+  if (rank.name === '小結') {
+    return candidate.snapshot.wins >= 10 || (candidate.snapshot.wins >= 9 && openSekiwakeSlots > 0);
+  }
   if (rank.name === '前頭') return (rank.number || 99) <= 2 && candidate.snapshot.wins >= 11;
   return false;
 };
@@ -218,6 +223,14 @@ export const allocateSekitoriSlots = (
   const assignedSlotById = new Map<string, number>();
   const topPool = sortedOverall.slice();
   const reservedSanyakuFloor = SANYAKU_MIN.sekiwake + SANYAKU_MIN.komusubi;
+  const openSekiwakeSlots = sortedOverall.filter((candidate) => {
+    const rank = candidate.snapshot.rank;
+    return (
+      rank.division === 'Makuuchi' &&
+      rank.name === '関脇' &&
+      candidate.snapshot.wins < candidate.normalizedLosses
+    );
+  }).length;
 
   const consumeByIds = (ids: Set<string>): void => {
     for (let i = topPool.length - 1; i >= 0; i -= 1) {
@@ -248,7 +261,8 @@ export const allocateSekitoriSlots = (
     forcedSekiwake.length > SANYAKU_CAP.sekiwake
       ? forcedSekiwake.length
       : SANYAKU_CAP.sekiwake;
-  const strictSekiwakeCount = topPool.filter(isStrictSekiwakeCandidate).length;
+  const strictSekiwakeCount = topPool.filter((candidate) =>
+    isStrictSekiwakeCandidate(candidate, openSekiwakeSlots)).length;
   const desiredSekiwake = Math.max(
     SANYAKU_MIN.sekiwake,
     Math.min(maxSekiwake, strictSekiwakeCount),
@@ -264,7 +278,7 @@ export const allocateSekitoriSlots = (
   const sekiwake = pickTopCandidates(
     topPool,
     targetSekiwake,
-    isStrictSekiwakeCandidate,
+    (candidate) => isStrictSekiwakeCandidate(candidate, openSekiwakeSlots),
     isForcedSekiwake,
     (candidate) => isConservativeSekiwakeFallback(candidate) || isExceptionalSekiwakeLift(candidate),
   );

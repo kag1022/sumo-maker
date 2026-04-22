@@ -1,6 +1,7 @@
-import { BashoRecord, Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
-import { PauseReason, SimulationProgressSnapshot } from './engine';
+import { Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
+import { BashoStepResult, CompletedStepResult, PauseReason, SimulationProgressSnapshot } from './engine';
 import { SimulationModelVersion } from './modelVersion';
+import { DomainEvent, SimulationRuntimeSnapshot } from './runtimeTypes';
 
 export interface SimulationObservationEntry {
   seq: number;
@@ -132,30 +133,40 @@ export type SimulationWorkerRequest =
   | SetPacingMessage
   | ResumeSimulationMessage;
 
-export interface WorkerProgressMessage {
-  type: 'BASHO_PROGRESS';
-  payload: {
-    mode: 'full' | 'lite';
-    careerId: string;
-    progress: SimulationProgressState;
-    seq?: number;
-    year?: number;
-    month?: number;
-    playerRecord?: BashoRecord;
-    status?: RikishiStatus;
-    events?: TimelineEvent[];
-    observation?: SimulationObservationEntry;
-    latestBashoView?: LiveBashoViewModel;
-    pauseForChapter?: boolean;
-  };
+export interface WorkerSeasonStepLitePayload {
+  careerId: string;
+  mode: 'lite';
+  progress: SimulationProgressState;
 }
 
-export interface WorkerCompletedMessage {
-  type: 'COMPLETED';
+export interface WorkerSeasonStepFullPayload {
+  careerId: string;
+  mode: 'full';
+  progress: SimulationProgressState;
+  step: BashoStepResult;
+  status: RikishiStatus;
+  events: TimelineEvent[];
+  domainEvents: DomainEvent[];
+  runtime: SimulationRuntimeSnapshot;
+  observation: SimulationObservationEntry;
+  latestBashoView: LiveBashoViewModel;
+  pauseForChapter?: boolean;
+}
+
+export interface WorkerSeasonStepMessage {
+  type: 'SEASON_STEP';
+  payload: WorkerSeasonStepLitePayload | WorkerSeasonStepFullPayload;
+}
+
+export interface WorkerRuntimeCompletedMessage {
+  type: 'RUNTIME_COMPLETED';
   payload: {
     careerId: string;
+    step: CompletedStepResult;
     status: RikishiStatus;
     events: TimelineEvent[];
+    domainEvents: DomainEvent[];
+    runtime: SimulationRuntimeSnapshot;
     progress: SimulationProgressState;
     observation?: SimulationObservationEntry;
     pauseReason?: PauseReason;
@@ -191,8 +202,8 @@ export interface WorkerErrorMessage {
 }
 
 export type SimulationWorkerResponse =
-  | WorkerProgressMessage
-  | WorkerCompletedMessage
+  | WorkerSeasonStepMessage
+  | WorkerRuntimeCompletedMessage
   | WorkerDetailBuildProgressMessage
   | WorkerDetailBuildCompletedMessage
   | WorkerErrorMessage;

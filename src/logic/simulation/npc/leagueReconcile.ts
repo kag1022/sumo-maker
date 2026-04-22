@@ -1,7 +1,7 @@
 import { RandomSource } from '../deps';
 import { LowerDivisionQuotaWorld, LowerNpc } from '../lower/types';
 import { intakeNewNpcRecruits } from './intake';
-import { resolveMonthlyIntakePulse } from './populationPlan';
+import { resolveMonthlyIntakePulse, resolvePopulationPressure } from './populationPlan';
 import { PopulationPlan } from './populationPlanTypes';
 import { PersistentNpc } from './types';
 import { SekitoriBoundaryWorld } from '../sekitori/types';
@@ -122,23 +122,34 @@ const toCounts = (buckets: Record<LeagueDivision, BucketState>): ReconcileCounts
 const resolvePopulationDrivenPolicies = (
   populationPlan: PopulationPlan | undefined,
   month: number,
+  currentBanzukeHeadcount: number,
 ) => {
   if (!populationPlan) {
     return DEFAULT_DIVISION_POLICIES;
   }
   const intakePulse = resolveMonthlyIntakePulse(month);
+  const headcountPressure = resolvePopulationPressure(
+    month,
+    currentBanzukeHeadcount,
+    populationPlan,
+  );
+  const lowerDivisionRetentionBias = Math.round(populationPlan.sampledTotalSwing * 0.1);
   const elasticity = populationPlan.lowerDivisionElasticity;
   const jonidanCenter = clamp(
     250 +
+      Math.round(lowerDivisionRetentionBias * 0.7) +
       Math.round(populationPlan.jonidanShock * populationPlan.sampledJonidanSwing * 0.65) +
-      Math.round(intakePulse * populationPlan.sampledJonidanSwing * 0.45 * elasticity),
+      Math.round(intakePulse * populationPlan.sampledJonidanSwing * 0.45 * elasticity) +
+      Math.round(headcountPressure * 0.62),
     200,
     320,
   );
   const jonokuchiCenter = clamp(
     78 +
+      Math.round(lowerDivisionRetentionBias * 0.3) +
       Math.round(populationPlan.jonokuchiShock * populationPlan.sampledJonokuchiSwing * 0.75) +
-      Math.round(intakePulse * populationPlan.sampledJonokuchiSwing * 0.42 * elasticity),
+      Math.round(intakePulse * populationPlan.sampledJonokuchiSwing * 0.42 * elasticity) +
+      Math.round(headcountPressure * 0.24),
     45,
     120,
   );
@@ -296,7 +307,16 @@ export const reconcileNpcLeague = (
   }
 
   const before = toCounts(buckets);
-  const policyMap = resolveDivisionPolicyMap(resolvePopulationDrivenPolicies(populationPlan, month));
+  const currentBanzukeHeadcount =
+    before.Makuuchi +
+    before.Juryo +
+    before.Makushita +
+    before.Sandanme +
+    before.Jonidan +
+    before.Jonokuchi;
+  const policyMap = resolveDivisionPolicyMap(
+    resolvePopulationDrivenPolicies(populationPlan, month, currentBanzukeHeadcount),
+  );
 
   const recruitToMaezumo = (): boolean => {
     const intake = intakeNewNpcRecruits(

@@ -12,20 +12,21 @@ import {
   runBashoDetailed,
 } from '../basho';
 import {
+  runAttritionLeaguePhase,
+  runPreseasonLeaguePhase,
+  runPromotionLeaguePhase,
+} from './seasonPhases';
+import {
   appendBashoEvents,
   finalizeCareer,
   resolvePastRecords,
   updateCareerStats,
 } from '../career';
 import { SimulationDependencies } from '../deps';
-import { resolveLowerDivisionQuotaForPlayer, runLowerDivisionQuotaStep } from '../lowerQuota';
+import { resolveLowerDivisionQuotaForPlayer } from '../lowerQuota';
 import { LowerDivisionQuotaWorld } from '../lowerQuota';
 import { PlayerLowerRecord } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
-import { intakeNewNpcRecruits } from '../npc/intake';
-import { reconcileNpcLeague } from '../npc/leagueReconcile';
-import { ensurePopulationPlan } from '../npc/populationPlan';
-import { runNpcRetirementStep } from '../npc/retirement';
 import {
   buildSameDivisionLowerNpcRecords,
   buildSekitoriNpcRecords,
@@ -33,7 +34,6 @@ import {
 } from '../npcRecords';
 import {
   resolveSekitoriQuotaForPlayer,
-  runSekitoriQuotaStep,
   SekitoriBoundaryWorld,
 } from '../sekitoriQuota';
 import { updateAbilityAfterBasho } from '../strength/update';
@@ -57,8 +57,6 @@ import {
 import { buildCareerRealismSnapshot, updateStagnationState } from '../realism';
 import { evolveKimariteRepertoireAfterBasho } from '../../kimarite/repertoire';
 import {
-  advanceTopDivisionBanzuke,
-  countActiveBanzukeHeadcountExcludingMaezumo,
   resolveTopDivisionFromRank,
   resolveTopDivisionQuotaForPlayer,
   simulateOffscreenSekitoriBasho,
@@ -245,15 +243,16 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   }
 
   const month = MONTHS[state.monthIndex];
-  const populationPlan = ensurePopulationPlan(world, state.year, deps.random);
-  reconcileNpcLeague(
-    world,
-    lowerDivisionQuotaWorld,
-    sekitoriBoundaryWorld,
+  const { populationPlan } = runPreseasonLeaguePhase(
+    {
+      world,
+      lowerDivisionQuotaWorld,
+      sekitoriBoundaryWorld,
+    },
     deps.random,
+    state.year,
     state.seq,
     month,
-    populationPlan,
   );
 
   const retirementCheck = checkRetirement(state.status, deps.random);
@@ -336,20 +335,18 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
       }
       : undefined;
 
-  advanceTopDivisionBanzuke(world);
-  runLowerDivisionQuotaStep(
-    lowerDivisionQuotaWorld,
+  runPromotionLeaguePhase(
+    {
+      world,
+      lowerDivisionQuotaWorld,
+      sekitoriBoundaryWorld,
+    },
     deps.random,
-    lowerPlayerRecord,
-    bashoResult.lowerLeagueSnapshots,
-    banzukeEngineVersion,
-  );
-  runSekitoriQuotaStep(
-    world,
-    sekitoriBoundaryWorld,
-    deps.random,
-    undefined,
-    lowerDivisionQuotaWorld,
+    {
+      playerRecord: lowerPlayerRecord,
+      precomputedLeagueResults: bashoResult.lowerLeagueSnapshots,
+      banzukeEngineVersion,
+    },
   );
 
   state.status.history.records.push(bashoRecord);
@@ -685,44 +682,16 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   state.seq += 1;
 
-  const retiredIds = runNpcRetirementStep(
-    world.npcRegistry.values(),
-    state.seq,
-    deps.random,
-    populationPlan,
-  );
-
-  const activeBanzukeHeadcount = countActiveBanzukeHeadcountExcludingMaezumo(world);
-  const intake = intakeNewNpcRecruits(
+  const populationAdvance = runAttritionLeaguePhase(
     {
-      registry: world.npcRegistry,
-      maezumoPool: world.maezumoPool,
-      nameContext: world.npcNameContext,
-      nextNpcSerial: world.nextNpcSerial,
+      world,
+      lowerDivisionQuotaWorld,
+      sekitoriBoundaryWorld,
     },
+    deps.random,
+    populationPlan,
     state.seq,
     month,
-    activeBanzukeHeadcount,
-    populationPlan,
-    deps.random,
-  );
-  world.nextNpcSerial = intake.nextNpcSerial;
-  lowerDivisionQuotaWorld.nextNpcSerial = intake.nextNpcSerial;
-  if (lowerDivisionQuotaWorld.maezumoPool !== world.maezumoPool) {
-    lowerDivisionQuotaWorld.maezumoPool.push(
-      ...intake.recruits.map((npc) => ({
-        ...(npc as unknown as typeof lowerDivisionQuotaWorld.maezumoPool[number]),
-      })),
-    );
-  }
-  reconcileNpcLeague(
-    world,
-    lowerDivisionQuotaWorld,
-    sekitoriBoundaryWorld,
-    deps.random,
-    state.seq,
-    month,
-    populationPlan,
   );
   const populationSnapshot = createPopulationSnapshot(
     world,
@@ -730,8 +699,8 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     bashoRecord.year,
     bashoRecord.month,
     {
-      intakeCountThisBasho: intake.recruits.length,
-      retiredCountThisBasho: retiredIds.length,
+      intakeCountThisBasho: populationAdvance.recruitedIds.length,
+      retiredCountThisBasho: populationAdvance.retiredIds.length,
     },
   );
   state.lastDiagnostics = {
