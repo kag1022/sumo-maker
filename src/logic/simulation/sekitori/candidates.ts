@@ -28,8 +28,8 @@ const buildMakushitaCandidate = (result: BoundarySnapshot): BoundaryCandidate =>
   const diff = result.wins - result.losses;
   const mandatory =
     (number === 1 && result.wins >= 4) ||
-    (number <= 2 && result.wins >= 5) ||
-    (number <= 5 && result.wins >= 6) ||
+    (number <= 3 && result.wins >= 6) ||
+    (number <= 5 && result.wins === 7) ||
     (number <= 15 && result.wins === 7);
   const score =
     Math.max(0, 18 - number) * 4.2 +
@@ -73,12 +73,11 @@ export const buildMakushitaPromotionCandidates = (
   results
     .map((result) => {
       const number = toMakushitaNumber(result.rankScore);
-      const diff = result.wins - result.losses;
       const bubble =
         (number === 1 && result.wins >= 4) ||
-        (number <= 5 && result.wins >= 5) ||
-        (number <= 10 && result.wins === 7) ||
-        (number <= 15 && diff >= 5);
+        (number <= 3 && result.wins >= 5) ||
+        (number <= 5 && result.wins >= 6) ||
+        (number <= 15 && result.wins === 7);
       return bubble ? buildMakushitaCandidate(result) : null;
     })
     .filter((candidate): candidate is BoundaryCandidate => Boolean(candidate))

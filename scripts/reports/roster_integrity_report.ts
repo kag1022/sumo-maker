@@ -2,16 +2,16 @@ import { RikishiStatus } from '../../src/logic/models';
 import { runBashoDetailed } from '../../src/logic/simulation/basho';
 import { createSeededRandom } from '../../src/logic/simulation/engine';
 import {
+  advanceLeaguePopulation,
+  applyLeaguePromotionFlow,
+  createLeagueFlowRuntime,
+  prepareLeagueForBasho,
+} from '../../src/logic/simulation/engine';
+import {
   advanceTopDivisionBanzuke,
   countActiveNpcInWorld,
-  createSimulationWorld,
   simulateOffscreenTopDivisionBasho,
 } from '../../src/logic/simulation/world';
-import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from '../../src/logic/simulation/lowerQuota';
-import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../src/logic/simulation/sekitoriQuota';
-import { runNpcRetirementStep } from '../../src/logic/simulation/npc/retirement';
-import { intakeNewNpcRecruits } from '../../src/logic/simulation/npc/intake';
-import { reconcileNpcLeague } from '../../src/logic/simulation/npc/leagueReconcile';
 
 type Summary = {
   seed: number;
@@ -52,6 +52,8 @@ const createStatus = (): RikishiStatus => ({
   growthType: 'NORMAL',
   tactics: 'BALANCE',
   archetype: 'HARD_WORKER',
+  aptitudeTier: 'B',
+  aptitudeFactor: 1,
   signatureMoves: ['寄り切り'],
   bodyType: 'NORMAL',
   profile: {
@@ -64,9 +66,15 @@ const createStatus = (): RikishiStatus => ({
     weightKg: 140,
   },
   traits: [],
+  spirit: 0,
   durability: 80,
   currentCondition: 50,
   injuryLevel: 0,
+  ratingState: {
+    ability: 82,
+    form: 0,
+    uncertainty: 1,
+  },
   injuries: [],
   isOzekiKadoban: false,
   isOzekiReturn: false,
@@ -91,11 +99,8 @@ const recordTopWins = (hist: Record<string, number>, topWins: number): void => {
 const run = (): void => {
   const seed = 7331;
   const rng = createSeededRandom(seed);
-  const world = createSimulationWorld(rng);
-  const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
-  const boundaryWorld = createSekitoriBoundaryWorld(rng);
-  boundaryWorld.npcRegistry = world.npcRegistry;
-  boundaryWorld.makushitaPool = lowerWorld.rosters.Makushita as unknown as typeof boundaryWorld.makushitaPool;
+  const leagueFlow = createLeagueFlowRuntime(rng);
+  const { world, lowerWorld } = leagueFlow;
   const status = createStatus();
   const months = [1, 3, 5, 7, 9, 11] as const;
   let seq = 0;
@@ -121,7 +126,7 @@ const run = (): void => {
     const month = months[i % months.length];
     const year = 2026 + Math.floor(i / 6);
 
-    reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month);
+    prepareLeagueForBasho(leagueFlow, rng, year, seq, month);
 
     simulateOffscreenTopDivisionBasho(world, 'Makuuchi', rng);
     runBashoDetailed(status, year, month, rng, world, lowerWorld);
@@ -144,35 +149,10 @@ const run = (): void => {
     summary.maxByeRate.juryo = Math.max(summary.maxByeRate.juryo, juryoByeRate);
 
     advanceTopDivisionBanzuke(world);
-    runLowerDivisionQuotaStep(lowerWorld, rng);
-    runSekitoriQuotaStep(world, boundaryWorld, rng, undefined, lowerWorld);
+    applyLeaguePromotionFlow(leagueFlow, rng);
 
     seq += 1;
-    runNpcRetirementStep(world.npcRegistry.values(), seq, rng);
-
-    const intake = intakeNewNpcRecruits(
-      {
-        registry: world.npcRegistry,
-        maezumoPool: world.maezumoPool,
-        nameContext: world.npcNameContext,
-        nextNpcSerial: world.nextNpcSerial,
-      },
-      seq,
-      month,
-      countActiveNpcInWorld(world),
-      rng,
-    );
-    world.nextNpcSerial = intake.nextNpcSerial;
-    lowerWorld.nextNpcSerial = intake.nextNpcSerial;
-    if (lowerWorld.maezumoPool !== world.maezumoPool) {
-      lowerWorld.maezumoPool.push(
-        ...intake.recruits.map((npc) => ({
-          ...(npc as unknown as typeof lowerWorld.maezumoPool[number]),
-        })),
-      );
-    }
-
-    reconcileNpcLeague(world, lowerWorld, boundaryWorld, rng, seq, month);
+    advanceLeaguePopulation(leagueFlow, rng, seq, month);
 
     const makuuchiActive = world.rosters.Makuuchi.filter(
       (row) => world.npcRegistry.get(row.id)?.active !== false,

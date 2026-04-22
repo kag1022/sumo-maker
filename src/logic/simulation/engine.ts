@@ -2,6 +2,22 @@ export {
   createSimulationEngine,
 } from './engine/createEngine';
 export {
+  createSimulationRuntime,
+  resumeRuntime,
+  runSeasonStep,
+  serializeRuntime,
+} from './runtime';
+export {
+  advanceLeaguePopulation,
+  applyLeaguePromotionFlow,
+  createLeagueFlowRuntime,
+  prepareLeagueForBasho,
+} from './leagueFlow';
+export {
+  resolveSimulationModelBundle,
+  DEFAULT_SIMULATION_MODEL_BUNDLE,
+} from './modelBundle';
+export {
   createSeededRandom,
 } from './engine/random';
 export {
@@ -22,3 +38,20 @@ export type {
   SimulationTimingBreakdown,
   SimulationTimingPhase,
 } from './engine/types';
+export type {
+  SerializedSimulationRuntime,
+  SimulationRuntime,
+} from './runtime';
+export type {
+  ArcState,
+  CareerActorState,
+  DomainEvent,
+  DomainEventKind,
+  LeagueState,
+  RuntimeDiagnostics,
+  RuntimeTimeline,
+  SeasonPhase,
+  SimulationModelBundle,
+  SimulationRuntimeSnapshot,
+  TrajectoryProfile,
+} from './runtimeTypes';

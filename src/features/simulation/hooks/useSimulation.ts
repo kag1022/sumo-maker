@@ -3,6 +3,7 @@ import { useSimulationStore } from '../store/simulationStore';
 export const useSimulation = () => ({
   phase: useSimulationStore((state) => state.phase),
   status: useSimulationStore((state) => state.status),
+  runtimeSnapshot: useSimulationStore((state) => state.runtimeSnapshot),
   progress: useSimulationStore((state) => state.progress),
   currentCareerId: useSimulationStore((state) => state.currentCareerId),
   isCurrentCareerSaved: useSimulationStore((state) => state.isCurrentCareerSaved),
@@ -12,6 +13,7 @@ export const useSimulation = () => ({
   detailBuildProgress: useSimulationStore((state) => state.detailBuildProgress),
   latestBashoView: useSimulationStore((state) => state.latestBashoView),
   latestEvents: useSimulationStore((state) => state.latestEvents),
+  latestDomainEvents: useSimulationStore((state) => state.latestDomainEvents),
   observationLog: useSimulationStore((state) => state.observationLog),
   latestObservation: useSimulationStore((state) => state.latestObservation),
   isTerminalChapterReady: useSimulationStore((state) => state.isTerminalChapterReady),

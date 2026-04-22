@@ -5,6 +5,7 @@ import { RuntimeRivalryState } from '../../careerRivalry';
 import { SimulationDiagnostics } from '../diagnostics';
 import { LowerDivisionPlacementTraceRow } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
+import { DomainEvent, SimulationRuntimeSnapshot } from '../runtimeTypes';
 import { TopDivision } from '../world';
 import { SimulationProgressState } from '../workerProtocol';
 
@@ -95,6 +96,8 @@ export interface BashoStepResult {
   statusSnapshot?: RikishiStatus;
   progress: SimulationProgressState;
   timing: SimulationTimingBreakdown;
+  domainEvents?: DomainEvent[];
+  runtime?: SimulationRuntimeSnapshot;
 }
 
 export interface CompletedStepResult {
@@ -106,6 +109,8 @@ export interface CompletedStepResult {
   events: TimelineEvent[];
   progress: SimulationProgressState;
   timing: SimulationTimingBreakdown;
+  domainEvents?: DomainEvent[];
+  runtime?: SimulationRuntimeSnapshot;
 }
 
 export interface RuntimeNarrativeState {

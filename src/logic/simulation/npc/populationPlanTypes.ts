@@ -3,6 +3,11 @@ export interface PopulationPlan {
   annualIntakeShock: number;
   annualRetirementShock: number;
   annualIntakeHardCap: number;
+  annualStartHeadcount?: number;
+  annualTargetHeadcount?: number;
+  annualHeadcountDrift?: number;
+  annualSwingAmplitude?: number;
+  annualSwingPhase?: number;
   jonidanShock: number;
   jonokuchiShock: number;
   lowerDivisionElasticity: number;
