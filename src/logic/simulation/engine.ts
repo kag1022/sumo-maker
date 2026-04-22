@@ -21,6 +21,13 @@ export {
   createSeededRandom,
 } from './engine/random';
 export {
+  runCareerObservation,
+  runObservationBatch,
+  runObservationVerificationSample,
+  summarizeCareerObservation,
+  summarizeObservationBatch,
+} from './observation';
+export {
   resolveBoundaryAssignedRankForCurrentDivision,
 } from './engine/runOneStep';
 export {
@@ -42,6 +49,14 @@ export type {
   SerializedSimulationRuntime,
   SimulationRuntime,
 } from './runtime';
+export type {
+  CareerObservationConfig,
+  CareerObservationResult,
+  CareerObservationSummary,
+  ObservationAptitudeLadder,
+  ObservationBatchSummary,
+  SeasonObservationFrame,
+} from './observation';
 export type {
   ArcState,
   CareerActorState,

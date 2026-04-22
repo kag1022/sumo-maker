@@ -1,4 +1,5 @@
 import { Division, Rank, RikishiStatus, TimelineEvent } from '../models';
+import { ActorType } from './npc/types';
 import { SimulationDiagnostics } from './diagnostics';
 import { SimulationModelVersion } from './modelVersion';
 
@@ -66,6 +67,8 @@ export interface LeagueDivisionEntry {
   shikona: string;
   stableId: string;
   rankScore: number;
+  actorType: ActorType;
+  entrySeq: number;
   active: boolean;
 }
 

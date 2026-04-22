@@ -60,6 +60,8 @@ const toEntry = (
     shikona: string;
     stableId: string;
     rankScore: number;
+    actorType?: 'PLAYER' | 'NPC';
+    entrySeq?: number;
     active?: boolean;
   },
 ): LeagueDivisionEntry => ({
@@ -67,6 +69,8 @@ const toEntry = (
   shikona: row.shikona,
   stableId: row.stableId,
   rankScore: row.rankScore,
+  actorType: row.actorType ?? (row.id === 'PLAYER' ? 'PLAYER' : 'NPC'),
+  entrySeq: row.entrySeq ?? 0,
   active: row.active !== false,
 });
 
@@ -93,11 +97,27 @@ const buildLeagueState = (kernel: RuntimeImplementationState): LeagueState => {
   const divisions: Record<Division, LeagueDivisionState> = {
     Makuuchi: buildDivisionState(
       'Makuuchi',
-      world.rosters.Makuuchi.map((row) => toEntry({ ...row, active: true })),
+      world.rosters.Makuuchi.map((row) => {
+        const actor = world.npcRegistry.get(row.id);
+        return toEntry({
+          ...row,
+          actorType: actor?.actorType,
+          entrySeq: actor?.entrySeq,
+          active: true,
+        });
+      }),
     ),
     Juryo: buildDivisionState(
       'Juryo',
-      world.rosters.Juryo.map((row) => toEntry({ ...row, active: true })),
+      world.rosters.Juryo.map((row) => {
+        const actor = world.npcRegistry.get(row.id);
+        return toEntry({
+          ...row,
+          actorType: actor?.actorType,
+          entrySeq: actor?.entrySeq,
+          active: true,
+        });
+      }),
     ),
     Makushita: buildDivisionState(
       'Makushita',

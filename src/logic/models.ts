@@ -840,7 +840,7 @@ export type RealismProbeRunKind =
   | 'quick'
   | 'retire'
   | 'aptitude'
-  | 'acceptance';
+  | 'full';
 
 export interface RealismStyleBucketMetrics {
   sample: number;

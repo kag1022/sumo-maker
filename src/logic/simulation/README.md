@@ -11,6 +11,7 @@ runtime API を唯一の入口として使います。
 | `engine/runOneStep.ts`, `engine/seasonPhases.ts` | Season Orchestrator。1 場所進行の phase 実行だけを担当する |
 | `leagueFlow.ts`, `world/`, `lowerQuota.ts`, `sekitoriQuota.ts` | League Runtime の土台。world 群を実装詳細としてまとめ、runtime snapshot へ集約する |
 | `careerDynamics.ts` | Career Dynamics。`TrajectoryProfile`, `ArcState`, `DomainEvent` を組み立てる |
+| `observation/` | 長期観測 API。Monte Carlo / probe / verification の正式入口 |
 | `workerProtocol.ts` | worker 契約。`SEASON_STEP` / `RUNTIME_COMPLETED` を返す |
 
 ## サブディレクトリ
@@ -31,6 +32,7 @@ runtime API を唯一の入口として使います。
 | `variance/` | 分散モデル（`unified-v3-variance` など） |
 | `world/` | 並列キャリアを包含する世界状態 |
 | `diagnostics/` | 進行中の内部診断 |
+| `observation/` | 長期観測 summary と batch 集計 |
 
 ## 重要ファイル
 
@@ -40,6 +42,7 @@ runtime API を唯一の入口として使います。
 | `runtimeTypes.ts` | `SimulationRuntime`, `LeagueState`, `TrajectoryProfile`, `ArcState`, `DomainEvent` などの契約 |
 | `leagueFlow.ts` | tests / reports / engine が共有する league flow API |
 | `careerDynamics.ts` | キャリア位相と domain event の一元生成 |
+| `observation/index.ts` | 長期観測 API。report / probe / verification の正式入口 |
 | `modelBundle.ts` | model version から `SimulationModelBundle` を解決する |
 | `engine/seasonPhases.ts` | preseason / promotion / attrition の league phase を分離する |
 | `runner.ts` | scripts 向けの簡易ランナー |
@@ -59,15 +62,17 @@ runtime API を唯一の入口として使います。
 - `createLeagueFlowRuntime()` league flow の構築
 - `prepareLeagueForBasho()` / `applyLeaguePromotionFlow()` / `advanceLeaguePopulation()` league flow の正式入口
 - `resolveSimulationModelBundle()` model bundle の解決
+- `runCareerObservation()` / `runObservationBatch()` / `summarizeObservationBatch()` 長期観測 API
 
 ## 設計ルール
 
 - feature / worker / scripts は `runtime.ts` か `runner.ts` を入口にする
-- tests / reports が population を回すときは `leagueFlow.ts` を入口にする
+- tests / reports の長期分布観測は `observation/` を入口にする
 - `LeagueState` を rank / headcount / vacancy の source of truth として扱う
 - `DomainEvent` を narrative / report / logic lab の共有語彙とする
 - orchestration 層に係数や policy 判定を追加しない
 - population 調整と promotion 判定を同じ関数に混ぜない
+- `world`, `runOneStep`, `lowerQuota`, `sekitoriQuota` を report worker から直接 import しない
 
 ## テスト
 
@@ -79,3 +84,4 @@ runtime API を唯一の入口として使います。
 - 永続化は `src/logic/persistence/` に委譲する
 - worker 契約変更時は `src/features/simulation/` と同時に更新する
 - 重い Monte Carlo は常用せず、日常は quick probe（`npm run report:realism:quick`）で回す
+- 長期観測の詳細確認は `npm run report:realism:full` を使う
