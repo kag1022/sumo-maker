@@ -318,14 +318,41 @@ export const resolveLowerDivisionPlacements = (
     }
   }
 
-  // Tier 2: 決定的計算でスロットを割り当て（expectedSlotをそのまま使用）
-  const tier2Assignments = tier2Candidates.map((candidate) => ({
-    id: candidate.id,
-    slot: clamp(candidate.expectedSlot, 1, totalSlots),
-  }));
-
-  // Tier 2が使うスロットを集合として記録し、Tier 1の最適化から除外
-  const tier2OccupiedSlots = new Set(tier2Assignments.map((a) => a.slot));
+  // Tier 2: 決定的計算でスロットを割り当て（expectedSlotを基点に Tier2 同士の衝突も解消）
+  const tier2OccupiedSlots = new Set<number>();
+  const tier2Assignments: { id: string; slot: number }[] = [];
+  const sortedTier2 = tier2Candidates.slice().sort((a, b) => {
+    const slotA = clamp(a.expectedSlot, 1, totalSlots);
+    const slotB = clamp(b.expectedSlot, 1, totalSlots);
+    if (slotA !== slotB) return slotA - slotB;
+    return a.id.localeCompare(b.id);
+  });
+  for (const candidate of sortedTier2) {
+    const desired = clamp(candidate.expectedSlot, 1, totalSlots);
+    let slot = desired;
+    if (tier2OccupiedSlots.has(slot)) {
+      let offset = 1;
+      let resolved = false;
+      while (offset <= totalSlots) {
+        const up = desired - offset;
+        if (up >= 1 && !tier2OccupiedSlots.has(up)) {
+          slot = up;
+          resolved = true;
+          break;
+        }
+        const down = desired + offset;
+        if (down <= totalSlots && !tier2OccupiedSlots.has(down)) {
+          slot = down;
+          resolved = true;
+          break;
+        }
+        offset += 1;
+      }
+      if (!resolved) continue;
+    }
+    tier2OccupiedSlots.add(slot);
+    tier2Assignments.push({ id: candidate.id, slot });
+  }
 
   // Tier 1: DP最適化で精密配置（Tier 2の割り当てを尊重）
   let tier1Assignments: { id: string; slot: number }[];
