@@ -105,7 +105,7 @@ npm run report:realism:quick    # realism の quick probe
 2. `npm run report:realism:quick`
 3. `npm run report:realism:retire`
 4. 必要時のみ `npm run report:realism:aptitude`
-5. 最終確認だけ `npm run report:realism:acceptance`
+5. 最終確認だけ `npm run report:realism:full`
 
 出力先:
 
@@ -113,7 +113,7 @@ npm run report:realism:quick    # realism の quick probe
 - UI/UX strict rules: `docs/ui-ux-rules.md`
 - JSON: `.tmp/`
 
-quick 系レポートは `target / actual / pass-fail` 形式、acceptance は詳細レポートです。
+quick 系レポートは `target / actual / pass-fail` 形式、full は詳細レポートです。
 
 ---
 
@@ -151,9 +151,9 @@ docs/balance         人手で読むレポート
 
 ## モデルと KPI
 
-現行の主対象モデル:
+現行の観測対象:
 
-- `unified-v3-variance`
+- 現行 runtime 1 系統（単一モデル）
 
 Logic Lab preset:
 

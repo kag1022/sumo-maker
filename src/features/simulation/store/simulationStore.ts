@@ -27,9 +27,11 @@ import {
   SimulationDetailPolicy,
   SimulationObservationEntry,
   SimulationProgressState,
+  WorkerSeasonStepFullPayload,
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
+import { DomainEvent, SimulationRuntimeSnapshot } from '../../../logic/simulation/engine';
 import { clearStoredTheme } from '../../../shared/lib/theme';
 
 export type SimulationPhase =
@@ -46,6 +48,7 @@ export type SimulationDetailState = 'idle' | 'building' | 'ready' | 'error';
 interface SimulationStore {
   phase: SimulationPhase;
   status: RikishiStatus | null;
+  runtimeSnapshot: SimulationRuntimeSnapshot | null;
   progress: SimulationProgressState | null;
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
@@ -55,6 +58,7 @@ interface SimulationStore {
   detailBuildProgress: DetailBuildProgress | null;
   latestBashoView: LiveBashoViewModel | null;
   latestEvents: string[];
+  latestDomainEvents: DomainEvent[];
   observationLog: SimulationObservationEntry[];
   latestObservation: SimulationObservationEntry | null;
   isTerminalChapterReady: boolean;
@@ -107,6 +111,7 @@ const pushObservation = (
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
   phase: 'idle',
   status: null,
+  runtimeSnapshot: null,
   progress: null,
   currentCareerId: null,
   isCurrentCareerSaved: false,
@@ -116,6 +121,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   detailBuildProgress: null,
   latestBashoView: null,
   latestEvents: [],
+  latestDomainEvents: [],
   observationLog: [],
   latestObservation: null,
   isTerminalChapterReady: false,
@@ -179,7 +185,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     worker.onmessage = (event: MessageEvent<SimulationWorkerResponse>) => {
       const message = event.data;
 
-      if (message.type === 'BASHO_PROGRESS') {
+      if (message.type === 'SEASON_STEP') {
         const state = get();
         if (message.payload.mode === 'lite') {
           set({
@@ -192,25 +198,24 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
           });
           return;
         }
-
-        if (!message.payload.status || !message.payload.observation || !message.payload.latestBashoView) {
-          return;
-        }
-        const chapterKind = message.payload.observation.chapterKind;
+        const fullPayload = message.payload as WorkerSeasonStepFullPayload;
+        const chapterKind = fullPayload.observation.chapterKind;
         set({
-          phase: message.payload.pauseForChapter
+          phase: fullPayload.pauseForChapter
             ? 'chapter_ready'
             : state.phase === 'simulating'
               ? 'simulating'
               : 'running',
-          status: message.payload.status,
-          progress: message.payload.progress,
-          currentCareerId: message.payload.careerId,
+          status: fullPayload.status,
+          runtimeSnapshot: fullPayload.runtime,
+          progress: fullPayload.progress,
+          currentCareerId: fullPayload.careerId,
           isCurrentCareerSaved: false,
-          latestBashoView: message.payload.latestBashoView,
-          latestEvents: toLatestEvents(message.payload.events ?? []),
-          observationLog: pushObservation(state.observationLog, message.payload.observation),
-          latestObservation: message.payload.observation,
+          latestBashoView: fullPayload.latestBashoView,
+          latestEvents: toLatestEvents(fullPayload.events),
+          latestDomainEvents: fullPayload.domainEvents,
+          observationLog: pushObservation(state.observationLog, fullPayload.observation),
+          latestObservation: fullPayload.observation,
           isTerminalChapterReady: false,
           simulationPacing: state.simulationPacing,
           latestPauseReason: chapterKind === 'INJURY' ? 'INJURY' : undefined,
@@ -219,7 +224,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         return;
       }
 
-      if (message.type === 'COMPLETED') {
+      if (message.type === 'RUNTIME_COMPLETED') {
         const completedWithObserve = shouldCaptureObservations(get().simulationPacing);
         const nextDetailState = message.payload.detailState;
         set({
@@ -227,12 +232,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
             ? 'chapter_ready'
             : resolveSimulationPhaseOnCompletion(get().simulationPacing),
           status: message.payload.status,
+          runtimeSnapshot: message.payload.runtime,
           progress: message.payload.progress,
           currentCareerId: message.payload.careerId,
           latestBashoView: message.payload.latestBashoView ?? get().latestBashoView,
           latestEvents: completedWithObserve && message.payload.observation
             ? toLatestEvents(message.payload.events)
             : [],
+          latestDomainEvents: message.payload.domainEvents,
           observationLog: completedWithObserve
             && message.payload.observation
             ? pushObservation(get().observationLog, message.payload.observation)
@@ -306,6 +313,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({
       phase: resolveSimulationPhaseOnStart(initialPacing),
       status: initialStats,
+      runtimeSnapshot: null,
       progress: null,
       currentCareerId: careerId,
       isCurrentCareerSaved: false,
@@ -315,6 +323,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
+      latestDomainEvents: [],
       observationLog: [],
       latestObservation: null,
       isTerminalChapterReady: false,
@@ -366,6 +375,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({
       phase: 'idle',
       status: null,
+      runtimeSnapshot: null,
       progress: null,
       currentCareerId: null,
       isCurrentCareerSaved: false,
@@ -375,6 +385,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       detailBuildProgress: null,
       latestBashoView: null,
       latestEvents: [],
+      latestDomainEvents: [],
       observationLog: [],
       latestObservation: null,
       isTerminalChapterReady: false,
@@ -415,6 +426,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     const saved = await isCareerSaved(careerId);
     set({
       status,
+      runtimeSnapshot: null,
       phase: 'completed',
       progress: null,
       currentCareerId: careerId,
