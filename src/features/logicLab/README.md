@@ -7,7 +7,7 @@
 
 - preset（`RANDOM_BASELINE` など）と seed を固定したキャリア再現
 - 進行ログの追跡と差分確認
-- 検証用の model 切り替え（現行主対象は `unified-v3-variance`）
+- 検証用の model 指定（現行は `v3` 固定）
 
 ## 主要ファイル
 

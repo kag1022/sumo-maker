@@ -22,8 +22,11 @@ sim tests の runner とテスト本体。
 分布確認や Monte Carlo 分析のレポート生成。
 
 - quick 系: `report:banzuke:quick` / `report:realism:quick` など
-- acceptance: `report:realism:acceptance`（重い）
+- full: `report:realism:full`（重い）
 - 校正: `report:calibration`
+
+長期分布系の report / probe / verification は `src/logic/simulation/observation/` を
+正式入口にし、`world` や `runOneStep` を直接呼ばないでください。
 
 ### `shared/`
 

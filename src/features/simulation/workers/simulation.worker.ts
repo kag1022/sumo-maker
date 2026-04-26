@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
-import { createSimulationEngine } from '../../../logic/simulation/engine';
-import type { BashoStepResult, CompletedStepResult } from '../../../logic/simulation/engine';
+import { createSimulationRuntime } from '../../../logic/simulation/engine';
+import type { BashoStepResult, CompletedStepResult, SimulationRuntime } from '../../../logic/simulation/engine';
 import {
   DetailBuildProgress,
   SimulationDetailPolicy,
@@ -23,7 +23,7 @@ import { normalizeNewRunModelVersion } from '../../../logic/simulation/modelVers
 import { defaultSimulationDependencies } from '../../../logic/simulation/deps';
 import type { AppendBashoChunkParams } from '../../../logic/persistence/careers';
 
-let engine: ReturnType<typeof createSimulationEngine> | null = null;
+let runtime: SimulationRuntime | null = null;
 let activeCareerId: string | null = null;
 let stopped = false;
 let loopRunning = false;
@@ -289,12 +289,12 @@ const resumeLoop = (): void => {
 };
 
 const runLoop = async (): Promise<void> => {
-  if (!engine || loopRunning || pausedForChapter) return;
+  if (!runtime || loopRunning || pausedForChapter) return;
   loopRunning = true;
 
   try {
-    while (engine && !stopped && !pausedForChapter) {
-      const step = await engine.runNextBasho();
+    while (runtime && !stopped && !pausedForChapter) {
+      const step = await runtime.runNextSeasonStep();
       const careerId = activeCareerId;
       if (!careerId) break;
 
@@ -303,16 +303,16 @@ const runLoop = async (): Promise<void> => {
           pendingChunks.push(buildPendingChunk(step));
           if (pendingChunks.length >= BUFFER_FLUSH_INTERVAL) {
             await flushPendingChunks({
-              summaryStatus: engine?.getStatus(),
+              summaryStatus: runtime?.getStatus(),
               totalBashoCount: step.progress.bashoCount,
             });
           }
           if (step.seq === 1 || step.seq % BUFFERED_YIELD_INTERVAL === 0) {
             post({
-              type: 'BASHO_PROGRESS',
+              type: 'SEASON_STEP',
               payload: {
-                mode: 'lite',
                 careerId,
+                mode: 'lite',
                 progress: step.progress,
               },
             });
@@ -320,7 +320,7 @@ const runLoop = async (): Promise<void> => {
           continue;
         }
 
-        const statusSnapshot = step.statusSnapshot ?? engine?.getStatus();
+        const statusSnapshot = step.statusSnapshot ?? runtime?.getStatus();
         if (!statusSnapshot) {
           throw new Error('Missing status snapshot for eager simulation progress');
         }
@@ -366,16 +366,15 @@ const runLoop = async (): Promise<void> => {
           pausedForChapter = true;
         }
         post({
-          type: 'BASHO_PROGRESS',
+          type: 'SEASON_STEP',
           payload: {
-            mode: 'full',
             careerId,
-            seq: step.seq,
-            year: step.year,
-            month: step.month,
-            playerRecord: step.playerRecord,
+            mode: 'full',
+            step,
             status: statusSnapshot,
             events: step.events,
+            domainEvents: step.domainEvents ?? [],
+            runtime: step.runtime ?? runtime.getSnapshot(),
             progress: step.progress,
             observation,
             latestBashoView,
@@ -392,11 +391,14 @@ const runLoop = async (): Promise<void> => {
       if (detailPolicy === 'buffered') {
         const completedStatus = await markCareerReadyForReveal(careerId, step.statusSnapshot);
         post({
-          type: 'COMPLETED',
+          type: 'RUNTIME_COMPLETED',
           payload: {
             careerId,
+            step,
             status: completedStatus,
             events: step.events,
+            domainEvents: step.domainEvents ?? [],
+            runtime: step.runtime ?? runtime.getSnapshot(),
             progress: step.progress,
             pauseReason: step.pauseReason,
             latestBashoView: null,
@@ -415,7 +417,7 @@ const runLoop = async (): Promise<void> => {
             progress: buildDetailBuildProgress(step.progress.bashoCount),
           },
         });
-        engine = null;
+        runtime = null;
         activeCareerId = null;
         break;
       }
@@ -438,11 +440,14 @@ const runLoop = async (): Promise<void> => {
       });
       const pauseForChapter = shouldPauseForChapter(effectiveChapterKind, observation);
       post({
-        type: 'COMPLETED',
+        type: 'RUNTIME_COMPLETED',
         payload: {
           careerId,
+          step,
           status: completedStatus,
           events: step.events,
+          domainEvents: step.domainEvents ?? [],
+          runtime: step.runtime ?? runtime.getSnapshot(),
           progress: step.progress,
           observation,
           pauseReason: step.pauseReason,
@@ -451,7 +456,7 @@ const runLoop = async (): Promise<void> => {
           detailState: 'ready',
         },
       });
-      engine = null;
+      runtime = null;
       activeCareerId = null;
       break;
     }
@@ -493,7 +498,7 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
     flushedBashoCount = 0;
     bufferedYieldCount = 0;
     currentShikona = initialStats.shikona;
-    engine = createSimulationEngine({
+    runtime = createSimulationRuntime({
       initialStats,
       oyakata,
       runOptions,
@@ -521,7 +526,7 @@ self.onmessage = (event: MessageEvent<SimulationWorkerRequest>) => {
     const careerId = activeCareerId;
     stopped = true;
     pausedForChapter = false;
-    engine = null;
+    runtime = null;
     activeCareerId = null;
     pendingChunks = [];
     flushedBashoCount = 0;

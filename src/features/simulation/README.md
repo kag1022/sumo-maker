@@ -1,27 +1,35 @@
 # simulation
 
-フルキャリアを Web Worker で進行させる feature です。UI スレッドをブロックせずに
-`src/logic/simulation/` のエンジンを回し、進行状態を store で共有します。
+フルキャリアを Web Worker で進行させる feature です。UI スレッドは
+`src/logic/simulation/runtime.ts` の API と worker protocol だけを相手にします。
 
 ## 責務
 
-- Web Worker ライフサイクル管理（起動・メッセージ往復・終了）
-- 進行ステータスの store 管理（場所・取組・年単位の進捗）
-- 他 feature（`bashoHub`, `careerResult`）に対する進行状態の公開
+- Web Worker ライフサイクル管理
+- `SEASON_STEP` / `RUNTIME_COMPLETED` 契約の受信
+- store への進行状態反映
+- `bashoHub`, `careerResult` への観測データ公開
 
 ## 主要ファイル
 
-- `workers/simulation.worker.ts` キャリア進行の worker エントリ
+- `workers/simulation.worker.ts` runtime を駆動し、detail build と worker protocol を橋渡しする
 - `store/simulationStore.ts` 進行状態の store
-- `hooks/useSimulation.ts` React 側から worker を利用するための hook
+- `hooks/useSimulation.ts` React 側の公開入口
 
 ## 依存
 
-- `src/logic/simulation/` 本体エンジン（engine / torikumi / strength / retirement / realism）
-- `src/logic/banzuke/` 番付編成
+- `src/logic/simulation/runtime.ts` runtime API
+- `src/logic/simulation/workerProtocol.ts` メッセージ契約
 - `src/logic/persistence/` 途中保存・再開
+
+## 実装ルール
+
+- feature 側から `runOneStep` や `world` を直接触らない
+- 進行中の物語断片は `DomainEvent` と worker payload を通して受け取る
+- protocol を変えたら worker / store / result 画面を一緒に更新する
 
 ## 公開 API
 
-- `useSimulation()` フック経由で進行開始・一時停止・結果取得を提供
-- 直接 worker を叩かず、hook / store を経由してください
+- `useSimulation()` フック経由で進行開始・再開・結果取得を提供する
+- `useSimulation()` は `runtimeSnapshot` と `latestDomainEvents` を公開し、UI は status-only に依存しない
+- 直接 worker を叩かず、hook / store を経由する
