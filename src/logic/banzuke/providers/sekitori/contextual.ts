@@ -1,7 +1,7 @@
 import { Rank } from '../../../models';
 import { normalizeSekitoriLosses } from '../../rules/topDivisionRules';
 import { MakuuchiLayout } from '../../scale/banzukeLayout';
-import { resolveMakuuchiPromotionLandingNumber } from '../../../simulation/sekitori/boundaryTuning';
+import { resolvePressureAdjustedMakuuchiPromotionLandingNumber } from '../../../simulation/sekitori/boundaryTuning';
 import { toMakuuchiSlot } from './slots';
 import { BashoRecordSnapshot, RankOrderProfile, SekitoriContextSnapshot, TopDirective } from './types';
 
@@ -184,11 +184,14 @@ const resolveJuryoPromotionTargetSlot = (
   layout: MakuuchiLayout,
 ): number => {
   const number = snapshot.rank.number ?? 14;
-  let landing = resolveMakuuchiPromotionLandingNumber(number, snapshot.wins);
-  const openingShift =
-    (context.makuuchiDemotionOpenings >= 4 ? -2 : context.makuuchiDemotionOpenings >= 2 ? -1 : 0) +
-    (context.upperCollapseCount - context.upperBlockerCount >= 4 ? -1 : 0);
-  landing = clamp(landing + openingShift, 7, 16);
+  const upperLanePressure =
+    context.makuuchiDemotionOpenings +
+    Math.max(0, context.upperCollapseCount - context.upperBlockerCount);
+  const landing = resolvePressureAdjustedMakuuchiPromotionLandingNumber(
+    number,
+    snapshot.wins,
+    upperLanePressure,
+  );
   return toSlot({ division: 'Makuuchi', name: '前頭', number: landing, side: 'East' }, layout);
 };
 

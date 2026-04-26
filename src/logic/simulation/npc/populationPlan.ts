@@ -65,6 +65,46 @@ export const resolveRemainingBashoInYear = (month: number): number => {
   return Math.max(1, remaining);
 };
 
+const resolveMonthProgress = (month: number): number => {
+  const index = Math.max(0, OFFICIAL_BASHO_MONTHS.indexOf(month as typeof OFFICIAL_BASHO_MONTHS[number]));
+  return OFFICIAL_BASHO_MONTHS.length <= 1
+    ? 1
+    : index / (OFFICIAL_BASHO_MONTHS.length - 1);
+};
+
+export const resolvePlannedHeadcountForMonth = (
+  month: number,
+  populationPlan: PopulationPlan | undefined,
+): number | undefined => {
+  if (!populationPlan || populationPlan.annualStartHeadcount === undefined) {
+    return undefined;
+  }
+  const progress = resolveMonthProgress(month);
+  const targetHeadcount =
+    populationPlan.annualTargetHeadcount ??
+    (populationPlan.annualStartHeadcount + (populationPlan.annualHeadcountDrift ?? 0));
+  const drift =
+    (targetHeadcount - populationPlan.annualStartHeadcount) * progress;
+  const swingAmplitude = populationPlan.annualSwingAmplitude ?? 0;
+  const swingPhase = populationPlan.annualSwingPhase ?? 0;
+  const swing = Math.sin(progress * Math.PI * 2 + swingPhase) * swingAmplitude;
+  return Math.round(populationPlan.annualStartHeadcount + drift + swing);
+};
+
+export const resolvePopulationPressure = (
+  month: number,
+  currentBanzukeHeadcount: number,
+  populationPlan: PopulationPlan | undefined,
+): number => {
+  const planned = resolvePlannedHeadcountForMonth(month, populationPlan);
+  if (planned === undefined || !populationPlan) return 0;
+  return clamp(
+    planned - currentBanzukeHeadcount,
+    -Math.max(8, populationPlan.sampledTotalSwing),
+    Math.max(8, populationPlan.sampledTotalSwing),
+  );
+};
+
 export const ensurePopulationPlan = (
   world: SimulationWorld,
   year: number,
@@ -138,6 +178,17 @@ export const ensurePopulationPlan = (
     currentBanzukeHeadcount,
     Math.round(sampledAnnualHeadcount + sampledTotalSwing * 0.55),
   );
+  const annualTargetHeadcount = clamp(
+    currentBanzukeHeadcount + Math.round(sampledAnnualDelta * 1.4) + 3,
+    Math.round(sampledAnnualHeadcount - sampledTotalSwing * 0.6),
+    Math.round(sampledAnnualHeadcount + sampledTotalSwing * 0.65),
+  );
+  const annualSwingAmplitude = clamp(
+    sampledTotalSwing * (0.43 + Math.abs(annualSwingShock) * 0.18),
+    13,
+    Math.max(14, sampledTotalSwing * 0.78),
+  );
+  const annualSwingPhase = rng() * Math.PI * 2;
   const jonidanShock = clamp(
     normalizeAroundMedian(
       sampledJonidanHeadcount,
@@ -165,6 +216,11 @@ export const ensurePopulationPlan = (
     annualIntakeShock,
     annualRetirementShock,
     annualIntakeHardCap,
+    annualStartHeadcount: currentBanzukeHeadcount,
+    annualTargetHeadcount,
+    annualHeadcountDrift: annualTargetHeadcount - currentBanzukeHeadcount,
+    annualSwingAmplitude,
+    annualSwingPhase,
     jonidanShock,
     jonokuchiShock,
     lowerDivisionElasticity,

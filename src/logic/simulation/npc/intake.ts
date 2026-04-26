@@ -1,6 +1,10 @@
 import { RandomSource } from '../deps';
 import { createMaezumoRecruit } from './factory';
-import { resolveMonthlyIntakePulse, resolveMonthlyPopulationBaseIntake } from './populationPlan';
+import {
+  resolveMonthlyIntakePulse,
+  resolveMonthlyPopulationBaseIntake,
+  resolvePopulationPressure,
+} from './populationPlan';
 import { PopulationPlan } from './populationPlanTypes';
 import { resolveStableForRecruit } from './stableCatalog';
 import { NpcUniverse, PersistentNpc } from './types';
@@ -20,14 +24,25 @@ export const resolveIntakeCount = (
   if (!populationPlan) return resolveMonthlyBaseIntake(month, rng);
   const base = resolveMonthlyBaseIntake(month, rng);
   const seasonalPulse = resolveMonthlyIntakePulse(month);
+  const headcountPressure = resolvePopulationPressure(
+    month,
+    currentBanzukeHeadcount,
+    populationPlan,
+  );
+  const pressureRatio = clamp(
+    headcountPressure / Math.max(12, populationPlan.sampledTotalSwing || 12),
+    -1,
+    1,
+  );
   const multiplier = clamp(
     1 +
       populationPlan.annualIntakeShock +
-      seasonalPulse * 0.18 * populationPlan.lowerDivisionElasticity,
+      seasonalPulse * 0.18 * populationPlan.lowerDivisionElasticity +
+      pressureRatio * 0.26,
     0.25,
     2.2,
   );
-  const noise = Math.round(populationPlan.sampledTotalSwing * 0.025 * (rng() * 2 - 1));
+  const noise = Math.round(populationPlan.sampledTotalSwing * 0.05 * (rng() * 2 - 1));
   const residualCap = Math.max(0, populationPlan.annualIntakeHardCap - currentBanzukeHeadcount);
   return clamp(Math.round(base * multiplier + noise), 0, residualCap);
 };
