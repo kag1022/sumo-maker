@@ -1,4 +1,6 @@
 import { RandomSource } from './deps';
+import { EnemyStyleBias } from '../catalog/enemyData';
+import { resolveBoutWinProb, resolveUnifiedNpcStrength } from './strength/model';
 
 export interface YushoRaceParticipant {
   id: string;
@@ -6,6 +8,8 @@ export interface YushoRaceParticipant {
   losses: number;
   rankScore: number;
   power?: number;
+  ability?: number;
+  styleBias?: EnemyStyleBias;
 }
 
 export interface YushoResolution {
@@ -37,11 +41,23 @@ const resolvePlayoffWinner = (
   b: YushoRaceParticipant,
   rng: RandomSource,
 ): YushoRaceParticipant => {
-  const seedEdge = clamp((b.rankScore - a.rankScore) * 0.05, -2.8, 2.8);
-  const aPower = (a.power ?? 78) + seedEdge;
-  const bPower = b.power ?? 78;
-  const powerDiff = aPower - bPower;
-  const aWinProbability = 1 / (1 + Math.exp(-0.08 * powerDiff));
+  const rankEdge = clamp((b.rankScore - a.rankScore) * 0.08, -3.2, 3.2);
+  const aAbility = resolveUnifiedNpcStrength({
+    ability: a.ability,
+    power: a.power ?? 78,
+  });
+  const bAbility = resolveUnifiedNpcStrength({
+    ability: b.ability,
+    power: b.power ?? 78,
+  });
+  const aWinProbability = resolveBoutWinProb({
+    attackerAbility: aAbility,
+    defenderAbility: bAbility,
+    attackerStyle: a.styleBias,
+    defenderStyle: b.styleBias,
+    bonus: rankEdge,
+    diffSoftCap: 24,
+  });
   return rng() < aWinProbability ? a : b;
 };
 
@@ -94,15 +110,14 @@ export const resolveYushoResolution = (
   const topWins = sorted[0].wins;
   const playoffParticipants = sorted.filter((participant) => participant.wins === topWins);
   const winnerId = runPlayoff(playoffParticipants, rng);
-  const junYushoWins = sorted.find((participant) => participant.wins < topWins)?.wins ?? -1;
+  const hasPlayoff = playoffParticipants.length >= 2;
+  const junYushoWins = hasPlayoff
+    ? topWins
+    : (sorted.find((participant) => participant.wins < topWins)?.wins ?? -1);
   const junYushoIds = new Set(
     sorted
       .filter((participant) => participant.id !== winnerId)
-      .filter(
-        (participant) =>
-          participant.wins === topWins ||
-          (junYushoWins >= 0 && participant.wins === junYushoWins),
-      )
+      .filter((participant) => junYushoWins >= 0 && participant.wins === junYushoWins)
       .map((participant) => participant.id),
   );
 

@@ -429,6 +429,7 @@ export const runTopDivisionBasho = (
   const divisionResults = world.lastBashoResults[division] ?? [];
   const yushoWinnerId = divisionResults.find((row) => row.yusho)?.id;
   const yusho = yushoWinnerId === 'PLAYER';
+  const junYusho = !yusho && (divisionResults.find((row) => row.id === 'PLAYER')?.junYusho ?? false);
   const specialPrizesById = new Map(
     divisionResults.map((row) => [row.id, row.specialPrizes ?? []]),
   );
@@ -451,6 +452,7 @@ export const runTopDivisionBasho = (
       losses,
       absent,
       yusho,
+      junYusho,
       specialPrizes: playerSpecialPrizes,
       ...resolvePerformanceMetrics(wins, expectedWins, sosTotal, sosCount),
       kinboshi: playerKinboshi,

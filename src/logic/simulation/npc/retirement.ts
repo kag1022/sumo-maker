@@ -5,10 +5,30 @@ import {
 } from '../retirement/shared';
 import { resolveEmpiricalNpcRetirementHazard } from '../../calibration/npcRealismHeisei';
 import { updateStagnationState } from '../realism';
+// resolvePlannedCareerHazard: Fix-3 hazard wiring rolled back, kept for future re-enable
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { resolvePlannedCareerHazard as _resolvePlannedCareerHazard } from './plannedCareer';
 import { PopulationPlan } from './populationPlanTypes';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
+
+// 平成期実データ (career_bashos: p10=4 / p50=32 / p90=89) は
+// 平均 hazard ~0.022/場所 を要求する。empirical/divisionOnly ハザードは
+// 老齢・MK_HEAVY 等の悪条件込みの平均で上振れしているため、新人 NPC 等の
+// 良好状態にそのまま当てると死亡曲線が過剰になる。キャリア長に応じて
+// ハザードを縮減し、Heisei 分位値に近づける。
+// 値は npm run predict:diagnose の career-length KL 最小化を狙ったヒューリスティック。
+const resolveCareerLengthHazardMultiplier = (careerBashoCount: number): number => {
+  if (careerBashoCount <= 3) return 0.05;
+  if (careerBashoCount <= 6) return 0.08;
+  if (careerBashoCount <= 12) return 0.13;
+  if (careerBashoCount <= 24) return 0.20;
+  if (careerBashoCount <= 48) return 0.30;
+  if (careerBashoCount <= 72) return 0.45;
+  if (careerBashoCount <= 96) return 0.65;
+  return 0.90;
+};
 
 export const pushNpcBashoResult = (
   npc: PersistentNpc,
@@ -102,7 +122,12 @@ export const runNpcRetirementStep = (
       Math.max(0, recentUpperBashoCount - 6) * 0.004 +
       Math.max(0, recentOzekiYokozunaBashoCount - 3) * 0.005 +
       Math.max(0, 0.48 - careerWinRate) * 0.18;
-    const chance = clamp(baseChance * adjustment, 0, 1);
+    const careerLengthMultiplier = resolveCareerLengthHazardMultiplier(npc.careerBashoCount);
+    // Fix-3 (rollback): plannedCareerBasho は個体差付与のために生成・保持するが、
+    // 退場 hazard には寄与させない。MC report で関取率・三役率が大幅な過剰になる
+    // 副作用が観測されたため、hazard 寄与は将来別タスクで設計し直す。
+    // resolvePlannedCareerHazard / plannedCareer.ts は維持して将来の wiring に備える。
+    const chance = clamp(baseChance * adjustment * careerLengthMultiplier, 0, 1);
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
       npc.retiredAtSeq = seq;

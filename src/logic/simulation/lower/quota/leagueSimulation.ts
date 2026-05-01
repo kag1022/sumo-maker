@@ -8,6 +8,7 @@ import {
   POWER_RANGE,
 } from '../../lower/types';
 import { PLAYER_ACTOR_ID } from '../../actors/constants';
+import { resolveNpcInjuryKyujou } from '../../npc/kyujou';
 import {
   createLowerDivisionBoutDayMap,
   DEFAULT_TORIKUMI_BOUNDARY_BANDS,
@@ -75,6 +76,8 @@ const createDivisionParticipants = (
         boutsSimulated: 0,
         active: true,
         stagnation: npc.stagnation,
+        // Fix-2: 下位部屋 NPC に Heisei 相当の怪我休場を発生させる
+        bashoKyujo: !isPlayer && resolveNpcInjuryKyujou(division, rng),
       };
     });
 };
