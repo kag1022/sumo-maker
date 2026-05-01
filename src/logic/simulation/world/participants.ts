@@ -1,6 +1,7 @@
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
+import { resolveNpcInjuryKyujou } from '../npc/kyujou';
 import { computeConsecutiveMakekoshiStreak } from '../retirement/shared';
 import { resolveTopDivisionRank } from '../topDivision/rank';
 import { resolveBashoFormDelta } from '../variance/bashoVariance';
@@ -113,14 +114,18 @@ export const createDivisionParticipants = (
       rng,
     });
     const bashoFormDelta = bashoVariance?.bashoFormDelta ?? 0;
+    // バッチ修正: Makuuchi 7-8 過剰 (sim 18% vs ref 12%) は上位 NPC の能力分散が
+    // 狭く境界付近に固まるため。ability/power の seasonal noise を拡大して個性を出す。
+    const sekitoriAbilityNoise = Math.max(2.4, npc.volatility * 1.0);
+    const sekitoriPowerNoise = Math.max(2.0, npc.volatility * 0.85);
     const seasonalAbility =
       (registryNpc?.ability ?? npc.ability ?? npc.basePower) +
       npc.form * 3.2 +
-      randomNoise(rng, Math.max(0.8, npc.volatility * 0.45)) +
+      randomNoise(rng, sekitoriAbilityNoise) +
       upperVariance.abilityShock;
     const seasonalPower =
       npc.basePower * npc.form +
-      randomNoise(rng, npc.volatility) +
+      randomNoise(rng, sekitoriPowerNoise) +
       randomNoise(rng, 1.2) +
       upperVariance.powerShock;
     return {
@@ -148,7 +153,12 @@ export const createDivisionParticipants = (
       opponentAbilityTotal: 0,
       boutsSimulated: 0,
       active,
-      bashoKyujo: upperVariance.bashoKyujo,
+      // Fix-2: 三役以上は upperVariance が age/streak driven kyujou を担当。
+      // それ以外（平幕・十両）にはここで Heisei 相当の怪我休場を上乗せする。
+      // プレイヤーは別パスで injury → kyujou が処理されるため除外。
+      bashoKyujo:
+        upperVariance.bashoKyujo ||
+        (npc.id !== PLAYER_ACTOR_ID && resolveNpcInjuryKyujou(division, rng)),
     };
   });
 

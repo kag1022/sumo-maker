@@ -4,6 +4,7 @@ import { CONSTANTS } from '../../constants';
 import { Rank, RikishiStatus } from '../../models';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
+import { resolveNpcInjuryKyujou } from '../npc/kyujou';
 import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import {
@@ -255,6 +256,8 @@ export const runLowerDivisionBasho = (
           stagnation: npc.stagnation,
           targetBouts: 7,
           boutsDone: 0,
+          // Fix-2: 下位部屋 NPC に Heisei 相当の怪我休場
+          bashoKyujo: npc.id !== PLAYER_ACTOR_ID && resolveNpcInjuryKyujou(lowerDivision, rng),
         };
       }),
   );

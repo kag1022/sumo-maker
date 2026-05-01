@@ -436,6 +436,13 @@ const evaluateMakuuchiPair = (
   if ((aTopHeavy && (bBand === 'SANYAKU' || bBand === 'JOI_A')) || (bTopHeavy && (aBand === 'SANYAKU' || aBand === 'JOI_A'))) {
     score -= phaseId === 'EARLY' ? 90 : phaseId === 'MID_A' ? 60 : 30;
   }
+  // Fix-batch ②: 横綱 vs 大関、横綱 vs 横綱、大関 vs 大関 は実史上「中日以降」に
+  // 組まれる慣習。EARLY/MID_A 期のこれらの上位対決を強く回避する。
+  if (aTopHeavy && bTopHeavy) {
+    if (phaseId === 'EARLY') score += 900;
+    else if (phaseId === 'MID_A') score += 500;
+    else if (phaseId === 'MID_B') score += 120;
+  }
   let matchReason: TorikumiMatchReason = 'RANK_NEARBY';
   if (title.titleImplication === 'DIRECT') matchReason = 'YUSHO_DIRECT';
   else if (title.titleImplication === 'CHASE') matchReason = 'YUSHO_PURSUIT';

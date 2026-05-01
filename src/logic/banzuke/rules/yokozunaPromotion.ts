@@ -12,7 +12,9 @@ export interface YokozunaPromotionEvidence {
   combinedEquivalent: number;
   currentYusho: boolean;
   currentJunYusho: boolean;
+  currentYushoEquivalent: boolean;
   prevYushoEquivalent: boolean;
+  hasActualYushoInWindow: boolean;
   hasEquivalentPair: boolean;
   hasYushoPair: boolean;
   hasRealisticTotal: boolean;
@@ -51,8 +53,10 @@ const buildYokozunaEvidence = (
   const isPrevOzeki = prev?.rankName === '大関';
   const minEquivalent = BALANCE.yokozuna.yushoEquivalentMinScore;
   const hasEquivalentPair = Boolean(isCurrentOzeki && isPrevOzeki && currentEquivalent >= minEquivalent && prevEquivalent >= minEquivalent);
+  const currentYushoEquivalent = Boolean(current.yusho || current.junYusho);
   const prevYushoEquivalent = Boolean(prev?.yusho || prev?.junYusho);
-  const hasYushoPair = Boolean(current.yusho && prevYushoEquivalent);
+  const hasActualYushoInWindow = Boolean(current.yusho || prev?.yusho);
+  const hasYushoPair = Boolean(currentYushoEquivalent && prevYushoEquivalent && hasActualYushoInWindow);
   const hasRealisticTotal = combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore;
 
   return {
@@ -63,7 +67,9 @@ const buildYokozunaEvidence = (
     combinedEquivalent,
     currentYusho: Boolean(current.yusho),
     currentJunYusho: Boolean(current.junYusho),
+    currentYushoEquivalent,
     prevYushoEquivalent,
+    hasActualYushoInWindow,
     hasEquivalentPair,
     hasYushoPair,
     hasRealisticTotal,
@@ -78,7 +84,8 @@ const evaluateYokozunaDecisionBand = (
     return 'AUTO_PROMOTE';
   }
   if (
-    evidence.currentYusho &&
+    evidence.currentYushoEquivalent &&
+    evidence.hasActualYushoInWindow &&
     evidence.currentEquivalent >= BALANCE.yokozuna.yushoEquivalentMinScore &&
     evidence.combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore - 1
   ) {
@@ -215,14 +222,14 @@ export const canPromoteToYokozuna = (
       rankName: current.rank.name,
       wins: current.wins,
       yusho: current.yusho,
-      junYusho: false,
+      junYusho: current.junYusho,
     },
     pastRecords[0]
       ? {
         rankName: pastRecords[0].rank.name,
         wins: pastRecords[0].wins,
         yusho: pastRecords[0].yusho,
-        junYusho: false,
+        junYusho: pastRecords[0].junYusho,
       }
       : undefined,
     deliberationContext,
