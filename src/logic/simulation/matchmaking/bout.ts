@@ -1,3 +1,4 @@
+import { BALANCE } from '../../balance';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { RandomSource } from '../deps';
 import {
@@ -64,7 +65,7 @@ const resolveNpcWinProbability = (
   );
   const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
   const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
-  const boutNoiseAmplitude = 1.0;
+  const boutNoiseAmplitude = BALANCE.strength.boutNoiseAmplitude;
   const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
   const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
@@ -90,6 +91,7 @@ const resolveNpcWinProbability = (
     attackerStyle: a.styleBias,
     defenderStyle: b.styleBias,
     bonus: styleDiff,
+    diffSoftCap: BALANCE.strength.npcDiffSoftCap,
   });
 };
 

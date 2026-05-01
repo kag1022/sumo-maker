@@ -12,6 +12,7 @@ import {
 import { RandomSource } from '../deps';
 import { resolveLegacyAptitudeFactor } from '../realism';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
+import { samplePlannedCareerBasho } from './plannedCareer';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
   LOWER_DIVISION_SLOTS,
@@ -110,6 +111,7 @@ const createNpc = (
     entryAge,
     age: entryAge,
     careerBashoCount: 0,
+    plannedCareerBasho: samplePlannedCareerBasho(rng),
     active: true,
     entrySeq: seq,
     riseBand: empiricalSeed.riseBand,

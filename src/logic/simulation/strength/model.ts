@@ -185,6 +185,8 @@ export const resolveBoutWinProb = (input: {
   defenderStyle?: EnemyStyleBias;
   injuryPenalty?: number;
   bonus?: number;
+  /** 能力差の soft cap。省略時は player vs NPC 用の既定値 (BALANCE.strength.diffSoftCap)。 */
+  diffSoftCap?: number;
 }): number => {
   const styleEdge = resolveStyleEdge(input.attackerStyle, input.defenderStyle);
   const injuryPenalty = (input.injuryPenalty ?? 0) * BALANCE.strength.injuryPenaltyScale;
@@ -194,7 +196,7 @@ export const resolveBoutWinProb = (input: {
     styleEdge +
     (input.bonus ?? 0) -
     injuryPenalty;
-  const cap = BALANCE.strength.diffSoftCap;
+  const cap = input.diffSoftCap ?? BALANCE.strength.diffSoftCap;
   const diff = Math.tanh(rawDiff / cap) * cap;
   return clamp(1 / (1 + Math.exp(-BALANCE.strength.logisticScale * diff)), 0.03, 0.97);
 };

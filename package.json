@@ -30,6 +30,10 @@
     "report:kimarite:compare": "node scripts/reports/kimarite_distribution.cjs --compare",
     "report:npc:yokozuna": "node scripts/reports/run_npc_yokozuna_probe.cjs",
     "report:player:realism:c2": "node scripts/reports/run_player_realism_c2_probe.cjs",
+    "predict:export": "python sumo-db/scripts/export_banzuke_transition_top5.py",
+    "predict:demo": "node scripts/predict/predict_banzuke_top5.cjs",
+    "predict:reference": "python sumo-db/scripts/export_realism_reference_heisei.py",
+    "predict:diagnose": "node scripts/predict/realism_diagnostic.cjs",
     "lint": "eslint . --max-warnings 0",
     "doc:audit": "node scripts/shared/doc_audit.cjs",
     "preview": "vite preview"
