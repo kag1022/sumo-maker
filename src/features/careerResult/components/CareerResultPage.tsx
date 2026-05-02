@@ -220,7 +220,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       </div>
 
       <div ref={chapterRef} className={styles.body}>
-        <AnimatePresence mode="wait" initial={false}>
+        <>
           {viewState.activeChapter === "encyclopedia" ? (
             <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
               <section className={styles.readingNote}>
@@ -303,7 +303,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
               <p className={styles.readingCopy}>{detailLoadingLabel}</p>
             </motion.section>
           ) : null}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );
