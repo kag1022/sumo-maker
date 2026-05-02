@@ -20,28 +20,39 @@ type StreakHazard = {
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
+// バッチ追加: 平均場所数 59 が頭打ちで target 44 に届かない。引退年齢中央値が 28
+// で、30+ の強い slope が発火する前にプレイヤー寿命を終えている。全年齢に効く
+// baseChance を 2.5x 化することで生存曲線全体を左にシフトする。
+// 副作用: 負け越しキャリア率は 29% → 33% 付近に押し戻される見込み (target 25-35 内)。
 const RETIREMENT_HAZARD = {
-  baseChance: 0.001,
+  baseChance: 0.0028,
   chanceMax: 0.92,
+  // バッチ修正: 平均場所数頭打ちの根本原因。最初の 40 basho かつ age<31 で hazard を
+  // 0 にリセットしていたため、いくら baseChance/slope を強化しても序盤生存が固定化されていた。
+  // Heisei 実数値 p10=4 / p50=32 を再現するには序盤の保護を解除する必要がある。
+  // ただしユーザビリティ確保のため最初の 12 basho (2年) は完全保護を残す。
   earlyCareerGuard: {
-    minCareerBasho: 40,
-    maxAgeExclusive: 31,
+    minCareerBasho: 12,
+    maxAgeExclusive: 22,
   },
+  // バッチ追加: 平均場所数 59 → target 44 を更に詰めるため、ACTIVE_SEKITORI の
+  // 35+ slope と FORMER_SEKITORI_LOWER の 36+ slope を中堅期に強化。
+  // 早期 (24-30) は据え置き、長期居座りだけ刈り取る。
   ageByGroup: {
     NON_SEKITORI: [
       { startAge: 24, slope: 0.002 },
-      { startAge: 30, slope: 0.0055 },
-      { startAge: 35, slope: 0.01 },
+      { startAge: 30, slope: 0.0095 },
+      { startAge: 35, slope: 0.018 },
     ] as AgeHazardTier[],
     ACTIVE_SEKITORI: [
       { startAge: 30, slope: 0.0016 },
-      { startAge: 35, slope: 0.0048 },
-      { startAge: 39, slope: 0.009 },
+      { startAge: 35, slope: 0.0095 },
+      { startAge: 39, slope: 0.0165 },
     ] as AgeHazardTier[],
     FORMER_SEKITORI_LOWER: [
-      { startAge: 31, slope: 0.0028 },
-      { startAge: 36, slope: 0.0058 },
-      { startAge: 40, slope: 0.0105 },
+      { startAge: 31, slope: 0.0050 },
+      { startAge: 36, slope: 0.0105 },
+      { startAge: 40, slope: 0.0185 },
     ] as AgeHazardTier[],
   },
   injury: {
@@ -78,9 +89,13 @@ const RETIREMENT_HAZARD = {
     makushita: 0.0004,
     lower: 0.0009,
   },
+  // バッチ修正: 平均場所数 63 vs target 44 を縮めるため、長期キャリア閾値を
+  // 60 から発火させる。120/180 の旧閾値は遅すぎて Heisei 中央値 38 に届かない。
   nonSekitoriLongCareer: [
-    { minCareerBasho: 120, bonus: 0.01 },
-    { minCareerBasho: 180, bonus: 0.02 },
+    { minCareerBasho: 60, bonus: 0.008 },
+    { minCareerBasho: 90, bonus: 0.014 },
+    { minCareerBasho: 120, bonus: 0.022 },
+    { minCareerBasho: 180, bonus: 0.035 },
   ],
   formerSekitoriLosingProtection: {
     minCareerBasho: 100,
@@ -286,6 +301,12 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
         chance += threshold.bonus;
       }
     }
+  }
+  // バッチ修正: 関取群でも長期キャリアを抑制（プレイヤー平均場所数 63 → 44 目標）。
+  if (hazardGroup === 'ACTIVE_SEKITORI' || hazardGroup === 'FORMER_SEKITORI_LOWER') {
+    if (careerBashoCount >= 80) chance += 0.006;
+    if (careerBashoCount >= 110) chance += 0.012;
+    if (careerBashoCount >= 150) chance += 0.020;
   }
 
   let resolved = chance * resolveRetirementProfileBias(profile) * clampRetirementBias(retirementBias);

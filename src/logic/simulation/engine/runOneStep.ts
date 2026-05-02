@@ -413,6 +413,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
         losses: bashoRecord.losses,
         absent: bashoRecord.absent,
         yusho: bashoRecord.yusho,
+        junYusho: bashoRecord.junYusho,
         expectedWins: bashoRecord.expectedWins,
         strengthOfSchedule: bashoRecord.strengthOfSchedule,
         performanceOverExpected: bashoRecord.performanceOverExpected,

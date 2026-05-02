@@ -44,6 +44,13 @@ export interface PersistentActor {
   entryAge: number;
   age: number;
   careerBashoCount: number;
+  /**
+   * Fix-3: NPC 生成時に Heisei 期 career_bashos 分布から triangular サンプリングした
+   * 想定キャリア場所数。runNpcRetirementStep がこの値の周辺で sigmoid hazard を発火し、
+   * 生存曲線を実史 (p10=4 / p50=32 / p90=89) に整合させる。
+   * 未設定の旧 NPC は Heisei 中央値 32 にフォールバック。
+   */
+  plannedCareerBasho?: number;
   active: boolean;
   entrySeq: number;
   retiredAtSeq?: number;
