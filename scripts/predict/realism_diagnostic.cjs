@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { ensureSimTestsBuild } = require('../shared/ensure_simtests_build.cjs');
 const { loadObservationModule } = require('../reports/_shared/observation_module.cjs');
+const { pickTransitionDistribution } = require('./transition_fallback.cjs');
 
 const RUNS = Number(process.env.DIAGNOSTIC_RUNS || 20);
 const REFERENCE_PATH = path.resolve(
@@ -65,7 +66,6 @@ const binCareer = (v) => {
 };
 
 const recordKey = (w, l, a) => `${w}-${l}-${a}`;
-const winLossKey = (w, l) => `${w}-${l}`;
 
 const SIDE_LABEL = { East: '東', West: '西' };
 const RANK_BASE_HALF_STEPS = {
@@ -325,13 +325,25 @@ const compareCareer = (simBins, refHist) => {
   return { kl: Number(kl.toFixed(4)), simSample: simTotal, refSample: refTotal, bins: diffs };
 };
 
-const resolveTransitionBucket = (entry, wins, losses, absent) => {
-  const byRecord = entry.byRecord?.[recordKey(wins, losses, absent)];
-  if (byRecord) return { level: 'byRecord', bucket: byRecord };
-  const byWinLoss = entry.byWinLoss?.[winLossKey(wins, losses)];
-  if (byWinLoss) return { level: 'byWinLoss', bucket: byWinLoss };
-  if (entry.marginal) return { level: 'marginal', bucket: entry.marginal };
-  return null;
+const resolveTransitionBucket = (transitionReference, fromLabel, wins, losses, absent) => {
+  const bucket = pickTransitionDistribution(
+    transitionReference,
+    fromLabel,
+    { wins, losses, absences: absent },
+    { minSamples: 1 },
+  );
+  if (!bucket) return null;
+  const source = bucket.source || 'unknown';
+  const level = source.startsWith('nearbyByRecord')
+    ? 'nearbyByRecord'
+    : source.startsWith('nearbyByWinLoss')
+      ? 'nearbyByWinLoss'
+      : source.startsWith('byRecord')
+        ? 'byRecord'
+        : source.startsWith('byWinLoss')
+          ? 'byWinLoss'
+          : 'marginal';
+  return { level, bucket };
 };
 
 const summarizeReferenceTransition = (fromLabel, bucket) => {
@@ -407,12 +419,9 @@ const compareBanzukeMovement = (results, transitionReference, calibrationReferen
         const toSlot = rankToComparableSlot(decision.finalRank);
         if (!fromLabel || fromSlot === null || toSlot === null) continue;
         const calibrationRef = resolveLowerCalibrationReference(decision, calibrationReference);
-        const refEntry = transitionReference.transitions[fromLabel];
         const resolved = calibrationRef
           ? { level: calibrationRef.level, bucket: { total: calibrationRef.total } }
-          : refEntry
-            ? resolveTransitionBucket(refEntry, wins, losses, absent)
-            : null;
+          : resolveTransitionBucket(transitionReference, fromLabel, wins, losses, absent);
         if (!resolved) continue;
         const ref = calibrationRef ?? summarizeReferenceTransition(fromLabel, resolved.bucket);
         if (!ref) continue;
