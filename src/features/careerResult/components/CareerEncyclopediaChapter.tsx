@@ -252,99 +252,101 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
   return (
     <section className={styles.shell}>
-      <div className={styles.hero}>
-        <div className={styles.copy}>
-          <p className={styles.label}>力士名鑑</p>
-          <h1 className={styles.name}>{status.shikona}</h1>
-          <div className={styles.rank}>{highestRankLabel}</div>
-          <div className={styles.origin}>
-            {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
-          </div>
-          <p className={styles.summary}>
-            {memoLines[0] ?? overview.lifeSummary}
-          </p>
-          <div className={styles.summaryRow}>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>通算</span>
-              <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
+      <div className={styles.cover}>
+        <div className={styles.hero}>
+          <div className={styles.copy}>
+            <p className={styles.label}>力士名鑑</p>
+            <h1 className={styles.name}>{status.shikona}</h1>
+            <div className={styles.rank}>{highestRankLabel}</div>
+            <div className={styles.origin}>
+              {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
             </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>勝率</span>
-              <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>在位</span>
-              <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>観測点</span>
-              <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.portraitDock}>
-          <RikishiPortrait
-            bodyType={status.bodyType}
-            className={styles.portrait}
-            innerClassName={styles.portraitInner}
-            presentation="blend"
-          />
-        </div>
-      </div>
-
-      <div className={styles.actions}>
-        {!isSaved ? (
-          <>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存判断</div>
-              <div className={styles.text}>{saveCopy}</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {SAVE_TAGS.map((tag) => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    className={styles.traitMeta}
-                    data-active={selectedSaveTags.includes(tag.id)}
-                    onClick={() => toggleSaveTag(tag.id)}
-                  >
-                    {tag.label}
-                  </button>
-                ))}
+            <p className={styles.summary}>
+              {memoLines[0] ?? overview.lifeSummary}
+            </p>
+            <div className={styles.summaryRow}>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>通算</span>
+                <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
               </div>
-              <textarea
-                value={observerMemo}
-                rows={2}
-                onChange={(event) => setObserverMemo(event.target.value)}
-                className="mt-3 w-full border border-line bg-bg/40 px-3 py-2 text-sm text-text"
-                placeholder="この人生をどう読んだかを短く残す"
-              />
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>勝率</span>
+                <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>在位</span>
+                <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>観測点</span>
+                <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
+              </div>
             </div>
-            <div className={styles.actionButtons}>
-              <Button
-                size="lg"
-                disabled={saveDisabled}
-                onClick={() => void onSave({ saveTags: selectedSaveTags, observerMemo })}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saveDisabled ? "記録整理中" : "この人生を保存する"}
+          </div>
+
+          <div className={styles.portraitDock}>
+            <RikishiPortrait
+              bodyType={status.bodyType}
+              className={styles.portrait}
+              innerClassName={styles.portraitInner}
+              presentation="blend"
+            />
+          </div>
+        </div>
+
+        <div className={styles.actions}>
+          {!isSaved ? (
+            <>
+              <div className={styles.actionCopy}>
+                <div className={styles.label}>保存判断</div>
+                <div className={styles.text}>{saveCopy}</div>
+                <div className={styles.saveTags}>
+                  {SAVE_TAGS.map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      className={styles.traitMeta}
+                      data-active={selectedSaveTags.includes(tag.id)}
+                      onClick={() => toggleSaveTag(tag.id)}
+                    >
+                      {tag.label}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={observerMemo}
+                  rows={3}
+                  onChange={(event) => setObserverMemo(event.target.value)}
+                  className={styles.memoInput}
+                  placeholder="この人生をどう読んだかを短く残す"
+                />
+              </div>
+              <div className={styles.actionButtons}>
+                <Button
+                  size="lg"
+                  disabled={saveDisabled}
+                  onClick={() => void onSave({ saveTags: selectedSaveTags, observerMemo })}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {saveDisabled ? "記録整理中" : "この人生を保存する"}
+                </Button>
+                <Button variant="outline" onClick={onReturnToScout}>
+                  保存せず次の新弟子へ
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.actionCopy}>
+                <div className={styles.label}>保存済み</div>
+                <div className={styles.text}>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onReturnToScout}>
+                新弟子設計へ戻る
               </Button>
-              <Button variant="outline" onClick={onReturnToScout}>
-                保存せず次の新弟子へ
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存済み</div>
-              <div className={styles.text}>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onReturnToScout}>
-              新弟子設計へ戻る
-            </Button>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.section}>

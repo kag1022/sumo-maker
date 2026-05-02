@@ -1,16 +1,17 @@
 .shell {
   position: relative;
   display: grid;
-  gap: 1rem;
-  padding: 1.1rem;
-  border: 1px solid rgb(var(--twc-brand) / 0.14);
-  border-radius: 28px;
+  gap: 1.05rem;
+  padding: 1.05rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.22);
+  border-radius: 0;
   background:
-    linear-gradient(180deg, rgb(var(--twc-action) / 0.08), rgb(255 255 255 / 0.02)),
-    rgb(var(--twc-bg) / 0.9);
+    radial-gradient(circle at 86% 4%, rgb(var(--twc-brand) / 0.15), transparent 25%),
+    linear-gradient(180deg, rgb(var(--twc-action) / 0.08), rgb(255 255 255 / 0.015)),
+    rgb(var(--twc-bg) / 0.94);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 18px 40px rgb(0 0 0 / 0.18);
+    0 20px 44px rgb(0 0 0 / 0.22);
 }
 
 .shell::before {
@@ -26,6 +27,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  align-items: start;
 }
 
 .kicker,
@@ -46,9 +48,72 @@
   color: rgb(var(--twc-text) / 0.98);
 }
 
-.filters {
+.lead {
+  margin-top: 0.4rem;
+  max-width: 42rem;
+  color: rgb(var(--twc-text) / 0.68);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.headStamp {
   display: grid;
-  gap: 0.75rem;
+  place-items: center;
+  width: 4.1rem;
+  height: 4.1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.34);
+  border-radius: 999px;
+  color: rgb(var(--twc-brand) / 0.75);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.25rem;
+  background: rgb(var(--twc-bg) / 0.34);
+}
+
+.summaryRail {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.summaryTile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.25rem 0.65rem;
+  align-items: center;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(0 0 0 / 0.08)),
+    rgb(var(--twc-bg-panel) / 0.66);
+  padding: 0.75rem 0.8rem;
+}
+
+.summaryTile svg {
+  color: rgb(var(--twc-brand) / 0.82);
+}
+
+.summaryTile span {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-text-bright) / 0.56);
+}
+
+.summaryTile strong {
+  grid-column: 2;
+  min-width: 0;
+  color: rgb(var(--twc-text) / 0.96);
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.12);
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.12);
+  padding: 0.65rem 0;
 }
 
 .modeBar {
@@ -61,7 +126,7 @@
   min-height: 34px;
   padding: 0.45rem 0.75rem;
   border: 1px solid rgb(var(--twc-line) / 0.4);
-  border-radius: 999px;
+  border-radius: 0;
   background: rgb(var(--twc-bg) / 0.74);
   font-size: 0.74rem;
   color: rgb(var(--twc-text) / 0.68);
@@ -76,6 +141,44 @@
   color: rgb(var(--twc-text) / 0.96);
 }
 
+.selectionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 34px;
+  border: 1px solid rgb(var(--twc-brand) / 0.18);
+  background: rgb(var(--twc-bg-panel) / 0.58);
+  padding: 0.45rem 0.75rem;
+  white-space: nowrap;
+}
+
+.selectionPill span {
+  font-family: "DotGothic16", monospace;
+  color: rgb(var(--twc-brand) / 0.72);
+  font-size: 0.72rem;
+}
+
+.selectionPill strong {
+  color: rgb(var(--twc-text) / 0.86);
+  font-size: 0.78rem;
+}
+
+.heatmapBlock {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.14);
+  background: rgb(var(--twc-bg-panel) / 0.54);
+  padding: 0.75rem;
+}
+
+.heatmapHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.76rem;
+}
+
 .layout {
   display: grid;
   gap: 1rem;
@@ -85,248 +188,423 @@
 
 .mainPanel {
   min-width: 0;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.78), rgb(var(--twc-bg) / 0.8));
+  padding: 0.85rem;
 }
 
-.scroll {
-  overflow-x: auto;
-  padding-bottom: 0.3rem;
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 0.8rem;
 }
 
-.yearStrip {
-  display: grid;
-  grid-template-columns: 94px auto;
-  margin-bottom: 0.45rem;
+.chartTitle {
+  margin-top: 0.25rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.35rem;
+  color: rgb(var(--twc-text) / 0.96);
 }
 
-.yearStripGutter {
-  border-right: 1px solid rgb(255 255 255 / 0.04);
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.7rem;
 }
 
-.yearStripTrack {
-  position: relative;
-  min-height: 28px;
+.chartLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-.yearLabel {
-  position: absolute;
-  top: 0;
-  padding-left: 0.5rem;
-  border-left: 1px solid rgb(var(--twc-brand) / 0.16);
-  font-family: "DotGothic16", monospace;
-  font-size: 0.76rem;
-  letter-spacing: 0.16em;
-  color: rgb(var(--twc-text-bright) / 0.62);
+.chartLegend i {
+  display: block;
+  width: 0.58rem;
+  height: 0.58rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.38);
 }
 
-.ledger {
-  display: grid;
+.chartLegend i[data-kind="rank"] {
+  background: rgb(var(--twc-brand) / 0.22);
 }
 
-.bandLabel {
-  font-family: "DotGothic16", monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  color: rgb(var(--twc-text) / 0.72);
+.chartLegend i[data-kind="event"] {
+  background: var(--chart-makuuchi);
 }
 
-.bandTrack,
-.axisTrack {
-  position: relative;
-  overflow: visible;
+.chartLegend i[data-kind="yusho"] {
+  background: rgb(var(--twc-award) / 0.62);
 }
 
-.bandTrack {
-  min-height: 62px;
+.chartLegend i[data-kind="absence"] {
+  background: rgb(var(--twc-warning) / 0.55);
 }
 
-.axisTrack {
-  min-height: 28px;
-}
-
-.axisLabel {
-  color: rgb(var(--twc-brand) / 0.76);
-}
-
-.bandWash {
-  position: absolute;
-  inset: 0;
-  opacity: 0.22;
-}
-
-.bandWash[data-band="YOKOZUNA"] {
-  background: linear-gradient(90deg, rgb(var(--twc-award) / 0.18), transparent 70%);
-}
-
-.bandWash[data-band="OZEKI"] {
-  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.14), transparent 70%);
-}
-
-.bandWash[data-band="SEKIWAKE"],
-.bandWash[data-band="KOMUSUBI"] {
-  background: linear-gradient(90deg, rgb(var(--twc-action) / 0.12), transparent 70%);
-}
-
-.bandWash[data-band="MAEGASHIRA"] {
-  background: linear-gradient(90deg, rgb(var(--twc-state) / 0.12), transparent 70%);
-}
-
-.bandWash[data-band="JURYO"] {
-  background: linear-gradient(90deg, rgb(var(--twc-action) / 0.14), transparent 70%);
-}
-
-.bandWash[data-band="MAKUSHITA"] {
-  background: linear-gradient(90deg, rgb(var(--twc-state) / 0.14), transparent 70%);
-}
-
-.bandWash[data-band="SANDANME"] {
-  background: linear-gradient(90deg, rgb(var(--twc-brand-muted) / 0.16), transparent 70%);
-}
-
-.bandWash[data-band="JONIDAN"],
-.bandWash[data-band="JONOKUCHI"] {
-  background: linear-gradient(90deg, rgb(var(--twc-line) / 0.18), transparent 70%);
-}
-
-.bandLabel[data-band="YOKOZUNA"] {
+.bandIndex span[data-band="YOKOZUNA"] {
   color: rgb(var(--twc-award) / 0.92);
 }
 
-.bandLabel[data-band="OZEKI"] {
+.bandIndex span[data-band="OZEKI"] {
   color: rgb(var(--twc-brand) / 0.88);
 }
 
-.bandLabel[data-band="SEKIWAKE"],
-.bandLabel[data-band="KOMUSUBI"] {
+.bandIndex span[data-band="SEKIWAKE"],
+.bandIndex span[data-band="KOMUSUBI"] {
   color: rgb(var(--twc-action) / 0.84);
 }
 
-.bandLabel[data-band="MAEGASHIRA"] {
+.bandIndex span[data-band="MAEGASHIRA"] {
   color: rgb(var(--twc-state) / 0.8);
 }
 
-.bandLabel[data-band="JURYO"] {
+.bandIndex span[data-band="JURYO"] {
   color: rgb(var(--twc-action) / 0.76);
 }
 
-.bandLabel[data-band="MAKUSHITA"] {
+.bandIndex span[data-band="MAKUSHITA"] {
   color: rgb(var(--twc-state) / 0.74);
 }
 
-.bandLabel[data-band="SANDANME"] {
+.bandIndex span[data-band="SANDANME"] {
   color: rgb(var(--twc-brand-muted) / 0.82);
 }
 
-.bandLabel[data-band="JONIDAN"],
-.bandLabel[data-band="JONOKUCHI"] {
+.bandIndex span[data-band="JONIDAN"],
+.bandIndex span[data-band="JONOKUCHI"] {
   color: rgb(var(--twc-text-faint) / 0.9);
 }
 
-.continuity {
-  position: absolute;
-  top: 50%;
-  height: 10px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.24), rgb(var(--twc-brand) / 0.08));
+.yearSelector {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr));
+  margin-bottom: 0.8rem;
 }
 
-.chip {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+.yearSelectButton {
+  position: relative;
+  scroll-margin-top: 12rem;
   display: grid;
+  gap: 0.12rem;
+  min-height: 3.55rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-bg) / 0.36);
+  padding: 0.46rem 0.5rem;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.yearSelectButton:hover,
+.yearSelectButton[data-active="true"] {
+  border-color: rgb(var(--twc-brand) / 0.52);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.14), rgb(0 0 0 / 0.05)),
+    rgb(var(--twc-bg) / 0.48);
+  transform: translateY(-1px);
+}
+
+.yearSelectButton[data-event="true"]::after {
+  content: "";
+  position: absolute;
+  top: 0.36rem;
+  right: 0.36rem;
+  width: 0.38rem;
+  height: 0.38rem;
+  background: rgb(var(--twc-brand) / 0.82);
+}
+
+.yearSelectButton:has(em) {
+  border-color: rgb(var(--twc-brand) / 0.2);
+}
+
+.yearSelectButton strong {
+  font-family: "DotGothic16", monospace;
+  color: rgb(var(--twc-text) / 0.9);
+  font-size: 0.78rem;
+}
+
+.yearSelectButton span,
+.yearSelectButton em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--twc-text-bright) / 0.56);
+  font-style: normal;
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.yearSelectButton em {
+  color: rgb(var(--twc-brand) / 0.78);
+}
+
+.focusYear {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.focusYearHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.1);
+  padding-top: 0.75rem;
+}
+
+.focusYearHead h4 {
+  margin-top: 0.2rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.45rem;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.focusYearStats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.focusYearStats span {
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-bg) / 0.28);
+  padding: 0.32rem 0.5rem;
+  color: rgb(var(--twc-text-bright) / 0.64);
+  font-size: 0.72rem;
+}
+
+.banzukeBoard {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 0.75rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), rgb(0 0 0 / 0.1)),
+    rgb(var(--twc-bg) / 0.32);
+  padding: 0.75rem;
+}
+
+.bandIndex {
+  display: grid;
+  grid-template-rows: 1.65rem repeat(10, minmax(2.4rem, 1fr));
+  padding-top: 3.25rem;
+}
+
+.bandIndex span {
+  display: flex;
+  align-items: center;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  color: rgb(var(--twc-text) / 0.62);
+}
+
+.yearCard {
+  display: grid;
+  grid-template-rows: auto minmax(25.5rem, 1fr);
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.68), rgb(var(--twc-bg) / 0.72));
+}
+
+.monthHeader {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.1);
+}
+
+.monthHeader span {
+  display: grid;
+  place-items: center;
+  min-height: 1.65rem;
+  border-right: 1px solid rgb(var(--twc-brand) / 0.06);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  color: rgb(var(--twc-brand) / 0.64);
+}
+
+.monthHeader span:last-child {
+  border-right: 0;
+}
+
+.yearTable {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(10, minmax(2.4rem, 1fr));
+  min-height: 25.5rem;
+}
+
+.yearBandRow {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid rgb(255 255 255 / 0.04);
+}
+
+.yearBandRow:nth-child(odd) {
+  background: rgb(255 255 255 / 0.014);
+}
+
+.yearCell {
+  z-index: 1;
+  scroll-margin-top: 12rem;
+  align-self: stretch;
+  justify-self: stretch;
+  display: grid;
+  align-content: center;
   justify-items: center;
   gap: 0.08rem;
-  width: 50px;
-  min-height: 42px;
-  padding: 0.34rem 0.26rem 0.3rem;
+  min-width: 0;
+  margin: 0.22rem;
   border: 1px solid rgb(var(--twc-brand) / 0.16);
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.72), rgb(var(--twc-bg) / 0.94));
-  text-align: center;
-  font-family: "Yuji Syuku", "Shippori Mincho", serif;
-  color: rgb(var(--twc-text) / 0.82);
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.03), rgb(0 0 0 / 0.06)),
+    rgb(var(--twc-bg) / 0.54);
+  color: rgb(var(--twc-text) / 0.78);
+  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease, transform 140ms ease;
 }
 
-.chip:hover {
+.yearCell:hover,
+.yearCell[data-selected="true"] {
+  border-color: rgb(var(--twc-brand) / 0.66);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.18), rgb(0 0 0 / 0.06)),
+    rgb(var(--twc-bg) / 0.64);
+  color: rgb(var(--twc-text) / 0.98);
+  transform: translateY(-1px);
+}
+
+.yearCell[data-muted="true"] {
+  opacity: 0.32;
+}
+
+.yearCell[data-event="true"] {
   border-color: rgb(var(--twc-brand) / 0.38);
-  color: rgb(var(--twc-text) / 0.95);
 }
 
-.chip[data-selected="true"] {
-  border-color: rgb(var(--twc-brand) / 0.75);
-  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.34), rgb(var(--twc-bg) / 0.96));
+.yearCell[data-yusho="true"] {
+  border-color: rgb(var(--twc-award) / 0.72);
+  background:
+    linear-gradient(90deg, rgb(var(--twc-award) / 0.22), transparent 34%),
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.14), rgb(0 0 0 / 0.06)),
+    rgb(var(--twc-bg) / 0.62);
   box-shadow:
-    inset 0 0 0 1px rgb(var(--twc-brand) / 0.22),
-    0 0 0 1px rgb(var(--twc-brand) / 0.3);
+    inset 3px 0 0 rgb(var(--twc-award) / 0.78),
+    0 0 14px rgb(var(--twc-award) / 0.08);
   color: rgb(var(--twc-text) / 0.98);
 }
 
-.chip[data-emphasis="true"] {
-  border-color: rgb(var(--twc-brand) / 0.36);
-  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.16), rgb(var(--twc-bg) / 0.96));
+.yearCell[data-absence="true"] {
+  border-color: rgb(var(--twc-warning) / 0.48);
+  color: rgb(var(--twc-warning) / 0.86);
 }
 
-.chip[data-absence="true"] {
-  border-color: rgb(var(--twc-warning) / 0.42);
-  color: rgb(var(--twc-warning) / 0.8);
-}
-
-.chip[data-event="true"]::after {
-  content: "";
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 6px;
-  height: 6px;
-  background: var(--chart-makuuchi);
-  box-shadow: 0 0 6px rgb(var(--twc-brand) / 0.4);
-}
-
-.chipBadge {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 88px;
-  border: 1px solid rgb(var(--twc-brand) / 0.2);
-  border-radius: 1px;
-  background: rgb(var(--twc-bg) / 0.98);
-  padding: 0.18rem 0.42rem;
-  font-size: 0.56rem;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  color: rgb(var(--twc-text-bright) / 0.62);
-  font-family: "Yuji Syuku", "Shippori Mincho", serif;
-}
-
-.chipBadge[data-emphasis="true"] {
-  border-color: rgb(var(--twc-brand) / 0.5);
-  background: rgb(var(--twc-brand-ink) / 0.96);
-  color: rgb(var(--twc-text) / 0.95);
-}
-
-.chipRank {
-  font-size: 0.7rem;
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-}
-
-.chipRecord {
-  font-size: 0.5rem;
+.yearCellRank {
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.9rem;
   line-height: 1;
-  color: rgb(var(--twc-text-bright) / 0.55);
-  font-family: "DotGothic16", monospace;
-  letter-spacing: 0;
+  white-space: nowrap;
 }
 
-.tick {
-  position: absolute;
-  top: 0;
+.yearCellRecord {
   font-family: "DotGothic16", monospace;
   font-size: 0.62rem;
-  color: rgb(var(--twc-text) / 0.54);
+  line-height: 1;
+  color: rgb(var(--twc-text-bright) / 0.55);
+}
+
+.yearCellEvent {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.12rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.58rem;
+  color: rgb(var(--twc-brand) / 0.86);
+  white-space: nowrap;
+}
+
+.yearCellYusho {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid rgb(var(--twc-award) / 0.38);
+  background: rgb(var(--twc-award) / 0.12);
+  padding: 0 0.18rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.58rem;
+  color: rgb(var(--twc-award) / 0.94);
+  white-space: nowrap;
+}
+
+.milestoneRail {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-bg) / 0.34);
+  padding: 0.7rem;
+}
+
+.milestoneRailHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: rgb(var(--twc-text-bright) / 0.56);
+  font-size: 0.74rem;
+}
+
+.milestoneList {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.milestoneItem {
+  scroll-margin-top: 12rem;
+  display: grid;
+  gap: 0.16rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), rgb(0 0 0 / 0.06)),
+    rgb(var(--twc-bg-panel) / 0.38);
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.milestoneItem:hover,
+.milestoneItem[data-active="true"] {
+  border-color: rgb(var(--twc-brand) / 0.42);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.12), rgb(0 0 0 / 0.06)),
+    rgb(var(--twc-bg-panel) / 0.48);
+  transform: translateY(-1px);
+}
+
+.milestoneItem span {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-brand) / 0.78);
+}
+
+.milestoneItem strong {
+  color: rgb(var(--twc-text) / 0.94);
+  font-size: 0.82rem;
+}
+
+.milestoneItem em {
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-style: normal;
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .detailPanel {
@@ -335,15 +613,23 @@
   display: grid;
   gap: 0.9rem;
   align-content: start;
-  border: 1px solid rgb(var(--twc-line) / 0.4);
-  border-radius: 24px;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  border-radius: 0;
   background:
-    linear-gradient(180deg, rgb(var(--twc-action) / 0.1), rgb(255 255 255 / 0.02)),
-    rgb(var(--twc-bg) / 0.86);
+    linear-gradient(180deg, rgb(var(--twc-action) / 0.11), rgb(255 255 255 / 0.02)),
+    rgb(var(--twc-bg) / 0.9);
   padding: 1.05rem;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.04),
     0 18px 40px rgb(0 0 0 / 0.18);
+}
+
+.detailPanel[data-tone="up"] {
+  border-color: rgb(var(--twc-action) / 0.34);
+}
+
+.detailPanel[data-tone="down"] {
+  border-color: rgb(var(--twc-warning) / 0.34);
 }
 
 .detailTitle {
@@ -360,6 +646,27 @@
   color: rgb(var(--twc-text-bright) / 0.64);
 }
 
+.positionRibbon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.14);
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.14);
+  padding: 0.6rem 0;
+}
+
+.positionRibbon span {
+  color: rgb(var(--twc-text-bright) / 0.62);
+  font-size: 0.78rem;
+}
+
+.positionRibbon strong {
+  font-family: "DotGothic16", monospace;
+  color: rgb(var(--twc-brand) / 0.9);
+  font-size: 1.05rem;
+}
+
 .detailMetrics {
   display: grid;
   gap: 0.55rem;
@@ -370,7 +677,7 @@
   display: grid;
   gap: 0.22rem;
   border: 1px solid rgb(var(--twc-line) / 0.34);
-  border-radius: 16px;
+  border-radius: 0;
   background: rgb(255 255 255 / 0.02);
   padding: 0.72rem 0.8rem;
 }
@@ -400,7 +707,7 @@
   align-items: center;
   min-height: 30px;
   border: 1px solid rgb(var(--twc-brand) / 0.16);
-  border-radius: 999px;
+  border-radius: 0;
   background: rgb(var(--twc-brand) / 0.08);
   padding: 0.32rem 0.7rem;
   font-size: 0.74rem;
@@ -435,7 +742,7 @@
   display: grid;
   gap: 0.16rem;
   border: 1px solid rgb(var(--twc-line) / 0.32);
-  border-radius: 14px;
+  border-radius: 0;
   background: rgb(255 255 255 / 0.02);
   padding: 0.7rem 0.8rem;
 }
@@ -464,6 +771,12 @@
 }
 
 @media (max-width: 1023px) {
+  .yearSelectButton,
+  .yearCell,
+  .milestoneItem {
+    scroll-margin-top: 15rem;
+  }
+
   .layout {
     grid-template-columns: 1fr;
   }
@@ -471,9 +784,62 @@
   .detailPanel {
     position: static;
   }
+
+  .summaryRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 767px) {
+  .headStamp {
+    display: none;
+  }
+
+  .summaryRail {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar,
+  .chartHeader,
+  .heatmapHeader,
+  .focusYearHead {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .banzukeBoard {
+    grid-template-columns: 3.7rem minmax(0, 1fr);
+    gap: 0.45rem;
+    padding: 0.55rem;
+  }
+
+  .bandIndex {
+    grid-template-rows: 1.65rem repeat(10, minmax(2.1rem, 1fr));
+  }
+
+  .bandIndex span {
+    font-size: 0.62rem;
+  }
+
+  .yearCard {
+    grid-template-rows: auto minmax(22rem, 1fr);
+  }
+
+  .yearTable {
+    grid-template-rows: repeat(10, minmax(2.1rem, 1fr));
+    min-height: 22rem;
+  }
+
+  .yearCellRank {
+    font-size: 0.74rem;
+  }
+
+  .yearCellRecord,
+  .yearCellEvent,
+  .yearCellYusho {
+    font-size: 0.5rem;
+  }
+
   .detailMetrics {
     grid-template-columns: 1fr;
   }
