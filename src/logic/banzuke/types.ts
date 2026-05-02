@@ -171,6 +171,7 @@ export interface BanzukeComposeEntry {
   losses: number;
   absent: number;
   yusho?: boolean;
+  junYusho?: boolean;
   expectedWins?: number;
   strengthOfSchedule?: number;
   performanceOverExpected?: number;

@@ -198,6 +198,7 @@ export const composeNextBanzuke = (
         losses: entry.losses,
         absent: entry.absent,
         yusho: entry.yusho ?? false,
+        junYusho: entry.junYusho ?? false,
         kinboshi: 0,
         specialPrizes: [],
       },

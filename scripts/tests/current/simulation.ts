@@ -1371,6 +1371,21 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'yusho: playoff uses ability beyond rank seed',
+    run: () => {
+      const resolution = resolveYushoResolution(
+        [
+          { id: 'A', wins: 12, losses: 3, rankScore: 3, power: 82, ability: 82 },
+          { id: 'B', wins: 12, losses: 3, rankScore: 7, power: 125, ability: 130 },
+        ],
+        () => 0.8,
+      );
+      assert.equal(resolution.winnerId, 'B');
+      assert.equal(resolution.playoffParticipantIds.length, 2);
+      assert.equal(resolution.junYushoIds.has('A'), true);
+    },
+  },
+  {
     name: 'yusho: even low-win field still produces one winner',
     run: () => {
       const resolution = resolveYushoResolution(
@@ -1687,7 +1702,7 @@ export const tests: TestCase[] = [
         const rng = lcg(testCase.seed);
         const world = createSimulationWorld(rng);
         const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
-        const status = createStatus({ rank: testCase.rank });
+        const status = createStatus({ rank: testCase.rank, traits: ['BUJI_KORE_MEIBA'] });
         const result = runBashoDetailed(status, 2026, 1, rng, world, lowerWorld);
         const diagnostics = result.torikumiDiagnostics;
         const healthyUnresolvedDays = diagnostics?.playerHealthyUnresolvedDays ?? [];

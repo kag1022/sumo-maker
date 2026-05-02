@@ -230,7 +230,7 @@ const buildPromotionReview = (record: BashoRecord, records: BashoRecord[]) => {
       losses: record.losses,
       absent: record.absent,
       yusho: record.yusho,
-      junYusho: false,
+      junYusho: record.junYusho,
       pastRecords: previous
         ? [
           {
@@ -239,7 +239,7 @@ const buildPromotionReview = (record: BashoRecord, records: BashoRecord[]) => {
             losses: previous.losses,
             absent: previous.absent,
             yusho: previous.yusho,
-            junYusho: false,
+            junYusho: previous.junYusho,
           },
         ]
         : [],

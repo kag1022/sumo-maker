@@ -116,6 +116,61 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: yokozuna promotion rejects yusho-equivalent pair without any actual yusho',
+    run: () => {
+      const evalResult = evaluateYokozunaPromotion({
+        id: 'ozeki-a',
+        shikona: '大関A',
+        rank: { division: 'Makuuchi', name: '大関', side: 'East' },
+        wins: 14,
+        losses: 1,
+        absent: 0,
+        yusho: false,
+        junYusho: true,
+        pastRecords: [
+          {
+            rank: { division: 'Makuuchi', name: '大関', side: 'West' },
+            wins: 15,
+            losses: 0,
+            absent: 0,
+            yusho: false,
+            junYusho: true,
+          },
+        ],
+      });
+      assert.equal(evalResult.promote, false);
+      assert.equal(evalResult.evidence.hasActualYushoInWindow, false);
+    },
+  },
+  {
+    name: 'ranking: yokozuna promotion accepts playoff-equivalent current basho after prior yusho',
+    run: () => {
+      const evalResult = evaluateYokozunaPromotion({
+        id: 'ozeki-a',
+        shikona: '大関A',
+        rank: { division: 'Makuuchi', name: '大関', side: 'East' },
+        wins: 15,
+        losses: 0,
+        absent: 0,
+        yusho: false,
+        junYusho: true,
+        pastRecords: [
+          {
+            rank: { division: 'Makuuchi', name: '大関', side: 'West' },
+            wins: 15,
+            losses: 0,
+            absent: 0,
+            yusho: true,
+            junYusho: false,
+          },
+        ],
+      });
+      assert.equal(evalResult.decisionBand, 'AUTO_PROMOTE');
+      assert.equal(evalResult.promote, true);
+      assert.equal(evalResult.evidence.hasActualYushoInWindow, true);
+    },
+  },
+  {
     name: 'ranking: ozeki kadoban demotion sets return-chance flag',
     run: () => {
       const ozeki: Rank = { division: 'Makuuchi', name: '大関', side: 'East' };
