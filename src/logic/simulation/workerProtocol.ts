@@ -1,26 +1,26 @@
-import { Oyakata, Rank, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
-import { BashoStepResult, CompletedStepResult, PauseReason, SimulationProgressSnapshot } from './engine';
+import { Oyakata, RikishiStatus, SimulationRunOptions, TimelineEvent } from '../models';
+import {
+  BashoStepResult,
+  CompletedStepResult,
+  PauseReason,
+  SimulationProgressState,
+} from './engine/types';
 import { SimulationModelVersion } from './modelVersion';
+import {
+  SimulationChapterKind,
+  SimulationObservationEntry,
+} from './runtimeNarrative';
 import { DomainEvent, SimulationRuntimeSnapshot } from './runtimeTypes';
 
-export interface SimulationObservationEntry {
-  seq: number;
-  year: number;
-  month: number;
-  kind: 'milestone' | 'result' | 'danger' | 'closing';
-  chapterKind: SimulationChapterKind | null;
-  headline: string;
-  detail: string;
-}
-
-export type SimulationChapterKind =
-  | 'DEBUT'
-  | 'SEKITORI'
-  | 'SANYAKU'
-  | 'TITLE_RACE'
-  | 'INJURY'
-  | 'RETIREMENT'
-  | 'EPILOGUE';
+export type {
+  PauseReason,
+  SimulationProgressLite,
+  SimulationProgressState,
+} from './engine/types';
+export type {
+  SimulationChapterKind,
+  SimulationObservationEntry,
+} from './runtimeNarrative';
 
 export type LiveBashoTone = 'title' | 'promotion' | 'demotion' | 'duty' | 'normal';
 
@@ -84,15 +84,6 @@ export interface LiveBashoViewModel {
 }
 
 export type SimulationDetailPolicy = 'buffered' | 'eager';
-
-export interface SimulationProgressLite {
-  year: number;
-  month: number;
-  bashoCount: number;
-  currentRank: Rank;
-}
-
-export type SimulationProgressState = SimulationProgressSnapshot | SimulationProgressLite;
 
 export interface DetailBuildProgress {
   flushedBashoCount: number;

@@ -303,14 +303,16 @@ const resolveWinRoute = (
   const routeBias = engagement ? resolveEngagementRouteBias(engagement) : {};
   const biasOf = (route: WinRoute): number => routeBias[route as keyof typeof routeBias] ?? 1;
   const primaryRoute = winner.repertoire?.primaryRoutes[0];
-  const secondaryRoute = winner.repertoire?.secondaryRoutes[0];
+  const secondaryRoutes = winner.repertoire?.secondaryRoutes ?? [];
+  const secondaryBoost = (route: WinRoute, value: number): number =>
+    secondaryRoutes.includes(route) ? value : 0;
   const rawWeights: Array<{ value: WinRoute; weight: number }> = [
     {
       value: 'PUSH_OUT',
       weight:
         (winner.style === 'PUSH' ? 2.6 : 0.2) +
-        (primaryRoute === 'PUSH_OUT' ? 3.9 : 0) +
-        (secondaryRoute === 'PUSH_OUT' ? 1.15 : 0) +
+        (primaryRoute === 'PUSH_OUT' ? 2.2 : 0) +
+        secondaryBoost('PUSH_OUT', 1.3) +
         ((winner.stats.oshi ?? 50) + (winner.stats.tsuki ?? 50)) / 90 +
         (context.weightDiff >= 6 ? 0.35 : 0),
     },
@@ -318,8 +320,8 @@ const resolveWinRoute = (
       value: 'BELT_FORCE',
       weight:
         (winner.style === 'GRAPPLE' ? 2.6 : 0.25) +
-        (primaryRoute === 'BELT_FORCE' ? 3.9 : 0) +
-        (secondaryRoute === 'BELT_FORCE' ? 1.15 : 0) +
+        (primaryRoute === 'BELT_FORCE' ? 2.2 : 0) +
+        secondaryBoost('BELT_FORCE', 1.3) +
         ((winner.stats.kumi ?? 50) + (winner.stats.koshi ?? 50)) / 92 +
         (context.weightDiff >= 0 ? 0.45 : 0),
     },
@@ -327,16 +329,16 @@ const resolveWinRoute = (
       value: 'THROW_BREAK',
       weight:
         (winner.style === 'TECHNIQUE' ? 2.4 : winner.style === 'GRAPPLE' ? 0.9 : 0.12) +
-        (primaryRoute === 'THROW_BREAK' ? 3.4 : 0) +
-        (secondaryRoute === 'THROW_BREAK' ? 1.45 : 0) +
+        (primaryRoute === 'THROW_BREAK' ? 2.05 : 0) +
+        secondaryBoost('THROW_BREAK', 1.55) +
         ((winner.stats.nage ?? 50) + (winner.stats.waza ?? 50)) / 94,
     },
     {
       value: 'PULL_DOWN',
       weight:
         (winner.style === 'PUSH' ? 1.55 : winner.style === 'TECHNIQUE' ? 1.7 : winner.style === 'GRAPPLE' ? 0.38 : 0.22) +
-        (primaryRoute === 'PULL_DOWN' ? 3.4 : 0) +
-        (secondaryRoute === 'PULL_DOWN' ? 1.9 : 0) +
+        (primaryRoute === 'PULL_DOWN' ? 2.05 : 0) +
+        secondaryBoost('PULL_DOWN', 1.65) +
         (context.isUnderdog ? 0.45 : 0) +
         (context.heightDiff >= 6 ? 0.18 : 0),
     },
@@ -345,7 +347,7 @@ const resolveWinRoute = (
       weight:
         context.isEdgeCandidate
           ? 0.14 +
-            (secondaryRoute === 'EDGE_REVERSAL' ? 0.35 : 0) +
+            secondaryBoost('EDGE_REVERSAL', 0.45) +
             (winner.traits.includes('DOHYOUGIWA_MAJUTSU') ? 1.2 : 0) +
             (winner.traits.includes('CLUTCH_REVERSAL') ? 1.0 : 0) +
             (context.isUnderdog ? 0.45 : 0)
@@ -356,7 +358,7 @@ const resolveWinRoute = (
       weight:
         context.isHighPressure || context.isLastDay
           ? 0.04 +
-            (secondaryRoute === 'REAR_FINISH' ? 0.22 : 0) +
+            secondaryBoost('REAR_FINISH', 0.32) +
             (winner.traits.includes('READ_THE_BOUT') ? 0.65 : 0) +
             (winner.style === 'TECHNIQUE' ? 0.3 : 0)
           : 0,
@@ -366,7 +368,7 @@ const resolveWinRoute = (
       weight:
         winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI')
           ? 0.05 +
-            (secondaryRoute === 'LEG_ATTACK' ? 0.22 : 0) +
+            secondaryBoost('LEG_ATTACK', 0.32) +
             (winner.bodyType === 'SOPPU' ? 0.22 : 0) +
             (context.isUnderdog ? 0.2 : 0)
           : 0,
@@ -583,6 +585,7 @@ const resolveBattleResult = (
     projectedExpectedWins,
     careerBashoCount: rikishi.history.records.length,
     currentRank: rikishi.rank,
+    careerBand: rikishi.careerBand,
     stagnation,
   });
   const opponentAbility = enemyAbility;

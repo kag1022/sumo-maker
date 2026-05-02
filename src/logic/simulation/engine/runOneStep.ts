@@ -44,9 +44,6 @@ import {
   applySpiritChangeAfterBasho,
   ensureCareerRecordStatus,
   pushBodyTimelinePoint,
-  pushCareerTurningPoint,
-  pushHighlightEvent,
-  setCareerTurningPoint,
   withRivalSummary,
 } from '../../careerNarrative';
 import { applyTraitAwakeningsForBasho } from '../../traits';
@@ -69,6 +66,11 @@ import { createPopulationSnapshot, createProgressLite, createProgressSnapshot } 
 import { resolvePauseReason } from './pausePolicy';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import {
+  appendStagnationAdvisoryEvent,
+  recordBashoMilestones,
+  recordSlumpRecoveryMilestone,
+} from '../careerMilestones';
+import {
   RuntimeNarrativeState,
   SimulationParams,
   SimulationStepResult,
@@ -83,12 +85,6 @@ const EMPTY_SIMULATION_TIMING_PHASES: Record<SimulationTimingPhase, number> = {
   quota_and_banzuke: 0,
   post_basho_maintenance: 0,
   postprocess: 0,
-};
-
-const STAGNATION_BAND_ORDER: Record<'NORMAL' | 'STALLED' | 'CRITICAL', number> = {
-  NORMAL: 0,
-  STALLED: 1,
-  CRITICAL: 2,
 };
 
 export interface EngineRuntimeState {
@@ -454,20 +450,13 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     formerSekitori:
       state.status.history.maxRank.division === 'Makuuchi' || state.status.history.maxRank.division === 'Juryo',
   });
-  if (STAGNATION_BAND_ORDER[stagnationAfterBasho.band] > STAGNATION_BAND_ORDER[stagnationBeforeBasho.band]) {
-    newEvents = [
-      ...newEvents,
-      {
-        year: bashoRecord.year,
-        month: bashoRecord.month,
-        type: 'OTHER',
-        description:
-          stagnationAfterBasho.band === 'CRITICAL'
-            ? '師匠の示唆: 稽古場の空気が重い。今場所を落とすと、土俵際ではなく力士人生そのものが苦しくなる。'
-            : '師匠の示唆: 稽古場の空気が少し変わった。今の足踏みを次の場所へ持ち越すと、番付も先行きも苦しくなる。',
-      },
-    ];
-  }
+  newEvents = appendStagnationAdvisoryEvent({
+    events: newEvents,
+    year: bashoRecord.year,
+    month: bashoRecord.month,
+    before: stagnationBeforeBasho,
+    after: stagnationAfterBasho,
+  });
 
   const spiritDelta = applySpiritChangeAfterBasho({
     status: state.status,
@@ -490,118 +479,14 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
   state.status.spirit = Math.max(-20, Math.min(100, state.status.spirit + adjustedSpiritDelta));
 
   const bashoSeq = state.seq + 1;
-  if (bashoRecord.yusho) {
-    pushHighlightEvent(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      tag: 'YUSHO',
-      label: '優勝',
-    });
-    pushCareerTurningPoint(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      kind: 'YUSHO',
-      label: currentRank.division === 'Makuuchi' ? '幕内優勝' : '優勝',
-      reason:
-        currentRank.division === 'Makuuchi'
-          ? `${bashoRecord.year}年${bashoRecord.month}月に幕内優勝。力士人生の景色を変えた。`
-          : `${bashoRecord.year}年${bashoRecord.month}月に${currentRank.division}で優勝。番付の流れを一段押し上げた。`,
-      severity: currentRank.division === 'Makuuchi' ? 10 : currentRank.division === 'Juryo' ? 8 : 6,
-    });
-  }
-  if ((bashoRecord.kinboshi ?? 0) > 0) {
-    pushHighlightEvent(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      tag: 'KINBOSHI',
-      label: '金星',
-    });
-  }
-  if (newEvents.some((event) => event.type === 'PROMOTION')) {
-    pushHighlightEvent(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      tag: 'PROMOTION',
-      label: '昇進',
-    });
-  }
-  if (
-    (currentRank.division === 'Makushita' || currentRank.division === 'Sandanme' || currentRank.division === 'Jonidan' || currentRank.division === 'Jonokuchi') &&
-    (rankChange.nextRank.division === 'Juryo' || rankChange.nextRank.division === 'Makuuchi')
-  ) {
-    pushHighlightEvent(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      tag: 'FIRST_SEKITORI',
-      label: '初関取',
-    });
-    pushCareerTurningPoint(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      kind: 'FIRST_SEKITORI',
-      label: '初関取',
-      reason: `${bashoRecord.year}年${bashoRecord.month}月に関取へ届き、人生の見られ方が変わった。`,
-      severity: 7,
-    });
-  }
-  if (currentRank.division === 'Juryo' && rankChange.nextRank.division === 'Makuuchi') {
-    pushCareerTurningPoint(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      kind: 'MAKUUCHI_PROMOTION',
-      label: '新入幕',
-      reason: `${bashoRecord.year}年${bashoRecord.month}月を越えて新入幕。相撲人生の主戦場が変わった。`,
-      severity: 8,
-    });
-  }
-  if (currentRank.division === 'Juryo' && rankChange.nextRank.division === 'Makushita') {
-    pushHighlightEvent(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      tag: 'JURYO_DROP',
-      label: '十両陥落',
-    });
-    pushCareerTurningPoint(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      kind: 'JURYO_DROP',
-      label: '十両陥落',
-      reason: `${bashoRecord.year}年${bashoRecord.month}月に関取の座を失い、人生の重心が揺れた。`,
-      severity: 7,
-    });
-  }
-  const majorInjuryEvent = newEvents.find((event) => event.type === 'INJURY' && /重症度 (\d+)/.test(event.description));
-  if (majorInjuryEvent) {
-    const severityMatch = majorInjuryEvent.description.match(/重症度 (\d+)/);
-    const severity = severityMatch ? Number(severityMatch[1]) : 0;
-    if (severity >= 7) {
-      pushHighlightEvent(state.status.history, {
-        bashoSeq,
-        year: bashoRecord.year,
-        month: bashoRecord.month,
-        tag: 'MAJOR_INJURY',
-        label: '大怪我',
-      });
-      setCareerTurningPoint(state.status.history, {
-        bashoSeq,
-        year: bashoRecord.year,
-        month: bashoRecord.month,
-        kind: 'MAJOR_INJURY',
-        label: '大怪我',
-        reason: majorInjuryEvent.description,
-        severity,
-      });
-    }
-  }
+  recordBashoMilestones({
+    status: state.status,
+    bashoSeq,
+    bashoRecord,
+    currentRank,
+    nextRank: rankChange.nextRank,
+    events: newEvents,
+  });
 
   state.status.rank = rankChange.nextRank;
   state.status.isOzekiKadoban = rankChange.isKadoban;
@@ -617,22 +502,12 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     careerBand: state.status.careerBand,
     temperamentBiases: state.status.careerSeed?.biases,
   });
-  if (
-    stagnationPressureBeforeBasho >= 3 &&
-    (state.status.stagnation?.pressure ?? 0) <= 1 &&
-    bashoRecord.wins >= 10 &&
-    bashoRecord.wins > bashoRecord.losses + bashoRecord.absent
-  ) {
-    pushCareerTurningPoint(state.status.history, {
-      bashoSeq,
-      year: bashoRecord.year,
-      month: bashoRecord.month,
-      kind: 'SLUMP_RECOVERY',
-      label: '停滞脱出',
-      reason: `${bashoRecord.year}年${bashoRecord.month}月に勝ち星をまとめ、長い停滞から立て直した。`,
-      severity: 6,
-    });
-  }
+  recordSlumpRecoveryMilestone({
+    status: state.status,
+    bashoSeq,
+    bashoRecord,
+    stagnationPressureBeforeBasho,
+  });
   state.status.ratingState = updateAbilityAfterBasho({
     current: state.status.ratingState,
     actualWins: bashoRecord.wins,
@@ -694,6 +569,9 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     state.seq,
     month,
   );
+  const retiredNpcCareerBashoCounts = populationAdvance.retiredIds
+    .map((id) => world.npcRegistry.get(id)?.careerBashoCount)
+    .filter((count): count is number => Number.isFinite(count));
   const populationSnapshot = createPopulationSnapshot(
     world,
     state.seq,
@@ -808,6 +686,7 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     playerBouts: bashoResult.playerBoutDetails,
     importantTorikumiNotes: bashoResult.importantTorikumiNotes,
     npcBashoRecords,
+    retiredNpcCareerBashoCounts,
     banzukePopulation: populationSnapshot,
     banzukeDecisions: committee.decisionLogs,
     diagnostics: state.lastDiagnostics,

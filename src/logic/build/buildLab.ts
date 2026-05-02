@@ -164,6 +164,13 @@ const applyPlayerEntryRealism = (
   },
 });
 
+const resolveTacticsFromStyle = (style: StyleArchetype): RikishiStatus['tactics'] =>
+  style === 'TSUKI_OSHI' || style === 'POWER_PRESSURE'
+    ? 'PUSH'
+    : style === 'YOTSU' || style === 'MOROZASHI'
+      ? 'GRAPPLE'
+      : 'TECHNIQUE';
+
 const createBaseGenome = (): RikishiGenome => {
   const dist = CONSTANTS.GENOME.ARCHETYPE_DNA.HARD_WORKER;
   const mean = (pair: [number, number]): number => pair[0];
@@ -823,14 +830,11 @@ export const buildInitialRikishiFromSpec = (
     compatibility,
   });
   const entryAge = background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0);
-  const isTsukedashi =
-    background.startRank.division === 'Makushita' ||
-    background.startRank.division === 'Sandanme';
   const entryCalibration = resolvePlayerEntryCalibration({
     startingRank: background.startRank,
     rng: Math.random,
   });
-  const rolledAptitudeTier = rollAptitudeTier(Math.random);
+  const rolledAptitudeTier = spec.aptitudeTier ?? rollAptitudeTier(Math.random);
   const status = createInitialRikishi({
     shikona: generateShikona(),
     age: entryAge,
@@ -841,14 +845,7 @@ export const buildInitialRikishiFromSpec = (
       resolveAptitudeFactor(rolledAptitudeTier),
       entryCalibration.growthBias,
     ),
-    tactics:
-      isTsukedashi
-        ? spec.primaryStyle === 'TSUKI_OSHI' || spec.primaryStyle === 'POWER_PRESSURE'
-          ? 'PUSH'
-          : spec.primaryStyle === 'YOTSU' || spec.primaryStyle === 'MOROZASHI'
-            ? 'GRAPPLE'
-            : 'TECHNIQUE'
-        : 'BALANCE',
+    tactics: resolveTacticsFromStyle(spec.primaryStyle),
     signatureMove: '',
     bodyType: resolveBodyTypeFromConstitution(spec.bodyConstitution),
     traits: [],
