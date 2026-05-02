@@ -266,7 +266,7 @@ const resolveMinimumDemotionSlots = (
   if (deficit >= 2) return 1;
   return 0;
 };
-const EMPIRICAL_RECORD_AWARE_SAMPLE_SIZE_MIN = 20;
+const EMPIRICAL_RECORD_AWARE_SAMPLE_SIZE_MIN = 1;
 
 export const resolveBottomTailReliefSlots = ({
   division,

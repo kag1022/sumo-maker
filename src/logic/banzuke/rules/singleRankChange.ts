@@ -15,10 +15,13 @@ import { canPromoteToOzekiBy33Wins } from './sanyakuPromotion';
 import { resolveEmpiricalMovement } from './empiricalMovement';
 import {
   LIMITS,
+  LowerDivisionKey,
   RankScaleSlots,
+  resolveLowerDivisionTotal,
   resolveRankLimits,
   resolveRankSlotOffset,
 } from '../scale/rankLimits';
+import { resolveEmpiricalSlotBand } from '../providers/empirical';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -26,6 +29,18 @@ const clamp = (value: number, min: number, max: number): number =>
 const totalLosses = (record: BashoRecord): number => record.losses + record.absent;
 
 const scoreDiff = (record: BashoRecord): number => record.wins - totalLosses(record);
+
+const resolvePositiveRecordFloorNumber = (
+  currentNumber: number,
+  maxNumber: number,
+  record: BashoRecord,
+  multiplier: number,
+): number => {
+  const diff = scoreDiff(record);
+  if (diff <= 0) return currentNumber;
+  const promotionWidth = Math.max(1, Math.round(diff * multiplier));
+  return clamp(currentNumber - promotionWidth, 1, maxNumber);
+};
 
 const hasBanzukeSide = (rank: Rank): boolean => rank.division !== 'Maezumo';
 
@@ -254,6 +269,133 @@ const resolveBoundaryAssignedEvent = (
   return undefined;
 };
 
+const resolveYushoPromotionSlots = (record: BashoRecord): number => {
+  if (!record.yusho) return 0;
+  const diff = scoreDiff(record);
+  if (record.rank.division === 'Makuuchi') {
+    if (record.rank.name !== '前頭' || record.wins < 10) return 0;
+    return clamp(Math.round(diff * 2), 8, 22);
+  }
+  if (record.rank.division === 'Juryo') {
+    if (record.wins < 10) return 0;
+    return clamp(Math.round(diff * 1.5), 6, 12);
+  }
+  if (isLowerDivision(record.rank.division)) {
+    if (record.wins < 7) return 0;
+    return record.rank.division === 'Makushita' ? 2 : 8;
+  }
+  return 0;
+};
+
+const resolveYushoPromotionFloor = (
+  record: BashoRecord,
+  proposedRank: Rank,
+  context: SlotContext,
+): { nextRank: Rank; adjusted: boolean } => {
+  const movementSlots = resolveYushoPromotionSlots(record);
+  if (movementSlots <= 0) return { nextRank: proposedRank, adjusted: false };
+
+  const currentRank = record.rank;
+  const currentSlot = resolveRankSlot(currentRank, context);
+  const proposedSlot = resolveRankSlot(proposedRank, context);
+  let floorSlot: number | null = null;
+
+  if (currentRank.division === 'Makuuchi' && currentRank.name === '前頭') {
+    if (proposedRank.division !== 'Makuuchi' || proposedSlot < currentSlot) {
+      return { nextRank: proposedRank, adjusted: false };
+    }
+    floorSlot = clamp(currentSlot - movementSlots, 8, currentSlot - 1);
+  } else if (currentRank.division === 'Juryo') {
+    if (proposedRank.division === 'Makuuchi') {
+      return { nextRank: proposedRank, adjusted: false };
+    }
+    const topJuryoSlot = context.offsets.Juryo;
+    floorSlot = clamp(currentSlot - movementSlots, topJuryoSlot, currentSlot - 1);
+  } else if (isLowerDivision(currentRank.division)) {
+    if (proposedRank.division !== currentRank.division || proposedSlot < currentSlot) {
+      return { nextRank: proposedRank, adjusted: false };
+    }
+    const divisionTopSlot = context.offsets[currentRank.division];
+    floorSlot = clamp(currentSlot - movementSlots, divisionTopSlot, currentSlot - 1);
+  }
+
+  if (floorSlot === null || floorSlot >= proposedSlot || floorSlot >= currentSlot) {
+    return { nextRank: proposedRank, adjusted: false };
+  }
+
+  return { nextRank: resolveRankFromSlot(floorSlot, context), adjusted: true };
+};
+
+const LOWER_DIVISION_NAMES: Record<LowerDivisionKey, string> = {
+  Makushita: '幕下',
+  Sandanme: '三段目',
+  Jonidan: '序二段',
+  Jonokuchi: '序ノ口',
+};
+
+const isLowerDivision = (division: Rank['division']): division is LowerDivisionKey =>
+  division === 'Makushita' ||
+  division === 'Sandanme' ||
+  division === 'Jonidan' ||
+  division === 'Jonokuchi';
+
+const resolveLowerEmpiricalRankChange = (
+  record: BashoRecord,
+  options?: RankCalculationOptions,
+): { nextRank: Rank; event?: string } | null => {
+  const currentRank = record.rank;
+  if (!isLowerDivision(currentRank.division)) return null;
+  if (record.absent >= 7 || (record.wins === 0 && record.losses >= 7 && record.absent === 0)) return null;
+
+  const context = resolveSlotContext(options?.scaleSlots);
+  const lowerBaseSlot = context.offsets.Makushita;
+  const currentSlot = resolveRankSlot(currentRank, context) - lowerBaseSlot + 1;
+  const totalSlots = resolveLowerDivisionTotal(options?.scaleSlots);
+  const limits = context.limits;
+  const maxByDivision: Record<LowerDivisionKey, number> = {
+    Makushita: limits.MAKUSHITA_MAX,
+    Sandanme: limits.SANDANME_MAX,
+    Jonidan: limits.JONIDAN_MAX,
+    Jonokuchi: limits.JONOKUCHI_MAX,
+  };
+
+  const empirical = resolveEmpiricalSlotBand({
+    division: currentRank.division,
+    rankName: currentRank.name,
+    rankNumber: currentRank.number,
+    currentSlot,
+    totalSlots,
+    divisionTotalSlots: maxByDivision[currentRank.division] * 2,
+    wins: record.wins,
+    losses: record.losses,
+    absent: record.absent,
+    mandatoryDemotion: record.absent >= 7 && currentRank.division !== 'Jonokuchi',
+    mandatoryPromotion:
+      currentRank.division !== 'Makushita' &&
+      (currentRank.number ?? 99) === 1 &&
+      record.wins > totalLosses(record),
+    performanceOverExpected: options?.empiricalContext?.performanceOverExpected,
+  });
+  if (empirical.sampleSize < 20) return null;
+
+  const nudge = clamp(Math.round(options?.lowerDivisionQuota?.enemyHalfStepNudge ?? 0), -1, 1);
+  const targetLowerSlot = clamp(empirical.expectedSlot + nudge, 1, totalSlots);
+  const targetRank = resolveRankFromSlot(lowerBaseSlot + targetLowerSlot - 1, context);
+  if (!isLowerDivision(targetRank.division)) return null;
+
+  const nextRank: Rank = {
+    division: targetRank.division,
+    name: LOWER_DIVISION_NAMES[targetRank.division],
+    number: clamp(targetRank.number ?? 1, 1, maxByDivision[targetRank.division]),
+    side: targetRank.side,
+  };
+
+  return {
+    nextRank,
+    event: resolveBoundaryAssignedEvent(currentRank, nextRank),
+  };
+};
+
 const shouldApplyBoundaryAssignedRank = (
   currentRecord: BashoRecord,
   assignedRank: Rank,
@@ -476,7 +618,9 @@ const calculateMakuuchiChange = (
   }, _rng);
 
   if (empirical) {
-    const newNumber = clamp(empirical.targetNumber, 1, LIMITS.MAEGASHIRA_MAX);
+    const empiricalNumber = clamp(empirical.targetNumber, 1, LIMITS.MAEGASHIRA_MAX);
+    const floorNumber = resolvePositiveRecordFloorNumber(num, LIMITS.MAEGASHIRA_MAX, record, 1);
+    const newNumber = Math.min(empiricalNumber, floorNumber);
     return { nextRank: { ...currentRank, number: newNumber } };
   }
 
@@ -619,7 +763,8 @@ const calculateJuryoChange = (
   }, _rng);
 
   if (empirical) {
-    const empiricalNumber = clamp(empirical.targetNumber, 1, LIMITS.JURYO_MAX);
+    const floorNumber = resolvePositiveRecordFloorNumber(num, LIMITS.JURYO_MAX, record, 0.8);
+    const empiricalNumber = Math.min(clamp(empirical.targetNumber, 1, LIMITS.JURYO_MAX), floorNumber);
     let nextPos = (empiricalNumber - 1) * 2 + (empirical.targetSide === 'West' ? 1 : 0);
     const nudge = clamp(Math.round(options?.sekitoriQuota?.enemyHalfStepNudge ?? 0), -1, 1);
     nextPos = clamp(nextPos + nudge, 0, LIMITS.JURYO_MAX * 2 - 1);
@@ -699,6 +844,13 @@ const normalizeBoundaryAssignedRank = (
       side: 'East',
     };
   }
+  if (
+    assignedRank !== options?.boundaryAssignedNextRank &&
+    isLowerDivision(currentRecord.rank.division) &&
+    isLowerDivision(assignedRank.division)
+  ) {
+    return resolveLowerEmpiricalRankChange(currentRecord, options)?.nextRank ?? assignedRank;
+  }
   return assignedRank;
 };
 
@@ -718,6 +870,8 @@ const calculateStandardRankChange = (
   if (currentRank.division === 'Juryo') {
     return calculateJuryoChange(record, wins, losses, diff, options, rng);
   }
+  const lowerEmpirical = resolveLowerEmpiricalRankChange(record, options);
+  if (lowerEmpirical) return lowerEmpirical;
   return calculateLowerDivisionRankChange(record, options, rng);
 };
 
@@ -746,9 +900,13 @@ export const calculateNextRank = (
     isOzekiReturn: result.isOzekiReturn ?? false,
     ...(() => {
       if (settings?.skipDirectionGuards) {
+        const floored = resolveYushoPromotionFloor(currentRecord, result.nextRank, slotContext);
+        const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
         return {
-          event: result.event,
-          nextRank: resolveNextRankSide(currentRecord, result.nextRank, rng),
+          event: floored.adjusted
+            ? inferredEvent
+            : result.event ?? inferredEvent,
+          nextRank: resolveNextRankSide(currentRecord, floored.nextRank, rng),
         };
       }
       const makekoshiGuarded = applyMakekoshiDirectionGuard(
@@ -770,9 +928,13 @@ export const calculateNextRank = (
             ? 'PROMOTION'
             : undefined
         : result.event;
+      const floored = resolveYushoPromotionFloor(currentRecord, guarded.nextRank, slotContext);
+      const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
       return {
-        event: adjustedEvent,
-        nextRank: resolveNextRankSide(currentRecord, guarded.nextRank, rng),
+        event: floored.adjusted
+          ? inferredEvent
+          : adjustedEvent ?? inferredEvent,
+        nextRank: resolveNextRankSide(currentRecord, floored.nextRank, rng),
       };
     })(),
   });
@@ -886,5 +1048,7 @@ export const calculateNextRank = (
     });
   }
 
-  return finalize(calculateStandardRankChange(currentRecord, options, rng));
+  return finalize(calculateStandardRankChange(currentRecord, options, rng), {
+    skipDirectionGuards: isLowerDivision(currentRank.division) && currentRecord.absent < 7,
+  });
 };
