@@ -353,8 +353,8 @@ export const resolveTacticsFromStyleIdentity = (
   >;
   const top = ranked[0];
   const second = ranked[1];
-  if (!top || top[1] < 10) return 'BALANCE';
-  if (second && top[1] - second[1] < 6) return 'BALANCE';
+  if (!top || top[1] < 10) return fallback;
+  if (second && top[1] - second[1] < 6) return fallback;
   return top[0];
 };
 

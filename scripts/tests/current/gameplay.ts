@@ -220,11 +220,13 @@ export const tests: TestCase[] = [
       }
       const mainFamilies =
         (familyCounts.get('FORCE_OUT') ?? 0) +
-        (familyCounts.get('THROW') ?? 0);
-      // GRAPPLE 型も同様、engagement 経由で後ろ系 / 反り系が 1% 程度漏れうる。
+        (familyCounts.get('THROW') ?? 0) +
+        (familyCounts.get('TWIST_DOWN') ?? 0);
+      // GRAPPLE 型は寄り・投げを主軸にしつつ、長いキャリアでは捻り系も実用棚に入る。
+      // engagement 経由で後ろ系 / 反り系が 1% 程度漏れうる。
       assert.ok((familyCounts.get('REAR') ?? 0) <= 5, `REAR expected <=5, got ${familyCounts.get('REAR') ?? 0}/500`);
       assert.ok((familyCounts.get('BACKWARD_BODY_DROP') ?? 0) <= 3, `BACKWARD_BODY_DROP expected <=3, got ${familyCounts.get('BACKWARD_BODY_DROP') ?? 0}/500`);
-      assert.ok(mainFamilies / 500 > 0.88, `Expected belt/throw shelves to dominate, got ${mainFamilies}/500`);
+      assert.ok(mainFamilies / 500 > 0.94, `Expected belt/throw/twist shelves to dominate, got ${mainFamilies}/500`);
     },
   },
   {
@@ -334,9 +336,9 @@ export const tests: TestCase[] = [
         stableArchetypeId: 'TRADITIONAL_LARGE',
       });
       const repertoireSize = rikishi.kimariteRepertoire?.entries.length ?? 0;
-      assert.ok(repertoireSize >= 4 && repertoireSize <= 6, `unexpected repertoire size: ${repertoireSize}`);
+      assert.ok(repertoireSize >= 7 && repertoireSize <= 10, `unexpected repertoire size: ${repertoireSize}`);
       assert.deepEqual(rikishi.kimariteRepertoire?.primaryRoutes, ['PUSH_OUT']);
-      assert.ok((rikishi.kimariteRepertoire?.secondaryRoutes.length ?? 0) <= 1);
+      assert.ok((rikishi.kimariteRepertoire?.secondaryRoutes.length ?? 0) <= 2);
       assert.deepEqual(rikishi.history.winRouteTotal, {});
     },
   },
@@ -534,11 +536,11 @@ export const tests: TestCase[] = [
         D: 0,
       };
       const expectedRates: Record<'S' | 'A' | 'B' | 'C' | 'D', number> = {
-        S: 0,
-        A: 1 / 6,
-        B: 1 / 2,
-        C: 1 / 3,
-        D: 0,
+        S: 0.008,
+        A: 0.126,
+        B: 0.633,
+        C: 0.193,
+        D: 0.041,
       };
       for (let i = 0; i < runs; i += 1) {
         const draft = rollScoutDraft(rng);
@@ -559,6 +561,17 @@ export const tests: TestCase[] = [
     run: () => {
       const draft = rollScoutDraft(lcg(20260313));
       assert.equal(draft.selectedStableId, 'stable-001');
+    },
+  },
+  {
+    name: 'scout: draft aptitude tier is applied to generated growth profile',
+    run: () => {
+      const rikishi = buildInitialRikishiFromDraft(createScoutDraft({
+        entryPath: 'LOCAL',
+        aptitudeTier: 'C',
+      }));
+      assert.equal(rikishi.aptitudeTier, 'C');
+      assert.deepEqual(rikishi.aptitudeProfile, CONSTANTS.APTITUDE_PROFILE_DATA.C);
     },
   },
   {

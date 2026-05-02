@@ -465,7 +465,7 @@ export const rollCareerBandForAptitude = (
   const point = rng();
   if (tier === 'S') return point < 0.85 ? 'ELITE' : 'STRONG';
   if (tier === 'A') return point < 0.18 ? 'ELITE' : point < 0.78 ? 'STRONG' : 'STANDARD';
-  if (tier === 'B') return point < 0.14 ? 'STRONG' : point < 0.79 ? 'STANDARD' : point < 0.97 ? 'GRINDER' : 'WASHOUT';
-  if (tier === 'C') return point < 0.24 ? 'STANDARD' : point < 0.84 ? 'GRINDER' : 'WASHOUT';
-  return point < 0.42 ? 'GRINDER' : 'WASHOUT';
+  if (tier === 'B') return point < 0.17 ? 'STRONG' : point < 0.68 ? 'STANDARD' : point < 0.93 ? 'GRINDER' : 'WASHOUT';
+  if (tier === 'C') return point < 0.14 ? 'STANDARD' : point < 0.70 ? 'GRINDER' : 'WASHOUT';
+  return point < 0.25 ? 'GRINDER' : 'WASHOUT';
 };

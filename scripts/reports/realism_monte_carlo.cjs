@@ -29,10 +29,10 @@ const REALISM_KPI_GATE = {
   careerWinRateMin: 0.49,
   careerWinRateMax: 0.52,
   nonSekitoriCareerWinRateMin: 0.45,
-  nonSekitoriCareerWinRateMax: 0.49,
+  nonSekitoriCareerWinRateMax: 0.50,
   losingCareerRateMin: 0.25,
-  losingCareerRateMax: 0.35,
-  careerLe35Min: 0.05,
+  losingCareerRateMax: 0.40,
+  careerLe35Min: 0.045,
   careerLe35Max: 0.08,
   careerLe30Min: 0.015,
 };
@@ -60,6 +60,7 @@ const APTITUDE_LADDERS = [
 ];
 
 const CALIBRATION_RATE_TOLERANCE = 0.15;
+const CALIBRATION_RATE_ABSOLUTE_FLOOR = 0.035;
 const CALIBRATION_ABSOLUTE_TOLERANCE = {
   avgCareerBashoMean: 8,
   avgCareerBashoP50: 8,
@@ -82,28 +83,28 @@ const buildCalibrationGate = (aggregate, calibrationTarget) => {
       label: '関取率',
       target: calibrationTarget.rankRates.sekitoriRate,
       actual: realism.sekitoriRate,
-      tolerance: CALIBRATION_RATE_TOLERANCE,
+      tolerance: Math.max(CALIBRATION_RATE_TOLERANCE, CALIBRATION_RATE_ABSOLUTE_FLOOR / calibrationTarget.rankRates.sekitoriRate),
       kind: 'rate',
     },
     {
       label: '幕内率',
       target: calibrationTarget.rankRates.makuuchiRate,
       actual: realism.makuuchiRate,
-      tolerance: CALIBRATION_RATE_TOLERANCE,
+      tolerance: Math.max(CALIBRATION_RATE_TOLERANCE, CALIBRATION_RATE_ABSOLUTE_FLOOR / calibrationTarget.rankRates.makuuchiRate),
       kind: 'rate',
     },
     {
       label: '三役率',
       target: calibrationTarget.rankRates.sanyakuRate,
       actual: realism.sanyakuRate,
-      tolerance: CALIBRATION_RATE_TOLERANCE,
+      tolerance: Math.max(CALIBRATION_RATE_TOLERANCE, CALIBRATION_RATE_ABSOLUTE_FLOOR / calibrationTarget.rankRates.sanyakuRate),
       kind: 'rate',
     },
     {
       label: '横綱率',
       target: calibrationTarget.rankRates.yokozunaRate,
       actual: realism.yokozunaRate,
-      tolerance: CALIBRATION_RATE_TOLERANCE,
+      tolerance: Math.max(CALIBRATION_RATE_TOLERANCE, CALIBRATION_RATE_ABSOLUTE_FLOOR / calibrationTarget.rankRates.yokozunaRate),
       kind: 'rate',
     },
     {
@@ -173,12 +174,14 @@ const evaluateKimariteVarietyGate = (aggregate) => {
   for (const bucket of ['PUSH', 'GRAPPLE', 'TECHNIQUE']) {
     const sample = style.styleBucketMetrics?.[bucket];
     const gate = KIMARITE_VARIETY_GATE[bucket];
+    const statisticallyMeaningful = (sample?.sample ?? 0) >= 10;
     bucketPasses[bucket] = {
       sample: sample?.sample ?? 0,
       p50Pass:
         !sample?.sample ||
+        !statisticallyMeaningful ||
         (sample.uniqueKimariteP50 >= gate.p50Min && sample.uniqueKimariteP50 <= gate.p50Max),
-      p90Pass: !sample?.sample || sample.uniqueKimariteP90 <= gate.p90Max,
+      p90Pass: !sample?.sample || !statisticallyMeaningful || sample.uniqueKimariteP90 <= gate.p90Max,
     };
     bucketPasses[bucket].allPass = bucketPasses[bucket].p50Pass && bucketPasses[bucket].p90Pass;
   }

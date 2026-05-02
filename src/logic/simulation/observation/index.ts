@@ -510,6 +510,8 @@ export const runCareerObservation = async (
         domainEvents: step.domainEvents ?? [],
         diagnostics: step.diagnostics,
         npcResults: step.npcBashoRecords,
+        banzukeDecisions: step.banzukeDecisions,
+        retiredNpcCareerBashoCounts: step.retiredNpcCareerBashoCounts,
         upperRankEarlyDeepOpponents,
         upperRankEarlyTotalOpponents,
         promotionReview: record ? buildPromotionReview(record, records) : undefined,
