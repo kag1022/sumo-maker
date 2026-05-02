@@ -7,6 +7,7 @@ import {
 } from '../../matchmaking';
 import { clamp, randomNoise } from '../../boundary/shared';
 import { applyEmpiricalNpcDriftClamp } from '../../npc/empiricalDrift';
+import { resolveNpcInjuryKyujou } from '../../npc/kyujou';
 import { pushNpcBashoResult } from '../../npc/retirement';
 import {
   BoundarySnapshot,
@@ -70,6 +71,8 @@ const createMakushitaParticipants = (
       boutsSimulated: 0,
       active: true,
       stagnation: npc.stagnation,
+      // Fix-2: Makushita プール NPC に Heisei 相当の怪我休場を発生させる
+      bashoKyujo: resolveNpcInjuryKyujou('Makushita', rng),
     };
   });
 };

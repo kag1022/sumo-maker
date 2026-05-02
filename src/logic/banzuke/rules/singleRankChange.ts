@@ -520,6 +520,38 @@ const calculateJuryoChange = (
       event: 'PROMOTION_TO_MAKUUCHI',
     };
   }
+  // バッチ追加: J3 10-5 / J4 11-4 を Makuuchi 昇進に追加 (実史で頻出)。
+  // 幕内率 4% を target 7.5% に近づけるため。
+  if (!promotionByQuotaBlocked && num === 3 && wins >= 10) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
+    return {
+      nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
+      event: 'PROMOTION_TO_MAKUUCHI',
+    };
+  }
+  if (!promotionByQuotaBlocked && num === 4 && wins >= 10) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
+    return {
+      nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
+      event: 'PROMOTION_TO_MAKUUCHI',
+    };
+  }
+  // バッチ追加 v2: J1 8-7 / J2 9-6 もボーダー昇進対象 (Heisei 実績あり)。
+  // 幕内率 3.8% から target 7.5% を目指す。
+  if (!promotionByQuotaBlocked && num === 1 && wins >= 8) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
+    return {
+      nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
+      event: 'PROMOTION_TO_MAKUUCHI',
+    };
+  }
+  if (!promotionByQuotaBlocked && num === 2 && wins >= 9) {
+    const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
+    return {
+      nextRank: { division: 'Makuuchi', name: '前頭', number: mNumber, side: 'East' },
+      event: 'PROMOTION_TO_MAKUUCHI',
+    };
+  }
   if (!promotionByQuotaBlocked && num <= 4 && wins >= 11) {
     const mNumber = resolveMakuuchiPromotionLandingNumber(num, wins);
     return {
@@ -528,6 +560,20 @@ const calculateJuryoChange = (
     };
   }
   if (!promotionByQuotaBlocked && num <= 7 && wins >= 12) {
+    return {
+      nextRank: {
+        division: 'Makuuchi',
+        name: '前頭',
+        number: resolveMakuuchiPromotionLandingNumber(num, wins),
+        side: 'East',
+      },
+      event: 'PROMOTION_TO_MAKUUCHI',
+    };
+  }
+  // Fix-batch ③: J5-J7 で 11 勝も実史では幕内昇進が多数 (例: 11-4 J6 → M14)。
+  // ここを 12 勝で gate していたため empirical/fallback に落ち、結果として 1-2 枚しか
+  // 上がらないケースが頻発していた。
+  if (!promotionByQuotaBlocked && num <= 7 && num >= 5 && wins >= 11) {
     return {
       nextRank: {
         division: 'Makuuchi',

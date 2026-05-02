@@ -778,6 +778,7 @@ export interface BashoRecord {
   losses: number;
   absent: number;
   yusho: boolean; // 優勝したか
+  junYusho?: boolean; // 準優勝したか（決定戦敗者、または単独トップ時の次点勝ち星集団）
   specialPrizes: string[]; // 三賞
   expectedWins?: number;
   strengthOfSchedule?: number;

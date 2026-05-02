@@ -1,6 +1,8 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
+import { Rank } from '../../models';
+import type { NpcBashoResult } from '../npc/types';
 import { applyEmpiricalNpcDriftClamp } from '../npc/empiricalDrift';
 import { pushNpcBashoResult } from '../npc/retirement';
 import { evaluateSpecialPrizes, SpecialPrizeCode } from '../topDivision/specialPrizes';
@@ -15,6 +17,65 @@ import {
 } from './shared';
 import { SimulationWorld, TopDivision } from './types';
 
+/**
+ * Fix-batch ①: NPC のランク更新が「rankScore - diff * 0.5」という純粋線形で
+ * 大関 / 横綱の昇進ゲートを完全にスキップしていたため、平幕 NPC が 13-2 を 1-2 場所
+ * 続けると横綱に到達してしまうバグの修正。
+ *
+ * Makuuchi rankScore の意味 (decodeMakuuchiRankFromScore に依存):
+ *   1-2: 横綱 E/W   3-4: 大関 E/W   5-6: 関脇 E/W   7-8: 小結 E/W   9+: 前頭
+ * 値が小さいほど高位。
+ *
+ * 提案 nextRankScore に対して、「現在地位から 1 場所で到達できる最高位」を上限として
+ * 床値を設定する（実数値が小さくなりすぎないようにクランプ）。
+ */
+const MAKUUCHI_FLOOR_SEKIWAKE = 5; // 前頭/十両出身は 1 場所では関脇までしか昇進できない
+const MAKUUCHI_FLOOR_OZEKI = 3;    // 関脇/小結は大関昇進ゲート未達なら大関まで進めない
+const MAKUUCHI_FLOOR_YOKOZUNA = 1; // 大関は横綱昇進ゲート未達なら横綱に進めない
+
+const enforceNpcPromotionGate = (
+  fromRank: Rank,
+  proposedNextRankScore: number,
+  recentResults: NpcBashoResult[],
+  currentBashoWins: number,
+): number => {
+  if (fromRank.division !== 'Makuuchi') {
+    // 十両以下 → 1 場所で関脇以上には昇進できない（実史 1989-2019 で 1 件もない）
+    return Math.max(proposedNextRankScore, MAKUUCHI_FLOOR_SEKIWAKE);
+  }
+  const fromName = fromRank.name;
+  if (fromName === '前頭') {
+    return Math.max(proposedNextRankScore, MAKUUCHI_FLOOR_SEKIWAKE);
+  }
+  if (fromName === '関脇' || fromName === '小結') {
+    // 大関昇進ゲート: 関脇/小結地位で 3 場所合計 33 勝相当
+    // 簡易判定として「直近 2 場所 + 今場所」で wins ≥ 33 かつ各 wins ≥ 10
+    const last2 = recentResults.slice(-2);
+    const total3BashoWins =
+      currentBashoWins + last2.reduce((sum, r) => sum + r.wins, 0);
+    const eachKachikoshi =
+      currentBashoWins >= 10 && last2.length >= 2 && last2.every((r) => r.wins >= 10);
+    const ozekiGateMet = total3BashoWins >= 33 && eachKachikoshi;
+    return Math.max(
+      proposedNextRankScore,
+      ozekiGateMet ? MAKUUCHI_FLOOR_OZEKI : MAKUUCHI_FLOOR_OZEKI + 2,
+    );
+  }
+  if (fromName === '大関') {
+    // 横綱昇進ゲート: 直近 2 場所連続優勝相当 (各 13 勝以上)
+    const previous = recentResults[recentResults.length - 1];
+    const currentYushoEq = currentBashoWins >= 13;
+    const prevYushoEq = previous ? previous.wins >= 13 : false;
+    const yokozunaGateMet = currentYushoEq && prevYushoEq;
+    return Math.max(
+      proposedNextRankScore,
+      yokozunaGateMet ? MAKUUCHI_FLOOR_YOKOZUNA : MAKUUCHI_FLOOR_OZEKI,
+    );
+  }
+  // 横綱: そのまま (clamp は呼出側が 1 を確保済み)
+  return proposedNextRankScore;
+};
+
 export const evolveDivisionAfterBasho = (
   world: SimulationWorld,
   division: TopDivision,
@@ -28,6 +89,8 @@ export const evolveDivisionAfterBasho = (
       losses: participant.losses,
       rankScore: participant.rankScore,
       power: participant.power,
+      ability: participant.ability,
+      styleBias: participant.styleBias,
     })),
     rng,
   );
@@ -187,11 +250,14 @@ export const evolveDivisionAfterBasho = (
         0.55,
         2.3,
       );
-      const nextRankScore = clamp(
-        npc.rankScore - diff * 0.5 + randomNoise(rng, 0.3),
-        1,
-        200,
+      const linearNextRankScore = npc.rankScore - diff * 0.5 + randomNoise(rng, 0.3);
+      const gatedNextRankScore = enforceNpcPromotionGate(
+        rank,
+        linearNextRankScore,
+        registryNpc?.recentBashoResults ?? [],
+        result.wins,
       );
+      const nextRankScore = clamp(gatedNextRankScore, 1, 200);
 
       if (registryNpc) {
         registryNpc.basePower = basePower;

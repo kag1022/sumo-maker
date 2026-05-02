@@ -28,11 +28,14 @@ const LOWER_RANGE_DELTA_BY_WINS: Record<number, { min: number; max: number; sign
 };
 
 // 三段目は中位勝ち越し/負け越しをやや強めに振る。
+// バッチ追加: 関取率 15% (target 10.6%) over-shoot 対応で、6/5 勝の中堅昇進帯を
+// 少し控えめに戻す（7-0 yusho は据え置き、6-1 / 5-2 の伸びを抑える）。
 const SANDANME_RANGE_DELTA_BY_WINS: Partial<Record<number, { min: number; max: number; sign: 1 | -1 }>> = {
-  6: { min: 58, max: 92, sign: 1 },
-  5: { min: 34, max: 58, sign: 1 },
-  2: { min: 54, max: 94, sign: -1 },
-  1: { min: 96, max: 152, sign: -1 },
+  7: { min: 90, max: 160, sign: 1 },
+  6: { min: 64, max: 100, sign: 1 },
+  5: { min: 38, max: 64, sign: 1 },
+  2: { min: 60, max: 100, sign: -1 },
+  1: { min: 102, max: 158, sign: -1 },
 };
 
 const JONIDAN_RANGE_DELTA_BY_WINS: Partial<Record<number, { min: number; max: number; sign: 1 | -1 }>> = {
@@ -58,6 +61,13 @@ const randomIntInclusive = (rng: RandomSource, min: number, max: number): number
   return min + Math.floor(rng() * (max - min + 1));
 };
 
+// バッチ修正: 過拡大したので 50% 戻す。target p10=-16.5/p50=4.0/p90=15.5 に
+// 近づくように、旧値と前バージョンの中間を取る。Heisei 実例:
+//   7-0 Mk60 → Mk25-35 (25-35 上昇)
+//   6-1 Mk30 → Mk20-25 (5-10 上昇)
+//   5-2 Mk30 → Mk24-28 (2-6 上昇)
+//   3-4 Mk30 → Mk32-34 (2-4 降下)
+//   1-6 Mk30 → Mk42-50 (12-20 降下)
 const resolveMakushitaTargetBand = (
   currentNum: number,
   wins: number,
@@ -66,36 +76,36 @@ const resolveMakushitaTargetBand = (
   if (wins === 7) {
     if (currentNum <= 5) return { min: 1, max: 2 };
     if (currentNum <= 15) return { min: 1, max: 4 };
-    if (currentNum <= 30) return { min: Math.max(1, currentNum - 14), max: Math.max(3, currentNum - 9) };
-    return { min: Math.max(4, currentNum - 18), max: Math.max(10, currentNum - 12) };
+    if (currentNum <= 30) return { min: Math.max(1, currentNum - 18), max: Math.max(3, currentNum - 11) };
+    return { min: Math.max(4, currentNum - 28), max: Math.max(10, currentNum - 18) };
   }
   if (wins === 6) {
-    if (currentNum <= 8) return { min: 2, max: 5 };
-    if (currentNum <= 20) return { min: Math.max(2, currentNum - 8), max: Math.max(5, currentNum - 5) };
-    if (currentNum <= 35) return { min: Math.max(4, currentNum - 12), max: Math.max(8, currentNum - 8) };
-    return { min: Math.max(9, currentNum - 14), max: Math.max(13, currentNum - 9) };
+    if (currentNum <= 8) return { min: 1, max: 4 };
+    if (currentNum <= 20) return { min: Math.max(2, currentNum - 10), max: Math.max(5, currentNum - 6) };
+    if (currentNum <= 35) return { min: Math.max(4, currentNum - 15), max: Math.max(8, currentNum - 9) };
+    return { min: Math.max(9, currentNum - 18), max: Math.max(13, currentNum - 11) };
   }
   if (wins === 5) {
-    if (currentNum <= 10) return { min: Math.max(2, currentNum - 4), max: Math.max(4, currentNum - 2) };
-    if (currentNum <= 25) return { min: Math.max(4, currentNum - 6), max: Math.max(8, currentNum - 4) };
-    if (currentNum <= 40) return { min: Math.max(7, currentNum - 8), max: Math.max(12, currentNum - 5) };
-    return { min: Math.max(11, currentNum - 8), max: Math.max(17, currentNum - 4) };
+    if (currentNum <= 10) return { min: Math.max(2, currentNum - 5), max: Math.max(4, currentNum - 2) };
+    if (currentNum <= 25) return { min: Math.max(4, currentNum - 8), max: Math.max(8, currentNum - 4) };
+    if (currentNum <= 40) return { min: Math.max(7, currentNum - 11), max: Math.max(12, currentNum - 6) };
+    return { min: Math.max(11, currentNum - 12), max: Math.max(17, currentNum - 5) };
   }
   if (wins === 4) {
     return { min: Math.max(1, currentNum - 2), max: Math.max(1, currentNum - 1) };
   }
   if (wins === 3) {
-    return { min: currentNum + 1, max: currentNum + 4 };
+    return { min: currentNum + 1, max: currentNum + 5 };
   }
   if (wins === 2) {
     const deficitBoost = Math.max(0, totalLosses - wins);
-    return { min: currentNum + 6 + deficitBoost, max: currentNum + 12 + deficitBoost };
+    return { min: currentNum + 7 + deficitBoost, max: currentNum + 15 + deficitBoost };
   }
   if (wins === 1) {
     const deficitBoost = Math.max(0, totalLosses - wins);
-    return { min: currentNum + 10 + deficitBoost, max: currentNum + 18 + deficitBoost };
+    return { min: currentNum + 12 + deficitBoost, max: currentNum + 22 + deficitBoost };
   }
-  return { min: currentNum + 16, max: currentNum + 28 };
+  return { min: currentNum + 20, max: currentNum + 34 };
 };
 
 const resolveMakushitaDeltaByScore = (
