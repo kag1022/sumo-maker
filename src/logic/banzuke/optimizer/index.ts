@@ -4,12 +4,10 @@ import {
   hasOrderedSlotViolation,
   orderExpectedPlacementCandidates,
 } from '../providers/expected/order';
+import { resolveEffectiveLosses, shouldEnforceRecordDirection } from '../providers/expected/direction';
 import { buildOptimizerRows } from './objective';
 import { solveOrderedAssignmentDp } from './orderedAssignmentDp';
 import { resolveOptimizerPressure } from './pressure';
-
-const resolveEffectiveLosses = (candidate: ExpectedPlacementCandidate): number =>
-  candidate.losses + candidate.absent;
 
 const violatesCandidateHardRules = (
   assignment: ExpectedPlacementAssignment,
@@ -17,8 +15,9 @@ const violatesCandidateHardRules = (
 ): boolean => {
   if (assignment.slot < candidate.minSlot || assignment.slot > candidate.maxSlot) return true;
   const effectiveLosses = resolveEffectiveLosses(candidate);
-  if (candidate.wins > effectiveLosses && assignment.slot > candidate.currentSlot) return true;
-  if (candidate.wins < effectiveLosses && assignment.slot < candidate.currentSlot) return true;
+  const enforceRecordDirection = shouldEnforceRecordDirection(candidate);
+  if (enforceRecordDirection && candidate.wins > effectiveLosses && assignment.slot > candidate.currentSlot) return true;
+  if (enforceRecordDirection && candidate.wins < effectiveLosses && assignment.slot < candidate.currentSlot) return true;
   if (candidate.mandatoryPromotion && assignment.slot >= candidate.currentSlot) return true;
   if (candidate.mandatoryDemotion && assignment.slot <= candidate.currentSlot) return true;
   return false;

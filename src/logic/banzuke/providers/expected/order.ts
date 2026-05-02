@@ -1,10 +1,12 @@
 import { ExpectedPlacementAssignment, ExpectedPlacementCandidate } from './types';
-
-const resolveEffectiveLosses = (candidate: ExpectedPlacementCandidate): number =>
-  candidate.losses + candidate.absent;
+import { resolveEffectiveLosses, shouldEnforceRecordDirection } from './direction';
 
 const resolveDirectionBucket = (candidate: ExpectedPlacementCandidate): number => {
   if (candidate.mandatoryPromotion) return 0;
+  if (!shouldEnforceRecordDirection(candidate)) {
+    if (candidate.expectedSlot < candidate.currentSlot) return 1;
+    if (candidate.expectedSlot > candidate.currentSlot) return 3;
+  }
   const diff = candidate.wins - resolveEffectiveLosses(candidate);
   if (diff > 0) return 1;
   if (diff === 0) return 2;
