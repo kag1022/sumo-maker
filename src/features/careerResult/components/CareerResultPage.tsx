@@ -176,6 +176,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
             variant="ghost"
             size="sm"
             className={styles.mobileToggle}
+            aria-label={mobileNavOpen ? "章メニューを閉じる" : "章メニューを開く"}
             onClick={() => setMobileNavOpen((current) => !current)}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
