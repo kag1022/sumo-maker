@@ -1,7 +1,7 @@
 import React from "react";
 import { BookUser, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
-import { type RikishiStatus } from "../../../logic/models";
+import { type CareerSaveTag, type RikishiStatus } from "../../../logic/models";
 import {
   ensureStyleIdentityProfile,
   resolveDisplayedStrengthStyles,
@@ -28,7 +28,8 @@ interface CareerEncyclopediaChapterProps {
   isSaved: boolean;
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
-  onSave: () => void | Promise<void>;
+  observationPointsAwarded?: number;
+  onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
 }
 
@@ -91,6 +92,16 @@ const SectionHeading: React.FC<{ title: string }> = ({ title }) => (
   </div>
 );
 
+const SAVE_TAGS: Array<{ id: CareerSaveTag; label: string }> = [
+  { id: "GREAT_RIKISHI", label: "名力士" },
+  { id: "UNFINISHED_TALENT", label: "未完の大器" },
+  { id: "TURBULENT_LIFE", label: "波乱の人生" },
+  { id: "MEMORABLE_SUPPORT", label: "記憶に残る脇役" },
+  { id: "UNEXPECTED", label: "予想外" },
+  { id: "RESEARCH_SAMPLE", label: "研究用" },
+  { id: "REREAD", label: "再読したい" },
+];
+
 export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
   status,
   overview,
@@ -99,9 +110,12 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   isSaved,
   detailState,
   detailBuildProgress,
+  observationPointsAwarded,
   onSave,
   onReturnToScout,
 }) => {
+  const [selectedSaveTags, setSelectedSaveTags] = React.useState<CareerSaveTag[]>([]);
+  const [observerMemo, setObserverMemo] = React.useState("");
   const initial = status.buildSummary?.initialConditionSummary;
   const growth = status.buildSummary?.growthSummary;
   const narrative = status.careerNarrative;
@@ -210,7 +224,14 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const saveDisabled = detailState !== "ready";
   const saveCopy = saveDisabled
     ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
-    : "名鑑の内容を確認したうえで、この人生を残すか決められます。";
+    : `観測点は整理完了時に${status.history.records.length > 0 ? "付与済み" : "処理済み"}です。保存はこの人生を分類して読み返すために行います。`;
+  const toggleSaveTag = React.useCallback((tag: CareerSaveTag) => {
+    setSelectedSaveTags((current) =>
+      current.includes(tag)
+        ? current.filter((entry) => entry !== tag)
+        : [...current, tag],
+    );
+  }, []);
 
   const kpiStats = React.useMemo(() => {
     const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
@@ -255,6 +276,10 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <span className={styles.summaryMetricLabel}>在位</span>
               <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
             </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryMetricLabel}>観測点</span>
+              <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
+            </div>
           </div>
         </div>
 
@@ -274,9 +299,33 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             <div className={styles.actionCopy}>
               <div className={styles.label}>保存判断</div>
               <div className={styles.text}>{saveCopy}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SAVE_TAGS.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    className={styles.traitMeta}
+                    data-active={selectedSaveTags.includes(tag.id)}
+                    onClick={() => toggleSaveTag(tag.id)}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={observerMemo}
+                rows={2}
+                onChange={(event) => setObserverMemo(event.target.value)}
+                className="mt-3 w-full border border-line bg-bg/40 px-3 py-2 text-sm text-text"
+                placeholder="この人生をどう読んだかを短く残す"
+              />
             </div>
             <div className={styles.actionButtons}>
-              <Button size="lg" disabled={saveDisabled} onClick={() => void onSave()}>
+              <Button
+                size="lg"
+                disabled={saveDisabled}
+                onClick={() => void onSave({ saveTags: selectedSaveTags, observerMemo })}
+              >
                 <Save className="mr-2 h-4 w-4" />
                 {saveDisabled ? "記録整理中" : "この人生を保存する"}
               </Button>

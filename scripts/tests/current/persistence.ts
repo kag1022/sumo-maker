@@ -8,6 +8,7 @@ import { appendBanzukeDecisionLogs, appendBanzukePopulation, getCareerBashoDetai
 import { getCollectionDashboardSummary, getRecordCollectionSummary, listCollectionCatalogEntries, listCollectionSummary, listRecentCollectionUnlocks, listUnlockedCollectionEntries } from '../../../src/logic/persistence/collections';
 import { buildCareerClearScoreSummary, buildCareerRecordBadges } from '../../../src/logic/career/clearScore';
 import { getWalletState, WALLET_INITIAL_POINTS, spendWalletPoints, WALLET_MAX_POINTS } from '../../../src/logic/persistence/wallet';
+import { getObservationPointState } from '../../../src/logic/persistence/observationPoints';
 import { buildReportHeroSummary } from '../../../src/features/report/utils/reportHero';
 import { buildCareerRivalryDigest } from '../../../src/features/report/utils/reportRivalry';
 import { buildImportantBanzukeDecisionDigests, buildImportantDecisionDigest, buildImportantTorikumiDigests, buildHoshitoriCareerRecords, buildRankChartData, buildTimelineEventGroups } from '../../../src/features/report/utils/reportTimeline';
@@ -550,7 +551,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'storage: commitCareer grants prize reward and still saves',
+    name: 'storage: detail completion grants observation points and commit still saves',
     run: async () => {
       await resetDb();
       const db = getDb();
@@ -584,7 +585,12 @@ export const tests: TestCase[] = [
       assert.equal(await isCareerSaved(careerId), true);
       const reward = await db.careerRewardLedger.get(careerId);
       assert.ok(Boolean(reward), 'Expected reward ledger to be written');
-      assert.ok((reward?.pointsAwarded ?? 0) > 0, 'Expected positive wallet reward');
+      assert.equal(reward?.pointsAwarded ?? 0, 0);
+      const claim = await db.careerObservationClaims.get(careerId);
+      assert.ok(Boolean(claim), 'Expected observation claim to be written');
+      assert.ok((claim?.pointsAwarded ?? 0) > 0, 'Expected positive observation reward');
+      const observationPoints = await getObservationPointState();
+      assert.ok(observationPoints.points > 0, 'Expected observation points after detail completion');
       const wallet = await getWalletState();
       assert.ok(wallet.points >= WALLET_INITIAL_POINTS, 'Expected wallet to remain readable after save');
     },

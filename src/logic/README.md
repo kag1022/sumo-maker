@@ -31,9 +31,11 @@ UI 非依存の相撲ドメインロジックをまとめる層です。
 | `economy/` | 経済系シミュレーション |
 | `kimarite/` | 決まり手 |
 | `naming/` | 四股名生成 |
+| `observer/` | 観測アップグレード |
 | `oyakata/` | 部屋（親方）定義 |
 | `persistence/` | IndexedDB（Dexie）永続化 |
 | `ranking/` | 番付 rank 値換算 |
+| `research/` | 観測メタゲームの研究テーマ |
 | `scout/` | 新弟子抽選プール |
 | `style/` | 視覚表現（色・見た目） |
 | `telemetry/` | 利用計測 |

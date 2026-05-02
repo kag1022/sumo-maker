@@ -63,6 +63,8 @@ export const App: React.FC = () => {
     latestPauseReason,
     hallOfFame,
     unshelvedCareers,
+    generationTokens,
+    observationPoints,
     errorMessage,
     continueChapter,
     startSimulation,
@@ -72,6 +74,7 @@ export const App: React.FC = () => {
     saveCurrentCareer,
     loadHallOfFame,
     loadUnshelvedCareers,
+    loadMetaProgress,
     openCareer,
     deleteCareerById,
     clearAllData,
@@ -91,7 +94,8 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     void loadHallOfFame();
     void loadUnshelvedCareers();
-  }, [loadHallOfFame, loadUnshelvedCareers]);
+    void loadMetaProgress();
+  }, [loadHallOfFame, loadMetaProgress, loadUnshelvedCareers]);
 
   const [lifetimeCareerCount, setLifetimeCareerCount] = React.useState<number>(() =>
     getLifetimeCareerCount(),
@@ -263,7 +267,8 @@ export const App: React.FC = () => {
 
   const handleStart = React.useCallback(
     async (...args: Parameters<typeof startSimulation>) => {
-      await startSimulation(...args);
+      const started = await startSimulation(...args);
+      if (!started) return;
       setLifetimeCareerCount(incrementLifetimeCareerCount());
       setActiveSection(args[4] === "observe" || args[4] === "chaptered" ? "basho" : "career");
     },
@@ -371,6 +376,8 @@ export const App: React.FC = () => {
         detailBuildProgress,
         latestBashoView,
         hallOfFame,
+        generationTokens,
+        observationPoints,
         lifetimeCareerCount,
         currentCareerId,
         isCurrentCareerSaved,
@@ -405,6 +412,7 @@ export const App: React.FC = () => {
           });
         },
         onSaveCurrentCareer: saveCurrentCareer,
+        currentCareerListItem: [...unshelvedCareers, ...hallOfFame].find((item) => item.id === currentCareerId) ?? null,
         onRevealCurrentResult: revealCurrentResult,
         onReturnToScout: () => void handleSectionChange("scout"),
         onOpenArchiveCareer: handleOpenCareer,
@@ -429,6 +437,8 @@ const renderSection = ({
   detailBuildProgress,
   latestBashoView,
   hallOfFame,
+  generationTokens,
+  observationPoints,
   lifetimeCareerCount,
   currentCareerId,
   isCurrentCareerSaved,
@@ -444,6 +454,7 @@ const renderSection = ({
   onCareerViewStateChange,
   onSelectBasho,
   onSaveCurrentCareer,
+  currentCareerListItem,
   onRevealCurrentResult,
   onReturnToScout,
   onOpenArchiveCareer,
@@ -463,6 +474,8 @@ const renderSection = ({
   detailBuildProgress: ReturnType<typeof useSimulation>["detailBuildProgress"];
   latestBashoView: ReturnType<typeof useSimulation>["latestBashoView"];
   hallOfFame: ReturnType<typeof useSimulation>["hallOfFame"];
+  generationTokens: ReturnType<typeof useSimulation>["generationTokens"];
+  observationPoints: ReturnType<typeof useSimulation>["observationPoints"];
   lifetimeCareerCount: number;
   currentCareerId: string | null;
   isCurrentCareerSaved: boolean;
@@ -477,7 +490,8 @@ const renderSection = ({
   onSkipToEnd: () => void;
   onCareerViewStateChange: React.Dispatch<React.SetStateAction<CareerResultViewState>>;
   onSelectBasho: (bashoSeq: number) => void;
-  onSaveCurrentCareer: () => Promise<void>;
+  onSaveCurrentCareer: ReturnType<typeof useSimulation>["saveCurrentCareer"];
+  currentCareerListItem: ReturnType<typeof useSimulation>["hallOfFame"][number] | null;
   onRevealCurrentResult: () => void;
   onReturnToScout: () => void;
   onOpenArchiveCareer: (careerId: string) => Promise<void>;
@@ -511,8 +525,10 @@ const renderSection = ({
   if (activeSection === "scout") {
     return (
       <ScoutScreen
-        onStart={(initialStats, oyakata, initialPacing) =>
-          onStart(initialStats, oyakata, undefined, undefined, initialPacing)}
+        generationTokens={generationTokens}
+        observationPoints={observationPoints}
+        onStart={(initialStats, oyakata, initialPacing, runOptions) =>
+          onStart(initialStats, oyakata, runOptions, undefined, initialPacing)}
       />
     );
   }
@@ -535,7 +551,7 @@ const renderSection = ({
   }
 
   if (activeSection === "collection") {
-    return <CollectionScreen onOpenArchive={onOpenArchive} />;
+    return <CollectionScreen onOpenArchive={onOpenArchive} observationPoints={observationPoints} />;
   }
 
   if (!status) {
@@ -591,6 +607,7 @@ const renderSection = ({
       bashoRows={bashoRows}
       detailState={detailState}
       detailBuildProgress={detailBuildProgress}
+      observationPointsAwarded={currentCareerListItem?.observationPointsAwarded}
       viewState={careerViewState}
       onSelectBasho={onSelectBasho}
       onViewStateChange={(patch) => onCareerViewStateChange((current) => ({ ...current, ...patch }))}
