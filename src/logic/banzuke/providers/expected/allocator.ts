@@ -1,7 +1,5 @@
 import { ExpectedPlacementAssignment, ExpectedPlacementCandidate } from './types';
-
-const resolveEffectiveLosses = (candidate: ExpectedPlacementCandidate): number =>
-  candidate.losses + candidate.absent;
+import { resolveEffectiveLosses, shouldEnforceRecordDirection } from './direction';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -19,18 +17,19 @@ const resolveHardBounds = (
   totalSlots: number,
 ): { minSlot: number; maxSlot: number } => {
   const effectiveLosses = resolveEffectiveLosses(candidate);
+  const enforceRecordDirection = shouldEnforceRecordDirection(candidate);
   let minSlot = clamp(candidate.minSlot, 1, totalSlots);
   let maxSlot = clamp(candidate.maxSlot, 1, totalSlots);
 
   if (candidate.mandatoryDemotion && candidate.currentSlot < totalSlots) {
     minSlot = Math.max(minSlot, candidate.currentSlot + 1);
-  } else if (candidate.wins < effectiveLosses) {
+  } else if (enforceRecordDirection && candidate.wins < effectiveLosses) {
     minSlot = Math.max(minSlot, candidate.currentSlot);
   }
 
   if (candidate.mandatoryPromotion && candidate.currentSlot > 1) {
     maxSlot = Math.min(maxSlot, candidate.currentSlot - 1);
-  } else if (candidate.wins > effectiveLosses) {
+  } else if (enforceRecordDirection && candidate.wins > effectiveLosses) {
     maxSlot = Math.min(maxSlot, candidate.currentSlot);
   }
 
@@ -45,10 +44,10 @@ const resolveHardBounds = (
   if (candidate.mandatoryDemotion) {
     return { minSlot: Math.min(totalSlots, fallback + 1), maxSlot: totalSlots };
   }
-  if (candidate.wins < effectiveLosses) {
+  if (enforceRecordDirection && candidate.wins < effectiveLosses) {
     return { minSlot: fallback, maxSlot: totalSlots };
   }
-  if (candidate.wins > effectiveLosses) {
+  if (enforceRecordDirection && candidate.wins > effectiveLosses) {
     return { minSlot: 1, maxSlot: fallback };
   }
   return { minSlot: fallback, maxSlot: fallback };

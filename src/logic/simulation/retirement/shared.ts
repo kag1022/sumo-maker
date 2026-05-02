@@ -20,24 +20,20 @@ type StreakHazard = {
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-// バッチ追加: 平均場所数 59 が頭打ちで target 44 に届かない。引退年齢中央値が 28
-// で、30+ の強い slope が発火する前にプレイヤー寿命を終えている。全年齢に効く
-// baseChance を 2.5x 化することで生存曲線全体を左にシフトする。
-// 副作用: 負け越しキャリア率は 29% → 33% 付近に押し戻される見込み (target 25-35 内)。
+// 序盤から下位停滞者が自然に去るよう、全年齢に効く基礎 hazard を持たせる。
+// 年齢 slope だけに寄せると、若く低勝率のまま長く残る不自然なキャリアが増える。
 const RETIREMENT_HAZARD = {
-  baseChance: 0.0028,
+  baseChance: 0.0034,
   chanceMax: 0.92,
   // バッチ修正: 平均場所数頭打ちの根本原因。最初の 40 basho かつ age<31 で hazard を
   // 0 にリセットしていたため、いくら baseChance/slope を強化しても序盤生存が固定化されていた。
   // Heisei 実数値 p10=4 / p50=32 を再現するには序盤の保護を解除する必要がある。
-  // ただしユーザビリティ確保のため最初の 12 basho (2年) は完全保護を残す。
+  // ただしユーザビリティ確保のため最初の 6 basho (1年) は完全保護を残す。
   earlyCareerGuard: {
-    minCareerBasho: 12,
+    minCareerBasho: 6,
     maxAgeExclusive: 22,
   },
-  // バッチ追加: 平均場所数 59 → target 44 を更に詰めるため、ACTIVE_SEKITORI の
-  // 35+ slope と FORMER_SEKITORI_LOWER の 36+ slope を中堅期に強化。
-  // 早期 (24-30) は据え置き、長期居座りだけ刈り取る。
+  // 関取経験者は早期引退を強めすぎず、30代以降の長期居座りを主に刈り取る。
   ageByGroup: {
     NON_SEKITORI: [
       { startAge: 24, slope: 0.002 },
@@ -66,7 +62,7 @@ const RETIREMENT_HAZARD = {
     perAdditional: 0.014,
   },
   makekoshiByGroup: {
-    NON_SEKITORI: { start: 4, base: 0.011, perAdditional: 0.007 } as StreakHazard,
+    NON_SEKITORI: { start: 3, base: 0.014, perAdditional: 0.008 } as StreakHazard,
     ACTIVE_SEKITORI: { start: 6, base: 0.006, perAdditional: 0.004 } as StreakHazard,
     FORMER_SEKITORI_LOWER: { start: 6, base: 0.006, perAdditional: 0.004 } as StreakHazard,
   },
@@ -89,14 +85,21 @@ const RETIREMENT_HAZARD = {
     makushita: 0.0004,
     lower: 0.0009,
   },
-  // バッチ修正: 平均場所数 63 vs target 44 を縮めるため、長期キャリア閾値を
-  // 60 から発火させる。120/180 の旧閾値は遅すぎて Heisei 中央値 38 に届かない。
+  // 非関取の長期在籍は早めに hazard を積む。下位で勝ち切れないまま長く残る
+  // キャリアは、読後の納得感よりも水増し感が勝ちやすい。
   nonSekitoriLongCareer: [
-    { minCareerBasho: 60, bonus: 0.008 },
-    { minCareerBasho: 90, bonus: 0.014 },
-    { minCareerBasho: 120, bonus: 0.022 },
-    { minCareerBasho: 180, bonus: 0.035 },
+    { minCareerBasho: 48, bonus: 0.008 },
+    { minCareerBasho: 72, bonus: 0.014 },
+    { minCareerBasho: 96, bonus: 0.022 },
+    { minCareerBasho: 120, bonus: 0.035 },
   ],
+  nonSekitoriEarlyLowWin: {
+    minCareerBasho: 6,
+    maxCareerBasho: 24,
+    winRateThreshold: 0.38,
+    base: 0.018,
+    scale: 0.12,
+  },
   formerSekitoriLosingProtection: {
     minCareerBasho: 100,
     maxWinRateExclusive: 0.5,
@@ -258,6 +261,18 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
       RETIREMENT_HAZARD.formerSekitoriDrop.base +
       Math.max(0, age - RETIREMENT_HAZARD.formerSekitoriDrop.ageStart) *
         RETIREMENT_HAZARD.formerSekitoriDrop.ageScale;
+  }
+
+  if (
+    !isCurrentSekitori &&
+    careerBashoCount >= RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.minCareerBasho &&
+    careerBashoCount <= RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.maxCareerBasho &&
+    careerWinRate < RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.winRateThreshold
+  ) {
+    chance +=
+      RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.base +
+      (RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.winRateThreshold - careerWinRate) *
+        RETIREMENT_HAZARD.nonSekitoriEarlyLowWin.scale;
   }
 
   if (hazardGroup === 'ACTIVE_SEKITORI') {

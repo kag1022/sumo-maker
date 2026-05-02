@@ -1,4 +1,5 @@
 import { ExpectedPlacementCandidate } from '../providers/expected/types';
+import { resolveEffectiveLosses, shouldEnforceRecordDirection } from '../providers/expected/direction';
 import { OPTIMIZER_CONFIG } from './config';
 import { resolveQuantileTarget } from './quantileTargets';
 import { OptimizerCostBreakdown, OptimizerPressureSnapshot, OptimizerRow } from './types';
@@ -7,9 +8,6 @@ const INF = Number.POSITIVE_INFINITY;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
-
-const resolveEffectiveLosses = (candidate: ExpectedPlacementCandidate): number =>
-  candidate.losses + candidate.absent;
 
 const resolveCandidatePriority = (candidate: ExpectedPlacementCandidate): number => {
   const effectiveLosses = resolveEffectiveLosses(candidate);
@@ -52,10 +50,11 @@ const resolveSlotCostBreakdown = (
   const effectiveLosses = resolveEffectiveLosses(candidate);
   const diff = candidate.wins - effectiveLosses;
   const delta = slot - candidate.currentSlot;
-  if (diff > 0 && delta > 0) {
+  const enforceRecordDirection = shouldEnforceRecordDirection(candidate);
+  if (enforceRecordDirection && diff > 0 && delta > 0) {
     breakdown.directionViolation += delta * OPTIMIZER_CONFIG.directionViolationPenalty;
   }
-  if (diff < 0 && delta < 0) {
+  if (enforceRecordDirection && diff < 0 && delta < 0) {
     breakdown.directionViolation += Math.abs(delta) * OPTIMIZER_CONFIG.directionViolationPenalty;
   }
   if (candidate.mandatoryPromotion && delta >= 0) {

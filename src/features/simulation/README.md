@@ -7,6 +7,7 @@
 
 - Web Worker ライフサイクル管理
 - `SEASON_STEP` / `RUNTIME_COMPLETED` 契約の受信
+- `runtimeNarrative.ts` が返す章・観測ログを worker payload に詰める
 - store への進行状態反映
 - `bashoHub`, `careerResult` への観測データ公開
 
@@ -19,13 +20,15 @@
 ## 依存
 
 - `src/logic/simulation/runtime.ts` runtime API
+- `src/logic/simulation/runtimeNarrative.ts` 章判定・観測ログ・pause 判定
 - `src/logic/simulation/workerProtocol.ts` メッセージ契約
 - `src/logic/persistence/` 途中保存・再開
 
 ## 実装ルール
 
 - feature 側から `runOneStep` や `world` を直接触らない
-- 進行中の物語断片は `DomainEvent` と worker payload を通して受け取る
+- worker 内に章判定や観測文言を増やさず、`runtimeNarrative.ts` の結果を使う
+- 進行中の物語断片は `DomainEvent` / runtime narrative / worker payload を通して受け取る
 - protocol を変えたら worker / store / result 画面を一緒に更新する
 
 ## 公開 API
