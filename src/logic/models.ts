@@ -639,6 +639,9 @@ export type WalletTransactionReason =
   | 'BUILD_REGISTRATION'
   | 'SCOUT_DRAW'
   | 'SCOUT_OVERRIDE'
+  | 'CAREER_START'
+  | 'EXPERIMENT_START'
+  | 'OBSERVER_UPGRADE'
   | 'CAREER_PRIZE_REWARD'
   | 'MANUAL_TOP_UP'
   | 'AD_REWARD'
@@ -673,6 +676,29 @@ export type BuildAxisVolatility = 'LOW' | 'MID' | 'HIGH';
 export type BuildAxisDurability = 'IRON' | 'BALANCED' | 'GAMBLE';
 export type BuildAxisClutch = 'BIG_MATCH' | 'BALANCED' | 'DEVELOPMENT';
 export type BuildIntent = 'YUSHO' | 'LONGEVITY' | 'COLLECTOR' | 'BALANCE';
+export type CareerSaveTag =
+  | 'GREAT_RIKISHI'
+  | 'UNFINISHED_TALENT'
+  | 'TURBULENT_LIFE'
+  | 'MEMORABLE_SUPPORT'
+  | 'UNEXPECTED'
+  | 'RESEARCH_SAMPLE'
+  | 'REREAD';
+export type ObservationRuleMode = 'STANDARD' | 'EXPERIMENT';
+export type ExperimentPresetId =
+  | 'INJURY_LOW'
+  | 'INJURY_HIGH'
+  | 'PROMOTION_SOFT'
+  | 'PROMOTION_STRICT'
+  | 'LATE_BLOOM'
+  | 'RETIREMENT_SOFT';
+export type ObserverUpgradeId =
+  | 'SCOUT_NOTES'
+  | 'SAVE_TAGS_PLUS'
+  | 'ARCHIVE_FILTERS'
+  | 'RIVALRY_READING'
+  | 'KEY_BASHO_PICKUP'
+  | 'EXPERIMENT_LAB';
 
 export interface AptitudePlan {
   reveal: boolean;
@@ -741,6 +767,8 @@ export interface BuildSpecVNext {
 
 export interface SimulationRunOptions {
   selectedOyakataId?: string | null;
+  observationRuleMode?: ObservationRuleMode;
+  experimentPresetId?: ExperimentPresetId;
 }
 
 // キャリア履歴

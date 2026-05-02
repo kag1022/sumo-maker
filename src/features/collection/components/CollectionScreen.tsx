@@ -9,7 +9,14 @@ import {
   Activity,
   AlertTriangle,
   Clock,
+  Unlock,
 } from "lucide-react";
+import type { ObservationPointState } from "../../../logic/persistence/observationPoints";
+import {
+  listObserverUpgrades,
+  purchaseObserverUpgrade,
+  type ObserverUpgradeView,
+} from "../../../logic/observer/upgrades";
 import {
   getCollectionDashboardSummary,
   listCollectionCatalogEntries,
@@ -42,9 +49,10 @@ type KimariteFilter = (typeof KIMARITE_FILTERS)[number];
 
 interface CollectionScreenProps {
   onOpenArchive: () => void;
+  observationPoints: ObservationPointState | null;
 }
 
-export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchive }) => {
+export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchive, observationPoints }) => {
   const [activeTab, setActiveTab] = React.useState<CollectionCatalogType>("RECORD");
   const [kimariteFilter, setKimariteFilter] = React.useState<KimariteFilter>("ALL");
   const [dashboard, setDashboard] = React.useState<CollectionDashboardSummary | null>(null);
@@ -53,6 +61,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
   });
   const [selectedById, setSelectedById] = React.useState<Partial<Record<CollectionCatalogType, string>>>({});
   const [isLoading, setIsLoading] = React.useState(true);
+  const [upgrades, setUpgrades] = React.useState<ObserverUpgradeView[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -69,6 +78,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
         const next = { RECORD: records, ACHIEVEMENT: achievements, KIMARITE: kimarites };
         setDashboard(summary);
         setEntriesByType(next);
+        setUpgrades(await listObserverUpgrades());
         setSelectedById({
           RECORD: records[0]?.id,
           ACHIEVEMENT: achievements[0]?.id,
@@ -95,6 +105,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
   const totalUnlocked = dashboard?.totalUnlocked ?? 0;
   const totalAll = dashboard?.rows.reduce((s, r) => s + r.total, 0) ?? 0;
   const totalPct = totalAll > 0 ? Math.round((totalUnlocked / totalAll) * 100) : 0;
+  const handlePurchaseUpgrade = React.useCallback(async (id: ObserverUpgradeView["id"]) => {
+    const result = await purchaseObserverUpgrade(id);
+    if (!result.ok) return;
+    setUpgrades(await listObserverUpgrades());
+  }, []);
 
   return (
     <div className={styles.shell}>
@@ -122,6 +137,35 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
           <BookOpenText className="h-3.5 w-3.5 mr-1.5" />
           保存済み記録
         </Button>
+      </div>
+
+      <div className={cn(surface.panel, styles.header)}>
+        <div className={styles.headerLeft}>
+          <span className={styles.categoryIcon}>
+            <Unlock className="h-4 w-4" />
+          </span>
+          <div>
+            <div className="text-xs text-text-dim mb-0.5">観測室</div>
+            <div className={cn(typography.heading, "text-lg leading-tight text-text")}>
+              観測点 {observationPoints?.points ?? 0}
+            </div>
+            <div className="mt-1 text-[11px] text-text-dim">完走した人生から得た点で、読み解く道具を増やします。</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          {upgrades.slice(0, 3).map((upgrade) => (
+            <Button
+              key={upgrade.id}
+              variant={upgrade.unlocked ? "success" : "outline"}
+              size="sm"
+              disabled={upgrade.unlocked || (observationPoints?.points ?? 0) < upgrade.cost}
+              onClick={() => void handlePurchaseUpgrade(upgrade.id)}
+            >
+              {upgrade.unlocked ? "解放済み" : `${upgrade.cost}点`}
+              <span className="ml-1.5">{upgrade.title}</span>
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* ── カテゴリ進捗 ── */}

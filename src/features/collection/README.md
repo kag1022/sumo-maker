@@ -7,6 +7,7 @@
 
 - カテゴリ別の収集状況表示
 - 未解放要素のヒント提示
+- 観測点残高と観測アップグレードの表示・購入
 
 ## 主要ファイル
 
@@ -16,4 +17,5 @@
 
 - `src/logic/achievements.ts` 実績・希少度
 - `src/logic/kimarite/` 決まり手
+- `src/logic/observer/` 観測アップグレード
 - `src/logic/persistence/` 解放状況の保存
