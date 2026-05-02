@@ -58,13 +58,13 @@ const ROUTE_TIER_ORDER: Record<KimariteRepertoireTier, number> = {
 
 const TIER_LIMITS: Record<KimariteRepertoireTier, number> = {
   PRIMARY: 2,
-  SECONDARY: 3,
-  CONTEXT: 1,
+  SECONDARY: 7,
+  CONTEXT: 3,
   RARE: 1,
 };
 const EXPANDED_PROVISIONAL_SECONDARY_LIMIT = TIER_LIMITS.SECONDARY + 1;
-const DEFAULT_ENTRY_LIMIT = 6;
-const EXPANDED_PROVISIONAL_ENTRY_LIMIT = 7;
+const DEFAULT_ENTRY_LIMIT = 12;
+const EXPANDED_PROVISIONAL_ENTRY_LIMIT = 14;
 
 const traitMatchScore = (entry: OfficialKimariteEntry, traits: Trait[]): number => {
   const matches = entry.traitTags.filter((trait) => traits.includes(trait)).length;
@@ -138,12 +138,12 @@ const routeSeedBoost = (
 const unique = <T,>(values: T[]): T[] => [...new Set(values)];
 
 const isExpandableVarietyStyle = (style: KimariteStyle): boolean =>
-  style === 'GRAPPLE' || style === 'TECHNIQUE';
+  style === 'PUSH' || style === 'GRAPPLE' || style === 'TECHNIQUE';
 
 const resolveSecondaryRouteLimit = (
   style: KimariteStyle,
-  settled: boolean,
-): number => (!settled && isExpandableVarietyStyle(style) ? 2 : 1);
+  _settled: boolean,
+): number => (isExpandableVarietyStyle(style) ? 2 : 1);
 
 const resolveEntryLimits = (
   style: KimariteStyle,
@@ -306,7 +306,7 @@ export const createKimariteRepertoireFromSeed = (
   const entries: KimariteRepertoireEntry[] = [];
   collectRouteCandidates(primaryRoute, seed)
     .filter((entry) => entry.patternRole === 'MAIN' || entry.patternRole === 'ALT')
-    .slice(0, seed.style === 'GRAPPLE' || seed.style === 'TECHNIQUE' ? 3 : 2)
+    .slice(0, 4)
     .forEach((entry, index) =>
       pushEntry(
         entries,
@@ -320,7 +320,7 @@ export const createKimariteRepertoireFromSeed = (
   secondaryRoutes.forEach((secondaryRoute, routeIndex) => {
     collectRouteCandidates(secondaryRoute, seed)
       .filter((entry) => entry.patternRole === 'MAIN' || entry.patternRole === 'ALT')
-      .slice(0, 2)
+      .slice(0, 3)
       .forEach((entry, index) =>
         pushEntry(
           entries,
@@ -466,11 +466,12 @@ export const evolveKimariteRepertoireAfterBasho = (
       continue;
     }
     const official = findOfficialKimariteEntry(normalized);
-    if (!official || official.patternRole === 'CONTEXT' || official.patternRole === 'RARE' || official.rarityBucket !== 'COMMON') continue;
+    if (!official || official.patternRole === 'RARE') continue;
+    if (official.rarityBucket !== 'COMMON' && official.rarityBucket !== 'UNCOMMON') continue;
     const routeIsStable = current.primaryRoutes.includes(route) || current.secondaryRoutes.includes(route);
-    if (!routeIsStable || count < 3) continue;
+    if (!routeIsStable || count < 2) continue;
     if (entries.length >= resolveEntryLimits(style, currentProvisional).totalEntries) continue;
-    if (entries.filter((entry) => entry.route === route).length >= 3) continue;
+    if (entries.filter((entry) => entry.route === route).length >= 6) continue;
     if (dominantRoute && route !== dominantRoute && !current.secondaryRoutes.includes(route)) continue;
     const tier: KimariteRepertoireTier = 'SECONDARY';
     entries.push({

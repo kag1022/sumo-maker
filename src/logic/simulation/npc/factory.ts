@@ -37,6 +37,32 @@ const clamp = (value: number, min: number, max: number): number =>
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
 
+const inferInitialCareerBashoCount = (
+  division: Division,
+  currentAge: number,
+  rng: RandomSource,
+): { entryAge: number; careerBashoCount: number } => {
+  const entryAgeBase =
+    division === 'Makuuchi' || division === 'Juryo'
+      ? 15 + rng() * 3
+      : division === 'Makushita' || division === 'Sandanme'
+        ? 15 + rng() * 2.5
+        : 15 + rng() * 1.5;
+  const minimumByDivision: Record<Division, number> = {
+    Makuuchi: 18,
+    Juryo: 12,
+    Makushita: 4,
+    Sandanme: 2,
+    Jonidan: 0,
+    Jonokuchi: 0,
+    Maezumo: 0,
+  };
+  const rawCareerBasho = Math.round(Math.max(0, currentAge - entryAgeBase) * 6 + rng() * 5);
+  const careerBashoCount = Math.max(minimumByDivision[division], rawCareerBasho);
+  const entryAge = Math.max(15, currentAge - Math.floor(careerBashoCount / 6));
+  return { entryAge, careerBashoCount };
+};
+
 const pickSeed = (division: Division, index: number): EnemySeedProfile => {
   const seeds = ENEMY_SEED_POOL[division];
   return seeds[index % seeds.length];
@@ -61,7 +87,8 @@ const createNpc = (
     nameContext,
     registry,
   );
-  const entryAge = sampleEmpiricalDivisionAge(division, rng);
+  const currentAge = sampleEmpiricalDivisionAge(division, rng);
+  const careerAge = inferInitialCareerBashoCount(division, currentAge, rng);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
   const empiricalSeed = sampleEmpiricalNpcSeed(rng);
   const careerBand = empiricalSeed.careerBand;
@@ -108,9 +135,9 @@ const createNpc = (
     careerBand,
     retirementBias: seed.retirementBias,
     retirementProfile,
-    entryAge,
-    age: entryAge,
-    careerBashoCount: 0,
+    entryAge: careerAge.entryAge,
+    age: currentAge,
+    careerBashoCount: careerAge.careerBashoCount,
     plannedCareerBasho: samplePlannedCareerBasho(rng),
     active: true,
     entrySeq: seq,

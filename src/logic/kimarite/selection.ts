@@ -214,12 +214,12 @@ const KIMARITE_TUNING_PRESETS: Record<KimariteTuningPresetId, KimariteTuningProf
       upsetPressBonus: 0.0027,
       maxChance: 0.014,
     },
-    rarity: { rareTrickScale: 0.34, extremeBase: 0.08, extremeTrickScale: 0.32, extremeEdgeScale: 0.18 },
+    rarity: { rareTrickScale: 0.18, extremeBase: 0.04, extremeTrickScale: 0.18, extremeEdgeScale: 0.1 },
     repeatPenalty: { perCount: 0.065, min: 0.08 },
   },
 };
 
-const DEFAULT_KIMARITE_TUNING_PRESET: KimariteTuningPresetId = 'DEFAULT';
+const DEFAULT_KIMARITE_TUNING_PRESET: KimariteTuningPresetId = 'VARIETY_PLUS';
 let activeKimariteTuningPreset: KimariteTuningPresetId = DEFAULT_KIMARITE_TUNING_PRESET;
 const selectionWarnings: string[] = [];
 
@@ -453,11 +453,11 @@ const resolveTargetUniqueCount = (
 ): number => {
   const totalWins = Object.values(winner.historyCounts ?? {}).reduce((sum, count) => sum + count, 0);
   const base =
-    winner.style === 'PUSH' ? 6 :
-      winner.style === 'GRAPPLE' ? 9 :
-        12;
-  const growth = Math.min(8, totalWins / 28);
-  return Math.round(base + growth * (0.35 + profile.versatility * 0.25) + profile.trickBias * 3);
+    winner.style === 'PUSH' ? 10 :
+      winner.style === 'GRAPPLE' ? 14 :
+        18;
+  const growth = Math.min(14, totalWins / 18);
+  return Math.round(base + growth * (0.55 + profile.versatility * 0.42) + profile.trickBias * 4 + profile.edgeCraft * 2);
 };
 
 interface KimariteHistorySummary {
@@ -633,8 +633,8 @@ const resolvePatternRoleFit = (
     }
     return winner.style === 'TECHNIQUE' && winner.traits.includes('ARAWAZASHI') ? 0.03 : 0.01;
   }
-  if (entry.patternRole === 'MAIN') return 2.4;
-  if (entry.patternRole === 'ALT') return 0.72;
+  if (entry.patternRole === 'MAIN') return 1.75;
+  if (entry.patternRole === 'ALT') return 0.95;
   if (!resolveContextTagAccess(entry.contextTags, winner, context)) return 0;
   return entry.patternRole === 'CONTEXT'
     ? winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI')
@@ -867,15 +867,15 @@ const resolveNoveltyMultiplier = (
     const remainingBudget = Math.max(0, targetUniqueCount - history.officialUniqueCount);
     const roleBase =
       entry.patternRole === 'MAIN'
-        ? 1.04
+        ? 1.08
         : entry.patternRole === 'ALT'
-          ? 0.58
+          ? 0.88
           : entry.patternRole === 'CONTEXT'
-            ? 0.18
-            : 0.05;
+            ? 0.36
+            : 0.04;
     const budgetFactor =
       entry.patternRole === 'MAIN'
-        ? 1 + (remainingBudget / Math.max(1, targetUniqueCount)) * 0.06
+        ? 1 + (remainingBudget / Math.max(1, targetUniqueCount)) * 0.14
         : 1;
     const saturation =
       entry.patternRole === 'MAIN'
@@ -912,7 +912,7 @@ const resolveNoveltyMultiplier = (
             : 0.18;
     return overflowPenalty * rolePenalty * saturationPenalty * rarityPenalty;
   }
-  const repeatFloor = entry.patternRole === 'MAIN' ? 0.2 : tuning().novelty.repeatMin;
+  const repeatFloor = entry.patternRole === 'MAIN' ? 0.08 : tuning().novelty.repeatMin;
   return clamp(1 / Math.pow(1 + currentCount * tuning().novelty.repeatScale, tuning().novelty.repeatPow), repeatFloor, 1);
 };
 
@@ -1055,28 +1055,28 @@ const resolveRepertoireFit = (
   const repEntry = winner.repertoire.entries.find((row) => row.kimarite === entry.name);
   if (repEntry) {
     if (repEntry.route !== route && entry.patternRole !== 'MAIN') return 0;
-    if (repEntry.tier === 'PRIMARY') return 4.4 + Math.min(1.4, repEntry.affinity * 0.05);
-    if (repEntry.tier === 'SECONDARY') return 2.7 + Math.min(1.1, repEntry.affinity * 0.03);
+    if (repEntry.tier === 'PRIMARY') return 1.70 + Math.min(0.45, repEntry.affinity * 0.018);
+    if (repEntry.tier === 'SECONDARY') return 1.35 + Math.min(0.35, repEntry.affinity * 0.014);
     if (repEntry.tier === 'CONTEXT') {
-      return resolveRouteAccess(route, winner, context) ? 0.56 + Math.min(0.28, repEntry.affinity * 0.015) : 0;
+      return resolveRouteAccess(route, winner, context) ? 0.80 + Math.min(0.20, repEntry.affinity * 0.010) : 0;
     }
-    return resolveRouteAccess(route, winner, context) ? 0.08 + Math.min(0.06, repEntry.affinity * 0.008) : 0;
+    return resolveRouteAccess(route, winner, context) ? 0.20 + Math.min(0.08, repEntry.affinity * 0.006) : 0;
   }
   if (!resolveRouteAccess(route, winner, context)) return 0;
-  if (winner.repertoire.provisional) {
-    if (winner.repertoire.primaryRoutes.includes(route)) {
-      if (entry.patternRole === 'MAIN') return 0.26;
-      if (entry.patternRole === 'ALT') return 0.08;
-    }
-    if (winner.repertoire.secondaryRoutes.includes(route)) {
-      if (entry.patternRole === 'MAIN') return 0.32;
-      if (entry.patternRole === 'ALT') return 0.12;
-    }
+  const routeIsPrimary = winner.repertoire.primaryRoutes.includes(route);
+  const routeIsSecondary = winner.repertoire.secondaryRoutes.includes(route);
+  if (routeIsPrimary || routeIsSecondary) {
+    const routeBase = routeIsPrimary ? 1 : 1.12;
+    if (entry.patternRole === 'MAIN') return 0.85 * routeBase;
+    if (entry.patternRole === 'ALT') return 0.50 * routeBase;
+    if (entry.patternRole === 'CONTEXT') return resolveContextTagAccess(entry.contextTags, winner, context) ? 0.18 * routeBase : 0;
+    if (entry.patternRole === 'RARE') return resolveContextTagAccess(entry.contextTags, winner, context) ? 0.015 * routeBase : 0;
   }
   if (routeEntries.length === 0 && entry.patternRole === 'MAIN') {
-    return winner.repertoire.primaryRoutes.includes(route) ? 0.2 : 0;
+    return routeIsPrimary ? 0.2 : 0;
   }
-  if (entry.patternRole === 'MAIN' || entry.patternRole === 'ALT') return 0;
+  if (entry.patternRole === 'MAIN') return routeEntries.length > 0 ? 0.18 : 0;
+  if (entry.patternRole === 'ALT') return routeEntries.length > 0 ? 0.08 : 0;
   if (route !== 'EDGE_REVERSAL' && route !== 'REAR_FINISH' && route !== 'LEG_ATTACK') return 0;
   if (entry.patternRole === 'CONTEXT') return resolveContextTagAccess(entry.contextTags, winner, context) ? 0.08 : 0;
   if (entry.patternRole === 'RARE') return resolveContextTagAccess(entry.contextTags, winner, context) ? 0.012 : 0;
@@ -1197,15 +1197,18 @@ export const resolveKimariteOutcome = (input: {
   const compressHistoricalWeight = (value: number): number => {
     const safe = Math.max(0, value);
     if (safe <= 0) return 0;
-    return Math.sqrt(safe);
+    return Math.pow(safe, 0.38);
   };
 
   const candidates: KimariteCandidate[] = OFFICIAL_WIN_KIMARITE_82.flatMap((entry) => {
     // 旧 hard gate: if (!entry.requiredPatterns.includes(pattern)) return [];
     // 新 soft gate: engagement との適合度をまず計算し、0 なら除外。
+    if (route && !entry.requiredPatterns.includes(pattern)) return [];
     const engagementFit = input.forcePattern
       ? (entry.requiredPatterns.includes(pattern) ? 1 : 0)
-      : resolveEngagementPatternFit(entry, engagement);
+      : route
+        ? 1
+        : resolveEngagementPatternFit(entry, engagement);
     if (engagementFit <= 0) return [];
 
     const bodyFit = resolveBodyFit(entry, input.winner, input.loser, dominance);
@@ -1213,7 +1216,7 @@ export const resolveKimariteOutcome = (input: {
 
     // pattern（= winner 由来の「主戦パターン」）との整合は soft boost。
     // 整合するとき 1.0、しない場合 0.55 にディスカウントするだけで、プールからは除外しない。
-    const patternFit = entry.requiredPatterns.includes(pattern) ? 1 : 0.55;
+    const patternFit = entry.requiredPatterns.includes(pattern) ? 1 : route ? 0.14 : 0.55;
 
     let weight =
       compressHistoricalWeight(entry.historicalWeight) *

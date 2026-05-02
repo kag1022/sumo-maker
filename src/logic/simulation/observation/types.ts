@@ -1,4 +1,5 @@
 import { AptitudeTier, BashoRecord, Rank, RikishiStatus } from '../../models';
+import { BanzukeDecisionLog } from '../../banzuke';
 import { NpcBashoAggregate } from '../basho';
 import { SimulationDiagnostics } from '../diagnostics';
 import { SimulationProgressState } from '../workerProtocol';
@@ -49,6 +50,8 @@ export interface SeasonObservationFrame {
   domainEvents: DomainEvent[];
   diagnostics?: SimulationDiagnostics;
   npcResults: NpcBashoAggregate[];
+  banzukeDecisions?: BanzukeDecisionLog[];
+  retiredNpcCareerBashoCounts?: number[];
   upperRankEarlyDeepOpponents: number;
   upperRankEarlyTotalOpponents: number;
   promotionReview?: ObservationPromotionReview;

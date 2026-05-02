@@ -1,8 +1,11 @@
 import { calculateBattleResult, EnemyStats, generateEnemy } from '../../../src/logic/battle';
 import { applyGrowth, checkRetirement } from '../../../src/logic/growth';
+import { HEISEI_POPULATION_CALIBRATION } from '../../../src/logic/calibration/populationHeisei';
 import { runSimulation } from '../../../src/logic/simulation/runner';
 import { runBasho, runBashoDetailed } from '../../../src/logic/simulation/basho';
+import { buildLeagueState } from '../../../src/logic/simulation/leagueState';
 import { normalizeNewRunModelVersion, normalizeSimulationModelVersion } from '../../../src/logic/simulation/modelVersion';
+import { resolveRuntimeNarrativeStep } from '../../../src/logic/simulation/runtimeNarrative';
 import { resolveYushoResolution } from '../../../src/logic/simulation/yusho';
 import {
   advanceLeaguePopulation,
@@ -2322,10 +2325,15 @@ export const tests: TestCase[] = [
           }),
         })),
       );
+      const totalHeadcountReference =
+        HEISEI_POPULATION_CALIBRATION.bashoLevelReference.totalHeadcount;
+      const totalSwingReference = HEISEI_POPULATION_CALIBRATION.annualTotalSwing;
+      const jonidanSwingReference = HEISEI_POPULATION_CALIBRATION.annualJonidanSwing;
+      const jonokuchiSwingReference = HEISEI_POPULATION_CALIBRATION.annualJonokuchiSwing;
 
       assert.ok(
-        aggregate.population.annualTotalMedian >= 690 &&
-        aggregate.population.annualTotalMedian <= 740,
+        aggregate.population.annualTotalMedian >= totalHeadcountReference.p10 &&
+        aggregate.population.annualTotalMedian <= totalHeadcountReference.p90,
         `Unexpected total median: ${aggregate.population.annualTotalMedian}`,
       );
       assert.ok(
@@ -2339,23 +2347,23 @@ export const tests: TestCase[] = [
         `Unexpected abs(delta) p90: ${aggregate.population.annualAbsDeltaP90}`,
       );
       assert.ok(
-        aggregate.population.annualSwingMedian >= 40 &&
-        aggregate.population.annualSwingMedian <= 60,
+        aggregate.population.annualSwingMedian >= totalSwingReference.p10 &&
+        aggregate.population.annualSwingMedian <= totalSwingReference.p90,
         `Unexpected annual swing median: ${aggregate.population.annualSwingMedian}`,
       );
       assert.ok(
-        aggregate.population.annualSwingP90 >= 60 &&
-        aggregate.population.annualSwingP90 <= 80,
+        aggregate.population.annualSwingP90 >= totalSwingReference.p50 &&
+        aggregate.population.annualSwingP90 <= totalSwingReference.max,
         `Unexpected annual swing p90: ${aggregate.population.annualSwingP90}`,
       );
       assert.ok(
-        aggregate.population.annualJonidanSwingMedian >= 24 &&
-        aggregate.population.annualJonidanSwingMedian <= 34,
+        aggregate.population.annualJonidanSwingMedian >= jonidanSwingReference.p10 &&
+        aggregate.population.annualJonidanSwingMedian <= jonidanSwingReference.p90,
         `Unexpected Jonidan swing median: ${aggregate.population.annualJonidanSwingMedian}`,
       );
       assert.ok(
-        aggregate.population.annualJonokuchiSwingMedian >= 16 &&
-        aggregate.population.annualJonokuchiSwingMedian <= 24,
+        aggregate.population.annualJonokuchiSwingMedian >= jonokuchiSwingReference.p10 &&
+        aggregate.population.annualJonokuchiSwingMedian <= jonokuchiSwingReference.p90,
         `Unexpected Jonokuchi swing median: ${aggregate.population.annualJonokuchiSwingMedian}`,
       );
     },
@@ -2769,6 +2777,27 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'simulation runtime: league state builder centralizes population totals',
+    run: () => {
+      const leagueFlow = createLeagueFlowRuntime(lcg(1399));
+      const league = buildLeagueState({
+        leagueFlow,
+        seq: 0,
+        year: 2026,
+        monthIndex: 0,
+      });
+      const divisionTotal = Object.values(league.divisions)
+        .reduce((sum, division) => sum + division.headcount, 0);
+      const activeDivisionTotal = Object.values(league.divisions)
+        .reduce((sum, division) => sum + division.activeHeadcount, 0);
+
+      assert.equal(league.currentSeason.month, 1);
+      assert.equal(league.population.totalHeadcount, divisionTotal);
+      assert.equal(league.population.totalActiveHeadcount, activeDivisionTotal);
+      assert.ok(league.boundaryContext.headcountPressure >= 0);
+    },
+  },
+  {
     name: 'simulation runtime: initial snapshot centralizes bundle league actor and timeline',
     run: () => {
       const initialStats = createStatus({
@@ -2832,6 +2861,42 @@ export const tests: TestCase[] = [
         step.runtime?.timeline.domainEvents.length,
         step.domainEvents?.length ?? 0,
       );
+    },
+  },
+  {
+    name: 'simulation runtime: chapter observation resolves outside worker',
+    run: async () => {
+      const runtime = createSimulationRuntime(
+        {
+          initialStats: createStatus({
+            rank: { division: 'Makushita', name: '幕下', number: 24, side: 'East' },
+          }),
+          oyakata: null,
+          simulationModelVersion: 'v3',
+          progressSnapshotMode: 'full',
+          bashoSnapshotMode: 'full',
+        },
+        {
+          random: lcg(1404),
+          getCurrentYear: () => 2026,
+          now: () => 0,
+          yieldControl: async () => {},
+        },
+      );
+      const step = expectBashoStep(
+        await runtime.runNextSeasonStep(),
+        'runtime narrative first step',
+      );
+      const narrative = resolveRuntimeNarrativeStep({
+        step,
+        seenChapterKinds: new Set(),
+        pacing: 'chaptered',
+      });
+
+      assert.equal(narrative.chapterKind, 'DEBUT');
+      assert.equal(narrative.markChapterKind, 'DEBUT');
+      assert.equal(narrative.observation.kind, 'milestone');
+      assert.equal(narrative.pauseForChapter, true);
     },
   },
   {
