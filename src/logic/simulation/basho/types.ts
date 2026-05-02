@@ -30,6 +30,7 @@ export interface NpcBashoAggregate {
   losses: number;
   absent: number;
   titles: string[];
+  careerBashoCount?: number;
 }
 
 export type ImportantTorikumiTrigger =

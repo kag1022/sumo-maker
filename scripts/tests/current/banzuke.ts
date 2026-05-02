@@ -389,6 +389,60 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: juryo yusho cannot be kept at the same rank',
+    run: () => {
+      const juryo: Rank = { division: 'Juryo', name: '十両', side: 'East', number: 6 };
+      const result = calculateNextRank(
+        createBashoRecord(juryo, 10, 5, 0, true),
+        [],
+        false,
+        () => 0.5,
+      );
+      assert.equal(result.event, 'PROMOTION');
+      assert.ok(
+        result.nextRank.division === 'Makuuchi' ||
+          (result.nextRank.division === 'Juryo' && (result.nextRank.number ?? 99) <= 3),
+        `Expected yusho promotion from Juryo 6 into upper juryo lane, got ${result.nextRank.name}${result.nextRank.number ?? ''}`,
+      );
+    },
+  },
+  {
+    name: 'ranking: maegashira yusho cannot be kept at the same rank',
+    run: () => {
+      const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'East', number: 10 };
+      const result = calculateNextRank(
+        createBashoRecord(maegashira, 10, 5, 0, true),
+        [],
+        false,
+        () => 0.5,
+      );
+      assert.equal(result.event, 'PROMOTION');
+      assert.equal(result.nextRank.division, 'Makuuchi');
+      assert.ok(
+        result.nextRank.name !== '前頭' || (result.nextRank.number ?? 99) <= 6,
+        `Expected yusho promotion from Maegashira 10 into middle-maegashira lane, got ${result.nextRank.name}${result.nextRank.number ?? ''}`,
+      );
+    },
+  },
+  {
+    name: 'ranking: maegashira 10-5 reaches the empirical promotion lane',
+    run: () => {
+      const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'East', number: 10 };
+      const result = calculateNextRank(
+        createBashoRecord(maegashira, 10, 5),
+        [],
+        false,
+        () => 0.5,
+      );
+      assert.equal(result.nextRank.division, 'Makuuchi');
+      assert.equal(result.nextRank.name, '前頭');
+      assert.ok(
+        (result.nextRank.number ?? 99) <= 6,
+        `Expected Maegashira 10 10-5 to reach M6 or better, got ${result.nextRank.number ?? ''}`,
+      );
+    },
+  },
+  {
     name: 'ranking: quota can block makuuchi to juryo demotion',
     run: () => {
       const maegashira: Rank = { division: 'Makuuchi', name: '前頭', side: 'East', number: 16 };
@@ -439,6 +493,21 @@ export const tests: TestCase[] = [
       const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 3 };
       const result = calculateNextRank(
         createBashoRecord(makushita, 6, 1),
+        [],
+        false,
+        () => 0.5,
+        { sekitoriQuota: { canPromoteToJuryo: false } },
+      );
+      assert.equal(result.nextRank.division, 'Makushita');
+      assert.equal(result.nextRank.name, '幕下');
+    },
+  },
+  {
+    name: 'ranking: makushita yusho still respects sekitori quota block',
+    run: () => {
+      const makushita: Rank = { division: 'Makushita', name: '幕下', side: 'East', number: 1 };
+      const result = calculateNextRank(
+        createBashoRecord(makushita, 7, 0, 0, true),
         [],
         false,
         () => 0.5,

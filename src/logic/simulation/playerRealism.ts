@@ -154,9 +154,9 @@ export const resolvePlayerNormalDivisionCompression = (input: {
   if (input.currentRank.division === 'Makuuchi') return 0;
   const base =
     input.currentRank.division === 'Juryo'
-      ? 0.02
+      ? 0
       : input.currentRank.division === 'Makushita'
-        ? 0.06
+        ? 0.08
         : input.currentRank.division === 'Sandanme'
           ? 0.07
           : 0.08;
@@ -352,9 +352,9 @@ export const resolvePlayerStagnationRetentionPressure = (input: {
 };
 
 const resolveFavoriteCompressionFactor = (rank: Rank): number => {
-  if (rank.division === 'Makushita') return 0.68;
-  if (rank.division === 'Juryo') return 0.60;
-  if (rank.division === 'Makuuchi') return isSanyakuRank(rank) ? 0.48 : 0.54;
+  if (rank.division === 'Makushita') return 0.42;
+  if (rank.division === 'Juryo') return 0.98;
+  if (rank.division === 'Makuuchi') return isSanyakuRank(rank) ? 0.38 : 0.44;
   return 0.78;
 };
 
@@ -385,10 +385,13 @@ const resolveProjectedExpectedWinsPenalty = (
   projectedExpectedWins: number,
 ): number => {
   if (rank.division === 'Makuuchi' && isSanyakuRank(rank)) {
-    return projectedExpectedWins >= 8.8 ? 0.035 : projectedExpectedWins >= 8.4 ? 0.025 : 0;
+    return projectedExpectedWins >= 8.8 ? 0.050 : projectedExpectedWins >= 8.4 ? 0.035 : 0;
+  }
+  if (rank.division === 'Juryo') {
+    return 0;
   }
   if (isSekitoriDivision(rank.division)) {
-    return projectedExpectedWins >= 8.4 ? 0.025 : 0;
+    return projectedExpectedWins >= 8.8 ? 0.035 : projectedExpectedWins >= 8.4 ? 0.025 : 0;
   }
   if (rank.division === 'Makushita') {
     let penalty = projectedExpectedWins >= 4.8 ? 0.015 : 0;
@@ -400,12 +403,48 @@ const resolveProjectedExpectedWinsPenalty = (
   return penalty;
 };
 
+const resolveLowerDivisionAttritionPenalty = (input: {
+  currentRank: Rank;
+  careerBashoCount: number;
+  careerBand?: 'ELITE' | 'STRONG' | 'STANDARD' | 'GRINDER' | 'WASHOUT';
+  stagnation?: PlayerStagnationResolution;
+}): number => {
+  const { currentRank, careerBashoCount, careerBand, stagnation } = input;
+  if (careerBashoCount < 6) return 0;
+  if (!isMakushitaOrBelowDivision(currentRank.division)) return 0;
+  const base =
+    currentRank.division === 'Makushita'
+      ? 0.014
+      : currentRank.division === 'Sandanme'
+        ? 0.018
+        : currentRank.division === 'Jonidan'
+          ? 0.022
+          : 0.024;
+  const earlyPressure = careerBashoCount < 18 ? 0.006 : 0;
+  const bandPressure =
+    careerBand === 'WASHOUT'
+      ? 0.035
+      : careerBand === 'GRINDER'
+        ? 0.016
+        : careerBand === 'STRONG' || careerBand === 'ELITE'
+          ? -0.006
+          : 0;
+  const stagnationPressure =
+    stagnation?.band === 'CRITICAL'
+      ? 0.035
+      : stagnation?.band === 'STALLED'
+        ? 0.020
+        : 0;
+  return Math.max(0, base + earlyPressure + bandPressure + stagnationPressure);
+};
+
 export const resolvePlayerFavoriteCompression = (input: {
   winProbability: number;
   baselineWinProbability?: number;
   projectedExpectedWins?: number;
   careerBashoCount: number;
   currentRank: Rank;
+  careerBand?: 'ELITE' | 'STRONG' | 'STANDARD' | 'GRINDER' | 'WASHOUT';
   stagnation?: PlayerStagnationResolution;
 }): number => {
   const {
@@ -448,6 +487,12 @@ export const resolvePlayerFavoriteCompression = (input: {
       currentRank,
       stagnation,
     });
+    adjusted -= resolveLowerDivisionAttritionPenalty({
+      currentRank,
+      careerBashoCount,
+      careerBand: input.careerBand,
+      stagnation,
+    });
   }
   return clamp(adjusted, 0.03, 0.97);
 };
@@ -455,7 +500,7 @@ export const resolvePlayerFavoriteCompression = (input: {
 const resolvePositiveGrowthFactor = (rank: Rank, age: number, careerBashoCount: number): number => {
   if (careerBashoCount < 18) {
     if (rank.division === 'Makuuchi') return isSanyakuRank(rank) ? 0.45 : 0.52;
-    if (rank.division === 'Juryo') return 0.58;
+    if (rank.division === 'Juryo') return 0.90;
     if (rank.division === 'Makushita') {
       if (age <= 22) return 0.60;
       if (age <= 26) return 0.52;
@@ -468,7 +513,7 @@ const resolvePositiveGrowthFactor = (rank: Rank, age: number, careerBashoCount: 
   }
   if (careerBashoCount < 36) {
     if (rank.division === 'Makuuchi') return isSanyakuRank(rank) ? 0.45 : 0.52;
-    if (rank.division === 'Juryo') return 0.58;
+    if (rank.division === 'Juryo') return 0.90;
     if (rank.division === 'Makushita') {
       if (age <= 22) return 0.71;
       if (age <= 26) return 0.62;
@@ -480,7 +525,7 @@ const resolvePositiveGrowthFactor = (rank: Rank, age: number, careerBashoCount: 
     return age <= 22 ? 0.81 : age <= 26 ? 0.71 : 0.71;
   }
   if (rank.division === 'Makuuchi') return isSanyakuRank(rank) ? 0.45 : 0.52;
-  if (rank.division === 'Juryo') return 0.58;
+  if (rank.division === 'Juryo') return 0.90;
   if (rank.division === 'Makushita') {
     if (age <= 23) return 0.82;
     if (age <= 27) return 0.72;
@@ -517,7 +562,7 @@ const resolveSoftCapAllowance = (rank: Rank, age: number, careerBashoCount: numb
         ? 18
         : 20
       : rank.division === 'Juryo'
-        ? 18
+        ? 28
         : rank.division === 'Makushita'
           ? 16
           : rank.division === 'Sandanme'

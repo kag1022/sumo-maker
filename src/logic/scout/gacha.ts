@@ -227,6 +227,50 @@ const resolveAptitudeTier = (draft: ScoutDraft): AptitudeTier => {
   return "C";
 };
 
+const pickWeighted = <T,>(
+  rng: RandomSource,
+  entries: Array<{ value: T; weight: number }>,
+): T => {
+  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+  let roll = rng() * total;
+  for (const entry of entries) {
+    roll -= Math.max(0, entry.weight);
+    if (roll <= 0) return entry.value;
+  }
+  return entries[entries.length - 1].value;
+};
+
+const rollScoutAptitudeTier = (
+  entryPath: ScoutEntryPath,
+  rng: RandomSource,
+): AptitudeTier => {
+  if (entryPath === "CHAMPION") {
+    return pickWeighted(rng, [
+      { value: "S" as const, weight: 8 },
+      { value: "A" as const, weight: 72 },
+      { value: "B" as const, weight: 20 },
+    ]);
+  }
+  if (entryPath === "COLLEGE") {
+    return pickWeighted(rng, [
+      { value: "A" as const, weight: 16 },
+      { value: "B" as const, weight: 84 },
+    ]);
+  }
+  if (entryPath === "SCHOOL") {
+    return pickWeighted(rng, [
+      { value: "A" as const, weight: 7 },
+      { value: "B" as const, weight: 81 },
+      { value: "C" as const, weight: 12 },
+    ]);
+  }
+  return pickWeighted(rng, [
+    { value: "B" as const, weight: 43 },
+    { value: "C" as const, weight: 45 },
+    { value: "D" as const, weight: 12 },
+  ]);
+};
+
 const resolveBodyType = (heightCm: number, weightKg: number): BodyType => {
   const bmi = weightKg / Math.max(1, (heightCm / 100) * (heightCm / 100));
   if (bmi >= 38) return "ANKO";
@@ -253,6 +297,7 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
   const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
   const spec: BuildSpecVNext = {
     oyakataId: oyakata.id,
+    aptitudeTier: draft.aptitudeTier,
     ...resolvePotentialFromBodySeed(draft.bodySeed, draft.entryAge, draft.startingHeightCm, draft.startingWeightKg),
     bodyConstitution,
     amateurBackground: resolveBackground(draft),
@@ -300,7 +345,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
   const entryAge = PICK_LIST(rng, [15, 18, 22] as const);
   const entryPath: ScoutEntryPath =
     entryAge === 22
-      ? PICK_LIST(rng, ["COLLEGE", "CHAMPION"] as const)
+      ? (rng() < 0.25 ? "CHAMPION" : "COLLEGE")
       : entryAge === 18
         ? "SCHOOL"
         : "LOCAL";
@@ -321,20 +366,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     temperament,
     bodySeed,
     selectedStableId: stable.id,
-    aptitudeTier: resolveAptitudeTier({
-      shikona: "",
-      birthplace: "",
-      personaLine: "",
-      profile,
-      entryAge,
-      startingHeightCm: 0,
-      startingWeightKg: 0,
-      entryPath,
-      temperament,
-      bodySeed,
-      selectedStableId: stable.id,
-      aptitudeTier: "C",
-    }),
+    aptitudeTier: rollScoutAptitudeTier(entryPath, rng),
   };
 };
 
@@ -390,7 +422,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   status.stableArchetypeId = stable.archetypeId;
   status.entryAge = draft.entryAge;
   status.age = draft.entryAge;
-  status.aptitudeTier = draft.aptitudeTier;
+  status.aptitudeTier = draft.aptitudeTier ?? resolveAptitudeTier(draft);
 
   applyBodyAdjustments(status, draft);
   applyTemperamentAdjustments(status, draft.temperament);

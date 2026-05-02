@@ -7,7 +7,6 @@ import { LowerDivisionPlacementTraceRow } from '../lower/types';
 import { SimulationModelVersion } from '../modelVersion';
 import { DomainEvent, SimulationRuntimeSnapshot } from '../runtimeTypes';
 import { TopDivision } from '../world';
-import { SimulationProgressState } from '../workerProtocol';
 
 export interface SimulationParams {
   initialStats: RikishiStatus;
@@ -72,6 +71,15 @@ export interface SimulationProgressSnapshot {
   lastDiagnostics?: SimulationDiagnostics;
 }
 
+export interface SimulationProgressLite {
+  year: number;
+  month: number;
+  bashoCount: number;
+  currentRank: Rank;
+}
+
+export type SimulationProgressState = SimulationProgressSnapshot | SimulationProgressLite;
+
 export const isDetailedSimulationProgress = (
   progress: SimulationProgressState,
 ): progress is SimulationProgressSnapshot => 'divisionHeadcount' in progress;
@@ -87,6 +95,7 @@ export interface BashoStepResult {
   playerBouts: PlayerBoutDetail[];
   importantTorikumiNotes?: ImportantTorikumiNote[];
   npcBashoRecords: NpcBashoAggregate[];
+  retiredNpcCareerBashoCounts?: number[];
   banzukePopulation: BanzukePopulationSnapshot;
   banzukeDecisions: BanzukeDecisionLog[];
   diagnostics?: SimulationDiagnostics;
