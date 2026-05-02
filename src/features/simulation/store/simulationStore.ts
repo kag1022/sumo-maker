@@ -15,7 +15,6 @@ import {
   type CareerListItem,
 } from '../../../logic/persistence/careers';
 import { resetLifetimeCareerCount } from '../../../logic/persistence/lifetimeStats';
-import { PauseReason } from '../../../logic/simulation/engine';
 import {
   resolveSimulationPhaseOnCompletion,
   resolveSimulationPhaseOnStart,
@@ -24,6 +23,7 @@ import {
 import {
   DetailBuildProgress,
   LiveBashoViewModel,
+  PauseReason,
   SimulationDetailPolicy,
   SimulationObservationEntry,
   SimulationProgressState,
@@ -31,7 +31,7 @@ import {
   SimulationWorkerRequest,
   SimulationWorkerResponse,
 } from '../../../logic/simulation/workerProtocol';
-import { DomainEvent, SimulationRuntimeSnapshot } from '../../../logic/simulation/engine';
+import { DomainEvent, SimulationRuntimeSnapshot } from '../../../logic/simulation/runtimeTypes';
 import { clearStoredTheme } from '../../../shared/lib/theme';
 
 export type SimulationPhase =

@@ -13,21 +13,49 @@ import { PopulationPlan } from './populationPlanTypes';
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-// 平成期実データ (career_bashos: p10=4 / p50=32 / p90=89) は
-// 平均 hazard ~0.022/場所 を要求する。empirical/divisionOnly ハザードは
-// 老齢・MK_HEAVY 等の悪条件込みの平均で上振れしているため、新人 NPC 等の
-// 良好状態にそのまま当てると死亡曲線が過剰になる。キャリア長に応じて
-// ハザードを縮減し、Heisei 分位値に近づける。
-// 値は npm run predict:diagnose の career-length KL 最小化を狙ったヒューリスティック。
+// 平成期実データ (career_bashos: p10=4 / p50=32 / p90=89) に合わせた
+// career-length hazard 曲線。序盤を守りすぎると 2-12 場所引退が消え、
+// 25-72 場所に過剰滞留するため、短期退場は許容しつつ中堅期の刈り取りを緩める。
 const resolveCareerLengthHazardMultiplier = (careerBashoCount: number): number => {
-  if (careerBashoCount <= 3) return 0.05;
-  if (careerBashoCount <= 6) return 0.08;
-  if (careerBashoCount <= 12) return 0.13;
-  if (careerBashoCount <= 24) return 0.20;
-  if (careerBashoCount <= 48) return 0.30;
-  if (careerBashoCount <= 72) return 0.45;
-  if (careerBashoCount <= 96) return 0.65;
-  return 0.90;
+  if (careerBashoCount <= 1) return 0.20;
+  if (careerBashoCount <= 3) return 1.70;
+  if (careerBashoCount <= 6) return 1.85;
+  if (careerBashoCount <= 12) return 0.75;
+  if (careerBashoCount <= 24) return 0.42;
+  if (careerBashoCount <= 48) return 0.20;
+  if (careerBashoCount <= 72) return 0.17;
+  if (careerBashoCount <= 96) return 0.30;
+  return 0.45;
+};
+
+const resolveEarlyWashoutBonus = (npc: PersistentNpc): number => {
+  if (npc.currentDivision === 'Makuuchi' || npc.currentDivision === 'Juryo') return 0;
+  if (npc.careerBashoCount > 12) return 0;
+  const divisionBase =
+    npc.currentDivision === 'Jonokuchi' || npc.currentDivision === 'Maezumo'
+      ? 1
+      : npc.currentDivision === 'Jonidan'
+        ? 0.72
+        : npc.currentDivision === 'Sandanme'
+          ? 0.38
+          : 0.18;
+  const phaseBase =
+    npc.careerBashoCount <= 1
+      ? 0
+      : npc.careerBashoCount <= 3
+        ? 0.300
+        : npc.careerBashoCount <= 6
+          ? 0.240
+          : 0.022;
+  const careerBandMultiplier =
+    npc.careerBand === 'WASHOUT'
+      ? 1.45
+      : npc.careerBand === 'GRINDER'
+        ? 1.15
+        : npc.careerBand === 'STRONG' || npc.careerBand === 'ELITE'
+          ? 0.45
+          : 1;
+  return phaseBase * divisionBase * careerBandMultiplier;
 };
 
 export const pushNpcBashoResult = (
@@ -127,7 +155,13 @@ export const runNpcRetirementStep = (
     // 退場 hazard には寄与させない。MC report で関取率・三役率が大幅な過剰になる
     // 副作用が観測されたため、hazard 寄与は将来別タスクで設計し直す。
     // resolvePlannedCareerHazard / plannedCareer.ts は維持して将来の wiring に備える。
-    const chance = clamp(baseChance * adjustment * careerLengthMultiplier, 0, 1);
+    const earlyWashoutBonus = resolveEarlyWashoutBonus(npc);
+    const populationShockBonus = (populationPlan?.annualRetirementShock ?? 0) * 0.02;
+    const chance = clamp(
+      baseChance * adjustment * careerLengthMultiplier + earlyWashoutBonus + populationShockBonus,
+      0,
+      1,
+    );
     if (chance >= 1 || rng() < chance) {
       npc.active = false;
       npc.retiredAtSeq = seq;

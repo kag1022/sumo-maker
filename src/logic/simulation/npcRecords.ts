@@ -47,6 +47,7 @@ export const buildSekitoriNpcRecords = (
             ...(result.yusho ? ['YUSHO'] : []),
             ...(result.specialPrizes ?? []),
           ],
+          careerBashoCount: world.npcRegistry.get(result.id)?.careerBashoCount,
         };
       });
   };
@@ -90,6 +91,7 @@ export const buildSameDivisionLowerNpcRecords = (
         losses: result.losses,
         absent: Math.max(0, 7 - (result.wins + result.losses)),
         titles: result.id === yushoId ? ['YUSHO'] : [],
+        careerBashoCount: lowerWorld.npcRegistry.get(result.id)?.careerBashoCount,
       };
     });
 };

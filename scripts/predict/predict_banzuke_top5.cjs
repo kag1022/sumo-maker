@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { pickTransitionDistribution } = require('./transition_fallback.cjs');
 
 const DATA_PATH = path.resolve(
   __dirname,
@@ -123,29 +124,6 @@ function suggestNeighbors(input, allLabels, limit = 5) {
   return scored.map((x) => x.label);
 }
 
-function pickDistribution(entry, record) {
-  if (record) {
-    const keyA = `${record.wins}-${record.losses}-${record.absences}`;
-    if (entry.byRecord && entry.byRecord[keyA] && entry.byRecord[keyA].total >= MIN_SAMPLES) {
-      return { ...entry.byRecord[keyA], source: `byRecord[${keyA}]` };
-    }
-    const keyB = `${record.wins}-${record.losses}`;
-    if (entry.byWinLoss && entry.byWinLoss[keyB] && entry.byWinLoss[keyB].total >= MIN_SAMPLES) {
-      return { ...entry.byWinLoss[keyB], source: `byWinLoss[${keyB}] (休フォールバック)` };
-    }
-    if (entry.byRecord && entry.byRecord[keyA]) {
-      return { ...entry.byRecord[keyA], source: `byRecord[${keyA}] (n<${MIN_SAMPLES})` };
-    }
-    if (entry.byWinLoss && entry.byWinLoss[keyB]) {
-      return { ...entry.byWinLoss[keyB], source: `byWinLoss[${keyB}] (n<${MIN_SAMPLES})` };
-    }
-  }
-  if (entry.marginal) {
-    return { ...entry.marginal, source: 'marginal (成績条件なし)' };
-  }
-  return null;
-}
-
 function formatRow(rank, to, p, n) {
   const pct = (p * 100).toFixed(1).padStart(5);
   const idx = String(rank).padStart(2);
@@ -167,7 +145,7 @@ function predictOne(query, data, topN) {
     }
     return;
   }
-  const dist = pickDistribution(entry, record);
+  const dist = pickTransitionDistribution(data, label, record, { minSamples: MIN_SAMPLES });
   if (!dist) {
     console.log(`\n[分布なし] "${label}" ${recordStr}`);
     return;

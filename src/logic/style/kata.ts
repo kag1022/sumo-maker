@@ -274,7 +274,7 @@ export const updateKataProfileAfterBasho = (
       : undefined;
   const nextTactics: TacticsType = provisionalArchetype
     ? KATA_TACTICS[provisionalArchetype]
-    : 'BALANCE';
+    : baseStatus.tactics;
   const nextSignatureMoves =
     settled && dominantMove
       ? [dominantMove]

@@ -19,8 +19,9 @@ const fs = require('fs');
 const path = require('path');
 const { ensureSimTestsBuild } = require('../shared/ensure_simtests_build.cjs');
 const { loadObservationModule } = require('../reports/_shared/observation_module.cjs');
+const { pickTransitionDistribution } = require('./transition_fallback.cjs');
 
-const RUNS = Number(process.env.DIAGNOSTIC_RUNS || 10);
+const RUNS = Number(process.env.DIAGNOSTIC_RUNS || 20);
 const REFERENCE_PATH = path.resolve(
   __dirname,
   '..',
@@ -29,6 +30,24 @@ const REFERENCE_PATH = path.resolve(
   'data',
   'analysis',
   'realism_reference_heisei.json',
+);
+const BANZUKE_TRANSITION_PATH = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'sumo-db',
+  'data',
+  'analysis',
+  'banzuke_transition_heisei.json',
+);
+const BANZUKE_CALIBRATION_PATH = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'sumo-db',
+  'data',
+  'analysis',
+  'banzuke_calibration_heisei.json',
 );
 const JSON_OUT = path.join('.tmp', 'realism-diagnostic.json');
 const MD_OUT = path.join('docs', 'balance', 'realism-diagnostic.md');
@@ -47,6 +66,93 @@ const binCareer = (v) => {
 };
 
 const recordKey = (w, l, a) => `${w}-${l}-${a}`;
+
+const SIDE_LABEL = { East: '東', West: '西' };
+const RANK_BASE_HALF_STEPS = {
+  横綱: 0,
+  大関: 2,
+  関脇: 4,
+  小結: 6,
+  前頭: 8,
+  十両: 42,
+  幕下: 70,
+  三段目: 190,
+  序二段: 390,
+  序ノ口: 590,
+};
+const DIVISION_RANK_NAME = {
+  Makuuchi: '前頭',
+  Juryo: '十両',
+  Makushita: '幕下',
+  Sandanme: '三段目',
+  Jonidan: '序二段',
+  Jonokuchi: '序ノ口',
+};
+const RANK_NAME_TO_DIVISION = {
+  横綱: 'Makuuchi',
+  大関: 'Makuuchi',
+  関脇: 'Makuuchi',
+  小結: 'Makuuchi',
+  前頭: 'Makuuchi',
+  十両: 'Juryo',
+  幕下: 'Makushita',
+  三段目: 'Sandanme',
+  序二段: 'Jonidan',
+  序ノ口: 'Jonokuchi',
+};
+
+const rankToLabel = (rank) => {
+  if (!rank || rank.division === 'Maezumo') return null;
+  const side = SIDE_LABEL[rank.side] || '東';
+  const number = Math.max(1, Math.floor(rank.number || 1));
+  return `${side}${rank.name}${number}枚目`;
+};
+
+const rankToComparableSlot = (rank) => {
+  if (!rank) return null;
+  const side = rank.side === 'West' ? 1 : 0;
+  const number = Math.max(1, Math.floor(rank.number || 1));
+  const rankName = rank.division === 'Makuuchi'
+    ? rank.name
+    : DIVISION_RANK_NAME[rank.division] ?? rank.name;
+  const base = RANK_BASE_HALF_STEPS[rankName];
+  if (!Number.isFinite(base)) return null;
+  return base + (number - 1) * 2 + side;
+};
+
+const labelToComparableSlot = (label) => {
+  const normalized = String(label || '').replace('張出', '');
+  const match = normalized.match(/^([東西])(.+?)(\d+)枚目$/);
+  if (!match) return null;
+  const [, sideLabel, rankName, numberText] = match;
+  const division = RANK_NAME_TO_DIVISION[rankName];
+  if (!division) return null;
+  return rankToComparableSlot({
+    division,
+    name: rankName,
+    number: Number(numberText),
+    side: sideLabel === '西' ? 'West' : 'East',
+  });
+};
+
+const quantile = (values, q) => {
+  if (!values.length) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  return sorted[base + 1] === undefined
+    ? sorted[base]
+    : sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+};
+
+const summarizeValues = (values) => ({
+  count: values.length,
+  mean: values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length),
+  p10: quantile(values, 0.1),
+  p50: quantile(values, 0.5),
+  p90: quantile(values, 0.9),
+});
 
 // 平滑化付きカテゴリカル分布の KL(P||Q)
 const klDivergence = (pMap, qMap, smoothing = 1e-6) => {
@@ -90,6 +196,11 @@ const collectFromCareer = (career, perDivisionRecords, perKeyCellsByDiv, careerL
   for (let i = 0; i < frames.length; i++) {
     const f = frames[i];
     if (f.kind !== 'BASHO') continue;
+    if (Array.isArray(f.retiredNpcCareerBashoCounts) && f.retiredNpcCareerBashoCounts.length > 0) {
+      for (const count of f.retiredNpcCareerBashoCounts) {
+        if (Number.isFinite(count) && count > 0) careerLengths.push(count);
+      }
+    }
     for (const npc of f.npcResults || []) {
       const div = npc.division;
       if (!div) continue;
@@ -105,11 +216,14 @@ const collectFromCareer = (career, perDivisionRecords, perKeyCellsByDiv, careerL
       if (!id) continue;
       let life = npcLifetimes.get(id);
       if (!life) {
-        life = { firstFrame: i, lastFrame: i, basho: 0 };
+        life = { firstFrame: i, lastFrame: i, basho: 0, lastCareerBashoCount: undefined };
         npcLifetimes.set(id, life);
       }
       life.lastFrame = i;
       life.basho += 1;
+      if (Number.isFinite(npc.careerBashoCount)) {
+        life.lastCareerBashoCount = npc.careerBashoCount;
+      }
     }
   }
 };
@@ -123,6 +237,10 @@ const aggregate = (results) => {
     const npcLifetimesPerRun = new Map();
     const totalFrames = (r.frames || []).length;
     collectFromCareer(r, totalsByDivision, cellsByDivision, careerLengths, npcLifetimesPerRun);
+    const hasDirectRetirementCounts = (r.frames || []).some(
+      (frame) => Array.isArray(frame.retiredNpcCareerBashoCounts),
+    );
+    if (hasDirectRetirementCounts) continue;
     // NPC retirement detection: NPC dropped before final frame → career ended in sim
     const cutoff = totalFrames - 4; // 4 場所以上前に消えたら引退とみなす
     // 1 frame 出現で消える NPC は entityId 切替や maezumo 卒業等の
@@ -130,7 +248,7 @@ const aggregate = (results) => {
     // 信頼できる引退検出のため、2 場所以上出現した NPC のみ計上する。
     npcLifetimesPerRun.forEach((life) => {
       if (life.lastFrame < cutoff && life.basho >= 2) {
-        careerLengths.push(life.basho);
+        careerLengths.push(life.lastCareerBashoCount ?? life.basho);
       }
     });
   }
@@ -207,6 +325,185 @@ const compareCareer = (simBins, refHist) => {
   return { kl: Number(kl.toFixed(4)), simSample: simTotal, refSample: refTotal, bins: diffs };
 };
 
+const resolveTransitionBucket = (transitionReference, fromLabel, wins, losses, absent) => {
+  const bucket = pickTransitionDistribution(
+    transitionReference,
+    fromLabel,
+    { wins, losses, absences: absent },
+    { minSamples: 1 },
+  );
+  if (!bucket) return null;
+  const source = bucket.source || 'unknown';
+  const level = source.startsWith('nearbyByRecord')
+    ? 'nearbyByRecord'
+    : source.startsWith('nearbyByWinLoss')
+      ? 'nearbyByWinLoss'
+      : source.startsWith('byRecord')
+        ? 'byRecord'
+        : source.startsWith('byWinLoss')
+          ? 'byWinLoss'
+          : 'marginal';
+  return { level, bucket };
+};
+
+const summarizeReferenceTransition = (fromLabel, bucket) => {
+  const fromSlot = labelToComparableSlot(fromLabel);
+  if (fromSlot === null) return null;
+  const deltas = [];
+  for (const row of bucket.top || []) {
+    const toSlot = labelToComparableSlot(row.to);
+    if (toSlot === null) continue;
+    deltas.push({
+      delta: fromSlot - toSlot,
+      n: row.n,
+      p: row.p,
+      to: row.to,
+    });
+  }
+  if (!deltas.length) return null;
+  const total = deltas.reduce((sum, row) => sum + row.n, 0);
+  const mean = deltas.reduce((sum, row) => sum + row.delta * row.n, 0) / Math.max(1, total);
+  const sorted = deltas.slice().sort((a, b) => a.delta - b.delta);
+  let cursor = 0;
+  let p50 = sorted[0].delta;
+  for (const row of sorted) {
+    cursor += row.n;
+    if (cursor >= total / 2) {
+      p50 = row.delta;
+      break;
+    }
+  }
+  return {
+    total: bucket.total,
+    topCovered: total,
+    mean,
+    p50,
+    topTo: (bucket.top || [])[0]?.to,
+  };
+};
+
+const resolveLowerCalibrationReference = (decision, calibrationReference) => {
+  const division = decision.fromRank?.division;
+  if (!['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'].includes(division)) return null;
+  const rankBand = decision.rankBand;
+  const recordBucket = decision.recordBucket;
+  const row =
+    rankBand && recordBucket
+      ? calibrationReference.recordBucketRules?.recordAwareQuantiles?.[division]?.[rankBand]?.[recordBucket]
+      : null;
+  if (!row) return null;
+  return {
+    total: row.sampleSize,
+    topCovered: row.sampleSize,
+    mean: row.p50HalfStep,
+    p50: row.p50HalfStep,
+    p10: row.p10HalfStep,
+    p90: row.p90HalfStep,
+    topTo: null,
+    level: 'calibration',
+  };
+};
+
+const compareBanzukeMovement = (results, transitionReference, calibrationReference) => {
+  const rows = [];
+  for (const result of results) {
+    for (const frame of result.frames || []) {
+      for (const decision of frame.banzukeDecisions || []) {
+        if (decision.rikishiId !== 'PLAYER') continue;
+        const wins = decision.wins ?? frame.record?.wins;
+        const losses = decision.losses ?? frame.record?.losses;
+        const absent = decision.absent ?? frame.record?.absent ?? 0;
+        if (!Number.isFinite(wins) || !Number.isFinite(losses)) continue;
+        const fromLabel = rankToLabel(decision.fromRank);
+        const fromSlot = rankToComparableSlot(decision.fromRank);
+        const toSlot = rankToComparableSlot(decision.finalRank);
+        if (!fromLabel || fromSlot === null || toSlot === null) continue;
+        const calibrationRef = resolveLowerCalibrationReference(decision, calibrationReference);
+        const resolved = calibrationRef
+          ? { level: calibrationRef.level, bucket: { total: calibrationRef.total } }
+          : resolveTransitionBucket(transitionReference, fromLabel, wins, losses, absent);
+        if (!resolved) continue;
+        const ref = calibrationRef ?? summarizeReferenceTransition(fromLabel, resolved.bucket);
+        if (!ref) continue;
+        const actualDelta = fromSlot - toSlot;
+        rows.push({
+          seq: frame.seq,
+          division: decision.fromRank.division,
+          rankBand: decision.rankBand,
+          recordBucket: decision.recordBucket,
+          fromLabel,
+          toLabel: rankToLabel(decision.finalRank),
+          record: recordKey(wins, losses, absent),
+          fallbackLevel: resolved.level,
+          actualDelta,
+          refMeanDelta: ref.mean,
+          refP50Delta: ref.p50,
+          refP10Delta: ref.p10,
+          refP90Delta: ref.p90,
+          diffFromMean: actualDelta - ref.mean,
+          refSample: resolved.bucket.total,
+          refTopCovered: ref.topCovered,
+          refTopTo: ref.topTo,
+        });
+      }
+    }
+  }
+
+  const buildBuckets = (keyResolver, limit) => {
+    const byBucket = new Map();
+    for (const row of rows) {
+      const key = keyResolver(row);
+      if (!key) continue;
+      const bucket = byBucket.get(key) ?? [];
+      bucket.push(row);
+      byBucket.set(key, bucket);
+    }
+    return [...byBucket.entries()]
+      .map(([key, bucketRows]) => {
+        const actual = bucketRows.map((row) => row.actualDelta);
+        const diff = bucketRows.map((row) => row.diffFromMean);
+        const refs = bucketRows.map((row) => row.refMeanDelta);
+        const refSamples = bucketRows
+          .map((row) => row.refSample)
+          .filter((value) => Number.isFinite(value));
+        return {
+          key,
+          sample: bucketRows.length,
+          actual: summarizeValues(actual),
+          refTargetAverage: refs.reduce((sum, value) => sum + value, 0) / Math.max(1, refs.length),
+          averageError: diff.reduce((sum, value) => sum + value, 0) / Math.max(1, diff.length),
+          meanAbsError: diff.reduce((sum, value) => sum + Math.abs(value), 0) / Math.max(1, diff.length),
+          refSampleP50: quantile(refSamples, 0.5),
+          fallbackMix: bucketRows.reduce((acc, row) => {
+            acc[row.fallbackLevel] = (acc[row.fallbackLevel] || 0) + 1;
+            return acc;
+          }, {}),
+        };
+      })
+      .sort((a, b) => b.sample - a.sample || b.meanAbsError - a.meanAbsError)
+      .slice(0, limit);
+  };
+
+  const buckets = buildBuckets((row) => `${row.division}:${row.record}`, 16);
+  const rankBandBuckets = buildBuckets((row) => {
+    if (!row.rankBand || !row.recordBucket) return null;
+    return `${row.division}:${row.rankBand}:${row.recordBucket}`;
+  }, 18);
+  const topDivergent = rows
+    .slice()
+    .sort((a, b) => Math.abs(b.diffFromMean) - Math.abs(a.diffFromMean))
+    .slice(0, TOP_DIVERGENT);
+  return {
+    sample: rows.length,
+    comparedBuckets: new Set(rows.map((row) => `${row.division}:${row.record}`)).size,
+    meanAbsError:
+      rows.reduce((sum, row) => sum + Math.abs(row.diffFromMean), 0) / Math.max(1, rows.length),
+    buckets,
+    rankBandBuckets,
+    topDivergent,
+  };
+};
+
 const renderMarkdown = (payload) => {
   const lines = [];
   lines.push('# リアリズム診断レポート');
@@ -261,6 +558,49 @@ const renderMarkdown = (payload) => {
   if (!recos.length) recos.push('明確な KL > 0.20 はなし。それでも体感に違和感があれば、より細かい (rank-band 別) 分析が必要。');
   recos.forEach((r, i) => lines.push(`${i + 1}. ${r}`));
   lines.push('');
+
+  if (payload.banzukeMovementCompare) {
+    const m = payload.banzukeMovementCompare;
+    lines.push('## 3. 勝敗別の昇降幅');
+    lines.push('');
+    lines.push('- 尺度: 平成実データの `slot_rank_value` 差と同じ半枚刻み。表示は 2 で割った「枚相当」。');
+    lines.push('- 下位番付は rank band / record bucket 別の実データ中央値、関取以上は同番付ラベルの経験的遷移から参照中心値を作る。');
+    lines.push(`- 比較サンプル: ${m.sample}`);
+    lines.push(`- 比較bucket数: ${m.comparedBuckets}`);
+    lines.push(`- 平均絶対誤差: ${(m.meanAbsError / 2).toFixed(2)}枚相当`);
+    lines.push('');
+    lines.push('### 部屋別・勝敗別');
+    lines.push('');
+    lines.push('| bucket | n | actual p50 | ref target | avg error | fallback |');
+    lines.push('|---|---:|---:|---:|---:|---|');
+    for (const row of m.buckets) {
+      const fallback = Object.entries(row.fallbackMix).map(([k, v]) => `${k}:${v}`).join(', ');
+      lines.push(
+        `| ${row.key} | ${row.sample} | ${(row.actual.p50 / 2).toFixed(1)} | ${(row.refTargetAverage / 2).toFixed(1)} | ${(row.averageError / 2).toFixed(1)} | ${fallback} |`,
+      );
+    }
+    lines.push('');
+    lines.push('### 番付帯・成績型別');
+    lines.push('');
+    lines.push('| bucket | n | actual p50 | ref target | avg error | ref n p50 |');
+    lines.push('|---|---:|---:|---:|---:|---:|');
+    for (const row of m.rankBandBuckets) {
+      lines.push(
+        `| ${row.key} | ${row.sample} | ${(row.actual.p50 / 2).toFixed(1)} | ${(row.refTargetAverage / 2).toFixed(1)} | ${(row.averageError / 2).toFixed(1)} | ${Number.isFinite(row.refSampleP50) ? row.refSampleP50.toFixed(0) : 'n/a'} |`,
+      );
+    }
+    lines.push('');
+    lines.push('### 昇降幅の大きな乖離例');
+    lines.push('');
+    lines.push('| from | record | sim next | sim delta | ref target | ref n | ref top | fallback |');
+    lines.push('|---|---|---|---:|---:|---:|---|---|');
+    for (const row of m.topDivergent) {
+      lines.push(
+        `| ${row.fromLabel} | ${row.record} | ${row.toLabel ?? 'n/a'} | ${(row.actualDelta / 2).toFixed(1)} | ${(row.refMeanDelta / 2).toFixed(1)} | ${Number.isFinite(row.refSample) ? row.refSample : 'n/a'} | ${row.refTopTo ?? 'n/a'} | ${row.fallbackLevel} |`,
+      );
+    }
+    lines.push('');
+  }
   return lines.join('\n');
 };
 
@@ -282,8 +622,15 @@ const renderMarkdown = (payload) => {
 
   const agg = aggregate(results);
   const reference = JSON.parse(fs.readFileSync(REFERENCE_PATH, 'utf-8'));
+  const banzukeTransitionReference = JSON.parse(fs.readFileSync(BANZUKE_TRANSITION_PATH, 'utf-8'));
+  const banzukeCalibrationReference = JSON.parse(fs.readFileSync(BANZUKE_CALIBRATION_PATH, 'utf-8'));
   const recordCompare = compareRecords(agg.cellsByDivision, reference.recordHistogramByDivision);
   const careerCompare = compareCareer(agg.careerBins, reference.careerBashoHistogram);
+  const banzukeMovementCompare = compareBanzukeMovement(
+    results,
+    banzukeTransitionReference,
+    banzukeCalibrationReference,
+  );
 
   const payload = {
     generatedAt: new Date().toISOString(),
@@ -299,6 +646,7 @@ const renderMarkdown = (payload) => {
     },
     recordCompare,
     careerCompare,
+    banzukeMovementCompare,
   };
 
   fs.mkdirSync(path.dirname(JSON_OUT), { recursive: true });
@@ -319,6 +667,7 @@ const renderMarkdown = (payload) => {
     }
   }
   console.log(`  career length: KL=${careerCompare.kl}  (sim ${careerCompare.simSample} vs ref ${careerCompare.refSample})`);
+  console.log(`  banzuke movement: sample=${banzukeMovementCompare.sample} meanAbsError=${(banzukeMovementCompare.meanAbsError / 2).toFixed(2)}枚`);
 })().catch((e) => {
   console.error(e);
   process.exit(1);

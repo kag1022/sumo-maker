@@ -252,6 +252,23 @@ export const applyGrowth = (
     }
   }
 
+  // 素質・停滞・キャリア帯の補正は、能力ごとの delta を作る前に反映する。
+  // 以前は stats 適用後に掛かっていたため、低素質や停滞が実質的に成長へ効いていなかった。
+  if (growthRate > 0) {
+    growthRate *= aptitudeGrowthFactor;
+    growthRate *= stagnationPenalty.growthPenalty;
+    growthRate += careerBandBias.growthBias;
+    if (seedBiases) {
+      growthRate *= Math.max(0.8, 1 + seedBiases.earlyGrowthBias * 0.08 - seedBiases.volatilityBias * 0.03);
+    }
+  } else if (growthRate < 0) {
+    growthRate *= Math.max(1, 1 + Math.max(0, 1 - aptitudeGrowthFactor) * 0.12);
+    growthRate *= 1 + Math.max(0, stagnationPenalty.formPenalty * 0.15);
+    if (seedBiases) {
+      growthRate *= Math.max(0.8, 1 - seedBiases.slumpResistanceBias * 0.05);
+    }
+  }
+
   // --- 3. 能力ごとの変動適用 ---
   // 怪我の影響を受けている能力を特定（稽古の虫用）
   const injuredStats = new Set<string>();
@@ -399,19 +416,6 @@ export const applyGrowth = (
   if (canGrowTallerAfterEntry && age <= 23 && bodyMetrics.heightCm < targetHeight) {
     const heightGrowthBias = seedBiases ? Math.max(0.85, 1 + seedBiases.earlyGrowthBias * 0.05) : 1;
     bodyMetrics.heightCm = Math.min(targetHeight, bodyMetrics.heightCm + (0.2 + Math.max(0, (23 - age) * 0.04)) * heightGrowthBias);
-  }
-  growthRate *= aptitudeGrowthFactor;
-  if (growthRate > 0) {
-    growthRate *= stagnationPenalty.growthPenalty;
-    growthRate += careerBandBias.growthBias;
-    if (seedBiases) {
-      growthRate *= Math.max(0.8, 1 + seedBiases.earlyGrowthBias * 0.08 - seedBiases.volatilityBias * 0.03);
-    }
-  } else {
-    growthRate *= 1 + Math.max(0, stagnationPenalty.formPenalty * 0.15);
-    if (seedBiases) {
-      growthRate *= Math.max(0.8, 1 - seedBiases.slumpResistanceBias * 0.05);
-    }
   }
   bodyMetrics.weightKg = resolveWeightForNextBasho({
     currentWeightKg: bodyMetrics.weightKg,

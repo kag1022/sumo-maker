@@ -726,6 +726,7 @@ export type BuildSpecV2 = BuildSpecV4;
 
 export interface BuildSpecVNext {
   oyakataId: string;
+  aptitudeTier?: AptitudeTier;
   heightPotentialCm: number;
   weightPotentialKg: number;
   reachDeltaCm: number;
