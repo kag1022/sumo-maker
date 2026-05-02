@@ -2,7 +2,11 @@ import Dexie, { Table } from 'dexie';
 import {
   BuildIntent,
   CareerPrizeBreakdown,
+  CareerSaveTag,
   CollectionEntry,
+  ExperimentPresetId,
+  ObserverUpgradeId,
+  ObservationRuleMode,
   WinRoute,
   OyakataProfile,
   Rank,
@@ -56,6 +60,12 @@ export interface CareerRow {
   selectedOyakataId?: string | null;
   parentCareerId?: string;
   generation?: number;
+  saveTags?: CareerSaveTag[];
+  observerMemo?: string;
+  observationPointsAwarded?: number;
+  observationPointsGrantedAt?: string;
+  observationRuleMode?: ObservationRuleMode;
+  experimentPresetId?: ExperimentPresetId;
   collectionDeltaCount?: number;
   careerIndex?: number;
   previewSeed?: number;
@@ -133,7 +143,59 @@ export interface WalletRow {
   updatedAt: string;
 }
 
+export interface GenerationTokenRow {
+  key: 'generationTokens';
+  tokens: number;
+  lastRegenAt: number;
+  updatedAt: string;
+}
+
+export interface ObservationPointRow {
+  key: 'observationPoints';
+  points: number;
+  totalEarned: number;
+  updatedAt: string;
+}
+
 export type WalletTransactionRow = WalletTransaction;
+
+export interface GenerationTokenLedgerRow {
+  id: string;
+  kind: 'SPEND' | 'REFUND' | 'REGEN' | 'INIT';
+  amount: number;
+  balanceAfter: number;
+  reason: 'CAREER_START' | 'EXPERIMENT_START' | 'TECHNICAL_REFUND' | 'REGEN' | 'INIT';
+  careerId?: string;
+  createdAt: string;
+}
+
+export interface ObservationPointLedgerRow {
+  id: string;
+  kind: 'EARN' | 'SPEND';
+  amount: number;
+  balanceAfter: number;
+  reason: 'CAREER_OBSERVATION' | 'EXPERIMENT_OBSERVATION' | 'OBSERVER_UPGRADE' | 'MANUAL_ADJUST';
+  careerId?: string;
+  createdAt: string;
+}
+
+export interface CareerObservationClaimRow {
+  careerId: string;
+  claimedAt: string;
+  pointsAwarded: number;
+  ruleMode: ObservationRuleMode;
+}
+
+export interface ObserverUpgradeRow {
+  id: ObserverUpgradeId;
+  unlockedAt: string;
+}
+
+export interface ResearchThemeProgressRow {
+  id: string;
+  completedAt: string;
+  sourceCareerId?: string;
+}
 
 export interface CareerRewardLedgerRow {
   careerId: string;
@@ -154,7 +216,7 @@ export interface AdRewardLedgerRow {
   createdAt: string;
 }
 
-export type MetaRow = WalletRow;
+export type MetaRow = WalletRow | GenerationTokenRow | ObservationPointRow;
 
 export interface BanzukePopulationRow extends BanzukePopulationSnapshot {
   careerId: string;
@@ -193,8 +255,18 @@ class SumoMakerDatabase extends Dexie {
 
   oyakataProfiles!: Table<OyakataProfile, string>;
 
+  generationTokenLedger!: Table<GenerationTokenLedgerRow, string>;
+
+  observationPointLedger!: Table<ObservationPointLedgerRow, string>;
+
+  careerObservationClaims!: Table<CareerObservationClaimRow, string>;
+
+  observerUpgrades!: Table<ObserverUpgradeRow, ObserverUpgradeId>;
+
+  researchThemeProgress!: Table<ResearchThemeProgressRow, string>;
+
   constructor() {
-    super('sumo-maker-v13');
+    super('sumo-maker-v14');
 
     this.version(1).stores({
       careers:
@@ -620,6 +692,31 @@ class SumoMakerDatabase extends Dexie {
           });
         }
       });
+
+    this.version(17).stores({
+      careers:
+        '&id, state, detailState, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex, clearScore, bestScoreRank, observationRuleMode',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      importantTorikumi:
+        '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq], trigger',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+      walletTransactions: '&id, createdAt, reason, careerId',
+      careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+      collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+      adRewardLedger: '&id, [day+slot], day, type, createdAt',
+      oyakataProfiles: '&id, sourceCareerId',
+      generationTokenLedger: '&id, createdAt, reason, careerId',
+      observationPointLedger: '&id, createdAt, reason, careerId',
+      careerObservationClaims: '&careerId, claimedAt',
+      observerUpgrades: '&id, unlockedAt',
+      researchThemeProgress: '&id, completedAt, sourceCareerId',
+    });
   }
 }
 

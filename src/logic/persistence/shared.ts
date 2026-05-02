@@ -1,7 +1,10 @@
 import {
   BashoRecord,
+  CareerSaveTag,
   CollectionTier,
   CollectionType,
+  ExperimentPresetId,
+  ObservationRuleMode,
   OyakataBlueprint,
   OyakataProfile,
   RikishiStatus,
@@ -36,7 +39,6 @@ import {
   DEFAULT_SIMULATION_MODEL_VERSION,
   SimulationModelVersion,
 } from '../simulation/modelVersion';
-import { addWalletPoints } from './wallet';
 import { buildCareerRewardSummary, calculateCareerPrizeBreakdown } from '../economy/prizeMoney';
 import { ACHIEVEMENT_CATALOG, evaluateAchievementProgress } from '../achievements';
 import {
@@ -62,10 +64,14 @@ import {
 } from '../careerSeed';
 import { ensureCareerRecordStatus, withRivalSummary } from '../careerNarrative';
 import { clearKpiCounters } from '../telemetry/kpi';
+import { addObservationPoints } from './observationPoints';
+import { evaluateResearchThemes } from '../research/themes';
 
 const MAX_SHELVED_CAREERS = 200;
 const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT', 'RECORD'];
 const OFFICIAL_KIMARITE_KEYS = COLLECTION_KIMARITE_NAME_SET;
+const STANDARD_OBSERVATION_REWARD_CAP = 25;
+const EXPERIMENT_OBSERVATION_REWARD_CAP = 8;
 
 const normalizeBanzukeDecisionLog = (log: BanzukeDecisionLog): BanzukeDecisionLog => ({
   ...log,
@@ -308,6 +314,73 @@ const unlockCollectionsForStatus = async (
   return changedCount;
 };
 
+const resolveCareerLengthBonus = (bashoCount: number): number => {
+  if (bashoCount >= 72) return 4;
+  if (bashoCount >= 36) return 2;
+  return 0;
+};
+
+const resolveClearScoreBonus = (clearScore: number): number => {
+  if (clearScore >= 120) return 8;
+  if (clearScore >= 80) return 5;
+  if (clearScore >= 45) return 2;
+  return 0;
+};
+
+const claimObservationPointsForCareer = async (
+  careerId: string,
+  status: RikishiStatus,
+  ruleMode: ObservationRuleMode,
+  collectionDeltaCount: number,
+): Promise<{ pointsAwarded: number; researchThemeIds: string[]; claimedAt?: string }> => {
+  const db = getDb();
+  const existing = await db.careerObservationClaims.get(careerId);
+  if (existing) {
+    return { pointsAwarded: existing.pointsAwarded, researchThemeIds: [] };
+  }
+
+  const now = new Date().toISOString();
+  const clearScore = buildCareerClearScoreSummary(status);
+  const achievements = ruleMode === 'STANDARD' ? evaluateAchievementProgress(status).unlocked : [];
+  const completedResearchThemes = ruleMode === 'STANDARD' ? evaluateResearchThemes(status) : [];
+  const newResearchThemes: string[] = [];
+
+  for (const theme of completedResearchThemes) {
+    const existingTheme = await db.researchThemeProgress.get(theme.id);
+    if (existingTheme) continue;
+    await db.researchThemeProgress.put({
+      id: theme.id,
+      completedAt: now,
+      sourceCareerId: careerId,
+    });
+    newResearchThemes.push(theme.id);
+  }
+
+  const rawPoints =
+    2 +
+    resolveCareerLengthBonus(status.history.records.length) +
+    resolveClearScoreBonus(clearScore.clearScore) +
+    Math.min(6, clearScore.badges.length) +
+    Math.min(9, achievements.length * 3) +
+    Math.min(8, collectionDeltaCount) +
+    newResearchThemes.length * 8;
+  const cap = ruleMode === 'EXPERIMENT' ? EXPERIMENT_OBSERVATION_REWARD_CAP : STANDARD_OBSERVATION_REWARD_CAP;
+  const pointsAwarded = Math.min(cap, rawPoints);
+
+  await db.careerObservationClaims.put({
+    careerId,
+    claimedAt: now,
+    pointsAwarded,
+    ruleMode,
+  });
+  await addObservationPoints(
+    pointsAwarded,
+    ruleMode === 'EXPERIMENT' ? 'EXPERIMENT_OBSERVATION' : 'CAREER_OBSERVATION',
+    careerId,
+  );
+  return { pointsAwarded, researchThemeIds: newResearchThemes, claimedAt: now };
+};
+
 const ensureLegacyCollectionEntries = async (): Promise<void> => {
   const db = getDb();
   const existingCollectionCount = await db.collectionEntries.count();
@@ -524,8 +597,6 @@ const removeCareerRows = async (careerId: string): Promise<void> => {
   await db.banzukePopulation.where('careerId').equals(careerId).delete();
   await db.banzukeDecisions.where('careerId').equals(careerId).delete();
   await db.simulationDiagnostics.where('careerId').equals(careerId).delete();
-  await db.careerRewardLedger.delete(careerId);
-  await db.collectionEntries.where('sourceCareerId').equals(careerId).delete();
 };
 
 export interface CreateDraftCareerParams {
@@ -534,6 +605,8 @@ export interface CreateDraftCareerParams {
   careerStartYearMonth: string;
   simulationModelVersion?: SimulationModelVersion;
   selectedOyakataId?: string | null;
+  observationRuleMode?: ObservationRuleMode;
+  experimentPresetId?: ExperimentPresetId;
 }
 
 const parseParentCareerId = (
@@ -601,6 +674,11 @@ export interface CareerListItem {
   collectionDeltaCount?: number;
   yokozunaOrdinal?: number;
   detailState: NonNullable<CareerRow['detailState']>;
+  saveTags?: CareerSaveTag[];
+  observerMemo?: string;
+  observationPointsAwarded?: number;
+  observationRuleMode?: ObservationRuleMode;
+  experimentPresetId?: string;
 }
 
 const resolveNextYokozunaOrdinal = async (careerId: string): Promise<number> => {
@@ -660,6 +738,8 @@ export const createDraftCareer = async ({
   careerStartYearMonth,
   simulationModelVersion,
   selectedOyakataId,
+  observationRuleMode,
+  experimentPresetId,
 }: CreateDraftCareerParams): Promise<string> => {
   const careerId = id || crypto.randomUUID();
   const now = new Date().toISOString();
@@ -695,6 +775,8 @@ export const createDraftCareer = async ({
     selectedOyakataId: selectedOyakataId ?? null,
     parentCareerId,
     generation,
+    observationRuleMode: observationRuleMode ?? 'STANDARD',
+    experimentPresetId,
     careerIndex: nextCareerIndex,
     finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
     detailState: 'building',
@@ -777,8 +859,6 @@ const appendBashoChunksInternal = async (
     db.banzukePopulation,
     db.banzukeDecisions,
     db.simulationDiagnostics,
-    db.careerRewardLedger,
-    db.collectionEntries,
   ];
 
   await db.transaction('rw', writableTables, async () => {
@@ -869,10 +949,24 @@ export const finalizeCareerDetails = async (
   const db = getDb();
   let normalizedStatus = ensureCareerRecordStatus(finalStatus);
   normalizedStatus = await enrichStatusWithPersistenceNarratives(careerId, normalizedStatus);
+  const career = await db.careers.get(careerId);
+  const ruleMode = career?.observationRuleMode ?? 'STANDARD';
+  const collectionDeltaCount = ruleMode === 'STANDARD'
+    ? await unlockCollectionsForStatus(careerId, normalizedStatus, true)
+    : 0;
+  const observationClaim = await claimObservationPointsForCareer(
+    careerId,
+    normalizedStatus,
+    ruleMode,
+    collectionDeltaCount,
+  );
   await db.careers.update(careerId, {
     finalStatus: normalizedStatus,
     ...toSummaryPatch(normalizedStatus),
     detailState: 'ready',
+    collectionDeltaCount,
+    observationPointsAwarded: observationClaim.pointsAwarded,
+    observationPointsGrantedAt: observationClaim.claimedAt,
   });
   return normalizedStatus;
 };
@@ -921,11 +1015,10 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       const grantedPoints = resolveCareerRecordRewardPoints(rewardSummary.awardedPoints);
       if (!existingReward && grantedPoints > 0) {
         const grantedAt = new Date().toISOString();
-        await addWalletPoints(grantedPoints, 'CAREER_PRIZE_REWARD', careerId);
         await db.careerRewardLedger.put({
           careerId,
           lifetimePrizeYen: finalStatus.history.prizeBreakdown.totalYen,
-          pointsAwarded: grantedPoints,
+          pointsAwarded: 0,
           conversionRuleId: rewardSummary.conversionRuleId,
           grantedAt,
           updatedAt: grantedAt,
@@ -939,7 +1032,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
               granted: true,
               grantedAt,
               awardedPoints: rewardSummary.awardedPoints,
-              convertedPoints: grantedPoints,
+              convertedPoints: 0,
             },
           },
         };
@@ -953,7 +1046,7 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
               granted: true,
               grantedAt: existingReward.grantedAt,
               awardedPoints: rewardSummary.awardedPoints,
-              convertedPoints: existingReward.pointsAwarded,
+              convertedPoints: 0,
             },
           },
         };
@@ -994,13 +1087,26 @@ export const shelveCareer = async (careerId: string): Promise<void> => {
       finalStatus: enrichedFinalStatus,
       ...toSummaryPatch(enrichedFinalStatus),
     });
-    const collectionDeltaCount = await unlockCollectionsForStatus(careerId, enrichedFinalStatus, true);
-    await db.careers.update(careerId, { collectionDeltaCount });
   }
   await refreshBestScoreRanks();
 };
 
 export const commitCareer = async (careerId: string): Promise<void> => shelveCareer(careerId);
+
+export const updateCareerSaveMetadata = async (
+  careerId: string,
+  metadata: {
+    saveTags?: CareerSaveTag[];
+    observerMemo?: string;
+  },
+): Promise<void> => {
+  const db = getDb();
+  await db.careers.update(careerId, {
+    saveTags: metadata.saveTags ?? [],
+    observerMemo: metadata.observerMemo?.trim() || undefined,
+    updatedAt: new Date().toISOString(),
+  });
+};
 
 export const discardCareer = async (careerId: string): Promise<void> => {
   const db = getDb();
@@ -1056,6 +1162,11 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   bestScoreRank: row.bestScoreRank,
   collectionDeltaCount: row.collectionDeltaCount,
   yokozunaOrdinal: row.yokozunaOrdinal,
+  saveTags: row.saveTags,
+  observerMemo: row.observerMemo,
+  observationPointsAwarded: row.observationPointsAwarded,
+  observationRuleMode: row.observationRuleMode,
+  experimentPresetId: row.experimentPresetId,
   detailState: row.detailState ?? 'ready',
 });
 
@@ -1139,9 +1250,15 @@ export const getCareerSaveIncentiveSummary = async (
   const projectedBestScoreRank = [...compareRows, virtualRow]
     .sort(resolveScoreTieBreak)
     .findIndex((row) => row.id === virtualRow.id) + 1;
+  const existingCareer = options?.careerId ? await db.careers.get(options.careerId) : null;
   const collectionPreview = options?.isSaved || !options?.careerId
     ? { collectionDeltaCount: 0, newRecordCount: 0 }
-    : await previewCollectionUnlocks(options.careerId, status, options?.includeOyakata ?? true);
+    : existingCareer?.collectionDeltaCount
+      ? {
+        collectionDeltaCount: existingCareer.collectionDeltaCount,
+        newRecordCount: Math.min(existingCareer.collectionDeltaCount, clearScore.badges.length),
+      }
+      : await previewCollectionUnlocks(options.careerId, status, options?.includeOyakata ?? true);
 
   let rewardLabel = '保存候補';
   let rewardDetail = '記録を残すと、あとで詳細な一代記を読み返せます。';
@@ -1304,6 +1421,11 @@ export const clearAllStoredData = async (): Promise<void> => {
     db.collectionEntries,
     db.adRewardLedger,
     db.oyakataProfiles,
+    db.generationTokenLedger,
+    db.observationPointLedger,
+    db.careerObservationClaims,
+    db.observerUpgrades,
+    db.researchThemeProgress,
   ];
   await db.transaction('rw', writableTables, async () => {
     await Promise.all(writableTables.map((table) => table.clear()));

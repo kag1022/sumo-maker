@@ -1,7 +1,7 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookUser, Menu, ScrollText, Table2, Trophy, X } from "lucide-react";
-import { type RikishiStatus } from "../../../logic/models";
+import { type CareerSaveTag, type RikishiStatus } from "../../../logic/models";
 import type {
   CareerBashoDetail,
   CareerBashoRecordsBySeq,
@@ -40,10 +40,11 @@ interface CareerResultPageProps {
   bashoRows: CareerBashoRecordsBySeq[];
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
+  observationPointsAwarded?: number;
   viewState: CareerResultViewState;
   onSelectBasho: (bashoSeq: number) => void;
   onViewStateChange: (patch: Partial<CareerResultViewState>) => void;
-  onSave: () => void | Promise<void>;
+  onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
 }
 
@@ -74,6 +75,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   bashoRows,
   detailState,
   detailBuildProgress,
+  observationPointsAwarded,
   viewState,
   onSelectBasho,
   onViewStateChange,
@@ -239,6 +241,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 isSaved={isSaved}
                 detailState={detailState}
                 detailBuildProgress={detailBuildProgress}
+                observationPointsAwarded={observationPointsAwarded}
                 onSave={onSave}
                 onReturnToScout={onReturnToScout}
               />
