@@ -178,6 +178,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
             variant="ghost"
             size="sm"
             className={styles.mobileToggle}
+            aria-label={mobileNavOpen ? "章メニューを閉じる" : "章メニューを開く"}
             onClick={() => setMobileNavOpen((current) => !current)}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -221,7 +222,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       </div>
 
       <div ref={chapterRef} className={styles.body}>
-        <AnimatePresence mode="wait" initial={false}>
+        <>
           {viewState.activeChapter === "encyclopedia" ? (
             <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
               <section className={styles.readingNote}>
@@ -305,7 +306,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
               <p className={styles.readingCopy}>{detailLoadingLabel}</p>
             </motion.section>
           ) : null}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );
