@@ -287,6 +287,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           <div className={styles.portraitDock}>
             <RikishiPortrait
               bodyType={status.bodyType}
+              bodyMetrics={status.bodyMetrics}
+              rank={status.history.maxRank}
               className={styles.portrait}
               innerClassName={styles.portraitInner}
               presentation="blend"

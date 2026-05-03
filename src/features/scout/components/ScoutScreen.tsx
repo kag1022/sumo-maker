@@ -354,9 +354,10 @@ const ScoutEntryLedger: React.FC<{
   entryLabel: string;
   stableName: string;
   previewBodyType: ReturnType<typeof buildInitialRikishiFromDraft>["bodyType"];
+  previewBodyMetrics: ReturnType<typeof buildInitialRikishiFromDraft>["bodyMetrics"];
   mode: "desktop" | "mobile";
   resolvedSeed: ReturnType<typeof buildScoutResolvedSeed>;
-}> = ({ draft, entryLabel, stableName, previewBodyType, mode, resolvedSeed }) => (
+}> = ({ draft, entryLabel, stableName, previewBodyType, previewBodyMetrics, mode, resolvedSeed }) => (
   <section className={mode === "desktop" ? cn(styles.previewPanel, styles.entryLedger) : styles.mobileLedger}>
     <div className={styles.entryLedgerHead}>
       <p className={styles.sectionTitle}>{mode === "desktop" ? "生成札プレビュー" : "現在の入口"}</p>
@@ -373,6 +374,8 @@ const ScoutEntryLedger: React.FC<{
         <div className={styles.entryLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
+            bodyMetrics={previewBodyMetrics}
+            stage="entry"
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
@@ -407,6 +410,8 @@ const ScoutEntryLedger: React.FC<{
         <div className={styles.mobileLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
+            bodyMetrics={previewBodyMetrics}
+            stage="entry"
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
@@ -702,6 +707,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
           entryLabel={entryLabel}
           stableName={activeStable.displayName}
           previewBodyType={previewStatus.bodyType}
+          previewBodyMetrics={previewStatus.bodyMetrics}
           mode="mobile"
           resolvedSeed={resolvedSeed}
         />
@@ -760,6 +766,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
             entryLabel={entryLabel}
             stableName={activeStable.displayName}
             previewBodyType={previewStatus.bodyType}
+            previewBodyMetrics={previewStatus.bodyMetrics}
             mode="desktop"
             resolvedSeed={resolvedSeed}
           />
