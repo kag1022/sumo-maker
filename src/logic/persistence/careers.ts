@@ -21,6 +21,7 @@ export {
   markCareerReadyForReveal,
   markCareerCompleted,
   shelveCareer,
+  updateCareerSaveMetadata,
   type AppendBashoChunkParams,
   type CareerListItem,
   type CareerSaveIncentiveSummary,
