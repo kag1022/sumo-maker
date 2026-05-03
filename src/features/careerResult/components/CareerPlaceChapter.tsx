@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ListOrdered, Swords, Trophy, Users } from "lucide-react";
 import { type Division } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../report/utils/reportShared";
@@ -77,6 +77,18 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   const wins = point?.wins ?? 0;
   const losses = point?.losses ?? 0;
   const absent = point?.absent ?? 0;
+  const totalDecisions = wins + losses;
+  const winRate = totalDecisions > 0 ? wins / totalDecisions : 0;
+  const resultTone = wins > losses ? "win" : losses > wins ? "loss" : absent > 0 ? "absence" : "flat";
+  const playerTitles = detail?.playerRecord?.titles ?? [];
+  const hasYusho = playerTitles.length > 0;
+  const activeRows = placeTab === "nearby" ? nearbyRows : fullRows;
+  const tabCounts: Record<CareerPlaceTabId, number> = {
+    nearby: nearbyRows.length,
+    full: fullRows.length,
+    bouts: detail?.bouts?.length ?? 0,
+  };
+  const topImportantNote = detail?.importantTorikumi?.[0]?.summary ?? null;
 
   return (
     <section className={styles.shell}>
@@ -85,7 +97,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
           <div className={styles.kicker}>場所別</div>
           <h2 className={styles.title}>{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={styles.stepperGroup}>
           <button
             type="button"
             className={styles.stepper}
@@ -105,55 +117,52 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         </div>
       </div>
 
-      <div className={styles.scrollStrip} role="list" aria-label="場所一覧">
-        {nearbyPoints.map((entry) => {
-          const isSelected = entry.bashoSeq === point?.bashoSeq;
-          const r = RESULT_MARK[entry.wins >= entry.losses + entry.absent ? "WIN" : entry.losses > entry.wins ? "LOSS" : "ABSENT"];
-          return (
-            <button
-              key={entry.bashoSeq}
-              type="button"
-              role="listitem"
-              className={styles.bashoChip}
-              data-selected={isSelected}
-              data-event={entry.milestoneTags.length > 0}
-              onClick={() => onSelectBasho(entry.bashoSeq)}
-            >
-              <span className={styles.bashoChipLabel}>{entry.bashoLabel}</span>
-              <strong className={styles.bashoChipRank}>{entry.rankShortLabel}</strong>
-              <span className={styles.bashoChipRecord} style={r.style}>{entry.recordCompactLabel}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className={styles.ledgerSummary}>
-        <div className={styles.ledgerSummaryInner}>
-          <div className={styles.ledgerRow}>
-            <span className={styles.ledgerKey}>番付</span>
-            <strong className={styles.ledgerValue}>{summary?.rankLabel ?? "—"}</strong>
+      <div className={styles.placeHero} data-tone={resultTone} data-yusho={hasYusho}>
+        <div className={styles.placeHeroMain}>
+          <div className={styles.placeStamp}>
+            {hasYusho ? <Trophy className="h-5 w-5" /> : <CalendarDays className="h-5 w-5" />}
           </div>
-          <div className={styles.ledgerRow}>
-            <span className={styles.ledgerKey}>成績</span>
-            <strong className={styles.ledgerValue}>{summary?.recordLabel ?? "—"}</strong>
+          <div>
+            <span className={styles.placeHeroLabel}>選択中の場所</span>
+            <strong className={styles.placeHeroTitle}>{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</strong>
+            <p className={styles.placeHeroCopy}>
+              {hasYusho
+                ? `優勝記録: ${playerTitles.join(" / ")}`
+                : topImportantNote ?? "この場所の番付、成績、周辺力士、十五日間を確認します。"}
+            </p>
           </div>
-          <div className={styles.ledgerRow}>
-            <span className={styles.ledgerKey}>昇降</span>
-            <strong className={styles.ledgerValue}>{summary?.deltaLabel ?? "—"}</strong>
+        </div>
+        <div className={styles.scoreBoard}>
+          <div className={styles.scoreMain}>
+            <span>成績</span>
+            <strong>{summary?.recordLabel ?? "—"}</strong>
+          </div>
+          <div className={styles.scoreGrid}>
+            <article>
+              <span>番付</span>
+              <strong>{summary?.rankLabel ?? "—"}</strong>
+            </article>
+            <article>
+              <span>昇降</span>
+              <strong>{summary?.deltaLabel ?? "—"}</strong>
+            </article>
+            <article>
+              <span>勝率</span>
+              <strong>{totalDecisions > 0 ? `${(winRate * 100).toFixed(1)}%` : "—"}</strong>
+            </article>
           </div>
         </div>
         {(wins + losses + absent) > 0 && (
-          <div className="mt-3">
+          <div className={styles.heroBar}>
             <WinLossBar wins={wins} losses={losses} absent={absent} height="md" />
           </div>
         )}
-        {(summary?.milestoneTags ?? []).length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {(summary?.milestoneTags ?? []).map((tag) => (
-              <span key={tag} className={styles.milestoneTag}>{tag}</span>
-            ))}
-          </div>
-        )}
+        <div className={styles.badgeRow}>
+          {hasYusho ? <span className={styles.yushoTag}>優勝</span> : null}
+          {(summary?.milestoneTags ?? []).map((tag) => (
+            <span key={tag} className={styles.milestoneTag}>{tag}</span>
+          ))}
+        </div>
       </div>
 
       <div className={styles.tabStrip} role="tablist" aria-label="場所別切替">
@@ -163,6 +172,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
             full: { main: "全番付", sub: "同階級の全員" },
             bouts: { main: "全取組", sub: "十五日間" },
           };
+          const Icon = tab === "nearby" ? Users : tab === "full" ? ListOrdered : Swords;
           return (
             <button
               key={tab}
@@ -173,18 +183,57 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
               data-active={placeTab === tab}
               onClick={() => onPlaceTabChange(tab)}
             >
-              <span className={styles.tabMain}>{LABELS[tab].main}</span>
-              <span className={styles.tabSub}>{LABELS[tab].sub}</span>
+              <Icon className="h-4 w-4" />
+              <span className={styles.tabText}>
+                <span className={styles.tabMain}>{LABELS[tab].main}</span>
+                <span className={styles.tabSub}>{LABELS[tab].sub} / {tabCounts[tab]}</span>
+              </span>
             </button>
           );
         })}
       </div>
 
+      <div className={styles.placeNavigator}>
+        <div className={styles.navigatorHead}>
+          <span className={styles.kicker}>前後の場所</span>
+          <span>{selectedIndex >= 0 ? `${selectedIndex + 1}/${ledger.points.length}` : "-/-"}</span>
+        </div>
+        <div className={styles.scrollStrip} role="list" aria-label="場所一覧">
+          {nearbyPoints.map((entry) => {
+            const isSelected = entry.bashoSeq === point?.bashoSeq;
+            const r = RESULT_MARK[entry.wins >= entry.losses + entry.absent ? "WIN" : entry.losses > entry.wins ? "LOSS" : "ABSENT"];
+            return (
+              <button
+                key={entry.bashoSeq}
+                type="button"
+                role="listitem"
+                className={styles.bashoChip}
+                data-selected={isSelected}
+                data-event={entry.milestoneTags.length > 0}
+                data-yusho={entry.eventFlags.includes("yusho")}
+                onClick={() => onSelectBasho(entry.bashoSeq)}
+              >
+                <span className={styles.bashoChipLabel}>{entry.bashoLabel}</span>
+                <strong className={styles.bashoChipRank}>{entry.rankShortLabel}</strong>
+                <span className={styles.bashoChipRecord} style={r.style}>{entry.recordCompactLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {placeTab === "nearby" || placeTab === "full" ? (
         <div className={styles.contentPanel}>
+          <div className={styles.contentHead}>
+            <div>
+              <span className={styles.kicker}>{placeTab === "nearby" ? "番付周辺" : "同階級番付"}</span>
+              <h3>{placeTab === "nearby" ? "本人の周辺だけを見る" : "同階級の全番付を見る"}</h3>
+            </div>
+            <span>{activeRows.length}名</span>
+          </div>
           {isLoading ? (
             <div className={styles.empty}>読込中</div>
-          ) : (placeTab === "nearby" ? nearbyRows : fullRows).length > 0 ? (
+          ) : activeRows.length > 0 ? (
             <div className={styles.scroll}>
               <table className={styles.banzukeTable}>
                 <thead>
@@ -195,7 +244,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {(placeTab === "nearby" ? nearbyRows : fullRows).map((row) => {
+                  {activeRows.map((row) => {
                     const isPlayer = row.entityType === "PLAYER";
                     const resultMark = row.wins > row.losses
                       ? RESULT_MARK.WIN
@@ -239,6 +288,13 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
         </div>
       ) : (
         <div className={styles.contentPanel}>
+          <div className={styles.contentHead}>
+            <div>
+              <span className={styles.kicker}>取組日誌</span>
+              <h3>十五日間の流れを見る</h3>
+            </div>
+            <span>{detail?.bouts?.length ?? 0}番</span>
+          </div>
           {isLoading ? (
             <div className={styles.empty}>読込中</div>
           ) : detail?.bouts?.length ? (

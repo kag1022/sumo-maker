@@ -12,8 +12,20 @@ import {
   listUnshelvedCareers,
   loadCareerStatus,
   shelveCareer,
+  updateCareerSaveMetadata,
   type CareerListItem,
 } from '../../../logic/persistence/careers';
+import type { CareerSaveTag } from '../../../logic/models';
+import {
+  getGenerationTokenState,
+  refundGenerationToken,
+  spendGenerationToken,
+  type GenerationTokenState,
+} from '../../../logic/persistence/generationTokens';
+import {
+  getObservationPointState,
+  type ObservationPointState,
+} from '../../../logic/persistence/observationPoints';
 import { resetLifetimeCareerCount } from '../../../logic/persistence/lifetimeStats';
 import {
   resolveSimulationPhaseOnCompletion,
@@ -65,6 +77,8 @@ interface SimulationStore {
   latestPauseReason?: PauseReason;
   hallOfFame: CareerListItem[];
   unshelvedCareers: CareerListItem[];
+  generationTokens: GenerationTokenState | null;
+  observationPoints: ObservationPointState | null;
   errorMessage?: string;
   setSimulationPacing: (pacing: SimulationPacing) => void;
   continueChapter: () => void;
@@ -74,13 +88,14 @@ interface SimulationStore {
     runOptions?: SimulationRunOptions,
     simulationModelVersion?: SimulationModelVersion,
     initialPacing?: SimulationPacing,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   skipToEnd: () => void;
   revealCurrentResult: () => void;
   stopSimulation: () => Promise<void>;
-  saveCurrentCareer: () => Promise<void>;
+  saveCurrentCareer: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => Promise<void>;
   loadHallOfFame: () => Promise<void>;
   loadUnshelvedCareers: () => Promise<void>;
+  loadMetaProgress: () => Promise<void>;
   openCareer: (careerId: string) => Promise<void>;
   deleteCareerById: (careerId: string) => Promise<void>;
   clearAllData: () => Promise<void>;
@@ -128,6 +143,8 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   latestPauseReason: undefined,
   hallOfFame: [],
   unshelvedCareers: [],
+  generationTokens: null,
+  observationPoints: null,
   errorMessage: undefined,
 
   setSimulationPacing: (pacing) => {
@@ -161,6 +178,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     initialPacing = 'skip_to_end',
   ) => {
     const normalizedModelVersion = normalizeNewRunModelVersion(simulationModelVersion);
+    const spendResult = await spendGenerationToken(
+      runOptions?.observationRuleMode === 'EXPERIMENT' ? 'EXPERIMENT_START' : 'CAREER_START',
+    );
+    set({ generationTokens: spendResult.state });
+    if (!spendResult.ok) {
+      set({ errorMessage: '生成札が不足しています。回復を待ってから新弟子を登録してください。' });
+      return false;
+    }
     const currentCareerId = get().currentCareerId;
     if (currentCareerId && !get().isCurrentCareerSaved) {
       terminateWorker();
@@ -176,6 +201,8 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       careerStartYearMonth: buildCareerStartYearMonth(now.getFullYear(), 1),
       simulationModelVersion: normalizedModelVersion,
       selectedOyakataId: runOptions?.selectedOyakataId,
+      observationRuleMode: runOptions?.observationRuleMode ?? 'STANDARD',
+      experimentPresetId: runOptions?.experimentPresetId,
     });
 
     worker = new Worker(new URL('../workers/simulation.worker.ts', import.meta.url), {
@@ -259,6 +286,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         });
         if (nextDetailState === 'ready') {
           terminateWorker();
+          void get().loadMetaProgress();
           void get().loadUnshelvedCareers();
         }
         return;
@@ -281,11 +309,15 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
           errorMessage: undefined,
         });
         terminateWorker();
+        void get().loadMetaProgress();
         void get().loadUnshelvedCareers();
         return;
       }
 
       if (message.type === 'ERROR') {
+        void refundGenerationToken(get().currentCareerId ?? undefined).then((generationTokens) => {
+          set({ generationTokens });
+        });
         set({
           phase: 'error',
           latestBashoView: null,
@@ -299,6 +331,9 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     };
 
     worker.onerror = (event) => {
+      void refundGenerationToken(get().currentCareerId ?? undefined).then((generationTokens) => {
+        set({ generationTokens });
+      });
       set({
         phase: 'error',
         latestBashoView: null,
@@ -343,6 +378,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         detailPolicy: nextDetailPolicy,
       },
     });
+    return true;
   },
 
   skipToEnd: () => {
@@ -395,9 +431,12 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     await get().loadUnshelvedCareers();
   },
 
-  saveCurrentCareer: async () => {
+  saveCurrentCareer: async (metadata) => {
     const careerId = get().currentCareerId;
     if (!careerId || get().detailState !== 'ready') return;
+    if (metadata) {
+      await updateCareerSaveMetadata(careerId, metadata);
+    }
     await shelveCareer(careerId);
     const saved = await isCareerSaved(careerId);
     const refreshedStatus = await loadCareerStatus(careerId);
@@ -407,6 +446,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     });
     await get().loadHallOfFame();
     await get().loadUnshelvedCareers();
+    await get().loadMetaProgress();
   },
 
   loadHallOfFame: async () => {
@@ -417,6 +457,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   loadUnshelvedCareers: async () => {
     const unshelvedCareers = await listUnshelvedCareers();
     set({ unshelvedCareers });
+  },
+
+  loadMetaProgress: async () => {
+    const [generationTokens, observationPoints] = await Promise.all([
+      getGenerationTokenState(),
+      getObservationPointState(),
+    ]);
+    set({ generationTokens, observationPoints });
   },
 
   openCareer: async (careerId) => {
@@ -469,6 +517,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
     await get().loadHallOfFame();
     await get().loadUnshelvedCareers();
+    await get().loadMetaProgress();
   },
 
   clearAllData: async () => {
@@ -494,8 +543,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       latestPauseReason: undefined,
       hallOfFame: [],
       unshelvedCareers: [],
+      generationTokens: null,
+      observationPoints: null,
       errorMessage: undefined,
     });
+    await get().loadMetaProgress();
   },
 
   resetView: async () => {
