@@ -23,6 +23,8 @@ IndexedDB（Dexie）による永続化層。キャリア本体とその付随ロ
 
 - 現在: `sumo-maker-v14`
 - 保存互換は強く維持しない方針。破壊的な schema 変更時は DB 名を更新する。
+- Dexie schema version は DB 名とは別。現在の最新 schema は `18`。
+- `careers.observationStanceId` は資料館検索用に index 化する。保存推奨や自動タグなどの派生分析は DB に固定保存せず、`finalStatus` から再計算する。
 
 ## 観測メタ進行
 

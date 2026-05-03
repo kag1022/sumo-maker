@@ -321,7 +321,14 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.stanceGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .choiceCard,
+.stanceCard,
 .sizeChip {
   position: relative;
   border: 1px solid rgb(var(--twc-brand) / 0.16);
@@ -343,6 +350,7 @@
 }
 
 .choiceCard:hover,
+.stanceCard:hover,
 .sizeChip:hover {
   border-color: rgb(var(--twc-brand) / 0.42);
   background:
@@ -352,6 +360,7 @@
 }
 
 .choiceCard[data-active="true"],
+.stanceCard[data-active="true"],
 .sizeChip[data-active="true"] {
   border-color: rgb(var(--twc-brand) / 0.66);
   background:
@@ -360,6 +369,26 @@
   box-shadow:
     inset 0 0 0 1px rgb(255 243 214 / 0.08),
     0 0 18px rgb(var(--twc-brand) / 0.08);
+}
+
+.stanceCard {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.stanceMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.stanceMetrics span {
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background: rgb(var(--twc-bg) / 0.42);
+  padding: 0.25rem 0.45rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  color: rgb(var(--twc-brand) / 0.78);
 }
 
 .choiceTitle {
@@ -690,6 +719,7 @@
   }
 
   .choiceGrid,
+  .stanceGrid,
   .mobileLedgerGrid {
     grid-template-columns: 1fr;
   }
