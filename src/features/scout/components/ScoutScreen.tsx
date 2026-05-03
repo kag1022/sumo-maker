@@ -1,15 +1,7 @@
 import React from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CircleDot,
-  Eye,
-  RefreshCw,
-  ScrollText,
-  Sparkles,
-  Ticket,
-} from "lucide-react";
-import { ExperimentPresetId, Oyakata, RikishiStatus, SimulationRunOptions } from "../../../logic/models";
+import { ArrowLeft, ArrowRight, RefreshCw, ScrollText } from "lucide-react";
+import { ExperimentPresetId, ObservationStanceId, Oyakata, RikishiStatus, SimulationRunOptions } from "../../../logic/models";
+import { OBSERVATION_STANCES } from "../../../logic/career/analysis";
 import { ScoutStatPreview } from "./ScoutStatPreview";
 import {
   buildInitialRikishiFromDraft,
@@ -479,6 +471,42 @@ const ExperimentPresetPanel: React.FC<{
   </section>
 );
 
+const ObservationStancePanel: React.FC<{
+  value: ObservationStanceId;
+  onChange: (value: ObservationStanceId) => void;
+}> = ({ value, onChange }) => (
+  <section className={styles.section} data-active="true">
+    <div className={styles.sectionHead}>
+      <div>
+        <div className={styles.sectionStep}>観測</div>
+        <h2 className={styles.sectionTitleText}>今回の観測視点</h2>
+        <p className={styles.sectionCopy}>文章を書く代わりに、今回どの読み筋で一代を観測するかを選びます。</p>
+      </div>
+    </div>
+    <div className={styles.sectionBody}>
+      <div className={styles.stanceGrid}>
+        {OBSERVATION_STANCES.map((stance) => (
+          <button
+            key={stance.id}
+            type="button"
+            className={styles.stanceCard}
+            data-active={value === stance.id}
+            onClick={() => onChange(stance.id)}
+          >
+            <div className={cn(styles.choiceTitle, typography.heading)}>{stance.label}</div>
+            <div className={styles.choiceNote}>{stance.description}</div>
+            <div className={styles.stanceMetrics}>
+              {stance.focusMetrics.slice(0, 4).map((metric) => (
+                <span key={metric}>{metric}</span>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, observationPoints, onStart }) => {
   const { isMobileViewport } = useViewportMode();
   const [draft, setDraft] = React.useState<ScoutDraft>(createInitialScoutDraft);
@@ -486,6 +514,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
   const [isRegistering, setIsRegistering] = React.useState(false);
   const [experimentUnlocked, setExperimentUnlocked] = React.useState(false);
   const [experimentPresetId, setExperimentPresetId] = React.useState<ExperimentPresetId | null>(null);
+  const [observationStanceId, setObservationStanceId] = React.useState<ObservationStanceId>("PROMOTION_EXPECTATION");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -525,13 +554,13 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
         null,
         "skip_to_end",
         experimentPresetId
-          ? { observationRuleMode: "EXPERIMENT", experimentPresetId }
-          : { observationRuleMode: "STANDARD" },
+          ? { observationRuleMode: "EXPERIMENT", observationStanceId, experimentPresetId }
+          : { observationRuleMode: "STANDARD", observationStanceId },
       );
     } finally {
       setIsRegistering(false);
     }
-  }, [draft, experimentPresetId, onStart]);
+  }, [draft, experimentPresetId, observationStanceId, onStart]);
 
   const identitySummary = `${draft.shikona || "未命名"} / ${draft.birthplace || "出身未設定"}`;
   const seedSummary = `${draft.entryAge}歳 / ${resolvedSeed.entryPathLabel} / ${resolvedSeed.temperamentLabel}`;
@@ -717,6 +746,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
             onCycleCandidate={handleCycleCandidate}
             mode="mobile"
           />
+          <ObservationStancePanel value={observationStanceId} onChange={setObservationStanceId} />
           <ScoutDecisionPanel
             generationTokens={generationTokens}
             observationPoints={observationPoints}
@@ -744,6 +774,7 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
       <div className={styles.layout}>
         <main className={styles.main}>
           {sections}
+          <ObservationStancePanel value={observationStanceId} onChange={setObservationStanceId} />
           <ScoutDecisionPanel
             generationTokens={generationTokens}
             observationPoints={observationPoints}

@@ -138,6 +138,40 @@
     rgb(var(--twc-bg-panel) / 0.72);
 }
 
+.saveReasonGrid {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.saveReason,
+.autoTag {
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background: rgb(var(--twc-bg) / 0.36);
+  color: rgb(var(--twc-text) / 0.78);
+}
+
+.saveReason {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.autoTag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.3rem 0.55rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  color: rgb(var(--twc-state-bright));
+  border-color: rgb(var(--twc-state) / 0.38);
+}
+
+.traitMeta[data-suggested="true"] {
+  border-color: rgb(var(--twc-action) / 0.44);
+  color: rgb(var(--twc-action));
+}
+
 .actionButtons {
   display: grid;
   gap: 0.65rem;
@@ -191,6 +225,78 @@
   border: 1px solid rgb(var(--twc-brand) / 0.1);
   background: rgb(var(--twc-bg-panel) / 0.28);
   padding: 1rem;
+}
+
+.observationPanel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.18);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.08), transparent 48%),
+    rgb(var(--twc-bg) / 0.48);
+}
+
+.observationPanel[data-tone="success"] {
+  border-color: rgb(var(--twc-state) / 0.36);
+}
+
+.observationPanel[data-tone="warning"] {
+  border-color: rgb(var(--twc-danger) / 0.32);
+}
+
+.observationHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.observationVerdict {
+  margin-top: 0.25rem;
+  font-family: "DotGothic16", monospace;
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.observationScore {
+  min-width: 3.2rem;
+  text-align: right;
+  font-family: "DotGothic16", monospace;
+  font-size: 2rem;
+  color: rgb(var(--twc-brand) / 0.86);
+}
+
+.observationMetrics {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.observationMetric {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.46);
+}
+
+.observationMetric span {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-brand) / 0.72);
+}
+
+.observationMetric strong {
+  color: rgb(var(--twc-text) / 0.94);
+}
+
+.observationReasons {
+  display: grid;
+  gap: 0.35rem;
+  color: rgb(var(--twc-text) / 0.72);
+  line-height: 1.65;
 }
 
 .sectionHead {
@@ -312,7 +418,8 @@
 }
 
 @media (max-width: 900px) {
-  .chartGrid {
+  .chartGrid,
+  .observationMetrics {
     grid-template-columns: 1fr;
   }
 }

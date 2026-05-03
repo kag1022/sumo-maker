@@ -202,6 +202,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       simulationModelVersion: normalizedModelVersion,
       selectedOyakataId: runOptions?.selectedOyakataId,
       observationRuleMode: runOptions?.observationRuleMode ?? 'STANDARD',
+      observationStanceId: runOptions?.observationStanceId,
       experimentPresetId: runOptions?.experimentPresetId,
     });
 
