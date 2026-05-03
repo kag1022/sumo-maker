@@ -608,6 +608,7 @@ const renderSection = ({
       detailState={detailState}
       detailBuildProgress={detailBuildProgress}
       observationPointsAwarded={currentCareerListItem?.observationPointsAwarded}
+      observationStanceId={currentCareerListItem?.observationStanceId}
       viewState={careerViewState}
       onSelectBasho={onSelectBasho}
       onViewStateChange={(patch) => onCareerViewStateChange((current) => ({ ...current, ...patch }))}

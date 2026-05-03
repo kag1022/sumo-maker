@@ -5,6 +5,7 @@ import {
   CollectionType,
   ExperimentPresetId,
   ObservationRuleMode,
+  ObservationStanceId,
   OyakataBlueprint,
   OyakataProfile,
   RikishiStatus,
@@ -606,6 +607,7 @@ export interface CreateDraftCareerParams {
   simulationModelVersion?: SimulationModelVersion;
   selectedOyakataId?: string | null;
   observationRuleMode?: ObservationRuleMode;
+  observationStanceId?: ObservationStanceId;
   experimentPresetId?: ExperimentPresetId;
 }
 
@@ -678,7 +680,9 @@ export interface CareerListItem {
   observerMemo?: string;
   observationPointsAwarded?: number;
   observationRuleMode?: ObservationRuleMode;
+  observationStanceId?: ObservationStanceId;
   experimentPresetId?: string;
+  finalStatus?: RikishiStatus;
 }
 
 const resolveNextYokozunaOrdinal = async (careerId: string): Promise<number> => {
@@ -739,6 +743,7 @@ export const createDraftCareer = async ({
   simulationModelVersion,
   selectedOyakataId,
   observationRuleMode,
+  observationStanceId,
   experimentPresetId,
 }: CreateDraftCareerParams): Promise<string> => {
   const careerId = id || crypto.randomUUID();
@@ -776,6 +781,7 @@ export const createDraftCareer = async ({
     parentCareerId,
     generation,
     observationRuleMode: observationRuleMode ?? 'STANDARD',
+    observationStanceId,
     experimentPresetId,
     careerIndex: nextCareerIndex,
     finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
@@ -1166,7 +1172,9 @@ const toCareerListItem = (row: CareerRow): CareerListItem => ({
   observerMemo: row.observerMemo,
   observationPointsAwarded: row.observationPointsAwarded,
   observationRuleMode: row.observationRuleMode,
+  observationStanceId: row.observationStanceId,
   experimentPresetId: row.experimentPresetId,
+  finalStatus: row.finalStatus,
   detailState: row.detailState ?? 'ready',
 });
 
