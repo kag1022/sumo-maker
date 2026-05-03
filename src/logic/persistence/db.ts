@@ -7,6 +7,7 @@ import {
   ExperimentPresetId,
   ObserverUpgradeId,
   ObservationRuleMode,
+  ObservationStanceId,
   WinRoute,
   OyakataProfile,
   Rank,
@@ -65,6 +66,7 @@ export interface CareerRow {
   observationPointsAwarded?: number;
   observationPointsGrantedAt?: string;
   observationRuleMode?: ObservationRuleMode;
+  observationStanceId?: ObservationStanceId;
   experimentPresetId?: ExperimentPresetId;
   collectionDeltaCount?: number;
   careerIndex?: number;
@@ -696,6 +698,31 @@ class SumoMakerDatabase extends Dexie {
     this.version(17).stores({
       careers:
         '&id, state, detailState, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex, clearScore, bestScoreRank, observationRuleMode',
+      bashoRecords:
+        '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+      boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+      importantTorikumi:
+        '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq], trigger',
+      meta: '&key, updatedAt',
+      banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+      banzukeDecisions:
+        '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+      simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+      walletTransactions: '&id, createdAt, reason, careerId',
+      careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+      collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+      adRewardLedger: '&id, [day+slot], day, type, createdAt',
+      oyakataProfiles: '&id, sourceCareerId',
+      generationTokenLedger: '&id, createdAt, reason, careerId',
+      observationPointLedger: '&id, createdAt, reason, careerId',
+      careerObservationClaims: '&careerId, claimedAt',
+      observerUpgrades: '&id, unlockedAt',
+      researchThemeProgress: '&id, completedAt, sourceCareerId',
+    });
+
+    this.version(18).stores({
+      careers:
+        '&id, state, detailState, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex, clearScore, bestScoreRank, observationRuleMode, observationStanceId',
       bashoRecords:
         '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
       boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
