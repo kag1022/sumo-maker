@@ -679,12 +679,29 @@ export type BuildIntent = 'YUSHO' | 'LONGEVITY' | 'COLLECTOR' | 'BALANCE';
 export type CareerSaveTag =
   | 'GREAT_RIKISHI'
   | 'UNFINISHED_TALENT'
+  | 'LATE_BLOOM_SUCCESS'
+  | 'INJURY_TRAGEDY'
   | 'TURBULENT_LIFE'
+  | 'STABLE_MAKUUCHI'
+  | 'JURYO_CRAFTSMAN'
+  | 'GENERATION_LEADER'
+  | 'RIVALRY_MEMORY'
+  | 'RARE_RECORD'
+  | 'FAVORITE'
   | 'MEMORABLE_SUPPORT'
   | 'UNEXPECTED'
   | 'RESEARCH_SAMPLE'
   | 'REREAD';
 export type ObservationRuleMode = 'STANDARD' | 'EXPERIMENT';
+export type ObservationStanceId =
+  | 'PROMOTION_EXPECTATION'
+  | 'LATE_BLOOM'
+  | 'STABILITY'
+  | 'TURBULENCE'
+  | 'RIVALRY'
+  | 'RARE_RECORD'
+  | 'INJURY_COMEBACK'
+  | 'LONGEVITY';
 export type ExperimentPresetId =
   | 'INJURY_LOW'
   | 'INJURY_HIGH'
@@ -768,6 +785,7 @@ export interface BuildSpecVNext {
 export interface SimulationRunOptions {
   selectedOyakataId?: string | null;
   observationRuleMode?: ObservationRuleMode;
+  observationStanceId?: ObservationStanceId;
   experimentPresetId?: ExperimentPresetId;
 }
 
