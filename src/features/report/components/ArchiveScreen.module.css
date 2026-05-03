@@ -43,6 +43,28 @@
   background: var(--surface-filter-active-bg);
 }
 
+.selectFilter {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--ui-text-sub);
+}
+
+.selectFilter span {
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-brand) / 0.68);
+}
+
+.selectFilter select {
+  width: 100%;
+  border: 1px solid var(--surface-filter-border);
+  background: var(--surface-filter-bg);
+  color: var(--ui-text-main);
+  padding: 0.62rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 .shelfHead {
   display: flex;
   align-items: flex-start;
@@ -208,6 +230,175 @@
   gap: 0.75rem;
 }
 
+.compareSelectors {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.compareBody {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.compareCommentBox {
+  display: flex;
+  gap: 0.75rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.18);
+  background: rgb(var(--twc-bg) / 0.34);
+  padding: 0.85rem 1rem;
+  color: var(--ui-text-sub);
+  line-height: 1.65;
+}
+
+.compareTable {
+  display: grid;
+  border: 1px solid rgb(var(--twc-brand) / 0.14);
+}
+
+.chartCompareGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.miniChart,
+.similarCard,
+.rivalCard {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background: rgb(var(--twc-bg) / 0.32);
+  padding: 0.9rem;
+}
+
+.miniChartHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  color: rgb(var(--twc-brand) / 0.78);
+}
+
+.miniChartHead em {
+  font-style: normal;
+  color: var(--ui-text-sub);
+}
+
+.miniChart svg {
+  width: 100%;
+  height: 170px;
+  overflow: visible;
+  border: 1px solid rgb(var(--twc-brand) / 0.1);
+  background: rgb(var(--twc-bg) / 0.24);
+}
+
+.chartGridLine {
+  stroke: rgb(var(--twc-brand) / 0.12);
+  stroke-dasharray: 4 6;
+}
+
+.chartLineLeft,
+.chartLineRight {
+  fill: none;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chartLineLeft {
+  stroke: rgb(var(--twc-brand));
+}
+
+.chartLineRight {
+  stroke: rgb(var(--twc-action));
+}
+
+.chartMarker {
+  fill: rgb(var(--twc-danger));
+  stroke: rgb(var(--twc-bg));
+  stroke-width: 1;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+}
+
+.chartLegend span[data-side="left"] {
+  color: rgb(var(--twc-brand));
+}
+
+.chartLegend span[data-side="right"] {
+  color: rgb(var(--twc-action));
+}
+
+.compareRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.1);
+}
+
+.compareRow:last-child {
+  border-bottom: 0;
+}
+
+.compareRow span {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  color: rgb(var(--twc-brand) / 0.7);
+}
+
+.compareRow strong {
+  color: var(--ui-text-main);
+  font-size: 0.86rem;
+}
+
+.compareRow[data-winner="left"] strong[data-side="left"],
+.compareRow[data-winner="right"] strong[data-side="right"] {
+  color: rgb(var(--twc-state-bright));
+}
+
+.similarList,
+.rivalCards {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.similarCard {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.similarCard .badges {
+  grid-column: 1 / -1;
+}
+
+.similarScore {
+  min-width: 3rem;
+  text-align: right;
+  font-family: "DotGothic16", monospace;
+  font-size: 1.7rem;
+  color: rgb(var(--twc-brand));
+}
+
+.rivalCard p {
+  color: var(--ui-text-sub);
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .layout {
     grid-template-columns: 240px 1fr;
@@ -241,5 +432,15 @@
   .shelfHead {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .compareSelectors,
+  .chartCompareGrid,
+  .compareRow {
+    grid-template-columns: 1fr;
+  }
+
+  .similarCard {
+    grid-template-columns: 1fr;
   }
 }
