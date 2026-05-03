@@ -7,6 +7,7 @@
 
 - 四股名、入門年齢、身長体重、入門経路、気質、体格、所属部屋の選択 UI
 - 選択内容を `src/logic/initialization.ts` / `src/logic/scout/` が要求する形へ整形
+- キャリア開始に必要な生成札の残数と回復時間を表示
 - 確定時に `simulation` feature の開始 API を呼ぶ
 
 ## 主要ファイル

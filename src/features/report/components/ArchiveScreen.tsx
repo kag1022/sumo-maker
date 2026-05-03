@@ -2,6 +2,7 @@ import React from "react";
 import { Archive, Search, Star, Trash2 } from "lucide-react";
 import { resolveCareerRecordBadgeLabel } from "../../../logic/career/clearScore";
 import { Rank } from "../../../logic/models";
+import type { CareerSaveTag, ObservationRuleMode } from "../../../logic/models";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
@@ -29,6 +30,10 @@ interface ArchiveItem {
   clearScore?: number;
   recordBadgeKeys?: string[];
   bestScoreRank?: number;
+  saveTags?: CareerSaveTag[];
+  observerMemo?: string;
+  observationPointsAwarded?: number;
+  observationRuleMode?: ObservationRuleMode;
 }
 
 interface ArchiveScreenProps {
@@ -37,7 +42,7 @@ interface ArchiveScreenProps {
   onDelete: (id: string) => void;
 }
 
-type ArchiveFilter = "ALL" | "YOKOZUNA" | "YUSHO";
+type ArchiveFilter = "ALL" | "YOKOZUNA" | "YUSHO" | "EXPERIMENT" | "TAGGED";
 type ArchiveSort = "RECENT" | "SCORE";
 
 const formatRankName = (rank: Rank): string => {
@@ -90,11 +95,14 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
     return items.filter((item) => {
       if (filter === "YOKOZUNA" && item.maxRank.name !== "横綱") return false;
       if (filter === "YUSHO" && item.yushoCount.makuuchi <= 0) return false;
+      if (filter === "EXPERIMENT" && item.observationRuleMode !== "EXPERIMENT") return false;
+      if (filter === "TAGGED" && !item.saveTags?.length) return false;
       if (!normalized) return true;
       return (
         item.shikona.includes(normalized) ||
         formatRankName(item.maxRank).includes(normalized) ||
-        (item.title ?? "").includes(normalized)
+        (item.title ?? "").includes(normalized) ||
+        (item.observerMemo ?? "").includes(normalized)
       );
     }).sort((left, right) => {
       if (sortBy === "SCORE") {
@@ -148,6 +156,16 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               id: "YOKOZUNA" as const,
               label: "横綱到達",
               count: items.filter((item) => item.maxRank.name === "横綱").length,
+            },
+            {
+              id: "TAGGED" as const,
+              label: "分類あり",
+              count: items.filter((item) => item.saveTags?.length).length,
+            },
+            {
+              id: "EXPERIMENT" as const,
+              label: "実験記録",
+              count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
             },
           ].map((entry) => (
             <button
@@ -224,6 +242,9 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 <div className={styles.cardRecord}>
                   {item.totalWins}勝 {item.totalLosses}敗{item.totalAbsent > 0 ? ` ${item.totalAbsent}休` : ""}
                 </div>
+                {item.saveTags?.length ? (
+                  <div className={styles.cardRecord}>分類 {item.saveTags.length}件</div>
+                ) : null}
               </button>
             ))}
           </div>
@@ -278,6 +299,25 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 ))}
               </div>
             )}
+
+            {!!selectedItem.saveTags?.length && (
+              <div className={styles.badges}>
+                {selectedItem.saveTags.map((tag) => (
+                  <span key={tag} className={styles.pill} data-tone="state">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {selectedItem.observerMemo ? (
+              <div className={styles.detailRows}>
+                <div className={styles.infoRow}>
+                  <span>観測メモ</span>
+                  <span>{selectedItem.observerMemo}</span>
+                </div>
+              </div>
+            ) : null}
 
             <div className={styles.detailRows}>
               <div className={styles.infoRow}>
