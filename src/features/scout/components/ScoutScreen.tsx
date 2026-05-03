@@ -117,6 +117,55 @@ const FieldLegend: React.FC<{
   </span>
 );
 
+const formatRegenTime = (seconds: number): string => {
+  if (seconds <= 0) return "回復待機なし";
+  const minutes = Math.ceil(seconds / 60);
+  return `次回札まで約${minutes}分`;
+};
+
+const ScoutResourceBoard: React.FC<{
+  generationTokens: GenerationTokenState | null;
+  observationPoints: ObservationPointState | null;
+}> = ({ generationTokens, observationPoints }) => {
+  const tokenCount = generationTokens?.tokens ?? 0;
+  const tokenCap = generationTokens?.cap ?? 5;
+  const tokenRatio = tokenCap > 0 ? Math.min(1, tokenCount / tokenCap) : 0;
+  const pointCount = observationPoints?.points ?? 0;
+  const nextRegen = generationTokens?.nextRegenInSec ?? 0;
+
+  return (
+    <div className={styles.resourceBoard}>
+      <div className={styles.resourceHeader}>
+        <span className={styles.sectionTitle}>観測資源</span>
+        <span className={styles.resourceTimer}>{formatRegenTime(nextRegen)}</span>
+      </div>
+      <div className={styles.resourceGrid}>
+        <div className={styles.resourceTile}>
+          <div className={styles.resourceIcon}>
+            <Ticket className="h-4 w-4" />
+          </div>
+          <div>
+            <span className={styles.metaLabel}>生成札</span>
+            <strong className={styles.resourceValue}>{tokenCount}/{tokenCap}</strong>
+          </div>
+        </div>
+        <div className={styles.resourceTile}>
+          <div className={styles.resourceIcon}>
+            <Eye className="h-4 w-4" />
+          </div>
+          <div>
+            <span className={styles.metaLabel}>観測点</span>
+            <strong className={styles.resourceValue}>{pointCount}</strong>
+          </div>
+        </div>
+      </div>
+      <div className={styles.tokenRail} aria-label="生成札の残数">
+        <span style={{ width: `${tokenRatio * 100}%` }} />
+      </div>
+    </div>
+  );
+};
+
 const ChoiceGrid = <T extends string>({
   value,
   options,
@@ -159,7 +208,7 @@ const SectionCard: React.FC<{
     <section className={styles.section} data-active={active}>
       <div className={styles.sectionHead}>
         <div>
-          <div className={styles.sectionStep}>区画 {STEP_ORDER.indexOf(step) + 1}</div>
+          <div className={styles.sectionStep}>SLOT {STEP_ORDER.indexOf(step) + 1}</div>
           <h2 className={styles.sectionTitleText}>{STEP_COPY[step].title}</h2>
           <p className={styles.sectionCopy}>{active ? STEP_COPY[step].body : summary}</p>
         </div>
@@ -194,33 +243,38 @@ const SectionCard: React.FC<{
 const ScoutHero: React.FC<{
   activeStep: ScoutStepId;
   onActivateStep: (step: ScoutStepId) => void;
-}> = ({ activeStep, onActivateStep }) => (
+  generationTokens: GenerationTokenState | null;
+  observationPoints: ObservationPointState | null;
+}> = ({ activeStep, onActivateStep, generationTokens, observationPoints }) => (
   <section className={styles.hero}>
     <div className={styles.heroCopy}>
-      <div className={styles.kicker}>新弟子設計</div>
-      <h1 className={styles.heroTitle}>入門の帳面を整える</h1>
+      <div className={styles.kicker}>新弟子生成卓</div>
+      <h1 className={styles.heroTitle}>候補札を鑑定して、相撲人生を観測に出す</h1>
       <p className={styles.heroDescription}>
-        入口の条件だけを決めます。相撲人生そのものは、このあと静かに立ち上がります。
+        入口の条件は札として選び、生成札を消費して一代記を走らせます。介入ではなく、観測前の設計です。
       </p>
     </div>
-    <div className={styles.progress} aria-label="設計の進行状況">
-      {STEP_ORDER.map((step) => {
-        const stepIndex = STEP_ORDER.indexOf(step);
-        const activeIndex = STEP_ORDER.indexOf(activeStep);
-        return (
-          <button
-            key={step}
-            type="button"
-            className={styles.progressStep}
-            data-active={step === activeStep}
-            data-complete={stepIndex < activeIndex}
-            onClick={() => onActivateStep(step)}
-          >
-            <span className={styles.progressNumber}>〇{stepIndex + 1}</span>
-            <span className={styles.progressLabel}>{STEP_COPY[step].title}</span>
-          </button>
-        );
-      })}
+    <div className={styles.heroPanel}>
+      <ScoutResourceBoard generationTokens={generationTokens} observationPoints={observationPoints} />
+      <div className={styles.progress} aria-label="設計の進行状況">
+        {STEP_ORDER.map((step) => {
+          const stepIndex = STEP_ORDER.indexOf(step);
+          const activeIndex = STEP_ORDER.indexOf(activeStep);
+          return (
+            <button
+              key={step}
+              type="button"
+              className={styles.progressStep}
+              data-active={step === activeStep}
+              data-complete={stepIndex < activeIndex}
+              onClick={() => onActivateStep(step)}
+            >
+              <span className={styles.progressNumber}>0{stepIndex + 1}</span>
+              <span className={styles.progressLabel}>{STEP_COPY[step].title}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   </section>
 );
@@ -243,7 +297,7 @@ const ScoutDecisionPanel: React.FC<{
         <h2 className={styles.decisionTitle}>この新弟子で始める</h2>
         <p className={styles.decisionCopy}>
           生成札 {tokenCount}/{tokenCap} / 観測点 {observationPoints?.points ?? 0}
-          {tokenCount <= 0 && nextRegen > 0 ? ` / 次回回復まで約${Math.ceil(nextRegen / 60)}分` : ""}
+          {tokenCount <= 0 && nextRegen > 0 ? ` / ${formatRegenTime(nextRegen)}` : ""}
         </p>
       </div>
       <Button size="lg" onClick={onRegister} disabled={disabled} className={styles.decisionButton}>
@@ -265,12 +319,19 @@ const ScoutCandidateShelf: React.FC<{
     <div className={styles.candidateShelfHead}>
       <div>
         <p className={styles.sectionTitle}>候補札</p>
-        <h2 className={styles.decisionTitle}>次の候補へ切り替える</h2>
+        <h2 className={styles.decisionTitle}>未鑑定の候補をめくる</h2>
         {mode === "mobile" ? (
-          <p className={styles.decisionCopy}>入力中の流れを止めずに、次の入口案へ差し替えます。</p>
+          <p className={styles.decisionCopy}>候補札だけを差し替えます。生成札は消費しません。</p>
         ) : null}
       </div>
     </div>
+    {mode === "desktop" ? (
+      <div className={styles.deckFace}>
+        <div className={styles.deckMark}>候</div>
+        <Sparkles className={styles.deckSpark} />
+        <span>生成前候補</span>
+      </div>
+    ) : null}
     <div className={styles.candidateActions}>
       <Button variant="outline" size="sm" onClick={onCycleCandidate} className={styles.candidateButton}>
         <RefreshCw className="mr-2 h-4 w-4" />
@@ -285,11 +346,13 @@ const ScoutEntryLedger: React.FC<{
   entryLabel: string;
   stableName: string;
   previewBodyType: ReturnType<typeof buildInitialRikishiFromDraft>["bodyType"];
+  previewBodyMetrics: ReturnType<typeof buildInitialRikishiFromDraft>["bodyMetrics"];
   mode: "desktop" | "mobile";
-}> = ({ draft, entryLabel, stableName, previewBodyType, mode }) => (
+  resolvedSeed: ReturnType<typeof buildScoutResolvedSeed>;
+}> = ({ draft, entryLabel, stableName, previewBodyType, previewBodyMetrics, mode, resolvedSeed }) => (
   <section className={mode === "desktop" ? cn(styles.previewPanel, styles.entryLedger) : styles.mobileLedger}>
     <div className={styles.entryLedgerHead}>
-      <p className={styles.sectionTitle}>{mode === "desktop" ? "入門帳" : "現在の入口"}</p>
+      <p className={styles.sectionTitle}>{mode === "desktop" ? "生成札プレビュー" : "現在の入口"}</p>
       <h2 className={cn(styles.entryLedgerName, mode === "mobile" && styles.entryLedgerNameMobile)}>
         {draft.shikona}
       </h2>
@@ -303,12 +366,22 @@ const ScoutEntryLedger: React.FC<{
         <div className={styles.entryLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
+            bodyMetrics={previewBodyMetrics}
+            stage="entry"
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
         </div>
         <div className={styles.entryLedgerNote}>
           {draft.personaLine ?? "どこで人生の輪郭が立つかは、まだ白紙です。"}
+        </div>
+        <div className={styles.observationTags}>
+          {[resolvedSeed.entryPathLabel, resolvedSeed.temperamentLabel, resolvedSeed.bodySeedLabel].map((label) => (
+            <span key={label}>
+              <CircleDot className="h-3 w-3" />
+              {label}
+            </span>
+          ))}
         </div>
         <div className={styles.entryLedgerRows}>
           {[
@@ -329,6 +402,8 @@ const ScoutEntryLedger: React.FC<{
         <div className={styles.mobileLedgerPortrait}>
           <RikishiPortrait
             bodyType={previewBodyType}
+            bodyMetrics={previewBodyMetrics}
+            stage="entry"
             className="h-full w-full"
             innerClassName="bg-transparent border-none p-0 shadow-none"
           />
@@ -336,6 +411,14 @@ const ScoutEntryLedger: React.FC<{
         <div className={styles.mobileLedgerCopy}>
           <div className={styles.entryLedgerNote}>
             {draft.personaLine ?? "どこで人生の輪郭が立つかは、まだ白紙です。"}
+          </div>
+          <div className={styles.observationTags}>
+            {[resolvedSeed.entryPathLabel, resolvedSeed.temperamentLabel].map((label) => (
+              <span key={label}>
+                <CircleDot className="h-3 w-3" />
+                {label}
+              </span>
+            ))}
           </div>
           <div className={styles.mobileLedgerGrid}>
             {[
@@ -642,13 +725,20 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
   if (isMobileViewport) {
     return (
       <div className={cn(styles.shell, styles.shellMobile)}>
-        <ScoutHero activeStep={activeStep} onActivateStep={setActiveStep} />
+        <ScoutHero
+          activeStep={activeStep}
+          onActivateStep={setActiveStep}
+          generationTokens={generationTokens}
+          observationPoints={observationPoints}
+        />
         <ScoutEntryLedger
           draft={draft}
           entryLabel={entryLabel}
           stableName={activeStable.displayName}
           previewBodyType={previewStatus.bodyType}
+          previewBodyMetrics={previewStatus.bodyMetrics}
           mode="mobile"
+          resolvedSeed={resolvedSeed}
         />
         <div className={styles.mobileMain}>
           {sections}
@@ -674,7 +764,12 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
 
   return (
     <div className={styles.shell}>
-      <ScoutHero activeStep={activeStep} onActivateStep={setActiveStep} />
+      <ScoutHero
+        activeStep={activeStep}
+        onActivateStep={setActiveStep}
+        generationTokens={generationTokens}
+        observationPoints={observationPoints}
+      />
 
       <div className={styles.layout}>
         <main className={styles.main}>
@@ -702,7 +797,9 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
             entryLabel={entryLabel}
             stableName={activeStable.displayName}
             previewBodyType={previewStatus.bodyType}
+            previewBodyMetrics={previewStatus.bodyMetrics}
             mode="desktop"
+            resolvedSeed={resolvedSeed}
           />
           <section className={styles.previewPanel}>
             <ScoutStatPreview status={previewStatus} />

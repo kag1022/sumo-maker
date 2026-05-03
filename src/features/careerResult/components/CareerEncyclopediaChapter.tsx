@@ -272,46 +272,49 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
   return (
     <section className={styles.shell}>
-      <div className={styles.hero}>
-        <div className={styles.copy}>
-          <p className={styles.label}>力士名鑑</p>
-          <h1 className={styles.name}>{status.shikona}</h1>
-          <div className={styles.rank}>{highestRankLabel}</div>
-          <div className={styles.origin}>
-            {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+      <div className={styles.cover}>
+        <div className={styles.hero}>
+          <div className={styles.copy}>
+            <p className={styles.label}>力士名鑑</p>
+            <h1 className={styles.name}>{status.shikona}</h1>
+            <div className={styles.rank}>{highestRankLabel}</div>
+            <div className={styles.origin}>
+              {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+            </div>
+            <p className={styles.summary}>
+              {memoLines[0] ?? overview.lifeSummary}
+            </p>
+            <div className={styles.summaryRow}>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>通算</span>
+                <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>勝率</span>
+                <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>在位</span>
+                <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryMetricLabel}>観測点</span>
+                <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
+              </div>
+            </div>
           </div>
-          <p className={styles.summary}>
-            {memoLines[0] ?? overview.lifeSummary}
-          </p>
-          <div className={styles.summaryRow}>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>通算</span>
-              <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>勝率</span>
-              <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>在位</span>
-              <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span className={styles.summaryMetricLabel}>観測点</span>
-              <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
-            </div>
-          </div>
-        </div>
 
-        <div className={styles.portraitDock}>
-          <RikishiPortrait
-            bodyType={status.bodyType}
-            className={styles.portrait}
-            innerClassName={styles.portraitInner}
-            presentation="blend"
-          />
+          <div className={styles.portraitDock}>
+            <RikishiPortrait
+              bodyType={status.bodyType}
+              bodyMetrics={status.bodyMetrics}
+              rank={status.history.maxRank}
+              className={styles.portrait}
+              innerClassName={styles.portraitInner}
+              presentation="blend"
+            />
+          </div>
         </div>
-      </div>
 
       <div className={styles.actions}>
         {!isSaved ? (
@@ -362,19 +365,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <Button variant="outline" onClick={onReturnToScout}>
                 保存せず次の新弟子へ
               </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存済み</div>
-              <div className={styles.text}>力士名鑑を起点に、番付推移と場所別でこの人生を掘り下げていきます。</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onReturnToScout}>
-              新弟子設計へ戻る
-            </Button>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.section}>
