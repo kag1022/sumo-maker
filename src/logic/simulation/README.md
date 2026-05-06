@@ -74,6 +74,8 @@ runtime API を唯一の入口として使います。
 - tests / reports の長期分布観測は `observation/` を入口にする
 - `LeagueState` を rank / headcount / vacancy の source of truth として扱う
 - `LeagueState` の組み立ては `leagueState.ts` に集約し、`runtime.ts` に world 走査を戻さない
+- 場所ごとの可変 headcount は `scaleSlots` として banzuke に渡し、表示 rank label と内部 rankIndex を分けて扱う
+- 下位番付の成績移動、新弟子流入圧、空き圧、境界投影は banzuke decision log の診断値として観測・report へ渡す
 - `DomainEvent` を narrative / report / logic lab の共有語彙とする
 - worker は章判定や観測文言を直接所有せず、`runtimeNarrative.ts` の結果を protocol に詰める
 - orchestration 層に係数や policy 判定を追加しない

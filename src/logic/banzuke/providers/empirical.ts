@@ -266,6 +266,51 @@ const resolveMinimumDemotionSlots = (
   if (deficit >= 2) return 1;
   return 0;
 };
+
+const resolveMinimumPromotionSlots = (
+  division: string,
+  rankNumber: number | undefined,
+  divisionTotalSlots: number | undefined,
+  wins: number,
+  losses: number,
+  absent: number,
+): number => {
+  const effectiveLosses = resolveEffectiveLosses(losses, absent);
+  const diff = wins - effectiveLosses;
+  if (diff <= 0 || absent >= 7) return 0;
+  if (division !== 'Makushita' && division !== 'Sandanme' && division !== 'Jonidan' && division !== 'Jonokuchi') {
+    return 0;
+  }
+
+  const totalDivisionSlots = Math.max(2, divisionTotalSlots ?? 0);
+  const maxNumber = Math.max(1, Math.ceil(totalDivisionSlots / 2));
+  const number = clamp(rankNumber ?? maxNumber, 1, maxNumber);
+  const progress = maxNumber <= 1 ? 0 : (number - 1) / (maxNumber - 1);
+  const bottomBonus =
+    division === 'Jonokuchi' || division === 'Jonidan'
+      ? progress >= 0.9
+        ? 4
+        : progress >= 0.65
+          ? 2
+          : 0
+      : 0;
+  const baseByWins: Record<number, number> = {
+    4: 2,
+    5: 8,
+    6: 16,
+    7: 28,
+  };
+  const divisionMultiplier =
+    division === 'Makushita'
+      ? 0.7
+      : division === 'Sandanme'
+        ? 0.9
+        : division === 'Jonidan'
+          ? 1.1
+          : 1.0;
+  return Math.max(1, Math.round(((baseByWins[wins] ?? diff * 2) + bottomBonus) * divisionMultiplier));
+};
+
 const EMPIRICAL_RECORD_AWARE_SAMPLE_SIZE_MIN = 1;
 
 export const resolveBottomTailReliefSlots = ({
@@ -407,6 +452,21 @@ export const resolveEmpiricalSlotBand = (
   if (bottomTailReliefSlots > 0) {
     expectedSlot = clamp(expectedSlot - bottomTailReliefSlots, 1, totalSlots);
     minSlot = Math.min(minSlot, expectedSlot);
+  }
+
+  const minimumPromotionSlots = resolveMinimumPromotionSlots(
+    division,
+    rankNumber,
+    divisionTotalSlots,
+    wins,
+    losses,
+    absent,
+  );
+  if (minimumPromotionSlots > 0 && currentSlot > 1) {
+    const promotionCeiling = clamp(currentSlot - minimumPromotionSlots, 1, totalSlots);
+    maxSlot = Math.min(maxSlot, promotionCeiling);
+    minSlot = Math.min(minSlot, maxSlot);
+    expectedSlot = Math.min(expectedSlot, maxSlot);
   }
 
   const minimumDemotionSlots = Math.max(

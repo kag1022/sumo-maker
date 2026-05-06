@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
-import { Rank } from '../../src/logic/models';
+import { Rank, RankScaleSlots } from '../../src/logic/models';
 import { getRankValueForChart } from '../../src/logic/ranking/rankScore';
 import { runCareerObservation } from '../../src/logic/simulation/observation';
 import { BanzukeDecisionLog } from '../../src/logic/banzuke';
@@ -23,13 +23,25 @@ interface MovementObservation {
   rankBand: RankBand;
   record: RecordBucket;
   movement: number;
+  recordMovement: number;
+  pressureMovement: number;
+  boundaryProjection: number;
   stayed: boolean;
   kachikoshiButNoPromotion: boolean;
   makekoshiButNoDemotion: boolean;
   promotionToNextDivision: boolean;
   fallbackApplied: boolean;
   unresolvedTargetRank: boolean;
+  newRecruitPressureApplied: boolean;
+  vacancyPressureApplied: boolean;
+  rankScaleExtension: boolean;
+  boundaryProjectionApplied: boolean;
+  dynamicScaleResolved: boolean;
+  makekoshiPromotionWithPressure: boolean;
+  kachikoshiRewardLost: boolean;
+  kachikoshiRewardPreserved: boolean;
   fallbackReasons: string[];
+  movementReasons: string[];
   beforeRank: string;
   proposedRank: string;
   afterRank: string;
@@ -45,6 +57,10 @@ interface SummaryRow {
   record: RecordBucket;
   sample: number;
   averageMovement: number;
+  recordMovementAverage: number;
+  pressureMovementAverage: number;
+  boundaryProjectionAverage: number;
+  finalMovementAverage: number;
   p10Movement: number;
   p50Movement: number;
   p90Movement: number;
@@ -54,6 +70,14 @@ interface SummaryRow {
   promotionToNextDivisionRate: number;
   fallbackAppliedRate: number;
   unresolvedTargetRankRate: number;
+  newRecruitPressureAppliedRate: number;
+  vacancyPressureAppliedRate: number;
+  rankScaleExtensionRate: number;
+  boundaryProjectionRate: number;
+  dynamicScaleResolvedRate: number;
+  makekoshiPromotionWithPressureRate: number;
+  kachikoshiRewardLostRate: number;
+  kachikoshiRewardPreservedRate: number;
   fallbackReasons: Record<string, number>;
 }
 
@@ -106,26 +130,26 @@ const toRankLabel = (rank: Rank): string => {
   return `${rank.name}${side}`;
 };
 
-const toLowerHalfStep = (rank: Rank): number => {
+const toLowerHalfStep = (rank: Rank, scaleSlots?: RankScaleSlots): number => {
   if (!isLowerDivision(rank.division)) return getRankValueForChart(rank) * 2 + (rank.side === 'West' ? 1 : 0);
-  const offsets = resolveLowerDivisionOffset();
+  const offsets = resolveLowerDivisionOffset(scaleSlots);
   return offsets[rank.division] + ((rank.number ?? 1) - 1) * 2 + (rank.side === 'West' ? 1 : 0);
 };
 
 const compareDivision = (before: Rank['division'], after: Rank['division']): number =>
   DIVISION_ORDER.indexOf(before) - DIVISION_ORDER.indexOf(after);
 
-const resolveMovement = (before: Rank, after: Rank): number => {
+const resolveMovement = (before: Rank, after: Rank, scaleSlots?: RankScaleSlots): number => {
   if (isLowerDivision(before.division) && isLowerDivision(after.division)) {
-    return toLowerHalfStep(before) - toLowerHalfStep(after);
+    return toLowerHalfStep(before, scaleSlots) - toLowerHalfStep(after, scaleSlots);
   }
   return (getRankValueForChart(before) * 2 + (before.side === 'West' ? 1 : 0)) -
     (getRankValueForChart(after) * 2 + (after.side === 'West' ? 1 : 0));
 };
 
-const resolveRankBand = (rank: Rank): RankBand => {
+const resolveRankBand = (rank: Rank, scaleSlots?: RankScaleSlots): RankBand => {
   if (!isLowerDivision(rank.division)) return 'middle';
-  const max = resolveLowerDivisionMax()[rank.division];
+  const max = resolveLowerDivisionMax(scaleSlots)[rank.division];
   const progress = ((rank.number ?? max) - 1) / Math.max(1, max - 1);
   if (progress < 0.25) return 'upper';
   if (progress < 0.65) return 'middle';
@@ -139,11 +163,11 @@ const resolveRecordBucket = (wins: number, losses: number, absent: number): Reco
   return RECORD_BUCKETS.includes(key as RecordBucket) ? key as RecordBucket : null;
 };
 
-const isRankInsideKnownScale = (rank: Rank): boolean => {
+const isRankInsideKnownScale = (rank: Rank, scaleSlots?: RankScaleSlots): boolean => {
   if (!isLowerDivision(rank.division)) return true;
   const number = rank.number ?? Number.NaN;
   if (!Number.isFinite(number)) return false;
-  const max = resolveLowerDivisionMax()[rank.division];
+  const max = resolveLowerDivisionMax(scaleSlots)[rank.division];
   return number >= 1 && number <= max;
 };
 
@@ -178,8 +202,15 @@ const observeSeed = async (seed: number): Promise<WorkerResult> => {
     const decision = frame.banzukeDecisions?.find((entry) => entry.rikishiId === 'PLAYER');
     const after = decision?.finalRank ?? frame.rank;
     const proposed = decision?.proposedRank ?? after;
-    const movement = resolveMovement(before, after);
+    const movement = decision?.lowerMovementDiagnostics?.finalMovement ??
+      resolveMovement(before, after, frame.record.scaleSlots);
+    const recordMovement = decision?.lowerMovementDiagnostics?.recordMovement ?? movement;
+    const pressureMovement =
+      (decision?.lowerMovementDiagnostics?.newRecruitPressure ?? 0) +
+      (decision?.lowerMovementDiagnostics?.vacancyPressure ?? 0);
+    const boundaryProjection = decision?.lowerMovementDiagnostics?.boundaryProjection ?? 0;
     const fallbackReasons = resolveFallbackReasons(decision);
+    const movementReasons = decision?.lowerMovementDiagnostics?.reasonCodes ?? [];
     const divisionDelta = compareDivision(before.division, after.division);
     const isKachikoshi = frame.record.wins > frame.record.losses + frame.record.absent;
     const isMakekoshi = frame.record.wins < frame.record.losses + frame.record.absent;
@@ -188,16 +219,36 @@ const observeSeed = async (seed: number): Promise<WorkerResult> => {
       seed,
       seq: frame.seq,
       division: before.division,
-      rankBand: resolveRankBand(before),
+      rankBand: resolveRankBand(before, frame.record.scaleSlots),
       record,
       movement,
+      recordMovement,
+      pressureMovement,
+      boundaryProjection,
       stayed: movement === 0,
       kachikoshiButNoPromotion: isKachikoshi && movement <= 0,
       makekoshiButNoDemotion: isMakekoshi && movement >= 0,
       promotionToNextDivision: divisionDelta > 0,
       fallbackApplied: fallbackReasons.length > 0,
-      unresolvedTargetRank: !isRankInsideKnownScale(proposed) || !isRankInsideKnownScale(after),
+      unresolvedTargetRank:
+        !(decision?.lowerMovementDiagnostics?.dynamicScaleResolved ?? false) &&
+        (
+          !isRankInsideKnownScale(proposed, frame.record.scaleSlots) ||
+          !isRankInsideKnownScale(after, frame.record.scaleSlots)
+        ),
+      newRecruitPressureApplied: (decision?.lowerMovementDiagnostics?.newRecruitPressure ?? 0) !== 0,
+      vacancyPressureApplied: (decision?.lowerMovementDiagnostics?.vacancyPressure ?? 0) !== 0,
+      rankScaleExtension: decision?.lowerMovementDiagnostics?.rankScaleExtended ?? false,
+      boundaryProjectionApplied: decision?.lowerMovementDiagnostics?.boundaryProjectionApplied ?? false,
+      dynamicScaleResolved: decision?.lowerMovementDiagnostics?.dynamicScaleResolved ?? false,
+      makekoshiPromotionWithPressure:
+        decision?.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE') ?? false,
+      kachikoshiRewardLost:
+        decision?.lowerMovementDiagnostics?.reasonCodes.includes('KACHIKOSHI_REWARD_LOST') ?? false,
+      kachikoshiRewardPreserved:
+        decision?.lowerMovementDiagnostics?.reasonCodes.includes('KACHIKOSHI_REWARD_PRESERVED') ?? false,
       fallbackReasons,
+      movementReasons,
       beforeRank: toRankLabel(before),
       proposedRank: toRankLabel(proposed),
       afterRank: toRankLabel(after),
@@ -227,6 +278,9 @@ const summarizeGroup = (
   rows: MovementObservation[],
 ): SummaryRow => {
   const movements = rows.map((row) => row.movement);
+  const recordMovements = rows.map((row) => row.recordMovement);
+  const pressureMovements = rows.map((row) => row.pressureMovement);
+  const boundaryProjections = rows.map((row) => row.boundaryProjection);
   const fallbackReasons: Record<string, number> = {};
   for (const row of rows) {
     for (const reason of row.fallbackReasons) {
@@ -239,6 +293,10 @@ const summarizeGroup = (
     record,
     sample: rows.length,
     averageMovement: mean(movements),
+    recordMovementAverage: mean(recordMovements),
+    pressureMovementAverage: mean(pressureMovements),
+    boundaryProjectionAverage: mean(boundaryProjections),
+    finalMovementAverage: mean(movements),
     p10Movement: percentile(movements, 0.1),
     p50Movement: percentile(movements, 0.5),
     p90Movement: percentile(movements, 0.9),
@@ -248,6 +306,14 @@ const summarizeGroup = (
     promotionToNextDivisionRate: rate(rows, (row) => row.promotionToNextDivision),
     fallbackAppliedRate: rate(rows, (row) => row.fallbackApplied),
     unresolvedTargetRankRate: rate(rows, (row) => row.unresolvedTargetRank),
+    newRecruitPressureAppliedRate: rate(rows, (row) => row.newRecruitPressureApplied),
+    vacancyPressureAppliedRate: rate(rows, (row) => row.vacancyPressureApplied),
+    rankScaleExtensionRate: rate(rows, (row) => row.rankScaleExtension),
+    boundaryProjectionRate: rate(rows, (row) => row.boundaryProjectionApplied),
+    dynamicScaleResolvedRate: rate(rows, (row) => row.dynamicScaleResolved),
+    makekoshiPromotionWithPressureRate: rate(rows, (row) => row.makekoshiPromotionWithPressure),
+    kachikoshiRewardLostRate: rate(rows, (row) => row.kachikoshiRewardLost),
+    kachikoshiRewardPreservedRate: rate(rows, (row) => row.kachikoshiRewardPreserved),
     fallbackReasons,
   };
 };
@@ -273,7 +339,7 @@ const buildSummary = (observations: MovementObservation[], seeds: number, worker
       seeds,
       observations: observations.length,
       workerCount,
-      note: 'movement は半枚単位。正の値が昇進、負の値が降下。fallbackApplied は既存 decision log で観測可能な REVIEW/RULE_OVERRIDE/BOUNDARY/AUDIT_FALLBACK_LEGACY のみを数える。',
+      note: 'movement は半枚単位。正の値が昇進、負の値が降下。record/pressure/boundary は decision log の lowerMovementDiagnostics から読む。',
     },
     rows,
     focusJonokuchiBottomKachikoshi: rows.filter((row) =>
@@ -298,6 +364,10 @@ const renderRow = (row: SummaryRow): string =>
     row.record,
     row.sample.toString(),
     formatNumber(row.averageMovement),
+    formatNumber(row.recordMovementAverage),
+    formatNumber(row.pressureMovementAverage),
+    formatNumber(row.boundaryProjectionAverage),
+    formatNumber(row.finalMovementAverage),
     formatNumber(row.p10Movement),
     formatNumber(row.p50Movement),
     formatNumber(row.p90Movement),
@@ -307,12 +377,20 @@ const renderRow = (row: SummaryRow): string =>
     formatRate(row.promotionToNextDivisionRate),
     formatRate(row.fallbackAppliedRate),
     formatRate(row.unresolvedTargetRankRate),
+    formatRate(row.newRecruitPressureAppliedRate),
+    formatRate(row.vacancyPressureAppliedRate),
+    formatRate(row.rankScaleExtensionRate),
+    formatRate(row.boundaryProjectionRate),
+    formatRate(row.dynamicScaleResolvedRate),
+    formatRate(row.makekoshiPromotionWithPressureRate),
+    formatRate(row.kachikoshiRewardLostRate),
+    formatRate(row.kachikoshiRewardPreservedRate),
     Object.entries(row.fallbackReasons).map(([key, count]) => `${key}:${count}`).join(' / ') || '-',
   ].join(' | ');
 
 const renderReport = (payload: ReportPayload): string => {
-  const header = 'division | rankBand | record | sample | avg | p10 | p50 | p90 | stay | KK no promo | MK no demotion | next division | fallback | unresolved | fallback reasons';
-  const separator = '--- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---';
+  const header = 'division | rankBand | record | sample | avg | recordAvg | pressureAvg | boundaryAvg | finalAvg | p10 | p50 | p90 | stay | KK no promo | MK no demotion | next division | fallback | unresolved | newRecruit | vacancy | scaleExt | boundaryProj | dynamicScale | MK pressure promo | KK lost | KK preserved | fallback reasons';
+  const separator = '--- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---';
   const lines = [
     '# 下位番付移動 Audit',
     '',
@@ -348,7 +426,7 @@ const renderReport = (payload: ReportPayload): string => {
     ...(
       payload.fallbackSamples.length
         ? payload.fallbackSamples.map((row) =>
-          `- seed ${row.seed} seq ${row.seq}: ${row.beforeRank} ${row.record} -> ${row.afterRank} (${row.fallbackReasons.join(', ')})`)
+          `- seed ${row.seed} seq ${row.seq}: ${row.beforeRank} ${row.record} -> ${row.afterRank} (${row.fallbackReasons.join(', ')} / movement: ${row.movementReasons.join(', ') || '-'})`)
         : ['- なし']
     ),
     '',

@@ -30,13 +30,38 @@ export type BanzukeDecisionReasonCode =
   | 'REVIEW_BOUNDARY_SLOT_JAM_NOTED'
   | 'AUDIT_PASS'
   | 'AUDIT_CONSTRAINT_HIT'
-  | 'AUDIT_FALLBACK_LEGACY';
+  | 'AUDIT_FALLBACK_LEGACY'
+  | 'RECORD_PROMOTION'
+  | 'RECORD_DEMOTION'
+  | 'NEW_RECRUIT_PRESSURE'
+  | 'VACANCY_PULL'
+  | 'BOTTOM_CLAMP'
+  | 'BOUNDARY_PROJECTION'
+  | 'RANK_SCALE_EXTENSION'
+  | 'KACHIKOSHI_REWARD_PRESERVED'
+  | 'KACHIKOSHI_REWARD_LOST'
+  | 'MAKEKOSHI_PROMOTION_BY_PRESSURE'
+  | 'VARIABLE_HEADCOUNT_PROJECTION'
+  | 'TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE';
+
+export interface LowerDivisionMovementDiagnostics {
+  recordMovement: number;
+  newRecruitPressure: number;
+  vacancyPressure: number;
+  boundaryProjection: number;
+  finalMovement: number;
+  reasonCodes: BanzukeDecisionReasonCode[];
+  dynamicScaleResolved: boolean;
+  rankScaleExtended: boolean;
+  boundaryProjectionApplied: boolean;
+}
 
 export interface RankChangeResult {
   nextRank: Rank;
   event?: string;
   isKadoban?: boolean;
   isOzekiReturn?: boolean;
+  lowerMovementDiagnostics?: LowerDivisionMovementDiagnostics;
 }
 
 export interface RankCalculationOptions {
@@ -152,6 +177,7 @@ export interface BanzukeDecisionLog {
     eventChanged: boolean;
   };
   votes?: BanzukeDecisionVote[];
+  lowerMovementDiagnostics?: LowerDivisionMovementDiagnostics;
 }
 
 export interface BanzukeDecisionResult extends RankChangeResult {
