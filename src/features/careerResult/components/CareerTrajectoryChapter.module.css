@@ -281,11 +281,243 @@
   color: rgb(var(--twc-text-faint) / 0.9);
 }
 
+.lifeLinePanel {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.78), rgb(var(--twc-bg) / 0.62)),
+    linear-gradient(90deg, rgb(var(--twc-brand) / 0.07), transparent 28%, rgb(var(--twc-award) / 0.06));
+  padding: 0.75rem;
+}
+
+.lifeLineHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+}
+
+.lifeLineHead h4 {
+  margin-top: 0.2rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.28rem;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.lifeLineHint {
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.72rem;
+}
+
+.lifeLineFrame {
+  height: 16.5rem;
+  min-width: 0;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), rgb(0 0 0 / 0.1)),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 44px),
+    rgb(var(--twc-bg) / 0.54);
+  overflow: hidden;
+}
+
+.lifeLineSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lifeLineGrid {
+  stroke: rgb(var(--twc-brand) / 0.13);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lifeLineAxis {
+  fill: rgb(var(--twc-text-bright) / 0.5);
+  font-family: "DotGothic16", monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.lifeLineArea {
+  fill: url("#careerLifeLineWash");
+}
+
+.lifeLineGhostPath {
+  fill: none;
+  stroke: rgb(var(--twc-text-faint) / 0.22);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.lifeLineSegment {
+  stroke: rgb(var(--twc-text-bright) / 0.42);
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 5px rgb(0 0 0 / 0.28));
+}
+
+.lifeLineSegment[data-tone="up"] {
+  stroke: rgb(var(--twc-action) / 0.86);
+}
+
+.lifeLineSegment[data-tone="down"] {
+  stroke: rgb(var(--twc-warning) / 0.82);
+}
+
+.lifeLineSegment[data-tone="flat"] {
+  stroke: rgb(var(--twc-text-bright) / 0.36);
+}
+
+.lifeLinePoint {
+  cursor: pointer;
+  outline: none;
+}
+
+.lifeLinePoint circle {
+  fill: rgb(var(--twc-bg) / 0.95);
+  stroke: rgb(var(--twc-text-bright) / 0.6);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: fill 140ms ease, stroke 140ms ease, r 140ms ease;
+}
+
+.lifeLinePoint:hover circle,
+.lifeLinePoint:focus-visible circle,
+.lifeLinePoint[data-selected="true"] circle {
+  fill: rgb(var(--twc-brand) / 0.92);
+  stroke: rgb(var(--twc-text) / 0.96);
+}
+
+.lifeLinePoint[data-peak="true"] circle,
+.lifeLinePoint[data-promoted="true"] circle {
+  fill: rgb(var(--twc-award) / 0.9);
+  stroke: rgb(var(--twc-text) / 0.98);
+  filter: drop-shadow(0 0 10px rgb(var(--twc-award) / 0.42));
+}
+
+.lifeLinePoint[data-big="true"]:not([data-promoted="true"]):not([data-peak="true"]) circle {
+  stroke: rgb(var(--twc-action) / 0.88);
+}
+
+.lifeLineLabelStem {
+  stroke: rgb(var(--twc-brand) / 0.34);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lifeLineLabel,
+.lifeLineDelta {
+  paint-order: stroke;
+  stroke: rgb(var(--twc-bg) / 0.96);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  fill: rgb(var(--twc-text) / 0.88);
+  font-family: "DotGothic16", monospace;
+  font-size: 11px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.lifeLineLabel {
+  fill: rgb(var(--twc-brand) / 0.92);
+}
+
+.lifeLineDelta[data-tone="up"] {
+  fill: rgb(var(--twc-action) / 0.9);
+}
+
+.lifeLineDelta[data-tone="down"] {
+  fill: rgb(var(--twc-warning) / 0.9);
+}
+
+.lifeLineDelta[data-tone="flat"] {
+  fill: rgb(var(--twc-text-bright) / 0.58);
+}
+
+.lifeLineEventRail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-height: 4.2rem;
+}
+
+.lifeLineEvent {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  min-height: 4.2rem;
+  max-height: 4.2rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg) / 0.42);
+  padding: 0.55rem 0.62rem;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.lifeLineEvent:hover,
+.lifeLineEvent[data-active="true"] {
+  border-color: rgb(var(--twc-brand) / 0.5);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.14), rgb(0 0 0 / 0.04)),
+    rgb(var(--twc-bg) / 0.5);
+  transform: translateY(-1px);
+}
+
+.lifeLineEvent[data-peak="true"],
+.lifeLineEvent[data-promoted="true"] {
+  border-color: rgb(var(--twc-award) / 0.45);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-award) / 0.7);
+}
+
+.lifeLineEvent span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: rgb(var(--twc-brand) / 0.86);
+  white-space: nowrap;
+}
+
+.lifeLineEvent[data-peak="true"] span,
+.lifeLineEvent[data-promoted="true"] span {
+  color: rgb(var(--twc-award) / 0.94);
+}
+
+.lifeLineEvent strong,
+.lifeLineEvent em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifeLineEvent strong {
+  color: rgb(var(--twc-text) / 0.92);
+  font-size: 0.78rem;
+}
+
+.lifeLineEvent em {
+  color: rgb(var(--twc-text-bright) / 0.56);
+  font-style: normal;
+  font-size: 0.68rem;
+}
+
 .yearSelector {
   display: grid;
   gap: 0.45rem;
   grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr));
+  max-height: 7.9rem;
+  margin-top: 0.25rem;
   margin-bottom: 0.8rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .yearSelectButton {
@@ -564,6 +796,10 @@
   display: grid;
   gap: 0.45rem;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  max-height: 9.4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .milestoneItem {
@@ -813,6 +1049,19 @@
     padding: 0.55rem;
   }
 
+  .lifeLineHead {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lifeLineFrame {
+    height: 15.5rem;
+  }
+
+  .lifeLineEventRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .bandIndex {
     grid-template-rows: 1.65rem repeat(10, minmax(2.1rem, 1fr));
   }
@@ -845,7 +1094,11 @@
   }
 
   .modeBar {
-    overflow-x: auto;
+    overflow-x: hidden;
     padding-bottom: 0.1rem;
+  }
+
+  .lifeLineEventRail {
+    grid-template-columns: 1fr;
   }
 }

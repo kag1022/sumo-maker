@@ -1,5 +1,5 @@
 import React from "react";
-import { BookUser, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
+import { Archive, BookUser, Check, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
 import {
@@ -38,6 +38,7 @@ interface CareerEncyclopediaChapterProps {
   observationStanceId?: ObservationStanceId;
   onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
+  onOpenArchive: () => void;
 }
 
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
@@ -126,8 +127,10 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   observationStanceId,
   onSave,
   onReturnToScout,
+  onOpenArchive,
 }) => {
   const [selectedSaveTags, setSelectedSaveTags] = React.useState<CareerSaveTag[]>([]);
+  const [saveState, setSaveState] = React.useState<"idle" | "saving" | "error">("idle");
   const analysis = React.useMemo(() => buildCareerAnalysisSummary(status), [status]);
   const stanceAnalysis = React.useMemo(
     () => buildCareerStanceAnalysis(analysis, observationStanceId),
@@ -252,6 +255,16 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         : [...current, tag],
     );
   }, []);
+  const handleSave = React.useCallback(async () => {
+    if (saveDisabled || saveState === "saving") return;
+    setSaveState("saving");
+    try {
+      await onSave({ saveTags: selectedSaveTags });
+      setSaveState("idle");
+    } catch {
+      setSaveState("error");
+    }
+  }, [onSave, saveDisabled, saveState, selectedSaveTags]);
 
   const kpiStats = React.useMemo(() => {
     const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
@@ -316,56 +329,82 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </div>
         </div>
 
-      <div className={styles.actions}>
-        {!isSaved ? (
-          <>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存判断</div>
-              <div className={styles.text}>{saveCopy}</div>
-              <div className={styles.saveReasonGrid}>
-                {analysis.saveRecommendation.reasons.map((reason) => (
-                  <div key={reason} className={styles.saveReason}>{reason}</div>
-                ))}
+        <div className={styles.actions}>
+          {!isSaved ? (
+            <>
+              <div className={styles.actionCopy}>
+                <div className={styles.label}>保存判断</div>
+                <div className={styles.text}>{saveCopy}</div>
+                <div className={styles.saveReasonGrid}>
+                  {analysis.saveRecommendation.reasons.map((reason) => (
+                    <div key={reason} className={styles.saveReason}>{reason}</div>
+                  ))}
+                </div>
+                {analysis.saveRecommendation.autoTags.length > 0 ? (
+                  <>
+                    <div className={styles.subtitle}>自動タグ候補</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {analysis.saveRecommendation.autoTags.map((tag) => (
+                        <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+                <div className={styles.subtitle}>手動保存タグ</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {SAVE_TAGS.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={styles.traitMeta}
+                      data-active={selectedSaveTags.includes(tag)}
+                      data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
+                      onClick={() => toggleSaveTag(tag)}
+                    >
+                      {MANUAL_SAVE_TAG_LABELS[tag]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {analysis.saveRecommendation.autoTags.length > 0 ? (
-                <>
-                  <div className={styles.subtitle}>自動タグ候補</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {analysis.saveRecommendation.autoTags.map((tag) => (
-                      <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-              <div className={styles.subtitle}>手動保存タグ</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {SAVE_TAGS.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={styles.traitMeta}
-                    data-active={selectedSaveTags.includes(tag)}
-                    data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
-                    onClick={() => toggleSaveTag(tag)}
-                  >
-                    {MANUAL_SAVE_TAG_LABELS[tag]}
-                  </button>
-                ))}
+              <div className={styles.actionButtons}>
+                <Button
+                  size="lg"
+                  disabled={saveDisabled || saveState === "saving"}
+                  onClick={() => void handleSave()}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存する"}
+                </Button>
+                <Button variant="outline" onClick={onReturnToScout}>
+                  保存せず次の新弟子へ
+                </Button>
+                {saveState === "error" ? (
+                  <div className={styles.saveError}>保存に失敗しました。記録整理が完了しているか確認してください。</div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className={styles.savedPanel}>
+              <div className={styles.savedIcon}>
+                <Check className="h-5 w-5" />
+              </div>
+              <div className={styles.actionCopy}>
+                <div className={styles.label}>保存完了</div>
+                <div className={styles.savedTitle}>この力士人生は保存済みです。</div>
+                <p className={styles.text}>
+                  保存済み記録から再読、比較、類似検索に進めます。ここで表示を空にする意味はないので、保存後も状態を明示します。
+                </p>
+              </div>
+              <div className={styles.actionButtons}>
+                <Button size="lg" onClick={onOpenArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  保存済み記録を開く
+                </Button>
+                <Button variant="outline" onClick={onReturnToScout}>
+                  次の新弟子へ
+                </Button>
               </div>
             </div>
-            <div className={styles.actionButtons}>
-              <Button
-                size="lg"
-                disabled={saveDisabled}
-                onClick={() => void onSave({ saveTags: selectedSaveTags })}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saveDisabled ? "記録整理中" : "この人生を保存する"}
-              </Button>
-              <Button variant="outline" onClick={onReturnToScout}>
-                保存せず次の新弟子へ
-              </Button>
-            </>
           )}
         </div>
       </div>
