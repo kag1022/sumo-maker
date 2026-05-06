@@ -276,6 +276,7 @@ export const composeNextBanzuke = (
         recordBucket: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.recordBucket,
         rankBand: input.entries.find((entry) => entry.id === committeeCase.id)?.options?.empiricalContext?.rankBand,
         overrideNames: resolveOverrideNames(committeeCase.proposalRank, finalRank, constraintHits, reasons),
+        lowerMovementDiagnostics: proposedChange.lowerMovementDiagnostics,
       },
     });
 
@@ -313,6 +314,7 @@ export const composeNextBanzuke = (
           proposedChange.nextRank.division !== finalRank.division,
       },
       votes: review?.votes,
+      lowerMovementDiagnostics: proposedChange.lowerMovementDiagnostics,
     });
   }
 

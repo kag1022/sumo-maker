@@ -3,7 +3,12 @@ import { RandomSource } from '../../simulation/deps';
 import { getRankValue } from '../../ranking/rankScore';
 import { resolveTopDivisionAssignedEventDetail } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
-import { RankCalculationOptions, RankChangeResult } from '../types';
+import {
+  BanzukeDecisionReasonCode,
+  LowerDivisionMovementDiagnostics,
+  RankCalculationOptions,
+  RankChangeResult,
+} from '../types';
 import {
   resolveMaxMakushitaDemotionNumber,
   resolveMakuuchiPromotionLandingNumber,
@@ -339,6 +344,47 @@ const isLowerDivision = (division: Rank['division']): division is LowerDivisionK
   division === 'Jonidan' ||
   division === 'Jonokuchi';
 
+const DEFAULT_LOWER_MAX_BY_DIVISION: Record<LowerDivisionKey, number> = {
+  Makushita: LIMITS.MAKUSHITA_MAX,
+  Sandanme: LIMITS.SANDANME_MAX,
+  Jonidan: LIMITS.JONIDAN_MAX,
+  Jonokuchi: LIMITS.JONOKUCHI_MAX,
+};
+
+const resolveDynamicLowerMax = (
+  division: LowerDivisionKey,
+  context: SlotContext,
+): number => {
+  if (division === 'Makushita') return context.limits.MAKUSHITA_MAX;
+  if (division === 'Sandanme') return context.limits.SANDANME_MAX;
+  if (division === 'Jonidan') return context.limits.JONIDAN_MAX;
+  return context.limits.JONOKUCHI_MAX;
+};
+
+const resolveLowerRankProgress = (
+  rank: Rank,
+  context: SlotContext,
+): number => {
+  if (!isLowerDivision(rank.division)) return 0;
+  const max = resolveDynamicLowerMax(rank.division, context);
+  return max <= 1 ? 0 : ((rank.number ?? max) - 1) / (max - 1);
+};
+
+const usesDynamicScaleExtension = (
+  rank: Rank,
+  context: SlotContext,
+): boolean => {
+  if (!isLowerDivision(rank.division) || typeof rank.number !== 'number') return false;
+  return (
+    rank.number > DEFAULT_LOWER_MAX_BY_DIVISION[rank.division] &&
+    rank.number <= resolveDynamicLowerMax(rank.division, context)
+  );
+};
+
+const isAtDynamicBottom = (rank: Rank, context: SlotContext): boolean =>
+  isLowerDivision(rank.division) &&
+  (rank.number ?? 1) >= resolveDynamicLowerMax(rank.division, context);
+
 const resolveLowerEmpiricalRankChange = (
   record: BashoRecord,
   options?: RankCalculationOptions,
@@ -410,6 +456,40 @@ const shouldApplyBoundaryAssignedRank = (
   );
 };
 
+const resolveMakekoshiPressurePromotionCap = (
+  currentRecord: BashoRecord,
+  context: SlotContext,
+): number => {
+  if (!isLowerDivision(currentRecord.rank.division)) return 0;
+  if (currentRecord.absent >= 7) return 0;
+  const progress = resolveLowerRankProgress(currentRecord.rank, context);
+  const lowerTailEligible =
+    currentRecord.rank.division === 'Jonokuchi' ||
+    currentRecord.rank.division === 'Jonidan'
+      ? progress >= 0.65
+      : false;
+  if (!lowerTailEligible) return 0;
+  const deficit = Math.max(1, totalLosses(currentRecord) - currentRecord.wins);
+  if (deficit <= 1) return currentRecord.rank.division === 'Jonokuchi' ? 72 : 54;
+  if (deficit === 2) return currentRecord.rank.division === 'Jonokuchi' ? 36 : 28;
+  if (deficit === 3) return currentRecord.rank.division === 'Jonokuchi' ? 20 : 14;
+  return currentRecord.rank.division === 'Jonokuchi' ? 8 : 4;
+};
+
+const isMakekoshiPressurePromotionAssignment = (
+  currentRecord: BashoRecord,
+  assignedRank: Rank,
+  context: SlotContext,
+): boolean => {
+  if (!isLowerDivision(currentRecord.rank.division) || !isLowerDivision(assignedRank.division)) return false;
+  if (currentRecord.wins >= totalLosses(currentRecord)) return false;
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const assignedSlot = resolveRankSlot(assignedRank, context);
+  if (assignedSlot >= currentSlot) return false;
+  const pressureCap = resolveMakekoshiPressurePromotionCap(currentRecord, context);
+  return pressureCap > 0 && currentSlot - assignedSlot <= pressureCap;
+};
+
 const isBoundaryAssignmentDirectionCompatible = (
   currentRecord: BashoRecord,
   assignedRank: Rank,
@@ -428,6 +508,7 @@ const isBoundaryAssignmentDirectionCompatible = (
     return assignedSlot < currentSlot;
   }
   if (wins < losses) {
+    if (isMakekoshiPressurePromotionAssignment(currentRecord, assignedRank, context)) return true;
     if (MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division)) {
       return assignedSlot > currentSlot;
     }
@@ -875,6 +956,76 @@ const calculateStandardRankChange = (
   return calculateLowerDivisionRankChange(record, options, rng);
 };
 
+const resolveLowerMovementDiagnostics = (
+  currentRecord: BashoRecord,
+  recordOnlyRank: Rank,
+  finalRank: Rank,
+  context: SlotContext,
+  boundaryAssigned: boolean,
+): LowerDivisionMovementDiagnostics | undefined => {
+  if (!isLowerDivision(currentRecord.rank.division)) return undefined;
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const recordSlot = resolveRankSlot(recordOnlyRank, context);
+  const finalSlot = resolveRankSlot(finalRank, context);
+  const rawRecordMovement = currentSlot - recordSlot;
+  const finalMovement = currentSlot - finalSlot;
+  const diff = scoreDiff(currentRecord);
+  const recordMovement =
+    diff < 0 && rawRecordMovement > 0
+      ? -resolveStrictDivisionDemotionGuardSlots(currentRecord)
+      : rawRecordMovement;
+  const residual = finalMovement - recordMovement;
+  const progress = resolveLowerRankProgress(currentRecord.rank, context);
+  const pressureLike =
+    residual > 0 &&
+    (
+      currentRecord.rank.division === 'Jonokuchi' ||
+      currentRecord.rank.division === 'Jonidan' ||
+      progress >= 0.9
+    );
+  const newRecruitPressure = pressureLike ? residual : 0;
+  const vacancyPressure = residual > 0 && !pressureLike ? residual : 0;
+  const boundaryProjection = residual < 0 ? residual : 0;
+  const rankScaleExtended =
+    usesDynamicScaleExtension(currentRecord.rank, context) ||
+    usesDynamicScaleExtension(recordOnlyRank, context) ||
+    usesDynamicScaleExtension(finalRank, context);
+  const dynamicScaleResolved =
+    rankScaleExtended ||
+    resolveDynamicLowerMax(currentRecord.rank.division, context) !==
+      DEFAULT_LOWER_MAX_BY_DIVISION[currentRecord.rank.division];
+  const boundaryProjectionApplied = boundaryAssigned || boundaryProjection !== 0 || rankScaleExtended;
+  const reasons = new Set<BanzukeDecisionReasonCode>();
+
+  if (diff > 0) reasons.add('RECORD_PROMOTION');
+  if (diff < 0) reasons.add('RECORD_DEMOTION');
+  if (newRecruitPressure !== 0) reasons.add('NEW_RECRUIT_PRESSURE');
+  if (vacancyPressure !== 0) reasons.add('VACANCY_PULL');
+  if (boundaryProjectionApplied) reasons.add('BOUNDARY_PROJECTION');
+  if (rankScaleExtended) reasons.add('RANK_SCALE_EXTENSION');
+  if (dynamicScaleResolved) {
+    reasons.add('VARIABLE_HEADCOUNT_PROJECTION');
+    reasons.add('TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE');
+  }
+  if (isAtDynamicBottom(finalRank, context) && finalMovement <= 0) reasons.add('BOTTOM_CLAMP');
+  if (diff > 0) {
+    reasons.add(finalMovement > 0 ? 'KACHIKOSHI_REWARD_PRESERVED' : 'KACHIKOSHI_REWARD_LOST');
+  }
+  if (diff < 0 && finalMovement > 0) reasons.add('MAKEKOSHI_PROMOTION_BY_PRESSURE');
+
+  return {
+    recordMovement,
+    newRecruitPressure,
+    vacancyPressure,
+    boundaryProjection,
+    finalMovement,
+    reasonCodes: [...reasons],
+    dynamicScaleResolved,
+    rankScaleExtended,
+    boundaryProjectionApplied,
+  };
+};
+
 /**
  * 次の場所の番付を計算（現実運用を強く意識した版）
  * @param currentRecord 今場所の成績
@@ -893,22 +1044,20 @@ export const calculateNextRank = (
   const slotContext = resolveSlotContext(options?.scaleSlots);
   const finalize = (
     result: { nextRank: Rank; event?: string; isKadoban?: boolean; isOzekiReturn?: boolean },
-    settings?: { skipDirectionGuards?: boolean },
-  ): RankChangeResult => ({
-    ...result,
-    isKadoban: result.isKadoban ?? false,
-    isOzekiReturn: result.isOzekiReturn ?? false,
-    ...(() => {
-      if (settings?.skipDirectionGuards) {
-        const floored = resolveYushoPromotionFloor(currentRecord, result.nextRank, slotContext);
-        const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
-        return {
-          event: floored.adjusted
-            ? inferredEvent
-            : result.event ?? inferredEvent,
-          nextRank: resolveNextRankSide(currentRecord, floored.nextRank, rng),
-        };
-      }
+    settings?: {
+      skipDirectionGuards?: boolean;
+      recordOnlyRank?: Rank;
+      boundaryAssigned?: boolean;
+    },
+  ): RankChangeResult => {
+    let nextRank: Rank;
+    let event: string | undefined;
+    if (settings?.skipDirectionGuards) {
+      const floored = resolveYushoPromotionFloor(currentRecord, result.nextRank, slotContext);
+      const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
+      event = floored.adjusted ? inferredEvent : result.event ?? inferredEvent;
+      nextRank = resolveNextRankSide(currentRecord, floored.nextRank, rng);
+    } else {
       const makekoshiGuarded = applyMakekoshiDirectionGuard(
         currentRecord,
         result.nextRank,
@@ -930,14 +1079,24 @@ export const calculateNextRank = (
         : result.event;
       const floored = resolveYushoPromotionFloor(currentRecord, guarded.nextRank, slotContext);
       const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
-      return {
-        event: floored.adjusted
-          ? inferredEvent
-          : adjustedEvent ?? inferredEvent,
-        nextRank: resolveNextRankSide(currentRecord, floored.nextRank, rng),
-      };
-    })(),
-  });
+      event = floored.adjusted ? inferredEvent : adjustedEvent ?? inferredEvent;
+      nextRank = resolveNextRankSide(currentRecord, floored.nextRank, rng);
+    }
+    return {
+      ...result,
+      nextRank,
+      event,
+      isKadoban: result.isKadoban ?? false,
+      isOzekiReturn: result.isOzekiReturn ?? false,
+      lowerMovementDiagnostics: resolveLowerMovementDiagnostics(
+        currentRecord,
+        settings?.recordOnlyRank ?? result.nextRank,
+        nextRank,
+        slotContext,
+        settings?.boundaryAssigned ?? false,
+      ),
+    };
+  };
 
   // 1. 横綱は陥落なし
   if (currentRank.name === '横綱') {
@@ -1042,9 +1201,19 @@ export const calculateNextRank = (
     if (!directionCompatible) {
       return finalize(calculateStandardRankChange(currentRecord, options, rng));
     }
+    const recordOnly = calculateStandardRankChange(currentRecord, options, rng);
+    const pressurePromotion = isMakekoshiPressurePromotionAssignment(
+      currentRecord,
+      assignedBoundaryRank,
+      slotContext,
+    );
     return finalize({
       nextRank: assignedBoundaryRank,
       event: resolveBoundaryAssignedEvent(currentRank, assignedBoundaryRank),
+    }, {
+      recordOnlyRank: recordOnly.nextRank,
+      boundaryAssigned: true,
+      skipDirectionGuards: pressurePromotion,
     });
   }
 
