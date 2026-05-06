@@ -1,5 +1,5 @@
 import React from "react";
-import { Archive, BookUser, Check, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
+import { Archive, BookUser, Check, Copy, ExternalLink, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
 import {
@@ -19,7 +19,8 @@ import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { StatCard } from "../../../shared/ui/StatCard";
 import { RankBadge } from "../../../shared/ui/RankBadge";
-import type { CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
+import type { CareerDesignReadingModel, CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
+import { FEEDBACK_FORM_URL, RELEASE_KNOWN_LIMITATIONS } from "../utils/releaseFeedback";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 import { WinRateTrendChart } from "./WinRateTrendChart";
 import { BodyWeightChart } from "./BodyWeightChart";
@@ -29,6 +30,7 @@ import styles from "./CareerEncyclopediaChapter.module.css";
 interface CareerEncyclopediaChapterProps {
   status: RikishiStatus;
   overview: CareerOverviewModel;
+  designReading: CareerDesignReadingModel;
   highestRankLabel: string;
   ledgerPoints?: CareerLedgerPoint[];
   isSaved: boolean;
@@ -63,6 +65,12 @@ const formatWinRate = (wins: number, losses: number): string => {
   const total = wins + losses;
   if (total <= 0) return "-";
   return `${((wins / total) * 100).toFixed(1)}%`;
+};
+
+const resolveRetirementReason = (status: RikishiStatus): string | null => {
+  const event = [...status.history.events].reverse().find((entry) => entry.type === "RETIREMENT");
+  if (!event) return null;
+  return event.description.replace(/^引退 \(/, "").replace(/\)$/, "") || null;
 };
 
 const InfoCard: React.FC<{
@@ -118,6 +126,7 @@ const SAVE_TAGS: CareerSaveTag[] = [
 export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
   status,
   overview,
+  designReading,
   highestRankLabel,
   ledgerPoints,
   isSaved,
@@ -131,6 +140,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 }) => {
   const [selectedSaveTags, setSelectedSaveTags] = React.useState<CareerSaveTag[]>([]);
   const [saveState, setSaveState] = React.useState<"idle" | "saving" | "error">("idle");
+  const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
   const analysis = React.useMemo(() => buildCareerAnalysisSummary(status), [status]);
   const stanceAnalysis = React.useMemo(
     () => buildCareerStanceAnalysis(analysis, observationStanceId),
@@ -142,6 +152,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const initial = status.buildSummary?.initialConditionSummary;
   const growth = status.buildSummary?.growthSummary;
   const narrative = status.careerNarrative;
+  const retirementReason = React.useMemo(() => resolveRetirementReason(status), [status]);
   const learnedTraits = React.useMemo(
     () =>
       (status.traitJourney ?? [])
@@ -161,8 +172,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         { label: "入門年齢", value: `${initial?.entryAge ?? status.entryAge}歳` },
         { label: "現在体格", value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg` },
         { label: "引退年齢", value: `${status.age}歳` },
-      ].filter((row) => Boolean(row.value)),
-    [highestRankLabel, initial?.birthplace, initial?.entryAge, initial?.stableName, overview.stableName, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
+        retirementReason ? { label: "引退理由", value: retirementReason } : null,
+      ].filter((row): row is { label: string; value: string } => Boolean(row?.value)),
+    [highestRankLabel, initial?.birthplace, initial?.entryAge, initial?.stableName, overview.stableName, retirementReason, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
   );
   const subProfileRows = React.useMemo(
     () =>
@@ -265,6 +277,15 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       setSaveState("error");
     }
   }, [onSave, saveDisabled, saveState, selectedSaveTags]);
+  const handleCopyReport = React.useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(designReading.feedbackReportText);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 1800);
+    } catch {
+      setCopyState("error");
+    }
+  }, [designReading.feedbackReportText]);
 
   const kpiStats = React.useMemo(() => {
     const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
@@ -296,6 +317,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             </div>
             <p className={styles.summary}>
               {memoLines[0] ?? overview.lifeSummary}
+            </p>
+            <p className={styles.playtestNote}>
+              稽古や取組を操作する育成ゲームではなく、設計した入口条件から力士のキャリアを観測するゲームです。
             </p>
             <div className={styles.summaryRow}>
               <div className={styles.summaryMetric}>
@@ -367,6 +391,17 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 </div>
               </div>
               <div className={styles.actionButtons}>
+                <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
+                </Button>
+                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                  <ExternalLink className="h-4 w-4" />
+                  フィードバックフォーム
+                </a>
+                {copyState === "error" ? (
+                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                ) : null}
                 <Button
                   size="lg"
                   disabled={saveDisabled || saveState === "saving"}
@@ -396,6 +431,17 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 </p>
               </div>
               <div className={styles.actionButtons}>
+                <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
+                </Button>
+                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                  <ExternalLink className="h-4 w-4" />
+                  フィードバックフォーム
+                </a>
+                {copyState === "error" ? (
+                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                ) : null}
                 <Button size="lg" onClick={onOpenArchive}>
                   <Archive className="mr-2 h-4 w-4" />
                   保存済み記録を開く
@@ -434,6 +480,63 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </div>
         </div>
       </div>
+
+      <div className={styles.section}>
+        <SectionHeading title="限定公開メモ" />
+        <div className={styles.releasePanel}>
+          <div>
+            <div className={styles.label}>テスター向け</div>
+            <p className={styles.text}>
+              結果の違和感、面白かったズレ、番付推移の不自然さは「結果情報をコピー」してフォームへ送ってください。
+            </p>
+          </div>
+          <div className={styles.limitList}>
+            {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
+              <span key={limitation}>{limitation}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {designReading.premiseRows.length > 0 || designReading.interpretationRows.length > 0 ? (
+        <div className={styles.section}>
+          <SectionHeading title="設計前提と発現" />
+          <div className={styles.designReadingHeader}>
+            <div>
+              <div className={styles.label}>設計読解</div>
+              <p className={styles.text}>入口で置いた前提、内部解釈、実際に残ったキャリア傾向を同じ行で読みます。</p>
+            </div>
+            {designReading.debugRows.length > 0 ? (
+              <div className={styles.debugStrip}>
+                {designReading.debugRows.map((row) => (
+                  <span key={row.label}>{row.label}: {row.value}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className={styles.designReadingTable}>
+            <div className={styles.designReadingTableHead}>
+              <span>軸</span>
+              <span>設計時の前提</span>
+              <span>システム解釈</span>
+              <span>実際の発現</span>
+            </div>
+            {(designReading.premiseRows.length > 0 ? designReading.premiseRows : designReading.interpretationRows).slice(0, 8).map((row) => (
+              <div key={`${row.label}-${row.designed}`} className={styles.designReadingRow}>
+                <span className={styles.designAxis}>{row.label}</span>
+                <p>{row.designed}</p>
+                <p>{row.interpreted}</p>
+                <p className={styles.designRealized}>{row.realized}</p>
+              </div>
+            ))}
+          </div>
+          <div className={styles.observationReasons}>
+            {designReading.divergenceLines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.section}>
         <SectionHeading title="名跡要覧" />

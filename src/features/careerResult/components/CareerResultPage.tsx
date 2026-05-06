@@ -15,6 +15,7 @@ import { CareerPlaceChapter } from "./CareerPlaceChapter";
 import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
 import {
   buildCareerLedgerModel,
+  buildCareerDesignReadingModel,
   buildCareerOverviewModel,
   buildCareerPlaceSummary,
   type CareerChapterId,
@@ -91,6 +92,10 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const ledger = React.useMemo(() => buildCareerLedgerModel(status, bashoRows), [bashoRows, status]);
   const overview = React.useMemo(() => buildCareerOverviewModel(status, bashoRows), [bashoRows, status]);
+  const designReading = React.useMemo(
+    () => buildCareerDesignReadingModel(status, { careerId }),
+    [careerId, status],
+  );
   const selectedPoint =
     ledger.points.find((point) => point.bashoSeq === viewState.selectedBashoSeq) ??
     ledger.points[ledger.points.length - 1] ??
@@ -241,6 +246,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
               <CareerEncyclopediaChapter
                 status={status}
                 overview={overview}
+                designReading={designReading}
                 highestRankLabel={highestRankLabel}
                 ledgerPoints={ledger.points}
                 isSaved={isSaved}

@@ -6,7 +6,13 @@ import {
   Rank,
   RikishiStatus,
 } from '../../models';
-import { buildInitialRikishiFromDraft, rollScoutDraft } from '../../scout/gacha';
+import {
+  buildInitialRikishiForObservationPopulation,
+  ObservationPopulationKind,
+  ObservationPopulationPreset,
+  resolveObservationPopulationMetadata,
+  summarizeInitialPopulationProfile,
+} from '../../scout/populations';
 import {
   ensureStyleIdentityProfile,
   resolveDisplayedStrengthStyles,
@@ -35,14 +41,17 @@ import {
   CareerObservationSummary,
   ObservationAptitudeLadder,
   ObservationBatchSummary,
+  ObservationDistributionSummary,
   ObservationStyleBucketSummary,
   SeasonObservationFrame,
 } from './types';
 
 const DEFAULT_START_YEAR = 2026;
+const DEFAULT_OBSERVATION_POPULATION_KIND: ObservationPopulationKind = 'player-scout-default';
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 const DEFAULT_EMPTY_WIN_RATE = 0.5;
 const TOP_DIVISION_NAMES = new Set(['横綱', '大関', '関脇', '小結']);
+const HIGHEST_RANK_BUCKETS = ['横綱', '大関', '三役', '前頭', '十両', '幕下', '三段目', '序二段', '序ノ口'] as const;
 const OFFICIAL_KIMARITE_MAP = new Map(
   listOfficialWinningKimariteCatalog().map((entry) => [entry.name, entry]),
 );
@@ -121,16 +130,17 @@ const applyAptitudeLadder = (ladder?: ObservationAptitudeLadder): (() => void) =
   };
 };
 
-const createUneditedScoutInitial = (seed: number, ladder?: ObservationAptitudeLadder): RikishiStatus => {
+const createObservationInitialStatus = (
+  seed: number,
+  ladder?: ObservationAptitudeLadder,
+  populationKind: ObservationPopulationKind = DEFAULT_OBSERVATION_POPULATION_KIND,
+  populationPreset?: ObservationPopulationPreset,
+): RikishiStatus => {
   const restore = applyAptitudeLadder(ladder);
   try {
     const draftRandom = createSeededRandom(seed ^ 0xa5a5a5a5);
     return withPatchedMathRandom(draftRandom, () => {
-      const draft = rollScoutDraft(draftRandom);
-      return buildInitialRikishiFromDraft({
-        ...draft,
-        selectedStableId: draft.selectedStableId ?? 'stable-001',
-      });
+      return buildInitialRikishiForObservationPopulation(populationKind, draftRandom, populationPreset);
     });
   } finally {
     restore();
@@ -152,6 +162,40 @@ const isMakuuchiRank = (rank: Rank): boolean => rank.division === 'Makuuchi';
 const isSanyakuRank = (rank: Rank): boolean => rank.division === 'Makuuchi' && TOP_DIVISION_NAMES.has(rank.name);
 const isOzekiRank = (rank: Rank): boolean => rank.division === 'Makuuchi' && (rank.name === '大関' || rank.name === '横綱');
 const isYokozunaRank = (rank: Rank): boolean => rank.division === 'Makuuchi' && rank.name === '横綱';
+
+const resolveHighestRankBucket = (rank: Rank): string => {
+  if (rank.division === 'Makuuchi') {
+    if (rank.name === '横綱') return '横綱';
+    if (rank.name === '大関') return '大関';
+    if (rank.name === '関脇' || rank.name === '小結') return '三役';
+    return '前頭';
+  }
+  if (rank.division === 'Juryo') return '十両';
+  if (rank.division === 'Makushita') return '幕下';
+  if (rank.division === 'Sandanme') return '三段目';
+  if (rank.division === 'Jonidan') return '序二段';
+  return '序ノ口';
+};
+
+const resolveScheduledBouts = (rank: Rank): number =>
+  rank.division === 'Makuuchi' || rank.division === 'Juryo' ? 15 : 7;
+
+const resolveRetirementReasonLabel = (records: RikishiStatus['history']['events']): string => {
+  const event = records.slice().reverse().find((entry) => entry.type === 'RETIREMENT');
+  if (!event) return '理由不明';
+  return event.description.replace(/^引退 \(/, '').replace(/\)$/, '') || '理由不明';
+};
+
+const resolveRetirementReasonCode = (label: string): string => {
+  if (/古傷|慢性的な故障/.test(label)) return 'CHRONIC_INJURY';
+  if (/長期休場|度重なる怪我/.test(label)) return 'CONSECUTIVE_ABSENCE';
+  if (/怪我の回復/.test(label)) return 'SEVERE_INJURY';
+  if (/連続負け越し/.test(label)) return 'MAKEKOSHI_STREAK';
+  if (/関取復帰/.test(label)) return 'FORMER_SEKITORI_DROP';
+  if (/気力/.test(label)) return 'SPIRIT';
+  if (/体力/.test(label)) return 'AGE_OR_BODY_LIMIT';
+  return 'OTHER';
+};
 
 const resolveStyleBucketFromFamily = (family: string): 'PUSH' | 'GRAPPLE' | 'TECHNIQUE' => {
   if (family === 'PUSH_THRUST') return 'PUSH';
@@ -374,12 +418,25 @@ export const summarizeCareerObservation = (
     if (!blockReason) continue;
     blockedReasons[blockReason] = (blockedReasons[blockReason] ?? 0) + 1;
   }
+  const firstSekitoriRecordIndex = records.findIndex((record) => isSekitoriRank(record.rank));
+  const sekitoriRecords = records.filter((record) => isSekitoriRank(record.rank));
+  const makuuchiRecords = records.filter((record) => isMakuuchiRank(record.rank));
+  const fullAbsenceBashoCount = records.filter((record) => record.absent >= resolveScheduledBouts(record.rank)).length;
+  const latestRecord = records[records.length - 1];
+  const retirementReasonLabel = resolveRetirementReasonLabel(status.history.events);
+  const retirementReasonCode = resolveRetirementReasonCode(retirementReasonLabel);
 
   return {
     seed: result.seed,
     startYear: result.startYear,
     modelVersion: result.modelVersion,
     bundleId: result.runtime.bundle.id,
+    population: resolveObservationPopulationMetadata(result.populationKind, result.populationPreset),
+    initialPopulation: summarizeInitialPopulationProfile(
+      result.populationKind,
+      result.populationPreset,
+      result.initialStatus,
+    ),
     aptitudeTier: status.aptitudeTier ?? 'B',
     rankOutcome: {
       isSekitori: isSekitoriRank(status.history.maxRank),
@@ -388,6 +445,7 @@ export const summarizeCareerObservation = (
       isOzeki: isOzekiRank(status.history.maxRank),
       isYokozuna: isYokozunaRank(status.history.maxRank),
       maxRank: status.history.maxRank,
+      highestRankBucket: resolveHighestRankBucket(status.history.maxRank),
     },
     careerOutcome: {
       wins: status.history.totalWins,
@@ -403,6 +461,14 @@ export const summarizeCareerObservation = (
       ),
       pooledWinRate: status.history.totalWins / Math.max(1, status.history.totalWins + status.history.totalLosses),
       losingCareer: status.history.totalWins < status.history.totalLosses + status.history.totalAbsent,
+      entryAge: result.initialStatus.entryAge,
+      firstSekitoriBasho: firstSekitoriRecordIndex >= 0 ? firstSekitoriRecordIndex + 1 : undefined,
+      sekitoriBashoCount: sekitoriRecords.length,
+      makuuchiBashoCount: makuuchiRecords.length,
+      fullAbsenceBashoCount,
+      retirementReasonCode,
+      retirementReasonLabel,
+      retiredAfterKachikoshi: latestRecord ? latestRecord.wins > latestRecord.losses + latestRecord.absent : false,
     },
     styleOutcome: {
       uniqueOfficialKimariteCount: kimariteMetrics.uniqueOfficialKimariteCount,
@@ -459,9 +525,11 @@ export const runCareerObservation = async (
 ): Promise<CareerObservationResult> => {
   const startYear = config.startYear ?? DEFAULT_START_YEAR;
   const modelVersion = config.simulationModelVersion ?? 'v3';
+  const populationKind = config.populationKind ?? DEFAULT_OBSERVATION_POPULATION_KIND;
+  const populationPreset = config.populationPreset;
   const initialStatus = config.initialStatus
     ? structuredClone(config.initialStatus)
-    : createUneditedScoutInitial(config.seed, config.aptitudeLadder);
+    : createObservationInitialStatus(config.seed, config.aptitudeLadder, populationKind, populationPreset);
   const runtime = createSimulationRuntime(
     {
       initialStats: structuredClone(initialStatus),
@@ -530,6 +598,8 @@ export const runCareerObservation = async (
       seed: config.seed,
       startYear,
       modelVersion,
+      populationKind,
+      populationPreset,
       initialStatus,
       finalStatus: step.statusSnapshot,
       runtime: finalRuntime,
@@ -601,6 +671,105 @@ const buildStyleBucketSummary = (
   };
 };
 
+const buildRateDistribution = (keys: readonly string[], values: string[], sampleSize: number): Record<string, number> => {
+  const counts = Object.fromEntries(keys.map((key) => [key, 0])) as Record<string, number>;
+  for (const value of values) {
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).map(([key, count]) => [key, count / Math.max(1, sampleSize)]));
+};
+
+const resolveCareerBashoBucket = (value: number): string => {
+  if (value < 12) return '<12';
+  if (value < 24) return '12-23';
+  if (value < 36) return '24-35';
+  if (value < 60) return '36-59';
+  if (value < 90) return '60-89';
+  if (value < 120) return '90-119';
+  return '>=120';
+};
+
+const resolveCareerWinRateBucket = (value: number): string => {
+  if (value < 0.35) return '<0.35';
+  if (value < 0.4) return '0.35-0.39';
+  if (value < 0.45) return '0.40-0.44';
+  if (value < 0.5) return '0.45-0.49';
+  if (value < 0.55) return '0.50-0.54';
+  if (value < 0.6) return '0.55-0.59';
+  if (value < 0.65) return '0.60-0.64';
+  return '>=0.65';
+};
+
+const buildQuantiles = (values: number[]) => ({
+  p10: percentile(values, 0.1),
+  p50: percentile(values, 0.5),
+  p90: percentile(values, 0.9),
+});
+
+const buildDistributionSummary = (summaries: CareerObservationSummary[]): ObservationDistributionSummary => {
+  const sampleSize = summaries.length;
+  const sekitori = summaries.filter((summary) => summary.rankOutcome.isSekitori);
+  const careerBashoCounts = summaries.map((summary) => summary.careerOutcome.bashoCount);
+  const officialWinRates = summaries.map((summary) => summary.careerOutcome.officialWinRate);
+  const effectiveWinRates = summaries.map((summary) => summary.careerOutcome.effectiveWinRate);
+  const absences = summaries.map((summary) => summary.careerOutcome.absent);
+  const reasonCounts: Record<string, number> = {};
+  for (const summary of summaries) {
+    const code = summary.careerOutcome.retirementReasonCode;
+    reasonCounts[code] = (reasonCounts[code] ?? 0) + 1;
+  }
+  const firstSekitoriBasho = sekitori
+    .map((summary) => summary.careerOutcome.firstSekitoriBasho)
+    .filter((value): value is number => Number.isFinite(value));
+
+  return {
+    highestRankBuckets: buildRateDistribution(
+      HIGHEST_RANK_BUCKETS,
+      summaries.map((summary) => summary.rankOutcome.highestRankBucket),
+      sampleSize,
+    ),
+    careerBashoBuckets: buildRateDistribution(
+      ['<12', '12-23', '24-35', '36-59', '60-89', '90-119', '>=120'],
+      careerBashoCounts.map(resolveCareerBashoBucket),
+      sampleSize,
+    ),
+    careerWinRateBuckets: buildRateDistribution(
+      ['<0.35', '0.35-0.39', '0.40-0.44', '0.45-0.49', '0.50-0.54', '0.55-0.59', '0.60-0.64', '>=0.65'],
+      officialWinRates.map(resolveCareerWinRateBucket),
+      sampleSize,
+    ),
+    careerBasho: buildQuantiles(careerBashoCounts),
+    retireAge: buildQuantiles(summaries.map((summary) => summary.careerOutcome.retireAge)),
+    officialWinRate: buildQuantiles(officialWinRates),
+    effectiveWinRate: buildQuantiles(effectiveWinRates),
+    absent: {
+      p50: percentile(absences, 0.5),
+      p90: percentile(absences, 0.9),
+      p99: percentile(absences, 0.99),
+    },
+    absenceZeroRate:
+      summaries.filter((summary) => summary.careerOutcome.absent === 0).length / Math.max(1, sampleSize),
+    fullAbsenceBashoExperienceRate:
+      summaries.filter((summary) => summary.careerOutcome.fullAbsenceBashoCount > 0).length / Math.max(1, sampleSize),
+    firstSekitoriBasho: buildQuantiles(firstSekitoriBasho),
+    sekitoriBashoCount: {
+      p50: percentile(sekitori.map((summary) => summary.careerOutcome.sekitoriBashoCount), 0.5),
+      p90: percentile(sekitori.map((summary) => summary.careerOutcome.sekitoriBashoCount), 0.9),
+    },
+    makuuchiBashoCount: {
+      p50: percentile(sekitori.map((summary) => summary.careerOutcome.makuuchiBashoCount), 0.5),
+      p90: percentile(sekitori.map((summary) => summary.careerOutcome.makuuchiBashoCount), 0.9),
+    },
+    lowWinLongCareerRate:
+      summaries.filter((summary) => summary.careerOutcome.officialWinRate < 0.4 && summary.careerOutcome.bashoCount >= 60)
+        .length / Math.max(1, sampleSize),
+    retiredAfterKachikoshiRate:
+      summaries.filter((summary) => summary.careerOutcome.retiredAfterKachikoshi).length / Math.max(1, sampleSize),
+    retirementReasonDistribution:
+      Object.fromEntries(Object.entries(reasonCounts).map(([key, count]) => [key, count / Math.max(1, sampleSize)])),
+  };
+};
+
 export const summarizeObservationBatch = (
   summaries: CareerObservationSummary[],
 ): ObservationBatchSummary => {
@@ -652,6 +821,7 @@ export const summarizeObservationBatch = (
       careerWinRateLe30Rate:
         summaries.filter((summary) => summary.careerOutcome.effectiveWinRate <= 0.3).length / Math.max(1, summaries.length),
     },
+    distribution: buildDistributionSummary(summaries),
     population: buildPopulationSummary(summaries),
     style: {
       uniqueKimariteP50: percentile(
@@ -733,6 +903,28 @@ export const summarizeObservationBatch = (
         .sort((left, right) => right.careerOutcome.bashoCount - left.careerOutcome.bashoCount)
         .slice(0, 5)
         .map((summary) => summary.seed),
+      lowWinLongCareerSeeds: summaries
+        .filter((summary) => summary.careerOutcome.bashoCount >= 60)
+        .slice()
+        .sort((left, right) => left.careerOutcome.officialWinRate - right.careerOutcome.officialWinRate)
+        .slice(0, 5)
+        .map((summary) => summary.seed),
+      highestRankOutlierSeeds: summaries
+        .slice()
+        .sort((left, right) => {
+          const bucketOrder = new Map<string, number>(HIGHEST_RANK_BUCKETS.map((bucket, index) => [bucket, index]));
+          return (
+            (bucketOrder.get(left.rankOutcome.highestRankBucket) ?? HIGHEST_RANK_BUCKETS.length) -
+            (bucketOrder.get(right.rankOutcome.highestRankBucket) ?? HIGHEST_RANK_BUCKETS.length)
+          );
+        })
+        .slice(0, 5)
+        .map((summary) => summary.seed),
+      highAbsenceSeeds: summaries
+        .slice()
+        .sort((left, right) => right.careerOutcome.absent - left.careerOutcome.absent)
+        .slice(0, 5)
+        .map((summary) => summary.seed),
       yokozunaSeeds: summaries.filter((summary) => summary.rankOutcome.isYokozuna).map((summary) => summary.seed),
       highestLateEntrantYokozunaSeeds: summaries
         .slice()
@@ -763,7 +955,12 @@ export const runObservationVerificationSample = async (
     const leagueFlow = createLeagueFlowRuntime(rng);
     const { world, lowerWorld } = leagueFlow;
     const status = structuredClone(
-      config.initialStatus ?? createUneditedScoutInitial(config.seed, config.aptitudeLadder),
+      config.initialStatus ?? createObservationInitialStatus(
+        config.seed,
+        config.aptitudeLadder,
+        config.populationKind ?? DEFAULT_OBSERVATION_POPULATION_KIND,
+        config.populationPreset,
+      ),
     );
     let seq = 0;
     let year = config.startYear ?? DEFAULT_START_YEAR;

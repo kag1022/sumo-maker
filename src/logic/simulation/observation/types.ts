@@ -5,6 +5,12 @@ import { SimulationDiagnostics } from '../diagnostics';
 import { SimulationProgressState } from '../workerProtocol';
 import { DomainEvent, SimulationRuntimeSnapshot } from '../runtimeTypes';
 import { SimulationModelVersion } from '../modelVersion';
+import type {
+  InitialPopulationProfile,
+  ObservationPopulationKind,
+  ObservationPopulationMetadata,
+  ObservationPopulationPreset,
+} from '../../scout/populations';
 
 export interface ObservationAptitudeLadder {
   id: string;
@@ -20,6 +26,8 @@ export interface CareerObservationConfig {
   startYear?: number;
   simulationModelVersion?: SimulationModelVersion;
   aptitudeLadder?: ObservationAptitudeLadder;
+  populationKind?: ObservationPopulationKind;
+  populationPreset?: ObservationPopulationPreset;
 }
 
 export interface ObservationPromotionReview {
@@ -65,6 +73,7 @@ export interface RankOutcomeSummary {
   isOzeki: boolean;
   isYokozuna: boolean;
   maxRank: Rank;
+  highestRankBucket: string;
 }
 
 export interface CareerOutcomeSummary {
@@ -77,6 +86,14 @@ export interface CareerOutcomeSummary {
   effectiveWinRate: number;
   pooledWinRate: number;
   losingCareer: boolean;
+  entryAge: number;
+  firstSekitoriBasho?: number;
+  sekitoriBashoCount: number;
+  makuuchiBashoCount: number;
+  fullAbsenceBashoCount: number;
+  retirementReasonCode: string;
+  retirementReasonLabel: string;
+  retiredAfterKachikoshi: boolean;
 }
 
 export interface StyleOutcomeSummary {
@@ -136,6 +153,8 @@ export interface CareerObservationSummary {
   startYear: number;
   modelVersion: SimulationModelVersion;
   bundleId: string;
+  population: ObservationPopulationMetadata;
+  initialPopulation: InitialPopulationProfile;
   aptitudeTier: AptitudeTier;
   rankOutcome: RankOutcomeSummary;
   careerOutcome: CareerOutcomeSummary;
@@ -148,6 +167,8 @@ export interface CareerObservationResult {
   seed: number;
   startYear: number;
   modelVersion: SimulationModelVersion;
+  populationKind: ObservationPopulationKind;
+  populationPreset?: ObservationPopulationPreset;
   initialStatus: RikishiStatus;
   finalStatus: RikishiStatus;
   runtime: SimulationRuntimeSnapshot;
@@ -197,6 +218,41 @@ export interface ObservationRealismSummary {
   careerWinRateLe30Rate: number;
 }
 
+export interface ObservationQuantileSummary {
+  p10: number;
+  p50: number;
+  p90: number;
+}
+
+export interface ObservationDistributionSummary {
+  highestRankBuckets: Record<string, number>;
+  careerBashoBuckets: Record<string, number>;
+  careerWinRateBuckets: Record<string, number>;
+  careerBasho: ObservationQuantileSummary;
+  retireAge: ObservationQuantileSummary;
+  officialWinRate: ObservationQuantileSummary;
+  effectiveWinRate: ObservationQuantileSummary;
+  absent: {
+    p50: number;
+    p90: number;
+    p99: number;
+  };
+  absenceZeroRate: number;
+  fullAbsenceBashoExperienceRate: number;
+  firstSekitoriBasho: ObservationQuantileSummary;
+  sekitoriBashoCount: {
+    p50: number;
+    p90: number;
+  };
+  makuuchiBashoCount: {
+    p50: number;
+    p90: number;
+  };
+  lowWinLongCareerRate: number;
+  retiredAfterKachikoshiRate: number;
+  retirementReasonDistribution: Record<string, number>;
+}
+
 export interface ObservationStyleSummary {
   uniqueKimariteP50: number;
   uniqueKimariteP90: number;
@@ -228,12 +284,16 @@ export interface ObservationYokozunaPipelineSummary {
 
 export interface ObservationOutlierSummary {
   longestCareerSeeds: number[];
+  lowWinLongCareerSeeds: number[];
+  highestRankOutlierSeeds: number[];
+  highAbsenceSeeds: number[];
   yokozunaSeeds: number[];
   highestLateEntrantYokozunaSeeds: number[];
 }
 
 export interface ObservationBatchSummary {
   realism: ObservationRealismSummary;
+  distribution: ObservationDistributionSummary;
   population: ObservationPopulationSummary;
   style: ObservationStyleSummary;
   yokozunaPipeline: ObservationYokozunaPipelineSummary;
