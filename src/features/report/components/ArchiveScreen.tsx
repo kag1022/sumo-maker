@@ -370,7 +370,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
   return (
     <div className={styles.layout}>
-      <section className={cn(surface.panel, "space-y-4")}>
+      <section className={cn(surface.panel, styles.indexPanel, "space-y-4")}>
         <div>
           <div className={typography.kicker}>私設書架</div>
           <div className={typography.panelTitle}>書架の索引</div>
@@ -401,7 +401,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           />
         </div>
 
-        <div className="space-y-2">
+        <div className={styles.filterGroup}>
           {[
             { id: "ALL" as const, label: "すべて", count: items.length },
             {
@@ -458,7 +458,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           ))}
         </div>
 
-        <div className="space-y-2 border-t border-line pt-3">
+        <div className={styles.filterGroup}>
           <div className={typography.panelTitle}>高度フィルタ</div>
           <SelectFilter label="最高位" value={rankFilter} onChange={(value) => setRankFilter(value as RankFilter)} options={[
             ["ALL", "すべて"],
@@ -490,7 +490,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           ]} />
         </div>
 
-        <div className="space-y-2 border-t border-line pt-3">
+        <div className={styles.filterGroup}>
           <div className={typography.panelTitle}>並び順</div>
           <div className="space-y-2">
             {[
@@ -523,7 +523,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
       </section>
 
       {mode === "SHELF" ? (
-        <section className={cn(surface.panel, "min-w-0")}>
+        <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
               <div className={typography.kicker}>保存した人生</div>
@@ -589,7 +589,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           )}
         </section>
       ) : mode === "COMPARE" ? (
-        <section className={cn(surface.panel, "min-w-0")}>
+        <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
               <div className={typography.kicker}>比較</div>
@@ -649,7 +649,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           )}
         </section>
       ) : (
-        <section className={cn(surface.panel, "min-w-0")}>
+        <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
               <div className={typography.kicker}>類似検索</div>
