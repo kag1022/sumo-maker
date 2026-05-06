@@ -614,6 +614,7 @@ const renderSection = ({
       onViewStateChange={(patch) => onCareerViewStateChange((current) => ({ ...current, ...patch }))}
       onSave={onSaveCurrentCareer}
       onReturnToScout={onReturnToScout}
+      onOpenArchive={onOpenArchive}
     />
   );
 };
