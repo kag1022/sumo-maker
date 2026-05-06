@@ -75,6 +75,29 @@ export interface CareerOverviewModel {
   bodyType: RikishiStatus["bodyType"];
 }
 
+export interface CareerDesignReadingRow {
+  label: string;
+  designed: string;
+  interpreted: string;
+  realized: string;
+}
+
+export interface CareerOutcomeGap {
+  axis: string;
+  expected: string;
+  actual: string;
+  note: string;
+}
+
+export interface CareerDesignReadingModel {
+  premiseRows: CareerDesignReadingRow[];
+  interpretationRows: CareerDesignReadingRow[];
+  divergenceLines: string[];
+  outcomeGaps: CareerOutcomeGap[];
+  debugRows: Array<{ label: string; value: string }>;
+  feedbackReportText: string;
+}
+
 export interface CareerPlaceSummaryModel {
   bashoLabel: string;
   rankLabel: string;
@@ -196,6 +219,140 @@ const buildContinuityGroupIds = (points: Omit<CareerLedgerPoint, "continuityGrou
       continuityGroupId: `${point.bandKey}-${continuityIndex}`,
     };
   });
+};
+
+const formatDesignRealization = (status: RikishiStatus, category: string): string => {
+  const records = status.history.records.filter((record) => record.rank.division !== "Maezumo");
+  const yushoTotal = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo + status.history.yushoCount.makushita + status.history.yushoCount.others;
+  const injuryBasho = records.filter((record) => record.absent > 0).length;
+  if (category === "入門背景" || category === "年齢・開始条件") {
+    return `${records.length}場所を記録し、最高位は${formatRankDisplayName(status.history.maxRank)}。`;
+  }
+  if (category === "身体的前提") {
+    return `${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgで引退時点の体格が残った。`;
+  }
+  if (category === "部屋・環境") {
+    return `${resolveStableById(status.stableId)?.displayName ?? "所属部屋未詳"}所属として記録された。`;
+  }
+  if (category === "気質") {
+    return status.careerNarrative?.careerIdentity ?? "気質の発現は番付推移と取組記録から読む。";
+  }
+  if (category === "期待") {
+    return yushoTotal > 0 ? `優勝${yushoTotal}回まで届いた。` : `${formatRankDisplayName(status.history.maxRank)}まで届いた。`;
+  }
+  if (category === "不安材料") {
+    return injuryBasho > 0 ? `${injuryBasho}場所で休場が記録された。` : "休場の少ない一代として終わった。";
+  }
+  return "実際の発現は、観測結果と各章の記録で読む。";
+};
+
+const buildCareerOutcomeGapPlaceholders = (
+  rows: CareerDesignReadingRow[],
+): CareerOutcomeGap[] =>
+  rows.slice(0, 3).map((row) => ({
+    axis: row.label,
+    expected: row.designed,
+    actual: row.realized,
+    note: "現段階では採点せず、将来の差分評価の入力として扱う。",
+  }));
+
+const formatCareerSeedForReport = (status: RikishiStatus): string => {
+  if (!status.careerSeed) return "未保持";
+  return JSON.stringify({
+    entryAge: status.careerSeed.entryAge,
+    entryPath: status.careerSeed.entryPath,
+    temperament: status.careerSeed.temperament,
+    bodySeed: status.careerSeed.bodySeed,
+    stableId: status.careerSeed.stableId,
+    primaryStyle: status.careerSeed.primaryStyle,
+    secondaryStyle: status.careerSeed.secondaryStyle,
+    biases: status.careerSeed.biases,
+  });
+};
+
+const buildFeedbackReportText = (input: {
+  status: RikishiStatus;
+  careerId?: string | null;
+  highestRankLabel: string;
+  finalBashoLabel: string;
+  premiseRows: CareerDesignReadingRow[];
+  interpretationRows: CareerDesignReadingRow[];
+}): string => {
+  const designRows = (input.premiseRows.length > 0 ? input.premiseRows : input.interpretationRows).slice(0, 5);
+  const realizedRows = designRows.slice(0, 5);
+  return [
+    "sumo-maker 結果報告",
+    `careerId: ${input.careerId ?? "未保存/未確定"}`,
+    `careerSeed: ${formatCareerSeedForReport(input.status)}`,
+    "modelVersion: 未保持",
+    `四股名: ${input.status.shikona}`,
+    `最高位: ${input.highestRankLabel}`,
+    `通算成績: ${formatFullRecord({
+      wins: input.status.history.totalWins,
+      losses: input.status.history.totalLosses,
+      absent: input.status.history.totalAbsent,
+    })}`,
+    `引退年齢/最終場所: ${input.status.age}歳 / ${input.finalBashoLabel}`,
+    "",
+    "設計時の前提:",
+    ...designRows.map((row) => `- ${row.label}: ${row.designed}`),
+    "",
+    "実際に発現したキャリア傾向:",
+    ...realizedRows.map((row) => `- ${row.label}: ${row.realized}`),
+  ].join("\n");
+};
+
+export const buildCareerDesignReadingModel = (
+  status: RikishiStatus,
+  options?: { careerId?: string | null },
+): CareerDesignReadingModel => {
+  const summary = status.buildSummary;
+  const premiseRows: CareerDesignReadingRow[] =
+    summary?.designPremises?.map((premise) => ({
+      label: premise.category,
+      designed: premise.summary,
+      interpreted: premise.interpretation,
+      realized: formatDesignRealization(status, premise.category),
+    })) ?? [];
+  const interpretation = summary?.designInterpretation;
+  const interpretationRows: CareerDesignReadingRow[] = interpretation
+    ? [
+      { label: "成長", designed: "成長傾向", interpreted: interpretation.growth, realized: formatDesignRealization(status, "年齢・開始条件") },
+      { label: "耐久", designed: "怪我・継続性", interpreted: interpretation.durability, realized: formatDesignRealization(status, "不安材料") },
+      { label: "安定", designed: "気質の出方", interpreted: interpretation.stability, realized: formatDesignRealization(status, "気質") },
+      { label: "昇進", designed: "番付上昇", interpreted: interpretation.promotion, realized: formatDesignRealization(status, "期待") },
+      { label: "揺らぎ", designed: "想定との差", interpreted: interpretation.variance, realized: status.careerNarrative?.retirementDigest ?? "最終章の読後感として判断する。" },
+    ]
+    : [];
+
+  const primaryRows = premiseRows.length > 0 ? premiseRows : interpretationRows;
+  const finalRecord = status.history.records
+    .filter((record) => record.rank.division !== "Maezumo")
+    .slice(-1)[0];
+  const highestRankLabel = formatRankDisplayName(status.history.maxRank);
+  const finalBashoLabel = finalRecord ? formatBashoLabel(finalRecord.year, finalRecord.month) : "未記録";
+  return {
+    premiseRows,
+    interpretationRows,
+    divergenceLines: [
+      "ここでは設計前提と実結果を断定的に採点しない。",
+      "想定と違った点、予想外に面白かった点は、この表示モデル上では premiseRows / interpretationRows の realized 側に集約する。",
+    ],
+    outcomeGaps: buildCareerOutcomeGapPlaceholders(primaryRows),
+    debugRows: [
+      options?.careerId ? { label: "careerId", value: options.careerId } : null,
+      status.careerSeed ? { label: "careerSeed", value: "保存済み" } : null,
+      { label: "modelVersion", value: "結果ステータス単体では未保持" },
+    ].filter((row): row is { label: string; value: string } => Boolean(row)),
+    feedbackReportText: buildFeedbackReportText({
+      status,
+      careerId: options?.careerId,
+      highestRankLabel,
+      finalBashoLabel,
+      premiseRows,
+      interpretationRows,
+    }),
+  };
 };
 
 export const buildCareerLedgerModel = (

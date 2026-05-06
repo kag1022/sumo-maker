@@ -290,6 +290,12 @@ export const getRetirementSpiritReason = (status: RikishiStatus): string => {
   return '気力・体力の限界により引退';
 };
 
+const resolveRetirementEventReason = (status: RikishiStatus): string | null => {
+  const event = [...status.history.events].reverse().find((entry) => entry.type === 'RETIREMENT');
+  if (!event) return null;
+  return event.description.replace(/^引退 \(/, '').replace(/\)$/, '') || null;
+};
+
 export const buildCounterfactualInjuryText = (status: RikishiStatus): string | null => {
   const turningPoint = inferCareerTurningPoint(status);
   if (!turningPoint) return null;
@@ -388,7 +394,8 @@ export const buildCareerNarrativeSummary = (status: RikishiStatus): CareerNarrat
     strengths.length > 0
       ? `実戦では${styleLabel}を得意な型として残し、最高位は${status.history.maxRank.name}まで届いた。`
       : `どの型にも収まり切らないまま、それでも最高位は${status.history.maxRank.name}まで届いた。`;
-  const retirementDigest = `引退時は${status.age}歳。${getRetirementSpiritReason(status)}。`;
+  const retirementReason = resolveRetirementEventReason(status) ?? getRetirementSpiritReason(status);
+  const retirementDigest = `引退時は${status.age}歳。${retirementReason}。`;
   return {
     initialConditions,
     growthArc,

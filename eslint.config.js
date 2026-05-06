@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       'dist',
       'node_modules',
+      '.claude',
       '.tmp',
       '.lint-report.json',
       'scripts/tests/run_sim_tests.cjs',

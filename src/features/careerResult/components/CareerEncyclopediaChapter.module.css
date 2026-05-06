@@ -68,6 +68,13 @@
   color: rgb(var(--twc-text) / 0.72);
 }
 
+.playtestNote {
+  border-left: 2px solid rgb(var(--twc-brand) / 0.48);
+  padding-left: 0.75rem;
+  color: rgb(var(--twc-text) / 0.72);
+  line-height: 1.65;
+}
+
 .summaryRow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -175,6 +182,26 @@
 .actionButtons {
   display: grid;
   gap: 0.65rem;
+}
+
+.feedbackLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  background: rgb(var(--twc-bg) / 0.36);
+  padding: 0.65rem 0.8rem;
+  color: rgb(var(--twc-text) / 0.86);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.feedbackLink:hover {
+  border-color: rgb(var(--twc-brand) / 0.56);
+  background: rgb(var(--twc-brand) / 0.1);
 }
 
 .savedPanel {
@@ -332,6 +359,92 @@
   line-height: 1.65;
 }
 
+.releasePanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.limitList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.limitList span {
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.42);
+  padding: 0.4rem 0.58rem;
+  color: rgb(var(--twc-text) / 0.72);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.designReadingHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.debugStrip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  max-width: 42%;
+}
+
+.debugStrip span {
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg) / 0.34);
+  padding: 0.28rem 0.5rem;
+  color: rgb(var(--twc-text) / 0.62);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.designReadingTable {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.designReadingTableHead,
+.designReadingRow {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 0.65fr) repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  align-items: stretch;
+}
+
+.designReadingTableHead {
+  padding: 0 0.8rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  color: rgb(var(--twc-brand) / 0.72);
+}
+
+.designReadingRow {
+  padding: 0.8rem;
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.46);
+  color: rgb(var(--twc-text) / 0.72);
+  line-height: 1.65;
+}
+
+.designAxis {
+  font-family: "DotGothic16", monospace;
+  color: rgb(var(--twc-text) / 0.94);
+  letter-spacing: 0.08em;
+}
+
+.designRealized {
+  color: rgb(var(--twc-brand) / 0.86);
+}
+
 .sectionHead {
   display: flex;
   align-items: center;
@@ -453,6 +566,27 @@
 @media (max-width: 900px) {
   .chartGrid,
   .observationMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .designReadingHeader {
+    display: grid;
+  }
+
+  .releasePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .debugStrip {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .designReadingTableHead {
+    display: none;
+  }
+
+  .designReadingRow {
     grid-template-columns: 1fr;
   }
 }

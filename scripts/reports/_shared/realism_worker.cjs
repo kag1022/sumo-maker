@@ -7,6 +7,8 @@ const executeWorkerTask = async () => {
     seed: workerData.seed,
     simulationModelVersion: 'v3',
     aptitudeLadder: workerData.ladder,
+    populationKind: workerData.populationKind,
+    populationPreset: workerData.populationPreset,
   });
   parentPort.postMessage(result.summary);
 };

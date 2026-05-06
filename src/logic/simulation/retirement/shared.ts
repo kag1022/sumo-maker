@@ -81,6 +81,17 @@ const RETIREMENT_HAZARD = {
     ozekiYokozunaStart: 4,
     ozekiYokozunaPerAdditional: 0.0032,
   },
+  chronicInjury: {
+    count2Bonus: 0.010,
+    count3OrSevereBonus: 0.018,
+    activeSekitoriMultiplier: 0.55,
+    pressuredSekitoriMultiplier: 0.75,
+  },
+  kachikoshiRetirementSuppression: {
+    multiplier: 0.35,
+    maxInjuryLevelExclusive: 7,
+    maxConsecutiveAbsenceExclusive: 2,
+  },
   nonSekitoriLowerDivisionPenalty: {
     makushita: 0.0004,
     lower: 0.0009,
@@ -208,6 +219,9 @@ export interface RetirementChanceInput {
   recentAbsenceTotal?: number;
   recentUpperBashoCount?: number;
   recentOzekiYokozunaBashoCount?: number;
+  lastBashoKachikoshi?: boolean;
+  chronicCount?: number;
+  severeChronicCount?: number;
 }
 
 export const resolveRetirementChance = (input: RetirementChanceInput): number => {
@@ -228,6 +242,9 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
     recentAbsenceTotal,
     recentUpperBashoCount,
     recentOzekiYokozunaBashoCount,
+    lastBashoKachikoshi,
+    chronicCount = 0,
+    severeChronicCount = 0,
   } = input;
 
   if (age >= 50) return 1;
@@ -294,6 +311,22 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
       ) * RETIREMENT_HAZARD.activeSekitoriUpperTenure.ozekiYokozunaPerAdditional;
   }
 
+  let chronicBonus = 0;
+  if (chronicCount >= 3 || severeChronicCount >= 1) {
+    chronicBonus = RETIREMENT_HAZARD.chronicInjury.count3OrSevereBonus;
+  } else if (chronicCount >= 2) {
+    chronicBonus = RETIREMENT_HAZARD.chronicInjury.count2Bonus;
+  }
+  if (chronicBonus > 0) {
+    const sekitoriChronicMultiplier =
+      hazardGroup === 'ACTIVE_SEKITORI'
+        ? injuryLevel >= 7 || age >= 32
+          ? RETIREMENT_HAZARD.chronicInjury.pressuredSekitoriMultiplier
+          : RETIREMENT_HAZARD.chronicInjury.activeSekitoriMultiplier
+        : 1;
+    chance += chronicBonus * sekitoriChronicMultiplier;
+  }
+
   if (hazardGroup === 'NON_SEKITORI' && !isCurrentSekitori) {
     chance +=
       currentDivision === 'Makushita'
@@ -349,6 +382,13 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
   ) {
     resolved *= RETIREMENT_HAZARD.ironmanLosingProtection.multiplier;
   }
+  if (
+    lastBashoKachikoshi &&
+    injuryLevel < RETIREMENT_HAZARD.kachikoshiRetirementSuppression.maxInjuryLevelExclusive &&
+    consecutiveAbsence < RETIREMENT_HAZARD.kachikoshiRetirementSuppression.maxConsecutiveAbsenceExclusive
+  ) {
+    resolved *= RETIREMENT_HAZARD.kachikoshiRetirementSuppression.multiplier;
+  }
   return clamp(resolved, 0, RETIREMENT_HAZARD.chanceMax);
 };
 
@@ -359,6 +399,8 @@ export const resolveRetirementReason = (input: {
   injuryLevel: number;
   isFormerSekitori: boolean;
   currentDivision: Division;
+  chronicCount?: number;
+  severeChronicCount?: number;
 }): string => {
   const {
     age,
@@ -367,6 +409,8 @@ export const resolveRetirementReason = (input: {
     injuryLevel,
     isFormerSekitori,
     currentDivision,
+    chronicCount = 0,
+    severeChronicCount = 0,
   } = input;
   const hazardGroup = resolveRetirementHazardGroup({ isFormerSekitori, currentDivision });
   const makekoshiTrigger = RETIREMENT_HAZARD.makekoshiByGroup[hazardGroup].start;
@@ -374,6 +418,9 @@ export const resolveRetirementReason = (input: {
   if (age >= 50) return '気力・体力の限界により引退';
   if (consecutiveAbsence >= 6) return '度重なる怪我と長期休場により引退';
   if (injuryLevel >= 9) return '怪我の回復が見込めず引退';
+  if (severeChronicCount >= 1) return '古傷を抱えきれず引退';
+  if (chronicCount >= 3) return '慢性的な故障が重なり引退';
+  if (chronicCount >= 2) return '古傷の累積により引退';
   if (isFormerSekitori && !TOP_DIVISIONS.includes(currentDivision)) {
     return '関取復帰を断念し引退';
   }
