@@ -472,6 +472,13 @@ export const checkRetirement = (
   const careerWinRate = totalMatches > 0 ? status.history.totalWins / totalMatches : 0.5;
   const consecutiveAbsence = computeConsecutiveAbsenceStreak(records, 10);
   const consecutiveMakekoshi = computeConsecutiveMakekoshiStreak(records, 10);
+  const lastRecord = records[records.length - 1];
+  const lastBashoKachikoshi = lastRecord
+    ? lastRecord.wins > lastRecord.losses + lastRecord.absent
+    : false;
+  const chronicCount = status.injuries?.filter((injury) => injury.status === 'CHRONIC').length ?? 0;
+  const severeChronicCount = status.injuries?.filter((injury) =>
+    injury.status === 'CHRONIC' && injury.severity >= 5).length ?? 0;
   const isFormerSekitori =
         status.history.maxRank.division === 'Makuuchi' || status.history.maxRank.division === 'Juryo';
   const fullKyujoStreak = records.reduce((streak, record) => {
@@ -494,6 +501,9 @@ export const checkRetirement = (
     stagnationPressure: status.stagnation?.pressure ?? 0,
     careerBand: status.careerBand,
     careerSeedBiases: status.careerSeed?.biases,
+    lastBashoKachikoshi,
+    chronicCount,
+    severeChronicCount,
   });
   const chance = Math.max(
     0,
@@ -522,6 +532,8 @@ export const checkRetirement = (
         injuryLevel: status.injuryLevel,
         isFormerSekitori,
         currentDivision: status.rank.division,
+        chronicCount,
+        severeChronicCount,
       }),
     };
   }

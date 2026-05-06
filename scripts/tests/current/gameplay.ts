@@ -7,6 +7,7 @@ import { inferBodyTypeFromMetrics, resolveKimariteOutcome } from '../../../src/l
 import { KIMARITE_CATALOG } from '../../../src/logic/kimarite/catalog';
 import { ensureKimariteRepertoire, evolveKimariteRepertoireAfterBasho } from '../../../src/logic/kimarite/repertoire';
 import { buildInitialRikishiFromDraft, rollScoutDraft } from '../../../src/logic/scout/gacha';
+import { buildInitialRikishiForObservationPopulation } from '../../../src/logic/scout/populations';
 import { CONSTANTS } from '../../../src/logic/constants';
 import { appendBashoEvents } from '../../../src/logic/simulation/career';
 import { BUILD_COST, buildInitialRikishiFromSpec, calculateBuildCost, calculateBuildCostVNext, createDefaultBuildSpec, createDefaultBuildSpecVNext, getStarterOyakataBlueprints, isBuildSpecVNextBmiValid, resolveDisplayedAptitudeTier } from '../../../src/logic/build/buildLab';
@@ -561,6 +562,65 @@ export const tests: TestCase[] = [
     run: () => {
       const draft = rollScoutDraft(lcg(20260313));
       assert.equal(draft.selectedStableId, 'stable-001');
+    },
+  },
+  {
+    name: 'scout: historical-like population separates calibration intake from player scout',
+    run: () => {
+      const runs = 1000;
+      const rng = lcg(20260507);
+      let age22Count = 0;
+      let lowTierCount = 0;
+      let normalOrSoppuCount = 0;
+      const stableIds = new Set<string>();
+      for (let i = 0; i < runs; i += 1) {
+        const rikishi = buildInitialRikishiForObservationPopulation('historical-like-career', rng);
+        if (rikishi.entryAge === 22) age22Count += 1;
+        if (rikishi.aptitudeTier === 'C' || rikishi.aptitudeTier === 'D') lowTierCount += 1;
+        if (rikishi.bodyType === 'NORMAL' || rikishi.bodyType === 'SOPPU') normalOrSoppuCount += 1;
+        if (rikishi.stableId) stableIds.add(rikishi.stableId);
+      }
+
+      assert.ok(age22Count / runs < 0.08, `22歳入口が多すぎます: ${age22Count}`);
+      assert.ok(lowTierCount / runs > 0.55, `C/D tier が historical-like として薄すぎます: ${lowTierCount}`);
+      assert.ok(normalOrSoppuCount / runs > 0.2, `NORMAL/SOPPU 体格が薄すぎます: ${normalOrSoppuCount}`);
+      assert.ok(stableIds.size > 20, `部屋分散が不足しています: ${stableIds.size}`);
+    },
+  },
+  {
+    name: 'scout: player default population keeps starter stable boundary',
+    run: () => {
+      const rng = lcg(20260508);
+      for (let i = 0; i < 50; i += 1) {
+        const rikishi = buildInitialRikishiForObservationPopulation('player-scout-default', rng);
+        assert.equal(rikishi.stableId, 'stable-001');
+      }
+    },
+  },
+  {
+    name: 'scout: historical-like v2-mid preset raises B tier without changing player scout',
+    run: () => {
+      const runs = 1000;
+      const rng = lcg(20260509);
+      let bTierCount = 0;
+      let dTierCount = 0;
+      let collegeOrChampionCount = 0;
+      for (let i = 0; i < runs; i += 1) {
+        const rikishi = buildInitialRikishiForObservationPopulation(
+          'historical-like-career',
+          rng,
+          'historical-like-v2-mid',
+        );
+        if (rikishi.aptitudeTier === 'B') bTierCount += 1;
+        if (rikishi.aptitudeTier === 'D') dTierCount += 1;
+        if (rikishi.careerSeed?.entryPath === 'COLLEGE' || rikishi.careerSeed?.entryPath === 'CHAMPION') {
+          collegeOrChampionCount += 1;
+        }
+      }
+
+      assert.ok(bTierCount / runs >= 0.35, `B tier が薄すぎます: ${bTierCount}`);
+      assert.ok(dTierCount / runs <= 0.18, `D tier が厚すぎます: ${dTierCount}`);
+      assert.ok(collegeOrChampionCount / runs >= 0.07, `大学・実績層が薄すぎます: ${collegeOrChampionCount}`);
     },
   },
   {
