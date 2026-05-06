@@ -47,6 +47,7 @@ interface CareerResultPageProps {
   onViewStateChange: (patch: Partial<CareerResultViewState>) => void;
   onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
+  onOpenArchive: () => void;
 }
 
 const CHAPTERS: Array<{
@@ -83,6 +84,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   onViewStateChange,
   onSave,
   onReturnToScout,
+  onOpenArchive,
 }) => {
   const chapterRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
@@ -248,6 +250,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 observationStanceId={observationStanceId}
                 onSave={onSave}
                 onReturnToScout={onReturnToScout}
+                onOpenArchive={onOpenArchive}
               />
             </motion.div>
           ) : null}

@@ -177,6 +177,39 @@
   gap: 0.65rem;
 }
 
+.savedPanel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.savedIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgb(var(--twc-state) / 0.42);
+  background: rgb(var(--twc-state) / 0.12);
+  color: rgb(var(--twc-state-bright));
+}
+
+.savedTitle {
+  margin-top: 0.25rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.saveError {
+  border: 1px solid rgb(var(--twc-danger) / 0.38);
+  background: rgb(var(--twc-danger) / 0.1);
+  padding: 0.65rem 0.75rem;
+  color: rgb(var(--twc-danger-bright));
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .saveTags {
   display: flex;
   flex-wrap: wrap;

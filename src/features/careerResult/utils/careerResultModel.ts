@@ -34,6 +34,7 @@ export interface CareerLedgerPoint {
   rank: Rank;
   rankLabel: string;
   rankShortLabel: string;
+  rankValue: number;
   bandKey: CareerLedgerBandKey;
   ordinalBucket: number;
   recordLabel: string;
@@ -175,11 +176,11 @@ const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined):
   const nextValue = getRankValueForChart(next.rank);
   const deltaValue = Math.round((currentValue - nextValue) * 10) / 10;
   if (Math.abs(deltaValue) < 0.01) {
-    return { deltaValue, deltaLabel: "据え置き" };
+    return { deltaValue, deltaLabel: "変動なし" };
   }
   return {
     deltaValue,
-    deltaLabel: deltaValue > 0 ? `+${deltaValue}` : `${deltaValue}`,
+    deltaLabel: deltaValue > 0 ? `+${deltaValue}枚` : `${deltaValue}枚`,
   };
 };
 
@@ -234,6 +235,7 @@ export const buildCareerLedgerModel = (
     if (record.rank.name === "大関" || record.rank.name === "横綱") {
       hasSeenOzeki = true;
     }
+    const rankValue = getRankValueForChart(record.rank);
     const bandKey = toBandKey(record.rank);
     const { deltaValue, deltaLabel } = computeDeltaLabel(record, next);
     return {
@@ -248,6 +250,7 @@ export const buildCareerLedgerModel = (
       rank: record.rank,
       rankLabel: formatRankDisplayName(record.rank),
       rankShortLabel: toShortRankLabel(record.rank),
+      rankValue,
       bandKey,
       ordinalBucket: toOrdinalBucket(bandKey),
       recordLabel: formatFullRecord(record),
@@ -267,6 +270,12 @@ export const buildCareerLedgerModel = (
       deltaLabel,
     };
   });
+
+  const highestIndex = rawPoints.reduce<number>((bestIndex, point, index) => {
+    const best = rawPoints[bestIndex];
+    return point.rankValue < best.rankValue ? index : bestIndex;
+  }, 0);
+  rawPoints[highestIndex]?.milestoneTags.unshift("最高位到達");
 
   return {
     points: buildContinuityGroupIds(rawPoints),

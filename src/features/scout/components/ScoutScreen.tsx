@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, ArrowRight, RefreshCw, ScrollText } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleDot, Eye, RefreshCw, ScrollText, Sparkles, Ticket } from "lucide-react";
 import { ExperimentPresetId, ObservationStanceId, Oyakata, RikishiStatus, SimulationRunOptions } from "../../../logic/models";
 import { OBSERVATION_STANCES } from "../../../logic/career/analysis";
 import { ScoutStatPreview } from "./ScoutStatPreview";
