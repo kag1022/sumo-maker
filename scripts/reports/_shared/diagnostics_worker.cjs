@@ -1,20 +1,20 @@
 const { parentPort, workerData } = require('worker_threads');
 const { loadObservationModule } = require('./observation_module.cjs');
+const { extractCareerFeatures } = require('./career_diagnostics_features.cjs');
 
 const executeWorkerTask = async () => {
   const { runCareerObservation } = loadObservationModule();
   const result = await runCareerObservation({
     seed: workerData.seed,
     simulationModelVersion: 'v3',
-    aptitudeLadder: workerData.ladder,
     populationKind: workerData.populationKind,
     populationPreset: workerData.populationPreset,
   });
-  parentPort.postMessage(result.summary);
+  const features = extractCareerFeatures(result);
+  parentPort.postMessage(features);
 };
 
 executeWorkerTask().catch((error) => {
-  console.error('Worker error:', error);
+  console.error('Diagnostics worker error:', error);
   process.exit(1);
 });
-

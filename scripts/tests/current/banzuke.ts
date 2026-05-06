@@ -343,6 +343,38 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: jonokuchi dynamic bottom 5-2 preserves promotion reward',
+    run: () => {
+      const jonokuchi: Rank = {
+        division: 'Jonokuchi',
+        name: '序ノ口',
+        side: 'West',
+        number: 60,
+      };
+      const result = calculateNextRank(
+        createBashoRecord(jonokuchi, 5, 2),
+        [],
+        false,
+        () => 0.5,
+        {
+          scaleSlots: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 200,
+            Jonidan: 276,
+            Jonokuchi: 122,
+          },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Jonokuchi');
+      assert.ok((result.nextRank.number ?? 999) < 60, `Expected promotion from Jk60w 5-2, got ${result.nextRank.number}`);
+      assert.ok((result.lowerMovementDiagnostics?.finalMovement ?? 0) > 0);
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('KACHIKOSHI_REWARD_PRESERVED'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE'));
+    },
+  },
+  {
     name: 'ranking: jonokuchi full absence is clamped to jonokuchi bottom',
     run: () => {
       const jonokuchi: Rank = {
@@ -2253,6 +2285,33 @@ export const tests: TestCase[] = [
       } else {
         assert.equal(result.nextRank.division, 'Sandanme');
       }
+    },
+  },
+  {
+    name: 'ranking: jonokuchi bottom makekoshi can accept pressure promotion with diagnostics',
+    run: () => {
+      const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 60 };
+      const result = calculateNextRank(
+        createBashoRecord(jonokuchi, 2, 5),
+        [],
+        false,
+        () => 0.5,
+        {
+          scaleSlots: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 200,
+            Jonidan: 276,
+            Jonokuchi: 122,
+          },
+          boundaryAssignedNextRank: { division: 'Jonokuchi', name: '序ノ口', side: 'East', number: 53 },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Jonokuchi');
+      assert.equal(result.nextRank.number, 53);
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('NEW_RECRUIT_PRESSURE'));
     },
   },
   {
