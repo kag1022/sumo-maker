@@ -26,7 +26,7 @@ import {
   resolveAptitudeProfile,
 } from './constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './simulation/strength/model';
-import { resolveRetirementProfileFromText } from './simulation/retirement/shared';
+import { resolveRetirementProfileBiased } from './simulation/retirement/shared';
 import { resolveLegacyAptitudeFactor } from './simulation/realism';
 import { createKimariteRepertoireFromSeed } from './kimarite/repertoire';
 import { ensureStyleIdentityProfile } from './style/identity';
@@ -177,9 +177,19 @@ export const createInitialRikishi = (
     ? Math.round(80 * (1 / Math.max(0.3, params.genome.durability.baseInjuryRisk)))
     : 80;
 
+  // careerBand と growthType を先に確定し、retirementProfile の biased 割り当てに使う。
+  // （careerBand は return 文でも同じ値を使うため変数化する）
+  const resolvedCareerBand =
+    params.careerBand ?? rollCareerBandForAptitude(aptitudeTier, random) ?? DEFAULT_CAREER_BAND;
+  const resolvedGrowthType = params.growthType ?? 'NORMAL';
+
   const retirementProfile =
     params.retirementProfile ??
-    resolveRetirementProfileFromText(`${params.shikona}|${params.stableId}|${params.age}`);
+    resolveRetirementProfileBiased(
+      `${params.shikona}|${params.stableId}|${params.age}`,
+      resolvedCareerBand,
+      resolvedGrowthType,
+    );
   const kimariteRepertoire = createKimariteRepertoireFromSeed({
     style:
       params.tactics === 'PUSH'
@@ -205,12 +215,12 @@ export const createInitialRikishi = (
     rank: { ...params.startingRank },
     stats,
     potential,
-    growthType: params.growthType ?? 'NORMAL',
+    growthType: resolvedGrowthType,
     archetype: params.archetype,
     aptitudeTier,
     aptitudeFactor,
     aptitudeProfile,
-    careerBand: params.careerBand ?? rollCareerBandForAptitude(aptitudeTier, random) ?? DEFAULT_CAREER_BAND,
+    careerBand: resolvedCareerBand,
     entryDivision,
     tactics: params.tactics,
     signatureMoves: params.signatureMove ? [params.signatureMove] : [],
