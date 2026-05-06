@@ -29,6 +29,7 @@ interface CareerTrajectoryChapterProps {
 type TrajectoryMode = "standard" | "milestones";
 
 const MILESTONE_PRIORITY = [
+  "最高位到達",
   "横綱昇進",
   "新大関",
   "再大関",
@@ -58,6 +59,104 @@ const resolveTrajectoryTone = (point: CareerLedgerPoint | null): "up" | "down" |
   if (!point || Math.abs(point.deltaValue) < 0.01) return "flat";
   return point.deltaValue > 0 ? "up" : "down";
 };
+
+const LIFE_LINE_WIDTH = 960;
+const LIFE_LINE_HEIGHT = 270;
+const LIFE_LINE_PADDING = {
+  top: 30,
+  right: 28,
+  bottom: 34,
+  left: 52,
+} as const;
+const BIG_DELTA_THRESHOLD = 6;
+const MAX_LIFE_LINE_EVENTS = 6;
+
+interface LifeLinePoint extends CareerLedgerPoint {
+  x: number;
+  y: number;
+  label: string | null;
+  labelPriority: number;
+  isSelected: boolean;
+  isPeak: boolean;
+  isPromoted: boolean;
+  isBigMove: boolean;
+}
+
+const toDeltaText = (point: CareerLedgerPoint): string => {
+  if (Math.abs(point.deltaValue) < 0.01) return "変動なし";
+  return point.deltaValue > 0 ? `+${point.deltaValue}枚` : `${point.deltaValue}枚`;
+};
+
+const resolvePointLabel = (point: CareerLedgerPoint, isPeak: boolean): { label: string | null; priority: number } => {
+  const milestone = resolvePrimaryMilestone(point.milestoneTags);
+  if (isPeak) return { label: "最高位", priority: 100 };
+  if (milestone) return { label: milestone, priority: 90 };
+  if (Math.abs(point.deltaValue) >= 10) return { label: toDeltaText(point), priority: 70 };
+  if (Math.abs(point.deltaValue) >= BIG_DELTA_THRESHOLD) return { label: toDeltaText(point), priority: 58 };
+  return { label: null, priority: 0 };
+};
+
+const buildLifeLinePoints = (
+  points: CareerLedgerPoint[],
+  selectedBashoSeq: number | undefined,
+): LifeLinePoint[] => {
+  if (points.length === 0) return [];
+  const minRankValue = Math.min(...points.map((point) => point.rankValue));
+  const maxRankValue = Math.max(...points.map((point) => point.rankValue));
+  const yRange = Math.max(1, maxRankValue - minRankValue);
+  const xRange = Math.max(1, points.length - 1);
+  const plotWidth = LIFE_LINE_WIDTH - LIFE_LINE_PADDING.left - LIFE_LINE_PADDING.right;
+  const plotHeight = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom;
+  const peakSeq = points.reduce((best, point) => (point.rankValue < best.rankValue ? point : best), points[0]).bashoSeq;
+  const minLabelGap = points.length > 72 ? 84 : points.length > 42 ? 70 : 54;
+  const sortedLabelCandidates = points
+    .map((point, index) => {
+      const isPeak = point.bashoSeq === peakSeq;
+      const { label, priority } = resolvePointLabel(point, isPeak);
+      const x = LIFE_LINE_PADDING.left + (index / xRange) * plotWidth;
+      const y = LIFE_LINE_PADDING.top + ((point.rankValue - minRankValue) / yRange) * plotHeight;
+      return {
+        ...point,
+        x,
+        y,
+        label,
+        labelPriority: priority,
+        isSelected: point.bashoSeq === selectedBashoSeq,
+        isPeak,
+        isPromoted: point.milestoneTags.some((tag) => tag.includes("昇進") || tag.includes("入幕") || tag.includes("十両") || tag.includes("三役")),
+        isBigMove: Math.abs(point.deltaValue) >= BIG_DELTA_THRESHOLD,
+      };
+    })
+    .sort((left, right) => right.labelPriority - left.labelPriority);
+
+  const acceptedLabels: LifeLinePoint[] = [];
+  const bySeq = new Map<number, LifeLinePoint>();
+  for (const candidate of sortedLabelCandidates) {
+    const alwaysShow = candidate.isPeak || candidate.isPromoted || candidate.isSelected;
+    const crowded = acceptedLabels.some((accepted) => Math.abs(accepted.x - candidate.x) < minLabelGap && Math.abs(accepted.y - candidate.y) < 34);
+    const point = {
+      ...candidate,
+      label: candidate.label && (alwaysShow || !crowded) ? candidate.label : null,
+    };
+    if (point.label) acceptedLabels.push(point);
+    bySeq.set(point.bashoSeq, point);
+  }
+
+  return points.map((point) => bySeq.get(point.bashoSeq)).filter((point): point is LifeLinePoint => Boolean(point));
+};
+
+const buildLifeLineEvents = (points: LifeLinePoint[]): LifeLinePoint[] =>
+  points
+    .filter((point) => point.isSelected || point.isPeak || point.isPromoted || point.isBigMove)
+    .slice()
+    .sort((left, right) => {
+      if (left.isSelected !== right.isSelected) return left.isSelected ? -1 : 1;
+      if (left.isPeak !== right.isPeak) return left.isPeak ? -1 : 1;
+      if (left.isPromoted !== right.isPromoted) return left.isPromoted ? -1 : 1;
+      return Math.abs(right.deltaValue) - Math.abs(left.deltaValue);
+    })
+    .slice(0, MAX_LIFE_LINE_EVENTS)
+    .sort((left, right) => left.bashoSeq - right.bashoSeq);
 
 const BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
@@ -182,6 +281,28 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         .filter((entry): entry is { point: CareerLedgerPoint; label: string } => Boolean(entry.label)),
     [ledger.points],
   );
+  const lifeLinePoints = React.useMemo(
+    () => buildLifeLinePoints(ledger.points, selectedPoint?.bashoSeq),
+    [ledger.points, selectedPoint?.bashoSeq],
+  );
+  const lifeLinePath = React.useMemo(
+    () =>
+      lifeLinePoints
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+        .join(" "),
+    [lifeLinePoints],
+  );
+  const lifeLineAreaPath = React.useMemo(() => {
+    if (lifeLinePoints.length === 0) return "";
+    const first = lifeLinePoints[0];
+    const last = lifeLinePoints[lifeLinePoints.length - 1];
+    const bottom = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom;
+    return `${lifeLinePath} L ${last.x.toFixed(1)} ${bottom} L ${first.x.toFixed(1)} ${bottom} Z`;
+  }, [lifeLinePath, lifeLinePoints]);
+  const lifeLineEvents = React.useMemo(
+    () => buildLifeLineEvents(lifeLinePoints),
+    [lifeLinePoints],
+  );
 
   return (
     <section className={styles.shell}>
@@ -256,6 +377,112 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
               <span><i data-kind="yusho" />優勝</span>
               <span><i data-kind="event" />節目</span>
               <span><i data-kind="absence" />休場</span>
+            </div>
+          </div>
+
+          <div className={styles.lifeLinePanel}>
+            <div className={styles.lifeLineHead}>
+              <div>
+                <span className={styles.summaryKicker}>番付人生ライン</span>
+                <h4>入門から引退まで</h4>
+              </div>
+              <div className={styles.lifeLineHint}>上ほど高位 / 点で場所選択</div>
+            </div>
+            <div className={styles.lifeLineFrame}>
+              <svg
+                className={styles.lifeLineSvg}
+                viewBox={`0 0 ${LIFE_LINE_WIDTH} ${LIFE_LINE_HEIGHT}`}
+                role="img"
+                aria-label="入門から引退までの番付推移グラフ"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <defs>
+                  <linearGradient id="careerLifeLineInk" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="rgb(var(--twc-text-faint))" stopOpacity="0.52" />
+                    <stop offset="42%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="rgb(var(--twc-award))" stopOpacity="0.95" />
+                  </linearGradient>
+                  <linearGradient id="careerLifeLineWash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.18" />
+                    <stop offset="100%" stopColor="rgb(var(--twc-bg))" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {[0, 1, 2, 3].map((line) => {
+                  const y = LIFE_LINE_PADDING.top + line * ((LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom) / 3);
+                  return <line key={`life-grid-${line}`} x1={LIFE_LINE_PADDING.left} x2={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.right} y1={y} y2={y} className={styles.lifeLineGrid} />;
+                })}
+                <text x="12" y={LIFE_LINE_PADDING.top + 4} className={styles.lifeLineAxis}>高位</text>
+                <text x="12" y={LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom + 4} className={styles.lifeLineAxis}>下位</text>
+                {lifeLineAreaPath ? <path d={lifeLineAreaPath} className={styles.lifeLineArea} /> : null}
+                {lifeLinePath ? <path d={lifeLinePath} className={styles.lifeLineGhostPath} /> : null}
+                {lifeLinePoints.map((point, index) => {
+                  const next = lifeLinePoints[index + 1];
+                  if (!next) return null;
+                  return (
+                    <line
+                      key={`life-segment-${point.bashoSeq}-${next.bashoSeq}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={next.x}
+                      y2={next.y}
+                      className={styles.lifeLineSegment}
+                      data-tone={point.deltaValue > 0 ? "up" : point.deltaValue < 0 ? "down" : "flat"}
+                    />
+                  );
+                })}
+                {lifeLinePoints.map((point) => {
+                  const deltaText = toDeltaText(point);
+                  return (
+                    <React.Fragment key={`life-point-${point.bashoSeq}`}>
+                      <g
+                        className={styles.lifeLinePoint}
+                        data-selected={point.isSelected}
+                        data-peak={point.isPeak}
+                        data-promoted={point.isPromoted}
+                        data-big={point.isBigMove}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectBasho(point.bashoSeq)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onSelectBasho(point.bashoSeq);
+                          }
+                        }}
+                      >
+                        <title>{`${point.bashoLabel} / ${point.rankLabel} / ${point.recordLabel} / ${deltaText}`}</title>
+                        <circle cx={point.x} cy={point.y} r={point.isSelected ? 7 : point.isPeak || point.isPromoted ? 6 : 4} />
+                        {point.label && (point.isSelected || point.isPeak || point.isPromoted) ? (
+                          <>
+                            <line x1={point.x} x2={point.x} y1={point.y - 7} y2={Math.max(13, point.y - 24)} className={styles.lifeLineLabelStem} />
+                            <text x={point.x} y={Math.max(12, point.y - 29)} className={styles.lifeLineLabel}>{point.label}</text>
+                          </>
+                        ) : null}
+                      </g>
+                    </React.Fragment>
+                  );
+                })}
+              </svg>
+            </div>
+            <div className={styles.lifeLineEventRail}>
+              {lifeLineEvents.map((point) => {
+                const label = point.label ?? (point.isBigMove ? toDeltaText(point) : point.rankShortLabel);
+                return (
+                  <button
+                    key={`life-event-${point.bashoSeq}-${label}`}
+                    type="button"
+                    className={styles.lifeLineEvent}
+                    data-active={point.isSelected}
+                    data-peak={point.isPeak}
+                    data-promoted={point.isPromoted}
+                    onClick={() => onSelectBasho(point.bashoSeq)}
+                  >
+                    <span>{label}</span>
+                    <strong>{point.bashoLabel}</strong>
+                    <em>{point.rankLabel} / {toDeltaText(point)}</em>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
