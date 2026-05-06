@@ -419,6 +419,31 @@ export interface LifeCardSummary {
   reportLine: string;
 }
 
+export type CareerDesignPremiseCategory =
+  | '入門背景'
+  | '身体的前提'
+  | '年齢・開始条件'
+  | '部屋・環境'
+  | '気質'
+  | '期待'
+  | '不安材料'
+  | '観測軸';
+
+export interface CareerDesignPremise {
+  category: CareerDesignPremiseCategory;
+  label: string;
+  summary: string;
+  interpretation: string;
+}
+
+export interface CareerDesignInterpretation {
+  growth: string;
+  durability: string;
+  stability: string;
+  promotion: string;
+  variance: string;
+}
+
 export interface BuildSummary {
   oyakataName: string;
   amateurBackground: AmateurBackground;
@@ -455,6 +480,8 @@ export interface BuildSummary {
     frameAndInjury: string;
     designedVsRealized: string;
   };
+  designPremises?: CareerDesignPremise[];
+  designInterpretation?: CareerDesignInterpretation;
 }
 
 export interface CareerSeedBiases {

@@ -1,34 +1,37 @@
 const { execFileSync } = require('child_process');
 const { ensureSimTestsBuild } = require('../shared/ensure_simtests_build.cjs');
 
-const MODE_VALUES = new Set(['quick', 'full', 'aptitude', 'retire']);
+const MODE_VALUES = new Set(['quick', 'full', 'aptitude', 'retire', 'population']);
 const MODE_ALIASES = {
   '--quick': 'quick',
   '--full': 'full',
   '--aptitude': 'aptitude',
   '--retire': 'retire',
+  '--population': 'population',
 };
 const RUN_KIND_LABELS = {
   quick: 'クイック検証',
   full: '本番観測',
   aptitude: '素質キャリブレーション',
   retire: '関取引退プローブ',
+  population: 'historical-like population tuning',
 };
 
 const args = process.argv.slice(2);
 
 const printUsage = () => {
   console.log(`使い方:
-  node scripts/reports/run_realism_monte_carlo.cjs --mode <quick|full|aptitude|retire> [オプション]
+  node scripts/reports/run_realism_monte_carlo.cjs --mode <quick|full|aptitude|retire|population> [オプション]
 
 モード:
   --mode quick         クイック検証
   --mode full          現行モデルの本番 Monte Carlo
   --mode aptitude      素質 tier キャリブレーション
   --mode retire        関取引退プローブ
+  --mode population    historical-like population preset 比較
 
 互換:
-  --quick / --full / --aptitude / --retire は --mode 相当
+  --quick / --full / --aptitude / --retire / --population は --mode 相当
 
 決まり手分布のみを見たい場合は \`npm run report:kimarite\` を使用してください。
 `);
@@ -77,6 +80,7 @@ const scriptByMode = {
   quick: 'scripts/reports/realism_monte_carlo.cjs',
   aptitude: 'scripts/reports/realism_monte_carlo.cjs',
   full: 'scripts/reports/realism_monte_carlo.cjs',
+  population: 'scripts/reports/realism_monte_carlo.cjs',
 };
 
 console.log(`${RUN_KIND_LABELS[mode]}を実行します。`);

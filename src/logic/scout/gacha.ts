@@ -2,6 +2,8 @@ import {
   AptitudeTier,
   BasicProfile,
   BodyConstitution,
+  CareerDesignInterpretation,
+  CareerDesignPremise,
   CareerSeed,
   IchimonId,
   PersonalityType,
@@ -289,6 +291,97 @@ const resolvePersonality = (temperament: ScoutTemperament): PersonalityType => {
 const resolveStableFlavorLine = (stable: StableDefinition): string =>
   `${stable.displayName}で土台を作り、${stable.flavor.replace(/。$/, "")}。`;
 
+const resolveDesignInterpretation = (draft: ScoutDraft): CareerDesignInterpretation => {
+  const growth =
+    draft.entryAge <= 15
+      ? "若く始めるため、完成までの場所数と伸びしろを広く取る。"
+      : draft.entryAge >= 22
+        ? "即戦力寄りだが、伸び返しの時間は短くなる。"
+        : "初期完成度と伸びしろの中間を狙う。";
+  const durability =
+    draft.bodySeed === "HEAVY"
+      ? "重さは圧力と耐久を作る一方、消耗の読みに注意が要る。"
+      : draft.bodySeed === "SPRING"
+        ? "足腰の弾みが故障後の戻りや土俵際に影響しうる。"
+        : "大きな故障補正より、経歴や相撲観の影響が前に出る。";
+  const stability =
+    draft.temperament === "EXPLOSIVE"
+      ? "上振れと下振れが強く、想定との差が出やすい。"
+      : draft.temperament === "STUBBORN"
+        ? "崩れにくさと停滞時の踏みとどまりに寄る。"
+        : draft.temperament === "AMBITION"
+          ? "昇進局面や再浮上の読み筋が立ちやすい。"
+          : "調子の波を抑え、長い観測で差を見る設計になる。";
+  const promotion =
+    draft.entryPath === "CHAMPION"
+      ? "序盤から期待値が高く、停滞時の落差も読みどころになる。"
+      : draft.entryPath === "COLLEGE"
+        ? "序盤の番付勝負へ入りやすいが、時間の短さも抱える。"
+        : draft.entryPath === "SCHOOL"
+          ? "下地はあるが、地力の伸び方が結果を分ける。"
+          : "肩書より下積みの長さを観測する設計になる。";
+  const variance =
+    draft.bodySeed === "LONG" || draft.temperament === "EXPLOSIVE"
+      ? "型が噛み合うかでキャリアの輪郭が大きく変わる。"
+      : "設計意図は比較的読みやすいが、結果保証ではない。";
+  return { growth, durability, stability, promotion, variance };
+};
+
+const buildScoutCareerPremises = (
+  draft: ScoutDraft,
+  seed: ScoutResolvedSeed,
+  stable: StableDefinition,
+): CareerDesignPremise[] => [
+  {
+    category: "入門背景",
+    label: seed.entryPathLabel,
+    summary: `${draft.entryAge}歳で${seed.entryPathLabel}として入門する。`,
+    interpretation: resolveDesignInterpretation(draft).promotion,
+  },
+  {
+    category: "身体的前提",
+    label: seed.bodySeedLabel,
+    summary: `${draft.startingHeightCm}cm・${draft.startingWeightKg}kgから、${seed.preview.potentialHeightCm}cm・${seed.preview.potentialWeightKg}kgを見込む。`,
+    interpretation: resolveDesignInterpretation(draft).durability,
+  },
+  {
+    category: "年齢・開始条件",
+    label: `${draft.entryAge}歳入門`,
+    summary: seed.introductionLine,
+    interpretation: resolveDesignInterpretation(draft).growth,
+  },
+  {
+    category: "部屋・環境",
+    label: stable.displayName,
+    summary: stable.flavor,
+    interpretation: resolveStableFlavorLine(stable),
+  },
+  {
+    category: "気質",
+    label: seed.temperamentLabel,
+    summary: `${seed.temperamentLabel}気質を初期条件として持つ。`,
+    interpretation: resolveDesignInterpretation(draft).stability,
+  },
+  {
+    category: "期待",
+    label: seed.preview.careerBandLabel,
+    summary: `設計時の期待圏は「${seed.preview.careerBandLabel}」。`,
+    interpretation: "期待圏は保証ではなく、番付推移と停滞の読み始めに使う。",
+  },
+  {
+    category: "不安材料",
+    label: draft.bodySeed === "HEAVY" ? "重さの消耗" : draft.entryAge >= 22 ? "残り時間" : "未完成さ",
+    summary: "設計時点では、怪我・停滞・宿敵はまだ確定していない。",
+    interpretation: "発現しなかった不安も含めて、実結果との差分として読む。",
+  },
+  {
+    category: "観測軸",
+    label: "設計と結果のズレ",
+    summary: "想定した人生を当てるのではなく、どこが外れたかを読む。",
+    interpretation: resolveDesignInterpretation(draft).variance,
+  },
+];
+
 export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => {
   const stable = resolveAssignedStable(draft);
   const oyakata = resolveOyakata(stable);
@@ -477,6 +570,8 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
       frameAndInjury: seed.growthLine,
       designedVsRealized: resolveStableFlavorLine(stable),
     },
+    designPremises: buildScoutCareerPremises(draft, seed, stable),
+    designInterpretation: resolveDesignInterpretation(draft),
   };
   status.bodyMetrics.reachDeltaCm = seed.spec.reachDeltaCm;
   status.history.maxRank = { ...status.rank };

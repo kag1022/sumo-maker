@@ -829,6 +829,28 @@ export const buildInitialRikishiFromSpec = (
     secretStyle: oyakata.secretStyle,
     compatibility,
   });
+  buildSummary.designInterpretation = {
+    growth:
+      spec.amateurBackground === 'MIDDLE_SCHOOL'
+        ? '若く始めるため、長い場所数の中で伸び方を観測する。'
+        : spec.amateurBackground === 'STUDENT_ELITE' || spec.amateurBackground === 'COLLEGE_YOKOZUNA'
+          ? '初期完成度は高いが、伸び返しの余白は短めに読む。'
+          : '初期完成度と伸びしろの均衡を見る。',
+    durability:
+      spec.injuryResistance === 'IRON_BODY'
+        ? '故障による中断を抑え、継続性を見やすい。'
+        : spec.injuryResistance === 'FRAGILE'
+          ? '故障と失速がキャリアの節目になりやすい。'
+          : '怪我耐性は標準で、他の前提条件の色が出やすい。',
+    stability:
+      spec.mentalTrait === 'VOLATILE_FIRE'
+        ? '調子の振れ幅が大きく、想定との差が出やすい。'
+        : spec.mentalTrait === 'STONEWALL'
+          ? '停滞時の踏みとどまりを読みやすい。'
+          : '長期の推移から気質の発現を見る。',
+    promotion: `${formatRankLabel(background.startRank)}から始まり、序盤の番付上昇が設計評価の入口になる。`,
+    variance: '設計は結果を保証しない。実際の山場とズレを結果画面で読む。',
+  };
   const entryAge = background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0);
   const entryCalibration = resolvePlayerEntryCalibration({
     startingRank: background.startRank,
