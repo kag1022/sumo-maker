@@ -108,6 +108,7 @@ const extractCareerFeatures = (result) => {
 
   // genome summary (軽量化 - 巨大オブジェクトをそのまま保存しない)
   const genome = finalStatus?.genome;
+  const tactics = finalStatus?.tactics ?? 'BALANCE';
   const genomeSummary = genome ? (() => {
     const b = genome.base ?? {};
     const g = genome.growth ?? {};
@@ -115,6 +116,23 @@ const extractCareerFeatures = (result) => {
     const ceilings = [b.powerCeiling, b.techCeiling, b.speedCeiling, b.ringSense, b.styleFit].filter(Number.isFinite);
     const avgCeiling = ceilings.length > 0 ? ceilings.reduce((s, v) => s + v, 0) / ceilings.length : null;
     const maxCeiling = ceilings.length > 0 ? Math.max(...ceilings) : null;
+    const minCeiling = ceilings.length > 0 ? Math.min(...ceilings) : null;
+    const ceilingSpread = (maxCeiling != null && minCeiling != null) ? maxCeiling - minCeiling : null;
+    const top3CeilingAverage = ceilings.length >= 3
+      ? Math.round([...ceilings].sort((a, b) => b - a).slice(0, 3).reduce((s, v) => s + v, 0) / 3)
+      : (avgCeiling != null ? Math.round(avgCeiling) : null);
+    // 戦術別の関連 ceiling 加重平均 (得意な天井値が高い力士を正確に識別)
+    const styleRelevantCeiling = (() => {
+      const pc = b.powerCeiling ?? 0;
+      const tc = b.techCeiling ?? 0;
+      const sc = b.speedCeiling ?? 0;
+      const rs = b.ringSense ?? 0;
+      const sf = b.styleFit ?? 0;
+      if (tactics === 'PUSH') return Math.round(pc * 0.40 + sc * 0.35 + tc * 0.15 + rs * 0.05 + sf * 0.05);
+      if (tactics === 'GRAPPLE') return Math.round(pc * 0.30 + tc * 0.25 + rs * 0.25 + sc * 0.10 + sf * 0.10);
+      if (tactics === 'TECHNIQUE') return Math.round(tc * 0.35 + rs * 0.30 + sc * 0.20 + pc * 0.10 + sf * 0.05);
+      return avgCeiling != null ? Math.round(avgCeiling) : null; // BALANCE
+    })();
     const durabilityScore = Number.isFinite(d.baseInjuryRisk) && Number.isFinite(d.recoveryRate)
       ? Math.round(100 * (1 / Math.max(0.3, d.baseInjuryRisk)) * d.recoveryRate)
       : null;
@@ -124,6 +142,10 @@ const extractCareerFeatures = (result) => {
       baseSpeedCeiling: b.speedCeiling ?? null,
       averageCeiling: avgCeiling != null ? Math.round(avgCeiling) : null,
       maxCeiling,
+      minCeiling,
+      ceilingSpread,
+      top3CeilingAverage,
+      styleRelevantCeiling,
       maturationAge: g.maturationAge ?? null,
       peakLength: g.peakLength ?? null,
       lateCareerDecay: g.lateCareerDecay ?? null,
@@ -170,6 +192,7 @@ const extractCareerFeatures = (result) => {
     growthType: finalStatus?.growthType,
     retirementProfile: finalStatus?.retirementProfile,
     archetype: finalStatus?.archetype,
+    tactics,
     // 鉄人系フラグ
     hasTetsujin,
     hasIronman,
