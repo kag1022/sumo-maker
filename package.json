@@ -38,6 +38,7 @@
     "report:diagnostics:battle": "node scripts/reports/battle_torikumi_report.cjs",
     "report:diagnostics:npc-strength": "node scripts/reports/npc_relative_strength_report.cjs",
     "report:diagnostics:exchange": "node scripts/reports/makushita_juryo_exchange_report.cjs",
+    "reports:realdata-career-diagnosis": "node scripts/reports/realdata_career_diagnosis_report.cjs",
     "predict:export": "python sumo-db/scripts/export_banzuke_transition_top5.py",
     "predict:demo": "node scripts/predict/predict_banzuke_top5.cjs",
     "predict:reference": "python sumo-db/scripts/export_realism_reference_heisei.py",
