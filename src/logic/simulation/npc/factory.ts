@@ -102,12 +102,15 @@ const createNpc = (
     range.min,
     range.max,
   );
-  const ability =
+  const ability = clamp(
     basePower * (0.82 + aptitudeProfile.boutFactor * 0.08) +
-    seed.basePower * 0.12 +
-    randomNoise(rng, 2.1) +
-    seed.growthBias * 5.2 +
-    bandBias.abilityBias * 0.6;
+      seed.basePower * 0.12 +
+      randomNoise(rng, 2.1) +
+      seed.growthBias * 5.2 +
+      bandBias.abilityBias * 0.6,
+    range.min,
+    range.max,
+  );
   const aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
   const retirementProfile = empiricalSeed.retirementProfile;
   return {

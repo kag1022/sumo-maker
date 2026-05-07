@@ -4,16 +4,26 @@ __pycache__/
 venv/
 env/
 *.pyc
+
+# large regenerated data
+data/raw_json/
+data/intermediate/
+
+# large final generated artifacts
+data/analysis/banzuke_transition_sumo_api_196007_202603.json
+data/analysis/rank_movement_sumo_api_196007_202603.json
+data/analysis/basho_records_sumo_api_196007_202603.json
+
+# local DB if added later
 *.sqlite
 *.sqlite3
 *.db
 
-data/raw_json/
-data/intermediate/
-prompts/
+# keep reports and small samples
 
-!data/analysis/api_probe_report.md
-!data/analysis/collection_report.md
-!data/analysis/compare_with_existing_predict.md
-!data/analysis/long_range_summary.md
-!data/analysis/banzuke_transition_sumo_api_sample.json
+data/analysis/banzuke_transition_sumo_api_196007_202603.json
+data/analysis/basho_records_sumo_api_196007_202603.json
+data/analysis/rank_movement_sumo_api_196007_202603.json
+data/analysis/rank_movement_sumo_api_sample.json
+data/analysis/banzuke_transition_sumo_api_sample.json
+data/analysis/basho_records_sumo_api_sample.json
