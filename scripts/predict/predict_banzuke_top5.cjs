@@ -4,39 +4,64 @@
  *
  * 使い方:
  *   node scripts/predict/predict_banzuke_top5.cjs <ラベル> <勝>-<負>[-<休>]
- *   node scripts/predict/predict_banzuke_top5.cjs --file banzuke.txt
- *   node scripts/predict/predict_banzuke_top5.cjs --list-labels
+ *   node scripts/predict/predict_banzuke_top5.cjs --source sumo-api <ラベル> <成績>
+ *   node scripts/predict/predict_banzuke_top5.cjs --compare <ラベル> <成績>
  *   node scripts/predict/predict_banzuke_top5.cjs --help
+ *
+ * --source:  データソースを切り替える。
+ *            heisei    = 既存平成データ (sumo-db, 既定)
+ *            sumo-api  = sumo-api.com 長期データ (1960-2026)
+ *            <path>    = 任意の JSON ファイル
+ *
+ * --compare: 平成データと sumo-api 長期データを並べて比較する。
  *
  * 例:
  *   npm run predict:demo -- 東横綱1枚目 13-2
- *   npm run predict:demo -- 東前頭5枚目 8-7
- *   npm run predict:demo -- 西大関1枚目 5-5-5
+ *   npm run predict:demo -- --compare 東横綱1枚目 13-2
+ *   npm run predict:demo -- --source sumo-api 東前頭5枚目 8-7
  */
 
 const fs = require('fs');
 const path = require('path');
 const { pickTransitionDistribution } = require('./transition_fallback.cjs');
 
-const DATA_PATH = path.resolve(
-  __dirname,
-  '..',
-  '..',
-  'sumo-db',
-  'data',
-  'analysis',
-  'banzuke_transition_heisei.json',
-);
+const DATA_PATHS = {
+  heisei: path.resolve(
+    __dirname, '..', '..', 'sumo-db', 'data', 'analysis',
+    'banzuke_transition_heisei.json',
+  ),
+  'sumo-api': path.resolve(
+    __dirname, '..', '..', 'sumo-api-db', 'data', 'analysis',
+    'banzuke_transition_sumo_api_196007_202603.json',
+  ),
+};
 
 const MIN_SAMPLES = 5;
 
-function loadData() {
-  if (!fs.existsSync(DATA_PATH)) {
-    console.error(`遷移テーブルが見つかりません: ${DATA_PATH}`);
-    console.error('先に Stage 1 を実行してください: npm run predict:export');
+function resolveDataPath(source) {
+  if (!source || source === 'heisei') return DATA_PATHS.heisei;
+  if (source === 'sumo-api' || source === 'sumoapi' || source === 'sumo-api-long') return DATA_PATHS['sumo-api'];
+  if (fs.existsSync(source)) return source;
+  console.error(`不明なデータソース: "${source}"`);
+  console.error(`有効な値: heisei, sumo-api, sumo-api-long, またはファイルパス`);
+  process.exit(1);
+}
+
+function loadData(source) {
+  const dataPath = resolveDataPath(source);
+  if (!fs.existsSync(dataPath)) {
+    console.error(`遷移テーブルが見つかりません: ${dataPath}`);
+    if (source === 'sumo-api' || source === 'sumoapi' || source === 'sumo-api-long') {
+      console.error('先に fetch + build を実行してください:');
+      console.error('  npm run fetch:sumo-api');
+      console.error('  npm run fetch:sumo-api:matches');
+      console.error('  npm run build:sumo-api');
+    } else {
+      console.error('先に Stage 1 を実行してください: npm run predict:export');
+    }
     process.exit(1);
   }
-  return JSON.parse(fs.readFileSync(DATA_PATH, 'utf-8'));
+  return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
 }
 
 function printHelp() {
@@ -47,19 +72,25 @@ function printHelp() {
 
 使い方:
   node scripts/predict/predict_banzuke_top5.cjs <ラベル> <成績>
-  node scripts/predict/predict_banzuke_top5.cjs --file banzuke.txt   # 1行に "ラベル 成績"
+  node scripts/predict/predict_banzuke_top5.cjs --compare <ラベル> <成績>
+  node scripts/predict/predict_banzuke_top5.cjs --source sumo-api <ラベル> <成績>
+  node scripts/predict/predict_banzuke_top5.cjs --file banzuke.txt
   node scripts/predict/predict_banzuke_top5.cjs --list-labels
   node scripts/predict/predict_banzuke_top5.cjs --top N
 
 例:
   npm run predict:demo -- 東横綱1枚目 13-2
-  npm run predict:demo -- 東前頭5枚目 10-5
-  npm run predict:demo -- 東幕下1枚目 4-3
-  npm run predict:demo -- 西大関1枚目 5-5-5
-  npm run predict:demo -- 東前頭16枚目 4-11
+  npm run predict:demo -- --compare 東横綱1枚目 13-2
+  npm run predict:demo -- --source sumo-api 東前頭5枚目 10-5
 
 成績を省略するとラベル周辺分布（成績マージナル）で予測します。
 サンプル不足時は (W-L-A) → (W-L) → ラベル周辺 の順にフォールバック。
+
+データソース:
+  --source heisei     平成期データ (sumo-db, 既定)
+  --source sumo-api   sumo-api.com 長期データ (196007-202603)
+  --source <path>     任意の transition JSON
+  --compare           平成 vs sumo-api を並列比較
 `);
 }
 
@@ -69,6 +100,8 @@ function parseArgs(argv) {
     file: null,
     listLabels: false,
     help: false,
+    compare: false,
+    source: 'heisei',
     queries: [],
   };
   const positional = [];
@@ -76,11 +109,12 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--help' || a === '-h') opts.help = true;
     else if (a === '--list-labels') opts.listLabels = true;
+    else if (a === '--compare') opts.compare = true;
     else if (a === '--file') opts.file = argv[++i];
     else if (a === '--top') opts.topN = parseInt(argv[++i], 10);
+    else if (a === '--source' || a === '--data') opts.source = argv[++i];
     else positional.push(a);
   }
-  // positional: pairs of (label, record) or single label
   let i = 0;
   while (i < positional.length) {
     const label = positional[i++];
@@ -130,34 +164,91 @@ function formatRow(rank, to, p, n) {
   return `  ${idx}. ${to.padEnd(16)} ${pct}%  (n=${n})`;
 }
 
-function predictOne(query, data, topN) {
+function getDist(data, label, record) {
+  const entry = data.transitions[label];
+  if (!entry) return null;
+  return pickTransitionDistribution(data, label, record, { minSamples: MIN_SAMPLES });
+}
+
+function predictOne(query, data, topN, prefix) {
   const { label, record } = query;
   const recordStr = record
     ? `${record.wins}-${record.losses}${record.absences ? `-${record.absences}` : ''}`
     : '(成績指定なし)';
-  const entry = data.transitions[label];
-  if (!entry) {
-    console.log(`\n[該当ラベルなし] "${label}" ${recordStr}`);
-    const suggestions = suggestNeighbors(label, Object.keys(data.transitions));
-    if (suggestions.length) {
-      console.log('  近いラベル候補:');
-      suggestions.forEach((s) => console.log(`    - ${s}`));
+  const dist = getDist(data, label, record);
+
+  if (!dist) {
+    const entry = data.transitions[label];
+    if (!entry) {
+      console.log(`${prefix}[該当ラベルなし] "${label}" ${recordStr}`);
+      const suggestions = suggestNeighbors(label, Object.keys(data.transitions));
+      if (suggestions.length) {
+        console.log(`${prefix}  近いラベル候補:`);
+        suggestions.forEach((s) => console.log(`${prefix}    - ${s}`));
+      }
+    } else {
+      console.log(`${prefix}[分布なし] "${label}" ${recordStr}`);
     }
     return;
   }
-  const dist = pickTransitionDistribution(data, label, record, { minSamples: MIN_SAMPLES });
-  if (!dist) {
-    console.log(`\n[分布なし] "${label}" ${recordStr}`);
-    return;
-  }
-  console.log(`\n入力: ${label}  ${recordStr}  (n=${dist.total}, 出典: ${dist.source})`);
+
+  console.log(`${prefix}${label}  ${recordStr}  (n=${dist.total}, ${dist.source})`);
   const rows = dist.top.slice(0, topN);
-  rows.forEach((r, i) => console.log(formatRow(i + 1, r.to, r.p, r.n)));
+  rows.forEach((r, i) => console.log(prefix + formatRow(i + 1, r.to, r.p, r.n)));
   const covered = rows.reduce((s, r) => s + r.p, 0);
   if (covered < 0.999) {
     console.log(
-      `     (Top${topN} カバレッジ ${(covered * 100).toFixed(1)}% / 残り ${((1 - covered) * 100).toFixed(1)}%)`,
+      `${prefix}     (Top${topN} カバレッジ ${(covered * 100).toFixed(1)}% / 残り ${((1 - covered) * 100).toFixed(1)}%)`,
     );
+  }
+}
+
+function compareOne(query, dataHeisei, dataSumoApi, topN) {
+  const { label, record } = query;
+  const recordStr = record
+    ? `${record.wins}-${record.losses}${record.absences ? `-${record.absences}` : ''}`
+    : '(成績指定なし)';
+
+  const distH = getDist(dataHeisei, label, record);
+  const distS = getDist(dataSumoApi, label, record);
+
+  const metaH = dataHeisei.meta;
+  const metaS = dataSumoApi.meta;
+
+  console.log(`\n比較: ${label}  ${recordStr}\n`);
+  console.log(
+    `  平成 (${metaH.bashoCount}場所, record=${metaH.recordSampleCount})` +
+    `          sumo-api (${metaS.bashoCount}場所, record=${metaS.recordSampleCount})`,
+  );
+  console.log('  ' + '-'.repeat(66));
+
+  if (!distH && !distS) {
+    if (!dataHeisei.transitions[label] && !dataSumoApi.transitions[label]) {
+      console.log(`  [該当ラベルなし] "${label}"`);
+    } else {
+      console.log(`  [分布なし]`);
+    }
+    return;
+  }
+
+  const maxRows = Math.max(
+    distH ? distH.top.length : 0,
+    distS ? distS.top.length : 0,
+  );
+  const rows = Math.min(maxRows, topN);
+
+  for (let i = 0; i < rows; i++) {
+    const left = (distH && distH.top[i])
+      ? `${String(i + 1).padStart(2)}. ${distH.top[i].to.padEnd(14)} ${(distH.top[i].p * 100).toFixed(1).padStart(5)}% (n=${distH.top[i].n})`
+      : '                                        ';
+    const right = (distS && distS.top[i])
+      ? `${String(i + 1).padStart(2)}. ${distS.top[i].to.padEnd(14)} ${(distS.top[i].p * 100).toFixed(1).padStart(5)}% (n=${distS.top[i].n})`
+      : '                                        ';
+    console.log(`  ${left}   ${right}`);
+  }
+
+  if (distH || distS) {
+    console.log(`  出典: ${(distH ? distH.source : 'n/a').padEnd(24)}   出典: ${distS ? distS.source : 'n/a'}`);
   }
 }
 
@@ -200,12 +291,6 @@ function main() {
     printHelp();
     return;
   }
-  const data = loadData();
-
-  if (opts.listLabels) {
-    Object.keys(data.transitions).forEach((k) => console.log(k));
-    return;
-  }
 
   const queries = gatherQueries(opts);
   if (queries.length === 0) {
@@ -214,13 +299,30 @@ function main() {
     process.exit(1);
   }
 
+  // --compare モード: 両方ロードして並列表示
+  if (opts.compare) {
+    const dataHeisei = loadData('heisei');
+    const dataSumoApi = loadData('sumo-api');
+    console.log('番付遷移 Top5 比較（平成 vs sumo-api長期）');
+    queries.forEach((q) => compareOne(q, dataHeisei, dataSumoApi, opts.topN));
+    return;
+  }
+
+  // 通常モード
+  const data = loadData(opts.source);
+
+  if (opts.listLabels) {
+    Object.keys(data.transitions).forEach((k) => console.log(k));
+    return;
+  }
+
   const meta = data.meta;
   console.log(
-    `番付遷移 Top${opts.topN} 予測  (era=${meta.era}, basho=${meta.bashoCount}, ` +
+    `番付遷移 Top${opts.topN} 予測  (source=${opts.source}, era=${meta.era}, basho=${meta.bashoCount}, ` +
       `marginal=${meta.marginalSampleCount}, record=${meta.recordSampleCount})`,
   );
 
-  queries.forEach((q) => predictOne(q, data, opts.topN));
+  queries.forEach((q) => predictOne(q, data, opts.topN, ''));
 }
 
 main();

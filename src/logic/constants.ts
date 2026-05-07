@@ -77,10 +77,10 @@ export const CONSTANTS = {
     ELITE: { weight: 4, abilityBias: 11, growthBias: 0.14, retentionBias: 0.9, stagnationBias: 0.72 },
     STRONG: { weight: 15, abilityBias: 6, growthBias: 0.09, retentionBias: 0.96, stagnationBias: 0.84 },
     STANDARD: { weight: 43, abilityBias: 0, growthBias: 0.0, retentionBias: 1.0, stagnationBias: 1.0 },
-    // GRINDER: キャリア形状「粘り型」。能力ペナルティを軽減し、停滞耐性・長期滞在を重視。
-    // abilityBias/-growthBias を下げることで B tier 以上が低確率でも十両に届く余地を確保。
-    // retentionBias<1.0 で非関取でも在籍を続けやすく、stagnationBias<1.0 で停滞圧が緩やか。
-    GRINDER: { weight: 26, abilityBias: -3, growthBias: -0.01, retentionBias: 0.90, stagnationBias: 0.96 },
+    // GRINDER: キャリア形状「粘り型」。能力ペナルティなし・成長微プラスで、B tier が幕下に固定されないよう調整。
+    // abilityBias=0 で careerBandFactor=1.00 (STANDARD 同等)、growthBias=+0.03 で成長率微上昇。
+    // retentionBias<1.0 で非関取でも在籍を続けやすく、stagnationBias=0.92 で停滞圧が緩やか。
+    GRINDER: { weight: 26, abilityBias: 0, growthBias: 0.03, retentionBias: 0.88, stagnationBias: 0.92 },
     // WASHOUT: キャリア形状「早期離脱型」。主な特性は「停滞しやすく辞めやすい」。
     // ability/growth の極端なマイナスを緩和し、「完全な関取不能枠」ではなく「早期離脱リスク型」に寄せる。
     WASHOUT: { weight: 12, abilityBias: -10, growthBias: -0.12, retentionBias: 1.20, stagnationBias: 1.18 },
@@ -102,8 +102,8 @@ export const CONSTANTS = {
 
   // 成長タイプごとの補正
   GROWTH_PARAMS: {
-    // EARLY: peakEnd/decayStart を1年延ばし、B×EARLY が関取前に過剰に失速しないよう軽微調整。
-    'EARLY': { peakStart: 20, peakEnd: 26, decayStart: 27, growthRate: 1.2 },
+    // EARLY: さらに1年延ばして早熟でも関取前に失速しにくくする。peakEnd 26→27, decayStart 27→28。
+    'EARLY': { peakStart: 20, peakEnd: 27, decayStart: 28, growthRate: 1.2 },
     'NORMAL': { peakStart: 24, peakEnd: 29, decayStart: 30, growthRate: 0.82 },
     'LATE': { peakStart: 28, peakEnd: 33, decayStart: 34, growthRate: 0.68 }, // 長く伸びる
     'GENIUS': { peakStart: 22, peakEnd: 30, decayStart: 32, growthRate: 1.0 }
