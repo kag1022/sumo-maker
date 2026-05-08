@@ -7,7 +7,7 @@
  *
  * Usage:
  *   npx tsx scripts/dev/sweepFullNpcWorldCalibration.ts \
- *       [--bashos 60] [--seed 7777] [--runs 3] [--profiles a,b,c]
+ *       [--bashos 60] [--seed 7777] [--runs 3] [--profiles a,b,c] [--ironman-player]
  *
  * Outputs:
  *   docs/npc_rework/full_npc_world_calibration_sweep.{json,md}
@@ -38,6 +38,8 @@ const BASHOS = argInt('--bashos', 60);
 const SEED = argInt('--seed', 7777);
 const RUNS = argInt('--runs', 3);
 const PROFILES_ARG = argStr('--profiles', '');
+const IRONMAN = args.includes('--ironman-player');
+const OUT_PREFIX = argStr('--out-prefix', 'full_npc_world_calibration_sweep');
 
 const ALL_PROFILES: NpcWorldCalibrationProfile[] = [
   'legacy',
@@ -50,6 +52,9 @@ const ALL_PROFILES: NpcWorldCalibrationProfile[] = [
   'realdata_v2_longer_careers',
   'realdata_v2_lower_heavy',
   'realdata_v2_balanced',
+  'realdata_v3_top_suppressed',
+  'realdata_v3_short_tail',
+  'realdata_v3_final_balanced',
 ];
 
 const PROFILES = PROFILES_ARG
@@ -167,6 +172,7 @@ async function runSeed(profile: NpcWorldCalibrationProfile, bashos: number, seed
       careerId: `npc-world-fullobs-sweep-${profile}-${seed}`,
       banzukeMode: 'SIMULATE',
       simulationModelVersion: 'v3',
+      __dev_ironmanPlayer: IRONMAN,
     },
     {
       random: createSeededRandom(seed + 1),
@@ -178,7 +184,7 @@ async function runSeed(profile: NpcWorldCalibrationProfile, bashos: number, seed
   let observed = 0;
   for (let b = 0; b < bashos; b++) {
     const step = await runtime.runNextSeasonStep();
-    if (step.kind === 'COMPLETED') break;
+    if (step.kind === 'COMPLETED' && !IRONMAN) break;
     observed += 1;
     const world = runtime.__getWorldForDiagnostics();
     const snap = snapshotNpcWorldForDiagnostics(world, { seq: step.seq, bashoIndex: b });
@@ -394,7 +400,7 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
   const t = NPC_WORLD_TARGET_DISTRIBUTION_REALDATA_V1;
   fs.writeFileSync(
-    path.join(outDir, 'full_npc_world_calibration_sweep.json'),
+    path.join(outDir, `${OUT_PREFIX}.json`),
     JSON.stringify({ bashos: BASHOS, runs: RUNS, baseSeed: SEED, target: t, rows }, null, 2),
     'utf-8',
   );
@@ -469,11 +475,11 @@ async function main() {
   ranked.forEach((r, i) => md.push(`| ${i + 1} | ${r.profile} | ${r.score.toFixed(4)} |`));
 
   fs.writeFileSync(
-    path.join(outDir, 'full_npc_world_calibration_sweep.md'),
+    path.join(outDir, `${OUT_PREFIX}.md`),
     md.join('\n'),
     'utf-8',
   );
-  console.log('Wrote: docs/npc_rework/full_npc_world_calibration_sweep.{json,md}');
+  console.log(`Wrote: docs/npc_rework/${OUT_PREFIX}.{json,md}`);
   console.log(`Best profile: ${ranked[0].profile} (score=${ranked[0].score.toFixed(4)})`);
 }
 
