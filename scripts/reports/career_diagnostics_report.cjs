@@ -193,6 +193,176 @@ const computePipelineDiagnostics = (features) => {
   const bTierByPath = breakdown(groupBy(bTierFeatures, (f) => f.entryPath ?? 'unknown'));
   const bTierByRetirement = breakdown(groupBy(bTierFeatures, (f) => f.retirementProfile ?? 'unknown'));
 
+  // B tier × careerBand × growthType 3段集計
+  const bTierBandGrowth = {};
+  for (const [band, bandList] of Object.entries(groupBy(bTierFeatures, (f) => f.careerBand ?? 'unknown'))) {
+    bTierBandGrowth[band] = breakdown(groupBy(bandList, (f) => f.growthType ?? 'unknown'));
+  }
+
+  // B tier × careerBand × entryPath 3段集計
+  const bTierBandPath = {};
+  for (const [band, bandList] of Object.entries(groupBy(bTierFeatures, (f) => f.careerBand ?? 'unknown'))) {
+    bTierBandPath[band] = breakdown(groupBy(bandList, (f) => f.entryPath ?? 'unknown'));
+  }
+
+  // careerBand × retirementProfile 交差集計
+  const crossTabBandRetirement = {};
+  for (const [band, bandList] of Object.entries(byCareerBand)) {
+    crossTabBandRetirement[band] = breakdown(groupBy(bandList, (f) => f.retirementProfile ?? 'unknown'));
+  }
+
+  // growthType × retirementProfile 交差集計
+  const crossTabGrowthRetirement = {};
+  for (const [gt, gtList] of Object.entries(byGrowthType)) {
+    crossTabGrowthRetirement[gt] = breakdown(groupBy(gtList, (f) => f.retirementProfile ?? 'unknown'));
+  }
+
+  // 鉄人系フラグ分析
+  const tetsujinFeatures = features.filter((f) => f.hasTetsujin);
+  const ironmanFeatures = features.filter((f) => f.hasIronman);
+  const highDurabilityFeatures = features.filter((f) => f.hasHighDurability);
+  const tetsujinIronmanOverlap = features.filter((f) => f.hasTetsujin && f.hasIronman);
+  const tripleOverlap = features.filter((f) => f.hasTetsujin && f.hasIronman && f.hasHighDurability);
+  const ironKeiFeatures = features.filter((f) => f.hasTetsujin || f.hasIronman || f.hasHighDurability);
+
+  const ironKeiStats = (list) => ({
+    count: list.length,
+    rate: pct(list.length, features.length),
+    reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+    reachedMakuuchiRate: pct(list.filter((f) => f.reachedMakuuchi).length, list.length),
+    careerBashoP50: quantile(list.map((f) => f.careerBasho), 0.5),
+    careerBashoP90: quantile(list.map((f) => f.careerBasho), 0.9),
+    makushitaCountP50: quantile(list.map((f) => f.makushitaCount), 0.5),
+    makushitaCountP90: quantile(list.map((f) => f.makushitaCount), 0.9),
+    highestMakushitaRate: pct(list.filter((f) => f.highestRankBucket === '幕下').length, list.length),
+  });
+
+  const ironKeiByCareerBand = {};
+  for (const [band, bandList] of Object.entries(byCareerBand)) {
+    const ironList = bandList.filter((f) => f.hasTetsujin || f.hasIronman || f.hasHighDurability);
+    ironKeiByCareerBand[band] = {
+      total: bandList.length,
+      ironKeiCount: ironList.length,
+      ironKeiRate: pct(ironList.length, bandList.length),
+    };
+  }
+
+  // genome averageCeiling bucket × sekitoriRate
+  const genomeCeilingBucket = (avg) => {
+    if (avg == null) return 'n/a';
+    if (avg < 45) return '<45';
+    if (avg < 55) return '45-54';
+    if (avg < 65) return '55-64';
+    if (avg < 75) return '65-74';
+    return '75+';
+  };
+  const byCeilingBucket = groupBy(features, (f) => genomeCeilingBucket(f.genomeSummary?.averageCeiling));
+  const ceilingBucketStats = {};
+  for (const [bucket, list] of Object.entries(byCeilingBucket)) {
+    ceilingBucketStats[bucket] = {
+      count: list.length,
+      reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+      reachedMakuuchiRate: pct(list.filter((f) => f.reachedMakuuchi).length, list.length),
+    };
+  }
+
+  // durabilityScore bucket × careerBasho
+  const durabilityBucket = (score) => {
+    if (score == null) return 'n/a';
+    if (score < 50) return '<50';
+    if (score < 80) return '50-79';
+    if (score < 110) return '80-109';
+    if (score < 140) return '110-139';
+    return '140+';
+  };
+  const byDurabilityBucket = groupBy(features, (f) => durabilityBucket(f.genomeSummary?.durabilityScore));
+  const durabilityBucketStats = {};
+  for (const [bucket, list] of Object.entries(byDurabilityBucket)) {
+    durabilityBucketStats[bucket] = {
+      count: list.length,
+      careerBashoP50: quantile(list.map((f) => f.careerBasho), 0.5),
+      careerBashoP90: quantile(list.map((f) => f.careerBasho), 0.9),
+      reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+    };
+  }
+
+  // GRINDER 重点分析
+  const grinderFeatures = byCareerBand['GRINDER'] ?? [];
+  const grinderByTier = groupBy(grinderFeatures, (f) => f.aptitudeTier ?? 'unknown');
+  const grinderTierStats = {};
+  for (const [tier, list] of Object.entries(grinderByTier)) {
+    grinderTierStats[tier] = {
+      count: list.length,
+      reachedMakushitaUpperRate: pct(list.filter((f) => f.reachedMakushitaUpper).length, list.length),
+      reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+      highestMakushitaRate: pct(list.filter((f) => f.highestRankBucket === '幕下').length, list.length),
+      careerBashoP50: quantile(list.map((f) => f.careerBasho), 0.5),
+      careerBashoP90: quantile(list.map((f) => f.careerBasho), 0.9),
+      winRateP50: quantile(list.map((f) => f.careerWinRate).filter(Number.isFinite), 0.5),
+      winRateP90: quantile(list.map((f) => f.careerWinRate).filter(Number.isFinite), 0.9),
+      retirementReasonDist: distributionOf(list, (f) => f.retirementReasonCode),
+    };
+  }
+  const grinderFocus = {
+    total: grinderFeatures.length,
+    reachedMakushitaUpperRate: pct(grinderFeatures.filter((f) => f.reachedMakushitaUpper).length, grinderFeatures.length),
+    reachedJuryoRate: pct(grinderFeatures.filter((f) => f.reachedJuryo).length, grinderFeatures.length),
+    highestMakushitaRate: pct(grinderFeatures.filter((f) => f.highestRankBucket === '幕下').length, grinderFeatures.length),
+    careerBashoP50: quantile(grinderFeatures.map((f) => f.careerBasho), 0.5),
+    careerBashoP90: quantile(grinderFeatures.map((f) => f.careerBasho), 0.9),
+    winRateP50: quantile(grinderFeatures.map((f) => f.careerWinRate).filter(Number.isFinite), 0.5),
+    winRateP90: quantile(grinderFeatures.map((f) => f.careerWinRate).filter(Number.isFinite), 0.9),
+    retirementReasonDist: distributionOf(grinderFeatures, (f) => f.retirementReasonCode),
+    byTier: grinderTierStats,
+  };
+
+  // WASHOUT 重点分析
+  const washoutFeatures = byCareerBand['WASHOUT'] ?? [];
+  const washoutByBucket = groupBy(washoutFeatures, (f) => careerBashoBucket(f.careerBasho));
+  const washoutBucketDist = {};
+  for (const bucket of ['<12', '12-23', '24-35', '36-59', '60+']) {
+    const list = washoutByBucket[bucket] ?? [];
+    washoutBucketDist[bucket] = {
+      count: list.length,
+      rate: pct(list.length, washoutFeatures.length),
+      reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+      retirementReasonDist: distributionOf(list, (f) => f.retirementReasonCode),
+    };
+  }
+  const washoutFocus = {
+    total: washoutFeatures.length,
+    earlyExitProfileRate: pct(washoutFeatures.filter((f) => f.retirementProfile === 'EARLY_EXIT').length, washoutFeatures.length),
+    reachedJuryoRate: pct(washoutFeatures.filter((f) => f.reachedJuryo).length, washoutFeatures.length),
+    careerBashoP50: quantile(washoutFeatures.map((f) => f.careerBasho), 0.5),
+    careerBashoP90: quantile(washoutFeatures.map((f) => f.careerBasho), 0.9),
+    highDurabilityUpsideJuryoRate: pct(
+      washoutFeatures.filter((f) => f.hasHighDurability && f.reachedJuryo).length,
+      washoutFeatures.filter((f) => f.hasHighDurability).length,
+    ),
+    highDurabilityCount: washoutFeatures.filter((f) => f.hasHighDurability).length,
+    bucketDistribution: washoutBucketDist,
+  };
+
+  // styleRelevantCeiling bucket × 到達率
+  const styleRelevantBucket = (v) => {
+    if (v == null) return 'n/a';
+    if (v < 45) return '<45';
+    if (v < 50) return '45-49';
+    if (v < 55) return '50-54';
+    if (v < 60) return '55-59';
+    if (v < 65) return '60-64';
+    return '65+';
+  };
+  const byStyleRelevantBucket = groupBy(features, (f) => styleRelevantBucket(f.genomeSummary?.styleRelevantCeiling));
+  const styleRelevantCeilingStats = {};
+  for (const [bucket, list] of Object.entries(byStyleRelevantBucket)) {
+    styleRelevantCeilingStats[bucket] = {
+      count: list.length,
+      reachedJuryoRate: pct(list.filter((f) => f.reachedJuryo).length, list.length),
+      reachedMakuuchiRate: pct(list.filter((f) => f.reachedMakuuchi).length, list.length),
+    };
+  }
+
   return {
     sample,
     reach: {
@@ -249,13 +419,31 @@ const computePipelineDiagnostics = (features) => {
     crossTabTierBand,
     crossTabTierGrowth,
     crossTabTierRetirement,
+    crossTabBandRetirement,
+    crossTabGrowthRetirement,
     bTierAnalysis: {
       total: bTierFeatures.length,
       byBand: bTierByBand,
       byGrowth: bTierByGrowth,
       byEntryPath: bTierByPath,
       byRetirement: bTierByRetirement,
+      byBandGrowth: bTierBandGrowth,
+      byBandPath: bTierBandPath,
     },
+    ironKeiAnalysis: {
+      tetsujin: ironKeiStats(tetsujinFeatures),
+      ironman: ironKeiStats(ironmanFeatures),
+      highDurability: ironKeiStats(highDurabilityFeatures),
+      tetsujinIronmanOverlap: ironKeiStats(tetsujinIronmanOverlap),
+      tripleOverlap: ironKeiStats(tripleOverlap),
+      ironKeiAll: ironKeiStats(ironKeiFeatures),
+      byCareerBand: ironKeiByCareerBand,
+    },
+    genomeCeilingBucketStats: ceilingBucketStats,
+    durabilityBucketStats,
+    grinderFocus,
+    washoutFocus,
+    styleRelevantCeilingStats,
   };
 };
 
@@ -416,7 +604,7 @@ const renderPipelineMd = (diag, meta) => {
   lines.push('');
   lines.push('## growthType別');
   lines.push('');
-  lines.push('> EARLY: peakEnd=25 / NORMAL: peakEnd=29 / LATE: peakEnd=33 / GENIUS: peakEnd=30');
+  lines.push('> EARLY: peakEnd=27 / NORMAL: peakEnd=29 / LATE: peakEnd=33 / GENIUS: peakEnd=30');
   lines.push('');
   lines.push('| growthType | count | 幕下到達 | 十両到達 | 幕内到達 | 最高位前頭 |');
   lines.push('|---|---:|---:|---:|---:|---:|');
@@ -512,7 +700,170 @@ const renderPipelineMd = (diag, meta) => {
       lines.push(`| ${path} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
     }
     lines.push('');
+    lines.push('### B tier × careerBand × growthType');
+    lines.push('');
+    for (const [band, growthBreakdown] of Object.entries(diag.bTierAnalysis.byBandGrowth || {})) {
+      lines.push(`#### B × ${band}`);
+      lines.push('');
+      lines.push('| growthType | count | 十両到達 | 幕内到達 |');
+      lines.push('|---|---:|---:|---:|');
+      for (const [gt, row] of Object.entries(growthBreakdown)) {
+        lines.push(`| ${gt} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+      }
+      lines.push('');
+    }
+    lines.push('### B tier × careerBand × entryPath');
+    lines.push('');
+    for (const [band, pathBreakdown] of Object.entries(diag.bTierAnalysis.byBandPath || {})) {
+      lines.push(`#### B × ${band}`);
+      lines.push('');
+      lines.push('| entryPath | count | 十両到達 | 幕内到達 |');
+      lines.push('|---|---:|---:|---:|');
+      for (const [path, row] of Object.entries(pathBreakdown)) {
+        lines.push(`| ${path} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+      }
+      lines.push('');
+    }
   }
+  lines.push('## careerBand × retirementProfile 交差集計');
+  lines.push('');
+  lines.push('> GRINDER: retirementProfile 分布 (粘り型なら IRONMAN 率が高いはず)');
+  lines.push('> WASHOUT: EARLY_EXIT 率が高いはず');
+  lines.push('');
+  for (const [band, rpBreakdown] of Object.entries(diag.crossTabBandRetirement || {})) {
+    lines.push(`### band=${band}`);
+    lines.push('');
+    lines.push('| retirementProfile | count | 十両到達 | 幕内到達 |');
+    lines.push('|---|---:|---:|---:|');
+    for (const [rp, row] of Object.entries(rpBreakdown)) {
+      lines.push(`| ${rp} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+    }
+    lines.push('');
+  }
+  lines.push('## growthType × retirementProfile 交差集計');
+  lines.push('');
+  lines.push('> LATE: EARLY_EXIT 率が低いはず / EARLY: やや高いはず');
+  lines.push('');
+  for (const [gt, rpBreakdown] of Object.entries(diag.crossTabGrowthRetirement || {})) {
+    lines.push(`### growthType=${gt}`);
+    lines.push('');
+    lines.push('| retirementProfile | count | 十両到達 | 幕内到達 |');
+    lines.push('|---|---:|---:|---:|');
+    for (const [rp, row] of Object.entries(rpBreakdown)) {
+      lines.push(`| ${rp} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+    }
+    lines.push('');
+  }
+  lines.push('## 鉄人系要素 分析');
+  lines.push('');
+  lines.push('> TETSUJIN trait / IRONMAN retirementProfile / highDurability の単独・重複効果を確認する。');
+  lines.push('');
+  if (diag.ironKeiAnalysis) {
+    const ik = diag.ironKeiAnalysis;
+    lines.push('| 鉄人系 | count | 全体率 | 十両到達 | 幕内到達 | キャリア場所P50 | キャリア場所P90 | 幕下最高位率 |');
+    lines.push('|---|---:|---:|---:|---:|---:|---:|---:|');
+    const rows = [
+      ['TETSUJIN trait', ik.tetsujin],
+      ['IRONMAN profile', ik.ironman],
+      ['highDurability', ik.highDurability],
+      ['TETSUJIN×IRONMAN', ik.tetsujinIronmanOverlap],
+      ['三重重複', ik.tripleOverlap],
+      ['鉄人系any', ik.ironKeiAll],
+    ];
+    for (const [label, row] of rows) {
+      if (row && row.count > 0) {
+        lines.push(`| ${label} | ${row.count} | ${toPct(row.rate)} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} | ${toFixed(row.careerBashoP50, 0)} | ${toFixed(row.careerBashoP90, 0)} | ${toPct(row.highestMakushitaRate)} |`);
+      }
+    }
+    lines.push('');
+    lines.push('### 鉄人系 × careerBand');
+    lines.push('');
+    lines.push('| careerBand | total | 鉄人系数 | 鉄人系率 |');
+    lines.push('|---|---:|---:|---:|');
+    for (const [band, row] of Object.entries(ik.byCareerBand || {})) {
+      lines.push(`| ${band} | ${row.total} | ${row.ironKeiCount} | ${toPct(row.ironKeiRate)} |`);
+    }
+    lines.push('');
+  }
+  lines.push('## genome averageCeiling bucket × 到達率');
+  lines.push('');
+  lines.push('| ceilingBucket | count | 十両到達 | 幕内到達 |');
+  lines.push('|---|---:|---:|---:|');
+  for (const [bucket, row] of Object.entries(diag.genomeCeilingBucketStats || {})) {
+    lines.push(`| ${bucket} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+  }
+  lines.push('');
+  lines.push('## durabilityScore bucket × キャリア場所数');
+  lines.push('');
+  lines.push('| durabilityBucket | count | careerBasho P50 | careerBasho P90 | 十両到達 |');
+  lines.push('|---|---:|---:|---:|---:|');
+  for (const [bucket, row] of Object.entries(diag.durabilityBucketStats || {})) {
+    lines.push(`| ${bucket} | ${row.count} | ${toFixed(row.careerBashoP50, 0)} | ${toFixed(row.careerBashoP90, 0)} | ${toPct(row.reachedJuryoRate)} |`);
+  }
+  lines.push('');
+  lines.push('## GRINDER 重点分析');
+  lines.push('');
+  lines.push('> abilityBias=0 (STANDARD同等) / growthBias=+0.03 / stagnationBias=0.92 / retentionBias=0.88。');
+  lines.push('> 幕下吸着が解消されているか、十両到達率・careerBasho分布・引退理由で確認する。');
+  lines.push('');
+  if (diag.grinderFocus) {
+    const gf = diag.grinderFocus;
+    lines.push(`- GRINDER 総数: ${gf.total}`);
+    lines.push(`- 幕下上位到達率: ${toPct(gf.reachedMakushitaUpperRate)}`);
+    lines.push(`- 十両到達率: ${toPct(gf.reachedJuryoRate)}`);
+    lines.push(`- 最高位幕下率: ${toPct(gf.highestMakushitaRate)}`);
+    lines.push(`- キャリア場所数 P50/P90: ${toFixed(gf.careerBashoP50, 0)} / ${toFixed(gf.careerBashoP90, 0)}`);
+    lines.push(`- 勝率 P50/P90: ${toPct(gf.winRateP50)} / ${toPct(gf.winRateP90)}`);
+    lines.push('');
+    lines.push('引退理由分布:');
+    for (const [code, info] of Object.entries(gf.retirementReasonDist || {})) {
+      lines.push(`  - ${code}: ${info.count} (${toPct(info.rate)})`);
+    }
+    lines.push('');
+    lines.push('### GRINDER × aptitudeTier');
+    lines.push('');
+    lines.push('| tier | count | 幕下上位到達 | 十両到達 | 最高位幕下 | キャリアP50 | キャリアP90 | 勝率P50 |');
+    lines.push('|---|---:|---:|---:|---:|---:|---:|---:|');
+    for (const [tier, row] of Object.entries(gf.byTier || {})) {
+      lines.push(`| ${tier} | ${row.count} | ${toPct(row.reachedMakushitaUpperRate)} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.highestMakushitaRate)} | ${toFixed(row.careerBashoP50, 0)} | ${toFixed(row.careerBashoP90, 0)} | ${toPct(row.winRateP50)} |`);
+    }
+    lines.push('');
+  }
+  lines.push('## WASHOUT 重点分析');
+  lines.push('');
+  lines.push('> abilityBias=-10 / growthBias=-0.12。主特性:停滞しやすく辞めやすい「早期離脱型」。');
+  lines.push('> highDurability との重複で一定の関取到達率があるか確認する。');
+  lines.push('');
+  if (diag.washoutFocus) {
+    const wf = diag.washoutFocus;
+    lines.push(`- WASHOUT 総数: ${wf.total}`);
+    lines.push(`- EARLY_EXIT profile 率: ${toPct(wf.earlyExitProfileRate)}`);
+    lines.push(`- 十両到達率: ${toPct(wf.reachedJuryoRate)}`);
+    lines.push(`- キャリア場所数 P50/P90: ${toFixed(wf.careerBashoP50, 0)} / ${toFixed(wf.careerBashoP90, 0)}`);
+    lines.push(`- highDurability 数: ${wf.highDurabilityCount} / 高耐久WASHOUT十両到達率: ${toPct(wf.highDurabilityUpsideJuryoRate)}`);
+    lines.push('');
+    lines.push('キャリア場所数バケット分布:');
+    lines.push('');
+    lines.push('| bucket | count | 全WASHOUT中 | 十両到達 | 主要引退理由 |');
+    lines.push('|---|---:|---:|---:|---|');
+    for (const [bucket, row] of Object.entries(wf.bucketDistribution || {})) {
+      const topReason = Object.entries(row.retirementReasonDist || {}).sort(([, a], [, b]) => b.count - a.count)[0];
+      const topReasonStr = topReason ? `${topReason[0]} ${toPct(topReason[1].rate)}` : 'n/a';
+      lines.push(`| ${bucket} | ${row.count} | ${toPct(row.rate)} | ${toPct(row.reachedJuryoRate)} | ${topReasonStr} |`);
+    }
+    lines.push('');
+  }
+  lines.push('## genome styleRelevantCeiling bucket × 到達率');
+  lines.push('');
+  lines.push('> 戦術別に重み付けした天井加重平均。PUSH: power+speed重視 / GRAPPLE: power+tech+ringSense / TECHNIQUE: tech+ringSense+speed。');
+  lines.push('> averageCeiling より個人差が出やすく、到達率との相関を確認する。');
+  lines.push('');
+  lines.push('| styleRelevantBucket | count | 十両到達 | 幕内到達 |');
+  lines.push('|---|---:|---:|---:|');
+  for (const [bucket, row] of Object.entries(diag.styleRelevantCeilingStats || {})) {
+    lines.push(`| ${bucket} | ${row.count} | ${toPct(row.reachedJuryoRate)} | ${toPct(row.reachedMakuuchiRate)} |`);
+  }
+  lines.push('');
   return lines.join('\n');
 };
 

@@ -2658,7 +2658,11 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'retirement: weak lower-division career bands no longer receive survival protection',
+    // GRINDER = 「粘り型」: 非関取での引退確率が STANDARD より低い。
+    // WASHOUT = 「早期離脱型」: 非関取での引退確率が STANDARD より高い。
+    // 旧設計では GRINDER も STANDARD より高かったが、「幕下定着・遅咲き上振れ」を
+    // 実現するために GRINDER の非関取退職乗数を保護方向（<1.0）へ変更した。
+    name: 'retirement: GRINDER has lower non-sekitori hazard than STANDARD; WASHOUT has higher',
     run: () => {
       const base = {
         age: 27,
@@ -2685,8 +2689,8 @@ export const tests: TestCase[] = [
         ...base,
         careerBand: 'WASHOUT',
       });
-      assert.ok(grinder > standard, `Expected GRINDER hazard > STANDARD, got ${grinder} <= ${standard}`);
-      assert.ok(washout > grinder, `Expected WASHOUT hazard > GRINDER, got ${washout} <= ${grinder}`);
+      assert.ok(grinder < standard, `Expected GRINDER hazard < STANDARD (grinder sticks around), got ${grinder} >= ${standard}`);
+      assert.ok(washout > standard, `Expected WASHOUT hazard > STANDARD, got ${washout} <= ${standard}`);
     },
   },
   {

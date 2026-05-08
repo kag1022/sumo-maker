@@ -1,0 +1,2895 @@
+{
+  "generatedAt": "2026-05-07T10:59:31Z",
+  "apiBase": "https://sumo-api.com/api",
+  "probeBashoIds": [
+    "202603",
+    "202601",
+    "201903",
+    "200001",
+    "198901",
+    "197001",
+    "196007"
+  ],
+  "workingDivisions": [
+    "Jonidan",
+    "Jonokuchi",
+    "Juryo",
+    "Makushita",
+    "Makuuchi",
+    "Sandanme"
+  ],
+  "divisionNames": [
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Makuuchi",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Makuuchi",
+      "apiDivision": "Makuuchi",
+      "eastCount": 21,
+      "westCount": 21
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Juryo",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Juryo",
+      "apiDivision": "Juryo",
+      "eastCount": 14,
+      "westCount": 14
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Makushita",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Makushita",
+      "apiDivision": "Makushita",
+      "eastCount": 60,
+      "westCount": 60
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Sandanme",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Sandanme",
+      "apiDivision": "Sandanme",
+      "eastCount": 90,
+      "westCount": 90
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Jonidan",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Jonidan",
+      "apiDivision": "Jonidan",
+      "eastCount": 98,
+      "westCount": 98
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Jonokuchi",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "Jonokuchi",
+      "apiDivision": "Jonokuchi",
+      "eastCount": 17,
+      "westCount": 16
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/makuuchi",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "makuuchi",
+      "apiDivision": "Makuuchi",
+      "eastCount": 21,
+      "westCount": 21
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/juryo",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "juryo",
+      "apiDivision": "Juryo",
+      "eastCount": 14,
+      "westCount": 14
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/makushita",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "makushita",
+      "apiDivision": "Makushita",
+      "eastCount": 60,
+      "westCount": 60
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/sandanme",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "sandanme",
+      "apiDivision": "Sandanme",
+      "eastCount": 90,
+      "westCount": 90
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/jonidan",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "jonidan",
+      "apiDivision": "Jonidan",
+      "eastCount": 98,
+      "westCount": 98
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/jonokuchi",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "bashoId",
+        "division",
+        "east",
+        "west"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "candidate": "jonokuchi",
+      "apiDivision": "Jonokuchi",
+      "eastCount": 17,
+      "westCount": 16
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/幕内",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-31: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "幕内"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/十両",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-31: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "十両"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/幕下",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-31: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "幕下"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/三段目",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-32: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "三段目"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/序二段",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-32: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "序二段"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/序ノ口",
+      "httpStatus": -1,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "'ascii' codec can't encode characters in position 30-32: ordinal not in range(128)",
+      "retries": 4,
+      "candidate": "序ノ口"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Maku-uchi",
+      "httpStatus": 400,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "HTTP 400",
+      "retries": 4,
+      "candidate": "Maku-uchi"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Makunouchi",
+      "httpStatus": 400,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "HTTP 400",
+      "retries": 4,
+      "candidate": "Makunouchi"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Ju-ryo",
+      "httpStatus": 400,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "HTTP 400",
+      "retries": 4,
+      "candidate": "Ju-ryo"
+    },
+    {
+      "url": "https://sumo-api.com/api/basho/202401/banzuke/Juryou",
+      "httpStatus": 400,
+      "topLevelType": null,
+      "topLevelKeys": null,
+      "ok": false,
+      "error": "HTTP 400",
+      "retries": 4,
+      "candidate": "Juryou"
+    }
+  ],
+  "bashoMeta": {
+    "202603": {
+      "url": "https://sumo-api.com/api/basho/202603",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "202603",
+      "date": "202603",
+      "location": "?"
+    },
+    "202601": {
+      "url": "https://sumo-api.com/api/basho/202601",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "202601",
+      "date": "202601",
+      "location": "?"
+    },
+    "201903": {
+      "url": "https://sumo-api.com/api/basho/201903",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "201903",
+      "date": "201903",
+      "location": "Osaka, Osaka Prefectural Gymnasium"
+    },
+    "200001": {
+      "url": "https://sumo-api.com/api/basho/200001",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "200001",
+      "date": "200001",
+      "location": "Tokyo, Ryogoku Kokugikan"
+    },
+    "198901": {
+      "url": "https://sumo-api.com/api/basho/198901",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "198901",
+      "date": "198901",
+      "location": "Tokyo, Ryogoku Kokugikan"
+    },
+    "197001": {
+      "url": "https://sumo-api.com/api/basho/197001",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "197001",
+      "date": "197001",
+      "location": "Tokyo, Kuramae Kokugikan"
+    },
+    "196007": {
+      "url": "https://sumo-api.com/api/basho/196007",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "bashoId": "196007",
+      "date": "196007",
+      "location": "Nagoya, Nagoya Kanayama Gymnasium"
+    }
+  },
+  "banzuke": {
+    "202603": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 100,
+        "westCount": 100,
+        "totalRikishi": 200,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 21,
+        "westCount": 21,
+        "totalRikishi": 42,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 14,
+        "westCount": 14,
+        "totalRikishi": 28,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 61,
+        "westCount": 60,
+        "totalRikishi": 121,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 21,
+        "westCount": 21,
+        "totalRikishi": 42,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/202603/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 81,
+        "westCount": 80,
+        "totalRikishi": 161,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "202601": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 101,
+        "westCount": 101,
+        "totalRikishi": 202,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 21,
+        "westCount": 21,
+        "totalRikishi": 42,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 14,
+        "westCount": 14,
+        "totalRikishi": 28,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 61,
+        "westCount": 60,
+        "totalRikishi": 121,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 21,
+        "westCount": 21,
+        "totalRikishi": 42,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/202601/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 80,
+        "westCount": 80,
+        "totalRikishi": 160,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "shikonaJp",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "201903": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 106,
+        "westCount": 106,
+        "totalRikishi": 212,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 26,
+        "westCount": 25,
+        "totalRikishi": 51,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 14,
+        "westCount": 14,
+        "totalRikishi": 28,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 60,
+        "westCount": 60,
+        "totalRikishi": 120,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 22,
+        "westCount": 20,
+        "totalRikishi": 42,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/201903/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 100,
+        "westCount": 100,
+        "totalRikishi": 200,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "200001": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 150,
+        "westCount": 150,
+        "totalRikishi": 300,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 42,
+        "westCount": 41,
+        "totalRikishi": 83,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 13,
+        "westCount": 13,
+        "totalRikishi": 26,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 60,
+        "westCount": 60,
+        "totalRikishi": 120,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 20,
+        "westCount": 20,
+        "totalRikishi": 40,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/200001/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 100,
+        "westCount": 100,
+        "totalRikishi": 200,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "198901": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 139,
+        "westCount": 140,
+        "totalRikishi": 279,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 42,
+        "westCount": 42,
+        "totalRikishi": 84,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 13,
+        "westCount": 13,
+        "totalRikishi": 26,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 61,
+        "westCount": 60,
+        "totalRikishi": 121,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 20,
+        "westCount": 18,
+        "totalRikishi": 38,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/198901/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 101,
+        "westCount": 100,
+        "totalRikishi": 201,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "197001": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 81,
+        "westCount": 81,
+        "totalRikishi": 162,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": false,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 16,
+        "westCount": 16,
+        "totalRikishi": 32,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": false,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 13,
+        "westCount": 13,
+        "totalRikishi": 26,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 60,
+        "westCount": 61,
+        "totalRikishi": 121,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 17,
+        "westCount": 17,
+        "totalRikishi": 34,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/197001/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 100,
+        "westCount": 100,
+        "totalRikishi": 200,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": false,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    },
+    "196007": {
+      "Jonidan": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Jonidan",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonidan",
+        "apiDivision": "Jonidan",
+        "eastCount": 126,
+        "westCount": 126,
+        "totalRikishi": 252,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonidan 1 East"
+      },
+      "Jonokuchi": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Jonokuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Jonokuchi",
+        "apiDivision": "Jonokuchi",
+        "eastCount": 25,
+        "westCount": 24,
+        "totalRikishi": 49,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Jonokuchi 1 East"
+      },
+      "Juryo": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Juryo",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Juryo",
+        "apiDivision": "Juryo",
+        "eastCount": 19,
+        "westCount": 19,
+        "totalRikishi": 38,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Juryo 1 East"
+      },
+      "Makushita": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Makushita",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makushita",
+        "apiDivision": "Makushita",
+        "eastCount": 85,
+        "westCount": 85,
+        "totalRikishi": 170,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Makushita 1 East"
+      },
+      "Makuuchi": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Makuuchi",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Makuuchi",
+        "apiDivision": "Makuuchi",
+        "eastCount": 21,
+        "westCount": 20,
+        "totalRikishi": 41,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "record",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": true,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Yokozuna 1 East"
+      },
+      "Sandanme": {
+        "url": "https://sumo-api.com/api/basho/196007/banzuke/Sandanme",
+        "httpStatus": 200,
+        "topLevelType": "object",
+        "topLevelKeys": [
+          "bashoId",
+          "division",
+          "east",
+          "west"
+        ],
+        "ok": true,
+        "error": null,
+        "retries": 0,
+        "division": "Sandanme",
+        "apiDivision": "Sandanme",
+        "eastCount": 106,
+        "westCount": 105,
+        "totalRikishi": 211,
+        "responseStructure": {
+          "bashoId": "str",
+          "division": "str",
+          "east": [
+            "dict"
+          ],
+          "west": [
+            "dict"
+          ]
+        },
+        "entryFields": [
+          "side",
+          "rikishiID",
+          "shikonaEn",
+          "rankValue",
+          "rank",
+          "wins",
+          "losses",
+          "absences"
+        ],
+        "hasRecord": false,
+        "hasWinsField": true,
+        "hasRikishiId": true,
+        "hasRank": true,
+        "hasSide": true,
+        "hasShikona": true,
+        "hasRankValue": true,
+        "rankSample": "Sandanme 1 East"
+      }
+    }
+  },
+  "torikumi": {
+    "202603": {
+      "url": "https://sumo-api.com/api/basho/202603/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 21,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "202601": {
+      "url": "https://sumo-api.com/api/basho/202601/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 21,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "201903": {
+      "url": "https://sumo-api.com/api/basho/201903/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "location": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 21,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "200001": {
+      "url": "https://sumo-api.com/api/basho/200001/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "location": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 19,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "198901": {
+      "url": "https://sumo-api.com/api/basho/198901/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "location": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 18,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "197001": {
+      "url": "https://sumo-api.com/api/basho/197001/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "location": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 17,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    },
+    "196007": {
+      "url": "https://sumo-api.com/api/basho/196007/torikumi/Makuuchi/1",
+      "httpStatus": 200,
+      "topLevelType": "object",
+      "topLevelKeys": [
+        "date",
+        "location",
+        "startDate",
+        "endDate",
+        "yusho",
+        "specialPrizes",
+        "torikumi"
+      ],
+      "ok": true,
+      "error": null,
+      "retries": 0,
+      "responseStructure": {
+        "date": "str",
+        "location": "str",
+        "startDate": "str",
+        "endDate": "str",
+        "yusho": [
+          "dict"
+        ],
+        "specialPrizes": [
+          "dict"
+        ],
+        "torikumi": [
+          "dict"
+        ]
+      },
+      "torikumiCount": 21,
+      "torikumiEntryFields": [
+        "id",
+        "bashoId",
+        "division",
+        "day",
+        "matchNo",
+        "eastId",
+        "eastShikona",
+        "eastRank",
+        "westId",
+        "westShikona",
+        "westRank",
+        "kimarite",
+        "winnerId",
+        "winnerEn",
+        "winnerJp"
+      ],
+      "hasWinnerId": true,
+      "hasEastId": true,
+      "hasWestId": true,
+      "hasKimarite": true,
+      "hasWinnerEn": true
+    }
+  }
+}

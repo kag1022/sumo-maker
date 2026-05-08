@@ -1,4 +1,4 @@
-import { BashoRecord, CareerBand, CareerSeedBiases, Division, RetirementProfile } from '../../models';
+import { BashoRecord, CareerBand, CareerSeedBiases, Division, GrowthType, RetirementProfile } from '../../models';
 
 const TOP_DIVISIONS: Division[] = ['Makuuchi', 'Juryo'];
 type RetirementHazardGroup =
@@ -161,6 +161,42 @@ export const resolveRetirementProfileByRoll = (roll: number): RetirementProfile 
 
 export const resolveRetirementProfileFromText = (seedText: string): RetirementProfile =>
   resolveRetirementProfileByRoll(deterministicHash(seedText));
+
+/**
+ * careerBand と growthType を考慮した retirementProfile 割り当て。
+ * GRINDER: EARLY_EXIT を抑制し IRONMAN 率を高め「粘り型」に寄せる。
+ * WASHOUT: EARLY_EXIT を強化し「早期離脱型」に寄せる。
+ * LATE: EARLY_EXIT を抑制（晩成型は辞めにくい）。
+ * EARLY: EARLY_EXIT を微増（早熟型は燃え尽き離脱リスク）。
+ */
+export const resolveRetirementProfileBiased = (
+  seedText: string,
+  careerBand?: CareerBand,
+  growthType?: GrowthType,
+): RetirementProfile => {
+  const roll = deterministicHash(seedText);
+  let earlyExitUpper = 0.08;
+  let ironmanLower = 0.97;
+
+  if (careerBand === 'GRINDER') {
+    earlyExitUpper = 0.05;
+    ironmanLower = 0.93;
+  } else if (careerBand === 'WASHOUT') {
+    earlyExitUpper = 0.18;
+    ironmanLower = 0.98;
+  }
+
+  if (growthType === 'LATE') {
+    earlyExitUpper = Math.max(earlyExitUpper - 0.03, 0.01);
+    ironmanLower = Math.min(ironmanLower, 0.95);
+  } else if (growthType === 'EARLY') {
+    earlyExitUpper = Math.min(earlyExitUpper + 0.04, 0.25);
+  }
+
+  if (roll < earlyExitUpper) return 'EARLY_EXIT';
+  if (roll >= ironmanLower) return 'IRONMAN';
+  return 'STANDARD';
+};
 
 export const resolveRetirementProfileBias = (profile?: RetirementProfile): number => {
   if (profile === 'EARLY_EXIT') return 1.08;
@@ -337,9 +373,13 @@ export const resolveRetirementChance = (input: RetirementChanceInput): number =>
   if (!isCurrentSekitori) {
     chance += Math.max(0, (stagnationPressure ?? 0) - 1.8) * 0.02;
     if (careerBand === 'GRINDER') {
-      chance *= careerBashoCount < 80 ? 1.06 : 1.16;
+      // GRINDER は「粘り型」: 非関取での引退確率を下げ、幕下定着・遅咲き昇進の余地を作る。
+      // 長期在籍（80場所超）でも保護を維持し、勝てないまま居座るだけにならないよう
+      // nonSekitoriLongCareer ハザードと組み合わせて自然に淘汰される設計。
+      chance *= careerBashoCount < 80 ? 0.94 : 0.88;
     } else if (careerBand === 'WASHOUT') {
-      chance *= careerBashoCount < 90 ? 1.22 : 1.1;
+      // WASHOUT は「早期離脱型」: 序盤ほど退出圧を高く、長期化した場合は標準に近づける。
+      chance *= careerBashoCount < 60 ? 1.28 : 1.10;
     }
   }
 
