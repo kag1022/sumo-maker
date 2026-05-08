@@ -90,6 +90,7 @@ docs/realdata_integration/sekitori_boundary_final_assessment.md
 
 最優先は Option B。
 理由:
+
 - 幕下上位5勝以上昇進率は定義一致後に大きな乖離が見えない
 - 一方、十両下位勝ち越し率はまだ明確な乖離がある
 - B tier 幕下吸着にも、十両下位側の強さ・滞留構造が関係する可能性がある

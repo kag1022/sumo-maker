@@ -21,7 +21,10 @@ export type NpcWorldCalibrationProfile =
   | 'realdata_v2_reach_suppressed'
   | 'realdata_v2_longer_careers'
   | 'realdata_v2_lower_heavy'
-  | 'realdata_v2_balanced';
+  | 'realdata_v2_balanced'
+  | 'realdata_v3_top_suppressed'
+  | 'realdata_v3_short_tail'
+  | 'realdata_v3_final_balanced';
 
 export interface NpcWorldCalibrationParameters {
   /** Override mix for careerBand sampling. Empty -> use legacy empirical. */
@@ -220,6 +223,81 @@ const PROFILE_TABLE: Record<NpcWorldCalibrationProfile, NpcWorldCalibrationParam
     plannedCareerBashoPercentiles: { p10: 2, p50: 21, p90: 78 },
     careerLengthHazardScale: 1.10,
     earlyWashoutBonusScale: 1.15,
+  },
+  // v3 family — ironman-observation reveals v2_reach_suppressed still produces
+  // ~4x yokozuna share, ~2.7x careerP50, and ~0.25x under12 vs target. v3
+  // suppresses upper-band candidates further and shortens career tails.
+  realdata_v3_top_suppressed: {
+    careerBandMix: {
+      ELITE: 0.004,
+      STRONG: 0.045,
+      STANDARD: 0.27,
+      GRINDER: 0.34,
+      WASHOUT: 0.341,
+    },
+    aptitudeTierMix: {
+      S: 0.0015,
+      A: 0.025,
+      B: 0.24,
+      C: 0.48,
+      D: 0.2535,
+    },
+    retirementProfileMix: {
+      EARLY_EXIT: 0.40,
+      STANDARD: 0.575,
+      IRONMAN: 0.025,
+    },
+    plannedCareerBashoPercentiles: { p10: 3, p50: 21, p90: 76 },
+    careerLengthHazardScale: 1.25,
+    earlyWashoutBonusScale: 1.20,
+  },
+  realdata_v3_short_tail: {
+    careerBandMix: {
+      ELITE: 0.007,
+      STRONG: 0.06,
+      STANDARD: 0.28,
+      GRINDER: 0.33,
+      WASHOUT: 0.323,
+    },
+    aptitudeTierMix: {
+      S: 0.002,
+      A: 0.035,
+      B: 0.26,
+      C: 0.46,
+      D: 0.243,
+    },
+    retirementProfileMix: {
+      EARLY_EXIT: 0.50,
+      STANDARD: 0.48,
+      IRONMAN: 0.02,
+    },
+    plannedCareerBashoPercentiles: { p10: 1, p50: 14, p90: 60 },
+    careerLengthHazardScale: 1.55,
+    earlyWashoutBonusScale: 1.55,
+  },
+  realdata_v3_final_balanced: {
+    careerBandMix: {
+      ELITE: 0.005,
+      STRONG: 0.05,
+      STANDARD: 0.27,
+      GRINDER: 0.335,
+      WASHOUT: 0.34,
+    },
+    aptitudeTierMix: {
+      S: 0.002,
+      A: 0.03,
+      B: 0.25,
+      C: 0.47,
+      D: 0.248,
+    },
+    retirementProfileMix: {
+      EARLY_EXIT: 0.45,
+      STANDARD: 0.525,
+      IRONMAN: 0.025,
+    },
+    plannedCareerBashoPercentiles: { p10: 2, p50: 17, p90: 68 },
+    careerLengthHazardScale: 1.40,
+    earlyWashoutBonusScale: 1.35,
   },
 };
 
