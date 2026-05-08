@@ -28,10 +28,10 @@ const NAV_CARDS: Array<{
 }> = [
   {
     key: "scout",
-    title: "新弟子設計",
-    body: "入口の条件を決め、新しい相撲人生を始める。体格・気質・出自から一人の力士像を作る。",
+    title: "観測する",
+    body: "観測テーマと追加ビルドで方向性を寄せ、新しい相撲人生を観測する。結果は保証されない。",
     icon: ScrollText,
-    actionLabel: "新弟子設計へ",
+    actionLabel: "観測ビルドへ",
   },
   {
     key: "archive",
@@ -42,10 +42,10 @@ const NAV_CARDS: Array<{
   },
   {
     key: "collection",
-    title: "資料館",
+    title: "記録 / 偉業",
     body: "解放済みの決まり手・実績・希少記録をまとめて確認する。",
     icon: LibraryBig,
-    actionLabel: "資料館を開く",
+    actionLabel: "記録を開く",
   },
   {
     key: "settings",
@@ -112,13 +112,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             一人の力士の一生を、<br />記録として読む。
           </h2>
           <p className="mt-4 max-w-xl text-sm sm:text-base text-text-dim leading-relaxed">
-            新弟子の出自と素地を設計し、フルキャリアを即座にシミュレートする。
+            観測テーマと追加ビルドで方向性を寄せ、一人の相撲人生を観測する。
             番付・戦績・宿敵・怪我——整理された記録から人物像が立ち上がる。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" onClick={onOpenScout}>
               <ScrollText className="mr-2 h-4 w-4" />
-              新弟子設計を始める
+              観測を始める
             </Button>
             {onResume && resumeLabel ? (
               <Button variant="secondary" size="lg" onClick={onResume}>
@@ -141,13 +141,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <StatCard
           label="育成回数"
           value={lifetimeCount}
-          subtext={lifetimeCount > 0 ? "これまでの一代" : "新弟子を迎えてみる"}
+          subtext={lifetimeCount > 0 ? "これまでの一代" : "観測を始めてみる"}
           tone={lifetimeCount > 0 ? "action" : "default"}
         />
         <StatCard
           label="現在の注目"
           value={currentShikona ?? "—"}
-          subtext={currentShikona ? "キャリア閲覧中" : "新弟子設計から開始"}
+          subtext={currentShikona ? "キャリア閲覧中" : "観測ビルドから開始"}
         />
       </motion.div>
 
