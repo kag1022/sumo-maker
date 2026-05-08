@@ -411,7 +411,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                   {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存する"}
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
-                  保存せず次の新弟子へ
+                  保存せず次の観測へ
                 </Button>
                 {saveState === "error" ? (
                   <div className={styles.saveError}>保存に失敗しました。記録整理が完了しているか確認してください。</div>
@@ -447,7 +447,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                   保存済み記録を開く
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
-                  次の新弟子へ
+                  次の観測へ
                 </Button>
               </div>
             </div>
