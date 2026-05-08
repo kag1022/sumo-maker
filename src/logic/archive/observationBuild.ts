@@ -18,6 +18,7 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     bias: {
       initialStatBias: { deashi: 2, waza: 2, nage: 1, power: -3 },
       bodyMetricsBias: { heightCm: -3, weightKg: -10 },
+      genomeBias: { technicalAffinity: 4, speedCeiling: 2, powerCeiling: -3 },
     },
   },
   large_body: {
@@ -30,6 +31,7 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
       initialStatBias: { oshi: 2, kumi: 2, power: 3, deashi: -2 },
       bodyMetricsBias: { heightCm: 3, weightKg: 12 },
       injuryRiskBias: 0.05,
+      genomeBias: { oshiAffinity: 4, powerCeiling: 3, speedCeiling: -2 },
     },
   },
   oshizumo_style: {
@@ -40,6 +42,7 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     exclusiveGroup: 'style',
     bias: {
       initialStatBias: { oshi: 3, tsuki: 2, deashi: 2, power: 1 },
+      genomeBias: { oshiAffinity: 5, powerCeiling: 2 },
     },
   },
   technical_style: {
@@ -50,6 +53,7 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     exclusiveGroup: 'style',
     bias: {
       initialStatBias: { waza: 3, nage: 2, kumi: 2 },
+      genomeBias: { technicalAffinity: 5, ringSense: 2 },
     },
   },
   late_growth_bias: {
@@ -60,6 +64,9 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     exclusiveGroup: 'growth',
     bias: {
       growthTypeBias: { LATE: 0.5, EARLY: -0.25, NORMAL: -0.1 },
+      initialStatBias: { tsuki: -2, oshi: -2, kumi: -2, nage: -1, koshi: -1, deashi: -2, waza: -1, power: -2 },
+      careerBandBias: { GRINDER: 0.04, STANDARD: 0.04 },
+      genomeBias: { lateBloom: 1 },
     },
   },
   stable_temperament: {
@@ -70,7 +77,9 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     exclusiveGroup: 'risk',
     bias: {
       varianceBias: -0.15,
-      retirementProfileBias: { STABLE: 0.2, EARLY: -0.05 },
+      // Note: retirementProfile values are STANDARD / EARLY_EXIT / IRONMAN
+      // (not 'STABLE'/'EARLY'). Use canonical keys.
+      retirementProfileBias: { STANDARD: 0.10, IRONMAN: 0.04, EARLY_EXIT: -0.05 },
     },
   },
   volatile_temperament: {
@@ -81,6 +90,7 @@ export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationMod
     riskText: '怪我・短期失速・連敗も発生しやすくなる。',
     bias: {
       varianceBias: 0.25,
+      retirementProfileBias: { EARLY_EXIT: 0.04, IRONMAN: 0.04, STANDARD: -0.06 },
     },
   },
   injury_risk_high: {

@@ -21,6 +21,7 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     bias: {
       aptitudeTierBias: { S: -0.05, A: -0.02, B: 0.04, C: 0.05, D: 0.05 },
       careerBandBias: { GRINDER: 0.1, STANDARD: 0.05, WASHOUT: 0.05 },
+      retirementProfileBias: { EARLY_EXIT: 0.04, IRONMAN: -0.02 },
     },
   },
   featured: {
@@ -30,8 +31,12 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 10,
     riskText: '関取到達を保証するものではありません。怪我や同期環境で潰れることもあります。',
     bias: {
-      aptitudeTierBias: { S: 0.08, A: 0.1, B: 0.08, C: -0.05, D: -0.08 },
+      // No yokozuna factory: S nudge is small and clampWeights caps the top
+      // bucket at 0.55 — featured can still roll D, just rarely.
+      aptitudeTierBias: { S: 0.04, A: 0.12, B: 0.10, C: -0.05, D: -0.08 },
       careerBandBias: { STRONG: 0.12, STANDARD: 0.08, GRINDER: -0.05, WASHOUT: -0.08 },
+      retirementProfileBias: { STANDARD: 0.04, EARLY_EXIT: -0.02 },
+      genomeBias: { powerCeiling: 3, techCeiling: 3, ringSense: 2 },
     },
   },
   makushita_wall: {
@@ -41,8 +46,12 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 8,
     riskText: '十両到達は保証しません。幕下で長く沈むキャリアこそが目的です。',
     bias: {
-      aptitudeTierBias: { B: 0.12, C: 0.12, A: -0.05, S: -0.08, D: 0.02 },
-      careerBandBias: { GRINDER: 0.18, STANDARD: 0.06, STRONG: -0.1, WASHOUT: -0.05 },
+      // Cap upside but never zero. Even makushita_wall can rarely sneak a
+      // juryo touch — that's the point of "wall" not "block".
+      aptitudeTierBias: { B: 0.14, C: 0.14, A: -0.06, S: -0.08, D: 0.02 },
+      careerBandBias: { GRINDER: 0.20, STANDARD: 0.06, STRONG: -0.1, WASHOUT: -0.05 },
+      retirementProfileBias: { IRONMAN: 0.06, EARLY_EXIT: -0.02 },
+      genomeBias: { powerCeiling: -2, techCeiling: -2 },
     },
   },
   late_bloomer: {
@@ -53,6 +62,10 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     riskText: '序盤の停滞や、開花前の引退も普通に起こります。',
     bias: {
       growthTypeBias: { LATE: 0.4, NORMAL: -0.1, EARLY: -0.2, GENIUS: -0.05 },
+      careerBandBias: { GRINDER: 0.06, STANDARD: 0.04, STRONG: 0.04, WASHOUT: -0.04 },
+      retirementProfileBias: { IRONMAN: 0.06, EARLY_EXIT: -0.04 },
+      initialStatBias: { tsuki: -1, oshi: -1, kumi: -1, nage: -1, koshi: -1, deashi: -1, waza: -1, power: -1 },
+      genomeBias: { lateBloom: 1 },
     },
   },
 };
