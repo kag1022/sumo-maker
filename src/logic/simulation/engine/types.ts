@@ -18,6 +18,13 @@ export interface SimulationParams {
   banzukeEngineVersion?: BanzukeEngineVersion;
   progressSnapshotMode?: 'full' | 'lite';
   bashoSnapshotMode?: 'full' | 'none';
+  /**
+   * DEV-ONLY: プレイヤー自然引退後もNPC世界の観測を継続する。
+   * 診断用ハーネス (scripts/dev/diagnoseFullNpcWorldDistribution.ts,
+   * sweepFullNpcWorldCalibration.ts) の --ironman-player フラグで有効化。
+   * 本番ゲーム・通常プレイでは決して使用しないこと。
+   */
+  __dev_ironmanPlayer?: boolean;
 }
 
 export type SimulationTimingPhase =

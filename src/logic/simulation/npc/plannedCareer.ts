@@ -17,6 +17,10 @@
  */
 
 import { RandomSource } from '../deps';
+import {
+  getActiveNpcWorldCalibrationProfile,
+  getNpcWorldCalibrationParameters,
+} from './calibration/profile';
 
 const HEISEI_CAREER_BASHO_P10 = 4;
 const HEISEI_CAREER_BASHO_P50 = 32;
@@ -33,24 +37,21 @@ const clamp = (value: number, min: number, max: number): number =>
  * Tail probability ~10% on each side covers 1..p10 and p90..200.
  */
 export const samplePlannedCareerBasho = (rng: RandomSource): number => {
+  const profile = getActiveNpcWorldCalibrationProfile();
+  const params = getNpcWorldCalibrationParameters(profile);
+  const p10 = params.plannedCareerBashoPercentiles?.p10 ?? HEISEI_CAREER_BASHO_P10;
+  const p50 = params.plannedCareerBashoPercentiles?.p50 ?? HEISEI_CAREER_BASHO_P50;
+  const p90 = params.plannedCareerBashoPercentiles?.p90 ?? HEISEI_CAREER_BASHO_P90;
   const u = rng();
   let v: number;
   if (u < 0.10) {
-    // 1..p10 域 (左裾)
-    v = HEISEI_CAREER_BASHO_MIN +
-      (HEISEI_CAREER_BASHO_P10 - HEISEI_CAREER_BASHO_MIN) * (u / 0.10);
+    v = HEISEI_CAREER_BASHO_MIN + (p10 - HEISEI_CAREER_BASHO_MIN) * (u / 0.10);
   } else if (u < 0.50) {
-    // p10..p50 域 (左本体)
-    v = HEISEI_CAREER_BASHO_P10 +
-      (HEISEI_CAREER_BASHO_P50 - HEISEI_CAREER_BASHO_P10) * ((u - 0.10) / 0.40);
+    v = p10 + (p50 - p10) * ((u - 0.10) / 0.40);
   } else if (u < 0.90) {
-    // p50..p90 域 (右本体)
-    v = HEISEI_CAREER_BASHO_P50 +
-      (HEISEI_CAREER_BASHO_P90 - HEISEI_CAREER_BASHO_P50) * ((u - 0.50) / 0.40);
+    v = p50 + (p90 - p50) * ((u - 0.50) / 0.40);
   } else {
-    // p90..max 域 (右裾)
-    v = HEISEI_CAREER_BASHO_P90 +
-      (HEISEI_CAREER_BASHO_MAX - HEISEI_CAREER_BASHO_P90) * ((u - 0.90) / 0.10);
+    v = p90 + (HEISEI_CAREER_BASHO_MAX - p90) * ((u - 0.90) / 0.10);
   }
   return Math.round(clamp(v, HEISEI_CAREER_BASHO_MIN, HEISEI_CAREER_BASHO_MAX));
 };
