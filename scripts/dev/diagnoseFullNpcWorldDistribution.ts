@@ -9,7 +9,7 @@
  *
  * Usage:
  *   npx tsx scripts/dev/diagnoseFullNpcWorldDistribution.ts \
- *       --profile legacy --bashos 120 --seed 7000 [--runs 1]
+ *       --profile legacy --bashos 120 --seed 7000 [--runs 1] [--ironman-player]
  *
  * Outputs:
  *   docs/npc_rework/full_npc_world_distribution_<profile>.json
@@ -42,6 +42,7 @@ const BASHOS = argInt('--bashos', 120);
 const SEED = argInt('--seed', 7000);
 const RUNS = argInt('--runs', 1);
 const PROFILE = argStr('--profile', 'legacy') as NpcWorldCalibrationProfile;
+const IRONMAN = args.includes('--ironman-player');
 
 type DivisionKey =
   | 'Makuuchi'
@@ -184,6 +185,7 @@ async function runOne(
       careerId: `npc-world-fullobs-${profile}-${seed}`,
       banzukeMode: 'SIMULATE',
       simulationModelVersion: 'v3',
+      __dev_ironmanPlayer: IRONMAN,
     },
     {
       random: createSeededRandom(seed + 1),
@@ -198,7 +200,7 @@ async function runOne(
 
   for (let b = 0; b < bashos; b++) {
     const step = await runtime.runNextSeasonStep();
-    if (step.kind === 'COMPLETED') break;
+    if (step.kind === 'COMPLETED' && !IRONMAN) break;
     finalSeq = step.seq;
     observedBashos += 1;
     const world = runtime.__getWorldForDiagnostics();
