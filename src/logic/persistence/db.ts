@@ -77,6 +77,13 @@ export interface CareerRow {
   bestScoreRank?: number;
   yokozunaOrdinal?: number;
   detailState?: 'building' | 'ready' | 'error';
+  // ---- Career Archive / Observation Build (optional, no schema bump) ----
+  archiveThemeId?: string;
+  archiveModifierIds?: string[];
+  archiveCategories?: string[];
+  archiveTitles?: Array<{ id: string; label: string; tier: string; reason: string }>;
+  archiveJudgedAt?: string;
+  archiveRewardAwarded?: number;
 }
 
 export type BashoEntityType = 'PLAYER' | 'NPC';

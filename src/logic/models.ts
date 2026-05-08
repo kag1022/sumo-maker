@@ -814,6 +814,9 @@ export interface SimulationRunOptions {
   observationRuleMode?: ObservationRuleMode;
   observationStanceId?: ObservationStanceId;
   experimentPresetId?: ExperimentPresetId;
+  // Career-archive observation build metadata (Phase 2)
+  observationThemeId?: string;
+  observationModifierIds?: string[];
 }
 
 // キャリア履歴
