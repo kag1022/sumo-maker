@@ -49,6 +49,11 @@ export interface SimulationRuntime {
   serialize: () => SerializedSimulationRuntime;
   isCompleted: () => boolean;
   getStatus: () => RikishiStatus;
+  /**
+   * Dev-only escape hatch used by scripts/dev/diagnose* and sweep* harnesses
+   * to read the full NPC actorRegistry. NOT for production runtime/UI use.
+   */
+  __getWorldForDiagnostics: () => import('./world').SimulationWorld;
 }
 
 const buildRuntimeSnapshot = (kernel: RuntimeImplementationState): SimulationRuntimeSnapshot => ({
@@ -191,6 +196,7 @@ const createRuntimeFromKernel = (kernel: RuntimeImplementationState): Simulation
     }),
     isCompleted: () => kernel.state.completed,
     getStatus: () => cloneStatus(kernel.state.status),
+    __getWorldForDiagnostics: () => kernel.leagueFlow.world,
   };
 };
 
