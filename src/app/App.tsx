@@ -8,6 +8,8 @@ import { HomeScreen } from "../features/home/components/HomeScreen";
 import { LogicLabScreen } from "../features/logicLab/components/LogicLabScreen";
 import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
 import { ScoutScreen } from "../features/scout/components/ScoutScreen";
+import { ObservationBuildScreen } from "../features/observationBuild/ObservationBuildScreen";
+import { ArchiveCollectionScreen } from "../features/archive/ArchiveCollectionScreen";
 import { SettingsScreen } from "../features/settings/components/SettingsScreen";
 import { useSimulation } from "../features/simulation/hooks/useSimulation";
 import {
@@ -418,6 +420,7 @@ export const App: React.FC = () => {
         onOpenArchiveCareer: handleOpenCareer,
         onDeleteCareer: deleteCareerById,
         onOpenArchive: () => setActiveSection("archive"),
+        onOpenArchiveCollection: () => setActiveSection("archiveCollection"),
         onOpenCollection: () => setActiveSection("collection"),
         onOpenSettings: () => setActiveSection("settings"),
         onOpenScout: () => void handleSectionChange("scout"),
@@ -460,6 +463,7 @@ const renderSection = ({
   onOpenArchiveCareer,
   onDeleteCareer,
   onOpenArchive,
+  onOpenArchiveCollection,
   onOpenCollection,
   onOpenSettings,
   onOpenScout,
@@ -497,6 +501,7 @@ const renderSection = ({
   onOpenArchiveCareer: (careerId: string) => Promise<void>;
   onDeleteCareer: (careerId: string) => Promise<void>;
   onOpenArchive: () => void;
+  onOpenArchiveCollection: () => void;
   onOpenCollection: () => void;
   onOpenSettings: () => void;
   onOpenScout: () => void;
@@ -524,7 +529,7 @@ const renderSection = ({
 
   if (activeSection === "scout") {
     return (
-      <ScoutScreen
+      <ObservationBuildScreen
         generationTokens={generationTokens}
         observationPoints={observationPoints}
         onStart={(initialStats, oyakata, initialPacing, runOptions) =>
@@ -534,7 +539,24 @@ const renderSection = ({
   }
 
   if (activeSection === "logicLab") {
-    return <LogicLabScreen />;
+    return (
+      <div className="space-y-6">
+        <LogicLabScreen />
+        {import.meta.env.DEV ? (
+          <div className="border border-amber-300/30 bg-amber-300/5 p-4 text-xs text-amber-200/80">
+            旧「新弟子設計（スカウト）」UI は ObservationBuild に置換されました。下にレガシーUIを残しています。
+          </div>
+        ) : null}
+        {import.meta.env.DEV ? (
+          <ScoutScreen
+            generationTokens={generationTokens}
+            observationPoints={observationPoints}
+            onStart={(initialStats, oyakata, initialPacing, runOptions) =>
+              onStart(initialStats, oyakata, runOptions, undefined, initialPacing)}
+          />
+        ) : null}
+      </div>
+    );
   }
 
   if (activeSection === "archive") {
@@ -548,6 +570,10 @@ const renderSection = ({
         onDelete={(careerId) => void onDeleteCareer(careerId)}
       />
     );
+  }
+
+  if (activeSection === "archiveCollection") {
+    return <ArchiveCollectionScreen onOpenCareer={(careerId) => void onOpenArchiveCareer(careerId)} />;
   }
 
   if (activeSection === "collection") {
@@ -615,6 +641,7 @@ const renderSection = ({
       onSave={onSaveCurrentCareer}
       onReturnToScout={onReturnToScout}
       onOpenArchive={onOpenArchive}
+      onOpenArchiveCollection={onOpenArchiveCollection}
     />
   );
 };
@@ -727,6 +754,7 @@ const getShellTitle = (section: AppSection, shikona?: string | null): string => 
   if (section === "basho") return shikona ? `${shikona} 節目劇場` : "節目劇場";
   if (section === "career") return shikona ? `${shikona} 力士記録` : "力士記録";
   if (section === "archive") return "保存済み記録";
+  if (section === "archiveCollection") return "観測資料館";
   if (section === "collection") return "資料館";
   if (section === "settings") return "設定";
   if (section === "logicLab") return "ロジック検証";
