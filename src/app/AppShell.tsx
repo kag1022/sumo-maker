@@ -19,6 +19,7 @@ export type AppSection =
   | "basho"
   | "career"
   | "archive"
+  | "archiveCollection"
   | "collection"
   | "settings"
   | "logicLab";
@@ -46,6 +47,7 @@ const NAV_ITEMS: Array<{
   { id: "basho", label: "節目劇場", icon: MonitorPlay },
   { id: "career", label: "力士記録", icon: Waypoints },
   { id: "archive", label: "保存済み記録", icon: Archive },
+  { id: "archiveCollection", label: "観測資料館", icon: LibraryBig },
   { id: "collection", label: "資料館", icon: LibraryBig },
   { id: "settings", label: "設定", icon: Settings },
   { id: "logicLab", label: "ロジック検証", icon: FlaskConical },

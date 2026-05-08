@@ -204,6 +204,8 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       observationRuleMode: runOptions?.observationRuleMode ?? 'STANDARD',
       observationStanceId: runOptions?.observationStanceId,
       experimentPresetId: runOptions?.experimentPresetId,
+      archiveThemeId: runOptions?.observationThemeId,
+      archiveModifierIds: runOptions?.observationModifierIds,
     });
 
     worker = new Worker(new URL('../workers/simulation.worker.ts', import.meta.url), {

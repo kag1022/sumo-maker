@@ -13,6 +13,12 @@ import { RandomSource } from '../deps';
 import { resolveLegacyAptitudeFactor } from '../realism';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { samplePlannedCareerBasho } from './plannedCareer';
+import {
+  getActiveNpcWorldCalibrationProfile,
+  sampleProfileAptitudeTier,
+  sampleProfileCareerBand,
+  sampleProfileRetirementProfile,
+} from './calibration/profile';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
   LOWER_DIVISION_SLOTS,
@@ -91,9 +97,16 @@ const createNpc = (
   const careerAge = inferInitialCareerBashoCount(division, currentAge, rng);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
   const empiricalSeed = sampleEmpiricalNpcSeed(rng);
-  const careerBand = empiricalSeed.careerBand;
+  const profile = getActiveNpcWorldCalibrationProfile();
+  const careerBand =
+    profile === 'legacy'
+      ? empiricalSeed.careerBand
+      : sampleProfileCareerBand(rng, profile) ?? empiricalSeed.careerBand;
   const bandBias = CONSTANTS.CAREER_BAND_DATA[careerBand];
-  const aptitudeTier = empiricalSeed.aptitudeTier;
+  const aptitudeTier =
+    profile === 'legacy'
+      ? empiricalSeed.aptitudeTier
+      : sampleProfileAptitudeTier(rng, profile) ?? empiricalSeed.aptitudeTier;
   const aptitudeProfile = resolveAptitudeProfile(aptitudeTier);
   const basePower = clamp(
     seed.basePower +
@@ -112,7 +125,10 @@ const createNpc = (
     range.max,
   );
   const aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
-  const retirementProfile = empiricalSeed.retirementProfile;
+  const retirementProfile =
+    profile === 'legacy'
+      ? empiricalSeed.retirementProfile
+      : sampleProfileRetirementProfile(rng, profile) ?? empiricalSeed.retirementProfile;
   return {
     actorId: `NPC-${serial}`,
     actorType: 'NPC',

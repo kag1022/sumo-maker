@@ -251,26 +251,33 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     month,
   );
 
-  const retirementCheck = checkRetirement(state.status, deps.random);
-  if (retirementCheck.shouldRetire) {
-    const beforeEvents = state.status.history.events.length;
-    state.status = finalizeCareer(state.status, state.year, month, retirementCheck.reason);
-    state.completed = true;
-    const events = state.status.history.events.slice(beforeEvents);
-    const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
-    return {
-      kind: 'COMPLETED',
-      statusSnapshot: cloneStatus(finalStatus),
-      banzukeDecisions: [],
-      diagnostics: state.lastDiagnostics,
-      events,
-      pauseReason: 'RETIREMENT',
-      progress: buildProgressSnapshot(context, state.year, month),
-      timing: createTimingBreakdown({
-        pre_reconcile: Math.max(0, deps.now() - startMs),
-      }),
-    };
-  }
+  // DEV-ONLY: __dev_ironmanPlayer が真のときは引退判定をスキップし
+  // NPC世界の観測を指定basho数まで継続させる。
+  // 本番ゲーム・通常プレイでは params.__dev_ironmanPlayer は undefined のため挙動不変。
+  if (params.__dev_ironmanPlayer) {
+    // ironman: skip retirement check, player continues playing
+  } else {
+    const retirementCheck = checkRetirement(state.status, deps.random);
+    if (retirementCheck.shouldRetire) {
+      const beforeEvents = state.status.history.events.length;
+      state.status = finalizeCareer(state.status, state.year, month, retirementCheck.reason);
+      state.completed = true;
+      const events = state.status.history.events.slice(beforeEvents);
+      const finalStatus = enrichStatusWithRuntimeNarrative(state.status, state.runtimeNarrative);
+      return {
+        kind: 'COMPLETED',
+        statusSnapshot: cloneStatus(finalStatus),
+        banzukeDecisions: [],
+        diagnostics: state.lastDiagnostics,
+        events,
+        pauseReason: 'RETIREMENT',
+        progress: buildProgressSnapshot(context, state.year, month),
+        timing: createTimingBreakdown({
+          pre_reconcile: Math.max(0, deps.now() - startMs),
+        }),
+      };
+    }
+  } // DEV-ONLY: closes if (params.__dev_ironmanPlayer) else block
 
   if (state.status.traits.includes('KIBUNYA')) {
     state.status.currentCondition = deps.random() < 0.5 ? 70 : 30;
