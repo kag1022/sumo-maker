@@ -9,6 +9,10 @@ import { updateStagnationState } from '../realism';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { resolvePlannedCareerHazard as _resolvePlannedCareerHazard } from './plannedCareer';
 import { PopulationPlan } from './populationPlanTypes';
+import {
+  getActiveNpcWorldCalibrationProfile,
+  getNpcWorldCalibrationParameters,
+} from './calibration/profile';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -150,12 +154,17 @@ export const runNpcRetirementStep = (
       Math.max(0, recentUpperBashoCount - 6) * 0.004 +
       Math.max(0, recentOzekiYokozunaBashoCount - 3) * 0.005 +
       Math.max(0, 0.48 - careerWinRate) * 0.18;
-    const careerLengthMultiplier = resolveCareerLengthHazardMultiplier(npc.careerBashoCount);
+    const profile = getActiveNpcWorldCalibrationProfile();
+    const profileParams = getNpcWorldCalibrationParameters(profile);
+    const careerLengthScale = profileParams.careerLengthHazardScale ?? 1;
+    const earlyWashoutScale = profileParams.earlyWashoutBonusScale ?? 1;
+    const careerLengthMultiplier =
+      resolveCareerLengthHazardMultiplier(npc.careerBashoCount) * careerLengthScale;
     // Fix-3 (rollback): plannedCareerBasho は個体差付与のために生成・保持するが、
     // 退場 hazard には寄与させない。MC report で関取率・三役率が大幅な過剰になる
     // 副作用が観測されたため、hazard 寄与は将来別タスクで設計し直す。
     // resolvePlannedCareerHazard / plannedCareer.ts は維持して将来の wiring に備える。
-    const earlyWashoutBonus = resolveEarlyWashoutBonus(npc);
+    const earlyWashoutBonus = resolveEarlyWashoutBonus(npc) * earlyWashoutScale;
     const populationShockBonus = (populationPlan?.annualRetirementShock ?? 0) * 0.02;
     const chance = clamp(
       baseChance * adjustment * careerLengthMultiplier + earlyWashoutBonus + populationShockBonus,
