@@ -533,3 +533,31 @@ export const listDivisionRows = (
     .filter((row) => row.division === playerRow.division)
     .slice()
     .sort((left, right) => rankValueFromRow(left) - rankValueFromRow(right));
+
+export {
+  buildCareerWorldSummary,
+  buildCareerRaritySummary,
+  buildCareerWorldNarrative,
+  formatCareerPosition,
+  selectKeyNpcCards,
+  formatRivalDescription,
+  formatGenerationPeerDescription,
+  formatDominanceLabel,
+  formatEraStarYushoNote,
+  buildRivalViewModels,
+  buildPeerSections,
+  buildEraStarViewModels,
+} from "../../../logic/simulation/npc/summary";
+export type {
+  CareerWorldSummary,
+  CareerRaritySummary,
+  NotableNpcSummary,
+  EraStarNpcSummary,
+  RivalryKind,
+  RarityTier,
+  CareerPositionViewModel,
+  KeyNpcCard,
+  PeerSection,
+  EraStarViewModel,
+  RivalViewModel,
+} from "../../../logic/simulation/npc/summary";

@@ -1,0 +1,226 @@
+.section {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.sectionMark {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgb(var(--twc-brand) / 0.42);
+  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.2), rgb(var(--twc-brand) / 0.06));
+}
+
+.sectionTitle {
+  flex-shrink: 0;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.72);
+}
+
+.sectionRule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.38), rgb(var(--twc-brand) / 0.02));
+}
+
+.narrativeCard {
+  border: 1px solid rgb(var(--twc-brand) / 0.22);
+  background:
+    radial-gradient(circle at 86% 22%, rgb(var(--twc-brand) / 0.1), transparent 36%),
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.06), rgb(0 0 0 / 0.04)),
+    rgb(var(--twc-bg-panel) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  padding: 1rem 1.1rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.85;
+  color: rgb(var(--twc-text) / 0.92);
+}
+
+.positionCard {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 0.55rem;
+  column-gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(var(--twc-line) / 0.34);
+  background: rgb(var(--twc-bg) / 0.58);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+}
+
+.positionLabel {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-text-bright) / 0.62);
+  align-self: center;
+}
+
+.positionValue {
+  color: rgb(var(--twc-text) / 0.94);
+  line-height: 1.55;
+}
+
+.keyCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem;
+}
+
+.keyCard {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgb(var(--twc-line) / 0.34);
+  background: rgb(var(--twc-bg) / 0.58);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+}
+
+.keyCardKicker {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.72);
+}
+
+.keyCardName {
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.keyCardMeta {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: rgb(var(--twc-text-bright) / 0.62);
+}
+
+.keyCardDesc {
+  margin-top: 0.15rem;
+  color: rgb(var(--twc-text) / 0.82);
+  line-height: 1.65;
+  font-size: 0.86rem;
+}
+
+.subSection {
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.46);
+}
+
+.subSummary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.78);
+  transition: background 120ms ease;
+}
+
+.subSummary:hover {
+  background: rgb(var(--twc-brand) / 0.06);
+}
+
+.subSummary::-webkit-details-marker {
+  display: none;
+}
+
+.subSummary::after {
+  content: "▾";
+  font-size: 0.7rem;
+  opacity: 0.55;
+  transition: transform 0.2s ease;
+}
+
+.subSection[open] > .subSummary::after {
+  transform: rotate(180deg);
+}
+
+.subBody {
+  padding: 0.4rem 0.95rem 0.9rem;
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid rgb(var(--twc-line) / 0.22);
+}
+
+.peerHeading {
+  margin-top: 0.45rem;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--twc-brand) / 0.66);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) minmax(8rem, max-content) 1fr;
+  align-items: baseline;
+  gap: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgb(var(--twc-line) / 0.22);
+  background: rgb(var(--twc-bg) / 0.34);
+  line-height: 1.55;
+}
+
+.rowName {
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.05rem;
+  color: rgb(var(--twc-text) / 0.96);
+}
+
+.rowMeta {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: rgb(var(--twc-text-bright) / 0.6);
+}
+
+.rowDesc {
+  color: rgb(var(--twc-text) / 0.78);
+  font-size: 0.86rem;
+}
+
+.emptyState {
+  padding: 0.6rem 0.7rem;
+  border: 1px dashed rgb(var(--twc-line) / 0.34);
+  background: rgb(var(--twc-bg) / 0.32);
+  color: rgb(var(--twc-text) / 0.66);
+  line-height: 1.7;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 767px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .positionCard {
+    grid-template-columns: 1fr;
+    row-gap: 0.25rem;
+  }
+
+  .positionLabel {
+    margin-top: 0.4rem;
+  }
+}
