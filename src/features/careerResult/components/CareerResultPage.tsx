@@ -11,6 +11,7 @@ import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import { Button } from "../../../shared/ui/Button";
 import { CareerEncyclopediaChapter } from "./CareerEncyclopediaChapter";
+import { CareerWorldSection } from "./CareerWorldSection";
 import { CareerPlaceChapter } from "./CareerPlaceChapter";
 import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
 import {
@@ -258,6 +259,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 onReturnToScout={onReturnToScout}
                 onOpenArchive={onOpenArchive}
               />
+              <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
             </motion.div>
           ) : null}
 
