@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Eye, AlertTriangle, Coins } from 'lucide-react';
+import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '../../shared/ui/Button';
 import surface from '../../shared/styles/surface.module.css';
 import typography from '../../shared/styles/typography.module.css';
@@ -24,13 +24,17 @@ import {
   computeBuildCost,
   validateBuild,
   buildObservationConfig,
+  OBSERVATION_MODIFIERS,
 } from '../../logic/archive/observationBuild';
+import { OBSERVATION_THEMES } from '../../logic/archive/observationThemes';
 import { applyObservationBuildBias } from '../../logic/archive/applyObservationBuildBias';
 import {
   spendObservationPoints,
   getObservationPointState,
 } from '../../logic/persistence/observationPoints';
 import type {
+  ObservationModifierDefinition,
+  ObservationModifierGroup,
   ObservationModifierId,
   ObservationThemeId,
 } from '../../logic/archive/types';
@@ -46,6 +50,24 @@ interface ObservationBuildScreenProps {
   ) => void | Promise<void>;
   onRefreshMeta?: () => void | Promise<void>;
 }
+
+// Short, user-facing intent hint per theme. Avoids leaking numeric weights.
+const THEME_INTENT_HINT: Record<ObservationThemeId, string> = {
+  random: '寄せずに、そのままの揺らぎを観測する。',
+  realistic: '実データ寄りに寄せる。下位止まり・短命キャリアも普通に出る。',
+  featured: '素質と地力をやや上に寄せる。それでも保証はない。',
+  makushita_wall: '幕下帯の停滞を観測しやすくする。十両届かないキャリア向け。',
+  late_bloomer: '晩成寄りに寄せる。序盤は伸びにくく、開花前の引退もある。',
+};
+
+const GROUP_META: Record<ObservationModifierGroup, { label: string; hint: string }> = {
+  body: { label: '体格', hint: '択一' },
+  style: { label: '取り口', hint: '択一' },
+  growth: { label: '成長', hint: '択一' },
+  risk: { label: 'リスク傾向', hint: '複数可' },
+};
+
+const GROUP_ORDER: ObservationModifierGroup[] = ['body', 'style', 'growth', 'risk'];
 
 export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   generationTokens,
@@ -67,10 +89,34 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const insufficientOp = totalCost > opBalance;
   const insufficientToken = tokenBalance <= 0;
   const canStart = validation.ok && !insufficientOp && !insufficientToken && !isStarting;
+  const remainingOp = Math.max(0, opBalance - totalCost);
+
+  const modifiersByGroup = React.useMemo(() => {
+    const map: Record<ObservationModifierGroup, ObservationModifierDefinition[]> = {
+      body: [],
+      style: [],
+      growth: [],
+      risk: [],
+    };
+    for (const m of modifiers) {
+      const g = m.exclusiveGroup ?? 'risk';
+      map[g].push(m);
+    }
+    return map;
+  }, [modifiers]);
 
   const toggleModifier = (id: ObservationModifierId) => {
+    const def = OBSERVATION_MODIFIERS[id];
     setModifierIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
+      // Exclusive groups (body/style/growth): replace any existing pick in same group.
+      if (def?.exclusiveGroup && def.exclusiveGroup !== 'risk') {
+        const filtered = prev.filter((other) => {
+          const od = OBSERVATION_MODIFIERS[other];
+          return od?.exclusiveGroup !== def.exclusiveGroup;
+        });
+        return [...filtered, id];
+      }
       return [...prev, id];
     });
   };
@@ -80,7 +126,6 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     setIsStarting(true);
     setErrorMessage(null);
     try {
-      // Spend OP first.
       if (totalCost > 0) {
         const spend = await spendObservationPoints(totalCost, 'OBSERVE_THEME');
         if (!spend.ok) {
@@ -90,7 +135,6 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       }
       if (onRefreshMeta) await onRefreshMeta();
 
-      // Roll a base rikishi via existing scout pipeline, then apply biases.
       const draft = rollScoutDraft();
       const baseStatus = buildInitialRikishiFromDraft(draft);
       const config = buildObservationConfig(themeId, modifierIds);
@@ -104,7 +148,6 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       };
 
       await onStart(biasedStatus, null, 'skip_to_end', runOptions);
-      // Refresh OP balance after simulation start picks up its own state.
       await getObservationPointState();
       if (onRefreshMeta) await onRefreshMeta();
     } finally {
@@ -112,137 +155,231 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     }
   };
 
+  const selectedTheme = OBSERVATION_THEMES[themeId];
+  const selectedModifiers = modifierIds
+    .map((id) => OBSERVATION_MODIFIERS[id])
+    .filter(Boolean);
+
+  const insufficientReason: string | null = (() => {
+    if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
+    if (insufficientOp) return `観測ポイントが足りません (あと ${totalCost - opBalance} OP 必要)。`;
+    if (validation.errors.length > 0) return validation.errors[0];
+    return null;
+  })();
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 pb-32">
+      {/* Header */}
       <section className={cn(surface.panel, 'space-y-4 p-6')}>
         <div className="flex items-center gap-3">
           <Eye className="h-6 w-6 text-action" />
           <div>
-            <div className={typography.kicker}>観測設計</div>
-            <h2 className={cn(typography.heading, 'text-3xl text-text')}>観測ビルド</h2>
+            <div className={typography.kicker}>観測ビルド</div>
+            <h2 className={cn(typography.heading, 'text-3xl text-text')}>どんな相撲人生を観測しますか</h2>
           </div>
         </div>
-        <p className="text-sm text-text-dim">
-          どんな相撲人生を観測したいか、テーマと追加ビルドで方向性を寄せます。
-          結果は保証されません。怪我・番付環境・成長の揺らぎで期待通りに進まないことがあります。
-        </p>
-        <div className="flex flex-wrap items-center gap-4 border border-gold/15 bg-bg/20 px-4 py-3">
+
+        <div className="grid gap-2 border-l-2 border-amber-300/30 bg-amber-300/[0.04] px-4 py-3 text-xs text-amber-100/85">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 select-none text-amber-200/80">・</span>
+            <span>テーマと追加ビルドは、キャリアの傾向を少し寄せるだけです。</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 select-none text-amber-200/80">・</span>
+            <span>番付環境・怪我・成長の揺らぎで、思った通りには進みません。</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 select-none text-amber-200/80">・</span>
+            <span>思い通りにならないキャリアも、資料館の一部になります。</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border border-gold/15 bg-bg/20 px-4 py-3 text-sm">
           <div className="flex items-center gap-2">
             <Coins className="h-4 w-4 text-gold" />
             <span className="text-xs text-text-dim">観測ポイント</span>
-            <span className="text-base text-text">{opBalance}</span>
+            <span className="text-text">{opBalance}</span>
           </div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-action" />
             <span className="text-xs text-text-dim">生成札</span>
-            <span className="text-base text-text">{tokenBalance}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-text-dim">合計コスト</span>
-            <span className={cn('text-lg', insufficientOp ? 'text-red-400' : 'text-gold')}>
-              {totalCost} OP
-            </span>
+            <span className="text-text">{tokenBalance}</span>
           </div>
         </div>
       </section>
 
+      {/* Themes */}
       <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <h3 className={cn(typography.heading, 'text-xl text-text')}>観測テーマ</h3>
+        <div className="flex items-baseline justify-between">
+          <h3 className={cn(typography.heading, 'text-xl text-text')}>観測テーマ</h3>
+          <div className="text-[11px] text-text-dim">迷ったら 0 OP の「完全ランダム」から。</div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {themes.map((theme) => {
             const active = theme.id === themeId;
+            const intent = THEME_INTENT_HINT[theme.id];
             return (
               <button
                 key={theme.id}
                 type="button"
                 onClick={() => setThemeId(theme.id)}
                 className={cn(
-                  'flex flex-col gap-2 border px-4 py-3 text-left transition',
+                  'group relative flex flex-col gap-2 border px-4 py-4 text-left transition',
                   active
-                    ? 'border-action bg-action/10'
+                    ? 'border-action bg-action/15 shadow-[0_0_0_1px_rgba(255,159,64,0.35)]'
                     : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
                 )}
               >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-base text-text">{theme.label}</span>
-                  <span className="text-sm text-gold">{theme.cost} OP</span>
-                </div>
-                <div className="text-xs text-text-dim">{theme.description}</div>
-                <div className="text-[11px] text-amber-300/80">{theme.riskText}</div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <h3 className={cn(typography.heading, 'text-xl text-text')}>追加ビルド</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {modifiers.map((mod) => {
-            const active = modifierIds.includes(mod.id);
-            return (
-              <button
-                key={mod.id}
-                type="button"
-                onClick={() => toggleModifier(mod.id)}
-                className={cn(
-                  'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
-                  active
-                    ? 'border-action bg-action/10'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                )}
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-base text-text">{mod.label}</span>
-                  <span className={cn('text-sm', mod.cost < 0 ? 'text-emerald-400' : 'text-gold')}>
-                    {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
+                {active ? (
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-action/60 bg-action/20 px-1.5 py-0.5 text-[10px] tracking-wider text-action">
+                    <CheckCircle2 className="h-3 w-3" />
+                    選択中
+                  </span>
+                ) : null}
+                <div className="flex items-baseline gap-2 pr-16">
+                  <span className={cn('text-lg', active ? 'text-text' : 'text-text/90')}>{theme.label}</span>
+                  <span className={cn('ml-auto text-sm', active ? 'text-gold' : 'text-gold/80')}>
+                    {theme.cost === 0 ? '無料' : `${theme.cost} OP`}
                   </span>
                 </div>
-                <div className="text-xs text-text-dim">{mod.description}</div>
-                {mod.riskText ? (
-                  <div className="text-[11px] text-amber-300/80">{mod.riskText}</div>
+                <div className="text-xs text-text-dim leading-relaxed">{theme.description}</div>
+                {intent ? (
+                  <div className="text-[11px] text-action/80 leading-relaxed">→ {intent}</div>
                 ) : null}
-                {mod.exclusiveGroup ? (
-                  <div className="text-[10px] text-text-dim/70">系統: {mod.exclusiveGroup}</div>
-                ) : null}
+                <div className="text-[11px] text-amber-300/70">{theme.riskText}</div>
               </button>
             );
           })}
         </div>
       </section>
 
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-start gap-2 text-xs text-amber-200/90">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            この設定はキャリアの方向性を少し寄せるだけで、結果を保証しません。怪我、番付環境、同期、成長の揺らぎによって期待通りに進まない場合があります。
-          </div>
+      {/* Modifiers grouped */}
+      <section className={cn(surface.panel, 'space-y-5 p-5')}>
+        <div className="flex items-baseline justify-between">
+          <h3 className={cn(typography.heading, 'text-xl text-text')}>追加ビルド</h3>
+          <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
         </div>
-        {validation.errors.length > 0 ? (
+
+        {GROUP_ORDER.map((group) => {
+          const list = modifiersByGroup[group];
+          if (!list || list.length === 0) return null;
+          const meta = GROUP_META[group];
+          return (
+            <div key={group} className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+                  {meta.label}
+                </span>
+                <span className="text-[10px] text-text-dim/70">({meta.hint})</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {list.map((mod) => {
+                  const active = modifierIds.includes(mod.id);
+                  const isDiscount = mod.cost < 0;
+                  return (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => toggleModifier(mod.id)}
+                      className={cn(
+                        'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
+                        active
+                          ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
+                          : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                      )}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm text-text">{mod.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          {isDiscount ? (
+                            <span className="border border-emerald-400/40 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] tracking-wider text-emerald-300">
+                              割引
+                            </span>
+                          ) : null}
+                          {mod.riskText ? (
+                            <span className="border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] tracking-wider text-amber-200">
+                              リスク
+                            </span>
+                          ) : null}
+                          <span className={cn('text-xs', isDiscount ? 'text-emerald-400' : 'text-gold')}>
+                            {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-text-dim leading-relaxed">{mod.description}</div>
+                      {mod.riskText ? (
+                        <div className="text-[10px] text-amber-300/70">{mod.riskText}</div>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* Validation errors (if any) */}
+      {validation.errors.length > 0 ? (
+        <section className={cn(surface.panel, 'p-4')}>
           <ul className="space-y-1 text-xs text-red-300">
             {validation.errors.map((err, i) => (
-              <li key={i}>・{err}</li>
+              <li key={i} className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{err}</span>
+              </li>
             ))}
           </ul>
-        ) : null}
-        {errorMessage ? <div className="text-xs text-red-300">{errorMessage}</div> : null}
-        {insufficientOp ? (
-          <div className="text-xs text-red-300">観測ポイントが不足しています ({totalCost} OP 必要)。</div>
-        ) : null}
-        {insufficientToken ? (
-          <div className="text-xs text-red-300">生成札が不足しています。</div>
-        ) : null}
-        <div className="flex items-center justify-end gap-3">
-          <Button
-            size="lg"
-            disabled={!canStart}
-            onClick={() => void handleStart()}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            {isStarting ? '観測開始中…' : `観測を開始する (${totalCost} OP)`}
-          </Button>
+        </section>
+      ) : null}
+
+      {errorMessage ? (
+        <section className={cn(surface.panel, 'p-4 text-xs text-red-300')}>{errorMessage}</section>
+      ) : null}
+
+      {/* Sticky bottom summary */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-bg/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="text-text-dim">あなたの観測:</span>
+            {selectedTheme ? (
+              <span className="border border-action/40 bg-action/10 px-2 py-0.5 text-text">
+                {selectedTheme.label}
+              </span>
+            ) : null}
+            {selectedModifiers.map((mod) => (
+              <span
+                key={mod.id}
+                className="border border-white/15 bg-white/[0.03] px-2 py-0.5 text-text-dim"
+              >
+                {mod.label}
+              </span>
+            ))}
+            {selectedModifiers.length === 0 ? (
+              <span className="text-text-dim/60">追加ビルドなし</span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <div>
+              <span className="text-text-dim">消費</span>{' '}
+              <span className={cn(insufficientOp ? 'text-red-400' : 'text-gold')}>{totalCost} OP</span>
+            </div>
+            <div>
+              <span className="text-text-dim">観測後</span>{' '}
+              <span className="text-text">{remainingOp} OP</span>
+            </div>
+          </div>
+          <div className="flex flex-col items-stretch gap-1 sm:items-end">
+            <Button size="lg" disabled={!canStart} onClick={() => void handleStart()}>
+              <Eye className="mr-2 h-4 w-4" />
+              {isStarting ? '観測開始中…' : `観測を開始 (${totalCost} OP)`}
+            </Button>
+            {!canStart && insufficientReason ? (
+              <div className="text-[11px] text-red-300">{insufficientReason}</div>
+            ) : null}
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 };

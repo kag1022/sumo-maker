@@ -256,7 +256,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 {saveLabel}
               </Button>
               <Button variant="secondary" onClick={onReset}>
-                新弟子設計へ戻る
+                観測ビルドへ戻る
               </Button>
               {onOpenCollection && (
                 <Button variant="ghost" onClick={onOpenCollection}>
