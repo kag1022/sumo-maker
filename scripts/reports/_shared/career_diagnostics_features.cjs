@@ -106,6 +106,78 @@ const extractCareerFeatures = (result) => {
   // SPIRIT/MAKEKOSHI_STREAK/CHRONIC_INJURY flags
   const reasonCode = summary.careerOutcome.retirementReasonCode || 'OTHER';
 
+  // genome summary (軽量化 - 巨大オブジェクトをそのまま保存しない)
+  const genome = finalStatus?.genome;
+  const tactics = finalStatus?.tactics ?? 'BALANCE';
+  const genomeSummary = genome ? (() => {
+    const b = genome.base ?? {};
+    const g = genome.growth ?? {};
+    const d = genome.durability ?? {};
+    const ceilings = [b.powerCeiling, b.techCeiling, b.speedCeiling, b.ringSense, b.styleFit].filter(Number.isFinite);
+    const avgCeiling = ceilings.length > 0 ? ceilings.reduce((s, v) => s + v, 0) / ceilings.length : null;
+    const maxCeiling = ceilings.length > 0 ? Math.max(...ceilings) : null;
+    const minCeiling = ceilings.length > 0 ? Math.min(...ceilings) : null;
+    const ceilingSpread = (maxCeiling != null && minCeiling != null) ? maxCeiling - minCeiling : null;
+    const top3CeilingAverage = ceilings.length >= 3
+      ? Math.round([...ceilings].sort((a, b) => b - a).slice(0, 3).reduce((s, v) => s + v, 0) / 3)
+      : (avgCeiling != null ? Math.round(avgCeiling) : null);
+    // 戦術別の関連 ceiling 加重平均 (得意な天井値が高い力士を正確に識別)
+    const styleRelevantCeiling = (() => {
+      const pc = b.powerCeiling ?? 0;
+      const tc = b.techCeiling ?? 0;
+      const sc = b.speedCeiling ?? 0;
+      const rs = b.ringSense ?? 0;
+      const sf = b.styleFit ?? 0;
+      if (tactics === 'PUSH') return Math.round(pc * 0.40 + sc * 0.35 + tc * 0.15 + rs * 0.05 + sf * 0.05);
+      if (tactics === 'GRAPPLE') return Math.round(pc * 0.30 + tc * 0.25 + rs * 0.25 + sc * 0.10 + sf * 0.10);
+      if (tactics === 'TECHNIQUE') return Math.round(tc * 0.35 + rs * 0.30 + sc * 0.20 + pc * 0.10 + sf * 0.05);
+      return avgCeiling != null ? Math.round(avgCeiling) : null; // BALANCE
+    })();
+    const durabilityScore = Number.isFinite(d.baseInjuryRisk) && Number.isFinite(d.recoveryRate)
+      ? Math.round(100 * (1 / Math.max(0.3, d.baseInjuryRisk)) * d.recoveryRate)
+      : null;
+    return {
+      basePowerCeiling: b.powerCeiling ?? null,
+      baseTechniqueCeiling: b.techCeiling ?? null,
+      baseSpeedCeiling: b.speedCeiling ?? null,
+      averageCeiling: avgCeiling != null ? Math.round(avgCeiling) : null,
+      maxCeiling,
+      minCeiling,
+      ceilingSpread,
+      top3CeilingAverage,
+      styleRelevantCeiling,
+      maturationAge: g.maturationAge ?? null,
+      peakLength: g.peakLength ?? null,
+      lateCareerDecay: g.lateCareerDecay ?? null,
+      baseInjuryRisk: d.baseInjuryRisk ?? null,
+      recoveryRate: d.recoveryRate ?? null,
+      chronicResistance: d.chronicResistance ?? null,
+      durabilityScore,
+    };
+  })() : null;
+
+  // 鉄人系フラグ
+  const traits = finalStatus?.traits ?? [];
+  const hasTetsujin = traits.includes('TETSUJIN');
+  const hasIronman = finalStatus?.retirementProfile === 'IRONMAN';
+  // durabilityScore = 100 × (1/baseInjuryRisk) × recoveryRate。
+  // デフォルト(baseInjuryRisk=1.0, recoveryRate=1.0)は score=100 なので
+  // 「明らかに高耐久」を区別するため 130 以上を「highDurability」とする。
+  const hasHighDurability = genomeSummary != null && genomeSummary.durabilityScore != null && genomeSummary.durabilityScore >= 130;
+
+  // biases summary (careerSeed.biases の主要軸)
+  const biases = finalStatus?.careerSeed?.biases ?? finalStatus?.careerSeedBiases ?? null;
+  const biasSummary = biases ? {
+    peakAgeShift: biases.peakAgeShift ?? null,
+    peakDurationBias: biases.peakDurationBias ?? null,
+    earlyGrowthBias: biases.earlyGrowthBias ?? null,
+    durabilityBias: biases.durabilityBias ?? null,
+    slumpResistanceBias: biases.slumpResistanceBias ?? null,
+    reboundBias: biases.reboundBias ?? null,
+    volatilityBias: biases.volatilityBias ?? null,
+    socialPressureBias: biases.socialPressureBias ?? null,
+  } : null;
+
   return {
     seed: summary.seed,
     aptitudeTier: summary.aptitudeTier,
@@ -120,6 +192,15 @@ const extractCareerFeatures = (result) => {
     growthType: finalStatus?.growthType,
     retirementProfile: finalStatus?.retirementProfile,
     archetype: finalStatus?.archetype,
+    tactics,
+    // 鉄人系フラグ
+    hasTetsujin,
+    hasIronman,
+    hasHighDurability,
+    // genome軽量summary
+    genomeSummary,
+    // careerSeed biases summary
+    biasSummary,
     highestRankBucket: summary.rankOutcome.highestRankBucket,
     careerBasho: totalBasho,
     careerWinRate,

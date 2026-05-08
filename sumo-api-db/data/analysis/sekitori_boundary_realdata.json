@@ -1,0 +1,2030 @@
+{
+  "makushitaUpper": [
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-0",
+      "sampleCount": 131,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 131,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-1",
+      "sampleCount": 19,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 19,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-2",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-3",
+      "sampleCount": 13,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 13,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-4",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-5",
+      "sampleCount": 9,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 9,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-6",
+      "sampleCount": 1,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "0-7",
+      "sampleCount": 28,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 28,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-1",
+      "sampleCount": 5,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 5,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-2",
+      "sampleCount": 12,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 12,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-3",
+      "sampleCount": 12,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 12,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-4",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-5",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-6",
+      "sampleCount": 389,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 389,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "1-7",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-1",
+      "sampleCount": 5,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 5,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-2",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-3",
+      "sampleCount": 8,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 8,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-4",
+      "sampleCount": 6,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 6,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-5",
+      "sampleCount": 1218,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1218,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "2-6",
+      "sampleCount": 6,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 6,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "3-1",
+      "sampleCount": 1,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "3-2",
+      "sampleCount": 7,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 7,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "3-3",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "3-4",
+      "sampleCount": 2024,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2024,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "3-5",
+      "sampleCount": 9,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 9,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "4-1",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "4-2",
+      "sampleCount": 3,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "4-3",
+      "sampleCount": 2058,
+      "promotedToJuryo": 6,
+      "stayedMakushita": 2052,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "5-2",
+      "sampleCount": 1196,
+      "promotedToJuryo": 14,
+      "stayedMakushita": 1182,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "6-1",
+      "sampleCount": 394,
+      "promotedToJuryo": 38,
+      "stayedMakushita": 356,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_15",
+      "record": "7-0",
+      "sampleCount": 103,
+      "promotedToJuryo": 100,
+      "stayedMakushita": 3,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-0",
+      "sampleCount": 166,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 77,
+      "demotedOrLower": 89
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-1",
+      "sampleCount": 27,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 21,
+      "demotedOrLower": 6
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-2",
+      "sampleCount": 12,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 7,
+      "demotedOrLower": 5
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-3",
+      "sampleCount": 16,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 11,
+      "demotedOrLower": 5
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-4",
+      "sampleCount": 8,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 8,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-5",
+      "sampleCount": 3,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 1
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-6",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "0-7",
+      "sampleCount": 70,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 47,
+      "demotedOrLower": 23
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-0",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-1",
+      "sampleCount": 11,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 1
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-2",
+      "sampleCount": 13,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 13,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-3",
+      "sampleCount": 13,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 13,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-4",
+      "sampleCount": 11,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 11,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-5",
+      "sampleCount": 13,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 12,
+      "demotedOrLower": 1
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "1-6",
+      "sampleCount": 612,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 583,
+      "demotedOrLower": 29
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "2-1",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "2-2",
+      "sampleCount": 14,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 13,
+      "demotedOrLower": 1
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "2-3",
+      "sampleCount": 23,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 23,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "2-4",
+      "sampleCount": 24,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 24,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "2-5",
+      "sampleCount": 1802,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1801,
+      "demotedOrLower": 1
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "3-2",
+      "sampleCount": 7,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 7,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "3-3",
+      "sampleCount": 12,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 12,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "3-4",
+      "sampleCount": 3035,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3035,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "4-1",
+      "sampleCount": 5,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 5,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "4-2",
+      "sampleCount": 9,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 9,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "4-3",
+      "sampleCount": 3097,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3097,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "5-1",
+      "sampleCount": 1,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "5-2",
+      "sampleCount": 1841,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1841,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "6-1",
+      "sampleCount": 633,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 633,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_30",
+      "record": "7-0",
+      "sampleCount": 74,
+      "promotedToJuryo": 15,
+      "stayedMakushita": 59,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-0",
+      "sampleCount": 73,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 73,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-1",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-2",
+      "sampleCount": 10,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 10,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-3",
+      "sampleCount": 7,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 7,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-4",
+      "sampleCount": 3,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-5",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-6",
+      "sampleCount": 3,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "0-7",
+      "sampleCount": 6,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 6,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-1",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-2",
+      "sampleCount": 7,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 7,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-3",
+      "sampleCount": 5,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 5,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-4",
+      "sampleCount": 4,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 4,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-5",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-6",
+      "sampleCount": 146,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 146,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "1-7",
+      "sampleCount": 8,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 8,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "2-2",
+      "sampleCount": 3,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 3,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "2-3",
+      "sampleCount": 6,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 6,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "2-4",
+      "sampleCount": 2,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 2,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "2-5",
+      "sampleCount": 499,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 499,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "2-6",
+      "sampleCount": 28,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 28,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "3-0",
+      "sampleCount": 1,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 1,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "3-3",
+      "sampleCount": 5,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 5,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "3-4",
+      "sampleCount": 927,
+      "promotedToJuryo": 2,
+      "stayedMakushita": 925,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "3-5",
+      "sampleCount": 22,
+      "promotedToJuryo": 0,
+      "stayedMakushita": 22,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "4-1",
+      "sampleCount": 1,
+      "promotedToJuryo": 1,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "4-2",
+      "sampleCount": 1,
+      "promotedToJuryo": 1,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "4-3",
+      "sampleCount": 1038,
+      "promotedToJuryo": 427,
+      "stayedMakushita": 611,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "4-4",
+      "sampleCount": 9,
+      "promotedToJuryo": 1,
+      "stayedMakushita": 8,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "5-1",
+      "sampleCount": 1,
+      "promotedToJuryo": 1,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "5-2",
+      "sampleCount": 677,
+      "promotedToJuryo": 530,
+      "stayedMakushita": 147,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "5-3",
+      "sampleCount": 3,
+      "promotedToJuryo": 3,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "6-1",
+      "sampleCount": 244,
+      "promotedToJuryo": 230,
+      "stayedMakushita": 14,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "6-2",
+      "sampleCount": 1,
+      "promotedToJuryo": 1,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    },
+    {
+      "zone": "Makushita_Upper_5",
+      "record": "7-0",
+      "sampleCount": 79,
+      "promotedToJuryo": 79,
+      "stayedMakushita": 0,
+      "demotedOrLower": 0
+    }
+  ],
+  "juryoLower": [
+    {
+      "zone": "Juryo_Low",
+      "record": "0-0",
+      "sampleCount": 50,
+      "demotedToMakushita": 24,
+      "stayedJuryo": 26,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-1",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-2",
+      "sampleCount": 4,
+      "demotedToMakushita": 4,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-3",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-5",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-7",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-8",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-9",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-11",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "0-15",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-2",
+      "sampleCount": 6,
+      "demotedToMakushita": 5,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-6",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-7",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-9",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-11",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-12",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "1-14",
+      "sampleCount": 24,
+      "demotedToMakushita": 24,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-2",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-6",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-7",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-8",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-9",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-11",
+      "sampleCount": 5,
+      "demotedToMakushita": 5,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-12",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "2-13",
+      "sampleCount": 58,
+      "demotedToMakushita": 58,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-6",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-8",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-9",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-11",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "3-12",
+      "sampleCount": 110,
+      "demotedToMakushita": 110,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-5",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-6",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-7",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-8",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-9",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "4-11",
+      "sampleCount": 180,
+      "demotedToMakushita": 178,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-4",
+      "sampleCount": 2,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-7",
+      "sampleCount": 3,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-8",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-9",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "5-10",
+      "sampleCount": 263,
+      "demotedToMakushita": 224,
+      "stayedJuryo": 39,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-2",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-4",
+      "sampleCount": 3,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-7",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-8",
+      "sampleCount": 2,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "6-9",
+      "sampleCount": 383,
+      "demotedToMakushita": 181,
+      "stayedJuryo": 202,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "7-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "7-5",
+      "sampleCount": 4,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 4,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "7-6",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "7-7",
+      "sampleCount": 3,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 3,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "7-8",
+      "sampleCount": 468,
+      "demotedToMakushita": 74,
+      "stayedJuryo": 394,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "8-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "8-5",
+      "sampleCount": 6,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 6,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "8-6",
+      "sampleCount": 5,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 5,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "8-7",
+      "sampleCount": 937,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 934,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "9-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "9-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "9-6",
+      "sampleCount": 649,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 648,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "10-3",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "10-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "10-5",
+      "sampleCount": 255,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 254,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "11-4",
+      "sampleCount": 118,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 118,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "12-3",
+      "sampleCount": 40,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 39,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "13-2",
+      "sampleCount": 25,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 17,
+      "promotedOrAbove": 8
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "14-1",
+      "sampleCount": 6,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 4
+    },
+    {
+      "zone": "Juryo_Low",
+      "record": "15-0",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-0",
+      "sampleCount": 52,
+      "demotedToMakushita": 22,
+      "stayedJuryo": 30,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-1",
+      "sampleCount": 2,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-2",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-4",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-7",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-9",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "0-15",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-2",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-4",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-8",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-9",
+      "sampleCount": 2,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-11",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-12",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "1-14",
+      "sampleCount": 4,
+      "demotedToMakushita": 4,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-3",
+      "sampleCount": 3,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-5",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-6",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-7",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-8",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-9",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-11",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "2-13",
+      "sampleCount": 23,
+      "demotedToMakushita": 23,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-3",
+      "sampleCount": 2,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-7",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-8",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-9",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "3-12",
+      "sampleCount": 38,
+      "demotedToMakushita": 32,
+      "stayedJuryo": 6,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "4-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "4-7",
+      "sampleCount": 3,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 3,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "4-9",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "4-10",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "4-11",
+      "sampleCount": 96,
+      "demotedToMakushita": 38,
+      "stayedJuryo": 58,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-4",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-6",
+      "sampleCount": 4,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 4,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-7",
+      "sampleCount": 4,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 4,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-8",
+      "sampleCount": 7,
+      "demotedToMakushita": 1,
+      "stayedJuryo": 6,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-9",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "5-10",
+      "sampleCount": 215,
+      "demotedToMakushita": 19,
+      "stayedJuryo": 196,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "6-5",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "6-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "6-7",
+      "sampleCount": 6,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 6,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "6-8",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "6-9",
+      "sampleCount": 489,
+      "demotedToMakushita": 3,
+      "stayedJuryo": 486,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "7-2",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "7-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "7-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "7-7",
+      "sampleCount": 5,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 5,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "7-8",
+      "sampleCount": 546,
+      "demotedToMakushita": 2,
+      "stayedJuryo": 544,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "8-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "8-5",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "8-6",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "8-7",
+      "sampleCount": 723,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 722,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "9-3",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "9-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "9-5",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 2,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "9-6",
+      "sampleCount": 412,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 403,
+      "promotedOrAbove": 9
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "10-3",
+      "sampleCount": 2,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 1
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "10-4",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 1,
+      "promotedOrAbove": 0
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "10-5",
+      "sampleCount": 205,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 191,
+      "promotedOrAbove": 14
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "11-4",
+      "sampleCount": 97,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 65,
+      "promotedOrAbove": 32
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "12-3",
+      "sampleCount": 50,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 21,
+      "promotedOrAbove": 29
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "13-2",
+      "sampleCount": 21,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 7,
+      "promotedOrAbove": 14
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "14-1",
+      "sampleCount": 4,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 4
+    },
+    {
+      "zone": "Juryo_Mid",
+      "record": "15-0",
+      "sampleCount": 1,
+      "demotedToMakushita": 0,
+      "stayedJuryo": 0,
+      "promotedOrAbove": 1
+    }
+  ],
+  "fourThreePromotions": {
+    "count": 433,
+    "byZone": {
+      "Makushita_Upper_5": 427,
+      "Makushita_Upper_15": 6
+    }
+  },
+  "fivePlusNoPromotion": {
+    "count": 4236,
+    "byZone": {
+      "Makushita_Upper_30": 2534,
+      "Makushita_Upper_15": 1541,
+      "Makushita_Upper_5": 161
+    }
+  },
+  "exchangePerBasho": {
+    "promotionsToJuryo": {
+      "avg": 3.72,
+      "p25": 3,
+      "median": 4,
+      "p75": 5,
+      "p90": 5
+    },
+    "demotionsToMakushita": {
+      "avg": 3.06,
+      "p25": 2,
+      "median": 3,
+      "p75": 4,
+      "p90": 5
+    },
+    "bashoCount": 390
+  }
+}
