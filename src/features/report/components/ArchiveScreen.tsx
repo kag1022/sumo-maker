@@ -419,11 +419,13 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               label: "分類あり",
               count: items.filter((item) => item.saveTags?.length).length,
             },
-            {
-              id: "EXPERIMENT" as const,
-              label: "実験記録",
-              count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
-            },
+            ...(import.meta.env.DEV
+              ? [{
+                  id: "EXPERIMENT" as const,
+                  label: "実験記録 (Legacy)",
+                  count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
+                }]
+              : []),
             {
               id: "RARE" as const,
               label: "珍記録候補",
@@ -473,17 +475,19 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             ["MID", "標準"],
             ["LOW", "低勝率"],
           ]} />
-          <SelectFilter label="観測" value={stanceFilter} onChange={(value) => setStanceFilter(value as ObservationStanceId | "ALL")} options={[
-            ["ALL", "すべて"],
-            ["PROMOTION_EXPECTATION", "出世期待"],
-            ["LATE_BLOOM", "晩成"],
-            ["STABILITY", "安定"],
-            ["TURBULENCE", "波乱"],
-            ["RIVALRY", "宿敵"],
-            ["RARE_RECORD", "珍記録"],
-            ["INJURY_COMEBACK", "復帰"],
-            ["LONGEVITY", "長寿"],
-          ]} />
+          {import.meta.env.DEV ? (
+            <SelectFilter label="表示視点 (Legacy)" value={stanceFilter} onChange={(value) => setStanceFilter(value as ObservationStanceId | "ALL")} options={[
+              ["ALL", "すべて"],
+              ["PROMOTION_EXPECTATION", "出世期待"],
+              ["LATE_BLOOM", "晩成"],
+              ["STABILITY", "安定"],
+              ["TURBULENCE", "波乱"],
+              ["RIVALRY", "宿敵"],
+              ["RARE_RECORD", "珍記録"],
+              ["INJURY_COMEBACK", "復帰"],
+              ["LONGEVITY", "長寿"],
+            ]} />
+          ) : null}
           <SelectFilter label="保存タグ" value={tagFilter} onChange={(value) => setTagFilter(value as CareerSaveTag | "ALL")} options={[
             ["ALL", "すべて"],
             ...Object.entries(MANUAL_SAVE_TAG_LABELS).map(([key, label]) => [key, label] as [string, string]),
@@ -563,7 +567,9 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                   {item.analysis ? (
                     <div className={styles.cardMeta}>
                       <span>{item.analysis.classificationLabel}</span>
-                      <span>{resolveObservationStanceLabel(item.observationStanceId)}</span>
+                      {import.meta.env.DEV ? (
+                        <span>{resolveObservationStanceLabel(item.observationStanceId)}</span>
+                      ) : null}
                       <span>珍{Math.round(item.analysis.metrics.rarityScore)}</span>
                     </div>
                   ) : null}
@@ -735,10 +741,12 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                   <span>分類</span>
                   <span>{selectedItem.analysis.classificationLabel}</span>
                 </div>
-                <div className={styles.infoRow}>
-                  <span>観測スタンス</span>
-                  <span>{resolveObservationStanceLabel(selectedItem.observationStanceId)}</span>
-                </div>
+                {import.meta.env.DEV ? (
+                  <div className={styles.infoRow}>
+                    <span>表示視点 (Legacy)</span>
+                    <span>{resolveObservationStanceLabel(selectedItem.observationStanceId)}</span>
+                  </div>
+                ) : null}
                 <div className={styles.infoRow}>
                   <span>保存推奨</span>
                   <span>{selectedItem.analysis.saveRecommendation.score}点</span>

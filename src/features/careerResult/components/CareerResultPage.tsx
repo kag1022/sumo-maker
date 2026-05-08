@@ -11,6 +11,7 @@ import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import { Button } from "../../../shared/ui/Button";
 import { CareerEncyclopediaChapter } from "./CareerEncyclopediaChapter";
+import { CareerArchivePanel } from "./CareerArchivePanel";
 import { CareerWorldSection } from "./CareerWorldSection";
 import { CareerPlaceChapter } from "./CareerPlaceChapter";
 import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
@@ -50,6 +51,7 @@ interface CareerResultPageProps {
   onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
   onOpenArchive: () => void;
+  onOpenArchiveCollection?: () => void;
 }
 
 const CHAPTERS: Array<{
@@ -87,6 +89,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   onSave,
   onReturnToScout,
   onOpenArchive,
+  onOpenArchiveCollection,
 }) => {
   const chapterRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
@@ -244,6 +247,10 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                     : detailLoadingLabel}
                 </p>
               </section>
+              <CareerArchivePanel
+                careerId={careerId}
+                onOpenArchive={onOpenArchiveCollection ?? onOpenArchive}
+              />
               <CareerEncyclopediaChapter
                 status={status}
                 overview={overview}

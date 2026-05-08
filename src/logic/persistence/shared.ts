@@ -67,6 +67,9 @@ import { ensureCareerRecordStatus, withRivalSummary } from '../careerNarrative';
 import { clearKpiCounters } from '../telemetry/kpi';
 import { addObservationPoints } from './observationPoints';
 import { evaluateResearchThemes } from '../research/themes';
+import { judgeArchiveCategories } from '../archive/categories';
+import { judgeCareerTitles } from '../archive/titles';
+import { computeArchiveReward } from '../archive/rewards';
 
 const MAX_SHELVED_CAREERS = 200;
 const COLLECTION_TYPES: CollectionType[] = ['RIKISHI', 'OYAKATA', 'KIMARITE', 'ACHIEVEMENT', 'RECORD'];
@@ -609,6 +612,9 @@ export interface CreateDraftCareerParams {
   observationRuleMode?: ObservationRuleMode;
   observationStanceId?: ObservationStanceId;
   experimentPresetId?: ExperimentPresetId;
+  // Career-archive observation build metadata (Phase 2)
+  archiveThemeId?: string;
+  archiveModifierIds?: string[];
 }
 
 const parseParentCareerId = (
@@ -745,6 +751,8 @@ export const createDraftCareer = async ({
   observationRuleMode,
   observationStanceId,
   experimentPresetId,
+  archiveThemeId,
+  archiveModifierIds,
 }: CreateDraftCareerParams): Promise<string> => {
   const careerId = id || crypto.randomUUID();
   const now = new Date().toISOString();
@@ -783,6 +791,8 @@ export const createDraftCareer = async ({
     observationRuleMode: observationRuleMode ?? 'STANDARD',
     observationStanceId,
     experimentPresetId,
+    archiveThemeId,
+    archiveModifierIds,
     careerIndex: nextCareerIndex,
     finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
     detailState: 'building',
@@ -966,6 +976,39 @@ export const finalizeCareerDetails = async (
     ruleMode,
     collectionDeltaCount,
   );
+  // ---- Archive judgment (Phase 7-10) ----
+  const archiveCategories = judgeArchiveCategories(normalizedStatus, career ?? null);
+  const archiveTitles = judgeCareerTitles(normalizedStatus, archiveCategories as never);
+
+  // First-entry detection: any prior career has archiveJudgedAt set?
+  const priorJudged = await db.careers
+    .filter((row) => row.id !== careerId && Boolean(row.archiveJudgedAt))
+    .first();
+  const isFirstEntry = !priorJudged;
+
+  // New-category detection: categories never seen before in any judged career.
+  const priorCategorySet = new Set<string>();
+  if (priorJudged) {
+    const allRows = await db.careers.toArray();
+    for (const row of allRows) {
+      if (row.id === careerId) continue;
+      if (!row.archiveJudgedAt) continue;
+      for (const c of row.archiveCategories ?? []) priorCategorySet.add(c);
+    }
+  }
+  const newCategories = archiveCategories.filter((c) => !priorCategorySet.has(c));
+
+  const reward = computeArchiveReward({
+    isFirstEntry,
+    newCategories,
+    titles: archiveTitles,
+  });
+
+  if (reward.delta > 0) {
+    await addObservationPoints(reward.delta, 'ARCHIVE_NEW_ENTRY', careerId);
+  }
+
+  const judgedAt = new Date().toISOString();
   await db.careers.update(careerId, {
     finalStatus: normalizedStatus,
     ...toSummaryPatch(normalizedStatus),
@@ -973,6 +1016,10 @@ export const finalizeCareerDetails = async (
     collectionDeltaCount,
     observationPointsAwarded: observationClaim.pointsAwarded,
     observationPointsGrantedAt: observationClaim.claimedAt,
+    archiveCategories,
+    archiveTitles,
+    archiveJudgedAt: judgedAt,
+    archiveRewardAwarded: reward.delta,
   });
   return normalizedStatus;
 };

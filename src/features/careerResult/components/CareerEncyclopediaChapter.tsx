@@ -455,31 +455,33 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </div>
       </div>
 
-      <div className={styles.section}>
-        <SectionHeading title="観測結果" />
-        <div className={styles.observationPanel} data-tone={stanceAnalysis.tone}>
-          <div className={styles.observationHead}>
-            <div>
-              <div className={styles.label}>{stanceAnalysis.stanceLabel}</div>
-              <div className={styles.observationVerdict}>{stanceAnalysis.verdict}</div>
-            </div>
-            <div className={styles.observationScore}>{stanceAnalysis.score}</div>
-          </div>
-          <div className={styles.observationMetrics}>
-            {stanceAnalysis.highlightRows.map((row) => (
-              <div key={row.key} className={styles.observationMetric}>
-                <span>{row.label}</span>
-                <strong>{row.display}</strong>
+      {import.meta.env.DEV ? (
+        <div className={styles.section}>
+          <SectionHeading title="観測結果 (Legacy / 表示視点)" />
+          <div className={styles.observationPanel} data-tone={stanceAnalysis.tone}>
+            <div className={styles.observationHead}>
+              <div>
+                <div className={styles.label}>{stanceAnalysis.stanceLabel}</div>
+                <div className={styles.observationVerdict}>{stanceAnalysis.verdict}</div>
               </div>
-            ))}
-          </div>
-          <div className={styles.observationReasons}>
-            {stanceAnalysis.reasonLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+              <div className={styles.observationScore}>{stanceAnalysis.score}</div>
+            </div>
+            <div className={styles.observationMetrics}>
+              {stanceAnalysis.highlightRows.map((row) => (
+                <div key={row.key} className={styles.observationMetric}>
+                  <span>{row.label}</span>
+                  <strong>{row.display}</strong>
+                </div>
+              ))}
+            </div>
+            <div className={styles.observationReasons}>
+              {stanceAnalysis.reasonLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <div className={styles.section}>
         <SectionHeading title="限定公開メモ" />

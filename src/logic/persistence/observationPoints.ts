@@ -5,11 +5,41 @@ export interface ObservationPointState {
   totalEarned: number;
 }
 
+// Note: ObservationPointLedgerRow.reason is a fixed Dexie row type and is not
+// changed (no schema migration). Newer reasons fall back to MANUAL_ADJUST in
+// the ledger row, but we still pass the semantic reason here for telemetry.
 export type ObservationPointReason =
   | 'CAREER_OBSERVATION'
   | 'EXPERIMENT_OBSERVATION'
   | 'OBSERVER_UPGRADE'
-  | 'MANUAL_ADJUST';
+  | 'MANUAL_ADJUST'
+  | 'OBSERVE_THEME'
+  | 'OBSERVATION_BUILD'
+  | 'ARCHIVE_NEW_ENTRY'
+  | 'NEW_CATEGORY'
+  | 'RARE_TITLE';
+
+export type ObservationPointEarnReason = Exclude<ObservationPointReason, 'OBSERVER_UPGRADE' | 'OBSERVE_THEME' | 'OBSERVATION_BUILD'>;
+export type ObservationPointSpendReason = Exclude<ObservationPointReason, 'CAREER_OBSERVATION' | 'EXPERIMENT_OBSERVATION' | 'ARCHIVE_NEW_ENTRY' | 'NEW_CATEGORY' | 'RARE_TITLE' | 'MANUAL_ADJUST'>;
+
+const LEGACY_LEDGER_REASONS = new Set([
+  'CAREER_OBSERVATION',
+  'EXPERIMENT_OBSERVATION',
+  'OBSERVER_UPGRADE',
+  'MANUAL_ADJUST',
+]);
+
+const toLedgerReason = (
+  reason: ObservationPointReason,
+): ObservationPointLedgerRow['reason'] => {
+  if (LEGACY_LEDGER_REASONS.has(reason)) {
+    return reason as ObservationPointLedgerRow['reason'];
+  }
+  // Newer reasons (OBSERVE_THEME / OBSERVATION_BUILD / ARCHIVE_*) — keep ledger
+  // row schema-stable by recording them as MANUAL_ADJUST. Telemetry of the
+  // semantic reason can be added later via a dedicated column.
+  return 'MANUAL_ADJUST';
+};
 
 const createLedgerId = (nowMs: number): string =>
   globalThis.crypto?.randomUUID?.() ?? `observation-point-${nowMs}-${Math.random().toString(36).slice(2, 10)}`;
@@ -53,7 +83,7 @@ export const getObservationPointState = async (nowMs: number = Date.now()): Prom
 
 export const addObservationPoints = async (
   amount: number,
-  reason: Exclude<ObservationPointReason, 'OBSERVER_UPGRADE'>,
+  reason: ObservationPointEarnReason,
   careerId?: string,
   nowMs: number = Date.now(),
 ): Promise<ObservationPointState> => {
@@ -74,7 +104,7 @@ export const addObservationPoints = async (
         kind: 'EARN',
         amount: safeAmount,
         balanceAfter: next.points,
-        reason,
+        reason: toLedgerReason(reason),
         careerId,
       }));
     }
@@ -84,8 +114,9 @@ export const addObservationPoints = async (
 
 export const spendObservationPoints = async (
   amount: number,
-  reason: 'OBSERVER_UPGRADE',
+  reason: ObservationPointSpendReason,
   nowMs: number = Date.now(),
+  careerId?: string,
 ): Promise<{ ok: boolean; state: ObservationPointState }> => {
   const safeAmount = Math.max(0, Math.floor(amount));
   const db = getDb();
@@ -106,7 +137,8 @@ export const spendObservationPoints = async (
         kind: 'SPEND',
         amount: safeAmount,
         balanceAfter: next.points,
-        reason,
+        reason: toLedgerReason(reason),
+        careerId,
       }));
     }
     return { ok: true, state: toState(next) };
