@@ -1,6 +1,7 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
 import { DEFAULT_MAKUUCHI_LAYOUT } from '../../banzuke/scale/banzukeLayout';
 import { DEFAULT_APTITUDE_FACTOR, DEFAULT_APTITUDE_TIER, DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../../constants';
+import type { EraSnapshot } from '../../era/types';
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { createInitialNpcUniverse } from '../npc/factory';
@@ -8,8 +9,19 @@ import { PersistentActor } from '../npc/types';
 import { EMPTY_EXCHANGE } from './shared';
 import { SimulationWorld, WorldRikishi } from './types';
 
-export const createSimulationWorld = (rng: RandomSource): SimulationWorld => {
-  const universe = createInitialNpcUniverse(rng);
+export interface CreateSimulationWorldOptions {
+  eraSnapshot?: EraSnapshot;
+  currentYear?: number;
+}
+
+export const createSimulationWorld = (
+  rng: RandomSource,
+  options?: CreateSimulationWorldOptions,
+): SimulationWorld => {
+  const universe = createInitialNpcUniverse(rng, {
+    eraSnapshot: options?.eraSnapshot,
+    currentYear: options?.currentYear,
+  });
   if (!universe.registry.has(PLAYER_ACTOR_ID)) {
     universe.registry.set(PLAYER_ACTOR_ID, {
       actorId: PLAYER_ACTOR_ID,

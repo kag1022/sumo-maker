@@ -57,6 +57,20 @@ export interface PersistentActor {
   riseBand?: 1 | 2 | 3;
   stagnation?: StagnationState;
   recentBashoResults: NpcBashoResult[];
+  /**
+   * EraSnapshot に基づく synthetic career start year。NPC が「既にその番付にいる」
+   * 状態を作るために、生成時の age と initialCareerStage から逆算した擬似入門年。
+   * - 過去場所履歴は生成しない (age / careerBashoCount / rank と矛盾しない値)
+   * - 全 NPC が同じ値にならないこと
+   * EraSnapshot 不在時は undefined。
+   */
+  syntheticCareerStartYear?: number;
+  /**
+   * EraSnapshot.careerStageProfile から sampling した初期キャリアステージ。
+   * 上位 sanyaku スロットには rookie/rising が割り当たらないように gating される。
+   * EraSnapshot 不在時は undefined (legacy 動作)。
+   */
+  initialCareerStage?: 'rookie' | 'rising' | 'prime' | 'veteran' | 'declining';
 }
 
 export type PersistentNpc = PersistentActor;

@@ -1,4 +1,5 @@
 import { BanzukeEngineVersion } from '../banzuke';
+import type { EraSnapshot } from '../era/types';
 import { RandomSource } from './deps';
 import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from './lowerQuota';
 import { intakeNewNpcRecruits } from './npc/intake';
@@ -37,11 +38,22 @@ export interface LeagueFlowAdvanceResult {
   populationPlan: PopulationPlan | undefined;
 }
 
+export interface CreateLeagueFlowRuntimeOptions {
+  eraSnapshot?: EraSnapshot;
+  currentYear?: number;
+}
+
 export const createLeagueFlowRuntime = (
   rng: RandomSource,
   sourceWorld?: SimulationWorld,
+  options?: CreateLeagueFlowRuntimeOptions,
 ): LeagueFlowRuntime => {
-  const world = sourceWorld ?? createSimulationWorld(rng);
+  const world =
+    sourceWorld ??
+    createSimulationWorld(rng, {
+      eraSnapshot: options?.eraSnapshot,
+      currentYear: options?.currentYear,
+    });
   const lowerWorld = createLowerDivisionQuotaWorld(rng, world);
   const boundaryWorld = createSekitoriBoundaryWorld(rng);
   boundaryWorld.npcRegistry = world.npcRegistry;

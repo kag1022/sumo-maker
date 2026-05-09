@@ -21,6 +21,7 @@ import { SimulationModelVersion } from '../simulation/modelVersion';
 import type { ImportantTorikumiTrigger } from '../simulation/basho';
 import type { TorikumiMatchReason } from '../simulation/torikumi/types';
 import { ensureKataProfile } from '../style/kata';
+import type { EraTag } from '../era/types';
 
 export type CareerState = 'in_progress' | 'unshelved' | 'shelved';
 
@@ -84,6 +85,10 @@ export interface CareerRow {
   archiveTitles?: Array<{ id: string; label: string; tier: string; reason: string }>;
   archiveJudgedAt?: string;
   archiveRewardAwarded?: number;
+  // ---- Anonymous EraSnapshot (optional, no schema bump) ----
+  eraSnapshotId?: string;
+  eraTags?: EraTag[];
+  publicEraLabel?: string;
 }
 
 export type BashoEntityType = 'PLAYER' | 'NPC';
