@@ -25,7 +25,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { listEraSnapshots, getEraSnapshotById } from '../../src/logic/era/eraSnapshot';
+import { listEraSnapshots } from '../../src/logic/era/eraSnapshot';
 import type { EraBoundaryProfile, EraSnapshot } from '../../src/logic/era/types';
 import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from '../../src/logic/simulation/torikumi/policy';
 import { scheduleTorikumiBasho } from '../../src/logic/simulation/torikumi/scheduler';

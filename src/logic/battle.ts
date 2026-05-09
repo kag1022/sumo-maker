@@ -367,10 +367,10 @@ const resolveWinRoute = (
       value: 'LEG_ATTACK',
       weight:
         winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI')
-          ? 0.05 +
-            secondaryBoost('LEG_ATTACK', 0.32) +
-            (winner.bodyType === 'SOPPU' ? 0.22 : 0) +
-            (context.isUnderdog ? 0.2 : 0)
+          ? 0.015 +
+            secondaryBoost('LEG_ATTACK', 0.1) +
+            (winner.bodyType === 'SOPPU' ? 0.08 : 0) +
+            (context.isUnderdog ? 0.08 : 0)
           : 0,
     },
   ];

@@ -116,8 +116,8 @@ async function main() {
     const sev = delta < 1 ? "low" : delta < 3 ? "medium" : "high";
     const rec = (["Yokozuna","Ozeki","Sanyaku"].includes(zone)) ? "needs_context_model"
       : sev==="low" ? "keep_existing"
-      : (zone==="Juryo_Low"||zone==="Makushita_Upper_5"||zone==="Makushita_Upper_15") ? "candidate_for_boundary_review"
-      : sev==="high" ? "candidate_for_blend" : "use_hint_as_reference_only";
+        : (zone==="Juryo_Low"||zone==="Makushita_Upper_5"||zone==="Makushita_Upper_15") ? "candidate_for_boundary_review"
+          : sev==="high" ? "candidate_for_blend" : "use_hint_as_reference_only";
     gaps.push({ zone,wins,losses,absBucket, simCount:simVals.length, realCount:realHint.sampleCount, simExpected:simExp, realExpected:realHint.expectedMovement, deltaExpected:Math.round(delta*100)/100, simMedian:simQ.median, realMedian:realHint.range.median, simP25:simQ.p25, realP25:realHint.range.p25, simP75:simQ.p75, realP75:realHint.range.p75, severity:sev, recommendation:rec });
   }
   gaps.sort((a,b)=>b.deltaExpected-a.deltaExpected);

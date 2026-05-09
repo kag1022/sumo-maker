@@ -14,6 +14,7 @@ import {
   resolveDisplayedWeakStyles,
   resolveStyleLabelsOrFallback,
 } from "../../../logic/style/identity";
+import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
@@ -203,9 +204,13 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     () => ensureStyleIdentityProfile(status).styleIdentityProfile,
     [status],
   );
-  const strengthLabel = React.useMemo(
-    () => resolveStyleLabelsOrFallback(resolveDisplayedStrengthStyles(styleIdentity)),
+  const strengthStyles = React.useMemo(
+    () => resolveDisplayedStrengthStyles(styleIdentity),
     [styleIdentity],
+  );
+  const strengthLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(strengthStyles),
+    [strengthStyles],
   );
   const weaknessLabel = React.useMemo(
     () => resolveStyleLabelsOrFallback(resolveDisplayedWeakStyles(styleIdentity)),
@@ -221,7 +226,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       label: "苦手な型",
       value: weaknessLabel,
     });
-    const representativeMoves = [...new Set([...status.signatureMoves, ...topMoves].filter(Boolean))].slice(0, 3);
+    const representativeMoves = summarizeSignatureKimarite(status.history.kimariteTotal, strengthStyles, 3).selectedMoves;
     if (representativeMoves.length > 0) {
       lines.push({
         label: "代表技",
@@ -229,7 +234,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       });
     }
     return lines;
-  }, [status.signatureMoves, strengthLabel, topMoves, weaknessLabel]);
+  }, [status.history.kimariteTotal, strengthLabel, strengthStyles, weaknessLabel]);
   const recordRows = React.useMemo(
     () =>
       [

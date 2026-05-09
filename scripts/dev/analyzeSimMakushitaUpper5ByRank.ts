@@ -15,7 +15,6 @@
 
 import * as fs from "fs";
 import { createLogicLabRun } from "../../src/features/logicLab/runner";
-import { getRankValue } from "../../src/logic/ranking/rankScore";
 
 // CLI args
 const args = process.argv.slice(2);
@@ -75,8 +74,6 @@ async function main() {
         prevRecord = { ...step.logRow.record };
       }
 
-      // Last basho check
-      const summary = lab.getSummary();
       if (totalRuns % 5 === 0) console.log(`  ${totalRuns} runs, ${allRecords.length} makushita upper5 records`);
     }
   }
@@ -138,7 +135,7 @@ async function main() {
     const sev = delta === null ? "unknown" : delta < 10 ? "low" : delta < 25 ? "medium" : "high";
     const rec = realRate === null ? "insufficient_data"
       : sev === "low" ? "keep_existing"
-      : r.promotedToJuryoRate > realRate ? "sim_overpromotes" : "sim_underpromotes";
+        : r.promotedToJuryoRate > realRate ? "sim_overpromotes" : "sim_underpromotes";
     const realN = "-";
     vsMd.push(`| 幕下${r.rankNumber}枚目 | ${r.record} | ${r.sampleCount} | ${r.promotedToJuryoRate}% | ${realN} | ${realRate ?? "?"}% | ${delta ?? "?"}pt | ${sev} | ${rec} |`);
   }
