@@ -356,6 +356,7 @@ export const runLowerDivisionBasho = (
       band.id === 'MakushitaSandanme' ||
       band.id === 'SandanmeJonidan' ||
       band.id === 'JonidanJonokuchi'),
+    boundaryContext: topWorld?.eraBoundaryContext,
     simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),

@@ -62,6 +62,65 @@ const resolveEarlyWashoutBonus = (npc: PersistentNpc): number => {
   return phaseBase * divisionBase * careerBandMultiplier;
 };
 
+const isTopRankName = (rankName?: string): boolean =>
+  rankName === '横綱' || rankName === '大関';
+
+const resolveTopRankExitPressure = (npc: PersistentNpc): number => {
+  const recentTopRankResults = npc.recentBashoResults
+    .filter((row) => row.division === 'Makuuchi' && isTopRankName(row.rankName))
+    .slice(-4);
+  if (recentTopRankResults.length === 0) return 0;
+
+  const latest = recentTopRankResults[recentTopRankResults.length - 1];
+  const effectiveLosses = latest.losses + (latest.absent ?? 0);
+  const latestTotal = latest.wins + effectiveLosses;
+  const latestWinRate = latestTotal > 0 ? latest.wins / latestTotal : 0;
+  const latestMakekoshi = latest.wins < effectiveLosses;
+  const latestSevere = latestTotal > 0 && latestWinRate <= 0.35;
+  const repeatedMakekoshi = recentTopRankResults
+    .slice(-3)
+    .filter((row) => row.wins < row.losses + (row.absent ?? 0)).length;
+  const severeCount = recentTopRankResults
+    .filter((row) => {
+      const losses = row.losses + (row.absent ?? 0);
+      const total = row.wins + losses;
+      return total > 0 && row.wins / total <= 0.35;
+    }).length;
+  const absenceTotal = recentTopRankResults
+    .reduce((sum, row) => sum + (row.absent ?? 0), 0);
+  const agePressure = Math.max(0, npc.age - 31) * 0.008 + Math.max(0, npc.age - 34) * 0.014;
+  const stagePressure =
+    npc.initialCareerStage === 'declining'
+      ? 0.055
+      : npc.initialCareerStage === 'veteran'
+        ? 0.025
+        : 0;
+
+  if (latest.rankName === '横綱') {
+    return clamp(
+      (latestMakekoshi ? 0.004 : 0) +
+        (latestSevere ? 0.020 : 0) +
+        Math.max(0, repeatedMakekoshi - 1) * 0.014 +
+        severeCount * 0.010 +
+        Math.max(0, absenceTotal - 4) * 0.002 +
+        agePressure * 0.35 +
+        stagePressure * 0.45,
+      0,
+      0.08,
+    );
+  }
+
+  return clamp(
+    (latestSevere ? 0.008 : 0) +
+      Math.max(0, repeatedMakekoshi - 2) * 0.004 +
+      Math.max(0, absenceTotal - 6) * 0.0015 +
+      agePressure * 0.2 +
+      stagePressure * 0.2,
+    0,
+    0.035,
+  );
+};
+
 export const pushNpcBashoResult = (
   npc: PersistentNpc,
   wins: number,
@@ -166,8 +225,12 @@ export const runNpcRetirementStep = (
     // resolvePlannedCareerHazard / plannedCareer.ts は維持して将来の wiring に備える。
     const earlyWashoutBonus = resolveEarlyWashoutBonus(npc) * earlyWashoutScale;
     const populationShockBonus = (populationPlan?.annualRetirementShock ?? 0) * 0.02;
+    const topRankExitPressure = resolveTopRankExitPressure(npc);
     const chance = clamp(
-      baseChance * adjustment * careerLengthMultiplier + earlyWashoutBonus + populationShockBonus,
+      baseChance * adjustment * careerLengthMultiplier +
+        earlyWashoutBonus +
+        populationShockBonus +
+        topRankExitPressure,
       0,
       1,
     );

@@ -5,6 +5,7 @@ import { AptitudeProfile, AptitudeTier, CareerBand, Rank, StagnationState } from
 import { SpecialPrizeCode } from '../topDivision/specialPrizes';
 import { ActorRegistry, NpcNameContext, NpcRegistry, PersistentNpc } from '../npc/types';
 import type { PopulationPlan } from '../npc/populationPlanTypes';
+import type { TorikumiBoundaryContext } from '../torikumi/types';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
 export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
@@ -89,4 +90,9 @@ export interface SimulationWorld {
   lastPlayerAllocation?: BanzukeAllocation;
   makuuchiLayout: MakuuchiLayout;
   populationPlan?: PopulationPlan;
+  /**
+   * EraSnapshot.boundaryProfile から世界生成時に導出した境界取組コンテキスト。
+   * undefined の場合は legacy 動作 (torikumi 側で multiplier=1.0 / threshold=12)。
+   */
+  eraBoundaryContext?: TorikumiBoundaryContext;
 }
