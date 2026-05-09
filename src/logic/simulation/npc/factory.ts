@@ -9,8 +9,20 @@ import {
   sampleEmpiricalDivisionAge,
   sampleEmpiricalNpcSeed,
 } from '../../calibration/npcRealismHeisei';
+import type { EraSnapshot } from '../../era/types';
 import { RandomSource } from '../deps';
 import { resolveLegacyAptitudeFactor } from '../realism';
+import {
+  EraCareerStage,
+  gateStageForTopSanyaku,
+  reshapeAbilityToEra,
+  resolveEraBody,
+  resolveEraDivisionSlots,
+  resolveEraTopSanyakuSlotCount,
+  sampleEraAge,
+  sampleEraCareerStage,
+  synthesizeEraCareerMeta,
+} from './eraIntegration';
 import { createNpcNameContext, generateUniqueNpcShikona } from './npcShikonaGenerator';
 import { samplePlannedCareerBasho } from './plannedCareer';
 import {
@@ -21,10 +33,8 @@ import {
 } from './calibration/profile';
 import { buildInitialStableAssignmentSequence } from './stableCatalog';
 import {
-  LOWER_DIVISION_SLOTS,
   NpcUniverse,
   PersistentNpc,
-  TOP_DIVISION_SLOTS,
 } from './types';
 
 const POWER_RANGE: Record<Division, { min: number; max: number }> = {
@@ -74,6 +84,13 @@ const pickSeed = (division: Division, index: number): EnemySeedProfile => {
   return seeds[index % seeds.length];
 };
 
+interface EraNpcContext {
+  eraSnapshot?: EraSnapshot;
+  rosterIndex: number;
+  topSanyakuCount: number;
+  currentYear: number;
+}
+
 const createNpc = (
   division: Division,
   rankScore: number,
@@ -84,6 +101,7 @@ const createNpc = (
   rng: RandomSource,
   nameContext: NpcUniverse['nameContext'],
   registry: NpcUniverse['registry'],
+  eraContext?: EraNpcContext,
 ): PersistentNpc => {
   const range = POWER_RANGE[division];
   const shikona = generateUniqueNpcShikona(
@@ -93,9 +111,21 @@ const createNpc = (
     nameContext,
     registry,
   );
-  const currentAge = sampleEmpiricalDivisionAge(division, rng);
+  const eraSnapshot = eraContext?.eraSnapshot;
+  const currentAge =
+    sampleEraAge(division, rng, eraSnapshot) ?? sampleEmpiricalDivisionAge(division, rng);
   const careerAge = inferInitialCareerBashoCount(division, currentAge, rng);
   const body = resolveEnemySeedBodyMetrics(division, `${seed.seedId}-${serial}`);
+  const eraBody = resolveEraBody(division, eraSnapshot);
+  // Era body p50 が指定されていれば、seed 由来 body と 0.6/0.4 で混ぜて era 寄りに引く。
+  const blendedHeight =
+    eraBody?.heightP50 != null
+      ? clamp(body.heightCm * 0.4 + eraBody.heightP50 * 0.6, 165, 210)
+      : body.heightCm;
+  const blendedWeight =
+    eraBody?.weightP50 != null
+      ? clamp(body.weightKg * 0.4 + eraBody.weightP50 * 0.6, 90, 230)
+      : body.weightKg;
   const empiricalSeed = sampleEmpiricalNpcSeed(rng);
   const profile = getActiveNpcWorldCalibrationProfile();
   const careerBand =
@@ -115,7 +145,7 @@ const createNpc = (
     range.min,
     range.max,
   );
-  const ability = clamp(
+  const baseAbility = clamp(
     basePower * (0.82 + aptitudeProfile.boutFactor * 0.08) +
       seed.basePower * 0.12 +
       randomNoise(rng, 2.1) +
@@ -124,11 +154,42 @@ const createNpc = (
     range.min,
     range.max,
   );
+  const ability = clamp(
+    reshapeAbilityToEra(baseAbility, division, rng, eraSnapshot),
+    range.min,
+    range.max,
+  );
   const aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
   const retirementProfile =
     profile === 'legacy'
       ? empiricalSeed.retirementProfile
       : sampleProfileRetirementProfile(rng, profile) ?? empiricalSeed.retirementProfile;
+
+  // Era career stage と synthetic meta。Era 不在時はすべて undefined で legacy 動作。
+  let eraStage: EraCareerStage | undefined;
+  let syntheticCareerStartYear: number | undefined;
+  let initialCareerStage: EraCareerStage | undefined;
+  let resolvedEntryAge = careerAge.entryAge;
+  let resolvedCareerBashoCount = careerAge.careerBashoCount;
+  if (eraSnapshot && eraContext) {
+    const sampledStage = sampleEraCareerStage(division, rng, eraSnapshot);
+    eraStage = gateStageForTopSanyaku(
+      division,
+      eraContext.rosterIndex,
+      eraContext.topSanyakuCount,
+      sampledStage,
+      rng,
+    );
+    if (eraStage) {
+      const meta = synthesizeEraCareerMeta(eraStage, currentAge, eraContext.currentYear, rng);
+      syntheticCareerStartYear = meta.syntheticCareerStartYear;
+      initialCareerStage = meta.initialCareerStage;
+      // 既存の careerBashoCount/entryAge を era meta で上書き (age と整合済み)。
+      resolvedEntryAge = meta.entryAge;
+      resolvedCareerBashoCount = Math.max(careerAge.careerBashoCount, meta.syntheticCareerBashoCount);
+    }
+  }
+
   return {
     actorId: `NPC-${serial}`,
     actorType: 'NPC',
@@ -145,8 +206,8 @@ const createNpc = (
     form: clamp(1 + randomNoise(rng, 0.05), 0.85, 1.15),
     volatility: clamp(seed.volatilityBase + rng() * 1.1, 0.75, 3.8),
     styleBias: seed.styleBias,
-    heightCm: body.heightCm,
-    weightKg: body.weightKg,
+    heightCm: blendedHeight,
+    weightKg: blendedWeight,
     growthBias: seed.growthBias,
     aptitudeTier,
     aptitudeFactor,
@@ -154,10 +215,12 @@ const createNpc = (
     careerBand,
     retirementBias: seed.retirementBias,
     retirementProfile,
-    entryAge: careerAge.entryAge,
+    entryAge: resolvedEntryAge,
     age: currentAge,
-    careerBashoCount: careerAge.careerBashoCount,
+    careerBashoCount: resolvedCareerBashoCount,
     plannedCareerBasho: samplePlannedCareerBasho(rng),
+    syntheticCareerStartYear,
+    initialCareerStage,
     active: true,
     entrySeq: seq,
     riseBand: empiricalSeed.riseBand,
@@ -182,6 +245,7 @@ const createDivisionRoster = (
   registry: NpcUniverse['registry'],
   nameContext: NpcUniverse['nameContext'],
   rng: RandomSource,
+  eraOptions?: { eraSnapshot?: EraSnapshot; topSanyakuCount: number; currentYear: number },
 ): PersistentNpc[] => {
   const roster: PersistentNpc[] = [];
   for (let index = 0; index < size; index += 1) {
@@ -201,6 +265,14 @@ const createDivisionRoster = (
       rng,
       nameContext,
       registry,
+      eraOptions
+        ? {
+          eraSnapshot: eraOptions.eraSnapshot,
+          rosterIndex: index,
+          topSanyakuCount: eraOptions.topSanyakuCount,
+          currentYear: eraOptions.currentYear,
+        }
+        : undefined,
     );
     serialCursor.value += 1;
     roster.push(npc);
@@ -239,24 +311,39 @@ const createDivisionRoster = (
   return rankedRoster;
 };
 
-export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
+export interface CreateInitialNpcUniverseOptions {
+  eraSnapshot?: EraSnapshot;
+  currentYear?: number;
+}
+
+export const createInitialNpcUniverse = (
+  rng: RandomSource,
+  options?: CreateInitialNpcUniverseOptions,
+): NpcUniverse => {
   const registry = new Map<string, PersistentNpc>();
   const nameContext = createNpcNameContext();
   const serialCursor = { value: 1 };
+  const eraSnapshot = options?.eraSnapshot;
+  const currentYear = options?.currentYear ?? new Date().getFullYear();
+  const slots = resolveEraDivisionSlots(eraSnapshot);
+  const topSanyakuCount = resolveEraTopSanyakuSlotCount(eraSnapshot);
   const totalInitialCount =
-    TOP_DIVISION_SLOTS.Makuuchi +
-    TOP_DIVISION_SLOTS.Juryo +
-    LOWER_DIVISION_SLOTS.Makushita +
-    LOWER_DIVISION_SLOTS.Sandanme +
-    LOWER_DIVISION_SLOTS.Jonidan +
-    LOWER_DIVISION_SLOTS.Jonokuchi;
+    slots.Makuuchi +
+    slots.Juryo +
+    slots.Makushita +
+    slots.Sandanme +
+    slots.Jonidan +
+    slots.Jonokuchi;
   const stableAssignments = buildInitialStableAssignmentSequence(totalInitialCount);
   const stableCursor = { value: 0 };
+  const eraOptions = eraSnapshot
+    ? { eraSnapshot, topSanyakuCount, currentYear }
+    : undefined;
 
   const rosters = {
     Makuuchi: createDivisionRoster(
       'Makuuchi',
-      TOP_DIVISION_SLOTS.Makuuchi,
+      slots.Makuuchi,
       stableAssignments,
       stableCursor,
       0,
@@ -264,10 +351,11 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
     Juryo: createDivisionRoster(
       'Juryo',
-      TOP_DIVISION_SLOTS.Juryo,
+      slots.Juryo,
       stableAssignments,
       stableCursor,
       0,
@@ -275,10 +363,11 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
     Makushita: createDivisionRoster(
       'Makushita',
-      LOWER_DIVISION_SLOTS.Makushita,
+      slots.Makushita,
       stableAssignments,
       stableCursor,
       0,
@@ -286,10 +375,11 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
     Sandanme: createDivisionRoster(
       'Sandanme',
-      LOWER_DIVISION_SLOTS.Sandanme,
+      slots.Sandanme,
       stableAssignments,
       stableCursor,
       0,
@@ -297,10 +387,11 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
     Jonidan: createDivisionRoster(
       'Jonidan',
-      LOWER_DIVISION_SLOTS.Jonidan,
+      slots.Jonidan,
       stableAssignments,
       stableCursor,
       0,
@@ -308,10 +399,11 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
     Jonokuchi: createDivisionRoster(
       'Jonokuchi',
-      LOWER_DIVISION_SLOTS.Jonokuchi,
+      slots.Jonokuchi,
       stableAssignments,
       stableCursor,
       0,
@@ -319,6 +411,7 @@ export const createInitialNpcUniverse = (rng: RandomSource): NpcUniverse => {
       registry,
       nameContext,
       rng,
+      eraOptions,
     ),
   };
 

@@ -28,6 +28,7 @@ import {
 } from '../../logic/archive/observationBuild';
 import { OBSERVATION_THEMES } from '../../logic/archive/observationThemes';
 import { applyObservationBuildBias } from '../../logic/archive/applyObservationBuildBias';
+import { selectRandomEraSnapshot, toEraRunMetadata } from '../../logic/era/eraSnapshot';
 import {
   spendObservationPoints,
   getObservationPointState,
@@ -140,11 +141,13 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       const config = buildObservationConfig(themeId, modifierIds);
       const { status: biasedStatus } = applyObservationBuildBias(baseStatus, config);
 
+      const eraSnapshot = selectRandomEraSnapshot();
       const runOptions: SimulationRunOptions = {
         observationRuleMode: 'STANDARD',
         observationStanceId: 'PROMOTION_EXPECTATION',
         observationThemeId: themeId,
         observationModifierIds: modifierIds,
+        ...toEraRunMetadata(eraSnapshot),
       };
 
       await onStart(biasedStatus, null, 'skip_to_end', runOptions);
