@@ -8,6 +8,7 @@ import { getDb, type CareerRow } from '../../../logic/persistence/db';
 import { ARCHIVE_CATEGORIES } from '../../../logic/archive/categories';
 import { OBSERVATION_THEMES } from '../../../logic/archive/observationThemes';
 import { OBSERVATION_MODIFIERS } from '../../../logic/archive/observationBuild';
+import { ERA_TAG_LABELS } from '../../../logic/era/eraTags';
 import type {
   ArchiveCategoryId,
   CareerTitleTier,
@@ -129,7 +130,25 @@ export const CareerArchivePanel: React.FC<CareerArchivePanelProps> = ({ careerId
               <span className="text-text-dim">{modifierLabels.join(' / ')}</span>
             </span>
           ) : null}
+          {row.publicEraLabel ? (
+            <span>
+              <span className="text-text-dim/70">時代背景:</span>{' '}
+              <span className="text-text-dim">{row.publicEraLabel}</span>
+            </span>
+          ) : null}
         </div>
+        {row.eraTags && row.eraTags.length > 0 ? (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {row.eraTags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="border border-white/15 bg-white/[0.03] px-1.5 py-0.5 text-[10px] text-text-dim"
+              >
+                {ERA_TAG_LABELS[tag as keyof typeof ERA_TAG_LABELS] ?? tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {/* Categories — medium tier */}

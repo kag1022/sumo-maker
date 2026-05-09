@@ -33,6 +33,19 @@ const MAKUUCHI_FLOOR_SEKIWAKE = 5; // 前頭/十両出身は 1 場所では関�
 const MAKUUCHI_FLOOR_OZEKI = 3;    // 関脇/小結は大関昇進ゲート未達なら大関まで進めない
 const MAKUUCHI_FLOOR_YOKOZUNA = 1; // 大関は横綱昇進ゲート未達なら横綱に進めない
 
+const resolveTopRankAbilityFloor = (
+  rankName: string,
+  initialCareerStage?: string,
+  absent = 0,
+): number | undefined => {
+  const declineDiscount = initialCareerStage === 'declining' ? 8 : initialCareerStage === 'veteran' ? 3 : 0;
+  const absenceDiscount = Math.min(7, absent * 0.45);
+  if (rankName === '横綱') return 122 - declineDiscount - absenceDiscount;
+  if (rankName === '大関') return 112 - declineDiscount - absenceDiscount;
+  if (rankName === '関脇' || rankName === '小結') return 104 - declineDiscount - absenceDiscount;
+  return undefined;
+};
+
 const enforceNpcPromotionGate = (
   fromRank: Rank,
   proposedNextRankScore: number,
@@ -216,11 +229,19 @@ export const evolveDivisionAfterBasho = (
         isUpperRank ? 0.68 : 0.78,
         isUpperRank ? 1.18 : 1.22,
       );
-      const ability = applyEmpiricalNpcDriftClamp(
+      const driftedAbility = applyEmpiricalNpcDriftClamp(
         npc.ability ?? npc.basePower,
         rawAbility,
         { age, division, rankName: rank.name, absent },
       );
+      const topRankFloor = resolveTopRankAbilityFloor(
+        rank.name,
+        registryNpc?.initialCareerStage,
+        absent,
+      );
+      const ability = topRankFloor == null
+        ? driftedAbility
+        : Math.max(driftedAbility, topRankFloor);
       const basePower = softClampPower(
         applyEmpiricalNpcDriftClamp(
           npc.basePower,
