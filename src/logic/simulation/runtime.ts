@@ -1,5 +1,6 @@
 import { normalizeBanzukeEngineVersion } from '../banzuke';
 import { createEmptyRuntimeRivalryState } from '../careerRivalry';
+import { getEraSnapshotById } from '../era/eraSnapshot';
 import { RikishiStatus } from '../models';
 import { appendEntryEvent, initializeSimulationStatus } from './career';
 import { buildCareerActorState, buildDomainEvents } from './careerDynamics';
@@ -86,12 +87,19 @@ const createKernel = (
   const bundle = resolveSimulationModelBundle(params.simulationModelVersion);
   const simulationModelVersion = normalizeNewRunModelVersion(bundle.version);
   const banzukeEngineVersion = normalizeBanzukeEngineVersion(params.banzukeEngineVersion);
-  const leagueFlow = createLeagueFlowRuntime(deps.random);
+  // Resolve EraSnapshot from runOptions.eraSnapshotId. Resolution failure
+  // (id 不在 / data 欠損) は undefined fallback で legacy 動作を維持する。
+  const eraSnapshot = getEraSnapshotById(params.runOptions?.eraSnapshotId);
+  const currentYear = deps.getCurrentYear();
+  const leagueFlow = createLeagueFlowRuntime(deps.random, undefined, {
+    eraSnapshot,
+    currentYear,
+  });
   const world = leagueFlow.world;
 
   const state: EngineRuntimeState = {
     status: initializeSimulationStatus(params.initialStats),
-    year: deps.getCurrentYear(),
+    year: currentYear,
     monthIndex: 0,
     seq: 0,
     completed: false,

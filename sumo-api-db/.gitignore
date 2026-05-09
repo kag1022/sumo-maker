@@ -27,3 +27,16 @@ data/analysis/rank_movement_sumo_api_196007_202603.json
 data/analysis/rank_movement_sumo_api_sample.json
 data/analysis/banzuke_transition_sumo_api_sample.json
 data/analysis/basho_records_sumo_api_sample.json
+
+# Large generated era source data
+data/analysis/era_banzuke_entries_*.json
+data/analysis/era_basho_records_*.json
+data/analysis/era_rank_movements_*.json
+data/analysis/era_source_summary_*.json
+
+# Large generated realdata analysis files
+data/analysis/*_196007_202603.json
+
+# Large generated analysis data
+data/analysis/rank_movement_sumo_api_*.json
+data/analysis/basho_records_sumo_api_*.json

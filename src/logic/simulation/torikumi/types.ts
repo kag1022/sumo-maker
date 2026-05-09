@@ -182,6 +182,26 @@ export type TorikumiBashoResult = {
   diagnostics: TorikumiDiagnostics;
 };
 
+/**
+ * EraSnapshot.boundaryProfile を torikumi 生成に渡すための小さな context。
+ * 生 EraSnapshot を渡し回さず、必要な scalar だけを抽出する。
+ *
+ * 全フィールド optional。未指定時は legacy policy にfallback (全場所 day>=12 から
+ * JuryoMakushita 境界取組がスコア最強候補に入るデフォルト動作)。
+ *
+ * `effectiveIntensity` は world layer で boundaryProfile から導出した合成値。
+ *   ~0       : era に cross-division 取組の文化が無い → boundary 取組を抑制
+ *   ~0.875   : 標準 (legacy 動作とほぼ同一)
+ *   ~1.15+   : 境界圧の高い時代 → 早めの day threshold + 強め score bonus
+ */
+export type TorikumiBoundaryContext = {
+  sekitoriBoundaryPressure?: number;
+  makushitaUpperCongestion?: number;
+  juryoDemotionPressure?: number;
+  crossDivisionBoutIntensity?: number;
+  effectiveIntensity?: number;
+};
+
 export type ScheduleTorikumiBashoParams = {
   participants: TorikumiParticipant[];
   days: number[];
@@ -194,4 +214,9 @@ export type ScheduleTorikumiBashoParams = {
   dayEligibility?: (participant: TorikumiParticipant, day: number) => boolean;
   onPair?: (pair: TorikumiPair, day: number) => void;
   onBye?: (participant: TorikumiParticipant, day: number) => void;
+  /**
+   * EraSnapshot.boundaryProfile から導出した境界取組コンテキスト。
+   * undefined の場合は legacy 動作 (effectiveIntensity=1.0 と同等)。
+   */
+  boundaryContext?: TorikumiBoundaryContext;
 };

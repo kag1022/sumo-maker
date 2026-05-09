@@ -615,6 +615,10 @@ export interface CreateDraftCareerParams {
   // Career-archive observation build metadata (Phase 2)
   archiveThemeId?: string;
   archiveModifierIds?: string[];
+  // 匿名時代スナップショット (optional metadata, no schema bump)
+  eraSnapshotId?: string;
+  eraTags?: import('../era/types').EraTag[];
+  publicEraLabel?: string;
 }
 
 const parseParentCareerId = (
@@ -753,6 +757,9 @@ export const createDraftCareer = async ({
   experimentPresetId,
   archiveThemeId,
   archiveModifierIds,
+  eraSnapshotId,
+  eraTags,
+  publicEraLabel,
 }: CreateDraftCareerParams): Promise<string> => {
   const careerId = id || crypto.randomUUID();
   const now = new Date().toISOString();
@@ -793,6 +800,9 @@ export const createDraftCareer = async ({
     experimentPresetId,
     archiveThemeId,
     archiveModifierIds,
+    eraSnapshotId,
+    eraTags,
+    publicEraLabel,
     careerIndex: nextCareerIndex,
     finalStatus: initialSummary.finalStatus ?? ensureCareerRecordStatus(initialStatus),
     detailState: 'building',

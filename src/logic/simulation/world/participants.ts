@@ -11,6 +11,17 @@ import { SimulationWorld, TopDivision } from './types';
 const UPPER_RANK_NAMES = new Set(['横綱', '大関', '関脇', '小結']);
 const TOP_HEAVY_RANK_NAMES = new Set(['横綱', '大関']);
 
+const resolveTopRankSeasonalAbilityFloor = (
+  rankName: string,
+  initialCareerStage?: string,
+): number | undefined => {
+  const declineDiscount = initialCareerStage === 'declining' ? 8 : initialCareerStage === 'veteran' ? 3 : 0;
+  if (rankName === '横綱') return 122 - declineDiscount;
+  if (rankName === '大関') return 112 - declineDiscount;
+  if (rankName === '関脇' || rankName === '小結') return 104 - declineDiscount;
+  return undefined;
+};
+
 const countRecentUpperBasho = (
   results?: Array<{ division: string; rankName?: string }>,
 ): number =>
@@ -118,7 +129,7 @@ export const createDivisionParticipants = (
     // 狭く境界付近に固まるため。ability/power の seasonal noise を拡大して個性を出す。
     const sekitoriAbilityNoise = Math.max(2.4, npc.volatility * 1.0);
     const sekitoriPowerNoise = Math.max(2.0, npc.volatility * 0.85);
-    const seasonalAbility =
+    const rawSeasonalAbility =
       (registryNpc?.ability ?? npc.ability ?? npc.basePower) +
       npc.form * 3.2 +
       randomNoise(rng, sekitoriAbilityNoise) +
@@ -128,6 +139,13 @@ export const createDivisionParticipants = (
       randomNoise(rng, sekitoriPowerNoise) +
       randomNoise(rng, 1.2) +
       upperVariance.powerShock;
+    const topRankSeasonalFloor = upperVariance.bashoKyujo
+      ? undefined
+      : resolveTopRankSeasonalAbilityFloor(resolvedRank.name, registryNpc?.initialCareerStage);
+    const seasonalAbility = topRankSeasonalFloor == null
+      ? rawSeasonalAbility
+      : Math.max(rawSeasonalAbility, topRankSeasonalFloor);
+
     return {
       id: npc.id,
       shikona,

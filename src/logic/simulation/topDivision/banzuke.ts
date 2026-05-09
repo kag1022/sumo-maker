@@ -42,6 +42,58 @@ const decodeJuryoRankFromScore = (rankScore: number): Rank => {
   };
 };
 
+type TopRankName = '横綱' | '大関' | '関脇' | '小結';
+
+const TOP_RANK_NAMES = new Set<Rank['name']>(['横綱', '大関', '関脇', '小結']);
+
+const resolveTopRankSection = (
+  rankName: TopRankName,
+  layout: MakuuchiLayout,
+): { start: number; count: number } => {
+  const yokozunaStart = 1;
+  const ozekiStart = yokozunaStart + layout.yokozuna;
+  const sekiwakeStart = ozekiStart + layout.ozeki;
+  const komusubiStart = sekiwakeStart + layout.sekiwake;
+  if (rankName === '横綱') return { start: yokozunaStart, count: layout.yokozuna };
+  if (rankName === '大関') return { start: ozekiStart, count: layout.ozeki };
+  if (rankName === '関脇') return { start: sekiwakeStart, count: layout.sekiwake };
+  return { start: komusubiStart, count: layout.komusubi };
+};
+
+const toRankOrderIndex = (rank: Rank): number => {
+  const number = Math.max(1, rank.number || 1);
+  return (number - 1) * 2 + (rank.side === 'West' ? 1 : 0);
+};
+
+const resolveRosterDivisionRankScore = (
+  allocation: BanzukeAllocation,
+  makuuchiLayout: MakuuchiLayout,
+  resolveRankScore: (rank: Rank, layout: MakuuchiLayout) => number,
+): number => {
+  const rank = allocation.nextRank;
+  if (rank.division !== 'Makuuchi' || !TOP_RANK_NAMES.has(rank.name)) {
+    return resolveRankScore(rank, makuuchiLayout);
+  }
+
+  const section = resolveTopRankSection(rank.name as TopRankName, makuuchiLayout);
+  if (section.count <= 0) return resolveRankScore(rank, makuuchiLayout);
+  // nextRank の side/number が当該 section の枠数を越えても、
+  // roster 適用時に次 section へ漏らさない。制度判定済みの rank name を優先する。
+  const indexInSection = clamp(toRankOrderIndex(rank), 0, section.count - 1);
+  return section.start + indexInSection;
+};
+
+const resolveRosterSortScore = (
+  allocation: BanzukeAllocation,
+  makuuchiLayout: MakuuchiLayout,
+  resolveRankScore: (rank: Rank, layout: MakuuchiLayout) => number,
+): number => {
+  const rankScore = resolveRosterDivisionRankScore(allocation, makuuchiLayout, resolveRankScore);
+  return allocation.nextRank.division === 'Juryo'
+    ? DIVISION_SIZE.Makuuchi + rankScore
+    : rankScore;
+};
+
 export const resolvePlayerSanyakuQuota = (
   assignedRank?: Rank,
   options?: {
@@ -139,8 +191,8 @@ const compareAllocationForRoster = (
   makuuchiLayout: MakuuchiLayout,
   resolveRankScore: (rank: Rank, layout: MakuuchiLayout) => number,
 ): number => {
-  const aScore = resolveRankScore(a.nextRank, makuuchiLayout);
-  const bScore = resolveRankScore(b.nextRank, makuuchiLayout);
+  const aScore = resolveRosterSortScore(a, makuuchiLayout, resolveRankScore);
+  const bScore = resolveRosterSortScore(b, makuuchiLayout, resolveRankScore);
   if (aScore !== bScore) return aScore - bScore;
   if (b.score !== a.score) return b.score - a.score;
   return a.id.localeCompare(b.id);
@@ -166,7 +218,7 @@ export const applyBanzukeToRosters = (
       allocation.nextRank.division === 'Makuuchi' || allocation.nextRank.division === 'Juryo')
     .map((allocation) => {
       const division = allocation.nextRank.division as TopDivision;
-      const rankScore = resolveRankScore(allocation.nextRank, nextLayout);
+      const rankScore = resolveRosterDivisionRankScore(allocation, nextLayout, resolveRankScore);
       return {
         rikishi: buildWorldRikishi(world, existingById, allocation.id, division, rankScore),
         allocation,

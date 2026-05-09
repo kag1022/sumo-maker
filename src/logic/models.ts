@@ -1,3 +1,5 @@
+import type { EraTag } from './era/types';
+
 // 力士の素質タイプ (アーキタイプ)
 export type TalentArchetype = 'MONSTER' | 'GENIUS' | 'HARD_WORKER' | 'AVG_JOE' | 
                               'UNIVERSITY_YOKOZUNA' | 'HIGH_SCHOOL_CHAMP' | 'STREET_FIGHTER';
@@ -817,6 +819,10 @@ export interface SimulationRunOptions {
   // Career-archive observation build metadata (Phase 2)
   observationThemeId?: string;
   observationModifierIds?: string[];
+  // 匿名時代スナップショット metadata
+  eraSnapshotId?: string;
+  eraTags?: EraTag[];
+  publicEraLabel?: string;
 }
 
 // キャリア履歴
