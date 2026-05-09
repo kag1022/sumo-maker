@@ -108,9 +108,16 @@ const main = async (): Promise<void> => {
   let observedZeroGeneratedCount = 0;
   let extremeGeneratedCount = 0;
   let rareEncounterCount = 0;
+  let displayRareEncounterCount = 0;
+  let displayExcludedRareEncounterCount = 0;
+  let careersWithRareEncounter = 0;
+  let careersWithExtremeEncounter = 0;
+  let observedZeroEncounterCount = 0;
   let extremeAsSpecialtyCount = 0;
   let rareAsSpecialtyCount = 0;
   let oneOffRareSelectedAsSpecialtyCount = 0;
+  const rareEncounterTotals: Record<string, number> = {};
+  const extremeEncounterTotals: Record<string, number> = {};
 
   for (let index = 0; index < OPTIONS.careers; index += 1) {
     const presetId = PRESETS[index % PRESETS.length];
@@ -154,8 +161,20 @@ const main = async (): Promise<void> => {
         oneOffRareSelectedAsSpecialtyCount += 1;
       }
     }
-    rareEncounterCount += summarizeRareKimariteEncounters(careerCounts)
-      .reduce((sum, encounter) => sum + encounter.count, 0);
+    const rareEncounters = summarizeRareKimariteEncounters(careerCounts, { includeNonTechnique: true });
+    const displayRareEncounters = summarizeRareKimariteEncounters(careerCounts);
+    if (rareEncounters.some((encounter) => encounter.rarity === 'RARE')) careersWithRareEncounter += 1;
+    if (rareEncounters.some((encounter) => encounter.rarity === 'EXTREME')) careersWithExtremeEncounter += 1;
+    rareEncounterCount += rareEncounters.reduce((sum, encounter) => sum + encounter.count, 0);
+    displayRareEncounterCount += displayRareEncounters.reduce((sum, encounter) => sum + encounter.count, 0);
+    displayExcludedRareEncounterCount +=
+      rareEncounters.reduce((sum, encounter) => sum + encounter.count, 0) -
+      displayRareEncounters.reduce((sum, encounter) => sum + encounter.count, 0);
+    for (const encounter of rareEncounters) {
+      if (encounter.observedCount === 0) observedZeroEncounterCount += encounter.count;
+      if (encounter.rarity === 'RARE') increment(rareEncounterTotals, encounter.name, encounter.count);
+      if (encounter.rarity === 'EXTREME') increment(extremeEncounterTotals, encounter.name, encounter.count);
+    }
   }
 
   const rarityCounts = bucketTotals();
@@ -173,6 +192,12 @@ const main = async (): Promise<void> => {
     .filter((row) => row.ratioToReal !== undefined && row.count >= 1)
     .sort((left, right) => (left.ratioToReal ?? 0) - (right.ratioToReal ?? 0))
     .slice(0, 15);
+  const topRareEncounters = toMoveRanking(rareEncounterTotals, Math.max(1, rareEncounterCount))
+    .filter((row) => row.rarity === 'RARE')
+    .slice(0, 10);
+  const topExtremeEncounters = toMoveRanking(extremeEncounterTotals, Math.max(1, rareEncounterCount))
+    .filter((row) => row.rarity === 'EXTREME')
+    .slice(0, 10);
   const catalogRows = OFFICIAL_WIN_KIMARITE_82.map((entry) => {
     const realdata = findKimariteRealdataFrequency(entry.name);
     return {
@@ -226,6 +251,11 @@ const main = async (): Promise<void> => {
       observedZeroGeneratedCount,
       extremeGeneratedCount,
       rareEncounterCount,
+      displayRareEncounterCount,
+      displayExcludedRareEncounterCount,
+      careersWithRareEncounter,
+      careersWithExtremeEncounter,
+      observedZeroEncounterCount,
       rareAsSpecialtyCount,
       extremeAsSpecialtyCount,
       oneOffRareSelectedAsSpecialtyCount,
@@ -233,6 +263,8 @@ const main = async (): Promise<void> => {
     ranking,
     overrepresented,
     underrepresented,
+    topRareEncounters,
+    topExtremeEncounters,
     specialtyCounts,
     styleSummary,
     catalogRows,
@@ -268,6 +300,12 @@ const main = async (): Promise<void> => {
     `- UNKNOWN rarity count: ${unknownRarityCount}`,
     `- alias normalized count: ${aliasNormalizedCount}`,
     `- observedCount=0 generated count: ${observedZeroGeneratedCount}`,
+    `- rare encounter count: ${rareEncounterCount}`,
+    `- display rare encounter count: ${displayRareEncounterCount}`,
+    `- display excluded rare encounter count: ${displayExcludedRareEncounterCount}`,
+    `- careers with rare encounter: ${careersWithRareEncounter}`,
+    `- careers with extreme encounter: ${careersWithExtremeEncounter}`,
+    `- observedCount=0 encounter count: ${observedZeroEncounterCount}`,
     `- rare kimarite as specialty count: ${rareAsSpecialtyCount}`,
     `- EXTREME as specialty count: ${extremeAsSpecialtyCount}`,
     `- one-off rare selected as specialty count: ${oneOffRareSelectedAsSpecialtyCount}`,
@@ -283,6 +321,14 @@ const main = async (): Promise<void> => {
     '## Top Underrepresented',
     '',
     ...renderMoveTable(underrepresented, 15),
+    '',
+    '## Top Rare Encounters',
+    '',
+    ...renderMoveTable(topRareEncounters, 10),
+    '',
+    '## Top Extreme Encounters',
+    '',
+    ...renderMoveTable(topExtremeEncounters, 10),
     '',
     '## Style Summary',
     '',

@@ -14,6 +14,7 @@ import {
   resolveDisplayedWeakStyles,
   resolveStyleLabelsOrFallback,
 } from "../../../logic/style/identity";
+import { summarizeRareKimariteEncounters } from "../../../logic/kimarite/rareEncounters";
 import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { Button } from "../../../shared/ui/Button";
@@ -240,6 +241,10 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     }
     return lines;
   }, [status.history.kimariteTotal, strengthLabel, strengthStyles, weaknessLabel]);
+  const rareKimariteEncounters = React.useMemo(
+    () => summarizeRareKimariteEncounters(status.history.kimariteTotal).slice(0, 5),
+    [status.history.kimariteTotal],
+  );
   const recordRows = React.useMemo(
     () =>
       [
@@ -645,6 +650,23 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 <p key={line} className={styles.copyLine}>{line}</p>
               ))}
             </div>
+
+            {rareKimariteEncounters.length > 0 ? (
+              <>
+                <div className={styles.subtitle}>珍しい決まり手の記録</div>
+                <p className={styles.text}>この力士のキャリア中に記録された、出現頻度の低い決まり手。</p>
+                <div className={styles.rareEncounterList}>
+                  {rareKimariteEncounters.map((encounter) => (
+                    <div key={encounter.kimariteId} className={styles.rareEncounter}>
+                      <span className={styles.rareEncounterName}>{encounter.name}</span>
+                      <span className={styles.rareEncounterMeta}>
+                        {encounter.label} / {encounter.count}回記録
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
 
             <div className={styles.subtitle}>特性</div>
             {learnedTraits.length > 0 ? (

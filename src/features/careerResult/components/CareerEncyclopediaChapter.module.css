@@ -521,17 +521,36 @@
 
 .grid,
 .stack,
-.traits {
+.traits,
+.rareEncounterList {
   display: grid;
   gap: 0.7rem;
 }
 
 .gridItem,
 .note,
-.trait {
+.trait,
+.rareEncounter {
   display: grid;
   gap: 0.35rem;
   padding: 0.75rem 0.8rem;
+}
+
+.rareEncounter {
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg) / 0.36);
+}
+
+.rareEncounterName {
+  color: rgb(var(--twc-text) / 0.9);
+  font-weight: 700;
+}
+
+.rareEncounterMeta {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  color: rgb(var(--twc-brand) / 0.72);
 }
 
 .subtitle {
