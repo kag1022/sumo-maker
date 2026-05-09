@@ -421,10 +421,10 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             },
             ...(import.meta.env.DEV
               ? [{
-                  id: "EXPERIMENT" as const,
-                  label: "実験記録 (Legacy)",
-                  count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
-                }]
+                id: "EXPERIMENT" as const,
+                label: "実験記録 (Legacy)",
+                count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
+              }]
               : []),
             {
               id: "RARE" as const,
