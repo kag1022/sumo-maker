@@ -17,7 +17,6 @@
 import * as fs from "fs";
 import { getRealDataMovementHint, classifyRankZone } from "../../src/logic/calibration/realData";
 import { resolveEmpiricalMovement } from "../../src/logic/banzuke/rules/empiricalMovement";
-import { resolveEmpiricalSlotBand, resolveEmpiricalRecordBucket, resolveEmpiricalRankBand } from "../../src/logic/banzuke/providers/empirical";
 import { LIMITS } from "../../src/logic/banzuke/scale/rankLimits";
 
 // rankLabel から division/rankName/rankNumber を抽出

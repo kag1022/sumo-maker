@@ -25,6 +25,7 @@ import {
   resolveLoserFieldPenalty,
   resolveStyleSignatureFit,
 } from './styleSignatureMoves';
+import { findKimariteRealdataFrequency } from './realdata';
 
 export type { KimariteBoutContext, KimariteCompetitorProfile } from './selection.types';
 
@@ -1024,6 +1025,43 @@ const selectNonTechnique = (
   };
 };
 
+const resolveRareFinalKeepChance = (
+  entry: OfficialKimariteEntry,
+  profile: KimariteVarietyProfile,
+  context?: KimariteBoutContext,
+): number => {
+  if (entry.rarityBucket !== 'RARE' && entry.rarityBucket !== 'EXTREME') return 1;
+  const realdata = findKimariteRealdataFrequency(entry.name);
+  if (realdata?.observedCount === 0) return 0.02;
+  const dramaBonus = context?.isTitleDecider || context?.isKinboshiChance ? 0.04 : 0;
+  if (entry.rarityBucket === 'RARE') {
+    return clamp(0.075 + profile.trickBias * 0.035 + profile.edgeCraft * 0.02 + dramaBonus, 0.05, 0.18);
+  }
+  return clamp(0.015 + profile.trickBias * 0.025 + profile.edgeCraft * 0.025 + dramaBonus, 0.005, 0.08);
+};
+
+const applyRareFinalGuard = (
+  picked: OfficialKimariteEntry,
+  candidates: KimariteCandidate[],
+  profile: KimariteVarietyProfile,
+  rng: RandomSource,
+  context?: KimariteBoutContext,
+): OfficialKimariteEntry => {
+  const keepChance = resolveRareFinalKeepChance(picked, profile, context);
+  if (keepChance >= 1 || rng() < keepChance) return picked;
+  const fallbackCandidates = candidates.filter((candidate) =>
+    candidate.entry.rarityBucket === 'COMMON' || candidate.entry.rarityBucket === 'UNCOMMON',
+  );
+  if (!fallbackCandidates.length) return picked;
+  return weightedPick(
+    fallbackCandidates.map((candidate) => ({
+      value: candidate.entry,
+      weight: candidate.weight,
+    })),
+    rng,
+  );
+};
+
 const resolveRouteAccess = (
   route: WinRoute,
   winner: KimariteCompetitorProfile,
@@ -1317,12 +1355,19 @@ export const resolveKimariteOutcome = (input: {
     safeCandidates.map((entry) => ({ value: entry.entry, weight: entry.weight })),
     rng,
   );
+  const guardedPicked = applyRareFinalGuard(
+    picked,
+    safeCandidates,
+    profile,
+    rng,
+    input.boutContext,
+  );
 
   return {
-    kimarite: picked.name,
+    kimarite: guardedPicked.name,
     pattern,
-    route: route ?? inferWinRouteFromMove(picked.name),
-    rarityBucket: picked.rarityBucket,
+    route: route ?? inferWinRouteFromMove(guardedPicked.name),
+    rarityBucket: guardedPicked.rarityBucket,
     isNonTechnique: false,
   };
 };

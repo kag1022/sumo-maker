@@ -78,11 +78,6 @@ const formatRank = (rank: Rank | null): string => {
   return `${rank.name}${num}${side}`;
 };
 
-const rankSameSlot = (a: Rank | null, b: Rank | null): boolean => {
-  if (!a || !b) return false;
-  return a.division === b.division && a.name === b.name && a.number === b.number && a.side === b.side;
-};
-
 const rankSameName = (a: Rank | null, b: Rank | null): boolean =>
   Boolean(a && b && a.division === b.division && a.name === b.name);
 

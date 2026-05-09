@@ -1,0 +1,879 @@
+{
+  "sourceUrl": "https://www.sumo.or.jp/Kimarite/show",
+  "source": "日本相撲協会公式サイト 決まり手ランキング",
+  "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+  "sourceTotalBouts": 185957,
+  "generatedAt": "2026-05-09T10:35:46.848Z",
+  "rows": [
+    {
+      "kimariteId": "e68abce38197e587bae38197",
+      "canonicalName": "押し出し",
+      "observedCount": 46780,
+      "observedRate": 0.2515635335050576,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5af84e3828ae58887e3828a",
+      "canonicalName": "寄り切り",
+      "observedCount": 46367,
+      "observedRate": 0.24934258995359143,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e58fa9e3818de8bebce381bf",
+      "canonicalName": "叩き込み",
+      "observedCount": 15330,
+      "observedRate": 0.08243841318154196,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e7aa81e3818de890bde381a8e38197",
+      "canonicalName": "突き落とし",
+      "observedCount": 10062,
+      "observedRate": 0.05410928332894164,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5af84e3828ae58092e38197",
+      "canonicalName": "寄り倒し",
+      "observedCount": 8949,
+      "observedRate": 0.04812402867329544,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88ae6898be68a95e38192",
+      "canonicalName": "上手投げ",
+      "observedCount": 8613,
+      "observedRate": 0.04631715934328904,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5bc95e3818de890bde381a8e38197",
+      "canonicalName": "引き落とし",
+      "observedCount": 6440,
+      "observedRate": 0.034631662158455985,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e68abce38197e58092e38197",
+      "canonicalName": "押し倒し",
+      "observedCount": 6409,
+      "observedRate": 0.03446495695241373,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae587bae38197",
+      "canonicalName": "送り出し",
+      "observedCount": 6111,
+      "observedRate": 0.03286243593949139,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88be6898be68a95e38192",
+      "canonicalName": "下手投げ",
+      "observedCount": 4222,
+      "observedRate": 0.022704173545497076,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e7aa81e3818de587bae38197",
+      "canonicalName": "突き出し",
+      "observedCount": 4153,
+      "observedRate": 0.022333120022370763,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e68eace38184e68a95e38192",
+      "canonicalName": "掬い投げ",
+      "observedCount": 3891,
+      "observedRate": 0.020924192151949107,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b08fe6898be68a95e38192",
+      "canonicalName": "小手投げ",
+      "observedCount": 3092,
+      "observedRate": 0.016627499905892223,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88ae6898be587bae38197e68a95e38192",
+      "canonicalName": "上手出し投げ",
+      "observedCount": 2404,
+      "observedRate": 0.012927719849212453,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e882a9e38199e3818be38197",
+      "canonicalName": "肩すかし",
+      "observedCount": 1707,
+      "observedRate": 0.00917954150690751,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae58092e38197",
+      "canonicalName": "送り倒し",
+      "observedCount": 993,
+      "observedRate": 0.005339944180643912,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6a5b5e38281e587bae38197",
+      "canonicalName": "極め出し",
+      "observedCount": 784,
+      "observedRate": 0.004216028436681598,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88be6898be587bae38197e68a95e38192",
+      "canonicalName": "下手出し投げ",
+      "observedCount": 682,
+      "observedRate": 0.003667514532929656,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e7aa81e3818de58092e38197",
+      "canonicalName": "突き倒し",
+      "observedCount": 637,
+      "observedRate": 0.0034255231048037986,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5a496e68e9be38191",
+      "canonicalName": "外掛け",
+      "observedCount": 555,
+      "observedRate": 0.00298456094688557,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6b5b4e381b3e3819be58092e38197",
+      "canonicalName": "浴びせ倒し",
+      "observedCount": 443,
+      "observedRate": 0.0023822711702167704,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e9a696e68a95e38192",
+      "canonicalName": "首投げ",
+      "observedCount": 410,
+      "observedRate": 0.0022048107895911422,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e38186e381a3e381a1e38283e3828a",
+      "canonicalName": "うっちゃり",
+      "observedCount": 408,
+      "observedRate": 0.0021940556150077707,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e381a8e381a3e3819fe3828a",
+      "canonicalName": "とったり",
+      "observedCount": 367,
+      "observedRate": 0.0019735745360486565,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e58b87e381bfe8b6b3",
+      "canonicalName": "勇み足",
+      "observedCount": 367,
+      "observedRate": 0.0019735745360486565,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88be6898be68dbbe3828a",
+      "canonicalName": "下手捻り",
+      "observedCount": 357,
+      "observedRate": 0.0019197986631317994,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e58887e3828ae8bf94e38197",
+      "canonicalName": "切り返し",
+      "observedCount": 310,
+      "observedRate": 0.0016670520604225708,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5bc95e381a3e68e9be38191",
+      "canonicalName": "引っ掛け",
+      "observedCount": 296,
+      "observedRate": 0.001591765838338971,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e68e9be38191e68a95e38192",
+      "canonicalName": "掛け投げ",
+      "observedCount": 280,
+      "observedRate": 0.0015057244416719995,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8b6b3e58f96e3828a",
+      "canonicalName": "足取り",
+      "observedCount": 268,
+      "observedRate": 0.0014411933941717709,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5908ae3828ae587bae38197",
+      "canonicalName": "吊り出し",
+      "observedCount": 264,
+      "observedRate": 0.001419683045005028,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b88ae6898be68dbbe3828a",
+      "canonicalName": "上手捻り",
+      "observedCount": 260,
+      "observedRate": 0.0013981726958382853,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6a5b5e38281e58092e38197",
+      "canonicalName": "極め倒し",
+      "observedCount": 228,
+      "observedRate": 0.0012260899025043424,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6b8a1e38197e8bebce381bf",
+      "canonicalName": "渡し込み",
+      "observedCount": 209,
+      "observedRate": 0.001123915743962314,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e381a4e3818de381b2e38196",
+      "canonicalName": "つきひざ",
+      "observedCount": 202,
+      "observedRate": 0.0010862726329205138,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e58685e68e9be38191",
+      "canonicalName": "内掛け",
+      "observedCount": 143,
+      "observedRate": 0.0007689949827110569,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e88595e68dbbe3828a",
+      "canonicalName": "腕捻り",
+      "observedCount": 141,
+      "observedRate": 0.0007582398081276854,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b7bbe3818de890bde381a8e38197",
+      "canonicalName": "巻き落とし",
+      "observedCount": 118,
+      "observedRate": 0.000634555300418914,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae68a95e38192",
+      "canonicalName": "送り投げ",
+      "observedCount": 110,
+      "observedRate": 0.0005915346020854284,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8b9b4e8bf94e38197",
+      "canonicalName": "蹴返し",
+      "observedCount": 108,
+      "observedRate": 0.0005807794275020569,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e7b6b2e68993e381a1",
+      "canonicalName": "網打ち",
+      "observedCount": 97,
+      "observedRate": 0.0005216259672935141,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e7b4a0e9a696e890bde381a8e38197",
+      "canonicalName": "素首落とし",
+      "observedCount": 91,
+      "observedRate": 0.0004893604435433998,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e381a4e3818de6898b",
+      "canonicalName": "つき手",
+      "observedCount": 88,
+      "observedRate": 0.0004732276816683427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8a3bee68995e38184",
+      "canonicalName": "裾払い",
+      "observedCount": 81,
+      "observedRate": 0.0004355845706265427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6b3a2e99ba2e99693e68a95e38192",
+      "canonicalName": "波離間投げ",
+      "observedCount": 62,
+      "observedRate": 0.00033341041208451416,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e9a0ade68dbbe3828a",
+      "canonicalName": "頭捻り",
+      "observedCount": 61,
+      "observedRate": 0.00032803282479282846,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e58685e784a1e58f8c",
+      "canonicalName": "内無双",
+      "observedCount": 59,
+      "observedRate": 0.000317277650209457,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e885b0e7a095e38191",
+      "canonicalName": "腰砕け",
+      "observedCount": 51,
+      "observedRate": 0.00027425695187597134,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5beb3e588a9e68a95e38192",
+      "canonicalName": "徳利投げ",
+      "observedCount": 50,
+      "observedRate": 0.00026887936458428564,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e9a696e68dbbe3828a",
+      "canonicalName": "首捻り",
+      "observedCount": 45,
+      "observedRate": 0.00024199142812585705,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8b88fe381bfe587bae38197",
+      "canonicalName": "踏み出し",
+      "observedCount": 42,
+      "observedRate": 0.00022585866625079992,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b08fe882a1e68eace38184",
+      "canonicalName": "小股掬い",
+      "observedCount": 41,
+      "observedRate": 0.0002204810789591142,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4ba8ce4b881e68a95e38192",
+      "canonicalName": "二丁投げ",
+      "observedCount": 39,
+      "observedRate": 0.00020972590437574277,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98086e58f96e381a3e3819fe3828a",
+      "canonicalName": "逆取ったり",
+      "observedCount": 36,
+      "observedRate": 0.00019359314250068564,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae5bc95e3818de890bde381a8e38197",
+      "canonicalName": "送り引き落とし",
+      "observedCount": 33,
+      "observedRate": 0.0001774603806256285,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b08fe6898be68dbbe3828a",
+      "canonicalName": "小手捻り",
+      "observedCount": 28,
+      "observedRate": 0.00015057244416719995,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5be8ce3828de38282e3819fe3828c",
+      "canonicalName": "後ろもたれ",
+      "observedCount": 27,
+      "observedRate": 0.00014519485687551422,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e381a1e38287e38293e68e9be38191",
+      "canonicalName": "ちょん掛け",
+      "observedCount": 25,
+      "observedRate": 0.00013443968229214282,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8b9b4e6898be7b9b0e3828a",
+      "canonicalName": "蹴手繰り",
+      "observedCount": 23,
+      "observedRate": 0.0001236845077087714,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5a4a7e98086e6898b",
+      "canonicalName": "大逆手",
+      "observedCount": 20,
+      "observedRate": 0.00010755174583371425,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b185e58f8de3828a",
+      "canonicalName": "居反り",
+      "observedCount": 19,
+      "observedRate": 0.00010217415854202853,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4ba8ce69e9ae8b9b4e3828a",
+      "canonicalName": "二枚蹴り",
+      "observedCount": 19,
+      "observedRate": 0.00010217415854202853,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b880e69cace8838ce8b2a0e38184",
+      "canonicalName": "一本背負い",
+      "observedCount": 18,
+      "observedRate": 0.00009679657125034282,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6b2b3e6b4a5e68e9be38191",
+      "canonicalName": "河津掛け",
+      "observedCount": 17,
+      "observedRate": 0.0000914189839586571,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4bc9de38188e58f8de3828a",
+      "canonicalName": "伝え反り",
+      "observedCount": 16,
+      "observedRate": 0.0000860413966669714,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5908ae3828ae890bde381a8e38197",
+      "canonicalName": "吊り落とし",
+      "observedCount": 15,
+      "observedRate": 0.00008066380937528569,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e3819fe38199e3818de58f8de3828a",
+      "canonicalName": "たすき反り",
+      "observedCount": 12,
+      "observedRate": 0.00006453104750022855,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e9af96e68a98e3828a",
+      "canonicalName": "鯖折り",
+      "observedCount": 7,
+      "observedRate": 0.00003764311104179999,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e589b2e3828ae587bae38197",
+      "canonicalName": "割り出し",
+      "observedCount": 6,
+      "observedRate": 0.00003226552375011427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae5908ae3828ae890bde381a8e38197",
+      "canonicalName": "送り吊り落とし",
+      "observedCount": 6,
+      "observedRate": 0.00003226552375011427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5b08fe8a484e58f96e3828a",
+      "canonicalName": "小褄取り",
+      "observedCount": 6,
+      "observedRate": 0.00003226552375011427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5a496e5b08fe882a1",
+      "canonicalName": "外小股",
+      "observedCount": 6,
+      "observedRate": 0.00003226552375011427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e885b0e68a95e38192",
+      "canonicalName": "腰投げ",
+      "observedCount": 6,
+      "observedRate": 0.00003226552375011427,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8a3bee58f96e3828a",
+      "canonicalName": "裾取り",
+      "observedCount": 5,
+      "observedRate": 0.000026887936458428562,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae5908ae3828ae587bae38197",
+      "canonicalName": "送り吊り出し",
+      "observedCount": 5,
+      "observedRate": 0.000026887936458428562,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e98081e3828ae68e9be38191",
+      "canonicalName": "送り掛け",
+      "observedCount": 4,
+      "observedRate": 0.00002151034916674285,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e5a4a7e882a1",
+      "canonicalName": "大股",
+      "observedCount": 3,
+      "observedRate": 0.000016132761875057136,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e591bce381b3e688bbe38197",
+      "canonicalName": "呼び戻し",
+      "observedCount": 2,
+      "observedRate": 0.000010755174583371425,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e59088e68e8ce68dbbe3828a",
+      "canonicalName": "合掌捻り",
+      "observedCount": 2,
+      "observedRate": 0.000010755174583371425,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e4b889e68980e694bbe38281",
+      "canonicalName": "三所攻め",
+      "observedCount": 2,
+      "observedRate": 0.000010755174583371425,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e6ab93e68a95e38192",
+      "canonicalName": "櫓投げ",
+      "observedCount": 1,
+      "observedRate": 0.000005377587291685713,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e381a4e3818be381bfe68a95e38192",
+      "canonicalName": "つかみ投げ",
+      "observedCount": 1,
+      "observedRate": 0.000005377587291685713,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": true
+    },
+    {
+      "kimariteId": "e8a484e58f96e3828a",
+      "canonicalName": "褄取り",
+      "observedCount": 0,
+      "observedRate": 0,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": false
+    },
+    {
+      "kimariteId": "e6929ee69ca8e58f8de3828a",
+      "canonicalName": "撞木反り",
+      "observedCount": 0,
+      "observedRate": 0,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": false
+    },
+    {
+      "kimariteId": "e68e9be38191e58f8de3828a",
+      "canonicalName": "掛け反り",
+      "observedCount": 0,
+      "observedRate": 0,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": false
+    },
+    {
+      "kimariteId": "e5a496e3819fe38199e3818de58f8de3828a",
+      "canonicalName": "外たすき反り",
+      "observedCount": 0,
+      "observedRate": 0,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": false
+    },
+    {
+      "kimariteId": "e5a496e784a1e58f8c",
+      "canonicalName": "外無双",
+      "observedCount": 0,
+      "observedRate": 0,
+      "source": "日本相撲協会公式サイト 決まり手ランキング",
+      "sourcePeriod": "平成二十五年一月場所〜令和八年三月場所千秋楽",
+      "sourceTotalBouts": 185957,
+      "observedInSource": false
+    }
+  ]
+}

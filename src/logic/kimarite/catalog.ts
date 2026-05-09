@@ -1,4 +1,8 @@
 import type { BodyType, RikishiStatus, StyleArchetype, Trait } from '../models';
+import { normalizeKimariteName } from './aliases';
+import { applyKimariteRealdataCalibration } from './realdata';
+
+export { normalizeKimariteName } from './aliases';
 
 type StatKey = keyof RikishiStatus['stats'];
 
@@ -308,7 +312,7 @@ const SPECIAL_KIMARITE: OfficialKimariteEntry[] = [
   createOfficial({ officialOrder: 82, name: '呼び戻し', class: 'SPECIAL', family: 'TWIST_DOWN', primaryStyle: 'TECHNIQUE', secondaryStyle: 'BALANCE', rarityBucket: 'RARE', historicalWeight: 0.08, requiredPatterns: ['EDGE_REVERSAL', 'PULL_DOWN'], statAffinity: { waza: 0.8, deashi: 0.22, nage: 0.12 }, bodyAffinity: { maxWeightDiff: 16 }, traitTags: ['ARAWAZASHI', 'CLUTCH_REVERSAL'], signatureEligible: true, tags: ['edge', 'rare'] }),
 ];
 
-export const OFFICIAL_WIN_KIMARITE_82: OfficialKimariteEntry[] = [
+const RAW_OFFICIAL_WIN_KIMARITE_82: OfficialKimariteEntry[] = [
   ...BASIC_KIMARITE,
   ...LEG_TRIP_KIMARITE,
   ...THROW_KIMARITE,
@@ -316,6 +320,23 @@ export const OFFICIAL_WIN_KIMARITE_82: OfficialKimariteEntry[] = [
   ...BACKWARD_BODY_DROP_KIMARITE,
   ...SPECIAL_KIMARITE,
 ];
+
+const rebuildDerivedFields = (entry: OfficialKimariteEntry): OfficialKimariteEntry => ({
+  ...entry,
+  floorRate:
+    entry.rarityBucket === 'EXTREME'
+      ? 0.0001
+      : entry.rarityBucket === 'RARE'
+        ? 0.0006
+        : entry.rarityBucket === 'UNCOMMON'
+          ? 0.0025
+          : 0,
+  patternRole: resolvePatternRole(entry),
+  contextTags: resolveContextTags(entry),
+});
+
+export const OFFICIAL_WIN_KIMARITE_82: OfficialKimariteEntry[] =
+  applyKimariteRealdataCalibration(RAW_OFFICIAL_WIN_KIMARITE_82).map(rebuildDerivedFields);
 
 export const NON_TECHNIQUE_CATALOG: NonTechniqueEntry[] = [
   { key: '踏み出し', name: '踏み出し', collectionLabel: '踏み出し', class: 'NON_TECHNIQUE', family: 'NON_TECHNIQUE', rarityBucket: 'RARE', collectionVisible: true },
@@ -326,18 +347,6 @@ export const NON_TECHNIQUE_CATALOG: NonTechniqueEntry[] = [
   { key: '不戦', name: '不戦', collectionLabel: '不戦', class: 'NON_TECHNIQUE', family: 'NON_TECHNIQUE', rarityBucket: 'RARE', collectionVisible: true },
   { key: '反則', name: '反則', collectionLabel: '反則', class: 'NON_TECHNIQUE', family: 'NON_TECHNIQUE', rarityBucket: 'EXTREME', collectionVisible: true },
 ];
-
-export const KIMARITE_ALIAS_MAP: Record<string, string> = {
-  'すくい投げ': '掬い投げ',
-  '外たすきぞり': '外たすき反り',
-  'たすきぞり': 'たすき反り',
-  '後ろ凭れ': '後ろもたれ',
-  '不戦勝': '不戦',
-  '不戦敗': '不戦',
-};
-
-export const normalizeKimariteName = (name: string): string =>
-  KIMARITE_ALIAS_MAP[name] || name;
 
 export const KIMARITE_CATALOG = [
   ...OFFICIAL_WIN_KIMARITE_82,

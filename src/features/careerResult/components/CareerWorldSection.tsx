@@ -72,10 +72,10 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
     return (
       <section className={styles.section}>
         <header className={styles.sectionHead}>
-        <span className={styles.sectionMark} aria-hidden="true" />
-        <span className={styles.sectionTitle}>このキャリアの世界</span>
-        <span className={styles.sectionRule} aria-hidden="true" />
-      </header>
+          <span className={styles.sectionMark} aria-hidden="true" />
+          <span className={styles.sectionTitle}>このキャリアの世界</span>
+          <span className={styles.sectionRule} aria-hidden="true" />
+        </header>
         <div className={styles.emptyState}>読み込み中…</div>
       </section>
     );

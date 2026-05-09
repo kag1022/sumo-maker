@@ -335,14 +335,14 @@ export const applyObservationBuildBias = (
     aptitudeProfile: baseStatus.aptitudeProfile ? { ...baseStatus.aptitudeProfile } : baseStatus.aptitudeProfile,
     genome: baseStatus.genome
       ? {
-          base: { ...baseStatus.genome.base },
-          growth: { ...baseStatus.genome.growth },
-          durability: {
-            ...baseStatus.genome.durability,
-            partVulnerability: { ...(baseStatus.genome.durability.partVulnerability ?? {}) },
-          },
-          variance: { ...baseStatus.genome.variance },
-        }
+        base: { ...baseStatus.genome.base },
+        growth: { ...baseStatus.genome.growth },
+        durability: {
+          ...baseStatus.genome.durability,
+          partVulnerability: { ...(baseStatus.genome.durability.partVulnerability ?? {}) },
+        },
+        variance: { ...baseStatus.genome.variance },
+      }
       : baseStatus.genome,
   };
 

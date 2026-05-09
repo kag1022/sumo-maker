@@ -74,8 +74,6 @@ const DIVISIONS: DivisionKey[] = [
   'Jonokuchi',
 ];
 
-const CAREER_STAGES: CareerStage[] = ['rookie', 'rising', 'prime', 'veteran', 'declining'];
-
 const BODY_BASELINE: Record<DivisionKey, { heightP50: number; weightP50: number }> = {
   Makuuchi: { heightP50: 184, weightP50: 155 },
   Juryo: { heightP50: 183, weightP50: 148 },
