@@ -1,215 +1,317 @@
-#!/usr/bin/env npx tsx
-import * as fs from 'fs';
-import * as path from 'path';
-import { createLogicLabInitialStatus } from '../../src/features/logicLab/presets';
-import { listOfficialWinningKimariteCatalog } from '../../src/logic/kimarite/catalog';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { runLogicLabToEnd } from '../../src/features/logicLab/runner';
+import type { LogicLabPresetId } from '../../src/features/logicLab/types';
+import {
+  type KimariteRarityBucket,
+  findOfficialKimariteEntry,
+  findCollectionKimariteEntry,
+  normalizeKimariteName,
+  OFFICIAL_WIN_KIMARITE_82,
+} from '../../src/logic/kimarite/catalog';
+import { summarizeRareKimariteEncounters } from '../../src/logic/kimarite/rareEncounters';
+import { findKimariteRealdataFrequency, KIMARITE_REALDATA_FREQUENCY } from '../../src/logic/kimarite/realdata';
 import { summarizeSignatureKimarite } from '../../src/logic/kimarite/signature';
-import type { RikishiStatus } from '../../src/logic/models';
-import { createSimulationEngine } from '../../src/logic/simulation/engine';
-import { createSeededRandom } from '../../src/logic/simulation/engine/random';
-import { ensureStyleIdentityProfile, resolveDisplayedStrengthStyles } from '../../src/logic/style/identity';
 
-const args = process.argv.slice(2);
-
-const argInt = (flag: string, def: number): number => {
-  const i = args.indexOf(flag);
-  return i >= 0 && i + 1 < args.length ? parseInt(args[i + 1], 10) : def;
-};
-
-const CAREERS = argInt('--careers', 30);
-const SEED = argInt('--seed', 20260417);
-const MAX_BASHO = argInt('--max-basho', 120);
-
-type Rarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EXTREME' | 'UNKNOWN';
-
-interface CareerDiagnostic {
+interface CliOptions {
+  careers: number;
   seed: number;
-  totalWins: number;
-  totalBouts: number;
-  maxRank: string;
-  styleStrengths: string[];
-  selectedSpecialties: string[];
-  rareSpecialtyCount: number;
-  oneOffRareRejectedCount: number;
-  specialtyCounts: Array<{ move: string; count: number; rarity: Rarity; score: number }>;
 }
 
-const catalog = new Map(listOfficialWinningKimariteCatalog().map((entry) => [entry.name, entry]));
+interface MoveCount {
+  move: string;
+  count: number;
+  rate: number;
+  rarity: KimariteRarityBucket | 'UNKNOWN';
+  observedCount?: number;
+  observedRate?: number;
+  ratioToReal?: number;
+}
 
-const rarityOf = (move: string): Rarity => catalog.get(move)?.rarityBucket ?? 'UNKNOWN';
-
-const addCounts = (target: Map<string, number>, source: Record<string, number> | undefined): void => {
-  for (const [move, count] of Object.entries(source ?? {})) {
-    target.set(move, (target.get(move) ?? 0) + count);
-  }
+const parseIntArg = (name: string, fallback: number): number => {
+  const index = process.argv.indexOf(name);
+  if (index < 0 || !process.argv[index + 1]) return fallback;
+  const parsed = Number(process.argv[index + 1]);
+  return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const pct = (value: number): string => `${(value * 100).toFixed(2)}%`;
-
-const toRankLabel = (status: RikishiStatus): string =>
-  `${status.history.maxRank.name}${status.history.maxRank.number ?? ''}`;
-
-const runCareer = async (seed: number): Promise<{ status: RikishiStatus; totalBouts: number }> => {
-  const initialStatus = createLogicLabInitialStatus('RANDOM_BASELINE', createSeededRandom(seed));
-  const engine = createSimulationEngine(
-    {
-      initialStats: initialStatus,
-      oyakata: null,
-      careerId: `kimarite-reality-${seed}`,
-      banzukeMode: 'SIMULATE',
-      simulationModelVersion: 'v3',
-    },
-    {
-      random: createSeededRandom(seed + 1),
-      getCurrentYear: () => 2026,
-      yieldControl: async () => {},
-    },
-  );
-
-  let status = initialStatus;
-  let totalBouts = 0;
-  for (let i = 0; i < MAX_BASHO; i += 1) {
-    const step = await engine.runNextBasho();
-    if (step.kind === 'COMPLETED') {
-      status = step.statusSnapshot;
-      break;
-    }
-    totalBouts += step.playerRecord.wins + step.playerRecord.losses;
-    status = step.statusSnapshot ?? status;
-  }
-  return { status, totalBouts };
+const OPTIONS: CliOptions = {
+  careers: parseIntArg('--careers', 30),
+  seed: parseIntArg('--seed', 20260417),
 };
 
-const summarize = (careers: CareerDiagnostic[], totalCounts: Map<string, number>) => {
-  const totalKimarite = [...totalCounts.values()].reduce((sum, count) => sum + count, 0);
-  const rarityCounts: Record<Rarity, number> = {
-    COMMON: 0,
-    UNCOMMON: 0,
-    RARE: 0,
-    EXTREME: 0,
-    UNKNOWN: 0,
-  };
-  for (const [move, count] of totalCounts.entries()) {
-    rarityCounts[rarityOf(move)] += count;
-  }
-  return {
-    careers: careers.length,
-    seed: SEED,
-    maxBasho: MAX_BASHO,
-    totalBouts: careers.reduce((sum, career) => sum + career.totalBouts, 0),
-    totalKimarite,
-    rarityCounts,
-    rarityRates: Object.fromEntries(
-      Object.entries(rarityCounts).map(([rarity, count]) => [rarity, totalKimarite === 0 ? 0 : count / totalKimarite]),
-    ),
-    topKimarite: [...totalCounts.entries()]
-      .sort((left, right) => right[1] - left[1])
-      .slice(0, 25)
-      .map(([move, count]) => ({
+const PRESETS: LogicLabPresetId[] = [
+  'RANDOM_BASELINE',
+  'STANDARD_B_GRINDER',
+  'HIGH_TALENT_AS',
+  'LOW_TALENT_CD',
+];
+
+const increment = (target: Record<string, number>, key: string, count: number): void => {
+  target[key] = (target[key] ?? 0) + count;
+};
+
+const rarityOrder: Record<KimariteRarityBucket | 'UNKNOWN', number> = {
+  COMMON: 0,
+  UNCOMMON: 1,
+  RARE: 2,
+  EXTREME: 3,
+  UNKNOWN: 4,
+};
+
+const bucketTotals = (): Record<KimariteRarityBucket | 'UNKNOWN', number> => ({
+  COMMON: 0,
+  UNCOMMON: 0,
+  RARE: 0,
+  EXTREME: 0,
+  UNKNOWN: 0,
+});
+
+const formatPct = (value: number): string => `${(value * 100).toFixed(2)}%`;
+
+const toMoveRanking = (counts: Record<string, number>, total: number): MoveCount[] =>
+  Object.entries(counts)
+    .map(([move, count]) => {
+      const entry = findOfficialKimariteEntry(move);
+      const collectionEntry = findCollectionKimariteEntry(move);
+      const realdata = findKimariteRealdataFrequency(move);
+      return {
         move,
         count,
-        rate: totalKimarite === 0 ? 0 : count / totalKimarite,
-        rarity: rarityOf(move),
-      })),
-    rareSpecialtyCareerCount: careers.filter((career) => career.rareSpecialtyCount > 0).length,
-    rareSpecialtyTotal: careers.reduce((sum, career) => sum + career.rareSpecialtyCount, 0),
-    oneOffRareRejectedTotal: careers.reduce((sum, career) => sum + career.oneOffRareRejectedCount, 0),
-    noSpecialtyCareerCount: careers.filter((career) => career.selectedSpecialties.length === 0).length,
-    specialtyOccurrenceCounts: careers.flatMap((career) => career.specialtyCounts.map((entry) => entry.count)),
-    playerCareerSpecialties: careers.map((career) => ({
-      seed: career.seed,
-      maxRank: career.maxRank,
-      totalWins: career.totalWins,
-      styleStrengths: career.styleStrengths,
-      selectedSpecialties: career.selectedSpecialties,
-      specialtyCounts: career.specialtyCounts,
-    })),
-    npcSpecialtyNote: 'NPCの場所別 aggregate には kimariteCount がないため、本診断は player career の勝ち決まり手を対象にする。',
-  };
-};
+        rate: count / Math.max(1, total),
+        rarity: collectionEntry?.rarityBucket ?? entry?.rarityBucket ?? 'UNKNOWN',
+        observedCount: realdata?.observedCount,
+        observedRate: realdata?.observedRate,
+        ratioToReal: realdata && realdata.observedRate > 0
+          ? (count / Math.max(1, total)) / realdata.observedRate
+          : undefined,
+      };
+    })
+    .sort((left, right) => right.count - left.count);
 
-const renderMarkdown = (summary: ReturnType<typeof summarize>): string => {
-  const lines: string[] = [];
-  lines.push('# Kimarite Reality Diagnostics');
-  lines.push('');
-  lines.push(`Generated by \`scripts/dev/diagnoseKimariteReality.ts\` (careers=${summary.careers}, seed=${summary.seed}, maxBasho=${summary.maxBasho}).`);
-  lines.push('');
-  lines.push('## KPI');
-  lines.push('');
-  lines.push(`- total bouts: ${summary.totalBouts}`);
-  lines.push(`- total kimarite count: ${summary.totalKimarite}`);
-  lines.push(`- common kimarite rate: ${pct(summary.rarityRates.COMMON)}`);
-  lines.push(`- uncommon kimarite rate: ${pct(summary.rarityRates.UNCOMMON)}`);
-  lines.push(`- rare kimarite rate: ${pct(summary.rarityRates.RARE)}`);
-  lines.push(`- very rare kimarite rate: ${pct(summary.rarityRates.EXTREME)}`);
-  lines.push(`- rare kimarite as specialty count: ${summary.rareSpecialtyTotal}`);
-  lines.push(`- one-off rare kimarite selected as specialty count: 0`);
-  lines.push(`- one-off rare kimarite rejected by specialty rule: ${summary.oneOffRareRejectedTotal}`);
-  lines.push(`- no specialty career count: ${summary.noSpecialtyCareerCount}`);
-  lines.push('');
-  lines.push('## Kimarite Frequency Ranking');
-  lines.push('');
-  lines.push('| move | rarity | count | rate |');
-  lines.push('|---|---:|---:|---:|');
-  for (const row of summary.topKimarite) {
-    lines.push(`| ${row.move} | ${row.rarity} | ${row.count} | ${pct(row.rate)} |`);
-  }
-  lines.push('');
-  lines.push('## Player Career Specialty Kimarite List');
-  lines.push('');
-  lines.push('| seed | maxRank | wins | style | specialties |');
-  lines.push('|---:|---|---:|---|---|');
-  for (const row of summary.playerCareerSpecialties) {
-    lines.push(`| ${row.seed} | ${row.maxRank} | ${row.totalWins} | ${row.styleStrengths.join(' / ') || '-'} | ${row.selectedSpecialties.join(' / ') || 'なし'} |`);
-  }
-  lines.push('');
-  lines.push(`NPC specialty list: ${summary.npcSpecialtyNote}`);
-  return lines.join('\n');
-};
+const renderMoveTable = (rows: MoveCount[], limit: number): string[] => [
+  '| 決まり手 | 回数 | rate | 実rate | ratio | rarity |',
+  '|---|---:|---:|---:|---:|---|',
+  ...rows.slice(0, limit).map((row) =>
+    `| ${row.move} | ${row.count} | ${formatPct(row.rate)} | ${row.observedRate === undefined ? '-' : formatPct(row.observedRate)} | ${row.ratioToReal === undefined ? '-' : row.ratioToReal.toFixed(2)} | ${row.rarity} |`,
+  ),
+];
 
 const main = async (): Promise<void> => {
-  const totalCounts = new Map<string, number>();
-  const careers: CareerDiagnostic[] = [];
+  const totalCounts: Record<string, number> = {};
+  const styleCounts: Record<string, Record<string, number>> = {};
+  const specialtyCounts: Record<string, number> = {};
+  let totalBouts = 0;
+  let totalKimarite = 0;
+  let unknownRarityCount = 0;
+  let aliasNormalizedCount = 0;
+  let observedZeroGeneratedCount = 0;
+  let extremeGeneratedCount = 0;
+  let rareEncounterCount = 0;
+  let extremeAsSpecialtyCount = 0;
+  let rareAsSpecialtyCount = 0;
+  let oneOffRareSelectedAsSpecialtyCount = 0;
 
-  for (let i = 0; i < CAREERS; i += 1) {
-    const seed = SEED + i * 997;
-    const { status, totalBouts } = await runCareer(seed);
-    addCounts(totalCounts, status.history.kimariteTotal);
-    const identity = ensureStyleIdentityProfile(status).styleIdentityProfile;
-    const strengths = resolveDisplayedStrengthStyles(identity);
-    const signature = summarizeSignatureKimarite(status.history.kimariteTotal, strengths, 3);
-    careers.push({
+  for (let index = 0; index < OPTIONS.careers; index += 1) {
+    const presetId = PRESETS[index % PRESETS.length];
+    const seed = OPTIONS.seed + index * 9973;
+    const { logs } = await runLogicLabToEnd({
+      presetId,
       seed,
-      totalWins: status.history.totalWins,
-      totalBouts,
-      maxRank: toRankLabel(status),
-      styleStrengths: strengths,
-      selectedSpecialties: signature.selectedMoves,
-      rareSpecialtyCount: signature.rareSelectedCount,
-      oneOffRareRejectedCount: signature.oneOffRareRejectedCount,
-      specialtyCounts: signature.candidates
-        .filter((candidate) => signature.selectedMoves.includes(candidate.move))
-        .map((candidate) => ({
-          move: candidate.move,
-          count: candidate.count,
-          rarity: candidate.rarityBucket,
-          score: Math.round(candidate.score * 1000) / 1000,
-        })),
+      maxBasho: 90,
     });
-    console.log(`career ${i + 1}/${CAREERS}: seed=${seed} wins=${status.history.totalWins} specialties=${signature.selectedMoves.join('/') || 'なし'}`);
+    const careerCounts: Record<string, number> = {};
+    for (const log of logs) {
+      for (const [rawMove, count] of Object.entries(log.kimariteCount ?? {})) {
+        const move = normalizeKimariteName(rawMove);
+        if (move !== rawMove) aliasNormalizedCount += count;
+        increment(totalCounts, move, count);
+        increment(careerCounts, move, count);
+        if (!styleCounts[presetId]) styleCounts[presetId] = {};
+        increment(styleCounts[presetId], move, count);
+        totalBouts += count;
+        totalKimarite += count;
+        const entry = findCollectionKimariteEntry(move);
+        if (!entry) {
+          unknownRarityCount += count;
+          continue;
+        }
+        if (entry.rarityBucket === 'EXTREME') extremeGeneratedCount += count;
+        if (findKimariteRealdataFrequency(move)?.observedCount === 0) {
+          observedZeroGeneratedCount += count;
+        }
+      }
+    }
+
+    const signature = summarizeSignatureKimarite(careerCounts, [], 3);
+    for (const move of signature.selectedMoves) {
+      increment(specialtyCounts, move, 1);
+      const entry = findOfficialKimariteEntry(move);
+      if (entry?.rarityBucket === 'RARE') rareAsSpecialtyCount += 1;
+      if (entry?.rarityBucket === 'EXTREME') extremeAsSpecialtyCount += 1;
+      const count = careerCounts[move] ?? 0;
+      if ((entry?.rarityBucket === 'RARE' || entry?.rarityBucket === 'EXTREME') && count <= 2) {
+        oneOffRareSelectedAsSpecialtyCount += 1;
+      }
+    }
+    rareEncounterCount += summarizeRareKimariteEncounters(careerCounts)
+      .reduce((sum, encounter) => sum + encounter.count, 0);
   }
 
-  const summary = summarize(careers, totalCounts);
-  const jsonPath = path.join('docs', 'design', 'kimarite_reality_diagnostics.json');
-  const mdPath = path.join('docs', 'design', 'kimarite_reality_diagnostics.md');
-  fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
-  fs.writeFileSync(jsonPath, JSON.stringify(summary, null, 2));
-  fs.writeFileSync(mdPath, renderMarkdown(summary));
-  console.log(`wrote ${jsonPath}`);
-  console.log(`wrote ${mdPath}`);
+  const rarityCounts = bucketTotals();
+  for (const [move, count] of Object.entries(totalCounts)) {
+    const entry = findCollectionKimariteEntry(move);
+    rarityCounts[entry?.rarityBucket ?? 'UNKNOWN'] += count;
+  }
+
+  const ranking = toMoveRanking(totalCounts, totalKimarite);
+  const overrepresented = ranking
+    .filter((row) => row.ratioToReal !== undefined)
+    .sort((left, right) => (right.ratioToReal ?? 0) - (left.ratioToReal ?? 0))
+    .slice(0, 15);
+  const underrepresented = ranking
+    .filter((row) => row.ratioToReal !== undefined && row.count >= 1)
+    .sort((left, right) => (left.ratioToReal ?? 0) - (right.ratioToReal ?? 0))
+    .slice(0, 15);
+  const catalogRows = OFFICIAL_WIN_KIMARITE_82.map((entry) => {
+    const realdata = findKimariteRealdataFrequency(entry.name);
+    return {
+      name: entry.name,
+      rarityBucket: entry.rarityBucket,
+      historicalWeight: entry.historicalWeight,
+      signatureEligible: entry.signatureEligible,
+      observedCount: realdata?.observedCount,
+      observedRate: realdata?.observedRate,
+    };
+  }).sort((left, right) =>
+    rarityOrder[left.rarityBucket] - rarityOrder[right.rarityBucket] ||
+    (right.observedRate ?? 0) - (left.observedRate ?? 0),
+  );
+
+  const styleSummary = Object.fromEntries(
+    Object.entries(styleCounts).map(([style, counts]) => {
+      const styleTotal = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      const styleBucket = bucketTotals();
+      for (const [move, count] of Object.entries(counts)) {
+        const entry = findCollectionKimariteEntry(move);
+        styleBucket[entry?.rarityBucket ?? 'UNKNOWN'] += count;
+      }
+      return [style, {
+        totalWins: styleTotal,
+        rareRate: styleBucket.RARE / Math.max(1, styleTotal),
+        extremeRate: styleBucket.EXTREME / Math.max(1, styleTotal),
+        bucketCounts: styleBucket,
+      }];
+    }),
+  );
+
+  const payload = {
+    meta: {
+      careers: OPTIONS.careers,
+      seed: OPTIONS.seed,
+      source: KIMARITE_REALDATA_FREQUENCY.source,
+      sourceUrl: KIMARITE_REALDATA_FREQUENCY.sourceUrl,
+      sourcePeriod: KIMARITE_REALDATA_FREQUENCY.sourcePeriod,
+      sourceTotalBouts: KIMARITE_REALDATA_FREQUENCY.sourceTotalBouts,
+    },
+    totals: {
+      totalBouts,
+      totalKimarite,
+      rarityCounts,
+      rarityRates: Object.fromEntries(
+        Object.entries(rarityCounts).map(([key, count]) => [key, count / Math.max(1, totalKimarite)]),
+      ),
+      unknownRarityCount,
+      aliasNormalizedCount,
+      observedZeroGeneratedCount,
+      extremeGeneratedCount,
+      rareEncounterCount,
+      rareAsSpecialtyCount,
+      extremeAsSpecialtyCount,
+      oneOffRareSelectedAsSpecialtyCount,
+    },
+    ranking,
+    overrepresented,
+    underrepresented,
+    specialtyCounts,
+    styleSummary,
+    catalogRows,
+  };
+
+  mkdirSync('docs/design', { recursive: true });
+  writeFileSync(
+    'docs/design/kimarite_reality_diagnostics.json',
+    `${JSON.stringify(payload, null, 2)}\n`,
+    'utf8',
+  );
+  writeFileSync(
+    'docs/design/kimarite_realdata_rarity_diagnostics.json',
+    `${JSON.stringify(payload, null, 2)}\n`,
+    'utf8',
+  );
+
+  const md = [
+    '# Kimarite Realdata Rarity Diagnostics',
+    '',
+    `Generated by \`scripts/dev/diagnoseKimariteReality.ts\` with careers=${OPTIONS.careers}, seed=${OPTIONS.seed}.`,
+    '',
+    `Source: ${KIMARITE_REALDATA_FREQUENCY.source} (${KIMARITE_REALDATA_FREQUENCY.sourcePeriod}, ${KIMARITE_REALDATA_FREQUENCY.sourceTotalBouts.toLocaleString()} bouts).`,
+    '',
+    '## KPI',
+    '',
+    `- total bouts: ${totalBouts}`,
+    `- total kimarite count: ${totalKimarite}`,
+    `- common rate: ${formatPct(rarityCounts.COMMON / Math.max(1, totalKimarite))}`,
+    `- uncommon rate: ${formatPct(rarityCounts.UNCOMMON / Math.max(1, totalKimarite))}`,
+    `- rare rate: ${formatPct(rarityCounts.RARE / Math.max(1, totalKimarite))}`,
+    `- extreme rate: ${formatPct(rarityCounts.EXTREME / Math.max(1, totalKimarite))}`,
+    `- UNKNOWN rarity count: ${unknownRarityCount}`,
+    `- alias normalized count: ${aliasNormalizedCount}`,
+    `- observedCount=0 generated count: ${observedZeroGeneratedCount}`,
+    `- rare kimarite as specialty count: ${rareAsSpecialtyCount}`,
+    `- EXTREME as specialty count: ${extremeAsSpecialtyCount}`,
+    `- one-off rare selected as specialty count: ${oneOffRareSelectedAsSpecialtyCount}`,
+    '',
+    '## Kimarite Frequency Ranking',
+    '',
+    ...renderMoveTable(ranking, 20),
+    '',
+    '## Top Overrepresented',
+    '',
+    ...renderMoveTable(overrepresented, 15),
+    '',
+    '## Top Underrepresented',
+    '',
+    ...renderMoveTable(underrepresented, 15),
+    '',
+    '## Style Summary',
+    '',
+    '| style | wins | rare rate | extreme rate |',
+    '|---|---:|---:|---:|',
+    ...Object.entries(styleSummary).map(([style, summary]) =>
+      `| ${style} | ${summary.totalWins} | ${formatPct(summary.rareRate)} | ${formatPct(summary.extremeRate)} |`,
+    ),
+    '',
+  ];
+
+  writeFileSync(
+    'docs/design/kimarite_reality_diagnostics.md',
+    `${md.join('\n')}\n`,
+    'utf8',
+  );
+  writeFileSync(
+    'docs/design/kimarite_realdata_rarity_diagnostics.md',
+    `${md.join('\n')}\n`,
+    'utf8',
+  );
+
+  console.log(`Kimarite diagnostics: careers=${OPTIONS.careers} total=${totalKimarite}`);
+  console.log(`rare=${formatPct(rarityCounts.RARE / Math.max(1, totalKimarite))} extreme=${formatPct(rarityCounts.EXTREME / Math.max(1, totalKimarite))}`);
+  console.log(`unknown=${unknownRarityCount} observedZero=${observedZeroGeneratedCount} rareSpecialty=${rareAsSpecialtyCount} extremeSpecialty=${extremeAsSpecialtyCount}`);
 };
 
+mkdirSync(dirname('docs/design/kimarite_realdata_rarity_diagnostics.json'), { recursive: true });
 main().catch((error) => {
   console.error(error);
-  process.exit(1);
+  process.exitCode = 1;
 });

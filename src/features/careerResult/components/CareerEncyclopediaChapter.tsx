@@ -226,7 +226,12 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       label: "苦手な型",
       value: weaknessLabel,
     });
-    const representativeMoves = summarizeSignatureKimarite(status.history.kimariteTotal, strengthStyles, 3).selectedMoves;
+    const signatureSummary = summarizeSignatureKimarite(
+      status.history.kimariteTotal,
+      strengthStyles,
+      3,
+    );
+    const representativeMoves = signatureSummary.selectedMoves;
     if (representativeMoves.length > 0) {
       lines.push({
         label: "代表技",
