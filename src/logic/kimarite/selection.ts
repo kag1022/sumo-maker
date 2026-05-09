@@ -117,7 +117,15 @@ interface KimariteTuningProfile {
     upsetPressBonus: number;
     maxChance: number;
   };
-  rarity: { rareTrickScale: number; extremeBase: number; extremeTrickScale: number; extremeEdgeScale: number };
+  rarity: {
+    uncommonBase: number;
+    rareBase: number;
+    extremeCandidateBase: number;
+    rareTrickScale: number;
+    extremeBase: number;
+    extremeTrickScale: number;
+    extremeEdgeScale: number;
+  };
   repeatPenalty: { perCount: number; min: number };
 }
 
@@ -167,7 +175,15 @@ const KIMARITE_TUNING_PRESETS: Record<KimariteTuningPresetId, KimariteTuningProf
       upsetPressBonus: 0.0025,
       maxChance: 0.012,
     },
-    rarity: { rareTrickScale: 0.28, extremeBase: 0.06, extremeTrickScale: 0.26, extremeEdgeScale: 0.14 },
+    rarity: {
+      uncommonBase: 0.88,
+      rareBase: 0.03,
+      extremeCandidateBase: 0.08,
+      rareTrickScale: 0.28,
+      extremeBase: 0.06,
+      extremeTrickScale: 0.26,
+      extremeEdgeScale: 0.14,
+    },
     repeatPenalty: { perCount: 0.08, min: 0.05 },
   },
   VARIETY_PLUS: {
@@ -215,7 +231,15 @@ const KIMARITE_TUNING_PRESETS: Record<KimariteTuningPresetId, KimariteTuningProf
       upsetPressBonus: 0.0027,
       maxChance: 0.014,
     },
-    rarity: { rareTrickScale: 0.18, extremeBase: 0.04, extremeTrickScale: 0.18, extremeEdgeScale: 0.1 },
+    rarity: {
+      uncommonBase: 0.9,
+      rareBase: 0.025,
+      extremeCandidateBase: 0.07,
+      rareTrickScale: 0.18,
+      extremeBase: 0.04,
+      extremeTrickScale: 0.18,
+      extremeEdgeScale: 0.1,
+    },
     repeatPenalty: { perCount: 0.065, min: 0.08 },
   },
 };
@@ -748,8 +772,8 @@ const resolvePatternWeights = (
               : 0.2
         : 0,
     EDGE_REVERSAL: edgeUnlocked ? (winner.style === 'TECHNIQUE' ? 0.52 : 0.22) : 0,
-    LEG_TRIP_PICK: tripUnlocked ? (winner.style === 'TECHNIQUE' ? 0.48 : 0.12) : 0,
-    BACKWARD_ARCH: archUnlocked ? 0.2 : 0,
+    LEG_TRIP_PICK: tripUnlocked ? (winner.style === 'TECHNIQUE' ? 0.18 : 0.04) : 0,
+    BACKWARD_ARCH: archUnlocked ? 0.08 : 0,
     NON_TECHNIQUE: 0,
   };
 
@@ -976,6 +1000,14 @@ const resolveDramaMultiplier = (
     }
   }
   return mult;
+};
+
+const resolveRarityBaseFit = (entry: OfficialKimariteEntry): number => {
+  const cfg = tuning().rarity;
+  if (entry.rarityBucket === 'UNCOMMON') return cfg.uncommonBase;
+  if (entry.rarityBucket === 'RARE') return cfg.rareBase;
+  if (entry.rarityBucket === 'EXTREME') return cfg.extremeCandidateBase;
+  return 1;
 };
 
 const resolveNonTechniqueChance = (
@@ -1270,6 +1302,7 @@ export const resolveKimariteOutcome = (input: {
       resolveStyleSignatureFit(entry.name, input.winner.strongStyles) *
       resolveLoserAffinityFit(entry, input.loser) *
       resolveDramaMultiplier(entry, input.boutContext) *
+      resolveRarityBaseFit(entry) *
       bodyFit *
       resolveNoveltyMultiplier(entry, historySummary, input.winner, pattern, targetUniqueCount);
 

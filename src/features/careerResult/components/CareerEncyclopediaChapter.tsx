@@ -204,13 +204,13 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     () => ensureStyleIdentityProfile(status).styleIdentityProfile,
     [status],
   );
-  const strengthLabel = React.useMemo(
-    () => resolveStyleLabelsOrFallback(resolveDisplayedStrengthStyles(styleIdentity)),
-    [styleIdentity],
-  );
   const strengthStyles = React.useMemo(
     () => resolveDisplayedStrengthStyles(styleIdentity),
     [styleIdentity],
+  );
+  const strengthLabel = React.useMemo(
+    () => resolveStyleLabelsOrFallback(strengthStyles),
+    [strengthStyles],
   );
   const weaknessLabel = React.useMemo(
     () => resolveStyleLabelsOrFallback(resolveDisplayedWeakStyles(styleIdentity)),

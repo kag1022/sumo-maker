@@ -16,4 +16,5 @@
 - `battle.ts` から渡る route は勝負内容の制約として扱い、無関係な route の技を混ぜない
 - rarity は実データ頻度を基準にする。公式期間 0 回の技は `EXTREME` / epsilon weight とし、代表技にはしない
 - レパートリーは固定リストではなく、キャリア進行で common / uncommon の技を少しずつ獲得できる
+- rare / extreme は発生自体をゼロにしないが、代表技にはより高い最低出現回数を要求する
 - report では unique 数、top1/top3 偏重、rare/extreme、bucket 別の偏りを同時に見る
