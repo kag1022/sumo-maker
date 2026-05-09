@@ -14,6 +14,7 @@ import {
   BoundaryId,
   ScheduleTorikumiBashoParams,
   TorikumiBashoResult,
+  TorikumiBoundaryContext,
   TorikumiBoundaryImplication,
   TorikumiContentionTier,
   TorikumiMatchReason,
@@ -21,6 +22,41 @@ import {
   TorikumiParticipant,
   TorikumiTitleImplication,
 } from '../types';
+
+/**
+ * boundaryContext から JuryoMakushita 境界取組の day threshold / score multiplier /
+ * 候補プール rank 上限を導出。
+ *
+ * - effectiveIntensity 未指定 → legacy 動作 (threshold=12, multiplier=1.0, makushitaMaxRank=5)
+ * - <0.05 → 完全 disable (era 側で「無かった」扱いを尊重)
+ * - 高境界圧 → day を 1 早め、score を強化、Makushita 側の候補帯を 6 まで拡張
+ * - 低境界圧 → day を 1 遅らせ、Makushita 側を 4 まで縮小
+ *
+ * Makushita 側のみ拡縮し、Juryo 側 (DROP band 12-14) は据え置く。
+ * これは「幕下上位の押し上げ圧」を era 構造で表現するためで、
+ * 十両下位の入替候補は実史的に常に下 3 枚帯に固定されているため。
+ */
+const resolveJuryoMakushitaBoundaryParams = (
+  ctx: TorikumiBoundaryContext | undefined,
+): {
+  dayThreshold: number;
+  scoreMultiplier: number;
+  makushitaMaxRank: number;
+  disabled: boolean;
+} => {
+  const intensity = ctx?.effectiveIntensity;
+  if (intensity == null) {
+    return { dayThreshold: 12, scoreMultiplier: 1.0, makushitaMaxRank: 5, disabled: false };
+  }
+  if (intensity < 0.05) {
+    return { dayThreshold: 12, scoreMultiplier: 0, makushitaMaxRank: 5, disabled: true };
+  }
+  const dayThreshold = Math.max(11, Math.min(13, Math.round(13 - intensity)));
+  const scoreMultiplier = Math.max(0.5, Math.min(1.5, intensity));
+  const makushitaMaxRank =
+    intensity >= 1.2 ? 7 : intensity >= 1.0 ? 6 : intensity >= 0.7 ? 5 : 4;
+  return { dayThreshold, scoreMultiplier, makushitaMaxRank, disabled: false };
+};
 
 type ObligationReason =
   | 'SANYAKU_ROUND_ROBIN'
@@ -348,12 +384,13 @@ const resolveTitleImplication = (
 const isJuryoMakushitaExchangeCandidate = (
   juryo: TorikumiParticipant,
   makushita: TorikumiParticipant,
+  makushitaMaxRank = 5,
 ): boolean =>
   resolveJuryoBand(juryo) === 'DROP' &&
   resolveRankNumber(juryo) <= 14 &&
   juryo.wins <= 8 &&
   makushita.division === 'Makushita' &&
-  resolveRankNumber(makushita) <= 5 &&
+  resolveRankNumber(makushita) <= makushitaMaxRank &&
   makushita.wins >= 4;
 
 const resolveSchedulingPriority = (participant: TorikumiParticipant, day: number, repair = false): number => {
@@ -476,6 +513,7 @@ const evaluateJuryoPair = (
   obligations: Map<string, Obligation>,
   bandMap: Map<BoundaryId, BoundaryBandSpec>,
   crossDivisionById: Map<string, number>,
+  boundaryContext?: TorikumiBoundaryContext,
 ): PairEval | null => {
   const title = resolveTitleImplication(a, b, day);
   if (a.division === 'Juryo' && b.division === 'Juryo') {
@@ -512,16 +550,20 @@ const evaluateJuryoPair = (
   }
   const juryo = a.division === 'Juryo' ? a : b.division === 'Juryo' ? b : null;
   const makushita = a.division === 'Makushita' ? a : b.division === 'Makushita' ? b : null;
-  if (!juryo || !makushita || day < 12) return null;
+  if (!juryo || !makushita) return null;
+  const boundaryParams = resolveJuryoMakushitaBoundaryParams(boundaryContext);
+  if (boundaryParams.disabled) return null;
+  if (day < boundaryParams.dayThreshold) return null;
   if ((crossDivisionById.get(juryo.id) ?? 0) >= 1 || (crossDivisionById.get(makushita.id) ?? 0) >= 1) {
     return null;
   }
-  if (!isJuryoMakushitaExchangeCandidate(juryo, makushita)) return null;
+  if (!isJuryoMakushitaExchangeCandidate(juryo, makushita, boundaryParams.makushitaMaxRank)) return null;
   const boundary = hasBoundaryBand(bandMap, a, b);
   if (boundary.boundaryId !== 'JuryoMakushita') return null;
+  const baseBonus = day === 15 ? -380 : day >= 14 ? -340 : -300;
   return {
     score:
-      (day === 15 ? -380 : day >= 14 ? -340 : -300) +
+      baseBonus * boundaryParams.scoreMultiplier +
       Math.abs(juryo.wins - makushita.wins) * 8 +
       Math.abs(resolveRankNumber(juryo) - resolveRankNumber(makushita)) * 4,
     matchReason: 'JURYO_MAKUSHITA_EXCHANGE',
@@ -1099,7 +1141,7 @@ export const scheduleTorikumiBasho = (
       eligible.filter((participant) =>
         participant.division === 'Juryo' ||
         (participant.division === 'Makushita' && resolveRankNumber(participant) <= 5)),
-      (a, b) => evaluateJuryoPair(a, b, day, obligations.byPairKey, bandMap, crossDivisionById),
+      (a, b) => evaluateJuryoPair(a, b, day, obligations.byPairKey, bandMap, crossDivisionById, params.boundaryContext),
       { optimizeLocally: true },
     );
     const lowerEligible = eligible.filter((participant) => isLowerDivision(participant.division));

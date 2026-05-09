@@ -6,8 +6,39 @@ import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { createInitialNpcUniverse } from '../npc/factory';
 import { PersistentActor } from '../npc/types';
+import type { TorikumiBoundaryContext } from '../torikumi/types';
 import { EMPTY_EXCHANGE } from './shared';
 import { SimulationWorld, WorldRikishi } from './types';
+
+/**
+ * EraSnapshot.boundaryProfile から torikumi 用の合成 context を導出する。
+ *
+ * - `crossDivisionBoutIntensity` (era data 上はおおむね 0 or 1) で on/off ゲート
+ * - `sekitoriBoundaryPressure` (約 0.31..0.81) と `juryoDemotionPressure` (0..1)
+ *   を弱い加重で混ぜて 0..1.5 の effectiveIntensity を作る
+ *
+ * 標準的な era では effectiveIntensity ≈ 0.85〜1.0 となり legacy とほぼ同等。
+ * 高境界圧 era では 1.1〜1.3 → torikumi 側で day threshold を 1 早め、score bonus を強化。
+ * intensity=0 の era は完全に boundary 取組を抑制する (era 側で「無かった」ことを尊重)。
+ */
+const deriveEraBoundaryContext = (
+  eraSnapshot: { boundaryProfile?: import('../../era/types').EraBoundaryProfile } | undefined,
+): TorikumiBoundaryContext | undefined => {
+  const bp = eraSnapshot?.boundaryProfile;
+  if (!bp) return undefined;
+  const sek = typeof bp.sekitoriBoundaryPressure === 'number' ? bp.sekitoriBoundaryPressure : 0.5;
+  const jur = typeof bp.juryoDemotionPressure === 'number' ? bp.juryoDemotionPressure : 0.5;
+  const intensityFlag = typeof bp.crossDivisionBoutIntensity === 'number' ? bp.crossDivisionBoutIntensity : 1;
+  const raw = intensityFlag * (0.5 + 0.5 * sek + 0.25 * jur);
+  const effectiveIntensity = Math.max(0, Math.min(1.5, raw));
+  return {
+    sekitoriBoundaryPressure: bp.sekitoriBoundaryPressure,
+    makushitaUpperCongestion: bp.makushitaUpperCongestion,
+    juryoDemotionPressure: bp.juryoDemotionPressure,
+    crossDivisionBoutIntensity: bp.crossDivisionBoutIntensity,
+    effectiveIntensity,
+  };
+};
 
 export interface CreateSimulationWorldOptions {
   eraSnapshot?: EraSnapshot;
@@ -114,5 +145,6 @@ export const createSimulationWorld = (
     lastPlayerAllocation: undefined,
     makuuchiLayout: { ...DEFAULT_MAKUUCHI_LAYOUT },
     populationPlan: undefined,
+    eraBoundaryContext: deriveEraBoundaryContext(options?.eraSnapshot),
   };
 };
