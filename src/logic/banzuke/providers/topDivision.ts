@@ -67,6 +67,13 @@ const ensureSanyakuFloor = (
     if (allocation.nextRank.division !== 'Makuuchi' || allocation.nextRank.name !== '関脇') return false;
     if (
       allocation.currentRank.division === 'Makuuchi' &&
+      allocation.currentRank.name === '大関'
+    ) {
+      return false;
+    }
+    if (allocation.nextIsOzekiReturn) return false;
+    if (
+      allocation.currentRank.division === 'Makuuchi' &&
       allocation.currentRank.name === '小結' &&
       allocation.recordDiff >= 2
     ) {

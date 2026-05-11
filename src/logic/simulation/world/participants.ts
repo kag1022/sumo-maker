@@ -16,9 +16,18 @@ const resolveTopRankSeasonalAbilityFloor = (
   initialCareerStage?: string,
 ): number | undefined => {
   const declineDiscount = initialCareerStage === 'declining' ? 8 : initialCareerStage === 'veteran' ? 3 : 0;
-  if (rankName === '横綱') return 122 - declineDiscount;
+  if (rankName === '横綱') return 144 - declineDiscount;
   if (rankName === '大関') return 112 - declineDiscount;
   if (rankName === '関脇' || rankName === '小結') return 104 - declineDiscount;
+  return undefined;
+};
+
+const resolveTopRankSeasonalPowerFloor = (
+  rankName: string,
+  initialCareerStage?: string,
+): number | undefined => {
+  const declineDiscount = initialCareerStage === 'declining' ? 7 : initialCareerStage === 'veteran' ? 3 : 0;
+  if (rankName === '横綱') return 134 - declineDiscount;
   return undefined;
 };
 
@@ -134,7 +143,7 @@ export const createDivisionParticipants = (
       npc.form * 3.2 +
       randomNoise(rng, sekitoriAbilityNoise) +
       upperVariance.abilityShock;
-    const seasonalPower =
+    const rawSeasonalPower =
       npc.basePower * npc.form +
       randomNoise(rng, sekitoriPowerNoise) +
       randomNoise(rng, 1.2) +
@@ -142,9 +151,17 @@ export const createDivisionParticipants = (
     const topRankSeasonalFloor = upperVariance.bashoKyujo
       ? undefined
       : resolveTopRankSeasonalAbilityFloor(resolvedRank.name, registryNpc?.initialCareerStage);
+    const topRankSeasonalPowerFloor = upperVariance.bashoKyujo
+      ? undefined
+      : resolveTopRankSeasonalPowerFloor(resolvedRank.name, registryNpc?.initialCareerStage);
     const seasonalAbility = topRankSeasonalFloor == null
       ? rawSeasonalAbility
       : Math.max(rawSeasonalAbility, topRankSeasonalFloor);
+    // 横綱が皆勤出場する場所だけ、ability floor だけでは basePower 側の低下で
+    // strength が大関・三役並みに沈むのを防ぐ。休場判定時は療養扱いを優先する。
+    const seasonalPower = topRankSeasonalPowerFloor == null
+      ? rawSeasonalPower
+      : Math.max(rawSeasonalPower, topRankSeasonalPowerFloor);
 
     return {
       id: npc.id,

@@ -84,6 +84,19 @@ export interface SimulationWorld {
   ozekiKadobanById: Map<string, boolean>;
   ozekiReturnById: Map<string, boolean>;
   lastAllocations: BanzukeAllocation[];
+  lastTopDivisionBoutRows?: Array<{
+    division: TopDivision;
+    day: number;
+    aId: string;
+    bId: string;
+    aRankName?: string;
+    bRankName?: string;
+    aWon?: boolean;
+    aWinProbability?: number;
+    aAbility?: number;
+    bAbility?: number;
+    fusen?: boolean;
+  }>;
   lastExchange: TopDivisionExchange;
   lastSanyakuQuota: PlayerSanyakuQuota;
   lastPlayerAssignedRank?: Rank;

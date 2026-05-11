@@ -29,6 +29,18 @@ export interface SimulationDiagnostics {
   sanyakuRoundRobinCoverageRate?: number;
   joiAssignmentCoverageRate?: number;
   yokozunaOzekiTailBoutRatio?: number;
+  npcTopDivisionBoutRows?: Array<{
+    day: number;
+    aId: string;
+    bId: string;
+    aRankName?: string;
+    bRankName?: string;
+    aWon?: boolean;
+    aWinProbability?: number;
+    aAbility?: number;
+    bAbility?: number;
+    fusen?: boolean;
+  }>;
   bashoVariance?: {
     playerBashoFormDelta: number;
     conditionBefore: number;

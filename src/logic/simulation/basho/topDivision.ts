@@ -99,6 +99,11 @@ export const runTopDivisionBasho = (
   let sosTotal = 0;
   let sosCount = 0;
 
+  type NpcTopDivisionBoutRow = NonNullable<
+    NonNullable<BashoSimulationResult['torikumiDiagnostics']>['npcTopDivisionBoutRows']
+  >[number];
+  const torikumiResultPlaceholder = [] as NpcTopDivisionBoutRow[];
+
   const toTorikumiSekitoriParticipant = (
     topDivision: TopDivision,
     participant: DivisionParticipant,
@@ -163,7 +168,21 @@ export const runTopDivisionBasho = (
         const aRank = resolveTopDivisionRank(aDivision, a.rankScore, world.makuuchiLayout);
         const bRank = resolveTopDivisionRank(bDivision, b.rankScore, world.makuuchiLayout);
         const aWinsBefore = a.wins;
-        simulateNpcBout(a, b, rng);
+        const boutDiagnostic = simulateNpcBout(a, b, rng);
+        if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
+          torikumiResultPlaceholder.push({
+            day,
+            aId: a.id,
+            bId: b.id,
+            aRankName: aRank.name,
+            bRankName: bRank.name,
+            aWon: boutDiagnostic?.aWon,
+            aWinProbability: boutDiagnostic?.aWinProbability,
+            aAbility: boutDiagnostic?.aAbility,
+            bAbility: boutDiagnostic?.bAbility,
+            fusen: boutDiagnostic?.fusen,
+          });
+        }
         if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
           const aWon = a.wins > aWinsBefore;
           const winner = aWon ? a : b;
@@ -424,6 +443,10 @@ export const runTopDivisionBasho = (
   );
   evolveDivisionAfterBasho(world, 'Makuuchi', makuuchiParticipants, rng);
   evolveDivisionAfterBasho(world, 'Juryo', juryoParticipants, rng);
+  world.lastTopDivisionBoutRows = torikumiResultPlaceholder.map((row) => ({
+    division: 'Makuuchi',
+    ...row,
+  }));
 
   const divisionParticipants = division === 'Makuuchi' ? makuuchiParticipants : juryoParticipants;
   const divisionResults = world.lastBashoResults[division] ?? [];
@@ -462,6 +485,9 @@ export const runTopDivisionBasho = (
     playerBoutDetails,
     sameDivisionNpcRecords,
     importantTorikumiNotes,
-    torikumiDiagnostics: torikumiResult.diagnostics,
+    torikumiDiagnostics: {
+      ...torikumiResult.diagnostics,
+      npcTopDivisionBoutRows: torikumiResultPlaceholder,
+    },
   };
 };
