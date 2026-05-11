@@ -34,8 +34,16 @@ export interface YokozunaPromotionResult {
   evidence: YokozunaPromotionEvidence;
 }
 
+const toYushoEquivalentScore = (wins: number): number => {
+  if (wins >= 14) return Math.max(wins, 14.5);
+  if (wins === 13) return 13.5;
+  if (wins === 12) return 12.5;
+  if (wins === 11) return 11.5;
+  return wins;
+};
+
 const toEquivalentScore = (wins: number, yusho?: boolean, junYusho?: boolean): number => {
-  if (yusho) return Math.max(wins, 14.5);
+  if (yusho) return toYushoEquivalentScore(wins);
   if (junYusho) return Math.max(wins, 13.5);
   return wins;
 };
