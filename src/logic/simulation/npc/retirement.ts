@@ -72,14 +72,37 @@ const resolveTopRankExitPressure = (npc: PersistentNpc): number => {
   if (recentTopRankResults.length === 0) return 0;
 
   const latest = recentTopRankResults[recentTopRankResults.length - 1];
-  const effectiveLosses = latest.losses + (latest.absent ?? 0);
+  const latestAbsent = latest.absent ?? 0;
+  const dohyoTotal = latest.wins + latest.losses;
+  const effectiveLosses = latest.losses + latestAbsent;
   const latestTotal = latest.wins + effectiveLosses;
   const latestWinRate = latestTotal > 0 ? latest.wins / latestTotal : 0;
   const latestMakekoshi = latest.wins < effectiveLosses;
+  const latestFullAttendanceMakekoshi =
+    dohyoTotal === 15 && latestAbsent === 0 && latest.wins < latest.losses;
+  const latestFullKyujo = latestAbsent >= 15;
+  const latestNearFullKyujo = latestAbsent >= 10;
   const latestSevere = latestTotal > 0 && latestWinRate <= 0.35;
   const repeatedMakekoshi = recentTopRankResults
     .slice(-3)
     .filter((row) => row.wins < row.losses + (row.absent ?? 0)).length;
+  const consecutiveBadRecord = recentTopRankResults
+    .slice()
+    .reverse()
+    .reduce((streak, row) => {
+      if (streak.done) return streak;
+      const rowBad = row.wins < row.losses + (row.absent ?? 0);
+      return rowBad ? { count: streak.count + 1, done: false } : { ...streak, done: true };
+    }, { count: 0, done: false }).count;
+  const consecutiveKyujo = recentTopRankResults
+    .slice()
+    .reverse()
+    .reduce((streak, row) => {
+      if (streak.done) return streak;
+      return (row.absent ?? 0) > 0
+        ? { count: streak.count + 1, done: false }
+        : { ...streak, done: true };
+    }, { count: 0, done: false }).count;
   const severeCount = recentTopRankResults
     .filter((row) => {
       const losses = row.losses + (row.absent ?? 0);
@@ -98,15 +121,20 @@ const resolveTopRankExitPressure = (npc: PersistentNpc): number => {
 
   if (latest.rankName === '横綱') {
     return clamp(
-      (latestMakekoshi ? 0.004 : 0) +
-        (latestSevere ? 0.020 : 0) +
-        Math.max(0, repeatedMakekoshi - 1) * 0.014 +
-        severeCount * 0.010 +
-        Math.max(0, absenceTotal - 4) * 0.002 +
+      (latestMakekoshi ? 0.012 : 0) +
+        (latestFullAttendanceMakekoshi ? 0.200 : 0) +
+        (latestSevere ? 0.055 : 0) +
+        (latestFullKyujo ? 0.050 : 0) +
+        (latestNearFullKyujo && !latestFullKyujo ? 0.020 : 0) +
+        Math.max(0, repeatedMakekoshi - 1) * 0.035 +
+        Math.max(0, consecutiveBadRecord - 1) * 0.070 +
+        Math.max(0, consecutiveKyujo - 1) * 0.035 +
+        severeCount * 0.018 +
+        Math.max(0, absenceTotal - 4) * 0.003 +
         agePressure * 0.35 +
         stagePressure * 0.45,
       0,
-      0.08,
+      0.45,
     );
   }
 
