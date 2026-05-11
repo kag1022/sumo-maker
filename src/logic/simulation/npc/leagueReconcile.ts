@@ -8,6 +8,7 @@ import { SekitoriBoundaryWorld } from '../sekitori/types';
 import { SimulationWorld } from '../world';
 import { countActiveBanzukeHeadcountExcludingMaezumo } from '../world';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../../banzuke/population/flow';
+import { buildMakuuchiLayoutFromRanks, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
 
 type LeagueDivision =
   | 'Makuuchi'
@@ -281,6 +282,44 @@ const toMakushitaPoolNpc = (
   stagnation: npc.stagnation,
 });
 
+const assignCanonicalMakuuchiRankScores = (
+  bucket: PersistentNpc[],
+  world: SimulationWorld,
+): void => {
+  const ranks = bucket.map((npc) =>
+    decodeMakuuchiRankFromScore(npc.rankScore, world.makuuchiLayout),
+  );
+  const layout = buildMakuuchiLayoutFromRanks(ranks);
+  const sectionStart = {
+    横綱: 1,
+    大関: 1 + layout.yokozuna,
+    関脇: 1 + layout.yokozuna + layout.ozeki,
+    小結: 1 + layout.yokozuna + layout.ozeki + layout.sekiwake,
+    前頭: 1 + layout.yokozuna + layout.ozeki + layout.sekiwake + layout.komusubi,
+  };
+  const cursors: Record<'横綱' | '大関' | '関脇' | '小結' | '前頭', number> = {
+    横綱: 0,
+    大関: 0,
+    関脇: 0,
+    小結: 0,
+    前頭: 0,
+  };
+
+  for (let i = 0; i < bucket.length; i += 1) {
+    const rankName = ranks[i].name;
+    const sectionName =
+      rankName === '横綱' ||
+      rankName === '大関' ||
+      rankName === '関脇' ||
+      rankName === '小結'
+        ? rankName
+        : '前頭';
+    bucket[i].rankScore = sectionStart[sectionName] + cursors[sectionName];
+    cursors[sectionName] += 1;
+  }
+  world.makuuchiLayout = layout;
+};
+
 export const reconcileNpcLeague = (
   world: SimulationWorld,
   lowerWorld: LowerDivisionQuotaWorld,
@@ -418,11 +457,19 @@ export const reconcileNpcLeague = (
 
   const orderedBuckets = ORDER.reduce((acc, division) => {
     const bucket = toBucketArray(buckets[division]);
-    for (let i = 0; i < bucket.length; i += 1) {
-      const npc = bucket[i];
-      npc.currentDivision = division;
-      npc.division = division;
-      npc.rankScore = i + 1;
+    if (division === 'Makuuchi') {
+      assignCanonicalMakuuchiRankScores(bucket, world);
+      for (const npc of bucket) {
+        npc.currentDivision = division;
+        npc.division = division;
+      }
+    } else {
+      for (let i = 0; i < bucket.length; i += 1) {
+        const npc = bucket[i];
+        npc.currentDivision = division;
+        npc.division = division;
+        npc.rankScore = i + 1;
+      }
     }
     acc[division] = bucket;
     return acc;
