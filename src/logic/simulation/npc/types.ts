@@ -6,6 +6,14 @@ export type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
 export type ActiveDivision = TopDivision | LowerDivision;
 export type ActorType = 'PLAYER' | 'NPC';
 export type NpcNamingSchoolId = 'HAYATE' | 'TRADITION' | 'KAREI' | 'GORIKI';
+export type NpcStableNamingProfileId =
+  | 'CLASSIC_WAKA'
+  | 'REFINED_KOTO'
+  | 'GORIKI_DRAGON'
+  | 'NATURE'
+  | 'LOCAL'
+  | 'PLAIN'
+  | 'SURNAME';
 
 export interface NpcBashoResult {
   division: Division;
@@ -82,7 +90,9 @@ export interface NpcNameContext {
   blockedNormalizedShikona: Set<string>;
   stableCrownById: Map<string, string>;
   stableSchoolById: Map<string, NpcNamingSchoolId>;
+  stableProfileById: Map<string, NpcStableNamingProfileId>;
   fallbackSerial: number;
+  denylistRejectedCount: number;
 }
 
 export interface NpcUniverse {
