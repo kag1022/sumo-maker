@@ -164,6 +164,15 @@ const resolveSanyakuVacancies = (
   return { sekiwake: sekiwakeVacancies, komusubi: komusubiVacancies };
 };
 
+const resolveTopRankPopulation = (
+  entries: ComposeNextBanzukeInput['entries'],
+): { currentYokozunaCount: number; currentOzekiCount: number } => ({
+  currentYokozunaCount: entries.filter((entry) =>
+    entry.currentRank.division === 'Makuuchi' && entry.currentRank.name === '横綱').length,
+  currentOzekiCount: entries.filter((entry) =>
+    entry.currentRank.division === 'Makuuchi' && entry.currentRank.name === '大関').length,
+});
+
 export const composeNextBanzuke = (
   input: ComposeNextBanzukeInput,
 ): ComposeNextBanzukeOutput => {
@@ -171,6 +180,7 @@ export const composeNextBanzuke = (
   const proposedById = new Map<string, BanzukeComposeAllocation['proposedChange']>();
   const proposalSourceById = new Map<string, BanzukeProposalSource>();
   const sanyakuVacancies = resolveSanyakuVacancies(input.entries);
+  const topRankPopulation = resolveTopRankPopulation(input.entries);
 
   for (const entry of input.entries) {
     const proposalSource = resolveProposalSource(input, entry);
@@ -178,6 +188,7 @@ export const composeNextBanzuke = (
     const entryOptions: typeof entry.options = {
       ...(entry.options ?? {}),
       isOzekiReturn: entry.isOzekiReturn,
+      topRankPopulation: entry.options?.topRankPopulation ?? topRankPopulation,
     };
     if (
       entry.currentRank.division === 'Makuuchi' &&

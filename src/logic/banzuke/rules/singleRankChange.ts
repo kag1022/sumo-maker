@@ -1105,7 +1105,7 @@ export const calculateNextRank = (
 
   // 2. 大関
   if (currentRank.name === '大関') {
-    if (canPromoteToYokozuna(currentRecord, pastRecords)) {
+    if (canPromoteToYokozuna(currentRecord, pastRecords, undefined, options?.topRankPopulation)) {
       return finalize({
         nextRank: { division: 'Makuuchi', name: '横綱', side: 'East' },
         event: 'PROMOTION_TO_YOKOZUNA',
@@ -1139,7 +1139,7 @@ export const calculateNextRank = (
   }
 
   // 3. 小結/関脇 -> 大関（3場所すべて小結/関脇で合計33勝以上 + 直近10勝以上）
-  if (canPromoteToOzekiBy33Wins(currentRecord, pastRecords)) {
+  if (canPromoteToOzekiBy33Wins(currentRecord, pastRecords, options?.topRankPopulation)) {
     return finalize({
       nextRank: { division: 'Makuuchi', name: '大関', side: 'East' },
       event: 'PROMOTION_TO_OZEKI',
@@ -1155,10 +1155,10 @@ export const calculateNextRank = (
   ) {
     const blockedAssignedOzeki =
       assignedTopRank.name === '大関' &&
-      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords);
+      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords, options?.topRankPopulation);
     const blockedAssignedYokozuna =
       assignedTopRank.name === '横綱' &&
-      !canPromoteToYokozuna(currentRecord, pastRecords);
+      !canPromoteToYokozuna(currentRecord, pastRecords, undefined, options?.topRankPopulation);
     if (!blockedAssignedOzeki && !blockedAssignedYokozuna) {
       const assignmentDetail = resolveTopDivisionAssignedEventDetail(currentRank, assignedTopRank);
       return finalize({
@@ -1186,10 +1186,10 @@ export const calculateNextRank = (
   ) {
     const blockedBoundaryYokozuna =
       assignedBoundaryRank.name === '横綱' &&
-      !canPromoteToYokozuna(currentRecord, pastRecords);
+      !canPromoteToYokozuna(currentRecord, pastRecords, undefined, options?.topRankPopulation);
     const blockedBoundaryOzeki =
       assignedBoundaryRank.name === '大関' &&
-      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords);
+      !canPromoteToOzekiBy33Wins(currentRecord, pastRecords, options?.topRankPopulation);
     if (blockedBoundaryYokozuna || blockedBoundaryOzeki) {
       return finalize(calculateStandardRankChange(currentRecord, options, rng));
     }

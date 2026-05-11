@@ -1,5 +1,6 @@
 import { BashoRecord } from '../../models';
 import { BashoRecordSnapshot } from '../providers/sekitori/types';
+import { TopRankPopulationContext, resolveOzekiPromotionPressure } from './topRankPromotionPressure';
 
 type OzekiPromotionRecord = {
   rankName: string;
@@ -11,6 +12,10 @@ export interface OzekiPromotionEvaluation {
   qualityScore: number;
   recommended: boolean;
   totalWins: number;
+  requiredTotalWins: number;
+  requiredQualityScore: number;
+  populationPressure: number;
+  currentOzekiCount?: number;
 }
 
 export const isSanyakuName = (name: string): boolean =>
@@ -20,36 +25,56 @@ const evaluateOzekiPromotionCore = (
   current: OzekiPromotionRecord,
   prev1?: OzekiPromotionRecord,
   prev2?: OzekiPromotionRecord,
+  populationContext?: TopRankPopulationContext,
 ): OzekiPromotionEvaluation => {
+  const populationPressure = resolveOzekiPromotionPressure(populationContext?.currentOzekiCount);
+  const requiredTotalWins = 33 + populationPressure;
+  const requiredQualityScore = 34 + Math.max(0, populationPressure * 0.5);
+  const reject = (): OzekiPromotionEvaluation => ({
+    passedFormal: false,
+    qualityScore: 0,
+    recommended: false,
+    totalWins: 0,
+    requiredTotalWins,
+    requiredQualityScore,
+    populationPressure,
+    currentOzekiCount: populationContext?.currentOzekiCount,
+  });
+
   if (!isSanyakuName(current.rankName) || !prev1 || !prev2) {
-    return { passedFormal: false, qualityScore: 0, recommended: false, totalWins: 0 };
+    return reject();
   }
 
   const chain = [current, prev1, prev2];
   if (!chain.every((record) => isSanyakuName(record.rankName))) {
-    return { passedFormal: false, qualityScore: 0, recommended: false, totalWins: 0 };
+    return reject();
   }
 
   const totalWins = chain.reduce((sum, record) => sum + record.wins, 0);
-  const passedFormal = totalWins >= 33 && current.wins >= 10;
+  const passedFormal = totalWins >= requiredTotalWins && current.wins >= 10;
 
   const currentWeight = current.rankName === '関脇' ? 1.05 : 1;
   const consistencyBonus = Math.max(0, Math.min(prev1.wins, prev2.wins) - 10) * 0.35;
   const explosiveBonus = current.wins >= 12 ? 1.25 : current.wins >= 11 ? 0.6 : 0;
   const qualityScore = totalWins * currentWeight + consistencyBonus + explosiveBonus;
-  const recommended = passedFormal && qualityScore >= 34;
+  const recommended = passedFormal && qualityScore >= requiredQualityScore;
 
   return {
     passedFormal,
     qualityScore,
     recommended,
     totalWins,
+    requiredTotalWins,
+    requiredQualityScore,
+    populationPressure,
+    currentOzekiCount: populationContext?.currentOzekiCount,
   };
 };
 
 export const evaluateOzekiPromotion = (
   currentRecord: BashoRecord,
   historyWindow: BashoRecord[],
+  populationContext?: TopRankPopulationContext,
 ): OzekiPromotionEvaluation =>
   evaluateOzekiPromotionCore(
     {
@@ -68,6 +93,7 @@ export const evaluateOzekiPromotion = (
         wins: historyWindow[1].wins,
       }
       : undefined,
+    populationContext,
   );
 
 export const evaluateSnapshotOzekiPromotion = (
@@ -90,13 +116,15 @@ export const evaluateSnapshotOzekiPromotion = (
         wins: snapshot.pastRecords[1].wins,
       }
       : undefined,
+    snapshot.topRankPopulation,
   );
 
 export const canPromoteToOzekiBy33Wins = (
   currentRecord: BashoRecord,
   historyWindow: BashoRecord[],
+  populationContext?: TopRankPopulationContext,
 ): boolean =>
-  evaluateOzekiPromotion(currentRecord, historyWindow).recommended;
+  evaluateOzekiPromotion(currentRecord, historyWindow, populationContext).recommended;
 
 export const canPromoteSnapshotToOzekiBy33Wins = (
   snapshot: BashoRecordSnapshot,

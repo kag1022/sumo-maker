@@ -90,6 +90,12 @@ interface PromotionEvent {
   decisionBand: string;
   qualityScore: number | null;
   totalWindowWins: number | null;
+  currentYokozunaCount: number;
+  currentOzekiCount: number;
+  populationPressure: number;
+  wouldPromoteWithoutPressure: boolean;
+  pressureBlockedPromotion: boolean;
+  pressureRelaxedPromotion: boolean;
   suspicious: boolean;
   suspicionReasons: string[];
 }
@@ -101,6 +107,12 @@ interface WorldDiagnostic {
   publicEraLabel: string | null;
   eraTags: string[];
   promotions: PromotionEvent[];
+  pressureEffects: {
+    yokozunaBlocked: number;
+    yokozunaRelaxed: number;
+    ozekiBlocked: number;
+    ozekiRelaxed: number;
+  };
 }
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000;
@@ -212,6 +224,7 @@ const toBashoSnapshot = (
   },
   pastRecords: BashoRecordHistorySnapshot[],
   isOzekiReturn = false,
+  topRankPopulation?: { currentYokozunaCount: number; currentOzekiCount: number },
 ): BashoRecordSnapshot => ({
   id: result.id,
   shikona: result.shikona,
@@ -227,6 +240,7 @@ const toBashoSnapshot = (
   specialPrizes: result.specialPrizes ?? [],
   pastRecords,
   isOzekiReturn,
+  topRankPopulation,
 });
 
 const buildSuspicionReasons = (
@@ -296,13 +310,47 @@ const runWorld = async (
   );
 
   const promotions: PromotionEvent[] = [];
+  const pressureEffects = {
+    yokozunaBlocked: 0,
+    yokozunaRelaxed: 0,
+    ozekiBlocked: 0,
+    ozekiRelaxed: 0,
+  };
   for (let b = 0; b < BASHO; b += 1) {
     const beforeWorld = runtime.__getWorldForDiagnostics();
     const beforeById = snapshotActorBeforeBasho(beforeWorld);
+    const topRankPopulation = {
+      currentYokozunaCount: beforeWorld.makuuchiLayout.yokozuna,
+      currentOzekiCount: beforeWorld.makuuchiLayout.ozeki,
+    };
     const step = await runtime.runNextSeasonStep();
     if (step.kind === 'COMPLETED') break;
     const world = runtime.__getWorldForDiagnostics();
     const resultById = new Map((world.lastBashoResults.Makuuchi ?? []).map((result) => [result.id, result]));
+    for (const result of world.lastBashoResults.Makuuchi ?? []) {
+      if (!result.rank) continue;
+      const history = world.recentSekitoriHistory.get(result.id) ?? [];
+      const snapshot = toBashoSnapshot(result, history.slice(1, 3), beforeWorld.ozekiReturnById.get(result.id) ?? false, topRankPopulation);
+      const snapshotWithoutPressure: BashoRecordSnapshot = {
+        ...snapshot,
+        topRankPopulation: undefined,
+      };
+      if (snapshot.rank.name === '大関') {
+        const actual = evaluateYokozunaPromotion(snapshot).promote;
+        const baseline = evaluateYokozunaPromotion(snapshotWithoutPressure).promote;
+        if (baseline && !actual) pressureEffects.yokozunaBlocked += 1;
+        if (!baseline && actual) pressureEffects.yokozunaRelaxed += 1;
+      }
+      if (
+        !snapshot.isOzekiReturn &&
+        (snapshot.rank.name === '関脇' || snapshot.rank.name === '小結')
+      ) {
+        const actual = evaluateSnapshotOzekiPromotion(snapshot).recommended;
+        const baseline = evaluateSnapshotOzekiPromotion(snapshotWithoutPressure).recommended;
+        if (baseline && !actual) pressureEffects.ozekiBlocked += 1;
+        if (!baseline && actual) pressureEffects.ozekiRelaxed += 1;
+      }
+    }
     const allocationPromotions = world.lastAllocations.filter((allocation) =>
       (allocation.currentRank.name === '大関' && allocation.nextRank.name === '横綱') ||
       (allocation.currentRank.name !== '大関' &&
@@ -315,7 +363,11 @@ const runWorld = async (
       const history = world.recentSekitoriHistory.get(allocation.id) ?? [];
       const pastRecords = history.slice(1, 3);
       const wasOzekiReturn = beforeWorld.ozekiReturnById.get(allocation.id) ?? false;
-      const snapshot = toBashoSnapshot(result, pastRecords, wasOzekiReturn);
+      const snapshot = toBashoSnapshot(result, pastRecords, wasOzekiReturn, topRankPopulation);
+      const snapshotWithoutPressure: BashoRecordSnapshot = {
+        ...snapshot,
+        topRankPopulation: undefined,
+      };
       const kind: PromotionKind = allocation.nextRank.name === '横綱'
         ? 'YOKOZUNA'
         : wasOzekiReturn
@@ -330,6 +382,26 @@ const runWorld = async (
       const recentWins = [snapshot.wins, ...pastRecords.map((record) => record.wins)];
       const yokozunaEval = evaluateYokozunaPromotion(snapshot);
       const ozekiEval = evaluateSnapshotOzekiPromotion(snapshot);
+      const baselineYokozunaEval = evaluateYokozunaPromotion(snapshotWithoutPressure);
+      const baselineOzekiEval = evaluateSnapshotOzekiPromotion(snapshotWithoutPressure);
+      const actualPromoted =
+        kind === 'YOKOZUNA'
+          ? yokozunaEval.promote
+          : kind === 'OZEKI_RETURN'
+            ? snapshot.rank.name === '関脇' && snapshot.wins >= 10
+            : ozekiEval.recommended;
+      const baselinePromoted =
+        kind === 'YOKOZUNA'
+          ? baselineYokozunaEval.promote
+          : kind === 'OZEKI_RETURN'
+            ? actualPromoted
+            : baselineOzekiEval.recommended;
+      const populationPressure =
+        kind === 'YOKOZUNA'
+          ? yokozunaEval.evidence.populationPressure
+          : kind === 'OZEKI_NEW'
+            ? ozekiEval.populationPressure
+            : 0;
       const baseEvent = {
         kind,
         basho: b + 1,
@@ -383,6 +455,12 @@ const runWorld = async (
           kind === 'YOKOZUNA' ? yokozunaEval.score : round3(ozekiEval.qualityScore),
         totalWindowWins:
           kind === 'YOKOZUNA' ? round3(yokozunaEval.evidence.combinedEquivalent) : ozekiEval.totalWins,
+        currentYokozunaCount: topRankPopulation.currentYokozunaCount,
+        currentOzekiCount: topRankPopulation.currentOzekiCount,
+        populationPressure,
+        wouldPromoteWithoutPressure: baselinePromoted,
+        pressureBlockedPromotion: baselinePromoted && !actualPromoted,
+        pressureRelaxedPromotion: !baselinePromoted && actualPromoted && populationPressure < 0,
       };
       const suspicionReasons = buildSuspicionReasons(kind, baseEvent);
       promotions.push({
@@ -400,6 +478,7 @@ const runWorld = async (
     publicEraLabel: spec.snapshot?.publicEraLabel ?? null,
     eraTags: spec.snapshot?.eraTags ?? [],
     promotions,
+    pressureEffects,
   };
 };
 
@@ -422,6 +501,8 @@ const summarizeWorld = (world: WorldDiagnostic) => {
       formalMiss: events.filter((event) => !event.formalGatePassed).length,
       floorTouched: events.filter((event) => event.abilityBelowFloor).length,
       materialFloorLift: events.filter((event) => event.estimatedFloorLift >= 4).length,
+      pressureBlocked: events.filter((event) => event.pressureBlockedPromotion).length,
+      pressureRelaxed: events.filter((event) => event.pressureRelaxedPromotion).length,
       avgWins: avg((event) => event.wins),
       avgExpectedWins: avg((event) => event.expectedWins),
       avgPoe: avg((event) => event.performanceOverExpected),
@@ -439,6 +520,7 @@ const summarizeWorld = (world: WorldDiagnostic) => {
     ozeki: summarizeKind('OZEKI_NEW'),
     ozekiReturn: summarizeKind('OZEKI_RETURN'),
     promotions: world.promotions,
+    pressureEffects: world.pressureEffects,
   };
 };
 
@@ -453,23 +535,29 @@ const writeMarkdown = (
     '',
     '## Summary',
     '',
-    '| world | seed | tags | Y promotions/year | Y suspicious | Y floor touched | Y avg wins/exp/POE | new O promotions/year | O suspicious | O floor touched | O avg wins/exp/POE | O returns/year |',
-    '| --- | ---:| --- | ---:| ---:| ---:| --- | ---:| ---:| ---:| --- |',
+    '| world | seed | tags | Y promotions/year | Y pressure blocked/relaxed | Y avg count/pressure | Y suspicious | Y floor touched | Y avg wins/exp/POE | new O promotions/year | O pressure blocked/relaxed | O avg count/pressure | O suspicious | O floor touched | O avg wins/exp/POE | O returns/year |',
+    '| --- | ---:| --- | ---:| --- | --- | ---:| ---:| --- | ---:| --- | --- | ---:| ---:| --- | --- |',
   ];
   for (const summary of summaries) {
+    const avgEvent = (events: PromotionEvent[], selector: (event: PromotionEvent) => number): number | string => {
+      if (events.length === 0) return '-';
+      return round3(events.reduce((sum, event) => sum + selector(event), 0) / events.length);
+    };
+    const yEvents = summary.promotions.filter((event) => event.kind === 'YOKOZUNA');
+    const oEvents = summary.promotions.filter((event) => event.kind === 'OZEKI_NEW');
     lines.push(
-      `| ${summary.label} | ${summary.seed} | ${summary.eraTags.join(', ') || '-'} | ${summary.yokozuna.count}/${summary.yokozuna.perYear} | ${summary.yokozuna.suspicious} | ${summary.yokozuna.floorTouched} | ${summary.yokozuna.avgWins ?? '-'}/${summary.yokozuna.avgExpectedWins ?? '-'}/${summary.yokozuna.avgPoe ?? '-'} | ${summary.ozeki.count}/${summary.ozeki.perYear} | ${summary.ozeki.suspicious} | ${summary.ozeki.floorTouched} | ${summary.ozeki.avgWins ?? '-'}/${summary.ozeki.avgExpectedWins ?? '-'}/${summary.ozeki.avgPoe ?? '-'} | ${summary.ozekiReturn.count}/${summary.ozekiReturn.perYear} |`,
+      `| ${summary.label} | ${summary.seed} | ${summary.eraTags.join(', ') || '-'} | ${summary.yokozuna.count}/${summary.yokozuna.perYear} | ${summary.pressureEffects.yokozunaBlocked}/${summary.pressureEffects.yokozunaRelaxed} | ${avgEvent(yEvents, (event) => event.currentYokozunaCount)}/${avgEvent(yEvents, (event) => event.populationPressure)} | ${summary.yokozuna.suspicious} | ${summary.yokozuna.floorTouched} | ${summary.yokozuna.avgWins ?? '-'}/${summary.yokozuna.avgExpectedWins ?? '-'}/${summary.yokozuna.avgPoe ?? '-'} | ${summary.ozeki.count}/${summary.ozeki.perYear} | ${summary.pressureEffects.ozekiBlocked}/${summary.pressureEffects.ozekiRelaxed} | ${avgEvent(oEvents, (event) => event.currentOzekiCount)}/${avgEvent(oEvents, (event) => event.populationPressure)} | ${summary.ozeki.suspicious} | ${summary.ozeki.floorTouched} | ${summary.ozeki.avgWins ?? '-'}/${summary.ozeki.avgExpectedWins ?? '-'}/${summary.ozeki.avgPoe ?? '-'} | ${summary.ozekiReturn.count}/${summary.ozekiReturn.perYear} |`,
     );
   }
   lines.push('');
   lines.push('## Suspicious Promotions');
   lines.push('');
-  lines.push('| world | seed | basho | kind | from -> to | record | recent wins | recent ranks | ability/floor/lift | decision | reasons |');
-  lines.push('| --- | ---:| ---:| --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| world | seed | basho | kind | from -> to | record | count Y/O | pressure | recent wins | recent ranks | ability/floor/lift | decision | reasons |');
+  lines.push('| --- | ---:| ---:| --- | --- | --- | --- | ---:| --- | --- | --- | --- | --- |');
   for (const summary of summaries) {
     for (const event of summary.promotions.filter((row) => row.suspicious)) {
       lines.push(
-        `| ${summary.label} | ${summary.seed} | ${event.basho} | ${event.kind} | ${event.fromRank} -> ${event.toRank} | ${event.wins}-${event.losses}-${event.absent} | ${event.recentWins.join('/')} | ${event.recentRanks.join(' / ')} | ${event.abilityBefore ?? '-'} / ${event.topRankFloor ?? '-'} / ${event.estimatedFloorLift} | ${event.decisionBand} | ${event.suspicionReasons.join('; ')} |`,
+        `| ${summary.label} | ${summary.seed} | ${event.basho} | ${event.kind} | ${event.fromRank} -> ${event.toRank} | ${event.wins}-${event.losses}-${event.absent} | ${event.currentYokozunaCount}/${event.currentOzekiCount} | ${event.populationPressure} | ${event.recentWins.join('/')} | ${event.recentRanks.join(' / ')} | ${event.abilityBefore ?? '-'} / ${event.topRankFloor ?? '-'} / ${event.estimatedFloorLift} | ${event.decisionBand} | ${event.suspicionReasons.join('; ')} |`,
       );
     }
   }
@@ -479,6 +567,7 @@ const writeMarkdown = (
   lines.push('- `promotions/year` は `count / (basho / 6)`。60場所なら10年換算。');
   lines.push('- `floor touched` は、場所開始時の persistent ability が現在地位の top-rank floor を下回っていた昇進。seasonal raw ability は現状ログ化されていないため、floor 影響の近似信号として読む。');
   lines.push('- 横綱昇進は `evaluateYokozunaPromotion`、新大関昇進は `evaluateSnapshotOzekiPromotion` の formal/recommended 判定と照合する。大関特例復帰は別枠で数える。');
+  lines.push('- `pressure blocked/relaxed` は、現在人数による補正を外した評価との差分。大関特例復帰は population pressure の対象外。');
   lines.push('- 本診断はハード上限、強制引退、成績無関係の降格を導入しない。');
   fs.writeFileSync(path.join(outDir, 'top_rank_promotion_frequency_diagnostics.md'), lines.join('\n'));
 };
@@ -547,7 +636,13 @@ const main = async (): Promise<void> => {
       `  yokozuna promotions=${summary.yokozuna.count} perYear=${summary.yokozuna.perYear} suspicious=${summary.yokozuna.suspicious} formalMiss=${summary.yokozuna.formalMiss} floorTouched=${summary.yokozuna.floorTouched} materialFloor=${summary.yokozuna.materialFloorLift} avgW=${summary.yokozuna.avgWins ?? '-'} exp=${summary.yokozuna.avgExpectedWins ?? '-'} poe=${summary.yokozuna.avgPoe ?? '-'}`,
     );
     console.log(
+      `  yokozuna pressure blocked=${summary.pressureEffects.yokozunaBlocked} relaxed=${summary.pressureEffects.yokozunaRelaxed}`,
+    );
+    console.log(
       `  new ozeki promotions=${summary.ozeki.count} perYear=${summary.ozeki.perYear} suspicious=${summary.ozeki.suspicious} formalMiss=${summary.ozeki.formalMiss} floorTouched=${summary.ozeki.floorTouched} materialFloor=${summary.ozeki.materialFloorLift} avgW=${summary.ozeki.avgWins ?? '-'} exp=${summary.ozeki.avgExpectedWins ?? '-'} poe=${summary.ozeki.avgPoe ?? '-'}`,
+    );
+    console.log(
+      `  new ozeki pressure blocked=${summary.pressureEffects.ozekiBlocked} relaxed=${summary.pressureEffects.ozekiRelaxed}`,
     );
     console.log(
       `  ozeki returns=${summary.ozekiReturn.count} perYear=${summary.ozekiReturn.perYear} suspicious=${summary.ozekiReturn.suspicious} avgW=${summary.ozekiReturn.avgWins ?? '-'}`,

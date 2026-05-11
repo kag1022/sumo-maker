@@ -1,6 +1,7 @@
 import { BALANCE } from '../../balance';
 import { BashoRecord } from '../../models';
 import { BashoRecordSnapshot } from '../providers/sekitori/types';
+import { TopRankPopulationContext, resolveYokozunaPromotionPressure } from './topRankPromotionPressure';
 
 export type YokozunaPromotionDecisionBand = 'AUTO_PROMOTE' | 'BORDERLINE' | 'BORDERLINE_PROMOTE' | 'REJECT';
 
@@ -18,6 +19,9 @@ export interface YokozunaPromotionEvidence {
   hasEquivalentPair: boolean;
   hasYushoPair: boolean;
   hasRealisticTotal: boolean;
+  requiredTotalScore: number;
+  populationPressure: number;
+  currentYokozunaCount?: number;
 }
 
 export interface YokozunaDeliberationContext {
@@ -51,6 +55,7 @@ const toEquivalentScore = (wins: number, yusho?: boolean, junYusho?: boolean): n
 const buildYokozunaEvidence = (
   current: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean },
   prev: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean } | undefined,
+  populationContext?: TopRankPopulationContext,
 ): YokozunaPromotionEvidence => {
   const currentEquivalent = toEquivalentScore(current.wins, current.yusho, current.junYusho);
   const prevEquivalent = prev
@@ -65,7 +70,9 @@ const buildYokozunaEvidence = (
   const prevYushoEquivalent = Boolean(prev?.yusho || prev?.junYusho);
   const hasActualYushoInWindow = Boolean(current.yusho || prev?.yusho);
   const hasYushoPair = Boolean(currentYushoEquivalent && prevYushoEquivalent && hasActualYushoInWindow);
-  const hasRealisticTotal = combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore;
+  const populationPressure = resolveYokozunaPromotionPressure(populationContext?.currentYokozunaCount);
+  const requiredTotalScore = BALANCE.yokozuna.yushoEquivalentTotalMinScore + populationPressure;
+  const hasRealisticTotal = combinedEquivalent >= requiredTotalScore;
 
   return {
     isCurrentOzeki,
@@ -81,6 +88,9 @@ const buildYokozunaEvidence = (
     hasEquivalentPair,
     hasYushoPair,
     hasRealisticTotal,
+    requiredTotalScore,
+    populationPressure,
+    currentYokozunaCount: populationContext?.currentYokozunaCount,
   };
 };
 
@@ -95,7 +105,7 @@ const evaluateYokozunaDecisionBand = (
     evidence.currentYushoEquivalent &&
     evidence.hasActualYushoInWindow &&
     evidence.currentEquivalent >= BALANCE.yokozuna.yushoEquivalentMinScore &&
-    evidence.combinedEquivalent >= BALANCE.yokozuna.yushoEquivalentTotalMinScore - 1
+    evidence.combinedEquivalent >= evidence.requiredTotalScore - 1
   ) {
     return 'BORDERLINE';
   }
@@ -156,8 +166,9 @@ const evaluateCore = (
   current: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean },
   prev: { rankName: string; wins: number; yusho?: boolean; junYusho?: boolean } | undefined,
   deliberationContext?: YokozunaDeliberationContext,
+  populationContext?: TopRankPopulationContext,
 ): YokozunaPromotionResult => {
-  const evidence = buildYokozunaEvidence(current, prev);
+  const evidence = buildYokozunaEvidence(current, prev, populationContext);
   const decisionBand = evaluateYokozunaDecisionBand(evidence);
   if (decisionBand === 'AUTO_PROMOTE') {
     return {
@@ -218,12 +229,14 @@ export const evaluateYokozunaPromotion = (
       }
       : undefined,
     deliberationContext,
+    snapshot.topRankPopulation,
   );
 
 export const canPromoteToYokozuna = (
   current: BashoRecord,
   pastRecords: BashoRecord[],
   deliberationContext?: YokozunaDeliberationContext,
+  populationContext?: TopRankPopulationContext,
 ): boolean => {
   const result = evaluateCore(
     {
@@ -241,6 +254,7 @@ export const canPromoteToYokozuna = (
       }
       : undefined,
     deliberationContext,
+    populationContext,
   );
   return result.decisionBand === 'AUTO_PROMOTE' || result.decisionBand === 'BORDERLINE_PROMOTE';
 };

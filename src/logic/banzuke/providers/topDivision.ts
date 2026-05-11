@@ -135,6 +135,10 @@ export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllo
       .filter((record) => record.rank.division === 'Makuuchi')
       .map((record) => record.rank),
   );
+  const topRankPopulation = {
+    currentYokozunaCount: currentLayout.yokozuna,
+    currentOzekiCount: currentLayout.ozeki,
+  };
   const context = buildSekitoriContextSnapshot(activeSekitori);
 
   const candidates: BanzukeCandidate[] = activeSekitori.map((snapshot) => {
@@ -144,10 +148,14 @@ export const generateNextBanzuke = (records: BashoRecordSnapshot[]): BanzukeAllo
       snapshot.losses,
       snapshot.absent,
     );
-    const directive = resolveTopDirective(snapshot);
+    const snapshotWithPopulation: BashoRecordSnapshot = {
+      ...snapshot,
+      topRankPopulation: snapshot.topRankPopulation ?? topRankPopulation,
+    };
+    const directive = resolveTopDirective(snapshotWithPopulation);
     const currentSlot = toSekitoriSlot(snapshot.rank, currentLayout);
     const orderProfile = buildSekitoriOrderProfile(
-      snapshot,
+      snapshotWithPopulation,
       directive,
       currentSlot,
       context,
