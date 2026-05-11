@@ -171,6 +171,35 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'ranking: yokozuna promotion pressure blocks marginal total in crowded top rank',
+    run: () => {
+      const snapshot = {
+        id: 'ozeki-a',
+        shikona: '大関A',
+        rank: { division: 'Makuuchi', name: '大関', side: 'East' } as Rank,
+        wins: 15,
+        losses: 0,
+        absent: 0,
+        yusho: true,
+        topRankPopulation: { currentYokozunaCount: 6, currentOzekiCount: 2 },
+        pastRecords: [
+          {
+            rank: { division: 'Makuuchi', name: '大関', side: 'West' } as Rank,
+            wins: 14,
+            losses: 1,
+            absent: 0,
+            junYusho: true,
+          },
+        ],
+      };
+      const pressured = evaluateYokozunaPromotion(snapshot);
+      const baseline = evaluateYokozunaPromotion({ ...snapshot, topRankPopulation: undefined });
+      assert.equal(baseline.promote, true);
+      assert.equal(pressured.promote, false);
+      assert.equal(pressured.evidence.populationPressure, 0.75);
+    },
+  },
+  {
     name: 'ranking: ozeki kadoban demotion sets return-chance flag',
     run: () => {
       const ozeki: Rank = { division: 'Makuuchi', name: '大関', side: 'East' };
@@ -206,6 +235,21 @@ export const tests: TestCase[] = [
       const result = calculateNextRank(current, [prev1, prev2], false, () => 0.5);
       assert.equal(result.nextRank.name, '大関');
       assert.equal(result.event, 'PROMOTION_TO_OZEKI');
+    },
+  },
+  {
+    name: 'ranking: ozeki promotion pressure blocks 33 wins when ozeki ranks are crowded',
+    run: () => {
+      const sekiwake: Rank = { division: 'Makuuchi', name: '関脇', side: 'East' };
+      const current = createBashoRecord(sekiwake, 11, 4);
+      const prev1 = createBashoRecord(sekiwake, 11, 4);
+      const prev2 = createBashoRecord({ division: 'Makuuchi', name: '小結', side: 'West' }, 11, 4);
+      const baseline = calculateNextRank(current, [prev1, prev2], false, () => 0.5);
+      const pressured = calculateNextRank(current, [prev1, prev2], false, () => 0.5, {
+        topRankPopulation: { currentYokozunaCount: 2, currentOzekiCount: 5 },
+      });
+      assert.equal(baseline.nextRank.name, '大関');
+      assert.ok(pressured.nextRank.name !== '大関');
     },
   },
   {

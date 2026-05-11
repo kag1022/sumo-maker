@@ -1,4 +1,5 @@
 import { Rank } from '../../../models';
+import { TopRankPopulationContext } from '../../rules/topRankPromotionPressure';
 
 export type SekitoriDivision = 'Makuuchi' | 'Juryo';
 export type TopRankName = '横綱' | '大関' | '関脇' | '小結';
@@ -33,6 +34,7 @@ export interface BashoRecordSnapshot {
   isRetired?: boolean;
   isOzekiKadoban?: boolean;
   isOzekiReturn?: boolean;
+  topRankPopulation?: TopRankPopulationContext;
 }
 
 export interface BanzukeAllocation {

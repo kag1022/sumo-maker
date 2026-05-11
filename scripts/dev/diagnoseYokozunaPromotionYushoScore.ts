@@ -74,6 +74,8 @@ interface YokozunaPromotionScoreTrace {
   lowYushoFloorCritical: boolean;
   yushoFloorLift: number;
   lowYushoFloorLift: number;
+  currentYokozunaCount: number;
+  populationPressure: number;
 }
 
 interface WorldDiagnostic {
@@ -138,6 +140,7 @@ const toBashoSnapshot = (
     specialPrizes?: string[];
   },
   pastRecords: BashoRecordHistorySnapshot[],
+  topRankPopulation?: { currentYokozunaCount: number; currentOzekiCount: number },
 ): BashoRecordSnapshot => ({
   id: result.id,
   shikona: result.shikona,
@@ -152,6 +155,7 @@ const toBashoSnapshot = (
   junYusho: result.junYusho ?? false,
   specialPrizes: result.specialPrizes ?? [],
   pastRecords,
+  topRankPopulation,
 });
 
 const toActualEquivalent = (wins: number, yusho?: boolean, junYusho?: boolean): number => {
@@ -246,6 +250,11 @@ const runWorld = async (
   const yokozunaPromotions: YokozunaPromotionScoreTrace[] = [];
 
   for (let b = 0; b < BASHO; b += 1) {
+    const beforeWorld = runtime.__getWorldForDiagnostics();
+    const topRankPopulation = {
+      currentYokozunaCount: beforeWorld.makuuchiLayout.yokozuna,
+      currentOzekiCount: beforeWorld.makuuchiLayout.ozeki,
+    };
     const step = await runtime.runNextSeasonStep();
     if (step.kind === 'COMPLETED') break;
     const world = runtime.__getWorldForDiagnostics();
@@ -260,7 +269,7 @@ const runWorld = async (
       const pastRecords = (world.recentSekitoriHistory.get(allocation.id) ?? []).slice(1, 3);
       const previousRecord = pastRecords[0];
       if (!previousRecord) continue;
-      const snapshot = toBashoSnapshot(result, pastRecords);
+      const snapshot = toBashoSnapshot(result, pastRecords, topRankPopulation);
       const evaluation = evaluateYokozunaPromotion(snapshot);
       const current = toPromotionBashoScore(snapshot);
       const previous = toPromotionBashoScore(previousRecord);
@@ -304,6 +313,8 @@ const runWorld = async (
         lowYushoFloorCritical: evaluation.promote && !wouldPromoteWithoutLowYushoFloor,
         yushoFloorLift: round3(actualEquivalentTotal - noYushoFloorTotal),
         lowYushoFloorLift: round3(actualEquivalentTotal - noLowYushoFloorTotal),
+        currentYokozunaCount: topRankPopulation.currentYokozunaCount,
+        populationPressure: evaluation.evidence.populationPressure,
       });
     }
   }
@@ -354,6 +365,8 @@ const summarizeWorld = (world: WorldDiagnostic) => {
     avgNoLowYushoFloorTotal: avg(promotions.map((event) => event.noLowYushoFloorTotal)),
     avgYushoFloorLift: avg(promotions.map((event) => event.yushoFloorLift)),
     avgLowYushoFloorLift: avg(promotions.map((event) => event.lowYushoFloorLift)),
+    avgCurrentYokozunaCount: avg(promotions.map((event) => event.currentYokozunaCount)),
+    avgPopulationPressure: avg(promotions.map((event) => event.populationPressure)),
     lowYushoCritical,
     promotionTraces: promotions,
   };
@@ -370,12 +383,12 @@ const writeMarkdown = (
     '',
     '## Summary',
     '',
-    '| world | seed | tags | Y promotions | AUTO | actual wins total hist | AUTO actual wins hist | yusho wins hist | low-yusho promotions | low-yusho critical | avg actual/equiv/no-yusho/no-low | avg lift yusho/low |',
-    '| --- | ---:| --- | ---:| ---:| --- | --- | --- | ---:| --- | --- | --- |',
+    '| world | seed | tags | Y promotions | AUTO | avg Y count/pressure | actual wins total hist | AUTO actual wins hist | yusho wins hist | low-yusho promotions | low-yusho critical | avg actual/equiv/no-yusho/no-low | avg lift yusho/low |',
+    '| --- | ---:| --- | ---:| ---:| --- | --- | --- | --- | ---:| --- | --- | --- |',
   ];
   for (const summary of summaries) {
     lines.push(
-      `| ${summary.label} | ${summary.seed} | ${summary.eraTags.join(', ') || '-'} | ${summary.yokozunaPromotions} | ${summary.autoPromotes} | \`${JSON.stringify(summary.actualWinsTotalHistogram)}\` | \`${JSON.stringify(summary.autoActualWinsTotalHistogram)}\` | \`${JSON.stringify(summary.yushoWinHistogram)}\` | ${summary.lowYushoPromotionCount} | ${summary.lowYushoCriticalCount}/${summary.lowYushoCriticalRate} | ${summary.avgActualWinsTotal ?? '-'}/${summary.avgActualEquivalentTotal ?? '-'}/${summary.avgNoYushoFloorTotal ?? '-'}/${summary.avgNoLowYushoFloorTotal ?? '-'} | ${summary.avgYushoFloorLift ?? '-'}/${summary.avgLowYushoFloorLift ?? '-'} |`,
+      `| ${summary.label} | ${summary.seed} | ${summary.eraTags.join(', ') || '-'} | ${summary.yokozunaPromotions} | ${summary.autoPromotes} | ${summary.avgCurrentYokozunaCount ?? '-'}/${summary.avgPopulationPressure ?? '-'} | \`${JSON.stringify(summary.actualWinsTotalHistogram)}\` | \`${JSON.stringify(summary.autoActualWinsTotalHistogram)}\` | \`${JSON.stringify(summary.yushoWinHistogram)}\` | ${summary.lowYushoPromotionCount} | ${summary.lowYushoCriticalCount}/${summary.lowYushoCriticalRate} | ${summary.avgActualWinsTotal ?? '-'}/${summary.avgActualEquivalentTotal ?? '-'}/${summary.avgNoYushoFloorTotal ?? '-'}/${summary.avgNoLowYushoFloorTotal ?? '-'} | ${summary.avgYushoFloorLift ?? '-'}/${summary.avgLowYushoFloorLift ?? '-'} |`,
     );
   }
 

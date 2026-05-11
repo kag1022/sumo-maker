@@ -117,6 +117,10 @@ export const resolvePlayerSanyakuQuota = (
 };
 
 export const buildTopDivisionRecords = (world: SimulationWorld): BashoRecordSnapshot[] => {
+  const topRankPopulation = {
+    currentYokozunaCount: world.makuuchiLayout.yokozuna,
+    currentOzekiCount: world.makuuchiLayout.ozeki,
+  };
   const toSnapshots = (
     division: TopDivision,
     results: DivisionBashoSnapshotLike[],
@@ -144,6 +148,7 @@ export const buildTopDivisionRecords = (world: SimulationWorld): BashoRecordSnap
       pastRecords: history.slice(1, 3),
       isOzekiKadoban: world.ozekiKadobanById.get(result.id) ?? false,
       isOzekiReturn: world.ozekiReturnById.get(result.id) ?? false,
+      topRankPopulation,
     };
   });
   return [

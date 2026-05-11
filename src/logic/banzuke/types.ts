@@ -1,6 +1,7 @@
 import { BashoRecord, Division, Rank } from '../models';
 import { SimulationModelVersion } from '../simulation/modelVersion';
 import { RankScaleSlots } from './scale/rankLimits';
+import { TopRankPopulationContext } from './rules/topRankPromotionPressure';
 
 export type BanzukeMode = 'SIMULATE' | 'REPLAY';
 export type BanzukeEngineVersion = 'legacy-v1' | 'optimizer-v1' | 'optimizer-v2';
@@ -94,6 +95,7 @@ export interface RankCalculationOptions {
     rankBand?: string;
     performanceOverExpected?: number;
   };
+  topRankPopulation?: TopRankPopulationContext;
   isOzekiReturn?: boolean;
   /** 停滞圧力 (0-4.2): 高値で不利なサンプリング、rebound時は有利 */
   stagnationPressure?: number;
