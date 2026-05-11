@@ -15,6 +15,25 @@ export const applySekitoriSafetyGuard = (
   const current = candidate.snapshot.rank;
   if (!isSekitoriDivision(current.division) || !isSekitoriDivision(proposed.division)) return proposed;
 
+  if (current.division === 'Makuuchi' && current.name === '横綱') {
+    return proposed.division === 'Makuuchi' && proposed.name === '横綱'
+      ? proposed
+      : current;
+  }
+
+  if (current.division === 'Makuuchi' && current.name === '大関') {
+    if (candidate.directive.preferredTopName === '横綱' || candidate.directive.preferredTopName === '大関') {
+      return proposed;
+    }
+    if (candidate.directive.preferredTopName === '関脇') {
+      return {
+        division: 'Makuuchi',
+        name: '関脇',
+        side: proposed.side ?? 'East',
+      };
+    }
+  }
+
   const wins = candidate.snapshot.wins;
   const losses = candidate.normalizedLosses;
   const diff = wins - losses;

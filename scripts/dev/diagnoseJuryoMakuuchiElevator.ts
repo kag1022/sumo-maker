@@ -244,8 +244,6 @@ const classifyCauses = (input: {
   const cycleIds = new Set(input.cycles.map((cycle) => `${cycle.seed}:${cycle.id}`));
   const makuuchiTailRows = input.rows.filter((row) => isMakuuchiTail(row.rank));
   const juryoUpperRows = input.rows.filter((row) => isJuryoUpper(row.rank));
-  const makuuchiExpected = avg(makuuchiTailRows.map((row) => row.expectedWins));
-  const juryoExpected = avg(juryoUpperRows.map((row) => row.expectedWins));
   const makuuchiAbility = avg(makuuchiTailRows.map((row) => row.ability));
   const juryoAbility = avg(juryoUpperRows.map((row) => row.ability));
   const promotedMakuuchiExpected = avg(input.promotedMakuuchiRows.map((row) => row.expectedWins));
