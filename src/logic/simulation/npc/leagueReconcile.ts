@@ -390,6 +390,13 @@ export const reconcileNpcLeague = (
   ): void => {
     npc.currentDivision = to;
     npc.division = to;
+    if (from !== to) {
+      if (to === 'Makuuchi') {
+        npc.rankScore = 42;
+      } else if (to === 'Juryo') {
+        npc.rankScore = 28;
+      }
+    }
     insertSorted(buckets[to], npc);
     moves.push({ id: npc.id, from, to, type });
   };
