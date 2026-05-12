@@ -169,6 +169,18 @@ export type TorikumiDiagnostics = {
   sanyakuRoundRobinCoverageRate: number;
   joiAssignmentCoverageRate: number;
   yokozunaOzekiTailBoutRatio: number;
+  npcTopDivisionBoutRows?: Array<{
+    day: number;
+    aId: string;
+    bId: string;
+    aRankName?: string;
+    bRankName?: string;
+    aWon?: boolean;
+    aWinProbability?: number;
+    aAbility?: number;
+    bAbility?: number;
+    fusen?: boolean;
+  }>;
   crossDivisionByBoundary: Record<string, number>;
   lateDirectTitleBoutCount: number;
   playerHealthyUnresolvedDays: number[];

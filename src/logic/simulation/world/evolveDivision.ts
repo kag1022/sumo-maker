@@ -1,4 +1,5 @@
 import { BashoRecordHistorySnapshot } from '../../banzuke/providers/sekitori/types';
+import { evaluateYokozunaPromotion } from '../../banzuke/rules/yokozunaPromotion';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
 import { Rank } from '../../models';
@@ -50,7 +51,9 @@ const enforceNpcPromotionGate = (
   fromRank: Rank,
   proposedNextRankScore: number,
   recentResults: NpcBashoResult[],
+  recentSekitoriHistory: BashoRecordHistorySnapshot[],
   currentBashoWins: number,
+  topRankPopulation: { currentYokozunaCount: number; currentOzekiCount: number },
 ): number => {
   if (fromRank.division !== 'Makuuchi') {
     // 十両以下 → 1 場所で関脇以上には昇進できない（実史 1989-2019 で 1 件もない）
@@ -75,11 +78,29 @@ const enforceNpcPromotionGate = (
     );
   }
   if (fromName === '大関') {
-    // 横綱昇進ゲート: 直近 2 場所連続優勝相当 (各 13 勝以上)
-    const previous = recentResults[recentResults.length - 1];
-    const currentYushoEq = currentBashoWins >= 13;
-    const prevYushoEq = previous ? previous.wins >= 13 : false;
-    const yokozunaGateMet = currentYushoEq && prevYushoEq;
+    // 横綱昇進ゲートは banzuke rules と同じ yusho / junYusho / 人数 pressure を使う。
+    // rankScore の線形移動だけで横綱へ漏れると、上位過密時に審査温度が効かない。
+    const current = recentSekitoriHistory[0];
+    const previous = recentSekitoriHistory[1];
+    const yokozunaGateMet = Boolean(
+      current &&
+        evaluateYokozunaPromotion({
+          id: 'NPC',
+          shikona: 'NPC',
+          rank: current.rank,
+          wins: current.wins,
+          losses: current.losses,
+          absent: current.absent,
+          expectedWins: current.expectedWins,
+          strengthOfSchedule: current.strengthOfSchedule,
+          performanceOverExpected: current.performanceOverExpected,
+          yusho: current.yusho,
+          junYusho: current.junYusho,
+          specialPrizes: current.specialPrizes,
+          pastRecords: previous ? [previous] : [],
+          topRankPopulation,
+        }).promote,
+    );
     return Math.max(
       proposedNextRankScore,
       yokozunaGateMet ? MAKUUCHI_FLOOR_YOKOZUNA : MAKUUCHI_FLOOR_OZEKI,
@@ -276,7 +297,12 @@ export const evolveDivisionAfterBasho = (
         rank,
         linearNextRankScore,
         registryNpc?.recentBashoResults ?? [],
+        world.recentSekitoriHistory.get(npc.id) ?? [],
         result.wins,
+        {
+          currentYokozunaCount: world.makuuchiLayout.yokozuna,
+          currentOzekiCount: world.makuuchiLayout.ozeki,
+        },
       );
       const nextRankScore = clamp(gatedNextRankScore, 1, 200);
 
@@ -306,5 +332,10 @@ export const evolveDivisionAfterBasho = (
       };
     })
     .sort((a, b) => a.rankScore - b.rankScore)
-    .map((npc, index) => ({ ...npc, rankScore: index + 1 }));
+    .map((npc, index) => ({
+      ...npc,
+      // rankScore は小さいほど高位。並び替え後の詰め直しで gate 済みの上限を
+      // 上書きすると、前頭・十両降格予定者が横綱スロットへ漏れる。
+      rankScore: Math.max(index + 1, npc.rankScore),
+    }));
 };

@@ -99,7 +99,13 @@ export const simulateNpcBout = (
   a: DivisionParticipant,
   b: DivisionParticipant,
   rng: RandomSource,
-): void => {
+): {
+  aWon?: boolean;
+  aWinProbability?: number;
+  aAbility?: number;
+  bAbility?: number;
+  fusen?: boolean;
+} | null => {
   const applyFusenWin = (winner: DivisionParticipant, loser: DivisionParticipant): void => {
     const expectedWin = 0.96;
     winner.expectedWins = (winner.expectedWins ?? 0) + expectedWin;
@@ -113,19 +119,19 @@ export const simulateNpcBout = (
     loser.currentWinStreak = 0;
   };
   if (a.bashoKyujo && b.bashoKyujo) {
-    return;
+    return null;
   }
   if (a.bashoKyujo) {
     applyFusenWin(b, a);
-    return;
+    return { aWon: false, aWinProbability: 0.04, fusen: true };
   }
   if (b.bashoKyujo) {
     applyFusenWin(a, b);
-    return;
+    return { aWon: true, aWinProbability: 0.96, fusen: true };
   }
   if (!a.active && !b.active) {
     // 両者休場の場合は勝敗つかず
-    return;
+    return null;
   }
   if (!a.active) {
     // aが休場 -> bの不戦勝
@@ -135,7 +141,7 @@ export const simulateNpcBout = (
     b.currentLossStreak = 0;
     a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
     a.currentWinStreak = 0;
-    return;
+    return { aWon: false, fusen: true };
   }
   if (!b.active) {
     // bが休場 -> aの不戦勝
@@ -145,7 +151,7 @@ export const simulateNpcBout = (
     a.currentLossStreak = 0;
     b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
     b.currentWinStreak = 0;
-    return;
+    return { aWon: true, fusen: true };
   }
 
   a.currentWinStreak = Math.max(0, a.currentWinStreak ?? 0);
@@ -186,4 +192,11 @@ export const simulateNpcBout = (
     a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
     a.currentWinStreak = 0;
   }
+  return {
+    aWon: aWin,
+    aWinProbability,
+    aAbility,
+    bAbility,
+    fusen: false,
+  };
 };

@@ -9,6 +9,7 @@ import { SimulationWorld } from '../world';
 import { countActiveBanzukeHeadcountExcludingMaezumo } from '../world';
 import { DEFAULT_DIVISION_POLICIES, resolveDivisionPolicyMap, resolveTargetHeadcount } from '../../banzuke/population/flow';
 import { buildMakuuchiLayoutFromRanks, decodeMakuuchiRankFromScore } from '../../banzuke/scale/banzukeLayout';
+import type { Rank } from '../../models';
 
 type LeagueDivision =
   | 'Makuuchi'
@@ -286,9 +287,9 @@ const assignCanonicalMakuuchiRankScores = (
   bucket: PersistentNpc[],
   world: SimulationWorld,
 ): void => {
-  const ranks = bucket.map((npc) =>
+  const ranks = ensureSanyakuRankFloor(bucket.map((npc) =>
     decodeMakuuchiRankFromScore(npc.rankScore, world.makuuchiLayout),
-  );
+  ));
   const layout = buildMakuuchiLayoutFromRanks(ranks);
   const sectionStart = {
     横綱: 1,
@@ -318,6 +319,64 @@ const assignCanonicalMakuuchiRankScores = (
     cursors[sectionName] += 1;
   }
   world.makuuchiLayout = layout;
+};
+
+const nextOpenTopRankSlot = (
+  ranks: Rank[],
+  rankName: '関脇' | '小結',
+): Pick<Rank, 'side' | 'number'> => {
+  const used = new Set(
+    ranks
+      .filter((rank) => rank.division === 'Makuuchi' && rank.name === rankName)
+      .map((rank) => {
+        const number = Math.max(1, rank.number ?? 1);
+        const side = rank.side === 'West' ? 'West' : 'East';
+        return `${number}:${side}`;
+      }),
+  );
+  for (let index = 0; index < 12; index += 1) {
+    const side = index % 2 === 0 ? 'East' : 'West';
+    const number = Math.floor(index / 2) + 1;
+    if (!used.has(`${number}:${side}`)) return { side, number };
+  }
+  return { side: 'East', number: 1 };
+};
+
+const promoteRankAt = (
+  ranks: Rank[],
+  index: number,
+  rankName: '関脇' | '小結',
+): void => {
+  const slot = nextOpenTopRankSlot(ranks, rankName);
+  ranks[index] = {
+    division: 'Makuuchi',
+    name: rankName,
+    side: slot.side,
+    number: slot.number,
+  };
+};
+
+const ensureSanyakuRankFloor = (input: Rank[]): Rank[] => {
+  const ranks = input.map((rank) => ({ ...rank }));
+  const count = (rankName: '関脇' | '小結'): number =>
+    ranks.filter((rank) => rank.division === 'Makuuchi' && rank.name === rankName).length;
+  const findCandidate = (rankNames: Array<'小結' | '前頭'>): number =>
+    ranks.findIndex((rank) =>
+      rank.division === 'Makuuchi' && rankNames.includes(rank.name as '小結' | '前頭'));
+
+  while (count('関脇') < 2) {
+    const candidateIndex = findCandidate(['小結', '前頭']);
+    if (candidateIndex < 0) break;
+    promoteRankAt(ranks, candidateIndex, '関脇');
+  }
+
+  while (count('小結') < 2) {
+    const candidateIndex = findCandidate(['前頭']);
+    if (candidateIndex < 0) break;
+    promoteRankAt(ranks, candidateIndex, '小結');
+  }
+
+  return ranks;
 };
 
 export const reconcileNpcLeague = (
@@ -390,6 +449,13 @@ export const reconcileNpcLeague = (
   ): void => {
     npc.currentDivision = to;
     npc.division = to;
+    if (from !== to) {
+      if (to === 'Makuuchi') {
+        npc.rankScore = 42;
+      } else if (to === 'Juryo') {
+        npc.rankScore = 28;
+      }
+    }
     insertSorted(buckets[to], npc);
     moves.push({ id: npc.id, from, to, type });
   };

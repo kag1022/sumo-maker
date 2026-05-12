@@ -159,7 +159,13 @@ const toBashoSnapshot = (
 });
 
 const toActualEquivalent = (wins: number, yusho?: boolean, junYusho?: boolean): number => {
-  if (yusho) return Math.max(wins, 14.5);
+  if (yusho) {
+    if (wins >= 14) return Math.max(wins, 14.5);
+    if (wins === 13) return 13.5;
+    if (wins === 12) return 12.5;
+    if (wins === 11) return 11.5;
+    return wins;
+  }
   if (junYusho) return Math.max(wins, 13.5);
   return wins;
 };
@@ -310,7 +316,7 @@ const runWorld = async (
         lowYushoWins,
         wouldPromoteWithoutYushoFloor,
         wouldPromoteWithoutLowYushoFloor,
-        lowYushoFloorCritical: evaluation.promote && !wouldPromoteWithoutLowYushoFloor,
+        lowYushoFloorCritical: lowYushoWins.length > 0 && evaluation.promote && !wouldPromoteWithoutLowYushoFloor,
         yushoFloorLift: round3(actualEquivalentTotal - noYushoFloorTotal),
         lowYushoFloorLift: round3(actualEquivalentTotal - noLowYushoFloorTotal),
         currentYokozunaCount: topRankPopulation.currentYokozunaCount,

@@ -35,6 +35,15 @@ const RESULT_MARK: Record<BoutResult, { symbol: string; style: React.CSSProperti
   ABSENT: { symbol: "休", style: { color: "var(--chart-absent)" } },
 };
 
+const SANSHO_LABEL: Record<string, string> = {
+  SHUKUN: "殊勲賞",
+  KANTO: "敢闘賞",
+  GINO: "技能賞",
+  殊勲賞: "殊勲賞",
+  敢闘賞: "敢闘賞",
+  技能賞: "技能賞",
+};
+
 export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   ledger,
   point,
@@ -81,7 +90,16 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   const winRate = totalDecisions > 0 ? wins / totalDecisions : 0;
   const resultTone = wins > losses ? "win" : losses > wins ? "loss" : absent > 0 ? "absence" : "flat";
   const playerTitles = detail?.playerRecord?.titles ?? [];
-  const hasYusho = playerTitles.length > 0;
+  const yushoTitles = playerTitles.filter((title) => title === "YUSHO");
+  const sanshoTitles = playerTitles
+    .map((title) => SANSHO_LABEL[title])
+    .filter((title): title is string => Boolean(title));
+  const hasYusho = yushoTitles.length > 0;
+  const heroTitleText = sanshoTitles.length > 0
+    ? `三賞記録: ${sanshoTitles.join(" / ")}`
+    : hasYusho
+      ? "優勝記録: 優勝"
+      : null;
   const activeRows = placeTab === "nearby" ? nearbyRows : fullRows;
   const tabCounts: Record<CareerPlaceTabId, number> = {
     nearby: nearbyRows.length,
@@ -126,8 +144,8 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
             <span className={styles.placeHeroLabel}>選択中の場所</span>
             <strong className={styles.placeHeroTitle}>{summary?.bashoLabel ?? point?.bashoLabel ?? "場所詳細"}</strong>
             <p className={styles.placeHeroCopy}>
-              {hasYusho
-                ? `優勝記録: ${playerTitles.join(" / ")}`
+              {heroTitleText
+                ? heroTitleText
                 : topImportantNote ?? "この場所の番付、成績、周辺力士、十五日間を確認します。"}
             </p>
           </div>

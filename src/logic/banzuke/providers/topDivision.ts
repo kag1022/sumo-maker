@@ -35,17 +35,14 @@ const ensureSanyakuFloor = (
   const byScoreAsc = (left: BanzukeAllocation, right: BanzukeAllocation): number =>
     left.score - right.score || left.id.localeCompare(right.id);
 
-  const isProtectedUpperMaegashiraKachikoshi = (allocation: BanzukeAllocation): boolean =>
-    allocation.currentRank.division === 'Makuuchi' &&
-    allocation.currentRank.name === '前頭' &&
-    (allocation.currentRank.number ?? 99) <= 5 &&
-    allocation.recordDiff === 1;
-
   const canEmergencyFillSanyaku = (
     allocation: BanzukeAllocation,
     target: '関脇' | '小結',
   ): boolean => {
     if (allocation.nextRank.division !== 'Makuuchi') return false;
+    if (allocation.nextRank.name === '前頭') {
+      return (allocation.nextRank.number ?? 99) <= (target === '関脇' ? 1 : 2);
+    }
     if (
       allocation.currentRank.division === 'Makuuchi' &&
       (allocation.currentRank.name === '関脇' || allocation.currentRank.name === '小結')
@@ -56,15 +53,18 @@ const ensureSanyakuFloor = (
       }
       return allocation.recordDiff >= 0;
     }
-    if (allocation.nextRank.name !== '前頭') return false;
-    if ((allocation.nextRank.number ?? 99) > (target === '関脇' ? 1 : 2)) return false;
-    if (allocation.recordDiff <= 0) return false;
-    if (isProtectedUpperMaegashiraKachikoshi(allocation)) return false;
-    return true;
+    return false;
   };
 
   const canCompressSekiwakeOverflow = (allocation: BanzukeAllocation): boolean => {
     if (allocation.nextRank.division !== 'Makuuchi' || allocation.nextRank.name !== '関脇') return false;
+    if (
+      allocation.currentRank.division === 'Makuuchi' &&
+      allocation.currentRank.name === '大関'
+    ) {
+      return false;
+    }
+    if (allocation.nextIsOzekiReturn) return false;
     if (
       allocation.currentRank.division === 'Makuuchi' &&
       allocation.currentRank.name === '小結' &&
