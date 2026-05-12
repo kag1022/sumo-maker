@@ -1,6 +1,10 @@
 import { Rank } from '../../models';
 import { BanzukeEngineVersion } from '../types';
-import { optimizeExpectedPlacements } from '../optimizer';
+import {
+  OptimizerPlacementTrace,
+  optimizeExpectedPlacements,
+  optimizeExpectedPlacementsWithTrace,
+} from '../optimizer';
 import { DEFAULT_SCALE_SLOTS } from '../scale/rankLimits';
 import { reallocateWithMonotonicConstraints } from './expected/monotonic';
 import { orderExpectedPlacementCandidates } from './expected/order';
@@ -39,6 +43,57 @@ export type LowerDivisionResolvedPlacement = {
 export type LowerDivisionPlacementResolution = {
   placements: LowerDivisionResolvedPlacement[];
   playerAssignedRank?: Rank;
+};
+
+export interface LowerDivisionCandidateTrace {
+  id: string;
+  tier: TierClassification;
+  sourceDivision: LowerDivision;
+  currentRankLabel: string;
+  currentSlot: number;
+  expectedSlot: number;
+  minSlot: number;
+  maxSlot: number;
+  assignedSlot?: number;
+  assignedRankLabel?: string;
+  wins: number;
+  losses: number;
+  absent: number;
+  score: number;
+  rankBand?: string;
+  recordBucket?: string;
+  proposalBasis?: string;
+}
+
+export interface LowerDivisionPlacementDiagnosticTrace {
+  totalSlots: number;
+  divisionSizes: Record<LowerDivision, number>;
+  divisionOffsets: Record<LowerDivision, number>;
+  boundarySlots: number[];
+  playerSlot?: number;
+  tierCounts: Record<TierClassification, number>;
+  optimizerTrace?: OptimizerPlacementTrace;
+  optimizerUsed: boolean;
+  monotonicFallbackUsed: boolean;
+  candidates: LowerDivisionCandidateTrace[];
+  player?: LowerDivisionCandidateTrace;
+  playerBlockers: LowerDivisionCandidateTrace[];
+  playerAssignedSlot?: number;
+  playerAssignedRankLabel?: string;
+}
+
+type LowerDivisionPlacementDiagnosticSink = (
+  trace: LowerDivisionPlacementDiagnosticTrace,
+) => void;
+
+let lowerDivisionPlacementDiagnosticSink: LowerDivisionPlacementDiagnosticSink | undefined;
+
+export const setLowerDivisionPlacementDiagnosticSink = (
+  sink: LowerDivisionPlacementDiagnosticSink | undefined,
+): LowerDivisionPlacementDiagnosticSink | undefined => {
+  const previous = lowerDivisionPlacementDiagnosticSink;
+  lowerDivisionPlacementDiagnosticSink = sink;
+  return previous;
 };
 
 const resolveDivisionSizes = (results: LowerResults): Record<LowerDivision, number> => ({
@@ -113,6 +168,11 @@ const toRank = (
     number,
     side: bounded % 2 === 1 ? 'East' : 'West',
   };
+};
+
+const toRankLabel = (rank: Rank): string => {
+  const side = rank.side === 'West' ? '西' : '東';
+  return `${side}${rank.name}${rank.number ?? 1}枚目`;
 };
 
 const resolvePlayerMandatoryFlags = (
@@ -293,6 +353,8 @@ export const resolveLowerDivisionPlacements = (
   // 全候補を構築し、Tier分類する
   const tier1Candidates: ExpectedPlacementCandidate[] = [];
   const tier2Candidates: ExpectedPlacementCandidate[] = [];
+  const tierById = new Map<string, TierClassification>();
+  const candidateById = new Map<string, ExpectedPlacementCandidate>();
 
   for (const division of ORDERED_DIVISIONS) {
     for (const row of results[division] ?? []) {
@@ -301,6 +363,8 @@ export const resolveLowerDivisionPlacements = (
         divisionSizes, divisionMaxNumbers, divisionOffsets, totalSlots,
       );
       const tier = classifyTier(candidate.currentSlot, playerSlot, boundarySlots, row.id === 'PLAYER');
+      tierById.set(candidate.id, tier);
+      candidateById.set(candidate.id, candidate);
       if (tier === 'TIER1_PRECISE') {
         tier1Candidates.push(candidate);
       } else {
@@ -347,10 +411,18 @@ export const resolveLowerDivisionPlacements = (
 
   // Tier 1: DP最適化で精密配置（Tier 2の割り当てを尊重）
   let tier1Assignments: { id: string; slot: number }[];
+  let optimizerTrace: OptimizerPlacementTrace | undefined;
+  let monotonicFallbackUsed = false;
   if (tier1Candidates.length > 0) {
     const orderedTier1 = orderExpectedPlacementCandidates(tier1Candidates);
-    const optimized = optimizeExpectedPlacements(orderedTier1, totalSlots);
+    const optimized = lowerDivisionPlacementDiagnosticSink
+      ? (() => {
+        optimizerTrace = optimizeExpectedPlacementsWithTrace(orderedTier1, totalSlots);
+        return optimizerTrace.assignmentSource === 'dp' ? optimizerTrace.assignments : undefined;
+      })()
+      : optimizeExpectedPlacements(orderedTier1, totalSlots);
     const rawAssignments = optimized ?? reallocateWithMonotonicConstraints(orderedTier1, totalSlots);
+    monotonicFallbackUsed = !optimized;
 
     // Tier 2とのスロット衝突を解決: Tier 1の結果を優先し、衝突したTier 2をずらす
     const tier1SlotSet = new Set(rawAssignments.map((a) => a.slot));
@@ -384,6 +456,76 @@ export const resolveLowerDivisionPlacements = (
 
   // 全割り当てを統合
   const allAssignments = [...tier1Assignments, ...tier2Assignments];
+  const assignmentById = new Map(allAssignments.map((assignment) => [assignment.id, assignment.slot]));
+
+  if (lowerDivisionPlacementDiagnosticSink) {
+    const candidates: LowerDivisionCandidateTrace[] = [...candidateById.values()]
+      .map((candidate) => {
+        const assignedSlot = assignmentById.get(candidate.id);
+        const assignedPosition = assignedSlot === undefined
+          ? undefined
+          : fromGlobalSlot(assignedSlot, divisionOffsets, divisionSizes, totalSlots);
+        const assignedRank = assignedPosition
+          ? toRank(assignedPosition.division, assignedPosition.rankScore, divisionSizes, divisionMaxNumbers)
+          : undefined;
+        return {
+          id: candidate.id,
+          tier: tierById.get(candidate.id) ?? 'TIER2_DETERMINISTIC',
+          sourceDivision: candidate.sourceDivision as LowerDivision,
+          currentRankLabel: toRankLabel(candidate.currentRank),
+          currentSlot: candidate.currentSlot,
+          expectedSlot: candidate.expectedSlot,
+          minSlot: candidate.minSlot,
+          maxSlot: candidate.maxSlot,
+          assignedSlot,
+          assignedRankLabel: assignedRank ? toRankLabel(assignedRank) : undefined,
+          wins: candidate.wins,
+          losses: candidate.losses,
+          absent: candidate.absent,
+          score: candidate.score,
+          rankBand: candidate.rankBand,
+          recordBucket: candidate.recordBucket,
+          proposalBasis: candidate.proposalBasis,
+        };
+      })
+      .sort((a, b) => a.currentSlot - b.currentSlot);
+    const player = candidates.find((candidate) => candidate.id === 'PLAYER');
+    const playerAssignedSlot = player ? assignmentById.get('PLAYER') : undefined;
+    const blockerMin = player ? Math.min(player.expectedSlot, playerAssignedSlot ?? player.expectedSlot) : undefined;
+    const blockerMax = player ? Math.max(player.expectedSlot, playerAssignedSlot ?? player.expectedSlot) : undefined;
+    const playerBlockers = blockerMin === undefined || blockerMax === undefined
+      ? []
+      : candidates.filter((candidate) =>
+        candidate.id !== 'PLAYER' &&
+        candidate.assignedSlot !== undefined &&
+        candidate.assignedSlot >= blockerMin &&
+        candidate.assignedSlot <= blockerMax);
+    const playerAssignedPosition = playerAssignedSlot === undefined
+      ? undefined
+      : fromGlobalSlot(playerAssignedSlot, divisionOffsets, divisionSizes, totalSlots);
+    const playerAssignedRank = playerAssignedPosition
+      ? toRank(playerAssignedPosition.division, playerAssignedPosition.rankScore, divisionSizes, divisionMaxNumbers)
+      : undefined;
+    lowerDivisionPlacementDiagnosticSink({
+      totalSlots,
+      divisionSizes,
+      divisionOffsets,
+      boundarySlots,
+      playerSlot,
+      tierCounts: {
+        TIER1_PRECISE: tier1Candidates.length,
+        TIER2_DETERMINISTIC: tier2Candidates.length,
+      },
+      optimizerTrace,
+      optimizerUsed: optimizerTrace?.assignmentSource === 'dp',
+      monotonicFallbackUsed,
+      candidates,
+      player,
+      playerBlockers,
+      playerAssignedSlot,
+      playerAssignedRankLabel: playerAssignedRank ? toRankLabel(playerAssignedRank) : undefined,
+    });
+  }
 
   const placements: LowerDivisionResolvedPlacement[] = allAssignments.map((assignment) => {
     const resolved = fromGlobalSlot(assignment.slot, divisionOffsets, divisionSizes, totalSlots);
