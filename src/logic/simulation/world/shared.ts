@@ -114,6 +114,9 @@ export const toDivisionParticipants = (
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
     active: participant.active,
+    bashoKyujo: participant.bashoKyujo,
+    kyujoStartDay: participant.kyujoStartDay,
+    kyujoReason: participant.kyujoReason,
   }));
 
 export const decodeMakuuchiRankFromScore = (

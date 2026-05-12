@@ -96,6 +96,7 @@ export interface SimulationWorld {
     aAbility?: number;
     bAbility?: number;
     fusen?: boolean;
+    scheduledAfterKyujoStart?: boolean;
   }>;
   lastExchange: TopDivisionExchange;
   lastSanyakuQuota: PlayerSanyakuQuota;

@@ -68,6 +68,9 @@ const toDivisionParticipants = (
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
     active: participant.active,
+    bashoKyujo: participant.bashoKyujo,
+    kyujoStartDay: participant.kyujoStartDay,
+    kyujoReason: participant.kyujoReason,
   }));
 
 export const runTopDivisionBasho = (
@@ -159,7 +162,8 @@ export const runTopDivisionBasho = (
     simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),
-    dayEligibility: () => true,
+    dayEligibility: (participant, day) =>
+      participant.kyujoStartDay == null || day < participant.kyujoStartDay,
     onPair: (pair, day) => {
       const { a, b } = pair;
       if (!a.isPlayer && !b.isPlayer) {
@@ -181,6 +185,9 @@ export const runTopDivisionBasho = (
             aAbility: boutDiagnostic?.aAbility,
             bAbility: boutDiagnostic?.bAbility,
             fusen: boutDiagnostic?.fusen,
+            scheduledAfterKyujoStart:
+              (a.kyujoStartDay != null && day >= a.kyujoStartDay) ||
+              (b.kyujoStartDay != null && day >= b.kyujoStartDay),
           });
         }
         if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {

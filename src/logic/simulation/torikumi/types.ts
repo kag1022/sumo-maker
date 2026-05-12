@@ -104,6 +104,8 @@ export type TorikumiParticipant = {
   boutsSimulated?: number;
   active: boolean;
   bashoKyujo?: boolean;
+  kyujoStartDay?: number;
+  kyujoReason?: 'injury' | 'illness' | 'fatigue' | 'unknown';
   targetBouts: number;
   boutsDone: number;
   kyujo?: boolean;
@@ -180,6 +182,7 @@ export type TorikumiDiagnostics = {
     aAbility?: number;
     bAbility?: number;
     fusen?: boolean;
+    scheduledAfterKyujoStart?: boolean;
   }>;
   crossDivisionByBoundary: Record<string, number>;
   lateDirectTitleBoutCount: number;

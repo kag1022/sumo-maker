@@ -15,6 +15,19 @@ export const simulateOffscreenTopDivisionBasho = (
   const boutRows: NonNullable<SimulationWorld['lastTopDivisionBoutRows']> = [];
 
   for (let day = 1; day <= 15; day += 1) {
+    const activeByDay = participants.map((participant) => ({
+      participant,
+      activeBeforeDay: participant.active,
+    }));
+    for (const entry of activeByDay) {
+      if (
+        entry.participant.kyujoStartDay != null &&
+        day >= entry.participant.kyujoStartDay
+      ) {
+        entry.participant.active = false;
+      }
+    }
+
     const dailyMatchups = createDailyMatchups(participants, facedMap, rng, day, 15);
     const pairs = dailyMatchups.pairs;
     for (const { a, b } of pairs) {
@@ -33,7 +46,14 @@ export const simulateOffscreenTopDivisionBasho = (
         aAbility: diagnostic?.aAbility,
         bAbility: diagnostic?.bAbility,
         fusen: diagnostic?.fusen,
+        scheduledAfterKyujoStart:
+          (a.kyujoStartDay != null && day >= a.kyujoStartDay) ||
+          (b.kyujoStartDay != null && day >= b.kyujoStartDay),
       });
+    }
+
+    for (const entry of activeByDay) {
+      entry.participant.active = entry.activeBeforeDay;
     }
   }
 

@@ -1,7 +1,7 @@
 import { PLAYER_ACTOR_ID } from '../actors/constants';
 import { RandomSource } from '../deps';
 import { DivisionParticipant } from '../matchmaking';
-import { resolveNpcInjuryKyujou } from '../npc/kyujou';
+import { resolveNpcInjuryKyujou, resolveNpcPartialKyujoPlan } from '../npc/kyujou';
 import { computeConsecutiveMakekoshiStreak } from '../retirement/shared';
 import { resolveTopDivisionRank } from '../topDivision/rank';
 import { resolveBashoFormDelta } from '../variance/bashoVariance';
@@ -163,10 +163,29 @@ export const createDivisionParticipants = (
       ? rawSeasonalPower
       : Math.max(rawSeasonalPower, topRankSeasonalPowerFloor);
 
+    const isPlayer = (registryNpc?.actorType ?? (npc.id === PLAYER_ACTOR_ID ? 'PLAYER' : 'NPC')) === 'PLAYER';
+    const bashoKyujo =
+      upperVariance.bashoKyujo ||
+      (npc.id !== PLAYER_ACTOR_ID && resolveNpcInjuryKyujou(division, rng));
+    const partialKyujo = resolveNpcPartialKyujoPlan(
+      {
+        division,
+        rankName: resolvedRank.name,
+        age: registryNpc?.age ?? 24,
+        form: registryNpc?.form ?? npc.form,
+        stagnationPressure: registryNpc?.stagnation?.pressure ?? npc.stagnation?.pressure ?? 0,
+        recentAbsenceTotal: recentResults.reduce((sum, row) => sum + (row.absent ?? 0), 0),
+        consecutiveMakekoshi: computeConsecutiveMakekoshiStreak(recentResults, 8),
+        isPlayer,
+        bashoKyujo,
+      },
+      rng,
+    );
+
     return {
       id: npc.id,
       shikona,
-      isPlayer: (registryNpc?.actorType ?? (npc.id === PLAYER_ACTOR_ID ? 'PLAYER' : 'NPC')) === 'PLAYER',
+      isPlayer,
       stableId,
       rankScore: npc.rankScore,
       power: softClampPower(seasonalPower, POWER_RANGE[division]),
@@ -191,9 +210,9 @@ export const createDivisionParticipants = (
       // Fix-2: 三役以上は upperVariance が age/streak driven kyujou を担当。
       // それ以外（平幕・十両）にはここで Heisei 相当の怪我休場を上乗せする。
       // プレイヤーは別パスで injury → kyujou が処理されるため除外。
-      bashoKyujo:
-        upperVariance.bashoKyujo ||
-        (npc.id !== PLAYER_ACTOR_ID && resolveNpcInjuryKyujou(division, rng)),
+      bashoKyujo,
+      kyujoStartDay: partialKyujo?.startDay,
+      kyujoReason: partialKyujo?.reason,
     };
   });
 
