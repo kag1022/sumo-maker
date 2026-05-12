@@ -13,6 +13,7 @@
 
 import { Division } from '../../models';
 import { RandomSource } from '../deps';
+import type { TopDivision } from '../world/types';
 
 const NPC_BASHO_KYUJOU_RATE: Record<Division, number> = {
   Makuuchi: 0.020, // ref 2.5% — 上位三役の既存 kyujou が +0.5% 追加するため控えめ
@@ -30,4 +31,60 @@ export const resolveNpcInjuryKyujou = (
 ): boolean => {
   const rate = NPC_BASHO_KYUJOU_RATE[division] ?? 0;
   return rng() < rate;
+};
+
+export type NpcPartialKyujoReason = 'injury' | 'illness' | 'fatigue' | 'unknown';
+
+export type NpcPartialKyujoPlan = {
+  startDay: number;
+  reason: NpcPartialKyujoReason;
+};
+
+export const resolveNpcPartialKyujoPlan = (
+  input: {
+    division: TopDivision;
+    rankName: string;
+    age: number;
+    form: number;
+    stagnationPressure: number;
+    recentAbsenceTotal: number;
+    consecutiveMakekoshi: number;
+    isPlayer: boolean;
+    bashoKyujo: boolean;
+  },
+  rng: RandomSource,
+): NpcPartialKyujoPlan | undefined => {
+  if (input.isPlayer || input.bashoKyujo) return undefined;
+
+  const topRankPressure =
+    input.rankName === '横綱' ? 0.0022 :
+      input.rankName === '大関' ? 0.0016 :
+        input.rankName === '関脇' || input.rankName === '小結' ? 0.0011 :
+          0;
+  const divisionBase = input.division === 'Makuuchi' ? 0.0008 : 0.0006;
+  const agePressure = Math.max(0, input.age - 29) * 0.00025 + Math.max(0, input.age - 34) * 0.00045;
+  const formPressure = Math.max(0, 0.95 - input.form) * 0.004;
+  const slumpPressure =
+    Math.max(0, input.stagnationPressure - 1.2) * 0.0006 +
+    Math.max(0, input.consecutiveMakekoshi - 1) * 0.0005 +
+    Math.max(0, input.recentAbsenceTotal - 1) * 0.00025;
+  const rate = Math.min(0.008, divisionBase + topRankPressure + agePressure + formPressure + slumpPressure);
+  if (rng() >= rate) return undefined;
+
+  const roll = rng();
+  const startDay =
+    roll < 0.12 ? 2 + Math.floor(rng() * 3) :
+      roll < 0.54 ? 5 + Math.floor(rng() * 4) :
+        roll < 0.88 ? 9 + Math.floor(rng() * 3) :
+          12 + Math.floor(rng() * 3);
+  const reasonRoll = rng();
+  const reason: NpcPartialKyujoReason =
+    reasonRoll < 0.58 ? 'injury' :
+      reasonRoll < 0.78 ? 'fatigue' :
+        reasonRoll < 0.9 ? 'illness' :
+          'unknown';
+  return {
+    startDay: Math.max(2, Math.min(14, startDay)),
+    reason,
+  };
 };

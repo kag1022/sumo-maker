@@ -11,6 +11,8 @@ import {
   withInjuryBattlePenalty,
 } from '../injury';
 import {
+  applyNpcDoubleKyujo,
+  applyNpcFusenBout,
   createFacedMap,
   DivisionParticipant,
   simulateNpcBout,
@@ -68,6 +70,9 @@ const toDivisionParticipants = (
     opponentAbilityTotal: participant.opponentAbilityTotal,
     boutsSimulated: participant.boutsSimulated,
     active: participant.active,
+    bashoKyujo: participant.bashoKyujo,
+    kyujoStartDay: participant.kyujoStartDay,
+    kyujoReason: participant.kyujoReason,
   }));
 
 export const runTopDivisionBasho = (
@@ -159,7 +164,97 @@ export const runTopDivisionBasho = (
     simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),
-    dayEligibility: () => true,
+    prePublishedEligibility: (participant, day) =>
+      (participant.kyujoStartDay == null || day <= participant.kyujoStartDay),
+    postPublishedAvailability: (participant, day) =>
+      (participant.kyujoStartDay == null || day < participant.kyujoStartDay),
+    onFusen: (pair, day, winner, loser, reason) => {
+      applyNpcFusenBout(winner, loser);
+      const aDivision = pair.a.division as TopDivision;
+      const bDivision = pair.b.division as TopDivision;
+      const aRank = resolveTopDivisionRank(aDivision, pair.a.rankScore, world.makuuchiLayout);
+      const bRank = resolveTopDivisionRank(bDivision, pair.b.rankScore, world.makuuchiLayout);
+      if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
+        torikumiResultPlaceholder.push({
+          day,
+          aId: pair.a.id,
+          bId: pair.b.id,
+          aRankName: aRank.name,
+          bRankName: bRank.name,
+          aWon: winner.id === pair.a.id,
+          aWinProbability: winner.id === pair.a.id ? 0.96 : 0.04,
+          fusen: true,
+          fusenPair: true,
+          fusenWinnerId: winner.id,
+          fusenLoserId: loser.id,
+          fusenReason: reason,
+          scheduledAfterKyujoStart:
+            (pair.a.kyujoStartDay != null && day >= pair.a.kyujoStartDay) ||
+            (pair.b.kyujoStartDay != null && day >= pair.b.kyujoStartDay),
+        });
+      }
+      if (!pair.a.isPlayer && !pair.b.isPlayer) return;
+
+      const playerParticipant = pair.a.isPlayer ? pair.a : pair.b;
+      const opponent = pair.a.isPlayer ? pair.b : pair.a;
+      const opponentDivision = opponent.division as TopDivision;
+      const opponentRank = resolveTopDivisionRank(
+        opponentDivision,
+        opponent.rankScore,
+        world.makuuchiLayout,
+      );
+      const playerWon = winner.id === playerParticipant.id;
+      if (playerWon) {
+        wins += 1;
+        consecutiveWins += 1;
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        previousResult = 'WIN';
+      } else {
+        losses += 1;
+        consecutiveWins = 0;
+        currentWinStreak = 0;
+        currentLossStreak += 1;
+        previousResult = 'LOSS';
+      }
+      playerParticipant.currentWinStreak = currentWinStreak;
+      playerParticipant.currentLossStreak = currentLossStreak;
+      playerBoutDetails.push({
+        day,
+        result: playerWon ? 'WIN' : 'LOSS',
+        kimarite: playerWon ? '不戦勝' : '不戦敗',
+        opponentId: opponent.id,
+        opponentShikona: opponent.shikona,
+        opponentRankName: opponentRank.name,
+        opponentRankNumber: opponentRank.number,
+        opponentRankSide: opponentRank.side,
+        opponentStyleBias: opponent.styleBias ?? 'BALANCE',
+      });
+    },
+    onDoubleKyujo: (pair, day, reason) => {
+      applyNpcDoubleKyujo(pair.a, pair.b);
+      const aDivision = pair.a.division as TopDivision;
+      const bDivision = pair.b.division as TopDivision;
+      const aRank = resolveTopDivisionRank(aDivision, pair.a.rankScore, world.makuuchiLayout);
+      const bRank = resolveTopDivisionRank(bDivision, pair.b.rankScore, world.makuuchiLayout);
+      if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {
+        torikumiResultPlaceholder.push({
+          day,
+          aId: pair.a.id,
+          bId: pair.b.id,
+          aRankName: aRank.name,
+          bRankName: bRank.name,
+          fusen: true,
+          fusenPair: true,
+          fusenReason: reason,
+          doubleKyujo: true,
+          doubleKyujoParticipantIds: [pair.a.id, pair.b.id],
+          scheduledAfterKyujoStart:
+            (pair.a.kyujoStartDay != null && day >= pair.a.kyujoStartDay) ||
+            (pair.b.kyujoStartDay != null && day >= pair.b.kyujoStartDay),
+        });
+      }
+    },
     onPair: (pair, day) => {
       const { a, b } = pair;
       if (!a.isPlayer && !b.isPlayer) {
@@ -181,6 +276,9 @@ export const runTopDivisionBasho = (
             aAbility: boutDiagnostic?.aAbility,
             bAbility: boutDiagnostic?.bAbility,
             fusen: boutDiagnostic?.fusen,
+            scheduledAfterKyujoStart:
+              (a.kyujoStartDay != null && day >= a.kyujoStartDay) ||
+              (b.kyujoStartDay != null && day >= b.kyujoStartDay),
           });
         }
         if (aDivision === 'Makuuchi' && bDivision === 'Makuuchi') {

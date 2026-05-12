@@ -17,6 +17,7 @@ import {
   TorikumiBoundaryContext,
   TorikumiBoundaryImplication,
   TorikumiContentionTier,
+  TorikumiFusenReason,
   TorikumiMatchReason,
   TorikumiPair,
   TorikumiParticipant,
@@ -1052,6 +1053,18 @@ const chooseAttempt = (primary: MatchAttempt, repair: MatchAttempt): MatchAttemp
   return primary;
 };
 
+const resolveUnavailableReason = (
+  participant: TorikumiParticipant,
+  day: number,
+): TorikumiFusenReason => {
+  if (participant.bashoKyujo) return 'basho_kyujo';
+  if (!participant.active || participant.kyujo) return 'inactive';
+  if (participant.kyujoStartDay != null && day >= participant.kyujoStartDay) {
+    return 'partial_kyujo';
+  }
+  return 'inactive';
+};
+
 export const scheduleTorikumiBasho = (
   params: ScheduleTorikumiBashoParams,
 ): TorikumiBashoResult => {
@@ -1059,7 +1072,8 @@ export const scheduleTorikumiBasho = (
   for (const participant of participants) applyParticipantDefaults(participant);
   const faced = ensureFacedMap(participants, params.facedMap);
   const days = params.days.slice().sort((left, right) => left - right);
-  const canFightOnDay = params.dayEligibility ?? (() => true);
+  const canFightOnDay = params.prePublishedEligibility ?? params.dayEligibility ?? (() => true);
+  const canAppearAfterPublication = params.postPublishedAvailability;
   const bandMap = buildBoundaryBandMap(params.boundaryBands);
   const obligations = buildObligations(participants);
   const crossDivisionById = new Map<string, number>(participants.map((participant) => [participant.id, 0]));
@@ -1081,6 +1095,8 @@ export const scheduleTorikumiBasho = (
   let yokozunaOzekiTailBoutCount = 0;
   let repairAttempts = 0;
   let repairSuccessCount = 0;
+  let fusenPairCount = 0;
+  let doubleKyujoCount = 0;
 
   for (const day of days) {
     const eligible = enrichParticipantsForDay(
@@ -1197,6 +1213,7 @@ export const scheduleTorikumiBasho = (
       }
     }
 
+    const normalPairs: TorikumiPair[] = [];
     for (const pair of dayPairs) {
       markFaced(faced, pair.a, pair.b);
       pair.a.boutsDone += 1;
@@ -1253,9 +1270,36 @@ export const scheduleTorikumiBasho = (
         const [reason] = pair.obligationId.split(':');
         if (obligations.coverage[reason]) obligations.coverage[reason].scheduled += 1;
       }
+
+      if (canAppearAfterPublication) {
+        const aAvailable = canAppearAfterPublication(pair.a, day);
+        const bAvailable = canAppearAfterPublication(pair.b, day);
+        if (!aAvailable && !bAvailable) {
+          doubleKyujoCount += 1;
+          fusenPairCount += 1;
+          const aReason = resolveUnavailableReason(pair.a, day);
+          const bReason = resolveUnavailableReason(pair.b, day);
+          params.onDoubleKyujo?.(
+            pair,
+            day,
+            aReason === 'partial_kyujo' || bReason === 'partial_kyujo'
+              ? 'partial_kyujo'
+              : aReason,
+          );
+          continue;
+        }
+        if (!aAvailable || !bAvailable) {
+          fusenPairCount += 1;
+          const winner = aAvailable ? pair.a : pair.b;
+          const loser = aAvailable ? pair.b : pair.a;
+          params.onFusen?.(pair, day, winner, loser, resolveUnavailableReason(loser, day));
+          continue;
+        }
+      }
+      normalPairs.push(pair);
     }
 
-    for (const pair of dayPairs) {
+    for (const pair of normalPairs) {
       params.onPair?.(pair, day);
     }
 
@@ -1355,6 +1399,8 @@ export const scheduleTorikumiBasho = (
           : 1,
       yokozunaOzekiTailBoutRatio:
         yokozunaOzekiBoutCount > 0 ? yokozunaOzekiTailBoutCount / yokozunaOzekiBoutCount : 0,
+      fusenPairCount,
+      doubleKyujoCount,
       crossDivisionByBoundary,
       lateDirectTitleBoutCount,
       playerHealthyUnresolvedDays: [...playerHealthyUnresolvedDays].sort((left, right) => left - right),

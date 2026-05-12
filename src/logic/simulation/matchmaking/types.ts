@@ -28,6 +28,8 @@ export type DivisionParticipant = {
   boutsSimulated?: number;
   active: boolean;
   bashoKyujo?: boolean;
+  kyujoStartDay?: number;
+  kyujoReason?: 'injury' | 'illness' | 'fatigue' | 'unknown';
 };
 
 export type DailyMatchups = {

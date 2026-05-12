@@ -96,6 +96,13 @@ export interface SimulationWorld {
     aAbility?: number;
     bAbility?: number;
     fusen?: boolean;
+    fusenPair?: boolean;
+    fusenWinnerId?: string;
+    fusenLoserId?: string;
+    fusenReason?: 'partial_kyujo' | 'basho_kyujo' | 'inactive';
+    doubleKyujo?: boolean;
+    doubleKyujoParticipantIds?: string[];
+    scheduledAfterKyujoStart?: boolean;
   }>;
   lastExchange: TopDivisionExchange;
   lastSanyakuQuota: PlayerSanyakuQuota;

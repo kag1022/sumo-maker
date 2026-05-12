@@ -40,7 +40,16 @@ export interface SimulationDiagnostics {
     aAbility?: number;
     bAbility?: number;
     fusen?: boolean;
+    fusenPair?: boolean;
+    fusenWinnerId?: string;
+    fusenLoserId?: string;
+    fusenReason?: 'partial_kyujo' | 'basho_kyujo' | 'inactive';
+    doubleKyujo?: boolean;
+    doubleKyujoParticipantIds?: string[];
+    scheduledAfterKyujoStart?: boolean;
   }>;
+  fusenPairCount?: number;
+  doubleKyujoCount?: number;
   bashoVariance?: {
     playerBashoFormDelta: number;
     conditionBefore: number;
