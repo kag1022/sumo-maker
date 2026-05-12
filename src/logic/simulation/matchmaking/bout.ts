@@ -200,3 +200,30 @@ export const simulateNpcBout = (
     fusen: false,
   };
 };
+
+export const applyNpcFusenBout = (
+  winner: DivisionParticipant,
+  loser: DivisionParticipant,
+): void => {
+  const expectedWin = 0.96;
+  winner.expectedWins = (winner.expectedWins ?? 0) + expectedWin;
+  loser.expectedWins = (loser.expectedWins ?? 0) + (1 - expectedWin);
+  winner.boutsSimulated = (winner.boutsSimulated ?? 0) + 1;
+  loser.boutsSimulated = (loser.boutsSimulated ?? 0) + 1;
+  winner.wins += 1;
+  loser.losses += 1;
+  winner.currentWinStreak = (winner.currentWinStreak ?? 0) + 1;
+  winner.currentLossStreak = 0;
+  loser.currentLossStreak = (loser.currentLossStreak ?? 0) + 1;
+  loser.currentWinStreak = 0;
+};
+
+export const applyNpcDoubleKyujo = (
+  a: DivisionParticipant,
+  b: DivisionParticipant,
+): void => {
+  a.currentWinStreak = 0;
+  a.currentLossStreak = 0;
+  b.currentWinStreak = 0;
+  b.currentLossStreak = 0;
+};

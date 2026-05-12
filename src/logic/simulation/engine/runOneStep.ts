@@ -618,7 +618,15 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     sanyakuRoundRobinCoverageRate: bashoResult.torikumiDiagnostics?.sanyakuRoundRobinCoverageRate,
     joiAssignmentCoverageRate: bashoResult.torikumiDiagnostics?.joiAssignmentCoverageRate,
     yokozunaOzekiTailBoutRatio: bashoResult.torikumiDiagnostics?.yokozunaOzekiTailBoutRatio,
-    npcTopDivisionBoutRows: bashoResult.torikumiDiagnostics?.npcTopDivisionBoutRows,
+    npcTopDivisionBoutRows:
+      bashoResult.torikumiDiagnostics?.npcTopDivisionBoutRows ??
+      world.lastTopDivisionBoutRows,
+    fusenPairCount:
+      bashoResult.torikumiDiagnostics?.fusenPairCount ??
+      world.lastTopDivisionBoutRows?.filter((row) => row.fusenPair).length,
+    doubleKyujoCount:
+      bashoResult.torikumiDiagnostics?.doubleKyujoCount ??
+      world.lastTopDivisionBoutRows?.filter((row) => row.doubleKyujo).length,
     bashoVariance: {
       playerBashoFormDelta,
       conditionBefore: conditionBeforeBasho,

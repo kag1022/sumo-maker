@@ -51,6 +51,8 @@ interface Metrics {
   kyujoStartDayDistribution: Record<string, number>;
   fusenWinCount: number;
   fusenLossCount: number;
+  fusenPairCount: number;
+  doubleKyujoCount: number;
   npcFusenRows: number;
   playerFusenRows: number;
   yokozunaPartialKyujoCount: number;
@@ -61,6 +63,10 @@ interface Metrics {
   scheduledBoutBecameFusenCount: number;
   dayEligibilityViolations: number;
   participantWithBoutAfterKyujoStartDayCount: number;
+  allowedFusenOnKyujoStartDayCount: number;
+  participantWithNormalBoutAfterKyujoStartDayCount: number;
+  samePairReappearedAfterFusenCount: number;
+  playerDoubleCountedFusenAbsentCount: number;
   recordTotalConsistencyViolations: number;
 }
 
@@ -85,6 +91,8 @@ const zeroMetrics = (): Metrics => ({
   kyujoStartDayDistribution: {},
   fusenWinCount: 0,
   fusenLossCount: 0,
+  fusenPairCount: 0,
+  doubleKyujoCount: 0,
   npcFusenRows: 0,
   playerFusenRows: 0,
   yokozunaPartialKyujoCount: 0,
@@ -95,6 +103,10 @@ const zeroMetrics = (): Metrics => ({
   scheduledBoutBecameFusenCount: 0,
   dayEligibilityViolations: 0,
   participantWithBoutAfterKyujoStartDayCount: 0,
+  allowedFusenOnKyujoStartDayCount: 0,
+  participantWithNormalBoutAfterKyujoStartDayCount: 0,
+  samePairReappearedAfterFusenCount: 0,
+  playerDoubleCountedFusenAbsentCount: 0,
   recordTotalConsistencyViolations: 0,
 });
 
@@ -264,6 +276,20 @@ const runWorld = async (
       bout.kimarite === '不戦勝' || bout.kimarite === '不戦敗').length;
     metrics.fusenWinCount += step.playerBouts.filter((bout) => bout.kimarite === '不戦勝').length;
     metrics.fusenLossCount += step.playerBouts.filter((bout) => bout.kimarite === '不戦敗').length;
+    const playerBoutsByDay = new Map<number, typeof step.playerBouts>();
+    for (const bout of step.playerBouts) {
+      const bouts = playerBoutsByDay.get(bout.day) ?? [];
+      bouts.push(bout);
+      playerBoutsByDay.set(bout.day, bouts);
+    }
+    for (const bouts of playerBoutsByDay.values()) {
+      if (
+        bouts.some((bout) => bout.kimarite === '不戦勝' || bout.kimarite === '不戦敗') &&
+        bouts.some((bout) => bout.result === 'ABSENT')
+      ) {
+        metrics.playerDoubleCountedFusenAbsentCount += 1;
+      }
+    }
 
     for (const record of step.npcBashoRecords) {
       if (record.division !== 'Makuuchi' && record.division !== 'Juryo') continue;
@@ -278,10 +304,30 @@ const runWorld = async (
 
     const rows = step.diagnostics?.npcTopDivisionBoutRows ?? [];
     metrics.npcFusenRows += rows.filter((row) => row.fusen).length;
-    metrics.scheduledBoutBecameFusenCount += rows.filter((row) => row.fusen).length;
-    metrics.dayEligibilityViolations += rows.filter((row) => row.scheduledAfterKyujoStart).length;
+    const traceFusenPairCount = rows.filter((row) => row.fusenPair).length;
+    const traceDoubleKyujoCount = rows.filter((row) => row.doubleKyujo).length;
+    const fusenPairCount = Math.max(step.diagnostics?.fusenPairCount ?? 0, traceFusenPairCount);
+    const doubleKyujoCount = Math.max(step.diagnostics?.doubleKyujoCount ?? 0, traceDoubleKyujoCount);
+    metrics.fusenPairCount += fusenPairCount;
+    metrics.doubleKyujoCount += doubleKyujoCount;
+    metrics.scheduledBoutBecameFusenCount += fusenPairCount;
+    const normalBoutAfterKyujoStartCount = rows.filter((row) =>
+      row.scheduledAfterKyujoStart && !row.fusenPair).length;
+    metrics.dayEligibilityViolations += normalBoutAfterKyujoStartCount;
     metrics.participantWithBoutAfterKyujoStartDayCount += rows.filter((row) =>
       row.scheduledAfterKyujoStart).length;
+    metrics.allowedFusenOnKyujoStartDayCount += rows.filter((row) =>
+      row.scheduledAfterKyujoStart && row.fusenPair).length;
+    metrics.participantWithNormalBoutAfterKyujoStartDayCount += normalBoutAfterKyujoStartCount;
+    const fusenPairKeys = new Map<string, number>();
+    for (const row of rows) {
+      const pairKey = [row.aId, row.bId].sort().join(':');
+      const fusenDay = fusenPairKeys.get(pairKey);
+      if (fusenDay != null && row.day > fusenDay) {
+        metrics.samePairReappearedAfterFusenCount += 1;
+      }
+      if (row.fusenPair) fusenPairKeys.set(pairKey, row.day);
+    }
   }
 
   return {
@@ -307,6 +353,8 @@ const mergeMetrics = (summaries: WorldSummary[]): Metrics => {
     total.playerFullKyujoCount += metrics.playerFullKyujoCount;
     total.fusenWinCount += metrics.fusenWinCount;
     total.fusenLossCount += metrics.fusenLossCount;
+    total.fusenPairCount += metrics.fusenPairCount;
+    total.doubleKyujoCount += metrics.doubleKyujoCount;
     total.npcFusenRows += metrics.npcFusenRows;
     total.playerFusenRows += metrics.playerFusenRows;
     total.yokozunaPartialKyujoCount += metrics.yokozunaPartialKyujoCount;
@@ -317,6 +365,10 @@ const mergeMetrics = (summaries: WorldSummary[]): Metrics => {
     total.scheduledBoutBecameFusenCount += metrics.scheduledBoutBecameFusenCount;
     total.dayEligibilityViolations += metrics.dayEligibilityViolations;
     total.participantWithBoutAfterKyujoStartDayCount += metrics.participantWithBoutAfterKyujoStartDayCount;
+    total.allowedFusenOnKyujoStartDayCount += metrics.allowedFusenOnKyujoStartDayCount;
+    total.participantWithNormalBoutAfterKyujoStartDayCount += metrics.participantWithNormalBoutAfterKyujoStartDayCount;
+    total.samePairReappearedAfterFusenCount += metrics.samePairReappearedAfterFusenCount;
+    total.playerDoubleCountedFusenAbsentCount += metrics.playerDoubleCountedFusenAbsentCount;
     total.recordTotalConsistencyViolations += metrics.recordTotalConsistencyViolations;
     for (const [bucket, count] of Object.entries(metrics.absentDaysDistribution)) {
       total.absentDaysDistribution[bucket] = (total.absentDaysDistribution[bucket] ?? 0) + count;
@@ -347,11 +399,11 @@ const writeOutputs = (summaries: WorldSummary[]): void => {
   md.push('');
   md.push('## Summary');
   md.push('');
-  md.push('| world | seed | basho | NPC sekitori | NPC partial | NPC full | Player partial | Player full | NPC fusen rows | eligibility violations | total violations |');
-  md.push('| --- | ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:|');
+  md.push('| world | seed | basho | NPC sekitori | NPC partial | NPC full | Player partial | Player full | Fusen pairs | Allowed start-day fusen | Normal after kyujo | Same pair repeat | Player double count | total violations |');
+  md.push('| --- | ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:| ---:|');
   for (const summary of summaries) {
     const m = summary.metrics;
-    md.push(`| ${summary.worldLabel} | ${summary.seed} | ${m.bashoCount} | ${m.npcSekitoriAppearances} | ${m.npcSekitoriPartialKyujoCount} | ${m.npcSekitoriFullKyujoCount} | ${m.playerPartialKyujoCount} | ${m.playerFullKyujoCount} | ${m.npcFusenRows} | ${m.dayEligibilityViolations} | ${m.recordTotalConsistencyViolations} |`);
+    md.push(`| ${summary.worldLabel} | ${summary.seed} | ${m.bashoCount} | ${m.npcSekitoriAppearances} | ${m.npcSekitoriPartialKyujoCount} | ${m.npcSekitoriFullKyujoCount} | ${m.playerPartialKyujoCount} | ${m.playerFullKyujoCount} | ${m.fusenPairCount} | ${m.allowedFusenOnKyujoStartDayCount} | ${m.participantWithNormalBoutAfterKyujoStartDayCount} | ${m.samePairReappearedAfterFusenCount} | ${m.playerDoubleCountedFusenAbsentCount} | ${m.recordTotalConsistencyViolations} |`);
   }
   md.push('');
   md.push('## Total KPI');
@@ -364,7 +416,10 @@ const writeOutputs = (summaries: WorldSummary[]): void => {
   md.push('');
   md.push('- `npcSekitoriPartialKyujoCount` は `0 < absent < 15` の関取 NPC 場所を数える。');
   md.push('- `kyujoStartDayDistribution` は `16 - absent` から推定する。現行 MVP は日別再編成なので、途中休場後の通常取組は組まれない。');
-  md.push('- `npcFusenRows` は既存の全休・active false 由来の不戦 trace。途中休場 MVP は事前 eligibility 除外のため、partial 由来の不戦は増やさない。');
+  md.push('- `fusenPairCount` は発表済み取組が不戦へ置換された trace。`samePairReappearedAfterFusenCount` が 0 であることを再戦防止 gate とする。');
+  md.push('- `allowedFusenOnKyujoStartDayCount` は `day === kyujoStartDay` の正常な不戦置換。');
+  md.push('- `participantWithNormalBoutAfterKyujoStartDayCount` は `day >= kyujoStartDay` に通常勝敗へ流れた件数。0 を hard gate とする。');
+  md.push('- `playerDoubleCountedFusenAbsentCount` は同日に player の不戦と `ABSENT` が二重生成された件数。0 を hard gate とする。');
   md.push('- `recordTotalConsistencyViolations` は関取の `wins + losses + absent !== 15`。ここが 0 であることを hard gate とする。');
   fs.writeFileSync(path.join(docsDir, 'sekitori_day_by_day_kyujo_diagnostics.md'), `${md.join('\n')}\n`);
 };

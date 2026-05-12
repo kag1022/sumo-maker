@@ -123,6 +123,7 @@ export type TorikumiParticipant = {
 export type TorikumiContentionTier = 'Leader' | 'Contender' | 'Outside';
 export type TorikumiTitleImplication = 'DIRECT' | 'CHASE' | 'NONE';
 export type TorikumiBoundaryImplication = 'PROMOTION' | 'DEMOTION' | 'NONE';
+export type TorikumiFusenReason = 'partial_kyujo' | 'basho_kyujo' | 'inactive';
 
 export type TorikumiPair = {
   a: TorikumiParticipant;
@@ -182,8 +183,16 @@ export type TorikumiDiagnostics = {
     aAbility?: number;
     bAbility?: number;
     fusen?: boolean;
+    fusenPair?: boolean;
+    fusenWinnerId?: string;
+    fusenLoserId?: string;
+    fusenReason?: TorikumiFusenReason;
+    doubleKyujo?: boolean;
+    doubleKyujoParticipantIds?: string[];
     scheduledAfterKyujoStart?: boolean;
   }>;
+  fusenPairCount: number;
+  doubleKyujoCount: number;
   crossDivisionByBoundary: Record<string, number>;
   lateDirectTitleBoutCount: number;
   playerHealthyUnresolvedDays: number[];
@@ -227,6 +236,20 @@ export type ScheduleTorikumiBashoParams = {
   lateEvalStartDay?: number;
   vacancyByDivision?: Partial<Record<TorikumiDivision, number>>;
   dayEligibility?: (participant: TorikumiParticipant, day: number) => boolean;
+  prePublishedEligibility?: (participant: TorikumiParticipant, day: number) => boolean;
+  postPublishedAvailability?: (participant: TorikumiParticipant, day: number) => boolean;
+  onFusen?: (
+    pair: TorikumiPair,
+    day: number,
+    winner: TorikumiParticipant,
+    loser: TorikumiParticipant,
+    reason: TorikumiFusenReason,
+  ) => void;
+  onDoubleKyujo?: (
+    pair: TorikumiPair,
+    day: number,
+    reason: TorikumiFusenReason,
+  ) => void;
   onPair?: (pair: TorikumiPair, day: number) => void;
   onBye?: (participant: TorikumiParticipant, day: number) => void;
   /**

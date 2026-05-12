@@ -1,5 +1,11 @@
 import { RandomSource } from '../deps';
-import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../matchmaking';
+import {
+  applyNpcDoubleKyujo,
+  applyNpcFusenBout,
+  createDailyMatchups,
+  createFacedMap,
+  simulateNpcBout,
+} from '../matchmaking';
 import { evolveDivisionAfterBasho } from './evolveDivision';
 import { createDivisionParticipants } from './participants';
 import { resolveTopDivisionRank } from '../topDivision/rank';
@@ -22,7 +28,7 @@ export const simulateOffscreenTopDivisionBasho = (
     for (const entry of activeByDay) {
       if (
         entry.participant.kyujoStartDay != null &&
-        day >= entry.participant.kyujoStartDay
+        day > entry.participant.kyujoStartDay
       ) {
         entry.participant.active = false;
       }
@@ -33,6 +39,48 @@ export const simulateOffscreenTopDivisionBasho = (
     for (const { a, b } of pairs) {
       const aRank = resolveTopDivisionRank(division, a.rankScore, world.makuuchiLayout);
       const bRank = resolveTopDivisionRank(division, b.rankScore, world.makuuchiLayout);
+      const aKyujoStarted = a.kyujoStartDay != null && day >= a.kyujoStartDay;
+      const bKyujoStarted = b.kyujoStartDay != null && day >= b.kyujoStartDay;
+      if (aKyujoStarted && bKyujoStarted) {
+        applyNpcDoubleKyujo(a, b);
+        boutRows.push({
+          division,
+          day,
+          aId: a.id,
+          bId: b.id,
+          aRankName: aRank.name,
+          bRankName: bRank.name,
+          fusen: true,
+          fusenPair: true,
+          fusenReason: 'partial_kyujo',
+          doubleKyujo: true,
+          doubleKyujoParticipantIds: [a.id, b.id],
+          scheduledAfterKyujoStart: true,
+        });
+        continue;
+      }
+      if (aKyujoStarted || bKyujoStarted) {
+        const winner = aKyujoStarted ? b : a;
+        const loser = aKyujoStarted ? a : b;
+        applyNpcFusenBout(winner, loser);
+        boutRows.push({
+          division,
+          day,
+          aId: a.id,
+          bId: b.id,
+          aRankName: aRank.name,
+          bRankName: bRank.name,
+          aWon: winner.id === a.id,
+          aWinProbability: winner.id === a.id ? 0.96 : 0.04,
+          fusen: true,
+          fusenPair: true,
+          fusenWinnerId: winner.id,
+          fusenLoserId: loser.id,
+          fusenReason: 'partial_kyujo',
+          scheduledAfterKyujoStart: true,
+        });
+        continue;
+      }
       const diagnostic = simulateNpcBout(a, b, rng);
       boutRows.push({
         division,
