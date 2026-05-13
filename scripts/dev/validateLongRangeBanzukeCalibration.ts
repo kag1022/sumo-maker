@@ -6,7 +6,7 @@ const ROOT = process.cwd();
 const OUT_JSON = path.join(ROOT, 'docs', 'design', 'lower_division_long_range_calibration_validation.json');
 const OUT_MD = path.join(ROOT, 'docs', 'design', 'lower_division_long_range_calibration_validation.md');
 const LOWER_DIVISIONS = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
-const REQUIRED_RECORDS = ['0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
+const REQUIRED_RECORDS = ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
 
 interface BucketSampleRow {
   division: string;

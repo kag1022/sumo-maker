@@ -53,7 +53,7 @@ const TARGET_INLINE_BYTES = 3 * 1024 * 1024;
 
 const DIVISIONS: Division[] = ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
 const LOWER_DIVISIONS: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
-const REQUIRED_RECORD_BUCKETS = ['0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
+const REQUIRED_RECORD_BUCKETS = ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
 const BOUNDARY_KEYS = [
   'JuryoToMakuuchi',
   'MakuuchiToJuryo',

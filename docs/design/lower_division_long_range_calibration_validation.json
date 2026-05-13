@@ -1,0 +1,1392 @@
+{
+  "generatedAt": "2026-05-12T16:11:49.902Z",
+  "source": "sumo-api-db/data/analysis/era_*_196007_202603.json",
+  "sampleSize": 265745,
+  "divisions": [
+    "Makushita",
+    "Sandanme",
+    "Jonidan",
+    "Jonokuchi"
+  ],
+  "requiredRecords": [
+    "0-7",
+    "0-0-7",
+    "1-6",
+    "2-5",
+    "3-4",
+    "4-3",
+    "5-2",
+    "6-1",
+    "7-0"
+  ],
+  "bucketSamples": [
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "0-7",
+      "sampleSize": 6,
+      "p50HalfStep": -63.5,
+      "p90HalfStep": -54.5
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "0-0-7",
+      "sampleSize": 73,
+      "p50HalfStep": -80,
+      "p90HalfStep": 0
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "1-6",
+      "sampleSize": 146,
+      "p50HalfStep": -38,
+      "p90HalfStep": -25.5
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "2-5",
+      "sampleSize": 499,
+      "p50HalfStep": -21,
+      "p90HalfStep": -13
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "3-4",
+      "sampleSize": 927,
+      "p50HalfStep": -7,
+      "p90HalfStep": -4
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "4-3",
+      "sampleSize": 1039,
+      "p50HalfStep": 4,
+      "p90HalfStep": 7
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "5-2",
+      "sampleSize": 676,
+      "p50HalfStep": 7,
+      "p90HalfStep": 10
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "6-1",
+      "sampleSize": 244,
+      "p50HalfStep": 9,
+      "p90HalfStep": 13
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "1-5",
+      "record": "7-0",
+      "sampleSize": 79,
+      "p50HalfStep": 13,
+      "p90HalfStep": 18
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "0-7",
+      "sampleSize": 28,
+      "p50HalfStep": -69,
+      "p90HalfStep": -57.7
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "0-0-7",
+      "sampleSize": 130,
+      "p50HalfStep": -80,
+      "p90HalfStep": 0
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "1-6",
+      "sampleSize": 389,
+      "p50HalfStep": -45,
+      "p90HalfStep": -35
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "2-5",
+      "sampleSize": 1220,
+      "p50HalfStep": -28,
+      "p90HalfStep": -19
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "3-4",
+      "sampleSize": 2031,
+      "p50HalfStep": -11,
+      "p90HalfStep": -6
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "4-3",
+      "sampleSize": 2060,
+      "p50HalfStep": 7,
+      "p90HalfStep": 10
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "5-2",
+      "sampleSize": 1190,
+      "p50HalfStep": 12,
+      "p90HalfStep": 17
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "6-1",
+      "sampleSize": 391,
+      "p50HalfStep": 16,
+      "p90HalfStep": 22
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "6-15",
+      "record": "7-0",
+      "sampleSize": 101,
+      "p50HalfStep": 24,
+      "p90HalfStep": 32
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "0-7",
+      "sampleSize": 70,
+      "p50HalfStep": -70,
+      "p90HalfStep": -59.9
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "0-0-7",
+      "sampleSize": 165,
+      "p50HalfStep": -80,
+      "p90HalfStep": 0
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "1-6",
+      "sampleSize": 612,
+      "p50HalfStep": -50,
+      "p90HalfStep": -40
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "2-5",
+      "sampleSize": 1802,
+      "p50HalfStep": -33,
+      "p90HalfStep": -24
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "3-4",
+      "sampleSize": 3035,
+      "p50HalfStep": -15,
+      "p90HalfStep": -9
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "4-3",
+      "sampleSize": 3098,
+      "p50HalfStep": 11,
+      "p90HalfStep": 16
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "5-2",
+      "sampleSize": 1841,
+      "p50HalfStep": 21,
+      "p90HalfStep": 27
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "6-1",
+      "sampleSize": 633,
+      "p50HalfStep": 31,
+      "p90HalfStep": 38
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "16-30",
+      "record": "7-0",
+      "sampleSize": 74,
+      "p50HalfStep": 41,
+      "p90HalfStep": 52
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "0-7",
+      "sampleSize": 74,
+      "p50HalfStep": -70,
+      "p90HalfStep": -61.3
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "0-0-7",
+      "sampleSize": 237,
+      "p50HalfStep": -80,
+      "p90HalfStep": 0
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "1-6",
+      "sampleSize": 554,
+      "p50HalfStep": -56,
+      "p90HalfStep": -46
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "2-5",
+      "sampleSize": 1792,
+      "p50HalfStep": -39,
+      "p90HalfStep": -29
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "3-4",
+      "sampleSize": 3045,
+      "p50HalfStep": -18,
+      "p90HalfStep": -10
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "4-3",
+      "sampleSize": 3036,
+      "p50HalfStep": 16,
+      "p90HalfStep": 22
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "5-2",
+      "sampleSize": 1854,
+      "p50HalfStep": 29,
+      "p90HalfStep": 36
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "6-1",
+      "sampleSize": 639,
+      "p50HalfStep": 44,
+      "p90HalfStep": 51
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "31-45",
+      "record": "7-0",
+      "sampleSize": 66,
+      "p50HalfStep": 70.5,
+      "p90HalfStep": 81
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "0-7",
+      "sampleSize": 122,
+      "p50HalfStep": -70,
+      "p90HalfStep": -61
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "0-0-7",
+      "sampleSize": 255,
+      "p50HalfStep": -80,
+      "p90HalfStep": 0
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "1-6",
+      "sampleSize": 732,
+      "p50HalfStep": -58,
+      "p90HalfStep": -45
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "2-5",
+      "sampleSize": 2202,
+      "p50HalfStep": -42,
+      "p90HalfStep": -30
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "3-4",
+      "sampleSize": 3752,
+      "p50HalfStep": -22,
+      "p90HalfStep": -11
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "4-3",
+      "sampleSize": 3832,
+      "p50HalfStep": 18,
+      "p90HalfStep": 26
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "5-2",
+      "sampleSize": 2286,
+      "p50HalfStep": 38,
+      "p90HalfStep": 47
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "6-1",
+      "sampleSize": 786,
+      "p50HalfStep": 57,
+      "p90HalfStep": 64
+    },
+    {
+      "division": "Makushita",
+      "rankBand": "46+",
+      "record": "7-0",
+      "sampleSize": 72,
+      "p50HalfStep": 99,
+      "p90HalfStep": 153.9
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "0-7",
+      "sampleSize": 53,
+      "p50HalfStep": -89,
+      "p90HalfStep": -70
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "0-0-7",
+      "sampleSize": 203,
+      "p50HalfStep": -119,
+      "p90HalfStep": -71
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "1-6",
+      "sampleSize": 382,
+      "p50HalfStep": -65,
+      "p90HalfStep": -53
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "2-5",
+      "sampleSize": 1160,
+      "p50HalfStep": -47,
+      "p90HalfStep": -35
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "3-4",
+      "sampleSize": 2005,
+      "p50HalfStep": -26,
+      "p90HalfStep": -16
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "4-3",
+      "sampleSize": 1986,
+      "p50HalfStep": 21,
+      "p90HalfStep": 29
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "5-2",
+      "sampleSize": 1215,
+      "p50HalfStep": 43,
+      "p90HalfStep": 51
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "6-1",
+      "sampleSize": 389,
+      "p50HalfStep": 65,
+      "p90HalfStep": 71
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "1-10",
+      "record": "7-0",
+      "sampleSize": 68,
+      "p50HalfStep": 108,
+      "p90HalfStep": 119.6
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "0-7",
+      "sampleSize": 98,
+      "p50HalfStep": -90.5,
+      "p90HalfStep": -71.7
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "0-0-7",
+      "sampleSize": 440,
+      "p50HalfStep": -120,
+      "p90HalfStep": -70
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "1-6",
+      "sampleSize": 788,
+      "p50HalfStep": -66,
+      "p90HalfStep": -52
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "2-5",
+      "sampleSize": 2376,
+      "p50HalfStep": -49,
+      "p90HalfStep": -37
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "3-4",
+      "sampleSize": 3928,
+      "p50HalfStep": -29,
+      "p90HalfStep": -17
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "4-3",
+      "sampleSize": 3961,
+      "p50HalfStep": 24,
+      "p90HalfStep": 30
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "5-2",
+      "sampleSize": 2459,
+      "p50HalfStep": 49,
+      "p90HalfStep": 57
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "6-1",
+      "sampleSize": 776,
+      "p50HalfStep": 73,
+      "p90HalfStep": 82
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "11-30",
+      "record": "7-0",
+      "sampleSize": 153,
+      "p50HalfStep": 127,
+      "p90HalfStep": 139.8
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "0-7",
+      "sampleSize": 142,
+      "p50HalfStep": -91,
+      "p90HalfStep": -80
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "0-0-7",
+      "sampleSize": 604,
+      "p50HalfStep": -118,
+      "p90HalfStep": -68
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "1-6",
+      "sampleSize": 1147,
+      "p50HalfStep": -68,
+      "p90HalfStep": -55
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "2-5",
+      "sampleSize": 3574,
+      "p50HalfStep": -50,
+      "p90HalfStep": -39
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "3-4",
+      "sampleSize": 5957,
+      "p50HalfStep": -29,
+      "p90HalfStep": -17
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "4-3",
+      "sampleSize": 6019,
+      "p50HalfStep": 30,
+      "p90HalfStep": 37
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "5-2",
+      "sampleSize": 3604,
+      "p50HalfStep": 55,
+      "p90HalfStep": 65
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "6-1",
+      "sampleSize": 1230,
+      "p50HalfStep": 90,
+      "p90HalfStep": 102
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "31-60",
+      "record": "7-0",
+      "sampleSize": 161,
+      "p50HalfStep": 147,
+      "p90HalfStep": 168
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "0-7",
+      "sampleSize": 153,
+      "p50HalfStep": -92,
+      "p90HalfStep": -80
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "0-0-7",
+      "sampleSize": 726,
+      "p50HalfStep": -120,
+      "p90HalfStep": -77.5
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "1-6",
+      "sampleSize": 1107,
+      "p50HalfStep": -70,
+      "p90HalfStep": -55
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "2-5",
+      "sampleSize": 3345,
+      "p50HalfStep": -52,
+      "p90HalfStep": -40
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "3-4",
+      "sampleSize": 5698,
+      "p50HalfStep": -30,
+      "p90HalfStep": -18
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "4-3",
+      "sampleSize": 5792,
+      "p50HalfStep": 36,
+      "p90HalfStep": 43
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "5-2",
+      "sampleSize": 3468,
+      "p50HalfStep": 64,
+      "p90HalfStep": 75
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "6-1",
+      "sampleSize": 1157,
+      "p50HalfStep": 105,
+      "p90HalfStep": 116
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "61-90",
+      "record": "7-0",
+      "sampleSize": 143,
+      "p50HalfStep": 171,
+      "p90HalfStep": 182
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "0-7",
+      "sampleSize": 38,
+      "p50HalfStep": -93,
+      "p90HalfStep": -77.7
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "0-0-7",
+      "sampleSize": 221,
+      "p50HalfStep": -120,
+      "p90HalfStep": -73
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "1-6",
+      "sampleSize": 298,
+      "p50HalfStep": -73,
+      "p90HalfStep": -55.7
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "2-5",
+      "sampleSize": 856,
+      "p50HalfStep": -55,
+      "p90HalfStep": -42
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "3-4",
+      "sampleSize": 1475,
+      "p50HalfStep": -35,
+      "p90HalfStep": -21
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "4-3",
+      "sampleSize": 1431,
+      "p50HalfStep": 39,
+      "p90HalfStep": 52
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "5-2",
+      "sampleSize": 872,
+      "p50HalfStep": 70,
+      "p90HalfStep": 85
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "6-1",
+      "sampleSize": 307,
+      "p50HalfStep": 113,
+      "p90HalfStep": 122
+    },
+    {
+      "division": "Sandanme",
+      "rankBand": "91+",
+      "record": "7-0",
+      "sampleSize": 32,
+      "p50HalfStep": 193,
+      "p90HalfStep": 208
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "0-7",
+      "sampleSize": 98,
+      "p50HalfStep": -110,
+      "p90HalfStep": -80
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "0-0-7",
+      "sampleSize": 522,
+      "p50HalfStep": -139,
+      "p90HalfStep": -77
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "1-6",
+      "sampleSize": 769,
+      "p50HalfStep": -78,
+      "p90HalfStep": -58
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "2-5",
+      "sampleSize": 2314,
+      "p50HalfStep": -58,
+      "p90HalfStep": -40
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "3-4",
+      "sampleSize": 3879,
+      "p50HalfStep": -36,
+      "p90HalfStep": -21
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "4-3",
+      "sampleSize": 3993,
+      "p50HalfStep": 39,
+      "p90HalfStep": 49
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "5-2",
+      "sampleSize": 2375,
+      "p50HalfStep": 70,
+      "p90HalfStep": 81
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "6-1",
+      "sampleSize": 793,
+      "p50HalfStep": 114,
+      "p90HalfStep": 124
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "1-20",
+      "record": "7-0",
+      "sampleSize": 153,
+      "p50HalfStep": 175,
+      "p90HalfStep": 187
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "0-7",
+      "sampleSize": 152,
+      "p50HalfStep": -110,
+      "p90HalfStep": -79
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "0-0-7",
+      "sampleSize": 947,
+      "p50HalfStep": -134,
+      "p90HalfStep": -74
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "1-6",
+      "sampleSize": 1134,
+      "p50HalfStep": -77,
+      "p90HalfStep": -56
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "2-5",
+      "sampleSize": 3493,
+      "p50HalfStep": -59,
+      "p90HalfStep": -41
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "3-4",
+      "sampleSize": 5856,
+      "p50HalfStep": -37,
+      "p90HalfStep": -20
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "4-3",
+      "sampleSize": 5825,
+      "p50HalfStep": 44,
+      "p90HalfStep": 54
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "5-2",
+      "sampleSize": 3556,
+      "p50HalfStep": 74,
+      "p90HalfStep": 87
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "6-1",
+      "sampleSize": 1189,
+      "p50HalfStep": 122,
+      "p90HalfStep": 132
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "21-50",
+      "record": "7-0",
+      "sampleSize": 169,
+      "p50HalfStep": 191,
+      "p90HalfStep": 201
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "0-7",
+      "sampleSize": 278,
+      "p50HalfStep": -102,
+      "p90HalfStep": -56
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "0-0-7",
+      "sampleSize": 1733,
+      "p50HalfStep": -94,
+      "p90HalfStep": -30
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "1-6",
+      "sampleSize": 1818,
+      "p50HalfStep": -65,
+      "p90HalfStep": -31
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "2-5",
+      "sampleSize": 5565,
+      "p50HalfStep": -51,
+      "p90HalfStep": -19
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "3-4",
+      "sampleSize": 9420,
+      "p50HalfStep": -32,
+      "p90HalfStep": -6
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "4-3",
+      "sampleSize": 9511,
+      "p50HalfStep": 52,
+      "p90HalfStep": 68
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "5-2",
+      "sampleSize": 5767,
+      "p50HalfStep": 85,
+      "p90HalfStep": 101
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "6-1",
+      "sampleSize": 1872,
+      "p50HalfStep": 135,
+      "p90HalfStep": 152
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "51-100",
+      "record": "7-0",
+      "sampleSize": 249,
+      "p50HalfStep": 202,
+      "p90HalfStep": 224
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "0-7",
+      "sampleSize": 115,
+      "p50HalfStep": -104,
+      "p90HalfStep": -56.4
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "0-0-7",
+      "sampleSize": 940,
+      "p50HalfStep": -89,
+      "p90HalfStep": -27.9
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "1-6",
+      "sampleSize": 800,
+      "p50HalfStep": -55,
+      "p90HalfStep": -23
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "2-5",
+      "sampleSize": 2415,
+      "p50HalfStep": -43,
+      "p90HalfStep": -13
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "3-4",
+      "sampleSize": 4119,
+      "p50HalfStep": -27,
+      "p90HalfStep": -2
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "4-3",
+      "sampleSize": 4163,
+      "p50HalfStep": 59,
+      "p90HalfStep": 74
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "5-2",
+      "sampleSize": 2507,
+      "p50HalfStep": 95,
+      "p90HalfStep": 110
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "6-1",
+      "sampleSize": 811,
+      "p50HalfStep": 152,
+      "p90HalfStep": 163
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "101-150",
+      "record": "7-0",
+      "sampleSize": 77,
+      "p50HalfStep": 247,
+      "p90HalfStep": 292
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "0-7",
+      "sampleSize": 19,
+      "p50HalfStep": -108,
+      "p90HalfStep": -72.4
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "0-0-7",
+      "sampleSize": 161,
+      "p50HalfStep": -117,
+      "p90HalfStep": -76
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "1-6",
+      "sampleSize": 143,
+      "p50HalfStep": -63,
+      "p90HalfStep": -39
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "2-5",
+      "sampleSize": 412,
+      "p50HalfStep": -52,
+      "p90HalfStep": -32
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "3-4",
+      "sampleSize": 693,
+      "p50HalfStep": -34,
+      "p90HalfStep": -19
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "4-3",
+      "sampleSize": 662,
+      "p50HalfStep": 64,
+      "p90HalfStep": 76
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "5-2",
+      "sampleSize": 413,
+      "p50HalfStep": 104,
+      "p90HalfStep": 119
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "6-1",
+      "sampleSize": 131,
+      "p50HalfStep": 180,
+      "p90HalfStep": 201
+    },
+    {
+      "division": "Jonidan",
+      "rankBand": "151+",
+      "record": "7-0",
+      "sampleSize": 22,
+      "p50HalfStep": 327,
+      "p90HalfStep": 370.4
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "0-7",
+      "sampleSize": 66,
+      "p50HalfStep": -55.5,
+      "p90HalfStep": -11
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "0-0-7",
+      "sampleSize": 13,
+      "p50HalfStep": 4,
+      "p90HalfStep": 11.6
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "1-6",
+      "sampleSize": 351,
+      "p50HalfStep": -20,
+      "p90HalfStep": 3
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "2-5",
+      "sampleSize": 1049,
+      "p50HalfStep": -11,
+      "p90HalfStep": 9.2
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "3-4",
+      "sampleSize": 1743,
+      "p50HalfStep": 2,
+      "p90HalfStep": 19
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "4-3",
+      "sampleSize": 1820,
+      "p50HalfStep": 69,
+      "p90HalfStep": 85
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "5-2",
+      "sampleSize": 1043,
+      "p50HalfStep": 102,
+      "p90HalfStep": 118
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "6-1",
+      "sampleSize": 331,
+      "p50HalfStep": 156,
+      "p90HalfStep": 186
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "1-10",
+      "record": "7-0",
+      "sampleSize": 68,
+      "p50HalfStep": 203,
+      "p90HalfStep": 269
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "0-7",
+      "sampleSize": 59,
+      "p50HalfStep": -8,
+      "p90HalfStep": 7.6
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "0-0-7",
+      "sampleSize": 10,
+      "p50HalfStep": 9.5,
+      "p90HalfStep": 17.3
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "1-6",
+      "sampleSize": 290,
+      "p50HalfStep": -4,
+      "p90HalfStep": 23.1
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "2-5",
+      "sampleSize": 929,
+      "p50HalfStep": -1,
+      "p90HalfStep": 20
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "3-4",
+      "sampleSize": 1564,
+      "p50HalfStep": 11,
+      "p90HalfStep": 28
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "4-3",
+      "sampleSize": 1660,
+      "p50HalfStep": 74,
+      "p90HalfStep": 91
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "5-2",
+      "sampleSize": 973,
+      "p50HalfStep": 106,
+      "p90HalfStep": 124.8
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "6-1",
+      "sampleSize": 361,
+      "p50HalfStep": 162,
+      "p90HalfStep": 198
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "11-20",
+      "record": "7-0",
+      "sampleSize": 104,
+      "p50HalfStep": 215.5,
+      "p90HalfStep": 265.4
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "0-7",
+      "sampleSize": 64,
+      "p50HalfStep": -4,
+      "p90HalfStep": 14.4
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "0-0-7",
+      "sampleSize": 4,
+      "p50HalfStep": -16,
+      "p90HalfStep": -2.2
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "1-6",
+      "sampleSize": 246,
+      "p50HalfStep": 3,
+      "p90HalfStep": 24
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "2-5",
+      "sampleSize": 708,
+      "p50HalfStep": 6,
+      "p90HalfStep": 24
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "3-4",
+      "sampleSize": 1202,
+      "p50HalfStep": 18,
+      "p90HalfStep": 36
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "4-3",
+      "sampleSize": 1158,
+      "p50HalfStep": 80,
+      "p90HalfStep": 99
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "5-2",
+      "sampleSize": 687,
+      "p50HalfStep": 113,
+      "p90HalfStep": 130
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "6-1",
+      "sampleSize": 257,
+      "p50HalfStep": 170,
+      "p90HalfStep": 207
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "21-30",
+      "record": "7-0",
+      "sampleSize": 66,
+      "p50HalfStep": 248,
+      "p90HalfStep": 315.5
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "0-7",
+      "sampleSize": 126,
+      "p50HalfStep": 2,
+      "p90HalfStep": 18
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "0-0-7",
+      "sampleSize": 7,
+      "p50HalfStep": 12,
+      "p90HalfStep": 17.6
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "1-6",
+      "sampleSize": 305,
+      "p50HalfStep": 16,
+      "p90HalfStep": 35.6
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "2-5",
+      "sampleSize": 772,
+      "p50HalfStep": 16,
+      "p90HalfStep": 35
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "3-4",
+      "sampleSize": 1320,
+      "p50HalfStep": 29,
+      "p90HalfStep": 43
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "4-3",
+      "sampleSize": 1349,
+      "p50HalfStep": 87,
+      "p90HalfStep": 106
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "5-2",
+      "sampleSize": 795,
+      "p50HalfStep": 122,
+      "p90HalfStep": 145.6
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "6-1",
+      "sampleSize": 348,
+      "p50HalfStep": 180,
+      "p90HalfStep": 233
+    },
+    {
+      "division": "Jonokuchi",
+      "rankBand": "31+",
+      "record": "7-0",
+      "sampleSize": 74,
+      "p50HalfStep": 271.5,
+      "p90HalfStep": 373.9
+    }
+  ]
+}
