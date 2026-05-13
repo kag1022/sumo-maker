@@ -2,7 +2,7 @@ import React from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, ListOrdered, Swords, Trophy, Users } from "lucide-react";
 import { type Division } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
-import { formatRankDisplayName } from "../../report/utils/reportShared";
+import { formatRankDisplayName } from "../../../logic/ranking";
 import { WinLossBar } from "../../../shared/ui/WinLossBar";
 import type {
   CareerLedgerModel,
@@ -10,7 +10,7 @@ import type {
   CareerPlaceSummaryModel,
   CareerPlaceTabId,
 } from "../utils/careerResultModel";
-import { groupNearbyRanks, listDivisionRows } from "../utils/careerResultModel";
+import { groupNearbyRanks, listDivisionRows } from "../../shared/utils/banzukeRows";
 import styles from "./CareerPlaceChapter.module.css";
 import table from "../../../shared/styles/table.module.css";
 

@@ -1,4 +1,5 @@
 import { formatRankDisplayName, getRankValueForChart } from '../../../logic/ranking';
+import { formatBashoLabel } from '../../../logic/bashoLabels';
 import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
 import { buildCounterfactualInjuryText, buildFantasyHooks } from '../../../logic/careerNarrative';
 import {
@@ -19,7 +20,7 @@ import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
 import type { CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
 import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
 
-export { formatRankDisplayName };
+export { formatBashoLabel, formatRankDisplayName };
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
@@ -42,8 +43,6 @@ const TIMELINE_EVENT_LABEL: Record<TimelineEvent['type'], string> = {
   TRAIT_AWAKENING: '特性開花',
   OTHER: '出来事',
 };
-
-export const formatBashoLabel = (year: number, month: number): string => `${year}年${month}月`;
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ''}`;

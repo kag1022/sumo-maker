@@ -13,3 +13,4 @@
 
 - `components/NpcCareerPanel.tsx` NPC キャリアパネル
 - `utils/` 共有整形ヘルパー
+  - `utils/banzukeRows.ts` 場所詳細 row から同一 division の近傍番付を抽出する表示補助

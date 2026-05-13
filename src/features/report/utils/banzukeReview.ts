@@ -5,7 +5,7 @@ import type {
 } from "../../../logic/persistence/careerHistory";
 import type { BashoRecordRow } from "../../../logic/persistence/db";
 import { getRankValueForChart } from "../../../logic/ranking";
-import { groupNearbyRanks } from "../../careerResult/utils/careerResultModel";
+import { groupNearbyRanks } from "../../shared/utils/banzukeRows";
 import {
   buildImportantTorikumiDigests,
   formatBashoLabel,
