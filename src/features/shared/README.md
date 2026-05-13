@@ -12,5 +12,7 @@
 ## 主要ファイル
 
 - `components/NpcCareerPanel.tsx` NPC キャリアパネル
+- `models/` feature 横断の表示 read model 型
+  - `models/banzukeReview.ts` report / careerResult で共有する番付審議表示モデル型
 - `utils/` 共有整形ヘルパー
   - `utils/banzukeRows.ts` 場所詳細 row から同一 division の近傍番付を抽出する表示補助

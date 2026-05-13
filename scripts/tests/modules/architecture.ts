@@ -4,6 +4,8 @@ import { TestCase, TestModule } from '../types';
 
 const ROOT_DIR = process.cwd();
 const LOGIC_DIR = path.join(ROOT_DIR, 'src', 'logic');
+const CAREER_RESULT_DIR = path.join(ROOT_DIR, 'src', 'features', 'careerResult');
+const FEATURE_SHARED_DIR = path.join(ROOT_DIR, 'src', 'features', 'shared');
 const WORKER_PATH = path.join(ROOT_DIR, 'src', 'features', 'simulation', 'workers', 'simulation.worker.ts');
 
 const assert = {
@@ -84,6 +86,28 @@ const tests: TestCase[] = [
       assert.ok(
         violations.length === 0,
         `src/logic must not import React or feature modules: ${violations.join(', ')}`,
+      );
+    },
+  },
+  {
+    name: 'architecture: career result and feature shared do not import report feature',
+    run: () => {
+      const checkedFiles = [
+        ...listSourceFiles(CAREER_RESULT_DIR),
+        ...listSourceFiles(FEATURE_SHARED_DIR),
+      ];
+      const violations = checkedFiles.flatMap((filePath) => {
+        const source = fs.readFileSync(filePath, 'utf8');
+        return collectImportSpecifiers(source)
+          .map((specifier) => resolveRelativeImport(filePath, specifier))
+          .filter((resolvedPath): resolvedPath is string => Boolean(resolvedPath))
+          .filter((resolvedPath) => resolvedPath.startsWith('src/features/report/'))
+          .map((resolvedPath) => `${toRepoPath(filePath)} -> ${resolvedPath}`);
+      });
+
+      assert.ok(
+        violations.length === 0,
+        `careerResult/shared must not import report feature modules: ${violations.join(', ')}`,
       );
     },
   },
