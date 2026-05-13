@@ -507,7 +507,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               { id: "YUSHO" as const, label: "優勝順" },
               { id: "RETIRE_AGE" as const, label: "引退年齢順" },
               { id: "MAX_RANK_AGE" as const, label: "最高位到達年齢順" },
-              { id: "PROMOTION" as const, label: "出世速度順" },
+              { id: "PROMOTION" as const, label: "昇進速度順" },
               { id: "STABILITY" as const, label: "安定度順" },
               { id: "TURBULENCE" as const, label: "波乱度順" },
               { id: "RARITY" as const, label: "珍記録度順" },
@@ -660,7 +660,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             <div>
               <div className={typography.kicker}>類似検索</div>
               <div className={typography.panelTitle}>似た人生を探す</div>
-              <div className="text-sm text-text-dim">最高位、到達年齢、在位、勝率、怪我、成長型から近い保存記録を探します。</div>
+              <div className="text-sm text-text-dim">最高位、到達年齢、在位、勝率、怪我、成長の流れから近い保存記録を探します。</div>
             </div>
           </div>
           <div className={styles.compareSelectors}>

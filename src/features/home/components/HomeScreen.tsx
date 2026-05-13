@@ -29,9 +29,9 @@ const NAV_CARDS: Array<{
   {
     key: "scout",
     title: "観測する",
-    body: "観測テーマと追加ビルドで方向性を寄せ、新しい相撲人生を観測する。結果は保証されない。",
+    body: "観測テーマと読み口の調整で方向性を少し寄せ、新しい相撲人生を観測する。結果は保証されない。",
     icon: ScrollText,
-    actionLabel: "観測ビルドへ",
+    actionLabel: "観測設計へ",
   },
   {
     key: "archive",
@@ -112,7 +112,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             一人の力士の一生を、<br />記録として読む。
           </h2>
           <p className="mt-4 max-w-xl text-sm sm:text-base text-text-dim leading-relaxed">
-            観測テーマと追加ビルドで方向性を寄せ、一人の相撲人生を観測する。
+            観測テーマと読み口の調整で方向性を少し寄せ、一人の相撲人生を観測する。
             番付・戦績・宿敵・怪我——整理された記録から人物像が立ち上がる。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -139,7 +139,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       >
         <StatCard label="保存済み記録" value={savedCount} subtext="読み返せる一代" tone="gold" />
         <StatCard
-          label="育成回数"
+          label="観測した一代"
           value={lifetimeCount}
           subtext={lifetimeCount > 0 ? "これまでの一代" : "観測を始めてみる"}
           tone={lifetimeCount > 0 ? "action" : "default"}
@@ -147,7 +147,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <StatCard
           label="現在の注目"
           value={currentShikona ?? "—"}
-          subtext={currentShikona ? "キャリア閲覧中" : "観測ビルドから開始"}
+          subtext={currentShikona ? "キャリア閲覧中" : "観測設計から開始"}
         />
       </motion.div>
 

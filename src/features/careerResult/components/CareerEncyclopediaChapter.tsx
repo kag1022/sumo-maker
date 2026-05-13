@@ -406,16 +406,20 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 </div>
               </div>
               <div className={styles.actionButtons}>
-                <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
-                </Button>
-                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                  <ExternalLink className="h-4 w-4" />
-                  フィードバックフォーム
-                </a>
-                {copyState === "error" ? (
-                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                {import.meta.env.DEV ? (
+                  <>
+                    <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
+                    </Button>
+                    <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                      <ExternalLink className="h-4 w-4" />
+                      検証フォーム
+                    </a>
+                    {copyState === "error" ? (
+                      <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                    ) : null}
+                  </>
                 ) : null}
                 <Button
                   size="lg"
@@ -446,16 +450,20 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 </p>
               </div>
               <div className={styles.actionButtons}>
-                <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
-                </Button>
-                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                  <ExternalLink className="h-4 w-4" />
-                  フィードバックフォーム
-                </a>
-                {copyState === "error" ? (
-                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                {import.meta.env.DEV ? (
+                  <>
+                    <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
+                    </Button>
+                    <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                      <ExternalLink className="h-4 w-4" />
+                      検証フォーム
+                    </a>
+                    {copyState === "error" ? (
+                      <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                    ) : null}
+                  </>
                 ) : null}
                 <Button size="lg" onClick={onOpenArchive}>
                   <Archive className="mr-2 h-4 w-4" />
@@ -498,22 +506,24 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </div>
       ) : null}
 
-      <div className={styles.section}>
-        <SectionHeading title="限定公開メモ" />
-        <div className={styles.releasePanel}>
-          <div>
-            <div className={styles.label}>テスター向け</div>
-            <p className={styles.text}>
-              結果の違和感、面白かったズレ、番付推移の不自然さは「結果情報をコピー」してフォームへ送ってください。
-            </p>
-          </div>
-          <div className={styles.limitList}>
-            {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
-              <span key={limitation}>{limitation}</span>
-            ))}
+      {import.meta.env.DEV ? (
+        <div className={styles.section}>
+          <SectionHeading title="検証メモ" />
+          <div className={styles.releasePanel}>
+            <div>
+              <div className={styles.label}>開発確認用</div>
+              <p className={styles.text}>
+                結果の違和感、面白かったズレ、番付推移の不自然さは「検証用情報をコピー」してフォームへ送ってください。
+              </p>
+            </div>
+            <div className={styles.limitList}>
+              {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
+                <span key={limitation}>{limitation}</span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {designReading.premiseRows.length > 0 || designReading.interpretationRows.length > 0 ? (
         <div className={styles.section}>
@@ -521,9 +531,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           <div className={styles.designReadingHeader}>
             <div>
               <div className={styles.label}>設計読解</div>
-              <p className={styles.text}>入口で置いた前提、内部解釈、実際に残ったキャリア傾向を同じ行で読みます。</p>
+              <p className={styles.text}>入口で置いた前提、読み取り、実際に残ったキャリア傾向を同じ行で読みます。</p>
             </div>
-            {designReading.debugRows.length > 0 ? (
+            {import.meta.env.DEV && designReading.debugRows.length > 0 ? (
               <div className={styles.debugStrip}>
                 {designReading.debugRows.map((row) => (
                   <span key={row.label}>{row.label}: {row.value}</span>
@@ -535,7 +545,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             <div className={styles.designReadingTableHead}>
               <span>軸</span>
               <span>設計時の前提</span>
-              <span>システム解釈</span>
+              <span>入口条件の読み取り</span>
               <span>実際の発現</span>
             </div>
             {(designReading.premiseRows.length > 0 ? designReading.premiseRows : designReading.interpretationRows).slice(0, 8).map((row) => (
