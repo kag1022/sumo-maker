@@ -94,7 +94,7 @@ export const CareerArchivePanel: React.FC<CareerArchivePanelProps> = ({ careerId
         </div>
         <p className="text-xs text-text-dim leading-relaxed">
           このキャリアは旧形式のため、観測資料館には登録されていません。
-          以降の観測ビルドからのキャリアは自動的に資料館に登録されます。
+          以降の観測設計からのキャリアは自動的に資料館に登録されます。
         </p>
       </section>
     );
@@ -126,7 +126,7 @@ export const CareerArchivePanel: React.FC<CareerArchivePanelProps> = ({ careerId
           </span>
           {modifierLabels.length > 0 ? (
             <span>
-              <span className="text-text-dim/70">追加ビルド:</span>{' '}
+              <span className="text-text-dim/70">読み口の調整:</span>{' '}
               <span className="text-text-dim">{modifierLabels.join(' / ')}</span>
             </span>
           ) : null}

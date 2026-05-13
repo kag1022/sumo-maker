@@ -250,14 +250,14 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
             <TelescopeIcon className="mx-auto h-7 w-7 text-action" />
             <div className="text-sm text-text">まだ観測したキャリアがありません。</div>
             <p className="mx-auto max-w-md text-xs text-text-dim leading-relaxed">
-              観測ビルドから、最初の相撲人生を観測してみましょう。
+              観測設計から、最初の相撲人生を観測してみましょう。
               どんなキャリアになっても、ここに資料として残ります。
             </p>
             {onOpenObservationBuild ? (
               <div className="pt-1">
                 <Button size="md" onClick={onOpenObservationBuild}>
                   <TelescopeIcon className="mr-2 h-4 w-4" />
-                  観測ビルドへ
+                  観測設計へ
                 </Button>
               </div>
             ) : null}

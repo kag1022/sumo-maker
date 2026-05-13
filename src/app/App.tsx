@@ -255,7 +255,7 @@ export const App: React.FC = () => {
       if (section === "scout") {
         const hasUnsavedCurrent = Boolean(currentCareerId) && !isCurrentCareerSaved;
         if (hasUnsavedCurrent) {
-          const accepted = window.confirm("未保存のキャリアを破棄して観測ビルドに戻りますか。");
+          const accepted = window.confirm("未保存のキャリアを破棄して観測設計に戻りますか。");
           if (!accepted) return;
         }
         await resetView();
@@ -749,7 +749,7 @@ const RevealReadyView: React.FC<{
 const EmptyCareerState: React.FC = () => (
   <section className={cn(surface.premium, "p-5 sm:p-6")}>
     <div className="border border-gold/10 bg-bg/20 px-4 py-10 text-center text-sm text-text-dim">
-      読み込める記録がありません。ホームから観測ビルドまたは保存済み記録を開いてください。
+      読み込める記録がありません。ホームから観測設計または保存済み記録を開いてください。
     </div>
   </section>
 );
@@ -763,7 +763,7 @@ const getShellTitle = (section: AppSection, shikona?: string | null): string => 
   if (section === "collection") return "記録 / 偉業";
   if (section === "settings") return "設定";
   if (section === "logicLab") return "ロジック検証";
-  return "観測ビルド";
+  return "観測設計";
 };
 
 const getStatusLine = ({
