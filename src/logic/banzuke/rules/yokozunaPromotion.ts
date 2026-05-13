@@ -101,6 +101,9 @@ const evaluateYokozunaDecisionBand = (
   if (evidence.hasEquivalentPair && evidence.hasYushoPair && evidence.hasRealisticTotal) {
     return 'AUTO_PROMOTE';
   }
+  if (evidence.populationPressure > 0 && !evidence.hasRealisticTotal) {
+    return 'REJECT';
+  }
   if (
     evidence.currentYushoEquivalent &&
     evidence.hasActualYushoInWindow &&

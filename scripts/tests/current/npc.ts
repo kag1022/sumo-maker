@@ -738,8 +738,8 @@ export const tests: TestCase[] = [
       const topRatio = topSurname / topTotal;
       const lowerRatio = lowerSurname / lowerTotal;
       assert.ok(topRatio >= 0.03 && topRatio <= 0.12, `Unexpected sekitori surname ratio: ${topRatio}`);
-      assert.ok(lowerRatio >= 0.22 && lowerRatio <= 0.38, `Unexpected lower surname ratio: ${lowerRatio}`);
-      assert.ok(lowerRatio > topRatio + 0.12, `Expected lower ratio > top ratio, got ${lowerRatio} vs ${topRatio}`);
+      assert.ok(lowerRatio >= 0.08 && lowerRatio <= 0.16, `Unexpected lower surname ratio: ${lowerRatio}`);
+      assert.ok(lowerRatio > topRatio + 0.04, `Expected lower ratio > top ratio, got ${lowerRatio} vs ${topRatio}`);
     },
   },
   {

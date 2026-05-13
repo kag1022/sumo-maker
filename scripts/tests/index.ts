@@ -1,6 +1,7 @@
 import { assertModuleCoverage, getTestScope } from './shared/moduleUtils';
 import { tests as compatTests } from './compat';
 import { tests as currentTests } from './current';
+import { architectureTestModule } from './modules/architecture';
 import { banzukeTestModule } from './modules/banzuke';
 import { calibrationTestModule } from './modules/calibration';
 import { compatTestModule } from './modules/compat';
@@ -44,6 +45,7 @@ const normalizeSuites = (values: string[]): TestSuite[] => {
 };
 
 export const testModules: TestModule[] = [
+  architectureTestModule,
   calibrationTestModule,
   compatTestModule,
   banzukeTestModule,

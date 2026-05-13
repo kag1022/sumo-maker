@@ -16,7 +16,7 @@ import {
   randomNoise,
   softClampPower,
 } from './shared';
-import { SimulationWorld, TopDivision } from './types';
+import { SimulationWorld, TopDivision, WorldRikishi } from './types';
 
 /**
  * Fix-batch ①: NPC のランク更新が「rankScore - diff * 0.5」という純粋線形で
@@ -110,6 +110,16 @@ const enforceNpcPromotionGate = (
   return proposedNextRankScore;
 };
 
+const compactUniqueRankScores = (roster: WorldRikishi[]): WorldRikishi[] => {
+  let nextRankScore = 1;
+  return roster.map((npc) => {
+    // gate 済みの下限を守りつつ、同じ floor に複数人が張り付いた場合は次の空きへ送る。
+    const rankScore = Math.max(nextRankScore, Math.ceil(npc.rankScore));
+    nextRankScore = rankScore + 1;
+    return { ...npc, rankScore };
+  });
+};
+
 export const evolveDivisionAfterBasho = (
   world: SimulationWorld,
   division: TopDivision,
@@ -190,7 +200,7 @@ export const evolveDivisionAfterBasho = (
   const byId = new Map(participants.filter((p) => !p.isPlayer).map((p) => [p.id, p]));
   const range = POWER_RANGE[division];
 
-  world.rosters[division] = world.rosters[division]
+  world.rosters[division] = compactUniqueRankScores(world.rosters[division]
     .map((npc) => {
       const result = byId.get(npc.id);
       if (!result) return npc;
@@ -331,11 +341,5 @@ export const evolveDivisionAfterBasho = (
         rankScore: nextRankScore,
       };
     })
-    .sort((a, b) => a.rankScore - b.rankScore)
-    .map((npc, index) => ({
-      ...npc,
-      // rankScore は小さいほど高位。並び替え後の詰め直しで gate 済みの上限を
-      // 上書きすると、前頭・十両降格予定者が横綱スロットへ漏れる。
-      rankScore: Math.max(index + 1, npc.rankScore),
-    }));
+    .sort((a, b) => a.rankScore - b.rankScore));
 };

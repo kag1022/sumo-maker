@@ -47,6 +47,7 @@ runtime API を唯一の入口として使います。
 | `careerDynamics.ts` | キャリア位相と domain event の一元生成 |
 | `careerMilestones.ts` | 優勝、初関取、陥落、怪我、停滞脱出などの節目記録を生成する |
 | `runtimeNarrative.ts` | chaptered / observe 表示向けの章・観測ログ・pause 判定 |
+| `liveBashoView.ts` | worker payload 向けの場所観測 view model builder。React / feature 非依存 |
 | `observation/index.ts` | 長期観測 API。report / probe / verification の正式入口 |
 | `modelBundle.ts` | model version から `SimulationModelBundle` を解決する |
 | `engine/seasonPhases.ts` | preseason / promotion / attrition の league phase を分離する |

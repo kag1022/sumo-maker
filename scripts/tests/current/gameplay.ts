@@ -356,27 +356,33 @@ export const tests: TestCase[] = [
         traits: [],
         historyCounts: {},
       };
-      let contextualRareCount = 0;
-      for (let index = 0; index < 6000; index += 1) {
-        const result = resolveKimariteOutcome({
-          winner,
-          loser,
-          rng: lcg(index + 9001),
-          allowNonTechnique: false,
-          boutContext: {
-            isHighPressure: true,
-            isLastDay: true,
-            isUnderdog: true,
-            isEdgeCandidate: true,
-            weightDiff: -13,
-            heightDiff: 6,
-          },
-        });
-        if (['うっちゃり', '後ろもたれ', '居反り', '掛け反り', '撞木反り', '外たすき反り', 'たすき反り', '伝え反り'].includes(result.kimarite)) {
-          contextualRareCount += 1;
-        }
-      }
-      assert.ok(contextualRareCount > 0, 'Expected rare reversals to appear when edge context is unlocked');
+      const edgeContext = {
+        isHighPressure: true,
+        isLastDay: true,
+        isUnderdog: true,
+        isEdgeCandidate: true,
+        weightDiff: -13,
+        heightDiff: 6,
+      };
+      const unlocked = resolveKimariteOutcome({
+        winner,
+        loser,
+        rng: sequenceRng([0.5, 0.999, 0]),
+        allowedRoute: 'EDGE_REVERSAL',
+        allowNonTechnique: false,
+        boutContext: edgeContext,
+      });
+      const locked = resolveKimariteOutcome({
+        winner,
+        loser,
+        rng: sequenceRng([0.5, 0.999, 0]),
+        allowedRoute: 'EDGE_REVERSAL',
+        allowNonTechnique: false,
+        boutContext: { ...edgeContext, isEdgeCandidate: false },
+      });
+      const rareReversals = ['うっちゃり', '後ろもたれ', '居反り', '掛け反り', '撞木反り', '外たすき反り', 'たすき反り', '伝え反り'];
+      assert.ok(rareReversals.includes(unlocked.kimarite), `Expected edge context to unlock a rare reversal, got ${unlocked.kimarite}`);
+      assert.ok(!rareReversals.includes(locked.kimarite), `Expected non-edge context to keep rare reversals locked, got ${locked.kimarite}`);
     },
   },
   {

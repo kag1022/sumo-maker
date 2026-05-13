@@ -1,5 +1,5 @@
 import { TestCase, TestModule } from '../types';
-import { buildLiveBashoView, resolveBashoStakeLabel } from '../../../src/features/bashoHub/utils/liveBashoView';
+import { buildLiveBashoView, resolveBashoStakeLabel } from '../../../src/logic/simulation/liveBashoView';
 import { buildBanzukeReviewTabModel } from '../../../src/features/report/utils/banzukeReview';
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from '../../../src/logic/persistence/careerHistory';
 

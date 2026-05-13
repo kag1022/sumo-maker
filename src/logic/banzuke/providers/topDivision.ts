@@ -41,7 +41,13 @@ const ensureSanyakuFloor = (
   ): boolean => {
     if (allocation.nextRank.division !== 'Makuuchi') return false;
     if (allocation.nextRank.name === '前頭') {
-      return (allocation.nextRank.number ?? 99) <= (target === '関脇' ? 1 : 2);
+      const currentNumber = allocation.currentRank.name === '前頭'
+        ? allocation.currentRank.number ?? 99
+        : 99;
+      if (target === '関脇') {
+        return currentNumber <= 2 && allocation.recordDiff >= 7;
+      }
+      return currentNumber <= 2 && allocation.recordDiff >= 5;
     }
     if (
       allocation.currentRank.division === 'Makuuchi' &&
