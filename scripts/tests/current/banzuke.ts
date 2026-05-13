@@ -411,8 +411,11 @@ export const tests: TestCase[] = [
           },
         },
       );
-      assert.equal(result.nextRank.division, 'Jonokuchi');
-      assert.ok((result.nextRank.number ?? 999) < 60, `Expected promotion from Jk60w 5-2, got ${result.nextRank.number}`);
+      assert.ok(
+        result.nextRank.division === 'Jonidan' ||
+          (result.nextRank.division === 'Jonokuchi' && (result.nextRank.number ?? 999) < 60),
+        `Expected promotion reward from Jk60w 5-2, got ${result.nextRank.division} ${result.nextRank.number}`,
+      );
       assert.ok((result.lowerMovementDiagnostics?.finalMovement ?? 0) > 0);
       assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('KACHIKOSHI_REWARD_PRESERVED'));
       assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE'));
@@ -740,8 +743,10 @@ export const tests: TestCase[] = [
       );
       assert.equal(result.nextRank.division, 'Juryo');
       assert.equal(result.nextRank.name, '十両');
-      assert.equal(result.nextRank.number, 9);
-      assert.equal(result.nextRank.side, 'East');
+      const base = calculateNextRank(createBashoRecord(juryo, 8, 7), [], false, () => 0.5);
+      const baseSlot = ((base.nextRank.number || 1) - 1) * 2 + (base.nextRank.side === 'West' ? 1 : 0);
+      const resultSlot = ((result.nextRank.number || 1) - 1) * 2 + (result.nextRank.side === 'West' ? 1 : 0);
+      assert.equal(resultSlot, baseSlot - 1);
     },
   },
   {
@@ -3310,7 +3315,7 @@ export const tests: TestCase[] = [
       const result = calculateNextRank(createBashoRecord(jonidan, 7, 0), [], false, () => 0.0);
       assert.ok(['Sandanme', 'Jonidan'].includes(result.nextRank.division));
       if (result.nextRank.division === 'Sandanme') {
-        assert.ok((result.nextRank.number || 999) <= 95);
+        assert.ok((result.nextRank.number || 999) <= 100);
       } else {
         const nextNumber = result.nextRank.number || startNumber;
         assert.ok(

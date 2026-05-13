@@ -9,7 +9,7 @@ import {
   RikishiStatus,
   TitleBlockerEntry,
 } from './models';
-import { getRankValueForChart } from './ranking';
+import { formatRankDisplayName, getRankValueForChart } from './ranking';
 
 export interface HeadToHeadRowLike {
   opponentId: string;
@@ -33,6 +33,7 @@ export interface BashoRecordRowLike {
   rankName: string;
   rankNumber?: number;
   rankSide?: 'East' | 'West';
+  rankSpecialStatus?: Rank['specialStatus'];
   wins: number;
   losses: number;
   absent: number;
@@ -80,16 +81,10 @@ const buildRankFromRow = (row: BashoRecordRowLike): Rank => ({
   name: row.rankName,
   number: row.rankNumber,
   side: row.rankSide,
+  specialStatus: row.rankSpecialStatus,
 });
 
 const formatBashoLabel = (year: number, month: number): string => `${year}年${month}月`;
-
-const formatRankDisplayName = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
-};
 
 const compareRankOrder = (left: Rank, right: Rank): number => {
   const valueDelta = getRankValueForChart(left) - getRankValueForChart(right);

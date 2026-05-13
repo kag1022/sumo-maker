@@ -1,6 +1,7 @@
 import { BashoRecord, Rank } from '../../models';
 import { RandomSource } from '../../simulation/deps';
 import { getRankValue } from '../../ranking/rankScore';
+import { stripRankSpecialStatus } from '../../ranking';
 import { resolveTopDivisionAssignedEventDetail } from './topDivisionRules';
 import { calculateLowerDivisionRankChange } from './lowerDivision';
 import {
@@ -1056,7 +1057,7 @@ export const calculateNextRank = (
       const floored = resolveYushoPromotionFloor(currentRecord, result.nextRank, slotContext);
       const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
       event = floored.adjusted ? inferredEvent : result.event ?? inferredEvent;
-      nextRank = resolveNextRankSide(currentRecord, floored.nextRank, rng);
+      nextRank = stripRankSpecialStatus(resolveNextRankSide(currentRecord, floored.nextRank, rng));
     } else {
       const makekoshiGuarded = applyMakekoshiDirectionGuard(
         currentRecord,
@@ -1080,7 +1081,7 @@ export const calculateNextRank = (
       const floored = resolveYushoPromotionFloor(currentRecord, guarded.nextRank, slotContext);
       const inferredEvent = resolveBoundaryAssignedEvent(currentRecord.rank, floored.nextRank);
       event = floored.adjusted ? inferredEvent : adjustedEvent ?? inferredEvent;
-      nextRank = resolveNextRankSide(currentRecord, floored.nextRank, rng);
+      nextRank = stripRankSpecialStatus(resolveNextRankSide(currentRecord, floored.nextRank, rng));
     }
     return {
       ...result,

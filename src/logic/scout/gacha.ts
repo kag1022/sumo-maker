@@ -5,6 +5,7 @@ import {
   CareerDesignInterpretation,
   CareerDesignPremise,
   CareerSeed,
+  EntryArchetype,
   IchimonId,
   PersonalityType,
   RikishiStatus,
@@ -15,6 +16,10 @@ import {
   createCareerSeed,
   estimateCareerBandLabel,
 } from "../careerSeed";
+import {
+  ENTRY_ARCHETYPE_LABELS,
+  resolveDefaultEntryArchetypeForAmateurBackground,
+} from "../career/entryArchetype";
 import { getStyleCompatibility } from "../styleProfile";
 import {
   buildInitialRikishiFromSpec,
@@ -75,6 +80,7 @@ export interface ScoutDraft {
   startingHeightCm: number;
   startingWeightKg: number;
   entryPath: ScoutEntryPath;
+  entryArchetype?: EntryArchetype;
   temperament: ScoutTemperament;
   bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
@@ -220,6 +226,17 @@ const resolveBackground = (draft: ScoutDraft) => {
   if (draft.entryAge === 15) return "MIDDLE_SCHOOL" as const;
   if (draft.entryAge === 18) return "HIGH_SCHOOL" as const;
   return draft.entryPath === "CHAMPION" ? ("COLLEGE_YOKOZUNA" as const) : ("STUDENT_ELITE" as const);
+};
+
+const resolveScoutEntryArchetype = (
+  entryPath: ScoutEntryPath,
+  rng: RandomSource,
+): EntryArchetype => {
+  if (entryPath === "CHAMPION") return rng() < 0.04 ? "MONSTER" : "ELITE_TSUKEDASHI";
+  if (entryPath === "COLLEGE") return rng() < 0.08 ? "ELITE_TSUKEDASHI" : "TSUKEDASHI";
+  if (entryPath === "SCHOOL") return rng() < 0.38 ? "EARLY_PROSPECT" : "ORDINARY_RECRUIT";
+  if (rng() < 0.006) return "MONSTER";
+  return rng() < 0.08 ? "EARLY_PROSPECT" : "ORDINARY_RECRUIT";
 };
 
 const resolveAptitudeTier = (draft: ScoutDraft): AptitudeTier => {
@@ -388,12 +405,16 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
   const bodyConstitution = resolveBodyConstitution(draft.bodySeed);
   const primaryStyle = resolvePrimaryStyle(draft, stable);
   const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
+  const background = resolveBackground(draft);
+  const entryArchetype =
+    draft.entryArchetype ?? resolveDefaultEntryArchetypeForAmateurBackground(background);
   const spec: BuildSpecVNext = {
     oyakataId: oyakata.id,
     aptitudeTier: draft.aptitudeTier,
+    entryArchetype,
     ...resolvePotentialFromBodySeed(draft.bodySeed, draft.entryAge, draft.startingHeightCm, draft.startingWeightKg),
     bodyConstitution,
-    amateurBackground: resolveBackground(draft),
+    amateurBackground: background,
     primaryStyle,
     secondaryStyle,
     mentalTrait: resolveMentalTrait(draft.temperament),
@@ -408,6 +429,8 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     entryAge: draft.entryAge,
     entryPath: draft.entryPath,
     entryPathLabel: SCOUT_ENTRY_PATH_LABELS[draft.entryPath],
+    entryArchetype,
+    entryArchetypeLabel: ENTRY_ARCHETYPE_LABELS[entryArchetype],
     temperament: draft.temperament,
     temperamentLabel: SCOUT_TEMPERAMENT_LABELS[draft.temperament],
     bodySeed: draft.bodySeed,
@@ -442,6 +465,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
       : entryAge === 18
         ? "SCHOOL"
         : "LOCAL";
+  const entryArchetype = resolveScoutEntryArchetype(entryPath, rng);
   const bodySeed = PICK_LIST(rng, ["BALANCED", "LONG", "HEAVY", "SPRING"] as const);
   const temperament = PICK_LIST(rng, ["STEADY", "AMBITION", "STUBBORN", "EXPLOSIVE"] as const);
   const baseHeight = entryAge === 15 ? 178 : entryAge === 18 ? 183 : 186;
@@ -456,6 +480,7 @@ export const rollScoutDraft = (rng: RandomSource = Math.random): ScoutDraft => {
     startingHeightCm: baseHeight + Math.floor(rng() * 7),
     startingWeightKg: baseWeight + Math.floor(rng() * 18),
     entryPath,
+    entryArchetype,
     temperament,
     bodySeed,
     selectedStableId: stable.id,
@@ -516,6 +541,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   status.entryAge = draft.entryAge;
   status.age = draft.entryAge;
   status.aptitudeTier = draft.aptitudeTier ?? resolveAptitudeTier(draft);
+  status.entryArchetype = seed.spec.entryArchetype;
 
   applyBodyAdjustments(status, draft);
   applyTemperamentAdjustments(status, draft.temperament);
@@ -546,6 +572,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
       stableName: stable.displayName,
       entryAge: draft.entryAge,
       entryPathLabel: seed.entryPathLabel,
+      entryArchetypeLabel: seed.careerSeed.entryArchetypeLabel,
       temperamentLabel: seed.temperamentLabel,
       bodySeedLabel: seed.bodySeedLabel,
       initialHeightCm: draft.startingHeightCm,
@@ -579,4 +606,4 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
 };
 
 export const getScoutDraftHeadline = (draft: ScoutDraft): string =>
-  `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;
+  `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${draft.entryArchetype ? ENTRY_ARCHETYPE_LABELS[draft.entryArchetype] : "通常入門"} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;

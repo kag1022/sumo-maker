@@ -1,6 +1,7 @@
 import type { CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import type { Division } from "../../../logic/models";
-import { formatBashoLabel, formatRankDisplayName } from "../../report/utils/reportShared";
+import { formatRankDisplayName } from "../../../logic/ranking";
+import { formatBashoLabel } from "../../../logic/bashoLabels";
 
 export interface NpcCareerDetail {
   entityId: string;
@@ -31,6 +32,7 @@ const rankLabelFromRow = (row: CareerBashoRecordsBySeq["rows"][number]) =>
     name: row.rankName,
     number: row.rankNumber ?? undefined,
     side: row.rankSide ?? undefined,
+    specialStatus: row.rankSpecialStatus,
   });
 
 const rankSortScore = (row: CareerBashoRecordsBySeq["rows"][number]) => {

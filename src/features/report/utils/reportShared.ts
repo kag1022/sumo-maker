@@ -1,4 +1,5 @@
-import { getRankValueForChart } from '../../../logic/ranking';
+import { formatRankDisplayName, getRankValueForChart } from '../../../logic/ranking';
+import { formatBashoLabel } from '../../../logic/bashoLabels';
 import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
 import { buildCounterfactualInjuryText, buildFantasyHooks } from '../../../logic/careerNarrative';
 import {
@@ -18,6 +19,8 @@ import { PlayerBoutDetail } from '../../../logic/simulation/basho';
 import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
 import type { CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
 import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
+
+export { formatBashoLabel, formatRankDisplayName };
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
@@ -40,15 +43,6 @@ const TIMELINE_EVENT_LABEL: Record<TimelineEvent['type'], string> = {
   TRAIT_AWAKENING: '特性開花',
   OTHER: '出来事',
 };
-
-export const formatRankDisplayName = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
-};
-
-export const formatBashoLabel = (year: number, month: number): string => `${year}年${month}月`;
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ''}`;
@@ -377,6 +371,7 @@ const buildRankFromRow = (row: BashoRecordRow): Rank => ({
   name: row.rankName,
   number: row.rankNumber,
   side: row.rankSide,
+  specialStatus: row.rankSpecialStatus,
 });
 
 const compareRankOrder = (left: Rank, right: Rank): number => {

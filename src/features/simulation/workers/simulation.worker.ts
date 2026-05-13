@@ -13,7 +13,7 @@ import {
   resolveRuntimeNarrativeStep,
   type SimulationChapterKind,
 } from '../../../logic/simulation/runtimeNarrative';
-import { buildCareerEpilogueView, buildLiveBashoView } from '../../bashoHub/utils/liveBashoView';
+import { buildCareerEpilogueView, buildLiveBashoView } from '../../../logic/simulation/liveBashoView';
 import {
   appendBashoChunk,
   appendBashoChunksBulk,

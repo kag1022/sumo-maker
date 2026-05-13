@@ -209,8 +209,8 @@ docs/
 - feature 間の直接依存は増やさない。共有が必要なら `logic` か `shared` に上げる。
 - 保存互換は強く維持しない方針。破壊的変更時は DB 名更新が前提。
 - ただし **Dexie schema version と DB 名は別物**。
-  - DB 名: `sumo-maker-v13`
-  - `db.ts` 内の schema migration version: 現在 `16`
+  - DB 名: `sumo-maker-v14`
+  - `db.ts` 内の schema migration version: 現在 `18`
   - ここを混同すると migration 判断を誤る。
 - `logicLab` で見つけた問題は、最終的に `scripts/tests/` か `scripts/reports/` に落とし込む。
 - 新しい `src/features/<name>/` ディレクトリには `README.md` が必須。

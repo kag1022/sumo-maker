@@ -6,11 +6,15 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 export default tseslint.config(
   {
     ignores: [
-      'dist',
-      'node_modules',
+      'dist/**',
+      'node_modules/**',
       '.claude',
-      '.tmp',
+      '.tmp/**',
       '.lint-report.json',
+      'output/**',
+      'sumo-db/**',
+      'sumo-api-db/**',
+      'grill-me/**',
       'scripts/tests/run_sim_tests.cjs',
       'scripts/reports/**',
       'scripts/remove_bg.cjs',

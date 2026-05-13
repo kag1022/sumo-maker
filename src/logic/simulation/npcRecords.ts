@@ -78,6 +78,7 @@ export const buildSameDivisionLowerNpcRecords = (
   return results
     .filter((result) => !result.isPlayer)
     .map((result) => {
+      const npc = lowerWorld.npcRegistry.get(result.id);
       const number = Math.floor((result.rankScore - 1) / 2) + 1;
       const side = result.rankScore % 2 === 1 ? 'East' : 'West';
       return {
@@ -87,11 +88,12 @@ export const buildSameDivisionLowerNpcRecords = (
         rankName: LOWER_DIVISION_NAME[division],
         rankNumber: number,
         rankSide: side,
+        rankSpecialStatus: npc?.rankSpecialStatus,
         wins: result.wins,
         losses: result.losses,
         absent: Math.max(0, 7 - (result.wins + result.losses)),
         titles: result.id === yushoId ? ['YUSHO'] : [],
-        careerBashoCount: lowerWorld.npcRegistry.get(result.id)?.careerBashoCount,
+        careerBashoCount: npc?.careerBashoCount,
       };
     });
 };

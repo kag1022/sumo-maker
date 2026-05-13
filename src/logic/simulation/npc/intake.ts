@@ -1,5 +1,5 @@
 import { RandomSource } from '../deps';
-import { createMaezumoRecruit } from './factory';
+import { createMaezumoRecruit, createTsukedashiRecruit } from './factory';
 import {
   resolveMonthlyIntakePulse,
   resolveMonthlyPopulationBaseIntake,
@@ -8,6 +8,7 @@ import {
 import { PopulationPlan } from './populationPlanTypes';
 import { resolveStableForRecruit } from './stableCatalog';
 import { NpcUniverse, PersistentNpc } from './types';
+import { consumeNpcTsukedashiForBasho, NpcTsukedashiLevel } from './tsukedashi';
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
@@ -54,14 +55,12 @@ export const intakeNewNpcRecruits = (
   currentBanzukeHeadcount: number,
   populationPlan: PopulationPlan | undefined,
   rng: RandomSource,
-): { recruits: PersistentNpc[]; nextNpcSerial: number } => {
+  options?: { includeTsukedashi?: boolean },
+): { recruits: PersistentNpc[]; tsukedashiRecruits: PersistentNpc[]; nextNpcSerial: number } => {
   const count = resolveIntakeCount(month, currentBanzukeHeadcount, populationPlan, rng);
-  if (count <= 0) {
-    return { recruits: [], nextNpcSerial: universe.nextNpcSerial };
-  }
-
   const serialCursor = { value: universe.nextNpcSerial };
   const recruits: PersistentNpc[] = [];
+  const tsukedashiRecruits: PersistentNpc[] = [];
   for (let i = 0; i < count; i += 1) {
     const stableId = resolveStableForRecruit(universe.registry);
     const npc = createMaezumoRecruit(
@@ -76,5 +75,24 @@ export const intakeNewNpcRecruits = (
     recruits.push(npc);
   }
 
-  return { recruits, nextNpcSerial: serialCursor.value };
+  if (options?.includeTsukedashi ?? true) {
+    const counts = consumeNpcTsukedashiForBasho(populationPlan?.npcTsukedashiPlan, month);
+    const levels: NpcTsukedashiLevel[] = ['MAKUSHITA_BOTTOM', 'SANDANME_BOTTOM'];
+    for (const level of levels) {
+      for (let index = 0; index < counts[level]; index += 1) {
+        const stableId = resolveStableForRecruit(universe.registry);
+        tsukedashiRecruits.push(createTsukedashiRecruit(
+          rng,
+          seq,
+          serialCursor,
+          universe.registry,
+          universe.nameContext,
+          stableId,
+          level,
+        ));
+      }
+    }
+  }
+
+  return { recruits, tsukedashiRecruits, nextNpcSerial: serialCursor.value };
 };

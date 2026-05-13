@@ -1,5 +1,5 @@
 import React from "react";
-import type { BanzukeReviewTabModel } from "../../report/utils/banzukeReview";
+import type { BanzukeReviewTabModel } from "../../shared/models/banzukeReview";
 import table from "../../../shared/styles/table.module.css";
 import styles from "./CareerReviewChapter.module.css";
 

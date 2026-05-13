@@ -192,6 +192,7 @@ export const composeBias = (
   }
 
   let aptitudeTierBias: Record<string, number> | undefined;
+  let entryArchetypeBias: Record<string, number> | undefined;
   let careerBandBias: Record<string, number> | undefined;
   let growthTypeBias: Record<string, number> | undefined;
   let retirementProfileBias: Record<string, number> | undefined;
@@ -203,6 +204,7 @@ export const composeBias = (
   let varianceBias = 0;
 
   for (const b of biases) {
+    entryArchetypeBias = mergeRecord(entryArchetypeBias, b.entryArchetypeBias);
     aptitudeTierBias = mergeRecord(aptitudeTierBias, b.aptitudeTierBias);
     careerBandBias = mergeRecord(careerBandBias, b.careerBandBias);
     growthTypeBias = mergeRecord(growthTypeBias, b.growthTypeBias);
@@ -216,6 +218,7 @@ export const composeBias = (
   }
 
   return {
+    entryArchetypeBias,
     aptitudeTierBias,
     careerBandBias,
     growthTypeBias,

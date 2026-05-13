@@ -3,7 +3,11 @@ dist
 .DS_Store
 *.log
 .tmp/
-docs/
+/docs/*
+!/docs/current-architecture-snapshot.md
+src/features/docs/**
+!src/features/docs/
+!src/features/docs/README.md
 sumosim/
 output/
 progress.md

@@ -46,6 +46,7 @@ UI 非依存の相撲ドメインロジックをまとめる層です。
 |----------|------|
 | `models.ts` | 共通の型・interface・enum |
 | `constants.ts` | グローバル定数 |
+| `bashoLabels.ts` | 場所年月など、画面をまたいで使う相撲ドメイン表示ラベル |
 | `balance.ts` | バランス調整の倍率と hook |
 | `initialization.ts` | 新弟子の初期化 |
 

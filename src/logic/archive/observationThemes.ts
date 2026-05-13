@@ -10,7 +10,9 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     description: '従来通りのランダム観測。bias なし、無料で使える基本観測。',
     cost: 0,
     riskText: '結果は完全に運。観測価値も保証されません。',
-    bias: {},
+    bias: {
+      entryArchetypeBias: {},
+    },
   },
   realistic: {
     id: 'realistic',
@@ -19,6 +21,13 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 3,
     riskText: '関取到達は約束されません。下位止まりも頻繁に出ます。',
     bias: {
+      entryArchetypeBias: {
+        ORDINARY_RECRUIT: 4,
+        EARLY_PROSPECT: -1,
+        TSUKEDASHI: 0.5,
+        ELITE_TSUKEDASHI: -0.2,
+        MONSTER: -0.1,
+      },
       aptitudeTierBias: { S: -0.05, A: -0.02, B: 0.04, C: 0.05, D: 0.05 },
       careerBandBias: { GRINDER: 0.1, STANDARD: 0.05, WASHOUT: 0.05 },
       retirementProfileBias: { EARLY_EXIT: 0.04, IRONMAN: -0.02 },
@@ -31,6 +40,13 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 10,
     riskText: '関取到達を保証するものではありません。怪我や同期環境で潰れることもあります。',
     bias: {
+      entryArchetypeBias: {
+        ORDINARY_RECRUIT: -18,
+        EARLY_PROSPECT: 10,
+        TSUKEDASHI: 5,
+        ELITE_TSUKEDASHI: 3,
+        MONSTER: 0.35,
+      },
       // No yokozuna factory: S nudge is small and clampWeights caps the top
       // bucket at 0.55 — featured can still roll D, just rarely.
       aptitudeTierBias: { S: 0.04, A: 0.12, B: 0.10, C: -0.05, D: -0.08 },
@@ -46,6 +62,13 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 8,
     riskText: '十両到達は保証しません。幕下で長く沈むキャリアこそが目的です。',
     bias: {
+      entryArchetypeBias: {
+        ORDINARY_RECRUIT: -20,
+        EARLY_PROSPECT: 2,
+        TSUKEDASHI: 18,
+        ELITE_TSUKEDASHI: 1.5,
+        MONSTER: -0.08,
+      },
       // Cap upside but never zero. Even makushita_wall can rarely sneak a
       // juryo touch — that's the point of "wall" not "block".
       aptitudeTierBias: { B: 0.14, C: 0.14, A: -0.06, S: -0.08, D: 0.02 },
@@ -61,6 +84,13 @@ export const OBSERVATION_THEMES: Record<ObservationThemeId, ObservationThemeDefi
     cost: 10,
     riskText: '序盤の停滞や、開花前の引退も普通に起こります。',
     bias: {
+      entryArchetypeBias: {
+        ORDINARY_RECRUIT: 9,
+        EARLY_PROSPECT: -5,
+        TSUKEDASHI: -3,
+        ELITE_TSUKEDASHI: -0.8,
+        MONSTER: -0.12,
+      },
       growthTypeBias: { LATE: 0.4, NORMAL: -0.1, EARLY: -0.2, GENIUS: -0.05 },
       careerBandBias: { GRINDER: 0.06, STANDARD: 0.04, STRONG: 0.04, WASHOUT: -0.04 },
       retirementProfileBias: { IRONMAN: 0.06, EARLY_EXIT: -0.04 },

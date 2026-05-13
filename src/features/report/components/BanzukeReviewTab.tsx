@@ -2,7 +2,7 @@ import React from "react";
 import reportCommon from "./reportCommon.module.css";
 import table from "../../../shared/styles/table.module.css";
 import styles from "./BanzukeReviewTab.module.css";
-import type { BanzukeReviewTabModel } from "../utils/banzukeReview";
+import type { BanzukeReviewTabModel } from "../../shared/models/banzukeReview";
 
 interface BanzukeReviewTabProps {
   model: BanzukeReviewTabModel | null;

@@ -6,7 +6,7 @@ import type {
   CareerBashoDetail,
   CareerBashoRecordsBySeq,
 } from "../../../logic/persistence/careerHistory";
-import { formatRankDisplayName } from "../../report/utils/reportShared";
+import { formatRankDisplayName } from "../../../logic/ranking";
 import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import { Button } from "../../../shared/ui/Button";

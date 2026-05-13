@@ -5,46 +5,16 @@ import type {
 } from "../../../logic/persistence/careerHistory";
 import type { BashoRecordRow } from "../../../logic/persistence/db";
 import { getRankValueForChart } from "../../../logic/ranking";
-import { groupNearbyRanks } from "../../careerResult/utils/careerResultModel";
+import type {
+  BanzukeReviewDecisionItem,
+  BanzukeReviewTabModel,
+} from "../../shared/models/banzukeReview";
+import { groupNearbyRanks } from "../../shared/utils/banzukeRows";
 import {
   buildImportantTorikumiDigests,
   formatBashoLabel,
   formatRankDisplayName,
 } from "./reportShared";
-
-export interface BanzukeReviewNearbyRow {
-  entityId: string;
-  shikona: string;
-  rankLabel: string;
-  recordText: string;
-  movementText: string;
-  isPlayer: boolean;
-}
-
-export interface BanzukeReviewDecisionItem {
-  id: string;
-  title: string;
-  detail: string;
-  tone: "empirical" | "override" | "info";
-}
-
-export interface BanzukeReviewTabModel {
-  bashoLabel: string;
-  lane: {
-    fromRankLabel: string;
-    empiricalBandLabel: string;
-    toRankLabel: string;
-    proposalBasis: "EMPIRICAL" | "RULE_OVERRIDE" | "UNKNOWN";
-  };
-  summaryLines: string[];
-  nearbyRows: BanzukeReviewNearbyRow[];
-  decisionItems: BanzukeReviewDecisionItem[];
-  supplementalTorikumi: Array<{
-    id: string;
-    label: string;
-    detail: string;
-  }>;
-}
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
@@ -54,6 +24,7 @@ const toRankFromRow = (row: BashoRecordRow): Rank => ({
   name: row.rankName,
   number: row.rankNumber,
   side: row.rankSide,
+  specialStatus: row.rankSpecialStatus,
 });
 
 const resolveMovementText = (

@@ -1,3 +1,5 @@
+import type { NpcTsukedashiYearPlan } from './tsukedashi';
+
 export interface PopulationPlan {
   sampledAtYear: number;
   annualIntakeShock: number;
@@ -14,4 +16,5 @@ export interface PopulationPlan {
   sampledTotalSwing: number;
   sampledJonidanSwing: number;
   sampledJonokuchiSwing: number;
+  npcTsukedashiPlan?: NpcTsukedashiYearPlan;
 }

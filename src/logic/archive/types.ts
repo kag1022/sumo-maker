@@ -21,6 +21,7 @@ export type ObservationModifierId =
 export type ObservationModifierGroup = 'body' | 'style' | 'growth' | 'risk';
 
 export interface ObservationBiasDefinition {
+  entryArchetypeBias?: Record<string, number>;
   aptitudeTierBias?: Record<string, number>;
   careerBandBias?: Record<string, number>;
   growthTypeBias?: Record<string, number>;

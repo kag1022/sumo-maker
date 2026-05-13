@@ -177,8 +177,9 @@ realism の主要 KPI:
 ## 保存互換について
 
 - 保存互換は強く維持していません
-- 現在は `sumo-maker-v13`
-- 旧 save との非互換があり得るため、ロジック更新時に DB 名を更新する方針です
+- 現在の DB 名は `sumo-maker-v14`
+- Dexie schema version は DB 名とは別で、現在の最新 schema は `18`
+- 旧 save との非互換があり得る破壊的変更時に DB 名を更新する方針です
 
 ---
 

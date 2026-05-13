@@ -25,6 +25,11 @@ import {
   StyleArchetype,
   Trait,
 } from '../models';
+import {
+  formatRankDisplayName,
+  createMakushitaBottomTsukedashiRank,
+  createSandanmeBottomTsukedashiRank,
+} from '../ranking';
 import { generateShikona } from '../naming/playerNaming';
 import {
   applyPlayerInitialAbilityCap,
@@ -40,6 +45,11 @@ import {
   estimateCareerBandLabel,
   STARTER_OYAKATA_BLUEPRINTS,
 } from '../careerSeed';
+import {
+  resolveDefaultEntryArchetypeForAmateurBackground,
+  resolveEntryArchetypeStartingRank,
+  resolveEntryDivisionFromRank,
+} from '../career/entryArchetype';
 import { getStyleCompatibility } from '../styleProfile';
 
 export interface BuildCostBreakdown {
@@ -258,22 +268,16 @@ const resolveHistory = (
     return {
       age: option.age,
       bonus: option.bonus,
-      rank: { division: 'Makushita', name: '幕下', side: 'East', number: 60 },
+      rank: createMakushitaBottomTsukedashiRank(),
       entryDivision,
     };
   }
   return {
     age: option.age,
     bonus: option.bonus,
-    rank: { division: 'Sandanme', name: '三段目', side: 'East', number: 90 },
+    rank: createSandanmeBottomTsukedashiRank(),
     entryDivision: 'Sandanme90',
   };
-};
-
-const formatRankLabel = (rank: RikishiStatus['rank']): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${rank.name}`;
-  return `${rank.name}${rank.number ?? 1}枚目`;
 };
 
 const applyAxesToGenome = (spec: BuildSpecV4): RikishiGenome => {
@@ -471,7 +475,7 @@ export const buildPreviewSummary = (spec: BuildSpecV4): BuildPreviewSummary => {
 
   return {
     entryAge: history.age,
-    startRankLabel: formatRankLabel(history.rank),
+    startRankLabel: formatRankDisplayName(history.rank),
     growthLabel,
     durabilityLabel,
     styleLabel,
@@ -731,12 +735,15 @@ export const buildPreviewSummaryVNext = (
   oyakata: OyakataBlueprint,
 ): BuildPreviewSummaryVNext => {
   const background = AMATEUR_BACKGROUND_CONFIG[spec.amateurBackground];
+  const entryArchetype =
+    spec.entryArchetype ?? resolveDefaultEntryArchetypeForAmateurBackground(spec.amateurBackground);
+  const startingRank = resolveEntryArchetypeStartingRank(background.startRank, entryArchetype);
   const initialBody = resolveInitialBodyFromPotential(spec);
   const compatibility = getStyleCompatibility(spec.primaryStyle, spec.secondaryStyle);
   const spentPoints = calculateBuildCostVNext(spec, oyakata).total;
   return {
     entryAge: background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0),
-    startRankLabel: formatRankLabel(background.startRank),
+    startRankLabel: formatRankDisplayName(startingRank),
     initialHeightCm: initialBody.heightCm,
     initialWeightKg: initialBody.weightKg,
     potentialHeightCm: spec.heightPotentialCm,
@@ -784,6 +791,9 @@ export const buildInitialRikishiFromSpec = (
 ): RikishiStatus => {
   const stable = resolveStableForBlueprint(oyakata);
   const background = AMATEUR_BACKGROUND_CONFIG[spec.amateurBackground];
+  const entryArchetype =
+    spec.entryArchetype ?? resolveDefaultEntryArchetypeForAmateurBackground(spec.amateurBackground);
+  const startingRank = resolveEntryArchetypeStartingRank(background.startRank, entryArchetype);
   const initialBody = resolveInitialBodyFromPotential(spec);
   const compatibility = getStyleCompatibility(spec.primaryStyle, spec.secondaryStyle);
   const cost = calculateBuildCostVNext(spec, oyakata);
@@ -798,8 +808,7 @@ export const buildInitialRikishiFromSpec = (
   const growthType =
     spec.debtCards.includes('LATE_START') ? 'LATE' :
       spec.amateurBackground === 'MIDDLE_SCHOOL' ? 'EARLY' :
-        spec.amateurBackground === 'COLLEGE_YOKOZUNA' ? 'NORMAL' :
-          'NORMAL';
+        undefined;
   const traitJourney = buildLockedTraitJourney([
     { source: 'MENTAL_TRAIT', traits: resolveMentalTraits(spec.mentalTrait) },
     { source: 'INJURY_RESISTANCE', traits: resolveInjuryTraits(spec.injuryResistance) },
@@ -848,20 +857,21 @@ export const buildInitialRikishiFromSpec = (
         : spec.mentalTrait === 'STONEWALL'
           ? '停滞時の踏みとどまりを読みやすい。'
           : '長期の推移から気質の発現を見る。',
-    promotion: `${formatRankLabel(background.startRank)}から始まり、序盤の番付上昇が設計評価の入口になる。`,
+    promotion: `${formatRankDisplayName(startingRank)}から始まり、序盤の番付上昇が設計評価の入口になる。`,
     variance: '設計は結果を保証しない。実際の山場とズレを結果画面で読む。',
   };
   const entryAge = background.entryAge + (spec.debtCards.includes('LATE_START') ? 2 : 0);
   const entryCalibration = resolvePlayerEntryCalibration({
-    startingRank: background.startRank,
+    startingRank,
     rng: Math.random,
   });
   const rolledAptitudeTier = spec.aptitudeTier ?? rollAptitudeTier(Math.random);
   const status = createInitialRikishi({
     shikona: generateShikona(),
     age: entryAge,
-    startingRank: background.startRank,
+    startingRank,
     archetype: 'HARD_WORKER',
+    entryArchetype,
     aptitudeTier: rolledAptitudeTier,
     aptitudeFactor: resolvePlayerBuildAptitudeFactor(
       resolveAptitudeFactor(rolledAptitudeTier),
@@ -873,11 +883,7 @@ export const buildInitialRikishiFromSpec = (
     traits: [],
     traitJourney,
     historyBonus: resolveBackgroundBonus(spec.amateurBackground) - (spec.debtCards.includes('LATE_START') ? 4 : 0),
-    entryDivision: background.startRank.division === 'Makushita'
-      ? 'Makushita60'
-      : background.startRank.division === 'Sandanme'
-        ? 'Sandanme90'
-        : undefined,
+    entryDivision: resolveEntryDivisionFromRank(startingRank),
     profile: {
       realName: '',
       birthplace: '未設定',
