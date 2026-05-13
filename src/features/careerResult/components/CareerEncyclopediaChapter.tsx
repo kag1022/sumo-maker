@@ -47,6 +47,10 @@ interface CareerEncyclopediaChapterProps {
 
 type CareerMilestoneTone = "start" | "rise" | "peak" | "honor" | "injury" | "return" | "end";
 
+const CAREER_MILESTONE_LIMIT = 12;
+const PINNED_MILESTONE_LABELS = new Set(["初土俵", "初勝ち越し", "最高位", "引退前最後"]);
+const PROMOTION_MILESTONE_LABELS = new Set(["新十両", "新入幕", "新三役", "新大関", "横綱昇進"]);
+
 interface CareerMilestoneView {
   key: string;
   label: string;
@@ -57,6 +61,7 @@ interface CareerMilestoneView {
   tone: CareerMilestoneTone;
   bashoSeq: number;
   order: number;
+  priority: number;
 }
 
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
@@ -151,6 +156,52 @@ const toMilestoneTone = (label: string, point: CareerLedgerPoint): CareerMilesto
   return "start";
 };
 
+const getMilestonePriority = (label: string): number => {
+  if (label === "初土俵") return 0;
+  if (label === "引退前最後") return 1;
+  if (label === "最高位") return 2;
+  if (PROMOTION_MILESTONE_LABELS.has(label)) return 3;
+  if (label === "初勝ち越し") return 4;
+  if (label.includes("優勝")) return 5;
+  if (label.includes("復帰") || label.startsWith("再")) return 6;
+  if (label.includes("休場") || label === "全休") return 7;
+  return 8;
+};
+
+const selectCareerMilestones = (items: CareerMilestoneView[]): CareerMilestoneView[] => {
+  const sorted = items.sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
+  const unique = sorted.filter((item, index, current) =>
+    index === 0 ||
+    item.label !== current[index - 1].label ||
+    item.bashoSeq !== current[index - 1].bashoSeq,
+  );
+  if (unique.length <= CAREER_MILESTONE_LIMIT) return unique;
+
+  const selected = new Map<string, CareerMilestoneView>();
+  const add = (item: CareerMilestoneView | undefined) => {
+    if (item) selected.set(item.key, item);
+  };
+
+  for (const label of PINNED_MILESTONE_LABELS) {
+    add(unique.find((item) => item.label === label));
+  }
+  for (const label of PROMOTION_MILESTONE_LABELS) {
+    add(unique.find((item) => item.label === label));
+  }
+  add(unique.find((item) => item.label.includes("優勝")));
+  add(unique.find((item) => item.label.includes("休場") || item.label === "全休"));
+  add(unique.find((item) => item.label.includes("復帰") || item.label.startsWith("再")));
+
+  const remainingSlots = Math.max(0, CAREER_MILESTONE_LIMIT - selected.size);
+  unique
+    .filter((item) => !selected.has(item.key))
+    .sort((a, b) => a.priority - b.priority || a.bashoSeq - b.bashoSeq || a.order - b.order)
+    .slice(0, remainingSlots)
+    .forEach(add);
+
+  return [...selected.values()].sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
+};
+
 const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerMilestoneView[] => {
   if (!points?.length) return [];
 
@@ -170,6 +221,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
       tone: toMilestoneTone(label, point),
       bashoSeq: point.bashoSeq,
       order,
+      priority: getMilestonePriority(label),
     });
   };
 
@@ -202,14 +254,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
   const lastPoint = points[points.length - 1];
   push(lastPoint, "引退前最後", `${lastPoint.rankLabel} / ${lastPoint.recordLabel}`, 90);
 
-  return items
-    .sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order)
-    .filter((item, index, sorted) =>
-      index === 0 ||
-      item.label !== sorted[index - 1].label ||
-      item.bashoSeq !== sorted[index - 1].bashoSeq,
-    )
-    .slice(0, 12);
+  return selectCareerMilestones(items);
 };
 
 const SAVE_TAGS: CareerSaveTag[] = [
