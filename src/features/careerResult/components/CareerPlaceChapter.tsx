@@ -11,6 +11,7 @@ import type {
   CareerPlaceTabId,
 } from "../utils/careerResultModel";
 import { groupNearbyRanks, listDivisionRows } from "../../shared/utils/banzukeRows";
+import { OfficialBoutResultList } from "./OfficialBoutResultList";
 import styles from "./CareerPlaceChapter.module.css";
 import table from "../../../shared/styles/table.module.css";
 
@@ -64,10 +65,6 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
     if (!detail?.rows?.length || !detail.playerRecord) return [];
     return listDivisionRows(detail.rows, detail.playerRecord);
   }, [detail]);
-  const importantDayMap = React.useMemo(
-    () => new Map((detail?.importantTorikumi ?? []).map((note) => [note.day, note])),
-    [detail?.importantTorikumi],
-  );
   const selectedIndex = React.useMemo(
     () => ledger.points.findIndex((entry) => entry.bashoSeq === point?.bashoSeq),
     [ledger.points, point?.bashoSeq],
@@ -317,51 +314,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
           {isLoading ? (
             <div className={styles.empty}>読込中</div>
           ) : detail?.bouts?.length ? (
-            <div className={styles.boutList}>
-              {detail.bouts.map((bout) => {
-                const result = bout.result as BoutResult;
-                const mark = RESULT_MARK[result] ?? RESULT_MARK.ABSENT;
-                const importantNote = importantDayMap.get(bout.day);
-                return (
-                  <div
-                    key={`${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? bout.result}`}
-                    className={styles.boutRow}
-                    data-important={Boolean(importantNote)}
-                    data-absence={result === "ABSENT"}
-                  >
-                    <span className={styles.boutDay}>{bout.day}<span className={styles.boutDayUnit}>日</span></span>
-                    <span className={styles.boutMark} style={mark.style}>{mark.symbol}</span>
-                    <div className={styles.boutBody}>
-                      <div className={styles.boutOpponent}>
-                        {bout.opponentId ? (
-                          <button type="button" className={table.linkButton} onClick={() => onSelectNpc(bout.opponentId ?? null)}>
-                            {bout.opponentShikona ?? (result === "ABSENT" ? "休場" : "記録未詳")}
-                          </button>
-                        ) : (
-                          <span>{bout.opponentShikona ?? (result === "ABSENT" ? "休場で取組なし" : "記録未詳")}</span>
-                        )}
-                        {bout.opponentRankName && point && (
-                          <span className={styles.boutRank}>
-                            {formatRankDisplayName({
-                              division: point.rank.division,
-                              name: bout.opponentRankName,
-                              number: bout.opponentRankNumber ?? undefined,
-                              side: bout.opponentRankSide ?? undefined,
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      {bout.kimarite && (
-                        <span className={styles.boutKimarite}>{bout.kimarite}</span>
-                      )}
-                      {importantNote && (
-                        <p className={styles.boutNote}>{importantNote.summary}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <OfficialBoutResultList detail={detail} onSelectNpc={onSelectNpc} />
           ) : (
             <div className={styles.empty}>{hasPersistence ? "取組データなし" : "保存後に利用可能"}</div>
           )}
