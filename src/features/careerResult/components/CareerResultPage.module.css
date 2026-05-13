@@ -1,12 +1,15 @@
 .page {
   display: grid;
   gap: 1.2rem;
+  min-width: 0;
 }
 
 .ribbonShell {
   position: sticky;
   top: 7.1rem;
   z-index: 20;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ribbon {
@@ -19,6 +22,7 @@
   background: rgb(var(--twc-bg) / 0.9);
   padding: 0.65rem 0.9rem;
   backdrop-filter: blur(14px);
+  min-width: 0;
 }
 
 .ribbonCurrent {
@@ -49,6 +53,8 @@
   justify-content: flex-end;
   gap: 0.45rem;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ribbonTab,
@@ -109,6 +115,7 @@
 .body {
   display: grid;
   gap: 1rem;
+  min-width: 0;
   scroll-margin-top: 10.5rem;
 }
 
@@ -183,21 +190,44 @@
   .ribbonTrack {
     order: 3;
     display: flex;
-    flex: 1 0 100%;
-    flex-wrap: nowrap;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
     justify-content: flex-start;
     gap: 0.4rem;
-    overflow-x: auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
     padding-top: 0.35rem;
-    scrollbar-width: thin;
   }
 
   .ribbonTab {
-    flex: 0 0 auto;
-    min-width: max-content;
+    flex: 1 1 8rem;
+    justify-content: center;
+    min-width: 0;
   }
 
   .mobileToggle {
     display: inline-flex;
+  }
+}
+
+@media (max-width: 767px) {
+  .ribbon {
+    gap: 0.65rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .ribbonCurrent {
+    flex: 1 1 100%;
+  }
+
+  .ribbonTrack {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ribbonTab {
+    width: 100%;
+    padding: 0.55rem 0.45rem;
   }
 }

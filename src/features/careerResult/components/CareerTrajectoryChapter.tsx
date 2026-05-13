@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Crown, MapPinned, ScrollText, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Crown, MapPinned, ScrollText, TrendingUp } from "lucide-react";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { Button } from "../../../shared/ui/Button";
 import { BashoHeatmapStrip } from "./BashoHeatmapStrip";
@@ -69,7 +69,9 @@ const LIFE_LINE_PADDING = {
   left: 52,
 } as const;
 const BIG_DELTA_THRESHOLD = 6;
+const STAGNATION_MIN_BASHO = 10;
 const MAX_LIFE_LINE_EVENTS = 6;
+const SEKITORI_BANDS = new Set<CareerLedgerPoint["bandKey"]>(["YOKOZUNA", "OZEKI", "SEKIWAKE", "KOMUSUBI", "MAEGASHIRA", "JURYO"]);
 
 interface LifeLinePoint extends CareerLedgerPoint {
   x: number;
@@ -80,6 +82,27 @@ interface LifeLinePoint extends CareerLedgerPoint {
   isPeak: boolean;
   isPromoted: boolean;
   isBigMove: boolean;
+}
+
+type TrajectoryAnnotationKind = "peak" | "rise" | "fall" | "stagnation" | "return";
+
+interface TrajectoryAnnotation {
+  kind: TrajectoryAnnotationKind;
+  label: string;
+  summary: string;
+  point: CareerLedgerPoint;
+  startPoint?: CareerLedgerPoint;
+  length?: number;
+  value?: number;
+}
+
+interface TrajectorySummary {
+  peak: CareerLedgerPoint | null;
+  maxRise: TrajectoryAnnotation | null;
+  maxFall: TrajectoryAnnotation | null;
+  longestStagnation: TrajectoryAnnotation | null;
+  sekitoriCount: number;
+  annotations: TrajectoryAnnotation[];
 }
 
 const toDeltaText = (point: CareerLedgerPoint): string => {
@@ -96,17 +119,146 @@ const resolvePointLabel = (point: CareerLedgerPoint, isPeak: boolean): { label: 
   return { label: null, priority: 0 };
 };
 
+const getBandIndex = (point: Pick<CareerLedgerPoint, "bandKey">): number =>
+  Math.max(0, CAREER_LEDGER_BANDS.findIndex((band) => band.key === point.bandKey));
+
+const getBandLabel = (bandKey: CareerLedgerPoint["bandKey"]): string =>
+  CAREER_LEDGER_BANDS.find((band) => band.key === bandKey)?.label ?? bandKey;
+
+const isReturnTarget = (point: CareerLedgerPoint): boolean =>
+  SEKITORI_BANDS.has(point.bandKey) ||
+  (point.bandKey === "MAKUSHITA" && (point.rank.number ?? 99) <= 15);
+
+const getAnnotationTone = (kind: TrajectoryAnnotationKind): "peak" | "rise" | "fall" | "stagnation" | "return" => kind;
+
+const summarizeAnnotation = (annotation: TrajectoryAnnotation): string => {
+  if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel} / ${annotation.point.recordLabel}`;
+  if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.value ?? annotation.point.deltaValue}枚上昇`;
+  if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${Math.abs(annotation.value ?? annotation.point.deltaValue)}枚下降`;
+  if (annotation.kind === "stagnation") return `${getBandLabel(annotation.point.bandKey)}に${annotation.length ?? 0}場所`;
+  return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel}へ戻る`;
+};
+
+const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary => {
+  if (points.length === 0) {
+    return {
+      peak: null,
+      maxRise: null,
+      maxFall: null,
+      longestStagnation: null,
+      sekitoriCount: 0,
+      annotations: [],
+    };
+  }
+
+  const peak = points.reduce((best, point) => (point.rankValue < best.rankValue ? point : best), points[0]);
+  const maxRisePoint = points.reduce<CareerLedgerPoint | null>((best, point) =>
+    point.deltaValue > 0 && (!best || point.deltaValue > best.deltaValue) ? point : best, null);
+  const maxFallPoint = points.reduce<CareerLedgerPoint | null>((worst, point) =>
+    point.deltaValue < 0 && (!worst || point.deltaValue < worst.deltaValue) ? point : worst, null);
+
+  let longestStagnation: TrajectoryAnnotation | null = null;
+  let runStart = 0;
+  for (let index = 1; index <= points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (current && current.bandKey === previous.bandKey) continue;
+    const length = index - runStart;
+    if (length >= STAGNATION_MIN_BASHO && (!longestStagnation || length > (longestStagnation.length ?? 0))) {
+      const startPoint = points[runStart];
+      longestStagnation = {
+        kind: "stagnation",
+        label: "停滞",
+        summary: `${getBandLabel(startPoint.bandKey)}に${length}場所`,
+        point: previous,
+        startPoint,
+        length,
+      };
+    }
+    runStart = index;
+  }
+
+  const returnAnnotations: TrajectoryAnnotation[] = [];
+  let hasReachedTarget = false;
+  let dropStart: CareerLedgerPoint | null = null;
+  for (const point of points) {
+    if (isReturnTarget(point)) {
+      if (dropStart) {
+        returnAnnotations.push({
+          kind: "return",
+          label: "復帰",
+          summary: `${dropStart.bashoLabel}から落ちた後、${point.bashoLabel}に${point.rankLabel}へ戻る`,
+          point,
+          startPoint: dropStart,
+        });
+        dropStart = null;
+      }
+      hasReachedTarget = true;
+    } else if (hasReachedTarget && !dropStart) {
+      dropStart = point;
+    }
+  }
+
+  const maxRise = maxRisePoint && maxRisePoint.deltaValue >= BIG_DELTA_THRESHOLD
+    ? {
+      kind: "rise" as const,
+      label: "急上昇",
+      summary: `${maxRisePoint.bashoLabel}から${maxRisePoint.deltaValue}枚上昇`,
+      point: maxRisePoint,
+      value: maxRisePoint.deltaValue,
+    }
+    : null;
+  const maxFall = maxFallPoint && Math.abs(maxFallPoint.deltaValue) >= BIG_DELTA_THRESHOLD
+    ? {
+      kind: "fall" as const,
+      label: "急落",
+      summary: `${maxFallPoint.bashoLabel}から${Math.abs(maxFallPoint.deltaValue)}枚下降`,
+      point: maxFallPoint,
+      value: maxFallPoint.deltaValue,
+    }
+    : null;
+  const peakAnnotation: TrajectoryAnnotation = {
+    kind: "peak",
+    label: "最高位",
+    summary: `${peak.bashoLabel} / ${peak.rankLabel} / ${peak.recordLabel}`,
+    point: peak,
+  };
+  const sekitoriCount = points.filter((point) => SEKITORI_BANDS.has(point.bandKey)).length;
+  const annotations = [
+    peakAnnotation,
+    ...(maxRise ? [maxRise] : []),
+    ...(maxFall ? [maxFall] : []),
+    ...(longestStagnation ? [longestStagnation] : []),
+    ...returnAnnotations.slice(0, 2),
+  ];
+
+  return {
+    peak,
+    maxRise,
+    maxFall,
+    longestStagnation,
+    sekitoriCount,
+    annotations,
+  };
+};
+
 const buildLifeLinePoints = (
   points: CareerLedgerPoint[],
   selectedBashoSeq: number | undefined,
 ): LifeLinePoint[] => {
   if (points.length === 0) return [];
-  const minRankValue = Math.min(...points.map((point) => point.rankValue));
-  const maxRankValue = Math.max(...points.map((point) => point.rankValue));
-  const yRange = Math.max(1, maxRankValue - minRankValue);
   const xRange = Math.max(1, points.length - 1);
   const plotWidth = LIFE_LINE_WIDTH - LIFE_LINE_PADDING.left - LIFE_LINE_PADDING.right;
   const plotHeight = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom;
+  const bandHeight = plotHeight / CAREER_LEDGER_BANDS.length;
+  const bandRanges = new Map<CareerLedgerPoint["bandKey"], { min: number; max: number }>();
+  for (const point of points) {
+    const current = bandRanges.get(point.bandKey);
+    bandRanges.set(point.bandKey, {
+      min: current ? Math.min(current.min, point.rankValue) : point.rankValue,
+      max: current ? Math.max(current.max, point.rankValue) : point.rankValue,
+    });
+  }
   const peakSeq = points.reduce((best, point) => (point.rankValue < best.rankValue ? point : best), points[0]).bashoSeq;
   const minLabelGap = points.length > 72 ? 84 : points.length > 42 ? 70 : 54;
   const sortedLabelCandidates = points
@@ -114,7 +266,12 @@ const buildLifeLinePoints = (
       const isPeak = point.bashoSeq === peakSeq;
       const { label, priority } = resolvePointLabel(point, isPeak);
       const x = LIFE_LINE_PADDING.left + (index / xRange) * plotWidth;
-      const y = LIFE_LINE_PADDING.top + ((point.rankValue - minRankValue) / yRange) * plotHeight;
+      const bandIndex = getBandIndex(point);
+      const range = bandRanges.get(point.bandKey);
+      const localRatio = range && range.max > range.min
+        ? (point.rankValue - range.min) / (range.max - range.min)
+        : 0.5;
+      const y = LIFE_LINE_PADDING.top + bandIndex * bandHeight + bandHeight * (0.18 + localRatio * 0.64);
       return {
         ...point,
         x,
@@ -232,22 +389,12 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
   const summaryNote =
     detail?.importantTorikumi?.[0]?.summary ??
     (hasPersistence ? "この場所では大きな節目は記録されていません。" : "保存後にこの場所の要点を確認できます。");
-  const peakPoint = React.useMemo(
-    () =>
-      ledger.points.reduce<CareerLedgerPoint | null>((best, point) => {
-        if (!best) return point;
-        return point.ordinalBucket < best.ordinalBucket ? point : best;
-      }, null),
+  const trajectorySummary = React.useMemo(
+    () => buildTrajectorySummary(ledger.points),
     [ledger.points],
   );
-  const milestoneCount = React.useMemo(
-    () => ledger.points.filter((point) => point.milestoneTags.some((tag) => !HIDDEN_VISUAL_TAGS.has(tag))).length,
-    [ledger.points],
-  );
-  const sekitoriCount = React.useMemo(
-    () => ledger.points.filter((point) => point.bandKey === "YOKOZUNA" || point.bandKey === "OZEKI" || point.bandKey === "SEKIWAKE" || point.bandKey === "KOMUSUBI" || point.bandKey === "MAEGASHIRA" || point.bandKey === "JURYO").length,
-    [ledger.points],
-  );
+  const peakPoint = trajectorySummary.peak;
+  const sekitoriCount = trajectorySummary.sekitoriCount;
   const selectedOrdinal = selectedIndex >= 0 ? selectedIndex + 1 : null;
   const trajectoryTone = resolveTrajectoryTone(selectedPoint);
   const pointsByYear = React.useMemo(() => {
@@ -299,10 +446,11 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
     const bottom = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom;
     return `${lifeLinePath} L ${last.x.toFixed(1)} ${bottom} L ${first.x.toFixed(1)} ${bottom} Z`;
   }, [lifeLinePath, lifeLinePoints]);
-  const lifeLineEvents = React.useMemo(
-    () => buildLifeLineEvents(lifeLinePoints),
-    [lifeLinePoints],
-  );
+  const lifeLineEvents = React.useMemo(() => {
+    const annotationSeqs = new Set(trajectorySummary.annotations.map((annotation) => annotation.point.bashoSeq));
+    const eventPoints = buildLifeLineEvents(lifeLinePoints).filter((point) => !annotationSeqs.has(point.bashoSeq));
+    return eventPoints.slice(0, Math.max(0, MAX_LIFE_LINE_EVENTS - trajectorySummary.annotations.length));
+  }, [lifeLinePoints, trajectorySummary.annotations]);
 
   return (
     <section className={styles.shell}>
@@ -324,14 +472,19 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           <strong>{peakPoint?.rankLabel ?? "-"}</strong>
         </article>
         <article className={styles.summaryTile}>
-          <MapPinned className="h-4 w-4" />
-          <span>在位場所</span>
-          <strong>{ledger.points.length}場所</strong>
+          <ArrowUpRight className="h-4 w-4" />
+          <span>最大上昇</span>
+          <strong>{trajectorySummary.maxRise ? `${trajectorySummary.maxRise.value}枚` : "該当なし"}</strong>
         </article>
         <article className={styles.summaryTile}>
-          <Sparkles className="h-4 w-4" />
-          <span>節目</span>
-          <strong>{milestoneCount}件</strong>
+          <ArrowDownRight className="h-4 w-4" />
+          <span>最大下降</span>
+          <strong>{trajectorySummary.maxFall ? `${Math.abs(trajectorySummary.maxFall.value ?? 0)}枚` : "該当なし"}</strong>
+        </article>
+        <article className={styles.summaryTile}>
+          <MapPinned className="h-4 w-4" />
+          <span>最長停滞帯</span>
+          <strong>{trajectorySummary.longestStagnation ? trajectorySummary.longestStagnation.summary : "短期推移"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <TrendingUp className="h-4 w-4" />
@@ -365,7 +518,221 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         </div>
       </div>
 
+      <div className={styles.lifeLinePanel}>
+        <div className={styles.lifeLineHead}>
+          <div>
+            <span className={styles.summaryKicker}>番付人生ライン</span>
+            <h4>入門から引退まで</h4>
+          </div>
+          <div className={styles.lifeLineHint}>上ほど高位 / 点で場所選択</div>
+        </div>
+        <div className={styles.lifeLineFrame}>
+          <svg
+            className={styles.lifeLineSvg}
+            viewBox={`0 0 ${LIFE_LINE_WIDTH} ${LIFE_LINE_HEIGHT}`}
+            role="img"
+            aria-label="入門から引退までの番付推移グラフ"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <defs>
+              <linearGradient id="careerLifeLineInk" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="rgb(var(--twc-text-faint))" stopOpacity="0.52" />
+                <stop offset="42%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="rgb(var(--twc-award))" stopOpacity="0.95" />
+              </linearGradient>
+              <linearGradient id="careerLifeLineWash" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="rgb(var(--twc-bg))" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {CAREER_LEDGER_BANDS.map((band, index) => {
+              const plotHeight = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom;
+              const bandHeight = plotHeight / CAREER_LEDGER_BANDS.length;
+              const y = LIFE_LINE_PADDING.top + index * bandHeight;
+              return (
+                <g key={`life-band-${band.key}`}>
+                  <rect
+                    x={LIFE_LINE_PADDING.left}
+                    y={y}
+                    width={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.left - LIFE_LINE_PADDING.right}
+                    height={bandHeight}
+                    className={styles.lifeLineBand}
+                    data-band={band.key}
+                  />
+                  <text x={LIFE_LINE_PADDING.left - 8} y={y + bandHeight / 2 + 4} className={styles.lifeLineBandLabel}>
+                    {band.label}
+                  </text>
+                </g>
+              );
+            })}
+            {[0, 1, 2, 3].map((line) => {
+              const y = LIFE_LINE_PADDING.top + line * ((LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom) / 3);
+              return <line key={`life-grid-${line}`} x1={LIFE_LINE_PADDING.left} x2={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.right} y1={y} y2={y} className={styles.lifeLineGrid} />;
+            })}
+            <text x="12" y={LIFE_LINE_PADDING.top + 4} className={styles.lifeLineAxis}>高位</text>
+            <text x="12" y={LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom + 4} className={styles.lifeLineAxis}>下位</text>
+            {lifeLineAreaPath ? <path d={lifeLineAreaPath} className={styles.lifeLineArea} /> : null}
+            {lifeLinePath ? <path d={lifeLinePath} className={styles.lifeLineGhostPath} /> : null}
+            {lifeLinePoints.map((point, index) => {
+              const next = lifeLinePoints[index + 1];
+              if (!next) return null;
+              return (
+                <line
+                  key={`life-segment-${point.bashoSeq}-${next.bashoSeq}`}
+                  x1={point.x}
+                  y1={point.y}
+                  x2={next.x}
+                  y2={next.y}
+                  className={styles.lifeLineSegment}
+                  data-tone={point.deltaValue > 0 ? "up" : point.deltaValue < 0 ? "down" : "flat"}
+                />
+              );
+            })}
+            {lifeLinePoints.map((point) => {
+              const deltaText = toDeltaText(point);
+              return (
+                <g
+                  key={`life-point-${point.bashoSeq}`}
+                  className={styles.lifeLinePoint}
+                  data-selected={point.isSelected}
+                  data-peak={point.isPeak}
+                  data-promoted={point.isPromoted}
+                  data-big={point.isBigMove}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectBasho(point.bashoSeq)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectBasho(point.bashoSeq);
+                    }
+                  }}
+                >
+                  <title>{`${point.bashoLabel} / ${point.rankLabel} / ${point.recordLabel} / ${deltaText}`}</title>
+                  <circle cx={point.x} cy={point.y} r={point.isSelected ? 7 : point.isPeak || point.isPromoted ? 6 : 4} />
+                  {point.label && (point.isSelected || point.isPeak || point.isPromoted) ? (
+                    <>
+                      <line x1={point.x} x2={point.x} y1={point.y - 7} y2={Math.max(13, point.y - 24)} className={styles.lifeLineLabelStem} />
+                      <text x={point.x} y={Math.max(12, point.y - 29)} className={styles.lifeLineLabel}>{point.label}</text>
+                    </>
+                  ) : null}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+        <div className={styles.annotationRail}>
+          {trajectorySummary.annotations.map((annotation) => (
+            <button
+              key={`annotation-${annotation.kind}-${annotation.point.bashoSeq}`}
+              type="button"
+              className={styles.annotationItem}
+              data-tone={getAnnotationTone(annotation.kind)}
+              data-active={annotation.point.bashoSeq === selectedPoint?.bashoSeq}
+              onClick={() => onSelectBasho(annotation.point.bashoSeq)}
+            >
+              <span>{annotation.label}</span>
+              <strong>{annotation.kind === "peak" ? annotation.point.rankLabel : summarizeAnnotation(annotation)}</strong>
+              <em>{annotation.point.bashoLabel} / {annotation.point.recordLabel}</em>
+            </button>
+          ))}
+          {lifeLineEvents.map((point) => {
+            const label = point.label ?? (point.isBigMove ? toDeltaText(point) : point.rankShortLabel);
+            return (
+              <button
+                key={`life-event-${point.bashoSeq}-${label}`}
+                type="button"
+                className={styles.annotationItem}
+                data-tone={point.isPromoted ? "rise" : point.deltaValue < 0 ? "fall" : "return"}
+                data-active={point.isSelected}
+                onClick={() => onSelectBasho(point.bashoSeq)}
+              >
+                <span>{label}</span>
+                <strong>{point.rankLabel}</strong>
+                <em>{point.bashoLabel} / {toDeltaText(point)}</em>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className={styles.layout}>
+        <aside className={styles.detailPanel} data-tone={trajectoryTone}>
+          <div>
+            <div className={styles.summaryKicker}>選択中の場所</div>
+            <h3 className={styles.detailTitle}>
+              {selectionSummary?.bashoLabel ?? selectedPoint?.bashoLabel ?? "場所未選択"}
+            </h3>
+            <p className={styles.detailCopy}>
+              {selectionSummary?.recordLabel ?? "場所を選ぶと、この場所の意味を右側で読めます。"}
+            </p>
+          </div>
+
+          <div className={styles.positionRibbon}>
+            <span>{selectedOrdinal ? `第${selectedOrdinal}場所` : "未選択"}</span>
+            <strong>{selectionSummary?.deltaLabel ?? "-"}</strong>
+          </div>
+
+          <div className={styles.detailMetrics}>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>場所</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.bashoLabel ?? "-"}</strong>
+            </article>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>番付</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.rankLabel ?? "-"}</strong>
+            </article>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>成績</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.recordLabel ?? "-"}</strong>
+            </article>
+            <article className={styles.detailMetric}>
+              <span className={styles.detailMetricLabel}>昇降幅</span>
+              <strong className={styles.detailMetricValue}>{selectionSummary?.deltaLabel ?? "-"}</strong>
+            </article>
+          </div>
+
+          <div className={styles.detailTags}>
+            {(detailTags.length ? detailTags : headlineMilestone ? [headlineMilestone] : []).map((tag) => (
+              <span key={tag} className={styles.detailTag}>
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div className={styles.detailNote}>
+            <div className={styles.detailNoteLabel}>この場所の要点</div>
+            <p className={styles.detailNoteText}>{detailLoading ? "読込中" : summaryNote}</p>
+          </div>
+
+          <div className={styles.detailCompare}>
+            <div className={styles.detailNoteLabel}>前後比較</div>
+            <div className={styles.detailCompareGrid}>
+              <article className={styles.detailCompareItem}>
+                <span className={styles.detailCompareLabel}>前の場所</span>
+                <strong className={styles.detailCompareValue}>{previousPoint ? `${previousPoint.bashoLabel} / ${previousPoint.rankLabel}` : "なし"}</strong>
+                <em className={styles.detailCompareMeta}>{previousPoint?.recordLabel ?? "比較対象なし"}</em>
+              </article>
+              <article className={styles.detailCompareItem}>
+                <span className={styles.detailCompareLabel}>次の場所</span>
+                <strong className={styles.detailCompareValue}>{nextPoint ? `${nextPoint.bashoLabel} / ${nextPoint.rankLabel}` : "なし"}</strong>
+                <em className={styles.detailCompareMeta}>{nextPoint?.recordLabel ?? "比較対象なし"}</em>
+              </article>
+            </div>
+          </div>
+
+          <div className={styles.detailActions}>
+            <Button type="button" variant="secondary" onClick={() => selectedPoint && onOpenChapter("place")} disabled={!selectedPoint}>
+              <ArrowRight className="mr-2 h-4 w-4" />
+              場所別を開く
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
+              <ScrollText className="mr-2 h-4 w-4" />
+              力士名鑑へ戻る
+            </Button>
+          </div>
+        </aside>
+
         <div className={styles.mainPanel}>
           <div className={styles.chartHeader}>
             <div>
@@ -377,112 +744,6 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
               <span><i data-kind="yusho" />優勝</span>
               <span><i data-kind="event" />節目</span>
               <span><i data-kind="absence" />休場</span>
-            </div>
-          </div>
-
-          <div className={styles.lifeLinePanel}>
-            <div className={styles.lifeLineHead}>
-              <div>
-                <span className={styles.summaryKicker}>番付人生ライン</span>
-                <h4>入門から引退まで</h4>
-              </div>
-              <div className={styles.lifeLineHint}>上ほど高位 / 点で場所選択</div>
-            </div>
-            <div className={styles.lifeLineFrame}>
-              <svg
-                className={styles.lifeLineSvg}
-                viewBox={`0 0 ${LIFE_LINE_WIDTH} ${LIFE_LINE_HEIGHT}`}
-                role="img"
-                aria-label="入門から引退までの番付推移グラフ"
-                preserveAspectRatio="xMidYMid meet"
-              >
-                <defs>
-                  <linearGradient id="careerLifeLineInk" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgb(var(--twc-text-faint))" stopOpacity="0.52" />
-                    <stop offset="42%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="rgb(var(--twc-award))" stopOpacity="0.95" />
-                  </linearGradient>
-                  <linearGradient id="careerLifeLineWash" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(var(--twc-brand))" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="rgb(var(--twc-bg))" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {[0, 1, 2, 3].map((line) => {
-                  const y = LIFE_LINE_PADDING.top + line * ((LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom) / 3);
-                  return <line key={`life-grid-${line}`} x1={LIFE_LINE_PADDING.left} x2={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.right} y1={y} y2={y} className={styles.lifeLineGrid} />;
-                })}
-                <text x="12" y={LIFE_LINE_PADDING.top + 4} className={styles.lifeLineAxis}>高位</text>
-                <text x="12" y={LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom + 4} className={styles.lifeLineAxis}>下位</text>
-                {lifeLineAreaPath ? <path d={lifeLineAreaPath} className={styles.lifeLineArea} /> : null}
-                {lifeLinePath ? <path d={lifeLinePath} className={styles.lifeLineGhostPath} /> : null}
-                {lifeLinePoints.map((point, index) => {
-                  const next = lifeLinePoints[index + 1];
-                  if (!next) return null;
-                  return (
-                    <line
-                      key={`life-segment-${point.bashoSeq}-${next.bashoSeq}`}
-                      x1={point.x}
-                      y1={point.y}
-                      x2={next.x}
-                      y2={next.y}
-                      className={styles.lifeLineSegment}
-                      data-tone={point.deltaValue > 0 ? "up" : point.deltaValue < 0 ? "down" : "flat"}
-                    />
-                  );
-                })}
-                {lifeLinePoints.map((point) => {
-                  const deltaText = toDeltaText(point);
-                  return (
-                    <React.Fragment key={`life-point-${point.bashoSeq}`}>
-                      <g
-                        className={styles.lifeLinePoint}
-                        data-selected={point.isSelected}
-                        data-peak={point.isPeak}
-                        data-promoted={point.isPromoted}
-                        data-big={point.isBigMove}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onSelectBasho(point.bashoSeq)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            onSelectBasho(point.bashoSeq);
-                          }
-                        }}
-                      >
-                        <title>{`${point.bashoLabel} / ${point.rankLabel} / ${point.recordLabel} / ${deltaText}`}</title>
-                        <circle cx={point.x} cy={point.y} r={point.isSelected ? 7 : point.isPeak || point.isPromoted ? 6 : 4} />
-                        {point.label && (point.isSelected || point.isPeak || point.isPromoted) ? (
-                          <>
-                            <line x1={point.x} x2={point.x} y1={point.y - 7} y2={Math.max(13, point.y - 24)} className={styles.lifeLineLabelStem} />
-                            <text x={point.x} y={Math.max(12, point.y - 29)} className={styles.lifeLineLabel}>{point.label}</text>
-                          </>
-                        ) : null}
-                      </g>
-                    </React.Fragment>
-                  );
-                })}
-              </svg>
-            </div>
-            <div className={styles.lifeLineEventRail}>
-              {lifeLineEvents.map((point) => {
-                const label = point.label ?? (point.isBigMove ? toDeltaText(point) : point.rankShortLabel);
-                return (
-                  <button
-                    key={`life-event-${point.bashoSeq}-${label}`}
-                    type="button"
-                    className={styles.lifeLineEvent}
-                    data-active={point.isSelected}
-                    data-peak={point.isPeak}
-                    data-promoted={point.isPromoted}
-                    onClick={() => onSelectBasho(point.bashoSeq)}
-                  >
-                    <span>{label}</span>
-                    <strong>{point.bashoLabel}</strong>
-                    <em>{point.rankLabel} / {toDeltaText(point)}</em>
-                  </button>
-                );
-              })}
             </div>
           </div>
 
@@ -599,81 +860,6 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
           </div>
         </div>
 
-        <aside className={styles.detailPanel} data-tone={trajectoryTone}>
-          <div>
-            <div className={styles.summaryKicker}>選択中の場所</div>
-            <h3 className={styles.detailTitle}>
-              {selectionSummary?.bashoLabel ?? selectedPoint?.bashoLabel ?? "場所未選択"}
-            </h3>
-            <p className={styles.detailCopy}>
-              {selectionSummary?.recordLabel ?? "場所を選ぶと、この場所の意味を右側で読めます。"}
-            </p>
-          </div>
-
-          <div className={styles.positionRibbon}>
-            <span>{selectedOrdinal ? `第${selectedOrdinal}場所` : "未選択"}</span>
-            <strong>{selectionSummary?.deltaLabel ?? "-"}</strong>
-          </div>
-
-          <div className={styles.detailMetrics}>
-            <article className={styles.detailMetric}>
-              <span className={styles.detailMetricLabel}>場所</span>
-              <strong className={styles.detailMetricValue}>{selectionSummary?.bashoLabel ?? "-"}</strong>
-            </article>
-            <article className={styles.detailMetric}>
-              <span className={styles.detailMetricLabel}>番付</span>
-              <strong className={styles.detailMetricValue}>{selectionSummary?.rankLabel ?? "-"}</strong>
-            </article>
-            <article className={styles.detailMetric}>
-              <span className={styles.detailMetricLabel}>成績</span>
-              <strong className={styles.detailMetricValue}>{selectionSummary?.recordLabel ?? "-"}</strong>
-            </article>
-            <article className={styles.detailMetric}>
-              <span className={styles.detailMetricLabel}>昇降幅</span>
-              <strong className={styles.detailMetricValue}>{selectionSummary?.deltaLabel ?? "-"}</strong>
-            </article>
-          </div>
-
-          <div className={styles.detailTags}>
-            {(detailTags.length ? detailTags : headlineMilestone ? [headlineMilestone] : []).map((tag) => (
-              <span key={tag} className={styles.detailTag}>
-                {tag}
-              </span>
-            ))}
-          </div>
-
-          <div className={styles.detailNote}>
-            <div className={styles.detailNoteLabel}>この場所の要点</div>
-            <p className={styles.detailNoteText}>{detailLoading ? "読込中" : summaryNote}</p>
-          </div>
-
-          <div className={styles.detailCompare}>
-            <div className={styles.detailNoteLabel}>前後比較</div>
-            <div className={styles.detailCompareGrid}>
-              <article className={styles.detailCompareItem}>
-                <span className={styles.detailCompareLabel}>前の場所</span>
-                <strong className={styles.detailCompareValue}>{previousPoint ? `${previousPoint.bashoLabel} / ${previousPoint.rankLabel}` : "なし"}</strong>
-                <em className={styles.detailCompareMeta}>{previousPoint?.recordLabel ?? "比較対象なし"}</em>
-              </article>
-              <article className={styles.detailCompareItem}>
-                <span className={styles.detailCompareLabel}>次の場所</span>
-                <strong className={styles.detailCompareValue}>{nextPoint ? `${nextPoint.bashoLabel} / ${nextPoint.rankLabel}` : "なし"}</strong>
-                <em className={styles.detailCompareMeta}>{nextPoint?.recordLabel ?? "比較対象なし"}</em>
-              </article>
-            </div>
-          </div>
-
-          <div className={styles.detailActions}>
-            <Button type="button" variant="secondary" onClick={() => selectedPoint && onOpenChapter("place")} disabled={!selectedPoint}>
-              <ArrowRight className="mr-2 h-4 w-4" />
-              場所別を開く
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => selectedPoint && onOpenChapter("encyclopedia")} disabled={!selectedPoint}>
-              <ScrollText className="mr-2 h-4 w-4" />
-              力士名鑑へ戻る
-            </Button>
-          </div>
-        </aside>
       </div>
 
       <div className={styles.heatmapBlock}>
