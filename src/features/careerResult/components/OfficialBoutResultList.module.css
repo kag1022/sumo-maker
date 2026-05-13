@@ -56,7 +56,8 @@
 }
 
 .row[data-absence="true"] {
-  opacity: 0.74;
+  background:
+    linear-gradient(90deg, rgb(var(--twc-bg) / 0.34), rgb(var(--twc-bg-panel) / 0.32));
 }
 
 .day,
@@ -186,6 +187,29 @@
   overflow-wrap: anywhere;
 }
 
+.absencePanel {
+  grid-column: 2 / -1;
+  display: grid;
+  gap: 0.16rem;
+  align-content: center;
+  min-width: 0;
+  padding: 0.62rem 0.7rem;
+  color: rgb(var(--twc-text) / 0.7);
+}
+
+.absencePanel strong {
+  color: var(--chart-absent);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.absencePanel span {
+  color: rgb(var(--twc-text) / 0.5);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
 .detailPanel {
   grid-column: 2 / -1;
   display: flex;
@@ -259,6 +283,11 @@
 
   .detailPanel {
     grid-area: detail;
+  }
+
+  .absencePanel {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgb(255 255 255 / 0.05);
   }
 
   .wrestlerName,
