@@ -236,21 +236,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         <>
           {viewState.activeChapter === "encyclopedia" ? (
             <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
-              <section className={styles.readingNote}>
-                <div className={styles.readingKicker}>閲覧ガイド</div>
-                <div className={styles.readingTitle}>
-                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
-                </div>
-                <p className={styles.readingCopy}>
-                  {canReadDetails
-                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
-                    : detailLoadingLabel}
-                </p>
-              </section>
-              <CareerArchivePanel
-                careerId={careerId}
-                onOpenArchive={onOpenArchiveCollection ?? onOpenArchive}
-              />
               <CareerEncyclopediaChapter
                 status={status}
                 overview={overview}
@@ -265,6 +250,21 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 onSave={onSave}
                 onReturnToScout={onReturnToScout}
                 onOpenArchive={onOpenArchive}
+              />
+              <section className={styles.readingNote}>
+                <div className={styles.readingKicker}>閲覧ガイド</div>
+                <div className={styles.readingTitle}>
+                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
+                </div>
+                <p className={styles.readingCopy}>
+                  {canReadDetails
+                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
+                    : detailLoadingLabel}
+                </p>
+              </section>
+              <CareerArchivePanel
+                careerId={careerId}
+                onOpenArchive={onOpenArchiveCollection ?? onOpenArchive}
               />
               <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
             </motion.div>
