@@ -1,0 +1,2453 @@
+{
+  "meta": {
+    "generatedAt": "2026-05-12T16:22:20.256Z",
+    "args": {
+      "careers": 100,
+      "seed": 20260422
+    },
+    "observations": 148
+  },
+  "sandanme40To60": {
+    "natural:0-7": {
+      "count": 16,
+      "jonidan1To30": 5,
+      "jonidan31To60": 0,
+      "jonidan61To90": 2,
+      "jonidan91Plus": 9,
+      "toRankP25": 4,
+      "toRankP50": 94,
+      "toRankP75": 97
+    },
+    "natural:0-0-7": {
+      "count": 1,
+      "jonidan1To30": 1,
+      "jonidan31To60": 0,
+      "jonidan61To90": 0,
+      "jonidan91Plus": 0,
+      "toRankP25": 1,
+      "toRankP50": 1,
+      "toRankP75": 1
+    },
+    "forced:0-7": {
+      "count": 21,
+      "jonidan1To30": 5,
+      "jonidan31To60": 0,
+      "jonidan61To90": 0,
+      "jonidan91Plus": 0,
+      "toRankP25": 85,
+      "toRankP50": 90,
+      "toRankP75": 95
+    },
+    "forced:0-0-7": {
+      "count": 21,
+      "jonidan1To30": 19,
+      "jonidan31To60": 0,
+      "jonidan61To90": 0,
+      "jonidan91Plus": 0,
+      "toRankP25": 6,
+      "toRankP50": 11,
+      "toRankP75": 16
+    }
+  },
+  "observations": [
+    {
+      "source": "natural",
+      "seed": 20260422,
+      "bashoSeq": 20,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 2,
+      "fromRankLabel": "西序ノ口2枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 61,
+      "finalRankLabel": "西序ノ口61枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260423,
+      "bashoSeq": 3,
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 23,
+      "fromRankLabel": "東序ノ口23枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 40,
+      "finalRankLabel": "西序ノ口40枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260426,
+      "bashoSeq": 20,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 58,
+      "fromRankLabel": "西三段目58枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 4,
+      "finalRankLabel": "東序二段4枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260426,
+      "bashoSeq": 32,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 47,
+      "fromRankLabel": "西三段目47枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 102,
+      "finalRankLabel": "東序二段102枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260426,
+      "bashoSeq": 46,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 58,
+      "fromRankLabel": "東三段目58枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 3,
+      "finalRankLabel": "西序二段3枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260426,
+      "bashoSeq": 75,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 67,
+      "fromRankLabel": "東三段目67枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 13,
+      "finalRankLabel": "東序二段13枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260426,
+      "bashoSeq": 93,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 57,
+      "fromRankLabel": "西幕下57枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 32,
+      "finalRankLabel": "西三段目32枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260427,
+      "bashoSeq": 4,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 114,
+      "fromRankLabel": "西序二段114枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 26,
+      "finalRankLabel": "東序ノ口26枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260429,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 126,
+      "fromRankLabel": "西序二段126枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 34,
+      "finalRankLabel": "東序ノ口34枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260429,
+      "bashoSeq": 9,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 36,
+      "fromRankLabel": "東序ノ口36枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 63,
+      "finalRankLabel": "西序ノ口63枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260430,
+      "bashoSeq": 55,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 40,
+      "fromRankLabel": "東三段目40枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 89,
+      "finalRankLabel": "西序二段89枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260430,
+      "bashoSeq": 60,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 30,
+      "fromRankLabel": "西三段目30枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 73,
+      "finalRankLabel": "東序二段73枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260432,
+      "bashoSeq": 32,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 61,
+      "fromRankLabel": "西序二段61枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 62,
+      "finalRankLabel": "西序ノ口62枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260433,
+      "bashoSeq": 13,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 92,
+      "fromRankLabel": "東序二段92枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 7,
+      "finalRankLabel": "東序ノ口7枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260433,
+      "bashoSeq": 17,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 85,
+      "fromRankLabel": "東序二段85枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 51,
+      "finalRankLabel": "西序ノ口51枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260433,
+      "bashoSeq": 24,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 126,
+      "fromRankLabel": "西序二段126枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 39,
+      "finalRankLabel": "西序ノ口39枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260434,
+      "bashoSeq": 40,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 2,
+      "fromRankLabel": "東序ノ口2枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 62,
+      "finalRankLabel": "西序ノ口62枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260436,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 95,
+      "fromRankLabel": "西序二段95枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 34,
+      "finalRankLabel": "東序ノ口34枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260438,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 13,
+      "fromRankLabel": "東序ノ口13枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 60,
+      "finalRankLabel": "西序ノ口60枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260439,
+      "bashoSeq": 36,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 63,
+      "fromRankLabel": "西三段目63枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 9,
+      "finalRankLabel": "西序二段9枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260441,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 70,
+      "fromRankLabel": "西三段目70枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 16,
+      "finalRankLabel": "西序二段16枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260441,
+      "bashoSeq": 26,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 95,
+      "fromRankLabel": "東三段目95枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 41,
+      "finalRankLabel": "西序二段41枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260443,
+      "bashoSeq": 60,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 60,
+      "fromRankLabel": "西幕下60枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 35,
+      "finalRankLabel": "西三段目35枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260444,
+      "bashoSeq": 52,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 43,
+      "fromRankLabel": "西三段目43枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 94,
+      "finalRankLabel": "西序二段94枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260445,
+      "bashoSeq": 83,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 10,
+      "fromRankLabel": "西三段目10枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 38,
+      "finalRankLabel": "西序二段38枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260445,
+      "bashoSeq": 90,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 27,
+      "fromRankLabel": "東三段目27枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 66,
+      "finalRankLabel": "西序二段66枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260446,
+      "bashoSeq": 27,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 76,
+      "fromRankLabel": "東三段目76枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 22,
+      "finalRankLabel": "東序二段22枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260447,
+      "bashoSeq": 37,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 72,
+      "fromRankLabel": "西三段目72枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 18,
+      "finalRankLabel": "西序二段18枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260447,
+      "bashoSeq": 50,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 70,
+      "fromRankLabel": "西三段目70枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 16,
+      "finalRankLabel": "西序二段16枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260448,
+      "bashoSeq": 34,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 55,
+      "fromRankLabel": "西三段目55枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 1,
+      "finalRankLabel": "東序二段1枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260448,
+      "bashoSeq": 51,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 41,
+      "fromRankLabel": "西幕下41枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 16,
+      "finalRankLabel": "西三段目16枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260448,
+      "bashoSeq": 71,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 48,
+      "fromRankLabel": "東幕下48枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 23,
+      "finalRankLabel": "東三段目23枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260448,
+      "bashoSeq": 75,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 15,
+      "fromRankLabel": "西三段目15枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 46,
+      "finalRankLabel": "西序二段46枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260449,
+      "bashoSeq": 9,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 98,
+      "fromRankLabel": "西序二段98枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 27,
+      "finalRankLabel": "西序ノ口27枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260450,
+      "bashoSeq": 13,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 96,
+      "fromRankLabel": "西序二段96枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 18,
+      "finalRankLabel": "西序ノ口18枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260451,
+      "bashoSeq": 85,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 11,
+      "fromRankLabel": "東三段目11枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 38,
+      "finalRankLabel": "西序二段38枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260453,
+      "bashoSeq": 2,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 31,
+      "fromRankLabel": "東序ノ口31枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 61,
+      "finalRankLabel": "西序ノ口61枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 14,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 47,
+      "fromRankLabel": "東三段目47枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 101,
+      "finalRankLabel": "西序二段101枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 25,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 21,
+      "fromRankLabel": "東三段目21枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 56,
+      "finalRankLabel": "東序二段56枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 40,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 58,
+      "fromRankLabel": "西幕下58枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 33,
+      "finalRankLabel": "西三段目33枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 43,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 43,
+      "fromRankLabel": "東三段目43枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 95,
+      "finalRankLabel": "東序二段95枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 54,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 19,
+      "fromRankLabel": "西三段目19枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 53,
+      "finalRankLabel": "西序二段53枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260455,
+      "bashoSeq": 69,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 44,
+      "fromRankLabel": "西三段目44枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 97,
+      "finalRankLabel": "東序二段97枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260457,
+      "bashoSeq": 25,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 5,
+      "fromRankLabel": "西幕下5枚目",
+      "finalDivision": "Makushita",
+      "finalRankNumber": 37,
+      "finalRankLabel": "東幕下37枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260457,
+      "bashoSeq": 58,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 14,
+      "fromRankLabel": "東幕下14枚目",
+      "finalDivision": "Makushita",
+      "finalRankNumber": 39,
+      "finalRankLabel": "西幕下39枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260459,
+      "bashoSeq": 36,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 72,
+      "fromRankLabel": "東三段目72枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 18,
+      "finalRankLabel": "東序二段18枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260461,
+      "bashoSeq": 11,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 62,
+      "fromRankLabel": "西序二段62枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 57,
+      "finalRankLabel": "西序ノ口57枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260465,
+      "bashoSeq": 33,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 89,
+      "fromRankLabel": "東序二段89枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 30,
+      "finalRankLabel": "東序ノ口30枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260467,
+      "bashoSeq": 53,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 47,
+      "fromRankLabel": "東三段目47枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 101,
+      "finalRankLabel": "西序二段101枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260469,
+      "bashoSeq": 8,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 19,
+      "fromRankLabel": "東序ノ口19枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 61,
+      "finalRankLabel": "西序ノ口61枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260470,
+      "bashoSeq": 11,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 89,
+      "fromRankLabel": "西三段目89枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 35,
+      "finalRankLabel": "西序二段35枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260472,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 142,
+      "fromRankLabel": "東序二段142枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 40,
+      "finalRankLabel": "東序ノ口40枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260472,
+      "bashoSeq": 13,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 3,
+      "fromRankLabel": "西序ノ口3枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 53,
+      "finalRankLabel": "西序ノ口53枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260472,
+      "bashoSeq": 30,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 118,
+      "fromRankLabel": "西序二段118枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 25,
+      "finalRankLabel": "東序ノ口25枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260478,
+      "bashoSeq": 12,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 125,
+      "fromRankLabel": "東序二段125枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 39,
+      "finalRankLabel": "西序ノ口39枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260480,
+      "bashoSeq": 15,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 16,
+      "fromRankLabel": "東序二段16枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 37,
+      "finalRankLabel": "東序ノ口37枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260481,
+      "bashoSeq": 32,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 59,
+      "fromRankLabel": "東三段目59枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 4,
+      "finalRankLabel": "西序二段4枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260482,
+      "bashoSeq": 33,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 39,
+      "fromRankLabel": "西三段目39枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 88,
+      "finalRankLabel": "東序二段88枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260483,
+      "bashoSeq": 58,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 86,
+      "fromRankLabel": "東三段目86枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 31,
+      "finalRankLabel": "西序二段31枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260483,
+      "bashoSeq": 71,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 98,
+      "fromRankLabel": "西三段目98枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 45,
+      "finalRankLabel": "東序二段45枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260484,
+      "bashoSeq": 12,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 106,
+      "fromRankLabel": "東序二段106枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 20,
+      "finalRankLabel": "西序ノ口20枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260484,
+      "bashoSeq": 14,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 15,
+      "fromRankLabel": "西序ノ口15枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 59,
+      "finalRankLabel": "西序ノ口59枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260484,
+      "bashoSeq": 20,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 20,
+      "fromRankLabel": "東序ノ口20枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 52,
+      "finalRankLabel": "西序ノ口52枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260485,
+      "bashoSeq": 19,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 103,
+      "fromRankLabel": "東序二段103枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 27,
+      "finalRankLabel": "西序ノ口27枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260486,
+      "bashoSeq": 9,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 96,
+      "fromRankLabel": "西序二段96枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 20,
+      "finalRankLabel": "西序ノ口20枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260486,
+      "bashoSeq": 14,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 113,
+      "fromRankLabel": "東序二段113枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 36,
+      "finalRankLabel": "東序ノ口36枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260486,
+      "bashoSeq": 18,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 70,
+      "fromRankLabel": "西序二段70枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 1,
+      "finalRankLabel": "東序ノ口1枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260487,
+      "bashoSeq": 2,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 31,
+      "fromRankLabel": "東序ノ口31枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 58,
+      "finalRankLabel": "西序ノ口58枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260487,
+      "bashoSeq": 5,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 49,
+      "fromRankLabel": "西序ノ口49枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 53,
+      "finalRankLabel": "西序ノ口53枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260488,
+      "bashoSeq": 8,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 67,
+      "fromRankLabel": "東三段目67枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 13,
+      "finalRankLabel": "東序二段13枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260488,
+      "bashoSeq": 25,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 45,
+      "fromRankLabel": "西序二段45枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 62,
+      "finalRankLabel": "西序ノ口62枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260489,
+      "bashoSeq": 11,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 37,
+      "fromRankLabel": "西序二段37枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 37,
+      "finalRankLabel": "西序ノ口37枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260489,
+      "bashoSeq": 70,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 88,
+      "fromRankLabel": "東三段目88枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 34,
+      "finalRankLabel": "東序二段34枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260489,
+      "bashoSeq": 77,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 91,
+      "fromRankLabel": "西三段目91枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 38,
+      "finalRankLabel": "東序二段38枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260490,
+      "bashoSeq": 35,
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 82,
+      "fromRankLabel": "東三段目82枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 42,
+      "finalRankLabel": "東序二段42枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260490,
+      "bashoSeq": 73,
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 42,
+      "fromRankLabel": "西三段目42枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 1,
+      "finalRankLabel": "西序二段1枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260494,
+      "bashoSeq": 21,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 55,
+      "fromRankLabel": "東三段目55枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 115,
+      "finalRankLabel": "東序二段115枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260497,
+      "bashoSeq": 23,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 43,
+      "fromRankLabel": "西三段目43枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 95,
+      "finalRankLabel": "東序二段95枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260498,
+      "bashoSeq": 16,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 85,
+      "fromRankLabel": "東三段目85枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 31,
+      "finalRankLabel": "東序二段31枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260498,
+      "bashoSeq": 21,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 60,
+      "fromRankLabel": "西三段目60枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 6,
+      "finalRankLabel": "東序二段6枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260498,
+      "bashoSeq": 23,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 71,
+      "fromRankLabel": "東三段目71枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 17,
+      "finalRankLabel": "東序二段17枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260498,
+      "bashoSeq": 43,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 79,
+      "fromRankLabel": "東三段目79枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 25,
+      "finalRankLabel": "東序二段25枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260498,
+      "bashoSeq": 70,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 31,
+      "fromRankLabel": "東三段目31枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 73,
+      "finalRankLabel": "西序二段73枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260499,
+      "bashoSeq": 18,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 43,
+      "fromRankLabel": "西幕下43枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 16,
+      "finalRankLabel": "西三段目16枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260499,
+      "bashoSeq": 21,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 3,
+      "fromRankLabel": "西三段目3枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 25,
+      "finalRankLabel": "東序二段25枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260501,
+      "bashoSeq": 4,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 98,
+      "fromRankLabel": "東序二段98枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 29,
+      "finalRankLabel": "西序ノ口29枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260503,
+      "bashoSeq": 26,
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankNumber": 38,
+      "fromRankLabel": "東幕下38枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 13,
+      "finalRankLabel": "東三段目13枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260504,
+      "bashoSeq": 12,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 13,
+      "fromRankLabel": "東序ノ口13枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 46,
+      "finalRankLabel": "西序ノ口46枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260505,
+      "bashoSeq": 5,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 74,
+      "fromRankLabel": "東序二段74枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 31,
+      "finalRankLabel": "西序ノ口31枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260505,
+      "bashoSeq": 20,
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 26,
+      "fromRankLabel": "西序ノ口26枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 44,
+      "finalRankLabel": "西序ノ口44枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260506,
+      "bashoSeq": 16,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 22,
+      "fromRankLabel": "東序二段22枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 19,
+      "finalRankLabel": "西序ノ口19枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260506,
+      "bashoSeq": 51,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 32,
+      "fromRankLabel": "東序二段32枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 34,
+      "finalRankLabel": "西序ノ口34枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260508,
+      "bashoSeq": 33,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 39,
+      "fromRankLabel": "西三段目39枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 87,
+      "finalRankLabel": "西序二段87枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260509,
+      "bashoSeq": 18,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 93,
+      "fromRankLabel": "東三段目93枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 39,
+      "finalRankLabel": "西序二段39枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260512,
+      "bashoSeq": 11,
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankNumber": 22,
+      "fromRankLabel": "東序ノ口22枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 61,
+      "finalRankLabel": "西序ノ口61枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260513,
+      "bashoSeq": 7,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 71,
+      "fromRankLabel": "東序二段71枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 45,
+      "finalRankLabel": "西序ノ口45枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260513,
+      "bashoSeq": 65,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 7,
+      "fromRankLabel": "東三段目7枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 32,
+      "finalRankLabel": "西序二段32枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260514,
+      "bashoSeq": 5,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 69,
+      "fromRankLabel": "東序二段69枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 37,
+      "finalRankLabel": "西序ノ口37枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE",
+        "BOTTOM_CLAMP"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260515,
+      "bashoSeq": 16,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 44,
+      "fromRankLabel": "西三段目44枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 96,
+      "finalRankLabel": "西序二段96枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260517,
+      "bashoSeq": 5,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 88,
+      "fromRankLabel": "東序二段88枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 7,
+      "finalRankLabel": "西序ノ口7枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260517,
+      "bashoSeq": 29,
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 103,
+      "fromRankLabel": "東序二段103枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 16,
+      "finalRankLabel": "東序ノ口16枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "NEW_RECRUIT_PRESSURE",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260518,
+      "bashoSeq": 57,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 40,
+      "fromRankLabel": "東三段目40枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 89,
+      "finalRankLabel": "西序二段89枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260520,
+      "bashoSeq": 28,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 64,
+      "fromRankLabel": "東三段目64枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 10,
+      "finalRankLabel": "東序二段10枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260520,
+      "bashoSeq": 40,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 36,
+      "fromRankLabel": "西三段目36枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 83,
+      "finalRankLabel": "東序二段83枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260521,
+      "bashoSeq": 58,
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 73,
+      "fromRankLabel": "東三段目73枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 18,
+      "finalRankLabel": "西序二段18枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "VACANCY_PULL",
+        "BOUNDARY_PROJECTION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "natural",
+      "seed": 20260521,
+      "bashoSeq": 67,
+      "recordType": "0-0-7",
+      "fromDivision": "Jonidan",
+      "fromRankNumber": 35,
+      "fromRankLabel": "東序二段35枚目",
+      "finalDivision": "Jonokuchi",
+      "finalRankNumber": 56,
+      "finalRankLabel": "東序ノ口56枚目",
+      "reasonCodes": [
+        "RECORD_DEMOTION",
+        "BOUNDARY_PROJECTION",
+        "RANK_SCALE_EXTENSION",
+        "VARIABLE_HEADCOUNT_PROJECTION",
+        "TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE"
+      ]
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 40,
+      "fromRankLabel": "東三段目40枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 85,
+      "finalRankLabel": "東三段目85枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 40,
+      "fromRankLabel": "東三段目40枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 99,
+      "finalRankLabel": "東三段目99枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 41,
+      "fromRankLabel": "東三段目41枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 86,
+      "finalRankLabel": "西三段目86枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 41,
+      "fromRankLabel": "東三段目41枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 100,
+      "finalRankLabel": "東三段目100枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 42,
+      "fromRankLabel": "東三段目42枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 87,
+      "finalRankLabel": "西三段目87枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 42,
+      "fromRankLabel": "東三段目42枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 1,
+      "finalRankLabel": "東序二段1枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 43,
+      "fromRankLabel": "東三段目43枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 88,
+      "finalRankLabel": "西三段目88枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 43,
+      "fromRankLabel": "東三段目43枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 2,
+      "finalRankLabel": "東序二段2枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 44,
+      "fromRankLabel": "東三段目44枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 89,
+      "finalRankLabel": "西三段目89枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 44,
+      "fromRankLabel": "東三段目44枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 3,
+      "finalRankLabel": "東序二段3枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 45,
+      "fromRankLabel": "東三段目45枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 90,
+      "finalRankLabel": "西三段目90枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 45,
+      "fromRankLabel": "東三段目45枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 4,
+      "finalRankLabel": "東序二段4枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 46,
+      "fromRankLabel": "東三段目46枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 91,
+      "finalRankLabel": "西三段目91枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 46,
+      "fromRankLabel": "東三段目46枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 5,
+      "finalRankLabel": "東序二段5枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 47,
+      "fromRankLabel": "東三段目47枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 92,
+      "finalRankLabel": "西三段目92枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 47,
+      "fromRankLabel": "東三段目47枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 6,
+      "finalRankLabel": "東序二段6枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 48,
+      "fromRankLabel": "東三段目48枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 93,
+      "finalRankLabel": "西三段目93枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 48,
+      "fromRankLabel": "東三段目48枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 7,
+      "finalRankLabel": "東序二段7枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 49,
+      "fromRankLabel": "東三段目49枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 94,
+      "finalRankLabel": "西三段目94枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 49,
+      "fromRankLabel": "東三段目49枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 8,
+      "finalRankLabel": "東序二段8枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 50,
+      "fromRankLabel": "東三段目50枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 95,
+      "finalRankLabel": "西三段目95枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 50,
+      "fromRankLabel": "東三段目50枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 9,
+      "finalRankLabel": "東序二段9枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 51,
+      "fromRankLabel": "東三段目51枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 96,
+      "finalRankLabel": "西三段目96枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 51,
+      "fromRankLabel": "東三段目51枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 10,
+      "finalRankLabel": "東序二段10枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 52,
+      "fromRankLabel": "東三段目52枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 97,
+      "finalRankLabel": "西三段目97枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 52,
+      "fromRankLabel": "東三段目52枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 11,
+      "finalRankLabel": "東序二段11枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 53,
+      "fromRankLabel": "東三段目53枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 98,
+      "finalRankLabel": "西三段目98枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 53,
+      "fromRankLabel": "東三段目53枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 11,
+      "finalRankLabel": "東序二段11枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 54,
+      "fromRankLabel": "東三段目54枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 99,
+      "finalRankLabel": "西三段目99枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 54,
+      "fromRankLabel": "東三段目54枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 13,
+      "finalRankLabel": "東序二段13枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 55,
+      "fromRankLabel": "東三段目55枚目",
+      "finalDivision": "Sandanme",
+      "finalRankNumber": 100,
+      "finalRankLabel": "西三段目100枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 55,
+      "fromRankLabel": "東三段目55枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 14,
+      "finalRankLabel": "東序二段14枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 56,
+      "fromRankLabel": "東三段目56枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 1,
+      "finalRankLabel": "西序二段1枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 56,
+      "fromRankLabel": "東三段目56枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 15,
+      "finalRankLabel": "東序二段15枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 57,
+      "fromRankLabel": "東三段目57枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 2,
+      "finalRankLabel": "西序二段2枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 57,
+      "fromRankLabel": "東三段目57枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 16,
+      "finalRankLabel": "東序二段16枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 58,
+      "fromRankLabel": "東三段目58枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 3,
+      "finalRankLabel": "西序二段3枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 58,
+      "fromRankLabel": "東三段目58枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 17,
+      "finalRankLabel": "東序二段17枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 59,
+      "fromRankLabel": "東三段目59枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 4,
+      "finalRankLabel": "西序二段4枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 59,
+      "fromRankLabel": "東三段目59枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 18,
+      "finalRankLabel": "東序二段18枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 60,
+      "fromRankLabel": "東三段目60枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 5,
+      "finalRankLabel": "西序二段5枚目",
+      "reasonCodes": []
+    },
+    {
+      "source": "forced",
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankNumber": 60,
+      "fromRankLabel": "東三段目60枚目",
+      "finalDivision": "Jonidan",
+      "finalRankNumber": 19,
+      "finalRankLabel": "東序二段19枚目",
+      "reasonCodes": []
+    }
+  ]
+}

@@ -1,0 +1,1188 @@
+{
+  "meta": {
+    "generatedAt": "2026-05-12T16:26:32.394Z",
+    "recordsPath": "C:\\Games\\sumo-maker\\sumo-api-db\\data\\analysis\\era_basho_records_196007_202603.json",
+    "movementsPath": "C:\\Games\\sumo-maker\\sumo-api-db\\data\\analysis\\era_rank_movements_196007_202603.json",
+    "scannedRecords": 276320,
+    "indexedTargetRecords": 15679,
+    "scannedMovements": 265745,
+    "observations": 9152
+  },
+  "summary": [
+    {
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "upper",
+      "count": 34,
+      "toDivisionDistribution": {
+        "Makushita": 34
+      },
+      "toRankP25": 37,
+      "toRankP50": 42,
+      "toRankP75": 47,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "middle",
+      "count": 115,
+      "toDivisionDistribution": {
+        "Makushita": 49,
+        "Sandanme": 66
+      },
+      "toRankP25": 6,
+      "toRankP50": 11,
+      "toRankP75": 53,
+      "sameDivisionStayRate": 0.4261,
+      "demotionToLowerDivisionRate": 0.5739,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "lower",
+      "count": 84,
+      "toDivisionDistribution": {
+        "Makushita": 6,
+        "Sandanme": 78
+      },
+      "toRankP25": 19,
+      "toRankP50": 22,
+      "toRankP75": 27,
+      "sameDivisionStayRate": 0.0714,
+      "demotionToLowerDivisionRate": 0.9286,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "bottom",
+      "count": 67,
+      "toDivisionDistribution": {
+        "Sandanme": 59,
+        "Makushita": 8
+      },
+      "toRankP25": 30,
+      "toRankP50": 32,
+      "toRankP75": 35,
+      "sameDivisionStayRate": 0.1194,
+      "demotionToLowerDivisionRate": 0.8806,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "upper",
+      "count": 121,
+      "toDivisionDistribution": {
+        "Sandanme": 121
+      },
+      "toRankP25": 50,
+      "toRankP50": 57,
+      "toRankP75": 64,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "count": 195,
+      "toDivisionDistribution": {
+        "Sandanme": 126,
+        "Jonidan": 69
+      },
+      "toRankP25": 13,
+      "toRankP50": 76,
+      "toRankP75": 87,
+      "sameDivisionStayRate": 0.6462,
+      "demotionToLowerDivisionRate": 0.3538,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "lower",
+      "count": 130,
+      "toDivisionDistribution": {
+        "Sandanme": 3,
+        "Jonidan": 127
+      },
+      "toRankP25": 19,
+      "toRankP50": 26,
+      "toRankP75": 33,
+      "sameDivisionStayRate": 0.0231,
+      "demotionToLowerDivisionRate": 0.9769,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "bottom",
+      "count": 38,
+      "toDivisionDistribution": {
+        "Jonidan": 38
+      },
+      "toRankP25": 39,
+      "toRankP50": 42,
+      "toRankP75": 45,
+      "sameDivisionStayRate": 0,
+      "demotionToLowerDivisionRate": 1,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "upper",
+      "count": 150,
+      "toDivisionDistribution": {
+        "Jonidan": 149,
+        "Jonokuchi": 1
+      },
+      "toRankP25": 59,
+      "toRankP50": 70,
+      "toRankP75": 77,
+      "sameDivisionStayRate": 0.9933,
+      "demotionToLowerDivisionRate": 0.0067,
+      "deepLandingRate": 0.0267
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "middle",
+      "count": 272,
+      "toDivisionDistribution": {
+        "Jonidan": 185,
+        "Jonokuchi": 87
+      },
+      "toRankP25": 15,
+      "toRankP50": 92,
+      "toRankP75": 105,
+      "sameDivisionStayRate": 0.6801,
+      "demotionToLowerDivisionRate": 0.3199,
+      "deepLandingRate": 0.5294
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "lower",
+      "count": 158,
+      "toDivisionDistribution": {
+        "Jonokuchi": 119,
+        "Jonidan": 39
+      },
+      "toRankP25": 13,
+      "toRankP50": 21,
+      "toRankP75": 38,
+      "sameDivisionStayRate": 0.2468,
+      "demotionToLowerDivisionRate": 0.7532,
+      "deepLandingRate": 0.2468
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "bottom",
+      "count": 82,
+      "toDivisionDistribution": {
+        "Jonokuchi": 72,
+        "Jonidan": 10
+      },
+      "toRankP25": 29,
+      "toRankP50": 33,
+      "toRankP75": 42,
+      "sameDivisionStayRate": 0.122,
+      "demotionToLowerDivisionRate": 0.878,
+      "deepLandingRate": 0.122
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "upper",
+      "count": 66,
+      "toDivisionDistribution": {
+        "Jonokuchi": 66
+      },
+      "toRankP25": 22,
+      "toRankP50": 34,
+      "toRankP75": 43,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "middle",
+      "count": 93,
+      "toDivisionDistribution": {
+        "Jonokuchi": 93
+      },
+      "toRankP25": 19,
+      "toRankP50": 22,
+      "toRankP75": 34,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "lower",
+      "count": 60,
+      "toDivisionDistribution": {
+        "Jonokuchi": 60
+      },
+      "toRankP25": 28,
+      "toRankP50": 37,
+      "toRankP75": 44,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "bottom",
+      "count": 96,
+      "toDivisionDistribution": {
+        "Jonokuchi": 96
+      },
+      "toRankP25": 40,
+      "toRankP50": 47,
+      "toRankP75": 56,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "upper",
+      "count": 203,
+      "toDivisionDistribution": {
+        "Makushita": 203
+      },
+      "toRankP25": 30,
+      "toRankP50": 45,
+      "toRankP75": 49,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "middle",
+      "count": 293,
+      "toDivisionDistribution": {
+        "Makushita": 105,
+        "Sandanme": 188
+      },
+      "toRankP25": 8,
+      "toRankP50": 15,
+      "toRankP75": 37,
+      "sameDivisionStayRate": 0.3584,
+      "demotionToLowerDivisionRate": 0.6416,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "lower",
+      "count": 249,
+      "toDivisionDistribution": {
+        "Makushita": 51,
+        "Sandanme": 198
+      },
+      "toRankP25": 23,
+      "toRankP50": 28,
+      "toRankP75": 34,
+      "sameDivisionStayRate": 0.2048,
+      "demotionToLowerDivisionRate": 0.7952,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Makushita",
+      "fromRankBand": "bottom",
+      "count": 115,
+      "toDivisionDistribution": {
+        "Sandanme": 105,
+        "Makushita": 10
+      },
+      "toRankP25": 34,
+      "toRankP50": 37,
+      "toRankP75": 40,
+      "sameDivisionStayRate": 0.087,
+      "demotionToLowerDivisionRate": 0.913,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "upper",
+      "count": 539,
+      "toDivisionDistribution": {
+        "Sandanme": 532,
+        "Jonidan": 7
+      },
+      "toRankP25": 55,
+      "toRankP50": 66,
+      "toRankP75": 76,
+      "sameDivisionStayRate": 0.987,
+      "demotionToLowerDivisionRate": 0.013,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "count": 830,
+      "toDivisionDistribution": {
+        "Sandanme": 387,
+        "Jonidan": 443
+      },
+      "toRankP25": 12,
+      "toRankP50": 25,
+      "toRankP75": 87,
+      "sameDivisionStayRate": 0.4663,
+      "demotionToLowerDivisionRate": 0.5337,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "lower",
+      "count": 604,
+      "toDivisionDistribution": {
+        "Sandanme": 46,
+        "Jonidan": 557,
+        "Jonokuchi": 1
+      },
+      "toRankP25": 30,
+      "toRankP50": 38,
+      "toRankP75": 46,
+      "sameDivisionStayRate": 0.0762,
+      "demotionToLowerDivisionRate": 0.9238,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "bottom",
+      "count": 221,
+      "toDivisionDistribution": {
+        "Jonidan": 205,
+        "Sandanme": 16
+      },
+      "toRankP25": 51,
+      "toRankP50": 54,
+      "toRankP75": 58,
+      "sameDivisionStayRate": 0.0724,
+      "demotionToLowerDivisionRate": 0.9276,
+      "deepLandingRate": 0.009
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "upper",
+      "count": 851,
+      "toDivisionDistribution": {
+        "Jonidan": 844,
+        "Jonokuchi": 7
+      },
+      "toRankP25": 63,
+      "toRankP50": 77,
+      "toRankP75": 89,
+      "sameDivisionStayRate": 0.9918,
+      "demotionToLowerDivisionRate": 0.0082,
+      "deepLandingRate": 0.215
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "middle",
+      "count": 1614,
+      "toDivisionDistribution": {
+        "Jonidan": 967,
+        "Jonokuchi": 647
+      },
+      "toRankP25": 12,
+      "toRankP50": 82,
+      "toRankP75": 109,
+      "sameDivisionStayRate": 0.5991,
+      "demotionToLowerDivisionRate": 0.4009,
+      "deepLandingRate": 0.4442
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "lower",
+      "count": 1133,
+      "toDivisionDistribution": {
+        "Jonokuchi": 964,
+        "Jonidan": 169
+      },
+      "toRankP25": 9,
+      "toRankP50": 17,
+      "toRankP75": 30,
+      "sameDivisionStayRate": 0.1492,
+      "demotionToLowerDivisionRate": 0.8508,
+      "deepLandingRate": 0.1324
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonidan",
+      "fromRankBand": "bottom",
+      "count": 705,
+      "toDivisionDistribution": {
+        "Jonokuchi": 666,
+        "Jonidan": 39
+      },
+      "toRankP25": 25,
+      "toRankP50": 35,
+      "toRankP75": 44,
+      "sameDivisionStayRate": 0.0553,
+      "demotionToLowerDivisionRate": 0.9447,
+      "deepLandingRate": 0.0553
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "upper",
+      "count": 13,
+      "toDivisionDistribution": {
+        "Jonokuchi": 13
+      },
+      "toRankP25": 2,
+      "toRankP50": 4,
+      "toRankP75": 7,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "middle",
+      "count": 12,
+      "toDivisionDistribution": {
+        "Jonokuchi": 12
+      },
+      "toRankP25": 12,
+      "toRankP50": 16,
+      "toRankP75": 19,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "lower",
+      "count": 2,
+      "toDivisionDistribution": {
+        "Jonokuchi": 2
+      },
+      "toRankP25": 27,
+      "toRankP50": 27,
+      "toRankP75": 27,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Jonokuchi",
+      "fromRankBand": "bottom",
+      "count": 7,
+      "toDivisionDistribution": {
+        "Jonokuchi": 7
+      },
+      "toRankP25": 37,
+      "toRankP50": 44,
+      "toRankP75": 51,
+      "sameDivisionStayRate": 1,
+      "demotionToLowerDivisionRate": 0,
+      "deepLandingRate": 0
+    }
+  ],
+  "sandanme40To60": {
+    "0-7": {
+      "count": 101,
+      "jonidan1To30": 48,
+      "jonidan31To60": 0,
+      "jonidan61To90": 0,
+      "jonidan91Plus": 0,
+      "toRankP25": 8,
+      "toRankP50": 82,
+      "toRankP75": 94
+    },
+    "0-0-7": {
+      "count": 407,
+      "jonidan1To30": 299,
+      "jonidan31To60": 4,
+      "jonidan61To90": 0,
+      "jonidan91Plus": 0,
+      "toRankP25": 7,
+      "toRankP50": 14,
+      "toRankP75": 41
+    }
+  },
+  "samples": [
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 44,
+      "toDivision": "Sandanme",
+      "toRankNumber": 85,
+      "fromBanzukeLabel": "東三段目44枚目",
+      "toBanzukeLabel": "西三段目85枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 48,
+      "toDivision": "Sandanme",
+      "toRankNumber": 93,
+      "fromBanzukeLabel": "東三段目48枚目",
+      "toBanzukeLabel": "東三段目93枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 55,
+      "toDivision": "Sandanme",
+      "toRankNumber": 87,
+      "fromBanzukeLabel": "東三段目55枚目",
+      "toBanzukeLabel": "東三段目87枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 46,
+      "toDivision": "Sandanme",
+      "toRankNumber": 83,
+      "fromBanzukeLabel": "東三段目46枚目",
+      "toBanzukeLabel": "西三段目83枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 42,
+      "toDivision": "Sandanme",
+      "toRankNumber": 86,
+      "fromBanzukeLabel": "西三段目42枚目",
+      "toBanzukeLabel": "東三段目86枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Sandanme",
+      "toRankNumber": 96,
+      "fromBanzukeLabel": "西三段目54枚目",
+      "toBanzukeLabel": "西三段目96枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 53,
+      "toDivision": "Sandanme",
+      "toRankNumber": 96,
+      "fromBanzukeLabel": "東三段目53枚目",
+      "toBanzukeLabel": "東三段目96枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 44,
+      "toDivision": "Sandanme",
+      "toRankNumber": 85,
+      "fromBanzukeLabel": "西三段目44枚目",
+      "toBanzukeLabel": "西三段目85枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 41,
+      "toDivision": "Sandanme",
+      "toRankNumber": 85,
+      "fromBanzukeLabel": "東三段目41枚目",
+      "toBanzukeLabel": "東三段目85枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 53,
+      "toDivision": "Sandanme",
+      "toRankNumber": 101,
+      "fromBanzukeLabel": "東三段目53枚目",
+      "toBanzukeLabel": "西三段目101枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 59,
+      "toDivision": "Jonidan",
+      "toRankNumber": 26,
+      "fromBanzukeLabel": "東三段目59枚目",
+      "toBanzukeLabel": "西序二段26枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 58,
+      "toDivision": "Sandanme",
+      "toRankNumber": 93,
+      "fromBanzukeLabel": "東三段目58枚目",
+      "toBanzukeLabel": "西三段目93枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 52,
+      "toDivision": "Sandanme",
+      "toRankNumber": 98,
+      "fromBanzukeLabel": "西三段目52枚目",
+      "toBanzukeLabel": "西三段目98枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Sandanme",
+      "toRankNumber": 89,
+      "fromBanzukeLabel": "西三段目54枚目",
+      "toBanzukeLabel": "西三段目89枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 55,
+      "toDivision": "Jonidan",
+      "toRankNumber": 7,
+      "fromBanzukeLabel": "西三段目55枚目",
+      "toBanzukeLabel": "東序二段7枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 50,
+      "toDivision": "Sandanme",
+      "toRankNumber": 95,
+      "fromBanzukeLabel": "東三段目50枚目",
+      "toBanzukeLabel": "西三段目95枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 57,
+      "toDivision": "Sandanme",
+      "toRankNumber": 105,
+      "fromBanzukeLabel": "東三段目57枚目",
+      "toBanzukeLabel": "西三段目105枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 44,
+      "toDivision": "Sandanme",
+      "toRankNumber": 85,
+      "fromBanzukeLabel": "西三段目44枚目",
+      "toBanzukeLabel": "東三段目85枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 47,
+      "toDivision": "Sandanme",
+      "toRankNumber": 88,
+      "fromBanzukeLabel": "東三段目47枚目",
+      "toBanzukeLabel": "東三段目88枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 44,
+      "toDivision": "Sandanme",
+      "toRankNumber": 65,
+      "fromBanzukeLabel": "西三段目44枚目",
+      "toBanzukeLabel": "西三段目65枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Sandanme",
+      "toRankNumber": 94,
+      "fromBanzukeLabel": "西三段目54枚目",
+      "toBanzukeLabel": "西三段目94枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 43,
+      "toDivision": "Sandanme",
+      "toRankNumber": 82,
+      "fromBanzukeLabel": "西三段目43枚目",
+      "toBanzukeLabel": "西三段目82枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 46,
+      "toDivision": "Sandanme",
+      "toRankNumber": 86,
+      "fromBanzukeLabel": "東三段目46枚目",
+      "toBanzukeLabel": "西三段目86枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 59,
+      "toDivision": "Jonidan",
+      "toRankNumber": 15,
+      "fromBanzukeLabel": "西三段目59枚目",
+      "toBanzukeLabel": "西序二段15枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 43,
+      "toDivision": "Sandanme",
+      "toRankNumber": 87,
+      "fromBanzukeLabel": "西三段目43枚目",
+      "toBanzukeLabel": "東三段目87枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Jonidan",
+      "toRankNumber": 1,
+      "fromBanzukeLabel": "西三段目54枚目",
+      "toBanzukeLabel": "西序二段1枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Sandanme",
+      "toRankNumber": 97,
+      "fromBanzukeLabel": "東三段目54枚目",
+      "toBanzukeLabel": "東三段目97枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Jonidan",
+      "toRankNumber": 1,
+      "fromBanzukeLabel": "東三段目54枚目",
+      "toBanzukeLabel": "東序二段1枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 49,
+      "toDivision": "Sandanme",
+      "toRankNumber": 90,
+      "fromBanzukeLabel": "西三段目49枚目",
+      "toBanzukeLabel": "西三段目90枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 45,
+      "toDivision": "Sandanme",
+      "toRankNumber": 86,
+      "fromBanzukeLabel": "東三段目45枚目",
+      "toBanzukeLabel": "東三段目86枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 56,
+      "toDivision": "Jonidan",
+      "toRankNumber": 17,
+      "fromBanzukeLabel": "東三段目56枚目",
+      "toBanzukeLabel": "東序二段17枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 48,
+      "toDivision": "Sandanme",
+      "toRankNumber": 93,
+      "fromBanzukeLabel": "東三段目48枚目",
+      "toBanzukeLabel": "東三段目93枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 57,
+      "toDivision": "Sandanme",
+      "toRankNumber": 96,
+      "fromBanzukeLabel": "東三段目57枚目",
+      "toBanzukeLabel": "東三段目96枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 58,
+      "toDivision": "Jonidan",
+      "toRankNumber": 5,
+      "fromBanzukeLabel": "東三段目58枚目",
+      "toBanzukeLabel": "東序二段5枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 47,
+      "toDivision": "Jonidan",
+      "toRankNumber": 58,
+      "fromBanzukeLabel": "西三段目47枚目",
+      "toBanzukeLabel": "西序二段58枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 51,
+      "toDivision": "Sandanme",
+      "toRankNumber": 99,
+      "fromBanzukeLabel": "東三段目51枚目",
+      "toBanzukeLabel": "東三段目99枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 41,
+      "toDivision": "Sandanme",
+      "toRankNumber": 88,
+      "fromBanzukeLabel": "東三段目41枚目",
+      "toBanzukeLabel": "西三段目88枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 56,
+      "toDivision": "Sandanme",
+      "toRankNumber": 90,
+      "fromBanzukeLabel": "西三段目56枚目",
+      "toBanzukeLabel": "東三段目90枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 44,
+      "toDivision": "Sandanme",
+      "toRankNumber": 97,
+      "fromBanzukeLabel": "東三段目44枚目",
+      "toBanzukeLabel": "西三段目97枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 54,
+      "toDivision": "Sandanme",
+      "toRankNumber": 96,
+      "fromBanzukeLabel": "東三段目54枚目",
+      "toBanzukeLabel": "西三段目96枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 43,
+      "toDivision": "Sandanme",
+      "toRankNumber": 79,
+      "fromBanzukeLabel": "西三段目43枚目",
+      "toBanzukeLabel": "東三段目79枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 45,
+      "toDivision": "Jonidan",
+      "toRankNumber": 52,
+      "fromBanzukeLabel": "東三段目45枚目",
+      "toBanzukeLabel": "西序二段52枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 56,
+      "toDivision": "Jonidan",
+      "toRankNumber": 6,
+      "fromBanzukeLabel": "東三段目56枚目",
+      "toBanzukeLabel": "西序二段6枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 41,
+      "toDivision": "Sandanme",
+      "toRankNumber": 84,
+      "fromBanzukeLabel": "西三段目41枚目",
+      "toBanzukeLabel": "東三段目84枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 60,
+      "toDivision": "Jonidan",
+      "toRankNumber": 11,
+      "fromBanzukeLabel": "東三段目60枚目",
+      "toBanzukeLabel": "東序二段11枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 50,
+      "toDivision": "Sandanme",
+      "toRankNumber": 91,
+      "fromBanzukeLabel": "東三段目50枚目",
+      "toBanzukeLabel": "西三段目91枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 57,
+      "toDivision": "Jonidan",
+      "toRankNumber": 5,
+      "fromBanzukeLabel": "東三段目57枚目",
+      "toBanzukeLabel": "東序二段5枚目",
+      "sameDivision": false,
+      "demotedToLowerDivision": true,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 50,
+      "toDivision": "Sandanme",
+      "toRankNumber": 90,
+      "fromBanzukeLabel": "東三段目50枚目",
+      "toBanzukeLabel": "東三段目90枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 42,
+      "toDivision": "Sandanme",
+      "toRankNumber": 85,
+      "fromBanzukeLabel": "西三段目42枚目",
+      "toBanzukeLabel": "西三段目85枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    },
+    {
+      "recordType": "0-0-7",
+      "fromDivision": "Sandanme",
+      "fromRankBand": "middle",
+      "fromRankNumber": 48,
+      "toDivision": "Sandanme",
+      "toRankNumber": 87,
+      "fromBanzukeLabel": "東三段目48枚目",
+      "toBanzukeLabel": "西三段目87枚目",
+      "sameDivision": true,
+      "demotedToLowerDivision": false,
+      "sandanme40To60": true
+    }
+  ]
+}

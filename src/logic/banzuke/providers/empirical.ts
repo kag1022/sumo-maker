@@ -1,9 +1,12 @@
 import { clamp } from '../../simulation/boundary/shared';
 import { HEISEI_BANZUKE_CALIBRATION, getHeiseiDivisionQuantiles } from '../../calibration/banzukeHeisei';
-import { BanzukeMovementQuantiles, BanzukeRankBandTuple } from '../../calibration/types';
+import { LONG_RANGE_BANZUKE_CALIBRATION, getLongRangeDivisionQuantiles } from '../../calibration/banzukeLongRange';
+import { BanzukeCalibrationTarget, BanzukeMovementQuantiles, BanzukeRankBandTuple } from '../../calibration/types';
+
+export type EmpiricalBanzukeCalibrationSource = 'long-range' | 'heisei';
 
 export interface EmpiricalBanzukeCalibration {
-  target: typeof HEISEI_BANZUKE_CALIBRATION;
+  target: BanzukeCalibrationTarget;
 }
 
 export interface EmpiricalSlotBandResolverInput {
@@ -52,6 +55,22 @@ const TOP_DIVISION_RANK_BANDS: Record<string, BanzukeRankBandTuple[]> = {
   ],
 };
 
+let activeCalibrationSource: EmpiricalBanzukeCalibrationSource = 'long-range';
+
+export const setEmpiricalBanzukeCalibrationSource = (
+  source: EmpiricalBanzukeCalibrationSource,
+): void => {
+  activeCalibrationSource = source;
+};
+
+export const getEmpiricalBanzukeCalibrationSource = (): EmpiricalBanzukeCalibrationSource =>
+  activeCalibrationSource;
+
+export const resolveActiveBanzukeCalibration = (): BanzukeCalibrationTarget =>
+  activeCalibrationSource === 'heisei'
+    ? HEISEI_BANZUKE_CALIBRATION
+    : LONG_RANGE_BANZUKE_CALIBRATION;
+
 const resolveEffectiveLosses = (losses: number, absent: number): number => losses + absent;
 
 export const resolveEmpiricalRecordBucket = (
@@ -79,7 +98,7 @@ const parseRecordBucket = (value: string): ParsedRecordBucket => {
 };
 
 const resolveBandTuples = (division: string): BanzukeRankBandTuple[] | undefined => {
-  const lowerBands = HEISEI_BANZUKE_CALIBRATION.recordBucketRules.rankBands[division];
+  const lowerBands = resolveActiveBanzukeCalibration().recordBucketRules.rankBands[division];
   if (lowerBands?.length) return lowerBands;
   return TOP_DIVISION_RANK_BANDS[division];
 };
@@ -121,7 +140,7 @@ const findNearestRecordAwareQuantiles = (
   rankBand: string,
   recordBucket: string,
 ): { quantiles: BanzukeMovementQuantiles; rankBand: string; recordBucket: string } | null => {
-  const divisionRows = HEISEI_BANZUKE_CALIBRATION.recordBucketRules.recordAwareQuantiles[division];
+  const divisionRows = resolveActiveBanzukeCalibration().recordBucketRules.recordAwareQuantiles[division];
   if (!divisionRows) return null;
 
   const targetBandIndex = resolveBandIndex(division, rankBand);
@@ -219,7 +238,9 @@ const resolveFallbackQuantiles = (
   division: string,
   movementClass: 'stayed' | 'promoted' | 'demoted',
 ): BanzukeMovementQuantiles | null =>
-  getHeiseiDivisionQuantiles(division, movementClass);
+  activeCalibrationSource === 'heisei'
+    ? getHeiseiDivisionQuantiles(division, movementClass)
+    : getLongRangeDivisionQuantiles(division, movementClass);
 
 const resolveScore = (
   wins: number,

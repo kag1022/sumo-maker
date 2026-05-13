@@ -1,7 +1,7 @@
 /**
  * 経験的番付移動モデル
  *
- * 平成期実データ (banzuke_calibration_heisei.json) の量子値を使い、
+ * 実データ calibration の量子値を使い、
  * 幕内・十両の番付移動を決定論的な線形乗数からデータ駆動型に置換する。
  *
  * COMMITTEE_MODEL パス（singleRankChange.ts）から呼ばれ、
