@@ -9,6 +9,7 @@ import { ensureKimariteRepertoire, evolveKimariteRepertoireAfterBasho } from '..
 import { buildInitialRikishiFromDraft, rollScoutDraft } from '../../../src/logic/scout/gacha';
 import { buildInitialRikishiForObservationPopulation } from '../../../src/logic/scout/populations';
 import { CONSTANTS } from '../../../src/logic/constants';
+import { formatRankDisplayName } from '../../../src/logic/ranking';
 import { appendBashoEvents } from '../../../src/logic/simulation/career';
 import { BUILD_COST, buildInitialRikishiFromSpec, calculateBuildCost, calculateBuildCostVNext, createDefaultBuildSpec, createDefaultBuildSpecVNext, getStarterOyakataBlueprints, isBuildSpecVNextBmiValid, resolveDisplayedAptitudeTier } from '../../../src/logic/build/buildLab';
 import { ensureKataProfile, resolveKataDisplay, updateKataProfileAfterBasho } from '../../../src/logic/style/kata';
@@ -53,6 +54,65 @@ import {
 } from '../shared/currentHelpers';
 
 export const tests: TestCase[] = [
+  {
+    name: 'initialization: entry archetype keeps aptitude initial ability separate from ceiling',
+    run: () => {
+      const baseParams = {
+        shikona: '照ノ浜',
+        age: 18,
+        startingRank: { division: 'Maezumo' as const, name: '前相撲', side: 'East' as const, number: 1 },
+        archetype: 'HARD_WORKER' as const,
+        tactics: 'BALANCE' as const,
+        signatureMove: '',
+        bodyType: 'NORMAL' as const,
+        traits: [],
+        historyBonus: 0,
+        stableId: 'stable-001',
+        ichimonId: 'TAIJU' as const,
+        stableArchetypeId: 'TRADITIONAL_LARGE' as const,
+      };
+      const highAptitude = createInitialRikishi({
+        ...baseParams,
+        aptitudeTier: 'S',
+        entryArchetype: 'ORDINARY_RECRUIT',
+      }, lcg(2026051301));
+      const lowAptitude = createInitialRikishi({
+        ...baseParams,
+        aptitudeTier: 'D',
+        entryArchetype: 'ORDINARY_RECRUIT',
+      }, lcg(2026051301));
+      assert.equal(highAptitude.potential, lowAptitude.potential);
+      assert.ok(
+        highAptitude.ratingState.ability > lowAptitude.ratingState.ability,
+        `S tier ability ${highAptitude.ratingState.ability} should exceed D tier ${lowAptitude.ratingState.ability}`,
+      );
+    },
+  },
+  {
+    name: 'initialization: tsukedashi uses one-basho special bottom rank display',
+    run: () => {
+      const status = createInitialRikishi({
+        shikona: '付出山',
+        age: 22,
+        startingRank: { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 },
+        archetype: 'HARD_WORKER',
+        entryArchetype: 'ELITE_TSUKEDASHI',
+        aptitudeTier: 'A',
+        tactics: 'BALANCE',
+        signatureMove: '',
+        bodyType: 'NORMAL',
+        traits: [],
+        historyBonus: 0,
+        stableId: 'stable-001',
+        ichimonId: 'TAIJU',
+        stableArchetypeId: 'TRADITIONAL_LARGE',
+      }, lcg(2026051302));
+      assert.equal(status.entryArchetype, 'ELITE_TSUKEDASHI');
+      assert.equal(status.rank.specialStatus, 'MAKUSHITA_BOTTOM_TSUKEDASHI');
+      assert.equal(status.entryDivision, 'Makushita60');
+      assert.equal(formatRankDisplayName(status.rank), '幕下最下位格付出');
+    },
+  },
   {
     name: 'kimarite: official catalog exposes exactly 82 winning kimarite',
     run: async () => {

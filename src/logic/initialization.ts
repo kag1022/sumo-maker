@@ -3,6 +3,7 @@ import {
   BasicProfile,
   BodyMetrics,
   BodyType,
+  EntryArchetype,
   EntryDivision,
   GrowthType,
   Rank,
@@ -30,12 +31,21 @@ import { resolveRetirementProfileBiased } from './simulation/retirement/shared';
 import { resolveLegacyAptitudeFactor } from './simulation/realism';
 import { createKimariteRepertoireFromSeed } from './kimarite/repertoire';
 import { ensureStyleIdentityProfile } from './style/identity';
+import {
+  resolveEntryArchetypePotentialBonus,
+  resolveEntryArchetypeStartingRank,
+  resolveEntryArchetypeStatBonus,
+  resolveEntryDivisionFromRank,
+  rollCareerBandForEntryArchetype,
+  rollGrowthTypeForEntryArchetype,
+} from './career/entryArchetype';
 
 export interface CreateInitialRikishiParams {
   shikona: string;
   age: number;
   startingRank: Rank;
   archetype: TalentArchetype;
+  entryArchetype?: EntryArchetype;
   aptitudeTier?: AptitudeTier;
   aptitudeFactor?: number;
   aptitudeProfile?: RikishiStatus['aptitudeProfile'];
@@ -101,6 +111,10 @@ export const createInitialRikishi = (
   random: () => number = Math.random,
 ): RikishiStatus => {
   const archData = CONSTANTS.TALENT_ARCHETYPES[params.archetype];
+  const entryArchetype = params.entryArchetype ?? 'ORDINARY_RECRUIT';
+  const startingRank = params.entryArchetype
+    ? resolveEntryArchetypeStartingRank(params.startingRank, entryArchetype, random)
+    : { ...params.startingRank };
   const [minPot, maxPot] = archData.potentialRange;
   const potentialBase = minPot + Math.floor(random() * (maxPot - minPot + 1));
   const aptitudeTier = params.aptitudeTier ?? DEFAULT_APTITUDE_TIER;
@@ -111,7 +125,7 @@ export const createInitialRikishi = (
     ? Math.max(0.3, params.aptitudeFactor as number)
     : resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
   const potential = clamp(
-    Math.round(50 + (potentialBase - 50) * aptitudeProfile.initialFactor),
+    Math.round(potentialBase + resolveEntryArchetypePotentialBonus(entryArchetype)),
     1,
     100,
   );
@@ -149,6 +163,11 @@ export const createInitialRikishi = (
     });
   }
 
+  const entryStatBonus = resolveEntryArchetypeStatBonus(entryArchetype, params.tactics);
+  (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
+    stats[k] += entryStatBonus[k] ?? 0;
+  });
+
   (Object.keys(stats) as (keyof typeof stats)[]).forEach((k) => {
     stats[k] += Math.floor(random() * 19) - 9;
     stats[k] = Math.max(1, stats[k]);
@@ -159,7 +178,7 @@ export const createInitialRikishi = (
   const entryDivision =
     params.entryDivision && params.entryDivision !== 'Maezumo'
       ? params.entryDivision
-      : undefined;
+      : resolveEntryDivisionFromRank(startingRank);
 
   const resolvedBodyMetrics = params.bodyMetrics
     ? { ...params.bodyMetrics }
@@ -169,7 +188,7 @@ export const createInitialRikishi = (
     stats,
     50,
     resolvedBodyMetrics,
-    resolveRankBaselineAbility(params.startingRank),
+    resolveRankBaselineAbility(startingRank),
   );
 
   // DNA durability から耐久力を算出（genome がない場合は従来値 80）
@@ -180,8 +199,12 @@ export const createInitialRikishi = (
   // careerBand と growthType を先に確定し、retirementProfile の biased 割り当てに使う。
   // （careerBand は return 文でも同じ値を使うため変数化する）
   const resolvedCareerBand =
-    params.careerBand ?? rollCareerBandForAptitude(aptitudeTier, random) ?? DEFAULT_CAREER_BAND;
-  const resolvedGrowthType = params.growthType ?? 'NORMAL';
+    params.careerBand ??
+    rollCareerBandForEntryArchetype(entryArchetype, aptitudeTier, random) ??
+    rollCareerBandForAptitude(aptitudeTier, random) ??
+    DEFAULT_CAREER_BAND;
+  const resolvedGrowthType =
+    params.growthType ?? rollGrowthTypeForEntryArchetype(entryArchetype, random) ?? 'NORMAL';
 
   const retirementProfile =
     params.retirementProfile ??
@@ -212,7 +235,7 @@ export const createInitialRikishi = (
     shikona: params.shikona,
     entryAge: params.age,
     age: params.age,
-    rank: { ...params.startingRank },
+    rank: { ...startingRank },
     stats,
     potential,
     growthType: resolvedGrowthType,
@@ -221,6 +244,7 @@ export const createInitialRikishi = (
     aptitudeFactor,
     aptitudeProfile,
     careerBand: resolvedCareerBand,
+    entryArchetype,
     entryDivision,
     tactics: params.tactics,
     signatureMoves: params.signatureMove ? [params.signatureMove] : [],
@@ -260,7 +284,7 @@ export const createInitialRikishi = (
     history: {
       records: [],
       events: [],
-      maxRank: { ...params.startingRank },
+      maxRank: { ...startingRank },
       totalWins: 0,
       totalLosses: 0,
       totalAbsent: 0,

@@ -8,6 +8,16 @@ export type CareerBand = 'ELITE' | 'STRONG' | 'STANDARD' | 'GRINDER' | 'WASHOUT'
 
 // 入門区分
 export type EntryDivision = 'Maezumo' | 'Makushita60' | 'Sandanme90';
+export type EntryArchetype =
+  | 'ORDINARY_RECRUIT'
+  | 'EARLY_PROSPECT'
+  | 'TSUKEDASHI'
+  | 'ELITE_TSUKEDASHI'
+  | 'MONSTER';
+export type RankSpecialStatus =
+  | 'NONE'
+  | 'MAKUSHITA_BOTTOM_TSUKEDASHI'
+  | 'SANDANME_BOTTOM_TSUKEDASHI';
 
 // 力士の成長タイプ
 export type GrowthType = 'EARLY' | 'NORMAL' | 'LATE' | 'GENIUS';
@@ -239,6 +249,7 @@ export interface RikishiStatus {
   aptitudeFactor: number; // 隠し素質係数
   aptitudeProfile?: AptitudeProfile;
   careerBand?: CareerBand;
+  entryArchetype?: EntryArchetype;
   entryDivision?: EntryDivision; // 入門区分
   signatureMoves: string[];    // 得意技リスト
   kimariteRepertoire?: KimariteRepertoire;
@@ -283,6 +294,7 @@ export interface Rank {
   name: string; // "横綱", "大関", "前頭" など
   side?: 'East' | 'West';
   number?: number; // 枚数
+  specialStatus?: RankSpecialStatus;
 }
 
 // 親方（プレイヤー補正）
@@ -464,6 +476,7 @@ export interface BuildSummary {
     stableName: string;
     entryAge: number;
     entryPathLabel: string;
+    entryArchetypeLabel?: string;
     temperamentLabel: string;
     bodySeedLabel: string;
     initialHeightCm: number;
@@ -510,6 +523,8 @@ export interface CareerSeed {
   entryAge: number;
   entryPath: string;
   entryPathLabel: string;
+  entryArchetype?: EntryArchetype;
+  entryArchetypeLabel?: string;
   temperament: string;
   temperamentLabel: string;
   bodySeed: string;
@@ -799,6 +814,7 @@ export type BuildSpecV2 = BuildSpecV4;
 export interface BuildSpecVNext {
   oyakataId: string;
   aptitudeTier?: AptitudeTier;
+  entryArchetype?: EntryArchetype;
   heightPotentialCm: number;
   weightPotentialKg: number;
   reachDeltaCm: number;

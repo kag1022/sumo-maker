@@ -1,4 +1,13 @@
-import { AptitudeProfile, AptitudeTier, CareerBand, Division, RetirementProfile, StagnationState } from '../../models';
+import {
+  AptitudeProfile,
+  AptitudeTier,
+  CareerBand,
+  Division,
+  EntryArchetype,
+  RankSpecialStatus,
+  RetirementProfile,
+  StagnationState,
+} from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 
 export type TopDivision = 'Makuuchi' | 'Juryo';
@@ -49,6 +58,9 @@ export interface PersistentActor {
   aptitudeFactor?: number;
   aptitudeProfile?: AptitudeProfile;
   careerBand?: CareerBand;
+  entryArchetype?: EntryArchetype;
+  rankSpecialStatus?: RankSpecialStatus;
+  rankSpecialExpiresAfterSeq?: number;
   entryAge: number;
   age: number;
   careerBashoCount: number;

@@ -236,6 +236,7 @@ const buildHistoricalLikeDraft = (
     personaLine: `${entryAge}歳で現実比較用の標準母集団から角界へ入る。`,
     entryAge,
     entryPath,
+    entryArchetype: undefined,
     bodySeed,
     ...body,
     selectedStableId: rollHistoricalStableId(rng),

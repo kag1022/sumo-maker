@@ -287,6 +287,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                             name: row.rankName,
                             number: row.rankNumber ?? undefined,
                             side: row.rankSide ?? undefined,
+                            specialStatus: row.rankSpecialStatus,
                           })}
                         </td>
                         <td className="text-right tabular-nums">

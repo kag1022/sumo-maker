@@ -246,6 +246,9 @@ const toLowerNpc = (npc: PersistentNpc, division: LowerNpc['division']): LowerNp
   aptitudeFactor: npc.aptitudeFactor,
   aptitudeProfile: npc.aptitudeProfile,
   careerBand: npc.careerBand,
+  entryArchetype: npc.entryArchetype,
+  rankSpecialStatus: npc.rankSpecialStatus,
+  rankSpecialExpiresAfterSeq: npc.rankSpecialExpiresAfterSeq,
   growthBias: npc.growthBias,
   retirementBias: npc.retirementBias,
   retirementProfile: npc.retirementProfile,
@@ -429,6 +432,7 @@ export const reconcileNpcLeague = (
       countActiveBanzukeHeadcountExcludingMaezumo(world),
       populationPlan,
       rng,
+      { includeTsukedashi: false },
     );
     world.nextNpcSerial = intake.nextNpcSerial;
     lowerWorld.nextNpcSerial = intake.nextNpcSerial;

@@ -6,6 +6,11 @@ import { intakeNewNpcRecruits, resolveIntakeCount } from '../../../src/logic/sim
 import { reconcileNpcLeague } from '../../../src/logic/simulation/npc/leagueReconcile';
 import { ensurePopulationPlan } from '../../../src/logic/simulation/npc/populationPlan';
 import { runNpcRetirementStep } from '../../../src/logic/simulation/npc/retirement';
+import {
+  clearExpiredNpcTsukedashiSpecialRanks,
+  createNpcTsukedashiYearPlan,
+  NPC_TSUKEDASHI_CONFIG,
+} from '../../../src/logic/simulation/npc/tsukedashi';
 import { countActiveByStable, NPC_STABLE_CATALOG, resolveIchimonByStableId } from '../../../src/logic/simulation/npc/stableCatalog';
 import { createNpcNameContext, generateUniqueNpcShikona, isSurnameShikona } from '../../../src/logic/simulation/npc/npcShikonaGenerator';
 import { ActorRegistry } from '../../../src/logic/simulation/npc/types';
@@ -44,6 +49,60 @@ const NPC_REALISM_CALIBRATION = rawNpcRealismCalibration as {
 };
 
 export const tests: TestCase[] = [
+  {
+    name: 'population plan: npc tsukedashi annual plan stays rare and within caps',
+    run: () => {
+      for (let year = 2026; year < 2146; year += 1) {
+        const plan = createNpcTsukedashiYearPlan(year, lcg(year));
+        const makushitaCount = plan.entries.filter((entry) => entry.level === 'MAKUSHITA_BOTTOM').length;
+        const sandanmeCount = plan.entries.filter((entry) => entry.level === 'SANDANME_BOTTOM').length;
+        assert.ok(makushitaCount <= NPC_TSUKEDASHI_CONFIG.maxMakushitaPerYear);
+        assert.ok(sandanmeCount <= NPC_TSUKEDASHI_CONFIG.maxSandanmePerYear);
+        for (const month of [1, 3, 5, 7, 9, 11]) {
+          const monthCount = plan.entries.filter((entry) => entry.month === month).length;
+          assert.ok(monthCount <= NPC_TSUKEDASHI_CONFIG.maxPerBasho);
+        }
+      }
+    },
+  },
+  {
+    name: 'npc intake: tsukedashi creates special recruits outside maezumo and expires display flag',
+    run: () => {
+      const universe = {
+        registry: new Map(),
+        maezumoPool: [],
+        nameContext: createNpcNameContext(),
+        nextNpcSerial: 1,
+      };
+      const plan = {
+        sampledAtYear: 2026,
+        annualIntakeShock: 0,
+        annualRetirementShock: 0,
+        annualIntakeHardCap: 10,
+        jonidanShock: 0,
+        jonokuchiShock: 0,
+        lowerDivisionElasticity: 1,
+        sampledTotalSwing: 0,
+        sampledJonidanSwing: 0,
+        sampledJonokuchiSwing: 0,
+        npcTsukedashiPlan: {
+          sampledAtYear: 2026,
+          entries: [
+            { id: '2026-makushita-1', month: 3, level: 'MAKUSHITA_BOTTOM' as const },
+            { id: '2026-sandanme-1', month: 3, level: 'SANDANME_BOTTOM' as const },
+          ],
+        },
+      };
+      const intake = intakeNewNpcRecruits(universe, 12, 3, 10, plan, lcg(2026051303));
+      assert.equal(intake.recruits.length, 0);
+      assert.equal(intake.tsukedashiRecruits.length, 2);
+      assert.equal(universe.maezumoPool.length, 0);
+      assert.ok(intake.tsukedashiRecruits.some((npc) => npc.rankSpecialStatus === 'MAKUSHITA_BOTTOM_TSUKEDASHI'));
+      assert.ok(intake.tsukedashiRecruits.some((npc) => npc.rankSpecialStatus === 'SANDANME_BOTTOM_TSUKEDASHI'));
+      clearExpiredNpcTsukedashiSpecialRanks(universe.registry, 13);
+      assert.ok(intake.tsukedashiRecruits.every((npc) => !npc.rankSpecialStatus));
+    },
+  },
   {
     name: 'npc realism c1: seed sampler is deterministic',
     run: () => {

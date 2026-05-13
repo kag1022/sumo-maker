@@ -22,9 +22,16 @@ import {
   resolveAptitudeProfile,
 } from '../constants';
 import { resolveLegacyAptitudeFactor } from '../simulation/realism';
+import { resolveAbilityFromStats, resolveRankBaselineAbility } from '../simulation/strength/model';
+import {
+  applyEntryArchetypeStatusBias,
+  ENTRY_ARCHETYPES,
+  rollEntryArchetypeFromWeights,
+} from '../career/entryArchetype';
 import type {
   AptitudeTier,
   CareerBand,
+  EntryArchetype,
   GrowthType,
   RetirementProfile,
   RikishiGenome,
@@ -41,6 +48,7 @@ import type {
 const STAT_KEYS = ['tsuki', 'oshi', 'kumi', 'nage', 'koshi', 'deashi', 'waza', 'power'] as const;
 
 const APTITUDE_TIERS: AptitudeTier[] = ['S', 'A', 'B', 'C', 'D'];
+const ENTRY_ARCHETYPE_KEYS: EntryArchetype[] = ENTRY_ARCHETYPES;
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 
@@ -195,6 +203,21 @@ const applyBodyBias = (
   }
 };
 
+const applyEntryArchetypeBias = (
+  status: RikishiStatus,
+  entryArchetypeBias: Record<string, number> | undefined,
+  rng: () => number,
+): void => {
+  if (!entryArchetypeBias) return;
+  const sigStrength = Object.values(entryArchetypeBias).reduce((sum, value) => sum + Math.abs(value), 0);
+  if (sigStrength < 0.04) return;
+  const filtered: Partial<Record<EntryArchetype, number>> = {};
+  for (const key of ENTRY_ARCHETYPE_KEYS) {
+    filtered[key] = entryArchetypeBias[key];
+  }
+  applyEntryArchetypeStatusBias(status, rollEntryArchetypeFromWeights(filtered, rng), rng);
+};
+
 const applyAptitudeBias = (
   status: RikishiStatus,
   aptitudeBias: Record<string, number> | undefined,
@@ -313,6 +336,18 @@ const applyGenomeBias = (
   }
 };
 
+const refreshDerivedAbility = (status: RikishiStatus): void => {
+  status.ratingState = {
+    ...status.ratingState,
+    ability: resolveAbilityFromStats(
+      status.stats,
+      status.currentCondition,
+      status.bodyMetrics,
+      resolveRankBaselineAbility(status.rank),
+    ),
+  };
+};
+
 // ---------- Public API ----------
 
 export interface AppliedBiasResult {
@@ -330,6 +365,12 @@ export const applyObservationBuildBias = (
   // Deep-clone the parts we mutate. (Caller's status is left untouched.)
   const status: RikishiStatus = {
     ...baseStatus,
+    rank: { ...baseStatus.rank },
+    ratingState: { ...baseStatus.ratingState },
+    history: {
+      ...baseStatus.history,
+      maxRank: { ...baseStatus.history.maxRank },
+    },
     stats: { ...baseStatus.stats },
     bodyMetrics: baseStatus.bodyMetrics ? { ...baseStatus.bodyMetrics } : baseStatus.bodyMetrics,
     aptitudeProfile: baseStatus.aptitudeProfile ? { ...baseStatus.aptitudeProfile } : baseStatus.aptitudeProfile,
@@ -350,6 +391,7 @@ export const applyObservationBuildBias = (
   const rng = rngOverride ?? seededRng(seedText);
 
   // Order matters: aptitudeTier before careerBand (band prior depends on tier).
+  applyEntryArchetypeBias(status, bias.entryArchetypeBias, rng);
   applyAptitudeBias(status, bias.aptitudeTierBias, rng);
   applyCareerBandBias(status, bias.careerBandBias, rng);
   applyGrowthBias(status, bias.growthTypeBias, rng);
@@ -357,6 +399,7 @@ export const applyObservationBuildBias = (
   applyGenomeBias(status, bias.genomeBias, bias.injuryRiskBias, bias.varianceBias);
   applyStatBias(status, bias.initialStatBias);
   applyBodyBias(status, bias.bodyMetricsBias);
+  refreshDerivedAbility(status);
 
   return { status, appliedBias: bias };
 };

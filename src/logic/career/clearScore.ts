@@ -1,5 +1,5 @@
 import { BashoRecord, CollectionTier, Rank, RikishiStatus } from '../models';
-import { getRankValueForChart } from '../ranking';
+import { formatRankDisplayName, getRankValueForChart } from '../ranking';
 
 export const CLEAR_SCORE_VERSION = 1;
 
@@ -41,13 +41,6 @@ export interface CareerClearScoreSummary {
   featuredBadgeKeys: CareerRecordBadgeKey[];
   badges: CareerRecordBadge[];
 }
-
-const formatRankDisplayName = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
-};
 
 const resolveMaxRankScore = (rank: Rank): number => {
   const rankValue = Math.min(470, getRankValueForChart(rank));

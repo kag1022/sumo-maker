@@ -4,6 +4,7 @@ import {
   CareerSeed,
   CareerSeedBiases,
   DebtCardId,
+  EntryArchetype,
   IchimonId,
   MentalTraitType,
   Oyakata,
@@ -13,6 +14,11 @@ import {
   StyleArchetype,
   StyleCompatibility,
 } from './models';
+import {
+  createMakushitaBottomTsukedashiRank,
+  createSandanmeBottomTsukedashiRank,
+} from './ranking';
+import { ENTRY_ARCHETYPE_LABELS } from './career/entryArchetype';
 import { getCompatibilityWeight } from './styleProfile';
 
 export const CAREER_DESIGN_STARTING_POINTS = 50;
@@ -44,14 +50,14 @@ export const AMATEUR_BACKGROUND_CONFIG = {
   STUDENT_ELITE: {
     label: '学生エリート',
     entryAge: 22,
-    startRank: { division: 'Sandanme', name: '三段目', side: 'East', number: 90 } as Rank,
+    startRank: createSandanmeBottomTsukedashiRank() as Rank,
     initialHeightDelta: 0,
     initialWeightDelta: 10,
   },
   COLLEGE_YOKOZUNA: {
     label: '学生横綱',
     entryAge: 22,
-    startRank: { division: 'Makushita', name: '幕下', side: 'East', number: 60 } as Rank,
+    startRank: createMakushitaBottomTsukedashiRank() as Rank,
     initialHeightDelta: 0,
     initialWeightDelta: 8,
   },
@@ -231,6 +237,8 @@ export interface RecruitDesignSeedInput {
   entryAge: number;
   entryPath: string;
   entryPathLabel: string;
+  entryArchetype?: EntryArchetype;
+  entryArchetypeLabel?: string;
   temperament: string;
   temperamentLabel: string;
   bodySeed: string;
@@ -290,5 +298,8 @@ const buildBiases = (input: RecruitDesignSeedInput): CareerSeedBiases => {
 
 export const createCareerSeed = (input: RecruitDesignSeedInput): CareerSeed => ({
   ...input,
+  entryArchetypeLabel: input.entryArchetype
+    ? input.entryArchetypeLabel ?? ENTRY_ARCHETYPE_LABELS[input.entryArchetype]
+    : input.entryArchetypeLabel,
   biases: buildBiases(input),
 });

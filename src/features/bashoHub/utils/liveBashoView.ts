@@ -1,4 +1,5 @@
-import type { BashoRecord, Rank, RikishiStatus } from "../../../logic/models";
+import { formatRankDisplayName } from "../../../logic/ranking";
+import type { BashoRecord, RikishiStatus } from "../../../logic/models";
 import type { ImportantTorikumiNote, PlayerBoutDetail } from "../../../logic/simulation/basho";
 import type { SimulationDiagnostics } from "../../../logic/simulation/diagnostics";
 import type {
@@ -37,13 +38,6 @@ const PHASE_LABELS: Record<string, string> = {
   ROUND_5: "勝敗整理",
   ROUND_6: "終盤査定",
   ROUND_7: "最終査定",
-};
-
-const formatRankDisplayName = (rank: Rank): string => {
-  if (rank.division === "Maezumo") return "前相撲";
-  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
-  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
 };
 
 const formatOpponentRank = (

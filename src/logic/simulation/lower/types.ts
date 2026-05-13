@@ -1,4 +1,13 @@
-import { AptitudeProfile, AptitudeTier, CareerBand, Rank, RetirementProfile, StagnationState } from '../../models';
+import {
+  AptitudeProfile,
+  AptitudeTier,
+  CareerBand,
+  EntryArchetype,
+  Rank,
+  RankSpecialStatus,
+  RetirementProfile,
+  StagnationState,
+} from '../../models';
 import { EnemyStyleBias } from '../../catalog/enemyData';
 import { LOWER_DIVISION_SLOTS, NpcNameContext, NpcRegistry } from '../npc/types';
 
@@ -26,6 +35,9 @@ export type LowerNpc = {
   aptitudeFactor?: number;
   aptitudeProfile?: AptitudeProfile;
   careerBand?: CareerBand;
+  entryArchetype?: EntryArchetype;
+  rankSpecialStatus?: RankSpecialStatus;
+  rankSpecialExpiresAfterSeq?: number;
   retirementBias?: number;
   retirementProfile?: RetirementProfile;
   entryAge?: number;

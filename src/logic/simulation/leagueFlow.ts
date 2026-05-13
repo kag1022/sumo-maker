@@ -5,6 +5,7 @@ import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from './lowe
 import { intakeNewNpcRecruits } from './npc/intake';
 import { PopulationPlan } from './npc/populationPlanTypes';
 import { ensurePopulationPlan } from './npc/populationPlan';
+import { clearExpiredNpcTsukedashiSpecialRanks } from './npc/tsukedashi';
 import { reconcileNpcLeague, ReconcileReport } from './npc/leagueReconcile';
 import { runNpcRetirementStep } from './npc/retirement';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from './sekitoriQuota';
@@ -74,6 +75,7 @@ export const prepareLeagueForBasho = (
   month: number,
 ): LeagueFlowPrepareResult => {
   const populationPlan = ensurePopulationPlan(runtime.world, year, rng);
+  clearExpiredNpcTsukedashiSpecialRanks(runtime.world.npcRegistry, seq);
   runtime.populationPlan = populationPlan;
   const reconcileReport = reconcileNpcLeague(
     runtime.world,
@@ -142,6 +144,7 @@ export const advanceLeaguePopulation = (
     activeBanzukeHeadcount,
     populationPlan,
     rng,
+    { includeTsukedashi: true },
   );
   runtime.world.nextNpcSerial = intake.nextNpcSerial;
   runtime.lowerWorld.nextNpcSerial = intake.nextNpcSerial;
@@ -166,7 +169,7 @@ export const advanceLeaguePopulation = (
 
   return {
     retiredIds,
-    recruitedIds: intake.recruits.map((npc) => npc.id),
+    recruitedIds: [...intake.recruits, ...intake.tsukedashiRecruits].map((npc) => npc.id),
     reconcileReport,
     populationPlan,
   };

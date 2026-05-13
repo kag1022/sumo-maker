@@ -12,6 +12,7 @@
     "test:docs": "node scripts/tests/run_sim_tests.cjs --suite docs",
     "test:all": "node scripts/tests/run_sim_tests.cjs --suite all",
     "report:balance": "node scripts/reports/run_balance_report.cjs",
+    "report:entry-archetype": "node scripts/reports/run_entry_archetype_balance.cjs",
     "report:calibration": "node scripts/reports/run_calibration_report.cjs",
     "report:banzuke:quick": "node scripts/reports/run_quick_banzuke_checks.cjs",
     "report:banzuke:lower-movement": "node scripts/reports/run_lower_division_banzuke_movement.cjs",

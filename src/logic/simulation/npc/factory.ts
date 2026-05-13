@@ -36,6 +36,7 @@ import {
   NpcUniverse,
   PersistentNpc,
 } from './types';
+import type { NpcTsukedashiLevel } from './tsukedashi';
 
 const POWER_RANGE: Record<Division, { min: number; max: number }> = {
   Makuuchi: { min: 100, max: 165 },
@@ -446,6 +447,55 @@ export const createMaezumoRecruit = (
     registry,
   );
   serialCursor.value += 1;
+  registry.set(npc.id, npc);
+  return npc;
+};
+
+export const createTsukedashiRecruit = (
+  rng: RandomSource,
+  seq: number,
+  serialCursor: { value: number },
+  registry: NpcUniverse['registry'],
+  nameContext: NpcUniverse['nameContext'],
+  stableId: string,
+  level: NpcTsukedashiLevel,
+): PersistentNpc => {
+  const division = level === 'MAKUSHITA_BOTTOM' ? 'Makushita' : 'Sandanme';
+  const rankScore = level === 'MAKUSHITA_BOTTOM' ? 112 : 190;
+  const seed = pickSeed(division, serialCursor.value);
+  const npc = createNpc(
+    division,
+    rankScore,
+    stableId,
+    seq,
+    serialCursor.value,
+    seed,
+    rng,
+    nameContext,
+    registry,
+  );
+  serialCursor.value += 1;
+  const aptitudeTier = level === 'MAKUSHITA_BOTTOM' ? 'A' : 'B';
+  const aptitudeProfile = resolveAptitudeProfile(aptitudeTier);
+  const boost = level === 'MAKUSHITA_BOTTOM'
+    ? { basePower: 18, ability: 16, growthBias: 0.38 }
+    : { basePower: 12, ability: 11, growthBias: 0.28 };
+  npc.entryArchetype = level === 'MAKUSHITA_BOTTOM' ? 'ELITE_TSUKEDASHI' : 'TSUKEDASHI';
+  npc.rankSpecialStatus = level === 'MAKUSHITA_BOTTOM'
+    ? 'MAKUSHITA_BOTTOM_TSUKEDASHI'
+    : 'SANDANME_BOTTOM_TSUKEDASHI';
+  npc.rankSpecialExpiresAfterSeq = seq + 1;
+  npc.rankScore = rankScore;
+  npc.basePower = clamp(npc.basePower + boost.basePower, POWER_RANGE[division].min, POWER_RANGE[division].max + 24);
+  npc.ability = clamp(npc.ability + boost.ability, POWER_RANGE[division].min, POWER_RANGE[division].max + 26);
+  npc.growthBias = clamp(npc.growthBias + boost.growthBias, -0.8, 1.4);
+  npc.aptitudeTier = aptitudeTier;
+  npc.aptitudeProfile = aptitudeProfile;
+  npc.aptitudeFactor = resolveLegacyAptitudeFactor(aptitudeProfile, aptitudeTier);
+  npc.careerBand = level === 'MAKUSHITA_BOTTOM' ? 'STRONG' : 'STANDARD';
+  npc.entryAge = 22;
+  npc.age = Math.max(npc.age, 22);
+  npc.careerBashoCount = 0;
   registry.set(npc.id, npc);
   return npc;
 };

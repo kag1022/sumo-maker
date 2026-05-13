@@ -105,6 +105,7 @@ export interface BashoRecordRow {
   rankName: string;
   rankNumber?: number;
   rankSide?: 'East' | 'West';
+  rankSpecialStatus?: Rank['specialStatus'];
   wins: number;
   losses: number;
   absent: number;

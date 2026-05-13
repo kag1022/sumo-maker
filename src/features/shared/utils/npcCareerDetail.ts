@@ -31,6 +31,7 @@ const rankLabelFromRow = (row: CareerBashoRecordsBySeq["rows"][number]) =>
     name: row.rankName,
     number: row.rankNumber ?? undefined,
     side: row.rankSide ?? undefined,
+    specialStatus: row.rankSpecialStatus,
   });
 
 const rankSortScore = (row: CareerBashoRecordsBySeq["rows"][number]) => {

@@ -30,6 +30,7 @@ runtime API を唯一の入口として使います。
 | `heya/` | 部屋レベルの集計 |
 | `lower/`, `sekitori/`, `topDivision/` | 階層別の進行 |
 | `npc/` | NPC 挙動 |
+| `npc/tsukedashi.ts` | 年次の低頻度付出 NPC 計画と一場所限定の特殊表示管理 |
 | `variance/` | 分散モデル（`unified-v3-variance` など） |
 | `world/` | 並列キャリアを包含する世界状態 |
 | `diagnostics/` | 進行中の内部診断 |
@@ -81,6 +82,7 @@ runtime API を唯一の入口として使います。
 - orchestration 層に係数や policy 判定を追加しない
 - 下位定着・関取定着・幕内上位の realism 係数は `playerRealism.ts` と `retirement/` に閉じ込める
 - population 調整と promotion 判定を同じ関数に混ぜない
+- 付出 NPC は population plan で年次計画し、`reconcile` の不足補充では発生させない
 - `world`, `runOneStep`, `lowerQuota`, `sekitoriQuota` を report worker から直接 import しない
 
 ## テスト

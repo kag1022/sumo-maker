@@ -54,6 +54,7 @@ const toRankFromRow = (row: BashoRecordRow): Rank => ({
   name: row.rankName,
   number: row.rankNumber,
   side: row.rankSide,
+  specialStatus: row.rankSpecialStatus,
 });
 
 const resolveMovementText = (

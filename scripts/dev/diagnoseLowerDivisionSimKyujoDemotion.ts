@@ -62,17 +62,6 @@ const formatRank = (rank: Rank): string => {
   return `${side}${rank.name}${rank.number ?? 1}枚目`;
 };
 
-const rankScoreToRank = (division: Division, rankScore: number): Rank => ({
-  division,
-  name:
-    division === 'Makushita' ? '幕下'
-      : division === 'Sandanme' ? '三段目'
-        : division === 'Jonidan' ? '序二段'
-          : '序ノ口',
-  number: Math.floor((Math.max(1, rankScore) - 1) / 2) + 1,
-  side: Math.max(1, rankScore) % 2 === 1 ? 'East' : 'West',
-});
-
 const rankScoreFromRankNumber = (rankNumber: number, side: 'East' | 'West' = 'East'): number =>
   (rankNumber - 1) * 2 + (side === 'West' ? 2 : 1);
 

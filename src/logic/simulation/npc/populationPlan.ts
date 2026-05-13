@@ -4,6 +4,7 @@ import { RandomSource } from '../deps';
 import { countActiveBanzukeHeadcountExcludingMaezumo } from '../world';
 import type { SimulationWorld } from '../world';
 import type { PopulationPlan } from './populationPlanTypes';
+import { createNpcTsukedashiYearPlan } from './tsukedashi';
 
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 const MONTHLY_P50_SERIES = OFFICIAL_BASHO_MONTHS
@@ -227,6 +228,7 @@ export const ensurePopulationPlan = (
     sampledTotalSwing,
     sampledJonidanSwing,
     sampledJonokuchiSwing,
+    npcTsukedashiPlan: createNpcTsukedashiYearPlan(year, rng),
   };
   return world.populationPlan;
 };
