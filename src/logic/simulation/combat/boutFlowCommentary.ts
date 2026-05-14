@@ -497,7 +497,7 @@ const BANZUKE_TEXT: Record<BanzukeContextTag, string> = {
   MAKUUCHI_BOUNDARY: '幕内境界で地位を左右する白星。',
   KINBOSHI_CHANCE: '格上相手に価値のある白星。',
   RANK_GAP_UPSET: '番付差を覆す印象の強い白星。',
-  RANK_EXPECTED_WIN: '番付上、取りこぼせない一番を取った。',
+  RANK_EXPECTED_WIN: '番付上の特別な条件は薄く、星取を一つ進めた。',
 };
 
 const BANZUKE_LOSS_TEXT: Record<BanzukeContextTag, string> = {
@@ -508,7 +508,7 @@ const BANZUKE_LOSS_TEXT: Record<BanzukeContextTag, string> = {
   MAKUUCHI_BOUNDARY: '幕内境界で地位を左右する黒星。',
   KINBOSHI_CHANCE: '格上相手に及ばない一番になった。',
   RANK_GAP_UPSET: '番付差を生かせず、印象の残る黒星。',
-  RANK_EXPECTED_WIN: '番付上、落としたくない一番を落とした。',
+  RANK_EXPECTED_WIN: '番付上の特別な条件は薄く、星取に黒星が残った。',
 };
 
 const banzukeSpec = (
@@ -561,7 +561,7 @@ const SHORT_BANZUKE_TEXT: Record<BoutFlowCommentaryOutcome, Record<BanzukeContex
     MAKUUCHI_BOUNDARY: '幕内境界で地位を支える白星にした',
     KINBOSHI_CHANCE: '格上相手に価値を出した',
     RANK_GAP_UPSET: '番付差を覆す印象を残した',
-    RANK_EXPECTED_WIN: '番付上も落とせない一番を取った',
+    RANK_EXPECTED_WIN: '星取を一つ進めた',
   },
   LOSS: {
     PROMOTION_RELEVANT: '昇進へ向けて痛い黒星となった',
@@ -571,7 +571,7 @@ const SHORT_BANZUKE_TEXT: Record<BoutFlowCommentaryOutcome, Record<BanzukeContex
     MAKUUCHI_BOUNDARY: '幕内境界で地位を揺らす黒星となった',
     KINBOSHI_CHANCE: '格上相手に及ばなかった',
     RANK_GAP_UPSET: '番付差を生かしきれなかった',
-    RANK_EXPECTED_WIN: '番付上も落としたくない一番を落とした',
+    RANK_EXPECTED_WIN: '星取に黒星が残った',
   },
 };
 
@@ -691,7 +691,7 @@ const firstSentence = (
       lossFinishClause(snapshot),
     ];
   const flowText = clauses.filter((text) => text.length > 0).join('、');
-  return `${snapshot.kimarite.name}で${outcome === 'WIN' ? '白星' : '黒星'}、${flowText}。`;
+  return `${flowText}。`;
 };
 
 const createShortCommentary = (

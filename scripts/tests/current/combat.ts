@@ -1186,7 +1186,7 @@ export const tests: TestCase[] = [
       }
       assert.equal(baselineCommentary.outcome, baselineResult.isWin ? 'WIN' : 'LOSS');
       assert.equal(baselineCommentary.kimarite, baselineResult.kimarite);
-      assert.ok(baselineCommentary.shortCommentary.includes(baselineResult.kimarite));
+      assert.ok(!baselineCommentary.shortCommentary.includes(baselineResult.kimarite));
       const snapshots: BoutExplanationSnapshot[] = [];
       const boutFlowSnapshots: Array<BoutFlowDiagnosticSnapshot & { runLabel?: string; seed?: number }> = [];
       const collectorRng = createCountingRng();

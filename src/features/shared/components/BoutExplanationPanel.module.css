@@ -6,8 +6,7 @@
   padding: 1rem;
 }
 
-.head,
-.resultLine {
+.head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -25,61 +24,6 @@
 .day {
   color: rgb(var(--twc-text) / 0.52);
   font-size: 0.74rem;
-}
-
-.resultLine {
-  border: 1px solid rgb(var(--twc-brand) / 0.12);
-  background: rgb(var(--twc-bg) / 0.28);
-}
-
-.rikishiCell,
-.kimariteCell {
-  display: grid;
-  align-content: center;
-  min-width: 0;
-  padding: 0.56rem 0.68rem;
-}
-
-.rikishiCell {
-  flex: 1 1 0;
-  gap: 0.12rem;
-}
-
-.rikishiCell[data-align="west"] {
-  justify-items: end;
-  text-align: right;
-}
-
-.rikishiCell strong {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  color: rgb(var(--twc-text-bright) / 0.94);
-  font-family: "Yuji Syuku", serif;
-  font-size: 0.95rem;
-  line-height: 1.22;
-}
-
-.rikishiCell span {
-  color: rgb(var(--twc-text) / 0.52);
-  font-size: 0.66rem;
-  line-height: 1.3;
-}
-
-.mark {
-  color: rgb(var(--twc-brand) / 0.82);
-  font-family: "BIZ UDPGothic", sans-serif;
-  font-size: 0.8rem;
-}
-
-.kimariteCell {
-  flex: 0 0 6.2rem;
-  justify-items: center;
-  border-inline: 1px solid rgb(255 255 255 / 0.06);
-  color: rgb(var(--twc-brand) / 0.9);
-  font-family: "DotGothic16", monospace;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-align: center;
 }
 
 .summaryBlock,
@@ -143,28 +87,4 @@
   font-size: 0.68rem;
   font-weight: normal;
   letter-spacing: 0.08em;
-}
-
-@media (max-width: 560px) {
-  .resultLine {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .rikishiCell,
-  .kimariteCell {
-    width: 100%;
-  }
-
-  .rikishiCell[data-align="west"] {
-    justify-items: start;
-    text-align: left;
-  }
-
-  .kimariteCell {
-    justify-items: start;
-    border-block: 1px solid rgb(255 255 255 / 0.06);
-    border-inline: 0;
-  }
 }

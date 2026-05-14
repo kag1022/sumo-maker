@@ -481,6 +481,8 @@ const banzukeCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.
 const outcomeCounts = countBy(scenarios.map((scenario) => scenario.commentary.outcome));
 const whiteStarScenarios = scenarios.filter((scenario) => scenario.commentary.outcome === 'WIN');
 const blackStarScenarios = scenarios.filter((scenario) => scenario.commentary.outcome === 'LOSS');
+const winShortSet = new Set(whiteStarScenarios.map((scenario) => scenario.commentary.shortCommentary));
+const lossShortSet = new Set(blackStarScenarios.map((scenario) => scenario.commentary.shortCommentary));
 const scenarioAudits = scenarios.map((scenario) => {
   const axes = new Set(scenario.commentary.materials.map((material) => material.axis));
   const missingAxes = REQUIRED_AXES.filter((axis) => !axes.has(axis));
@@ -616,8 +618,10 @@ const report = {
     winExamples: whiteStarScenarios.slice(0, 3).map((scenario) => scenario.commentary.shortCommentary),
     lossExamples: blackStarScenarios.slice(0, 3).map((scenario) => scenario.commentary.shortCommentary),
     whiteBlackTextDiffConfirmed:
-      whiteStarScenarios.some((scenario) => scenario.commentary.shortCommentary.includes('白星')) &&
-      blackStarScenarios.some((scenario) => scenario.commentary.shortCommentary.includes('黒星')),
+      whiteStarScenarios.length > 0 &&
+      blackStarScenarios.length > 0 &&
+      whiteStarScenarios.every((scenario) => !lossShortSet.has(scenario.commentary.shortCommentary)) &&
+      blackStarScenarios.every((scenario) => !winShortSet.has(scenario.commentary.shortCommentary)),
   },
   distributions: {
     transition: transitionCounts,
@@ -630,7 +634,7 @@ const report = {
   audit,
   materialImprovementsApplied: [
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
-    'shortCommentary now mirrors the official homepage shape of result technic plus compact bout explanation',
+    'shortCommentary no longer repeats the already visible kimarite / east-west result row',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
