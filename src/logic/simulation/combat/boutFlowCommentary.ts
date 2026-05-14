@@ -32,6 +32,7 @@ export interface BoutFlowCommentaryMaterial {
 export interface BoutFlowCommentary {
   readonly version: BoutFlowCommentaryContractVersion;
   readonly kimarite: string;
+  readonly outcome: BoutFlowCommentaryOutcome;
   readonly shortCommentary: string;
   readonly victoryFactorLabels: readonly string[];
   readonly flowExplanation: readonly string[];
@@ -44,6 +45,8 @@ export interface BoutFlowCommentaryDiagnostic {
   readonly reasonTags: readonly string[];
   readonly commentary?: BoutFlowCommentary;
 }
+
+export type BoutFlowCommentaryOutcome = 'WIN' | 'LOSS';
 
 interface MaterialSpec {
   readonly variant: string;
@@ -386,12 +389,13 @@ const buildVictoryFactorLabels = (
 const victorySpec = (
   tags: readonly string[],
   labels: readonly string[],
+  outcome: BoutFlowCommentaryOutcome,
 ): MaterialSpec => ({
   variant: tags.slice(0, 3).join('+') || 'mixed',
   text: labels.length > 0
-    ? `勝因は${labels.join('、')}。`
-    : '勝因は展開全体に分散した。',
-  tags,
+    ? `${outcome === 'WIN' ? '勝因' : '敗因'}は${labels.join('、')}。`
+    : `${outcome === 'WIN' ? '勝因' : '敗因'}は展開全体に分散した。`,
+  tags: [...tags, `outcome:${outcome}`],
 });
 
 const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
@@ -424,10 +428,25 @@ const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
   LEAD_PROTECTION: '白星先行を守る一番になった。',
 };
 
-const hoshitoriSpec = (tag: HoshitoriContextTag): MaterialSpec => ({
+const HOSHITORI_LOSS_TEXT: Record<HoshitoriContextTag, string> = {
+  EARLY_BASHO: '序盤の黒星で、場所の立て直しが必要になった。',
+  MIDDLE_BASHO: '中盤の一番を落とし、星勘定が重くなった。',
+  FINAL_BOUT: 'この場所最後の一番を黒星で終えた。',
+  KACHIKOSHI_DECIDER: '勝ち越しを決めきれない黒星になった。',
+  MAKEKOSHI_DECIDER: '負け越しが決まる黒星になった。',
+  KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で黒星を喫した。',
+  YUSHO_DIRECT: '優勝争いを直接左右する痛い黒星になった。',
+  YUSHO_CHASE: '優勝争いを追う立場で、落とせない一番を落とした。',
+  WIN_STREAK: '連勝が止まり、場所の勢いに区切りがついた。',
+  LOSS_STREAK: '連敗が続き、流れを戻せなかった。',
+  RECOVERY_BOUT: '前の黒星から立て直せず、連敗となった。',
+  LEAD_PROTECTION: '白星先行を守りきれない一番になった。',
+};
+
+const hoshitoriSpec = (tag: HoshitoriContextTag, outcome: BoutFlowCommentaryOutcome): MaterialSpec => ({
   variant: tag,
-  text: HOSHITORI_TEXT[tag],
-  tags: [`hoshitori:${tag}`],
+  text: outcome === 'WIN' ? HOSHITORI_TEXT[tag] : HOSHITORI_LOSS_TEXT[tag],
+  tags: [`hoshitori:${tag}`, `outcome:${outcome}`],
 });
 
 const BANZUKE_PRIORITY: readonly BanzukeContextTag[] = [
@@ -452,10 +471,21 @@ const BANZUKE_TEXT: Record<BanzukeContextTag, string> = {
   RANK_EXPECTED_WIN: '番付上、取りこぼせない一番を取った。',
 };
 
-const banzukeSpec = (tag: BanzukeContextTag): MaterialSpec => ({
+const BANZUKE_LOSS_TEXT: Record<BanzukeContextTag, string> = {
+  PROMOTION_RELEVANT: '昇進へ向けて痛い黒星。',
+  DEMOTION_RELEVANT: '番付降下の圧力が増す黒星。',
+  SAN_YAKU_PRESSURE: '三役以上の地位で内容も問われる黒星。',
+  SEKITORI_BOUNDARY: '関取境界で重みのある黒星。',
+  MAKUUCHI_BOUNDARY: '幕内境界で地位を左右する黒星。',
+  KINBOSHI_CHANCE: '格上相手に及ばない一番になった。',
+  RANK_GAP_UPSET: '番付差を生かせず、印象の残る黒星。',
+  RANK_EXPECTED_WIN: '番付上、落としたくない一番を落とした。',
+};
+
+const banzukeSpec = (tag: BanzukeContextTag, outcome: BoutFlowCommentaryOutcome): MaterialSpec => ({
   variant: tag,
-  text: BANZUKE_TEXT[tag],
-  tags: [`banzuke:${tag}`],
+  text: outcome === 'WIN' ? BANZUKE_TEXT[tag] : BANZUKE_LOSS_TEXT[tag],
+  tags: [`banzuke:${tag}`, `outcome:${outcome}`],
 });
 
 const shortOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
@@ -535,6 +565,7 @@ const createShortCommentary = (
 
 export const createBoutFlowCommentaryDiagnostic = (
   snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome = 'WIN',
 ): BoutFlowCommentaryDiagnostic => {
   if (snapshot.explanationCompleteness !== 'COMPLETE_CONTEXT') {
     return {
@@ -574,19 +605,19 @@ export const createBoutFlowCommentaryDiagnostic = (
     'VICTORY_FACTOR',
     'VICTORY_FACTOR',
     'victory',
-    victorySpec(snapshot.victoryFactorTags, victoryFactorLabels),
+    victorySpec(snapshot.victoryFactorTags, victoryFactorLabels, outcome),
   );
   const hoshitori = createMaterial(
     'HOSHITORI_CONTEXT',
     'HOSHITORI',
     'hoshitori',
-    hoshitoriSpec(hoshitoriTag),
+    hoshitoriSpec(hoshitoriTag, outcome),
   );
   const banzuke = createMaterial(
     'BANZUKE_CONTEXT',
     'BANZUKE',
     'banzuke',
-    banzukeSpec(banzukeTag),
+    banzukeSpec(banzukeTag, outcome),
   );
   const materials = [
     opening,
@@ -612,6 +643,7 @@ export const createBoutFlowCommentaryDiagnostic = (
     commentary: {
       version: 'BOUT_FLOW_COMMENTARY_RUNTIME_V1',
       kimarite: snapshot.kimarite.name,
+      outcome,
       shortCommentary,
       victoryFactorLabels,
       flowExplanation,

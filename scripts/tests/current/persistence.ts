@@ -826,6 +826,38 @@ export const tests: TestCase[] = [
             opponentRankName: '十両',
             opponentRankNumber: 8,
             opponentRankSide: 'West',
+            boutFlowCommentary: {
+              version: 'BOUT_FLOW_COMMENTARY_RUNTIME_V1',
+              kimarite: '押し出し',
+              outcome: 'WIN',
+              shortCommentary: '押し出し。立合いから押し、土俵外へ出した。中盤の白星で、星勘定を整えた。番付上、取りこぼせない一番を取った。',
+              victoryFactorLabels: ['展開', '取り口'],
+              flowExplanation: [
+                '立合いから押して、正面の圧力を先に出した。中盤も押す圧力を保ち、相手を下がらせた。',
+                '序盤の形を崩さず、流れのまま決めた。最後は正面から押し切って土俵外へ出した。押し出し。押し・突きの形で、前に出る圧力が決まり手に出た。',
+                '勝因は展開、取り口。中盤の一番で、星勘定を整えた。番付上、取りこぼせない一番を取った。',
+              ],
+              materialKeys: [
+                'opening:THRUST_BATTLE:straight-attack',
+                'control:THRUST_BATTLE:HIGH:press-to-out-HIGH',
+              ],
+              materials: [
+                {
+                  key: 'hoshitori:MIDDLE_BASHO',
+                  axis: 'HOSHITORI_CONTEXT',
+                  segmentKind: 'HOSHITORI',
+                  text: '中盤の一番で、星勘定を整えた。',
+                  tags: ['hoshitori:MIDDLE_BASHO', 'outcome:WIN'],
+                },
+                {
+                  key: 'banzuke:RANK_EXPECTED_WIN',
+                  axis: 'BANZUKE_CONTEXT',
+                  segmentKind: 'BANZUKE',
+                  text: '番付上、取りこぼせない一番を取った。',
+                  tags: ['banzuke:RANK_EXPECTED_WIN', 'outcome:WIN'],
+                },
+              ],
+            },
           },
         ],
         importantTorikumiNotes: [
@@ -881,6 +913,8 @@ export const tests: TestCase[] = [
       assert.equal(detail?.banzukeDecisions.length, 1);
       assert.equal(detail?.playerRecord?.entityId, 'PLAYER');
       assert.equal(detail?.bouts[0]?.day, 1);
+      assert.equal(detail?.bouts[0]?.boutFlowCommentary?.shortCommentary.includes('押し出し'), true);
+      assert.deepEqual(detail?.bouts[0]?.boutFlowCommentary?.victoryFactorLabels, ['展開', '取り口']);
       assert.equal(detail?.importantTorikumi[0]?.trigger, 'SEKITORI_BOUNDARY');
       assert.equal(detail?.banzukeDecisions[0]?.seq, 1);
     },
@@ -938,6 +972,7 @@ export const tests: TestCase[] = [
       const sameDivisionRows = detail.rows.filter((row) => row.division === detail.playerRecord?.division);
       const rankKeys = sameDivisionRows.map((row) =>
         `${row.division}:${row.rankName}:${row.rankNumber ?? ''}:${row.rankSide ?? ''}`);
+      const explainedBout = detail.bouts.find((bout) => bout.result !== 'ABSENT' && bout.boutFlowCommentary);
 
       assert.ok(
         sameDivisionRows.filter((row) => row.entityId === 'PLAYER').length === 1,
@@ -947,6 +982,7 @@ export const tests: TestCase[] = [
         new Set(rankKeys).size === rankKeys.length,
         'Expected persisted same-division detail rows to have unique rank keys',
       );
+      assert.ok(explainedBout?.boutFlowCommentary?.flowExplanation.length, 'Expected simulated player bout explanation to persist and reload');
     },
   },
   {

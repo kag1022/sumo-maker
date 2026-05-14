@@ -15,6 +15,11 @@ import {
   buildImportantBanzukeDecisionDigests,
   buildImportantTorikumiDigests,
 } from "../utils/reportTimeline";
+import { readDevBoutExplanationPreviews } from "../utils/boutExplanationPreviewInjection";
+import {
+  BoutExplanationPanel,
+  type PlayerBoutExplanationPreview,
+} from "./BoutExplanationPreviewPanel";
 import reportCommon from "./reportCommon.module.css";
 
 export interface BashoDetailModalState {
@@ -41,6 +46,7 @@ interface BashoDetailModalProps {
   status: RikishiStatus;
   isLoading: boolean;
   errorMessage?: string | null;
+  playerBoutExplanationPreviews?: readonly PlayerBoutExplanationPreview[];
   onClose: () => void;
 }
 
@@ -50,6 +56,7 @@ interface BashoDetailBodyProps {
   status: RikishiStatus;
   isLoading: boolean;
   errorMessage?: string | null;
+  playerBoutExplanationPreviews?: readonly PlayerBoutExplanationPreview[];
 }
 
 const DIVISION_NAMES: Record<string, string> = {
@@ -124,6 +131,7 @@ export const BashoDetailModal: React.FC<BashoDetailModalProps> = ({
   status,
   isLoading,
   errorMessage,
+  playerBoutExplanationPreviews,
   onClose,
 }) => {
   const detailMode = state.kind ?? (state.sourceLabel === "戦績" ? "record" : state.sourceLabel === "番付推移" ? "rank" : "rival");
@@ -232,17 +240,50 @@ export const BashoDetailModal: React.FC<BashoDetailModalProps> = ({
         </div>
 
         <div className="space-y-4 px-4 py-3 sm:px-5 sm:py-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 120px)" }}>
-          <BashoDetailBody state={state} detail={detail} status={status} isLoading={isLoading} errorMessage={errorMessage} />
+          <BashoDetailBody
+            state={state}
+            detail={detail}
+            status={status}
+            isLoading={isLoading}
+            errorMessage={errorMessage}
+            playerBoutExplanationPreviews={playerBoutExplanationPreviews}
+          />
         </div>
       </div>
     </div>
   );
 };
 
-export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({ state, detail, status, isLoading, errorMessage }) => {
+export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({
+  state,
+  detail,
+  status,
+  isLoading,
+  errorMessage,
+  playerBoutExplanationPreviews,
+}) => {
   const detailMode = state.kind ?? (state.sourceLabel === "戦績" ? "record" : state.sourceLabel === "番付推移" ? "rank" : "rival");
   const playerRecord = detail?.playerRecord ?? status.history.records[state.bashoSeq - 1];
   const playerRank = playerRecord ? resolvePlayerRank(playerRecord) : null;
+  const devPreviews = React.useMemo(() => readDevBoutExplanationPreviews(), []);
+  const persistedPreviews = React.useMemo<PlayerBoutExplanationPreview[]>(() => {
+    if (!detail) return [];
+    return detail.bouts
+      .filter((bout): bout is PlayerBoutDetail & Required<Pick<PlayerBoutDetail, "boutFlowCommentary">> =>
+        Boolean(bout.boutFlowCommentary))
+      .map((bout) => ({
+        bashoSeq: state.bashoSeq,
+        day: bout.day,
+        commentary: bout.boutFlowCommentary,
+      }));
+  }, [detail, state.bashoSeq]);
+  const mergedPreviews = React.useMemo(() => {
+    const previewsByDay = new Map<number, PlayerBoutExplanationPreview>();
+    [...devPreviews, ...(playerBoutExplanationPreviews ?? []), ...persistedPreviews]
+      .filter((preview) => preview.bashoSeq === state.bashoSeq)
+      .forEach((preview) => previewsByDay.set(preview.day, preview));
+    return Array.from(previewsByDay.values());
+  }, [devPreviews, persistedPreviews, playerBoutExplanationPreviews, state.bashoSeq]);
   const relatedOpponentIds = detail
     ? [...new Set(detail.bouts.map((bout) => bout.opponentId).filter((value): value is string => Boolean(value)))]
     : [];
@@ -288,6 +329,7 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({ state, detail,
       playerRank={playerRank}
       snapshot={snapshot}
       boutMarks={boutMarks}
+      playerBoutExplanationPreviews={mergedPreviews}
     />
   ) : detailMode === "rank" ? (
     <RankContextLayout
@@ -361,55 +403,118 @@ const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>;
   );
 };
 
-const RecordDetailLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, snapshot, boutMarks }) => (
-  <>
-    <section className="grid gap-3 md:grid-cols-4">
-      <MetricCard label="場所" value={bashoLabel} meta={DIVISION_NAMES[playerRank.division] ?? "番付未詳"} />
-      <MetricCard label="番付" value={formatRankDisplayName(playerRank)} meta="この場所で記録された地位" />
-      <MetricCard label="成績" value={formatRecordText(playerRecord.wins, playerRecord.losses, playerRecord.absent)} meta={"titles" in playerRecord && playerRecord.titles?.length ? playerRecord.titles.join(" / ") : "表彰なし"} />
-      <MetricCard label="本割" value={`${detail.bouts.length}番`} meta="その場所の公式記録" />
-    </section>
+const RecordDetailLayout: React.FC<any> = ({
+  bashoLabel,
+  state,
+  detail,
+  playerRecord,
+  playerRank,
+  snapshot,
+  boutMarks,
+  playerBoutExplanationPreviews,
+}) => {
+  const previewsByDay = React.useMemo(
+    () => new Map<number, PlayerBoutExplanationPreview>(
+      (playerBoutExplanationPreviews ?? []).map((preview: PlayerBoutExplanationPreview) => [preview.day, preview]),
+    ),
+    [playerBoutExplanationPreviews],
+  );
+  const previewDays = React.useMemo(() => Array.from(previewsByDay.keys()), [previewsByDay]);
+  const [selectedBoutDay, setSelectedBoutDay] = React.useState<number | null>(previewDays[0] ?? null);
 
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)]">
-      <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className={typography.sectionHeader}>
-            <Swords className="w-4 h-4 text-action" /> 本割一覧
-          </h3>
-          <p className="text-xs text-text-dim">{detail.bouts.length}番を記録</p>
-        </div>
-        {detail.bouts.length > 0 ? (
-          <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
-            {detail.bouts.map((bout: any) => (
-              <div key={`${detail.bashoSeq}-${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? "unknown"}`} className="grid grid-cols-[54px_minmax(0,1fr)_74px] gap-2 border border-brand-muted/50 bg-surface-base/75 px-3 py-2 text-xs">
-                <div className="text-text-dim">{bout.day}日目</div>
-                <div className="min-w-0">
-                  <div className={`truncate ${bout.opponentId === state.highlightOpponentId ? "text-warning-bright" : "text-text"}`}>{resolveBoutPrimaryLabel(bout)}</div>
-                  <div className="text-text-dim">
-                    {resolveBoutSecondaryLabel(bout, playerRank)}
-                  </div>
-                </div>
-                <div className="text-text font-bold">{resolveBoutBadge(bout.result)}</div>
-              </div>
-            ))}
+  React.useEffect(() => {
+    if (!previewDays.length) {
+      setSelectedBoutDay(null);
+      return;
+    }
+    setSelectedBoutDay((current) => current && previewsByDay.has(current) ? current : previewDays[0]);
+  }, [previewDays, previewsByDay]);
+
+  const selectedPreview = selectedBoutDay ? previewsByDay.get(selectedBoutDay) : undefined;
+  const selectedBout = selectedBoutDay
+    ? detail.bouts.find((bout: PlayerBoutDetail) => bout.day === selectedBoutDay)
+    : undefined;
+
+  return (
+    <>
+      <section className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="場所" value={bashoLabel} meta={DIVISION_NAMES[playerRank.division] ?? "番付未詳"} />
+        <MetricCard label="番付" value={formatRankDisplayName(playerRank)} meta="この場所で記録された地位" />
+        <MetricCard label="成績" value={formatRecordText(playerRecord.wins, playerRecord.losses, playerRecord.absent)} meta={"titles" in playerRecord && playerRecord.titles?.length ? playerRecord.titles.join(" / ") : "表彰なし"} />
+        <MetricCard label="本割" value={`${detail.bouts.length}番`} meta="その場所の公式記録" />
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)]">
+        <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className={typography.sectionHeader}>
+              <Swords className="w-4 h-4 text-action" /> 本割一覧
+            </h3>
+            <p className="text-xs text-text-dim">{detail.bouts.length}番を記録</p>
           </div>
-        ) : (
-          <div className={reportCommon.empty}>本割詳細は保存されていません。</div>
-        )}
-      </section>
+          {detail.bouts.length > 0 ? (
+            <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+              {detail.bouts.map((bout: PlayerBoutDetail) => {
+                const preview = previewsByDay.get(bout.day);
+                const isSelected = selectedBoutDay === bout.day;
+                return (
+                  <button
+                    key={`${detail.bashoSeq}-${bout.day}-${bout.opponentId ?? bout.opponentShikona ?? "unknown"}`}
+                    type="button"
+                    className={cn(
+                      "grid w-full grid-cols-[54px_minmax(0,1fr)_74px] gap-2 border px-3 py-2 text-left text-xs transition",
+                      preview
+                        ? "border-brand-muted/60 bg-surface-base/80 hover:border-action/45 hover:bg-action/10"
+                        : "cursor-default border-brand-muted/50 bg-surface-base/75",
+                      isSelected ? "border-action/60 bg-action/10" : "",
+                    )}
+                    aria-selected={isSelected}
+                    disabled={!preview}
+                    onClick={() => preview && setSelectedBoutDay(bout.day)}
+                  >
+                    <div className="text-text-dim">{bout.day}日目</div>
+                    <div className="min-w-0">
+                      <div className={`truncate ${bout.opponentId === state.highlightOpponentId ? "text-warning-bright" : "text-text"}`}>{resolveBoutPrimaryLabel(bout)}</div>
+                      <div className="text-text-dim">
+                        {resolveBoutSecondaryLabel(bout, playerRank)}
+                      </div>
+                    </div>
+                    <div className="grid justify-items-end gap-1 text-text font-bold">
+                      <span>{resolveBoutBadge(bout.result)}</span>
+                      {preview ? <span className="font-normal text-[10px] text-brand-line">解説</span> : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={reportCommon.empty}>本割詳細は保存されていません。</div>
+          )}
+          {selectedPreview && selectedBout ? (
+            <div className="mt-4">
+              <BoutExplanationPanel
+                preview={selectedPreview}
+                bout={selectedBout}
+                playerShikona={playerRecord.shikona ?? "本人"}
+                playerRank={playerRank}
+              />
+            </div>
+          ) : null}
+        </section>
 
-      <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className={typography.sectionHeader}>
-            <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
-          </h3>
-          {snapshot && snapshot.totalRowCount > snapshot.rows.length && <p className="text-xs text-text-dim">{snapshot.totalRowCount}枠中 {snapshot.rows.length}件を表示</p>}
-        </div>
-        <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
-      </section>
-    </div>
-  </>
-);
+        <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className={typography.sectionHeader}>
+              <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
+            </h3>
+            {snapshot && snapshot.totalRowCount > snapshot.rows.length && <p className="text-xs text-text-dim">{snapshot.totalRowCount}枠中 {snapshot.rows.length}件を表示</p>}
+          </div>
+          <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
+        </section>
+      </div>
+    </>
+  );
+};
 
 const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, snapshot, boutMarks, decisionDigests, torikumiDigests }) => (
   <>

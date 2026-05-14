@@ -173,6 +173,7 @@ export const runSimplifiedBasho = (
       opponentRankNumber: enemy.rankNumber,
       opponentRankSide: enemy.rankSide,
       opponentStyleBias: enemy.styleBias ?? 'BALANCE',
+      boutFlowCommentary: result.boutFlowCommentary,
     });
   }
 

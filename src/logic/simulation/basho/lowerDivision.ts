@@ -601,6 +601,7 @@ export const runLowerDivisionBasho = (
         opponentRankNumber: enemy.rankNumber,
         opponentRankSide: enemy.rankSide,
         opponentStyleBias: enemy.styleBias ?? 'BALANCE',
+        boutFlowCommentary: result.boutFlowCommentary,
       });
     },
     onBye: (participant, day) => {

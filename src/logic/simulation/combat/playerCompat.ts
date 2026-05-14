@@ -1,6 +1,7 @@
 import type { BattleOpponent, BoutContext } from '../../battle';
 import type { RikishiStatus, WinRoute } from '../../models';
 import type { RandomSource } from '../deps';
+import type { BoutFlowCommentary } from './boutFlowCommentary';
 
 export interface PlayerBoutCompatInput {
   readonly rikishi: RikishiStatus;
@@ -22,6 +23,7 @@ export interface PlayerBoutCompatResult {
   readonly winRoute?: WinRoute;
   readonly winProbability: number;
   readonly opponentAbility: number;
+  readonly boutFlowCommentary?: BoutFlowCommentary;
 }
 
 export type PlayerBoutCompatResolver = (

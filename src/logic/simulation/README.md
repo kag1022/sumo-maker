@@ -58,8 +58,8 @@ runtime API を唯一の入口として使います。
 | `injury.ts` | 怪我処理 |
 | `basho/formatPolicy.ts` | 15番制 / 7番制、カレンダー日、当人の取組順、勝ち越し・負け越し圧力の共通 policy |
 | `combat/profile.ts` | `BashoCombatProfile` の純粋 builder。現段階では勝敗結果には使わない |
-| `combat/playerCompat.ts` | player 取組用の互換 wrapper。現行 resolver への入力・RNG・戻り値を保ったまま境界だけを作る |
-| `combat/boutFlowModel.ts` | 1 番を `OpeningPhase -> ControlPhase -> Transition -> FinishRoute -> Kimarite -> 勝敗要因 -> 星取文脈 -> 番付文脈` として読むための contract-only 語彙 |
+| `combat/playerCompat.ts` | player 取組用の互換 wrapper。現行 resolver への入力・RNG 順を保ち、結果後に生成した player-only 取組解説を戻り値へ載せる |
+| `combat/boutFlowModel.ts` | 1 番を `OpeningPhase -> ControlPhase -> Transition -> FinishRoute -> Kimarite -> 勝敗要因 -> 星取文脈 -> 番付文脈` として読むための語彙 |
 | `modelVersion.ts` | model version 正規化 |
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |
@@ -94,7 +94,7 @@ runtime API を唯一の入口として使います。
 - 下位番付の成績移動、新弟子流入圧、空き圧、境界投影は banzuke decision log の診断値として観測・report へ渡す
 - `DomainEvent` を narrative / report / logic lab の共有語彙とする
 - worker は章判定や観測文言を直接所有せず、`runtimeNarrative.ts` の結果を protocol に詰める
-- `BoutFlowModel` は将来の取組読解語彙であり、現段階では production path、worker protocol、persistence を変更しない。diagnostics JSON は report-only の coverage 指標だけを追加してよい
+- `BoutFlowModel` は取組読解語彙であり、player bout の結果後 commentary に限って production path / persistence へ載せる。勝敗確率、result roll、engagement sampling、route selection、kimarite selection、worker protocol は変更しない
 - orchestration 層に係数や policy 判定を追加しない
 - 下位定着・関取定着・幕内上位の realism 係数は `playerRealism.ts` と `retirement/` に閉じ込める
 - population 調整と promotion 判定を同じ関数に混ぜない

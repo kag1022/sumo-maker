@@ -535,6 +535,7 @@ export const runTopDivisionBasho = (
         opponentRankNumber: opponentRank.number,
         opponentRankSide: opponentRank.side,
         opponentStyleBias: opponent.styleBias ?? 'BALANCE',
+        boutFlowCommentary: result.boutFlowCommentary,
       });
     },
     onBye: (participant, day) => {

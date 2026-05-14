@@ -19,6 +19,7 @@ import type { BanzukeDecisionLog, BanzukePopulationSnapshot } from '../banzuke/t
 import { SimulationDiagnostics } from '../simulation/diagnostics';
 import { SimulationModelVersion } from '../simulation/modelVersion';
 import type { ImportantTorikumiTrigger } from '../simulation/basho';
+import type { BoutFlowCommentary } from '../simulation/combat/boutFlowCommentary';
 import type { TorikumiMatchReason } from '../simulation/torikumi/types';
 import { ensureKataProfile } from '../style/kata';
 import type { EraTag } from '../era/types';
@@ -128,6 +129,7 @@ export interface BoutRecordRow {
   opponentRankName?: string;
   opponentRankNumber?: number;
   opponentRankSide?: 'East' | 'West';
+  boutFlowCommentary?: BoutFlowCommentary;
 }
 
 export interface ImportantTorikumiRow {

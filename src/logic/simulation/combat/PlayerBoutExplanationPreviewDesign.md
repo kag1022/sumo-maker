@@ -1,5 +1,9 @@
 # Player Bout Explanation Preview Design
 
+## Current Throughline Note
+
+この設計メモは、DB / persistence に載せる前の preview 段階の監査記録である。現在は `battle.ts` の player bout 解決後に、既存の OpeningPhase / ControlPhase predecessor / FinishRoute / Kimarite / 勝敗要因 / 星取文脈 / 番付文脈から `BoutFlowCommentary` を純生成し、`PlayerBoutDetail.boutFlowCommentary` と `BoutRecordRow.boutFlowCommentary` に保存する throughline へ進んでいる。勝敗確率、result roll、engagement sampling、route selection、kimarite selection、worker protocol、App routing は変更しない。
+
 ## Goal
 
 `BoutFlowCommentary` の runtime-only 診断結果を、player bout の取組詳細プレビューとして表示するための設計メモ。
@@ -226,10 +230,21 @@ interface PlayerBoutExplanationRow {
 - `npm run doc:audit`
 - `npx tsx scripts/diagnostics/bout_flow_commentary_generator.ts`
 
-## Decision
+## Implemented Preview
 
-このタスクでは UI component は追加しない。
+この段階では production data には触れず、次の opt-in 経路だけを実装する。
 
-理由は、現行保存済み detail から `COMPLETE_CONTEXT` を復元できないため。ここで mock 表示を作ると、実データで出せるように見える UI だけが先行する。
+- `BashoDetailModal` / `DockedBashoDetailPane` / `BashoDetailBody` は optional な `playerBoutExplanationPreviews` を受け取れる。
+- dev 環境では `window.__SUMO_MAKER_BOUT_EXPLANATION_PREVIEWS__` または `sessionStorage["sumo-maker:bout-flow-preview"]` から同じ配列を読める。
+- `scripts/diagnostics/bout_flow_commentary_generator.ts` は `.tmp/bout-flow-commentary-preview-injection.json` に dev 注入用の固定 seed preview を出力する。
+- `RecordDetailLayout` は `bashoSeq + day` が一致する preview がある行だけ「解説」表示と選択状態を持つ。
+- `BoutExplanationPreviewPanel` は選択された player bout にだけ短評、勝敗要因ラベル、展開説明、星取/番付文脈を表示する。
 
-次の安全な実装は、diagnostic run から `PlayerBoutExplanationPreview[]` を明示的に渡せる dev-only 経路を作った後、`BashoDetailModal` の `RecordDetailLayout` に opt-in panel を追加すること。
+これで dev / diagnostic / opt-in preview は確認できるが、保存済み detail から本物の `COMPLETE_CONTEXT` を復元するわけではない。恒久化するには別途 `PlayerBoutExplanationRow` と worker / persistence contract が必要。
+
+dev 確認では `.tmp/bout-flow-commentary-preview-injection.json` の内容を、対象の `bashoSeq` / `day` に合わせて次のどちらかに入れる。
+
+```js
+window.__SUMO_MAKER_BOUT_EXPLANATION_PREVIEWS__ = previews;
+sessionStorage.setItem('sumo-maker:bout-flow-preview', JSON.stringify(previews));
+```

@@ -49,14 +49,14 @@ Material selection must be deterministic and bounded: filter by tags, sort by st
 
 ## Responsibility Boundary
 
-- `battle.ts`: may assemble a completed explanation only after outcome, route, and kimarite are known. It must not change result roll, route selection, kimarite selection, return shape, or RNG order.
+- `battle.ts`: may assemble a completed explanation only after outcome, engagement, route, and kimarite are known. It must not change win probability, result roll, engagement sampling, route selection, kimarite selection, or RNG order. The player bout result may carry an additive `BoutFlowCommentary` field.
 - `preBoutPhase.ts`: owns deterministic opening weights only. It does not decide live route.
 - `engagement.ts`: owns production post-result engagement sampling. It remains a selector predecessor, not the full ControlPhase contract.
 - `controlPhaseAdapter.ts`: owns diagnostic vocabulary conversion from engagement to ControlPhase candidate.
 - `finishRoute.ts`: owns abstract finish route candidates and production route roll.
 - `selection.ts`: owns kimarite selection and catalog fit.
-- `diagnostics.ts`: owns opt-in collectors only. No persistence, worker protocol, App/UI, or DB schema fields.
-- future `boutExplanation.ts`: should own deterministic material selection and completed explanation assembly once all context inputs are available.
+- `diagnostics.ts`: owns opt-in collectors only. It must not become the persistence or UI source of truth for player-facing explanation.
+- `boutFlowCommentary.ts`: owns deterministic material selection and completed player bout commentary assembly once all context inputs are available.
 
 ## Diagnostics
 
@@ -72,14 +72,15 @@ The diagnostic snapshot now reports explanation-axis coverage:
 - `hoshitoriContextTags` from bout ordinal, pressure flags, score, streak, previous result, and title implication.
 - `banzukeContextTags` from rank/division, promotion or demotion pressure, kinboshi context, and ordinary rank expectation fallback.
 
-`boutFlowCommentary.ts` consumes only `COMPLETE_CONTEXT` snapshots and returns a runtime-only commentary contract:
+`boutFlowCommentary.ts` consumes only `COMPLETE_CONTEXT` snapshots and returns a deterministic commentary contract:
 
 - `shortCommentary`: a compact bout note keyed by kimarite plus transition and context.
 - `victoryFactorLabels`: player-readable broad labels derived from diagnostic factor tags.
 - `flowExplanation`: deterministic Opening / Control / Transition / Finish / Kimarite / 星取 / 番付 explanation lines.
 - `materialKeys`: stable material identifiers for coverage reports and future UI review.
+- `outcome`: player result perspective, so losses use black-star / 敗因 wording instead of white-star wording.
 
-This is still diagnostic-only. It reads values that already exist after result resolution and does not consume RNG or change selector inputs.
+Production player bouts now use this contract after result resolution. It reads values that already exist after result / engagement / route / kimarite selection and does not consume RNG or change selector inputs.
 
 Useful acceptance diagnostics:
 
@@ -87,7 +88,7 @@ Useful acceptance diagnostics:
 - `AMBIGUOUS_CONTROL` rate is tracked separately from hard contradictions.
 - `missingExplanationAxes` trends down as context contracts are added.
 - Same kimarite can appear across multiple transition classifications and hoshitori/banzuke tags.
-- No diagnostic collector changes production `calculateBattleResult` result shape or RNG call count.
+- No diagnostic collector changes production RNG call count.
 - `scripts/diagnostics/bout_flow_commentary_generator.ts` confirms that the same kimarite yields different short commentary and material keys when Opening / Control / Transition / 星取 / 番付 context changes. It also records prose guardrails, material-key bias, duplicate expression counts, and axis-reflection coverage for manual review.
 
 ## Acceptance Conditions
@@ -95,7 +96,7 @@ Useful acceptance diagnostics:
 Complete behavior is acceptable only when all conditions hold:
 
 - One bout remains O(1): no Monte Carlo, no search, no physics simulation, no candidate expansion dependent on roster size.
-- Production win probability, result roll, engagement sampling, route selection, kimarite selection, DB schema, worker protocol, and UI remain unchanged until a separate behavior task explicitly changes them.
+- Production win probability, result roll, engagement sampling, route selection, kimarite selection, and worker protocol remain unchanged. Player bout persistence/UI may carry the additive commentary field once this throughline is accepted.
 - A fixed-seed player bout produces identical battle result and identical production RNG call count with and without explanation diagnostics.
 - Explanation never exposes raw coefficients or hidden logits as player-facing facts.
 - Diagnostic reports can group explanations by opening, control, transition, finish route, kimarite family, hoshitori context, banzuke context, and missing axis.
@@ -109,4 +110,4 @@ Complete behavior is acceptable only when all conditions hold:
 4. Material catalog: add axis-tagged explanation素材 with stable deterministic selection.
 5. Completed runtime-only `BoutExplanation`: assemble `BoutFlowModel + materials + short/medium explanation drafts` behind the opt-in collector.
 6. Diagnostics: update reports to show completeness, contradiction rates, repeated kimarite by flow, and context diversity.
-7. Production exposure decision: only after fixed-seed and report acceptance, decide whether a worker/UI contract is worth adding. This is intentionally not part of this step.
+7. Player exposure: store the additive `BoutFlowCommentary` on player bout detail rows and render it in the selected player bout detail panel without extending all NPC bouts or changing worker protocol.

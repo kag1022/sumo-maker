@@ -1,5 +1,6 @@
 import { BashoRecord, Rank, WinRoute } from '../../models';
 import type { EnemyStyleBias } from '../../catalog/enemyData';
+import type { BoutFlowCommentary } from '../combat/boutFlowCommentary';
 import { LowerLeagueSnapshots } from '../lowerQuota';
 import type { TorikumiMatchReason, TorikumiPair } from '../torikumi/types';
 import { TorikumiDiagnostics } from '../torikumi/types';
@@ -17,6 +18,7 @@ export interface PlayerBoutDetail {
   opponentRankNumber?: number;
   opponentRankSide?: 'East' | 'West';
   opponentStyleBias?: EnemyStyleBias;
+  boutFlowCommentary?: BoutFlowCommentary;
 }
 
 export interface NpcBashoAggregate {

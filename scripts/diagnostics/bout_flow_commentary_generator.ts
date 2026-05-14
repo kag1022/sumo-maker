@@ -373,7 +373,8 @@ const report = {
     'no production RNG call',
     'no route selection call',
     'no kimarite selection call',
-    'no DB, worker, or UI payload',
+    'no worker payload',
+    'does not write DB or render UI during diagnostics',
   ],
   officialHomepageReference: {
     source: 'https://www.sumo.or.jp/index.php',
@@ -432,7 +433,15 @@ const report = {
 const outPath = path.resolve('.tmp/bout-flow-commentary-generator.json');
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+const previewInjectionPath = path.resolve('.tmp/bout-flow-commentary-preview-injection.json');
+const previewInjection = scenarios.slice(0, 3).map((scenario, index) => ({
+  bashoSeq: 1,
+  day: index + 1,
+  commentary: scenario.commentary,
+}));
+fs.writeFileSync(previewInjectionPath, `${JSON.stringify(previewInjection, null, 2)}\n`, 'utf8');
 console.log(`bout flow commentary generator written: ${outPath}`);
+console.log(`bout flow commentary preview injection written: ${previewInjectionPath}`);
 console.log(JSON.stringify({
   diagnosticSeed: report.diagnosticSeed,
   scenarioCount: report.scenarioCount,
