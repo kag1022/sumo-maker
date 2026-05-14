@@ -60,6 +60,15 @@ runtime API を唯一の入口として使います。
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |
 
+## 場所形式の意味論
+
+- `basho/formatPolicy.ts` は 15番制 / 7番制の場所形式を扱う。
+- `day` はカレンダー日、`boutOrdinal` は当人にとっての取組順を表す。
+- 下位は 15日間のカレンダー内に 7番を配置し、関取は 15日間に15番を取る。
+- `isLastDay` は legacy 名で、意味は千秋楽ではなく当人の最終予定取組。
+- プレイヤー取組の実在相手は raw ability と `bashoFormDelta` を分けて渡し、勝敗計算側で場所調子を一度だけ適用する。
+- 前相撲はこの段階では新 policy に入れず、legacy passthrough とする。
+
 ## 公開 API
 
 - `createSimulationRuntime()` 新規 runtime 構築

@@ -28,6 +28,12 @@ sim tests の runner とテスト本体。
 長期分布系の report / probe / verification は `src/logic/simulation/observation/` を
 正式入口にし、`world` や `runOneStep` を直接呼ばないでください。
 
+### `diagnostics/`
+
+実装前の差分観測や入力 snapshot 用の軽量診断。
+
+- `combat_kernel_input_snapshot.ts` player / NPC の `resolveBoutWinProb` 入力を固定 seed で記録する
+
 ### `shared/`
 
 scripts 間共有の補助。

@@ -86,7 +86,7 @@ export const createBoutOrdinalContext = ({
   calendarDay,
   boutOrdinal,
   totalBouts,
-  isFinalBout: boutOrdinal >= totalBouts,
+  isFinalBout: boutOrdinal === totalBouts,
   remainingBouts: Math.max(0, totalBouts - boutOrdinal),
 });
 
@@ -97,9 +97,12 @@ export const createBoutPressureContext = (
   currentLosses: number,
   implications: BoutPressureImplications = {},
 ): BoutPressureContext => {
-  const isKachikoshiDecider = currentWins === policy.majorityWins - 1;
-  const isMakekoshiDecider = currentLosses === policy.totalBouts - policy.majorityWins;
-  const isKachiMakeDecider = isKachikoshiDecider || isMakekoshiDecider;
+  // 第1段階では 3-3 / 7-7 のような勝ち越し・負け越し同時決定戦だけを扱う。
+  const isKachiMakeDecider =
+    currentWins === policy.majorityWins - 1 &&
+    currentLosses === policy.totalBouts - policy.majorityWins;
+  const isKachikoshiDecider = isKachiMakeDecider;
+  const isMakekoshiDecider = isKachiMakeDecider;
   const isYushoRelevant = Boolean(
     implications.isYushoRelevant ||
     implications.titleImplication === 'DIRECT' ||

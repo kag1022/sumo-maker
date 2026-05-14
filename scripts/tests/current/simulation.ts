@@ -142,15 +142,33 @@ export const tests: TestCase[] = [
       assert.equal(lowerOrdinal.isFinalBout, true);
       assert.equal(lowerOrdinal.remainingBouts, 0);
 
+      const lowerPenultimate = createBoutOrdinalContext({
+        calendarDay: 11,
+        boutOrdinal: 6,
+        totalBouts: lower.totalBouts,
+      });
+      assert.equal(lowerPenultimate.isFinalBout, false);
+      assert.equal(lowerPenultimate.remainingBouts, 1);
+
       const lowerDecider = createBoutPressureContext(lower, lowerOrdinal, 3, 3);
       assert.equal(lowerDecider.isKachikoshiDecider, true);
       assert.equal(lowerDecider.isMakekoshiDecider, true);
       assert.equal(lowerDecider.isKachiMakeDecider, true);
 
+      const lowerKachikoshiOnly = createBoutPressureContext(lower, lowerPenultimate, 3, 2);
+      assert.equal(lowerKachikoshiOnly.isKachikoshiDecider, false);
+      assert.equal(lowerKachikoshiOnly.isMakekoshiDecider, false);
+      assert.equal(lowerKachikoshiOnly.isKachiMakeDecider, false);
+
       const sekitoriDecider = createBoutPressureContext(sekitori, sekitoriOrdinal, 7, 7);
       assert.equal(sekitoriDecider.isKachikoshiDecider, true);
       assert.equal(sekitoriDecider.isMakekoshiDecider, true);
       assert.equal(sekitoriDecider.isKachiMakeDecider, true);
+
+      const sekitoriKachikoshiOnly = createBoutPressureContext(sekitori, sekitoriOrdinal, 7, 6);
+      assert.equal(sekitoriKachikoshiOnly.isKachikoshiDecider, false);
+      assert.equal(sekitoriKachikoshiOnly.isMakekoshiDecider, false);
+      assert.equal(sekitoriKachikoshiOnly.isKachiMakeDecider, false);
 
       assert.equal(resolveBashoFormatPolicy('Maezumo'), null);
     },

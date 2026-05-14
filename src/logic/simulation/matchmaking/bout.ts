@@ -11,6 +11,8 @@ import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import { DivisionParticipant } from './types';
 import { resolveCompetitiveFactor } from '../realism';
+import { recordBoutWinProbSnapshot } from '../diagnostics';
+import type { Division } from '../../models';
 
 const randomNoise = (rng: RandomSource, amplitude: number): number =>
   (rng() * 2 - 1) * amplitude;
@@ -63,36 +65,75 @@ const resolveNpcWinProbability = (
   const bStreakMomentum = calculateMomentumBonus(
     resolveSignedStreak(b.currentWinStreak, b.currentLossStreak),
   );
-  const aMomentum = (a.wins - a.losses) * 0.18 + aStreakMomentum;
-  const bMomentum = (b.wins - b.losses) * 0.18 + bStreakMomentum;
+  const aScoreMomentum = (a.wins - a.losses) * 0.18;
+  const bScoreMomentum = (b.wins - b.losses) * 0.18;
+  const aMomentum = aScoreMomentum + aStreakMomentum;
+  const bMomentum = bScoreMomentum + bStreakMomentum;
   const boutNoiseAmplitude = BALANCE.strength.boutNoiseAmplitude;
   const aAbilityWithShock = (a.ability ?? a.power) + (a.bashoFormDelta ?? 0);
   const bAbilityWithShock = (b.ability ?? b.power) + (b.bashoFormDelta ?? 0);
   const styleDiff = resolveStyleEdge(a.styleBias, b.styleBias) - resolveStyleEdge(b.styleBias, a.styleBias);
+  const aNoise = randomNoise(rng, boutNoiseAmplitude);
+  const bNoise = randomNoise(rng, boutNoiseAmplitude);
+  const aStableFactor = resolveStablePerformanceFactor(a.stableId);
+  const bStableFactor = resolveStablePerformanceFactor(b.stableId);
+  const aCompetitiveFactor = resolveCompetitiveFactor(a);
+  const bCompetitiveFactor = resolveCompetitiveFactor(b);
   const aAbility = resolveUnifiedNpcStrength({
     ability: aAbilityWithShock,
     power: a.power,
     momentum: aMomentum,
-    noise: randomNoise(rng, boutNoiseAmplitude),
+    noise: aNoise,
   }) *
-    resolveStablePerformanceFactor(a.stableId) *
-    resolveCompetitiveFactor(a);
+    aStableFactor *
+    aCompetitiveFactor;
   const bAbility = resolveUnifiedNpcStrength({
     ability: bAbilityWithShock,
     power: b.power,
     momentum: bMomentum,
-    noise: randomNoise(rng, boutNoiseAmplitude),
+    noise: bNoise,
   }) *
-    resolveStablePerformanceFactor(b.stableId) *
-    resolveCompetitiveFactor(b);
-  return resolveBoutWinProb({
+    bStableFactor *
+    bCompetitiveFactor;
+  const winProbInput = {
     attackerAbility: aAbility,
     defenderAbility: bAbility,
     attackerStyle: a.styleBias,
     defenderStyle: b.styleBias,
     bonus: styleDiff,
     diffSoftCap: BALANCE.strength.npcDiffSoftCap,
+  };
+  const probability = resolveBoutWinProb(winProbInput);
+  const division = 'division' in a ? (a as DivisionParticipant & { division?: Division }).division : undefined;
+  recordBoutWinProbSnapshot({
+    source: 'NPC_BOUT',
+    call: 'NPC_MAIN',
+    division,
+    ...winProbInput,
+    probability,
+    npc: {
+      aAbilityBeforeProbability: aAbility,
+      bAbilityBeforeProbability: bAbility,
+      aBashoFormDelta: a.bashoFormDelta ?? 0,
+      bBashoFormDelta: b.bashoFormDelta ?? 0,
+      aStableFactor,
+      bStableFactor,
+      aCompetitiveFactor,
+      bCompetitiveFactor,
+      aNoise,
+      bNoise,
+      aScoreMomentum,
+      bScoreMomentum,
+      aStreakMomentum,
+      bStreakMomentum,
+      aExpectedWinsBefore: a.expectedWins ?? 0,
+      bExpectedWinsBefore: b.expectedWins ?? 0,
+      aKyujo: Boolean(a.bashoKyujo || !a.active),
+      bKyujo: Boolean(b.bashoKyujo || !b.active),
+      fusen: false,
+    },
   });
+  return probability;
 };
 
 export const simulateNpcBout = (

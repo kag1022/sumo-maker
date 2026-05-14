@@ -542,7 +542,7 @@ export const runLowerDivisionBasho = (
         rankSide,
         stableId: opponent.stableId,
         power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
-        ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
+        ability: opponent.ability ?? opponent.power,
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 180,
         weightKg: opponent.weightKg ?? 130,

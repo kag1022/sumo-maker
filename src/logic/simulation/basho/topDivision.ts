@@ -426,7 +426,7 @@ export const runTopDivisionBasho = (
         ),
         stableId: opponent.stableId,
         power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
-        ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
+        ability: opponent.ability ?? opponent.power,
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? (opponentDivision === 'Makuuchi' ? 188 : 186),
         weightKg: opponent.weightKg ?? (opponentDivision === 'Makuuchi' ? 160 : 152),

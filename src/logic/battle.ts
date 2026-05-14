@@ -7,6 +7,7 @@ import {
 } from './catalog/enemyData';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
+import { isBoutWinProbSnapshotEnabled, recordBoutWinProbSnapshot } from './simulation/diagnostics';
 import {
   calculateMomentumBonus,
   resolveBoutWinProb,
@@ -573,13 +574,16 @@ const resolveBattleResult = (
   const enemyCompetitiveFactor = resolveCompetitiveFactor(
     enemy as BattleOpponent & Pick<RikishiStatus, 'aptitudeTier' | 'aptitudeProfile' | 'aptitudeFactor' | 'careerBand' | 'stagnation'>,
   );
-  const enemyAbilityRaw = (enemy.ability ?? enemy.power) + (enemy.bashoFormDelta ?? 0);
+  const enemyStableFactor = resolveStablePerformanceFactor(enemy.stableId);
+  const enemyAbilityRawWithoutForm = enemy.ability ?? enemy.power;
+  const enemyBashoFormDelta = enemy.bashoFormDelta ?? 0;
+  const enemyAbilityRaw = enemyAbilityRawWithoutForm + enemyBashoFormDelta;
   const enemyAbility =
     resolveUnifiedNpcStrength({
       ability: enemyAbilityRaw,
       power: enemy.power,
     }) *
-    resolveStablePerformanceFactor(enemy.stableId) *
+    enemyStableFactor *
     enemyCompetitiveFactor;
   const injuryPenalty = Math.max(0, rikishi.injuryLevel);
   const myAbilityBase =
@@ -588,22 +592,24 @@ const resolveBattleResult = (
   const myMomentum = calculateMomentumBonus(resolveSignedStreak(currentWinStreak, currentLossStreak));
   const opponentMomentum = calculateMomentumBonus(resolveSignedStreak(opponentWinStreak, opponentLossStreak));
   const momentumDelta = myMomentum - opponentMomentum;
-  const baseWinProbability = resolveBoutWinProb({
+  const baseWinProbInput = {
     attackerAbility: myAbility,
     defenderAbility: enemyAbility,
     attackerStyle: playerStyle,
     defenderStyle: enemy.styleBias,
     injuryPenalty,
     bonus: momentumDelta,
-  });
-  const baselineWinProbability = resolveBoutWinProb({
+  };
+  const baseWinProbability = resolveBoutWinProb(baseWinProbInput);
+  const baselineWinProbInput = {
     attackerAbility: resolveRankBaselineAbility(rikishi.rank) * playerCompetitiveFactor,
     defenderAbility: enemyAbility,
     attackerStyle: playerStyle,
     defenderStyle: enemy.styleBias,
     injuryPenalty,
     bonus: momentumDelta,
-  });
+  };
+  const baselineWinProbability = resolveBoutWinProb(baselineWinProbInput);
   const projectedExpectedWins = (context?.expectedWinsSoFar ?? 0) + baseWinProbability;
   const stagnation = resolvePlayerStagnationState({
     age: rikishi.age,
@@ -623,6 +629,86 @@ const resolveBattleResult = (
     careerBand: rikishi.careerBand,
     stagnation,
   });
+  if (isBoutWinProbSnapshotEnabled()) {
+    const enemyAbilityRawIfSingleForm = enemyAbilityRaw;
+    const enemyAbilityIfSingleForm = enemyAbility;
+    const enemyAbilityRawIfDuplicateForm = enemyAbilityRaw + enemyBashoFormDelta;
+    const enemyAbilityIfDuplicateForm =
+      resolveUnifiedNpcStrength({
+        ability: enemyAbilityRawIfDuplicateForm,
+        power: enemy.power,
+      }) *
+      enemyStableFactor *
+      enemyCompetitiveFactor;
+    const baseWinProbabilityIfSingleForm = baseWinProbability;
+    const baselineWinProbabilityIfSingleForm = baselineWinProbability;
+    const baseWinProbabilityIfDuplicateForm = resolveBoutWinProb({
+      ...baseWinProbInput,
+      defenderAbility: enemyAbilityIfDuplicateForm,
+    });
+    const baselineWinProbabilityIfDuplicateForm = resolveBoutWinProb({
+      ...baselineWinProbInput,
+      defenderAbility: enemyAbilityIfDuplicateForm,
+    });
+    const playerOpponentForm = {
+      enemyAbilityInput: enemy.ability,
+      enemyPower: enemy.power,
+      enemyBashoFormDelta: enemy.bashoFormDelta,
+      enemyAbilityRawUsed: enemyAbilityRaw,
+      enemyAbilityRawIfSingleForm,
+      enemyAbilityRawIfDuplicateForm,
+      enemyAbilityUsed: enemyAbility,
+      enemyAbilityIfSingleForm,
+      enemyAbilityIfDuplicateForm,
+      estimatedExtraEnemyAbility: enemyAbility - enemyAbilityIfSingleForm,
+      estimatedDuplicateEnemyAbility: enemyAbilityIfDuplicateForm - enemyAbility,
+      baseWinProbabilityIfSingleForm,
+      baselineWinProbabilityIfSingleForm,
+      baseWinProbabilityIfDuplicateForm,
+      baselineWinProbabilityIfDuplicateForm,
+    };
+    const commonSnapshot = {
+      division: rikishi.rank.division,
+      formatKind: context?.formatKind,
+      totalBouts: context?.ordinal?.totalBouts,
+      calendarDay: context?.ordinal?.calendarDay ?? context?.day,
+      boutOrdinal: context?.ordinal?.boutOrdinal,
+      baseWinProbability,
+      baselineWinProbability,
+      compressedWinProbability: winProbability,
+      projectedExpectedWins,
+      pressure: context?.pressure,
+      currentWins: context?.currentWins,
+      currentLosses: context?.currentLosses,
+      currentWinStreak,
+      currentLossStreak,
+      opponentWinStreak,
+      opponentLossStreak,
+      injuryPenaltySource: 'player.injuryLevel' as const,
+      traitGenomeSummary: {
+        traitCount: traits.length,
+        hasGenome: Boolean(rikishi.genome),
+        basePower,
+        modifiedPower: myPower,
+        bonus,
+      },
+      playerOpponentForm,
+    };
+    recordBoutWinProbSnapshot({
+      source: 'PLAYER_BOUT',
+      call: 'PLAYER_BASE',
+      ...commonSnapshot,
+      ...baseWinProbInput,
+      probability: baseWinProbability,
+    });
+    recordBoutWinProbSnapshot({
+      source: 'PLAYER_BOUT',
+      call: 'PLAYER_BASELINE',
+      ...commonSnapshot,
+      ...baselineWinProbInput,
+      probability: baselineWinProbability,
+    });
+  }
   const opponentAbility = enemyAbility;
   const isWin = rng() < winProbability;
   const playerDominance = clamp(winProbability * 2 - 1, -1, 1);
