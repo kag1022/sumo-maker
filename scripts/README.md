@@ -33,6 +33,7 @@ sim tests の runner とテスト本体。
 実装前の差分観測や入力 snapshot 用の軽量診断。
 
 - `combat_kernel_input_snapshot.ts` player / NPC の `resolveBoutWinProb` 入力を固定 seed で記録する
+- `npc_bout_mutation_parity.ts` NPC 取組の RNG 消費と mutation 形状を分岐別に記録する
 
 ### `shared/`
 

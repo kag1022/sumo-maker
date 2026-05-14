@@ -87,6 +87,7 @@ export interface BoutWinProbSnapshot {
   defenderStyle?: EnemyStyleBias;
   injuryPenalty?: number;
   bonus?: number;
+  diffSoftCap?: number;
   probability: number;
   baseWinProbability?: number;
   baselineWinProbability?: number;
