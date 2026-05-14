@@ -4,6 +4,7 @@ import { createScopedModule } from '../shared/moduleUtils';
 export const combatTestModule = createScopedModule('combat', currentTests, [
   'combat kernel',
   'combat commentary',
+  'combat commentary subfamily',
   'combat control phase',
   'combat diagnostic kimarite classifier',
   'combat explanation',

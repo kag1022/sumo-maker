@@ -8,6 +8,11 @@ import type {
   BoutFlowTransitionClassification,
 } from './boutFlowDiagnosticSnapshot';
 import type { ControlPhaseCandidate } from './controlPhaseAdapter';
+import {
+  resolveCommentaryKimariteSubfamily,
+  type CommentaryKimariteSubfamily,
+  type CommentaryKimariteSubfamilyResolution,
+} from './kimariteCommentarySubfamily';
 
 export type BoutFlowCommentaryContractVersion = 'BOUT_FLOW_COMMENTARY_RUNTIME_V1';
 
@@ -83,12 +88,6 @@ const selectVariant = (
   parts: readonly string[],
 ): string => variants[deterministicIndex(parts, variants.length)] ?? variants[0] ?? '';
 
-const textOf = (
-  value: string,
-  labels: Record<string, string>,
-  fallback: string,
-): string => labels[value] ?? fallback;
-
 const createMaterial = (
   axis: BoutExplanationMaterialAxis,
   segmentKind: BoutFlowCommentarySegmentKind,
@@ -149,7 +148,7 @@ const openingSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
     case 'QUICK_COLLAPSE':
       return {
         variant: 'instant-break',
-        text: '立合い直後に体勢が崩れ、短い相撲になった。',
+        text: '立合い直後に姿勢が乱れ、短い相撲になった。',
         tags: ['opening:QUICK_COLLAPSE', 'tempo:quick'],
       };
     case 'MIXED':
@@ -224,7 +223,7 @@ const controlSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
       },
     QUICK_COLLAPSE: {
       variant: `collapse-catch-${snapshot.controlConfidence}`,
-      text: '相手の崩れを見て、勝負を長引かせなかった。',
+      text: '相手の乱れを見て、勝負を長引かせなかった。',
       tags: ['control:QUICK_COLLAPSE', `confidence:${snapshot.controlConfidence}`],
     },
     MIXED: {
@@ -292,7 +291,7 @@ const transitionSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
       },
     QUICK_FINISH: {
       variant: 'quick',
-      text: '崩れを逃さず、短い手順で勝負をまとめた。',
+      text: '乱れを逃さず、短い手順で勝負をまとめた。',
       tags: ['transition:QUICK_FINISH'],
     },
     AMBIGUOUS_CONTROL: {
@@ -329,13 +328,13 @@ const finishSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
     case 'THROW_BREAK':
       return {
         variant: 'throw-axis',
-        text: '最後は投げで相手の軸を崩した。',
+        text: '最後は投げで相手の軸を外した。',
         tags: ['finish:THROW_BREAK'],
       };
     case 'PULL_DOWN':
       return {
         variant: 'pull-down',
-        text: '最後はいなしに乗せ、前のめりに崩した。',
+        text: '最後はいなしに乗せ、前のめりに落とした。',
         tags: ['finish:PULL_DOWN'],
       };
     case 'EDGE_REVERSAL':
@@ -353,34 +352,229 @@ const finishSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
     case 'LEG_ATTACK':
       return {
         variant: 'leg',
-        text: '最後は足元を攻めて崩し切った。',
+        text: '最後は足元を攻めて踏ん張りを奪った。',
         tags: ['finish:LEG_ATTACK'],
       };
   }
 };
 
-const KIMARITE_FAMILY_TEXT: Record<string, string> = {
-  PUSH_THRUST: '押し・突きの形で、前に出る圧力が決まり手に出た。',
-  FORCE_OUT: '寄りの形で、密着して前へ運んだ。',
-  THROW: '投げの形で、相手の重心を外した。',
-  TWIST_DOWN: '落とし・捻りの形で、相手の前進を崩した。',
-  TRIP_PICK: '足技の形で、足元から崩した。',
-  BACKWARD_BODY_DROP: '反りの形で、特殊な体勢を勝ちにつなげた。',
-  REAR: '送りの形で、相手の向きを制した。',
-  NON_TECHNIQUE: '非技の結果で、崩れ方そのものが勝敗になった。',
+const KIMARITE_SUBFAMILY_TEXT: Record<CommentaryKimariteSubfamily, Record<BoutFlowCommentaryOutcome, string>> = {
+  PUSH_OUT: {
+    WIN: '押しの圧力を保ち、正面から外へ運んだ。',
+    LOSS: '押しの圧力を受け、正面から外へ運ばれた。',
+  },
+  THRUST_OUT: {
+    WIN: '突き放して距離を作り、相手を土俵外へ出した。',
+    LOSS: '突き放されて距離を詰められず、土俵外へ出された。',
+  },
+  PUSH_DOWN: {
+    WIN: '押す力で上体を崩し、前へ倒した。',
+    LOSS: '押す力を受けて上体が浮き、前へ倒された。',
+  },
+  THRUST_DOWN: {
+    WIN: '突きの圧力で姿勢を崩し、倒す形にした。',
+    LOSS: '突きの圧力で姿勢を崩され、倒れる形になった。',
+  },
+  PUSH_BREAK: {
+    WIN: '押しの流れから崩し、最後の形をまとめた。',
+    LOSS: '押しの流れで崩され、最後まで体勢を戻せなかった。',
+  },
+  YORI_OUT: {
+    WIN: '胸を合わせて前へ出て、寄りの形で外へ運んだ。',
+    LOSS: '胸を合わせたところで前へ出られ、寄りの形で外へ運ばれた。',
+  },
+  YORI_DOWN: {
+    WIN: '寄る圧力で体勢を崩し、倒す形まで持ち込んだ。',
+    LOSS: '寄る圧力で体勢を崩され、倒れる形まで持ち込まれた。',
+  },
+  ABISE_DOWN: {
+    WIN: '体重を浴びせて圧力をかけ、上から崩した。',
+    LOSS: '体重を浴びせられて圧力を受け、上から崩された。',
+  },
+  KIME_FORCE: {
+    WIN: '相手の腕を極め、動きを止めて前へ出た。',
+    LOSS: '腕を極められて動きを止められ、前へ出られた。',
+  },
+  LIFT_FORCE: {
+    WIN: '密着した形から相手を浮かせ、土俵外へ運んだ。',
+    LOSS: '密着した形で浮かされ、土俵外へ運ばれた。',
+  },
+  EDGE_FORCE: {
+    WIN: '土俵際の寄り合いで体を預け、外へ詰めた。',
+    LOSS: '土俵際の寄り合いで体を預けられ、外へ詰められた。',
+  },
+  BELT_THROW: {
+    WIN: 'まわしを引きつけ、体を開いて相手の重心を外した。',
+    LOSS: 'まわしを引きつけられ、体を開かれて重心を外された。',
+  },
+  ARM_THROW: {
+    WIN: '腕を抱える形で振り、相手の上体を泳がせた。',
+    LOSS: '腕を抱えられて振られ、上体が泳いだ。',
+  },
+  SCOOP_THROW: {
+    WIN: '差し手からすくい、相手の体を横へ流した。',
+    LOSS: '差し手からすくわれ、体を横へ流された。',
+  },
+  EDGE_REVERSAL_THROW: {
+    WIN: '土俵際で残し、投げで流れを返した。',
+    LOSS: '土俵際で残され、投げで流れを返された。',
+  },
+  BODY_BREAK_THROW: {
+    WIN: '乱れた体勢を投げに変え、相手の軸を外した。',
+    LOSS: '乱れた体勢を投げに変えられ、軸を外された。',
+  },
+  TSUKIOTOSHI: {
+    WIN: '相手の前進を横から突き、土俵へ落とした。',
+    LOSS: '前へ出たところを横から突かれ、土俵へ落ちた。',
+  },
+  HATAKIKOMI: {
+    WIN: '前に出る相手をはたき、手をつかせる形にした。',
+    LOSS: '前に出たところをはたかれ、手をつく形になった。',
+  },
+  HIKIOTOSHI: {
+    WIN: '引く動きで相手を呼び込み、前へ落とした。',
+    LOSS: '引く動きに呼び込まれ、前へ落ちた。',
+  },
+  MAKIOTOSHI: {
+    WIN: '巻き込む形で相手の向きをずらし、下へ落とした。',
+    LOSS: '巻き込まれて向きをずらされ、下へ落とされた。',
+  },
+  TWIST_BREAK: {
+    WIN: '捻る形で相手の重心をずらし、土俵へ向かわせた。',
+    LOSS: '捻る形で重心をずらされ、土俵へ向かわされた。',
+  },
+  PULL_BREAK: {
+    WIN: 'いなしと引きで相手の前進を空転させた。',
+    LOSS: 'いなしと引きで前進が空転した。',
+  },
+  EDGE_TWIST: {
+    WIN: '土俵際の捻り合いで向きを変え、相手を外へ向かわせた。',
+    LOSS: '土俵際の捻り合いで向きを変えられ、外へ向かされた。',
+  },
+  LEG_TWIST: {
+    WIN: '足元と上体の動きを合わせ、相手の軸をずらした。',
+    LOSS: '足元と上体を合わせて攻められ、軸をずらされた。',
+  },
+  LEG_PICK: {
+    WIN: '足を取り、低い攻めから相手の出足を止めた。',
+    LOSS: '足を取られ、低い攻めで出足を止められた。',
+  },
+  OUTER_TRIP: {
+    WIN: '外から足を掛け、相手の踏ん張りを外した。',
+    LOSS: '外から足を掛けられ、踏ん張りを外された。',
+  },
+  INNER_TRIP: {
+    WIN: '内から足を掛け、相手の重心を内側へ寄せた。',
+    LOSS: '内から足を掛けられ、重心を内側へ寄せられた。',
+  },
+  KICK_TRIP: {
+    WIN: '蹴る足技で相手の足元を払い、体勢を乱した。',
+    LOSS: '蹴る足技で足元を払われ、体勢を乱した。',
+  },
+  HOOK_THROW: {
+    WIN: '足を掛けた投げで、相手の体を横へ振った。',
+    LOSS: '足を掛けた投げで、体を横へ振られた。',
+  },
+  LEG_BREAK: {
+    WIN: '足元への攻めを重ね、相手の踏ん張りを奪った。',
+    LOSS: '足元への攻めを重ねられ、踏ん張りを失った。',
+  },
+  SORITECH: {
+    WIN: '反る体勢で相手を崩し、大きな技に結びつけた。',
+    LOSS: '反る体勢で崩され、大きな技に持ち込まれた。',
+  },
+  SUTEMI: {
+    WIN: '捨て身気味の体勢から、相手の重心を返した。',
+    LOSS: '捨て身気味の体勢から、重心を返された。',
+  },
+  BIG_ARCH: {
+    WIN: '反り技の大きな動きで、勝負の向きを変えた。',
+    LOSS: '反り技の大きな動きで、勝負の向きを変えられた。',
+  },
+  REAR_PUSH_OUT: {
+    WIN: '後ろを取り、相手の向きを制して外へ送った。',
+    LOSS: '後ろを取られ、向きを制されて外へ送られた。',
+  },
+  REAR_DOWN: {
+    WIN: '背後から体勢を崩し、倒す形で決めた。',
+    LOSS: '背後から体勢を崩され、倒れる形で決まった。',
+  },
+  REAR_GRIP: {
+    WIN: '相手の後ろに回り、動きを止めて勝負をまとめた。',
+    LOSS: '後ろに回られて動きを止められ、勝負をまとめられた。',
+  },
+  REAR_BREAK: {
+    WIN: '背後を取った流れで向きを制し、最後の形につなげた。',
+    LOSS: '背後を取られた流れで向きを制され、最後の形につなげられた。',
+  },
+  REAR_LIFT: {
+    WIN: '後ろから浮かせる形で、相手を土俵外へ運んだ。',
+    LOSS: '後ろから浮かされる形で、土俵外へ運ばれた。',
+  },
+  ISAMIASHI: {
+    WIN: '相手が先に踏み出し、記録上は非技の白星になった。',
+    LOSS: '先に踏み出し、記録上は非技の黒星になった。',
+  },
+  KOSHIKUDAKE: {
+    WIN: '相手が腰から落ち、攻防の途中で勝負が決まった。',
+    LOSS: '腰から落ち、攻防の途中で勝負が決まった。',
+  },
+  TOUCH_DOWN: {
+    WIN: '相手の手や膝が先につき、土俵上の結果が先に出た。',
+    LOSS: '手や膝が先につき、土俵上の結果が先に出た。',
+  },
+  STEP_OUT: {
+    WIN: '相手が先に土俵外へ出て、勝負はそこで決まった。',
+    LOSS: '先に土俵外へ出て、勝負はそこで決まった。',
+  },
+  FOUL: {
+    WIN: '反則による結果で、勝敗だけが記録に残った。',
+    LOSS: '反則による結果で、黒星だけが記録に残った。',
+  },
+  FUSEN: {
+    WIN: '不戦の結果で、取組内容は記録されない白星になった。',
+    LOSS: '不戦の結果で、取組内容は記録されない黒星になった。',
+  },
+  GENERIC: {
+    WIN: '細部の型は限定せず、最後の形で勝敗がまとまった。',
+    LOSS: '細部の型は限定せず、最後の形で後手に回った。',
+  },
 };
 
-const kimariteSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
-  const family = snapshot.kimarite.family ?? snapshot.kimarite.diagnosticFamily;
+const resolveKimariteSubfamily = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+): CommentaryKimariteSubfamilyResolution =>
+  resolveCommentaryKimariteSubfamily({
+    name: snapshot.kimarite.name,
+    family: snapshot.kimarite.family,
+    diagnosticFamily: snapshot.kimarite.diagnosticFamily,
+    pattern: snapshot.kimaritePattern,
+    finishRoute: snapshot.finishRoute,
+    transitionClassification: snapshot.transitionClassification,
+  });
+
+const kimariteSpec = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome,
+  resolution: CommentaryKimariteSubfamilyResolution,
+): MaterialSpec => {
   const transitionVariant = snapshot.transitionClassification === 'CONTROL_SHIFT'
     ? 'after-shift'
     : snapshot.transitionClassification === 'EDGE_TURNAROUND'
       ? 'after-edge'
       : 'flow';
   return {
-    variant: `${family}:${transitionVariant}`,
-    text: `${snapshot.kimarite.name}。${textOf(family, KIMARITE_FAMILY_TEXT, '決まり手は流れ全体と合わせて読む必要がある。')}`,
-    tags: [`kimarite:${snapshot.kimarite.name}`, `family:${family}`, `transition:${snapshot.transitionClassification}`],
+    variant: `${resolution.family}:${resolution.subfamily}:${transitionVariant}:${outcome.toLowerCase()}`,
+    text: `${snapshot.kimarite.name}。${KIMARITE_SUBFAMILY_TEXT[resolution.subfamily][outcome]}`,
+    tags: [
+      `kimarite:${snapshot.kimarite.name}`,
+      `family:${resolution.family}`,
+      `subfamily:${resolution.subfamily}`,
+      `subfamily-source:${resolution.source}`,
+      `transition:${snapshot.transitionClassification}`,
+      `outcome:${outcome}`,
+      ...resolution.reasonTags,
+    ],
   };
 };
 
@@ -612,6 +806,189 @@ const variantParts = (
   snapshot.banzukeContextTags.join('|'),
 ];
 
+const SHORT_SUBFAMILY_FINISH_TEXT: Record<CommentaryKimariteSubfamily, Record<BoutFlowCommentaryOutcome, readonly string[]>> = {
+  PUSH_OUT: {
+    WIN: ['押し出す形で決めた', '正面から外へ運んだ'],
+    LOSS: ['押し出される形で決まった', '正面から外へ運ばれた'],
+  },
+  THRUST_OUT: {
+    WIN: ['突き放して外へ出した', '突きで距離を作って決めた'],
+    LOSS: ['突き放されて外へ出された', '突きで距離を作られた'],
+  },
+  PUSH_DOWN: {
+    WIN: ['押して上体を倒した', '押す圧力で崩した'],
+    LOSS: ['押されて上体を倒された', '押す圧力で崩された'],
+  },
+  THRUST_DOWN: {
+    WIN: ['突きで体勢を倒した', '突きの圧力で崩した'],
+    LOSS: ['突きで体勢を倒された', '突きの圧力で崩された'],
+  },
+  PUSH_BREAK: {
+    WIN: ['押しの流れで崩した', '前へ出る圧力でまとめた'],
+    LOSS: ['押しの流れで崩された', '前へ出る圧力を受けた'],
+  },
+  YORI_OUT: {
+    WIN: ['寄り切った', '胸を合わせて前へ出た'],
+    LOSS: ['寄り切られた', '胸を合わせられて前へ出られた'],
+  },
+  YORI_DOWN: {
+    WIN: ['寄り倒す形で決めた', '寄る圧力で倒した'],
+    LOSS: ['寄り倒される形で決まった', '寄る圧力で倒された'],
+  },
+  ABISE_DOWN: {
+    WIN: ['浴びせる圧力で崩した', '体重を預けて倒した'],
+    LOSS: ['浴びせる圧力で崩された', '体重を預けられて倒された'],
+  },
+  KIME_FORCE: {
+    WIN: ['腕を極めて前へ出た', '相手の動きを止めて出た'],
+    LOSS: ['腕を極められて前へ出られた', '動きを止められて出られた'],
+  },
+  LIFT_FORCE: {
+    WIN: ['相手を浮かせて運んだ', '吊る形で外へ出した'],
+    LOSS: ['浮かされて運ばれた', '吊る形で外へ出された'],
+  },
+  EDGE_FORCE: {
+    WIN: ['際の寄り合いで出た', '土俵際から寄りを残した'],
+    LOSS: ['際の寄り合いで出られた', '土俵際から寄り切られた'],
+  },
+  BELT_THROW: {
+    WIN: ['まわしから投げた', 'まわしを引いて体を開いた'],
+    LOSS: ['まわしから投げられた', 'まわしを引かれて体を開かれた'],
+  },
+  ARM_THROW: {
+    WIN: ['腕を抱えて投げた', '腕を使って振った'],
+    LOSS: ['腕を抱えられて投げられた', '腕を使って振られた'],
+  },
+  SCOOP_THROW: {
+    WIN: ['差し手からすくった', 'すくい上げて横へ流した'],
+    LOSS: ['差し手からすくわれた', 'すくい上げられて横へ流された'],
+  },
+  EDGE_REVERSAL_THROW: {
+    WIN: ['際で投げ返した', '土俵際から投げに転じた'],
+    LOSS: ['際で投げ返された', '土俵際から投げに転じられた'],
+  },
+  BODY_BREAK_THROW: {
+    WIN: ['乱れた体勢から投げた', '相手の軸を外した'],
+    LOSS: ['体勢の乱れを投げにされた', '軸を外された'],
+  },
+  TSUKIOTOSHI: {
+    WIN: ['横から落とした', '前進を突いて落とした'],
+    LOSS: ['横から落とされた', '前進を突かれて落ちた'],
+  },
+  HATAKIKOMI: {
+    WIN: ['はたいて前に落とした', '前へ出る相手を落とした'],
+    LOSS: ['はたかれて前に落ちた', '前へ出たところを落とされた'],
+  },
+  HIKIOTOSHI: {
+    WIN: ['引いて前に落とした', '引きに乗せて手をつかせた'],
+    LOSS: ['引かれて前に落ちた', '引きに乗って手をついた'],
+  },
+  MAKIOTOSHI: {
+    WIN: ['巻き込んで落とした', '向きをずらして下へ送った'],
+    LOSS: ['巻き込まれて落とされた', '向きをずらされて下へ送られた'],
+  },
+  TWIST_BREAK: {
+    WIN: ['捻って向きを変えた', '重心をずらして落とした'],
+    LOSS: ['捻られて向きを変えられた', '重心をずらされて落ちた'],
+  },
+  PULL_BREAK: {
+    WIN: ['いなしから落とした', '引きの流れで呼び込んだ'],
+    LOSS: ['いなしから落とされた', '引きの流れに呼び込まれた'],
+  },
+  EDGE_TWIST: {
+    WIN: ['際で捻って向きを変えた', '土俵際で体を入れ替えた'],
+    LOSS: ['際で捻られて向きを変えられた', '土俵際で体を入れ替えられた'],
+  },
+  LEG_TWIST: {
+    WIN: ['足元から捻って向きを変えた', '足元と上体を合わせて軸をずらした'],
+    LOSS: ['足元から捻られて向きを変えられた', '足元と上体を合わせて軸をずらされた'],
+  },
+  LEG_PICK: {
+    WIN: ['足を取って出足を止めた', '低く入って足を攻めた'],
+    LOSS: ['足を取られて出足を止められた', '低く入られて足を攻められた'],
+  },
+  OUTER_TRIP: {
+    WIN: ['外から足を掛けた', '外掛けで踏ん張りを外した'],
+    LOSS: ['外から足を掛けられた', '外掛けで踏ん張りを外された'],
+  },
+  INNER_TRIP: {
+    WIN: ['内から足を掛けた', '内掛けで重心を崩した'],
+    LOSS: ['内から足を掛けられた', '内掛けで重心を崩された'],
+  },
+  KICK_TRIP: {
+    WIN: ['蹴る足技で足を払った', '足払いで体勢を乱した'],
+    LOSS: ['蹴る足技で足を払われた', '足払いで体勢を乱された'],
+  },
+  HOOK_THROW: {
+    WIN: ['足を掛けて投げた', '掛ける形で体を振った'],
+    LOSS: ['足を掛けられて投げられた', '掛ける形で体を振られた'],
+  },
+  LEG_BREAK: {
+    WIN: ['足元を攻め切った', '下から踏ん張りを奪った'],
+    LOSS: ['足元を攻め切られた', '下から踏ん張りを失った'],
+  },
+  SORITECH: {
+    WIN: ['反る体勢で返した', '反り技に持ち込んだ'],
+    LOSS: ['反る体勢で返された', '反り技に持ち込まれた'],
+  },
+  SUTEMI: {
+    WIN: ['捨て身気味に重心を返した', '体を預けて流れを返した'],
+    LOSS: ['捨て身気味に重心を返された', '体を預けられて流れを返された'],
+  },
+  BIG_ARCH: {
+    WIN: ['大きな反りで決めた', '反り技で向きを変えた'],
+    LOSS: ['大きな反りで決められた', '反り技で向きを変えられた'],
+  },
+  REAR_PUSH_OUT: {
+    WIN: ['後ろから外へ送った', '背後を取って押し出した'],
+    LOSS: ['後ろから外へ送られた', '背後を取られて押し出された'],
+  },
+  REAR_DOWN: {
+    WIN: ['背後から倒した', '後ろを取って体を預けた'],
+    LOSS: ['背後から倒された', '後ろを取られて体を預けられた'],
+  },
+  REAR_GRIP: {
+    WIN: ['後ろに回って決めた', '背後から動きを止めた'],
+    LOSS: ['後ろに回られて決められた', '背後から動きを止められた'],
+  },
+  REAR_BREAK: {
+    WIN: ['背後を取って向きを制した', '相手の向きを制して決めた'],
+    LOSS: ['背後を取られて向きを制された', '向きを制されて決められた'],
+  },
+  REAR_LIFT: {
+    WIN: ['後ろから浮かせて運んだ', '背後から吊る形にした'],
+    LOSS: ['後ろから浮かされて運ばれた', '背後から吊る形にされた'],
+  },
+  ISAMIASHI: {
+    WIN: ['相手の踏み出しで白星になった', '非技の形で勝負が決まった'],
+    LOSS: ['踏み出して黒星になった', '非技の形で勝負が決まった'],
+  },
+  KOSHIKUDAKE: {
+    WIN: ['相手が腰から落ちた', '非技の形で白星になった'],
+    LOSS: ['腰から落ちた', '非技の形で黒星になった'],
+  },
+  TOUCH_DOWN: {
+    WIN: ['相手が先に手をついた', '非技の結果で白星になった'],
+    LOSS: ['先に手をついた', '非技の結果で黒星になった'],
+  },
+  STEP_OUT: {
+    WIN: ['相手が先に土俵を出た', '非技の結果で白星になった'],
+    LOSS: ['先に土俵を出た', '非技の結果で黒星になった'],
+  },
+  FOUL: {
+    WIN: ['反則で白星になった', '非技の結果で勝敗がついた'],
+    LOSS: ['反則で黒星になった', '非技の結果で勝敗がついた'],
+  },
+  FUSEN: {
+    WIN: ['不戦で白星になった', '取組なしで星がついた'],
+    LOSS: ['不戦で黒星になった', '取組なしで星がついた'],
+  },
+  GENERIC: {
+    WIN: ['最後の形をまとめた', '勝負の形を残した'],
+    LOSS: ['最後の形で後手に回った', '勝負の形を作れなかった'],
+  },
+};
+
 const winOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   switch (snapshot.openingPhase) {
     case 'THRUST_BATTLE':
@@ -646,8 +1023,8 @@ const winOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
       ], variantParts(snapshot, 'WIN', 'opening-edge'));
     case 'QUICK_COLLAPSE':
       return selectVariant([
-        '立合い直後の崩れを逃さず',
-        '短い相撲で相手の乱れを突き',
+        '立合い直後の乱れを逃さず',
+        '短い相撲で相手の動きを突き',
         '早い展開をそのままものにし',
       ], variantParts(snapshot, 'WIN', 'opening-quick'));
     case 'MIXED':
@@ -693,8 +1070,8 @@ const lossOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
       ], variantParts(snapshot, 'LOSS', 'opening-edge'));
     case 'QUICK_COLLAPSE':
       return selectVariant([
-        '立合い直後の崩れを突かれ',
-        '短い相撲で体勢を崩し',
+        '立合い直後の乱れを突かれ',
+        '短い相撲で姿勢を乱し',
         '早い展開に対応し切れず',
       ], variantParts(snapshot, 'LOSS', 'opening-quick'));
     case 'MIXED':
@@ -731,61 +1108,40 @@ const winControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   }
 };
 
-const winFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
-  switch (snapshot.finishRoute) {
-    case 'PUSH_OUT':
-      return selectVariant(['土俵外へ出した', '外へ運んだ', '押し切って俵を割らせた'], variantParts(snapshot, 'WIN', 'finish-push'));
-    case 'BELT_FORCE':
-      return selectVariant(['寄り切った', '腰を寄せて出た', '密着したまま前へ運んだ'], variantParts(snapshot, 'WIN', 'finish-belt'));
-    case 'THROW_BREAK':
-      return selectVariant(['投げで崩した', '体勢を崩して投げた', '相手の軸を外した'], variantParts(snapshot, 'WIN', 'finish-throw'));
-    case 'PULL_DOWN':
-      return snapshot.openingPhase === 'QUICK_COLLAPSE'
-        ? selectVariant(['前に落とした', '崩れをそのまま決めた', '短く前へ落とした'], variantParts(snapshot, 'WIN', 'finish-pull-quick'))
-        : selectVariant(['いなしで前に落とした', '前へ出る相手を崩した', '引きに乗せて落とした'], variantParts(snapshot, 'WIN', 'finish-pull'));
-    case 'EDGE_REVERSAL':
-      return selectVariant(['体を入れ替えた', '際で向きを変えた', '土俵際から逆転した'], variantParts(snapshot, 'WIN', 'finish-edge'));
-    case 'REAR_FINISH':
-      return selectVariant(['後ろを取って決めた', '相手の向きを崩して送った', '背後から勝負をまとめた'], variantParts(snapshot, 'WIN', 'finish-rear'));
-    case 'LEG_ATTACK':
-      return selectVariant(['足元から崩した', '下から攻めて体勢を崩した', '足を攻めて勝負を決めた'], variantParts(snapshot, 'WIN', 'finish-leg'));
-  }
-};
+const subfamilyFinishClause = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome,
+  resolution: CommentaryKimariteSubfamilyResolution,
+): string =>
+  selectVariant(
+    SHORT_SUBFAMILY_FINISH_TEXT[resolution.subfamily][outcome],
+    variantParts(snapshot, outcome, `finish-subfamily:${resolution.family}:${resolution.subfamily}:${resolution.source}`),
+  );
 
-const lossFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
-  switch (snapshot.finishRoute) {
-    case 'PUSH_OUT':
-      return selectVariant(['土俵外へ出された', '外へ運ばれた', '押し切られて俵を割った'], variantParts(snapshot, 'LOSS', 'finish-push'));
-    case 'BELT_FORCE':
-      return selectVariant(['寄り切られた', '腰を寄せられて出された', '密着したまま前へ運ばれた'], variantParts(snapshot, 'LOSS', 'finish-belt'));
-    case 'THROW_BREAK':
-      return selectVariant(['投げで崩された', '体勢を崩されて投げられた', '軸を外された'], variantParts(snapshot, 'LOSS', 'finish-throw'));
-    case 'PULL_DOWN':
-      return snapshot.openingPhase === 'QUICK_COLLAPSE'
-        ? selectVariant(['前に落ちた', '崩れを止められなかった', '短く前へ落ちた'], variantParts(snapshot, 'LOSS', 'finish-pull-quick'))
-        : selectVariant(['いなしで前に落とされた', '前へ出たところを崩された', '引きに乗って落ちた'], variantParts(snapshot, 'LOSS', 'finish-pull'));
-    case 'EDGE_REVERSAL':
-      return selectVariant(['体を入れ替えられた', '際で向きを変えられた', '土俵際で逆転を許した'], variantParts(snapshot, 'LOSS', 'finish-edge'));
-    case 'REAR_FINISH':
-      return selectVariant(['後ろを取られて決まった', '向きを崩されて送られた', '背後を許して勝負が決まった'], variantParts(snapshot, 'LOSS', 'finish-rear'));
-    case 'LEG_ATTACK':
-      return selectVariant(['足元から崩された', '下から攻められて体勢を失った', '足を攻められて決まった'], variantParts(snapshot, 'LOSS', 'finish-leg'));
-  }
-};
+const winFinishClause = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  resolution: CommentaryKimariteSubfamilyResolution,
+): string => subfamilyFinishClause(snapshot, 'WIN', resolution);
+
+const lossFinishClause = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  resolution: CommentaryKimariteSubfamilyResolution,
+): string => subfamilyFinishClause(snapshot, 'LOSS', resolution);
 
 const firstSentence = (
   snapshot: BoutFlowDiagnosticSnapshot,
   outcome: BoutFlowCommentaryOutcome,
+  resolution: CommentaryKimariteSubfamilyResolution,
 ): string => {
   const clauses = outcome === 'WIN'
     ? [
       winOpeningClause(snapshot),
       winControlClause(snapshot),
-      winFinishClause(snapshot),
+      winFinishClause(snapshot, resolution),
     ]
     : [
       lossOpeningClause(snapshot),
-      lossFinishClause(snapshot),
+      lossFinishClause(snapshot, resolution),
     ];
   const flowText = clauses.filter((text) => text.length > 0).join('、');
   return `${flowText}。`;
@@ -796,6 +1152,7 @@ const createShortCommentary = (
   hoshitoriTag: HoshitoriContextTag,
   banzukeTag: BanzukeContextTag,
   outcome: BoutFlowCommentaryOutcome,
+  resolution: CommentaryKimariteSubfamilyResolution,
 ): string => {
   const hoshitoriText = selectVariant(
     SHORT_HOSHITORI_TEXT[outcome][hoshitoriTag],
@@ -805,7 +1162,7 @@ const createShortCommentary = (
     SHORT_BANZUKE_TEXT[outcome][banzukeTag],
     variantParts(snapshot, outcome, `short-banzuke:${banzukeTag}`),
   );
-  return `${firstSentence(snapshot, outcome)}${hoshitoriText}、${banzukeText}。`;
+  return `${firstSentence(snapshot, outcome, resolution)}${hoshitoriText}、${banzukeText}。`;
 };
 
 export const createBoutFlowCommentaryDiagnostic = (
@@ -825,6 +1182,7 @@ export const createBoutFlowCommentaryDiagnostic = (
   const hoshitoriTag = firstTag(snapshot.hoshitoriContextTags, HOSHITORI_PRIORITY) ?? 'MIDDLE_BASHO';
   const banzukeTag = firstTag(snapshot.banzukeContextTags, BANZUKE_PRIORITY) ?? 'RANK_EXPECTED_WIN';
   const victoryFactorLabels = buildVictoryFactorLabels(snapshot.victoryFactorTags);
+  const kimariteSubfamily = resolveKimariteSubfamily(snapshot);
 
   const opening = createMaterial('OPENING', 'OPENING', `opening:${snapshot.openingPhase}`, openingSpec(snapshot));
   const control = createMaterial(
@@ -844,7 +1202,7 @@ export const createBoutFlowCommentaryDiagnostic = (
     'KIMARITE',
     'KIMARITE',
     `kimarite:${snapshot.kimarite.name}`,
-    kimariteSpec(snapshot),
+    kimariteSpec(snapshot, outcome, kimariteSubfamily),
   );
   const victory = createMaterial(
     'VICTORY_FACTOR',
@@ -880,7 +1238,7 @@ export const createBoutFlowCommentaryDiagnostic = (
     `${transition.text}${finish.text}`,
     `${victory.text}${kimarite.text}`,
   ];
-  const shortCommentary = createShortCommentary(snapshot, hoshitoriTag, banzukeTag, outcome);
+  const shortCommentary = createShortCommentary(snapshot, hoshitoriTag, banzukeTag, outcome, kimariteSubfamily);
 
   return {
     generated: true,

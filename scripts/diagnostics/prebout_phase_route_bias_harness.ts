@@ -329,6 +329,7 @@ const simulateCase = (
     controlPhaseCandidate: controlPhase.controlPhaseCandidate,
     controlConfidence: controlPhase.confidence,
     finishRoute: winRoute,
+    kimaritePattern: selected.pattern,
     kimarite: {
       name: kimariteMetadata.kimarite ?? selected.kimarite,
       family: kimariteMetadata.family,

@@ -6,6 +6,7 @@ import type { BashoFormatKind, BoutPressureContext } from './basho/formatPolicy'
 import type { CombatStyle } from './combat/types';
 import type { PreBoutPhaseWeights } from './combat/preBoutPhase';
 import type { BoutEngagement } from '../kimarite/engagement';
+import type { KimaritePattern } from '../kimarite/catalog';
 import type { BoutFlowDiagnosticSnapshot } from './combat/boutFlowDiagnosticSnapshot';
 
 export interface SimulationDiagnostics {
@@ -319,7 +320,7 @@ export interface BoutExplanationSnapshot {
   kimarite?: string;
   winRoute?: WinRoute;
   boutEngagement?: BoutEngagement;
-  kimaritePattern?: string;
+  kimaritePattern?: KimaritePattern;
   factors: readonly BoutExplanationFactor[];
   shortCommentaryDraft?: string;
 }

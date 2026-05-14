@@ -266,9 +266,10 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
                         type="button"
                         className={styles.explanationButton}
                         aria-expanded={isExplanationOpen}
+                        aria-label={`${row.day}日目の取組解説を${isExplanationOpen ? "閉じる" : "開く"}`}
                         onClick={() => setSelectedExplanationDay((current) => current === row.day ? null : row.day)}
                       >
-                        取組解説
+                        {isExplanationOpen ? "閉じる" : "取組解説"}
                       </button>
                     ) : null}
                   </div>

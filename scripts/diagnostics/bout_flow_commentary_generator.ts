@@ -10,6 +10,11 @@ import {
   createBoutFlowCommentaryDiagnostic,
   type BoutFlowCommentary,
 } from '../../src/logic/simulation/combat/boutFlowCommentary';
+import {
+  COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY,
+  resolveCommentaryKimariteSubfamily,
+  type CommentaryKimariteSubfamily,
+} from '../../src/logic/simulation/combat/kimariteCommentarySubfamily';
 import type { BoutExplanationMaterialAxis } from '../../src/logic/simulation/combat/boutFlowModel';
 
 const DIAGNOSTIC_SEED = 20260515;
@@ -38,10 +43,37 @@ interface Fixture {
   readonly outcome?: 'WIN' | 'LOSS';
 }
 
+type FixtureOutcome = NonNullable<Fixture['outcome']>;
+type FixtureFamily = keyof typeof COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY;
+type FixtureFinishRoute = CreateBoutFlowDiagnosticSnapshotInput['finishRoute'];
+type FixtureOpeningPhase = CreateBoutFlowDiagnosticSnapshotInput['openingPhase'];
+type FixtureOpeningConfidence = CreateBoutFlowDiagnosticSnapshotInput['openingConfidence'];
+type FixtureControlPredecessor = CreateBoutFlowDiagnosticSnapshotInput['controlPhasePredecessor'];
+type FixtureControlCandidate = CreateBoutFlowDiagnosticSnapshotInput['controlPhaseCandidate'];
+type FixtureControlConfidence = CreateBoutFlowDiagnosticSnapshotInput['controlConfidence'];
+type FixtureKimaritePattern = CreateBoutFlowDiagnosticSnapshotInput['kimaritePattern'];
+
+interface RepresentativeSubfamilyFixture {
+  readonly label: string;
+  readonly name: string;
+  readonly family: FixtureFamily;
+  readonly expectedSubfamily: CommentaryKimariteSubfamily;
+  readonly finishRoute?: FixtureFinishRoute;
+  readonly openingPhase?: FixtureOpeningPhase;
+  readonly openingConfidence?: FixtureOpeningConfidence;
+  readonly controlPhasePredecessor?: FixtureControlPredecessor;
+  readonly controlPhaseCandidate?: FixtureControlCandidate;
+  readonly controlConfidence?: FixtureControlConfidence;
+  readonly kimaritePattern?: FixtureKimaritePattern;
+  readonly outcome?: FixtureOutcome;
+  readonly rarity?: string;
+}
+
 interface CommentaryScenario {
   readonly label: string;
   readonly snapshot: BoutFlowDiagnosticSnapshot;
   readonly commentary: BoutFlowCommentary;
+  readonly commentarySubfamily: ReturnType<typeof resolveCommentaryKimariteSubfamily>;
 }
 
 const invariant = (condition: boolean, message: string): void => {
@@ -87,12 +119,20 @@ const generateCommentary = (
     label: fixture.label,
     snapshot,
     commentary: diagnostic.commentary,
+    commentarySubfamily: resolveCommentaryKimariteSubfamily({
+      name: snapshot.kimarite.name,
+      family: snapshot.kimarite.family,
+      diagnosticFamily: snapshot.kimarite.diagnosticFamily,
+      pattern: snapshot.kimaritePattern,
+      finishRoute: snapshot.finishRoute,
+      transitionClassification: snapshot.transitionClassification,
+    }),
   };
 };
 
 const pushOut = kimarite('押し出し', 'PUSH_THRUST');
 
-const fixtures: readonly Fixture[] = [
+const baseFixtures: readonly Fixture[] = [
   {
     label: 'same-kimarite-push-expected-win',
     input: {
@@ -418,6 +458,290 @@ const fixtures: readonly Fixture[] = [
   },
 ];
 
+const HOSHITORI_CONTEXT_CYCLE = [
+  'EARLY_BASHO',
+  'MIDDLE_BASHO',
+  'FINAL_BOUT',
+  'KACHIKOSHI_DECIDER',
+  'MAKEKOSHI_DECIDER',
+  'KACHI_MAKE_DECIDER',
+  'YUSHO_DIRECT',
+  'YUSHO_CHASE',
+  'WIN_STREAK',
+  'LOSS_STREAK',
+  'RECOVERY_BOUT',
+  'LEAD_PROTECTION',
+] as const;
+
+const BANZUKE_CONTEXT_CYCLE = [
+  'RANK_EXPECTED_WIN',
+  'PROMOTION_RELEVANT',
+  'DEMOTION_RELEVANT',
+  'SAN_YAKU_PRESSURE',
+  'SEKITORI_BOUNDARY',
+  'MAKUUCHI_BOUNDARY',
+  'KINBOSHI_CHANCE',
+  'RANK_GAP_UPSET',
+] as const;
+
+const familyDefaults: Record<FixtureFamily, {
+  readonly finishRoute: FixtureFinishRoute;
+  readonly openingPhase: FixtureOpeningPhase;
+  readonly openingConfidence: FixtureOpeningConfidence;
+  readonly controlPhasePredecessor: FixtureControlPredecessor;
+  readonly controlPhaseCandidate: FixtureControlCandidate;
+  readonly controlConfidence: FixtureControlConfidence;
+}> = {
+  PUSH_THRUST: {
+    finishRoute: 'PUSH_OUT',
+    openingPhase: 'THRUST_BATTLE',
+    openingConfidence: 'HIGH',
+    controlPhasePredecessor: 'THRUST_BATTLE',
+    controlPhaseCandidate: 'THRUST_BATTLE',
+    controlConfidence: 'DIRECT',
+  },
+  FORCE_OUT: {
+    finishRoute: 'BELT_FORCE',
+    openingPhase: 'BELT_BATTLE',
+    openingConfidence: 'HIGH',
+    controlPhasePredecessor: 'BELT_BATTLE',
+    controlPhaseCandidate: 'BELT_BATTLE',
+    controlConfidence: 'DIRECT',
+  },
+  THROW: {
+    finishRoute: 'THROW_BREAK',
+    openingPhase: 'TECHNIQUE_SCRAMBLE',
+    openingConfidence: 'MEDIUM',
+    controlPhasePredecessor: 'MIXED',
+    controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+    controlConfidence: 'INFERRED',
+  },
+  TWIST_DOWN: {
+    finishRoute: 'PULL_DOWN',
+    openingPhase: 'QUICK_COLLAPSE',
+    openingConfidence: 'HIGH',
+    controlPhasePredecessor: 'QUICK_COLLAPSE',
+    controlPhaseCandidate: 'QUICK_COLLAPSE',
+    controlConfidence: 'DIRECT',
+  },
+  TRIP_PICK: {
+    finishRoute: 'LEG_ATTACK',
+    openingPhase: 'MIXED',
+    openingConfidence: 'MEDIUM',
+    controlPhasePredecessor: 'MIXED',
+    controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+    controlConfidence: 'INFERRED',
+  },
+  BACKWARD_BODY_DROP: {
+    finishRoute: 'EDGE_REVERSAL',
+    openingPhase: 'EDGE_BATTLE',
+    openingConfidence: 'MEDIUM',
+    controlPhasePredecessor: 'EDGE_SCRAMBLE',
+    controlPhaseCandidate: 'EDGE_BATTLE',
+    controlConfidence: 'RENAMED',
+  },
+  REAR: {
+    finishRoute: 'REAR_FINISH',
+    openingPhase: 'MIXED',
+    openingConfidence: 'MEDIUM',
+    controlPhasePredecessor: 'MIXED',
+    controlPhaseCandidate: 'MIXED',
+    controlConfidence: 'AMBIGUOUS',
+  },
+  NON_TECHNIQUE: {
+    finishRoute: 'PUSH_OUT',
+    openingPhase: 'QUICK_COLLAPSE',
+    openingConfidence: 'HIGH',
+    controlPhasePredecessor: 'QUICK_COLLAPSE',
+    controlPhaseCandidate: 'QUICK_COLLAPSE',
+    controlConfidence: 'DIRECT',
+  },
+};
+
+const representativeSubfamilies: readonly RepresentativeSubfamilyFixture[] = [
+  { label: 'push-out', name: '押し出し', family: 'PUSH_THRUST', expectedSubfamily: 'PUSH_OUT' },
+  { label: 'thrust-out', name: '突き出し', family: 'PUSH_THRUST', expectedSubfamily: 'THRUST_OUT' },
+  { label: 'push-down', name: '押し倒し', family: 'PUSH_THRUST', expectedSubfamily: 'PUSH_DOWN' },
+  { label: 'thrust-down', name: '突き倒し', family: 'PUSH_THRUST', expectedSubfamily: 'THRUST_DOWN' },
+  { label: 'push-break-context', name: '未知押し', family: 'PUSH_THRUST', expectedSubfamily: 'PUSH_BREAK' },
+  { label: 'yori-out', name: '寄り切り', family: 'FORCE_OUT', expectedSubfamily: 'YORI_OUT' },
+  { label: 'yori-down', name: '寄り倒し', family: 'FORCE_OUT', expectedSubfamily: 'YORI_DOWN' },
+  { label: 'abise-down', name: '浴びせ倒し', family: 'FORCE_OUT', expectedSubfamily: 'ABISE_DOWN' },
+  { label: 'kime-force', name: '極め出し', family: 'FORCE_OUT', expectedSubfamily: 'KIME_FORCE' },
+  { label: 'lift-force', name: '吊り出し', family: 'FORCE_OUT', expectedSubfamily: 'LIFT_FORCE' },
+  {
+    label: 'edge-force-context',
+    name: '未知寄り',
+    family: 'FORCE_OUT',
+    expectedSubfamily: 'EDGE_FORCE',
+    finishRoute: 'EDGE_REVERSAL',
+    openingPhase: 'EDGE_BATTLE',
+    controlPhasePredecessor: 'EDGE_SCRAMBLE',
+    controlPhaseCandidate: 'EDGE_BATTLE',
+    controlConfidence: 'RENAMED',
+  },
+  { label: 'belt-throw', name: '上手投げ', family: 'THROW', expectedSubfamily: 'BELT_THROW' },
+  { label: 'arm-throw', name: '小手投げ', family: 'THROW', expectedSubfamily: 'ARM_THROW' },
+  { label: 'scoop-throw', name: '掬い投げ', family: 'THROW', expectedSubfamily: 'SCOOP_THROW' },
+  {
+    label: 'edge-reversal-throw',
+    name: 'うっちゃり',
+    family: 'THROW',
+    expectedSubfamily: 'EDGE_REVERSAL_THROW',
+    finishRoute: 'EDGE_REVERSAL',
+    openingPhase: 'EDGE_BATTLE',
+    controlPhasePredecessor: 'EDGE_SCRAMBLE',
+    controlPhaseCandidate: 'EDGE_BATTLE',
+    controlConfidence: 'RENAMED',
+    rarity: 'RARE',
+  },
+  { label: 'body-break-throw', name: '二丁投げ', family: 'THROW', expectedSubfamily: 'BODY_BREAK_THROW' },
+  { label: 'tsukiotoshi', name: '突き落とし', family: 'TWIST_DOWN', expectedSubfamily: 'TSUKIOTOSHI' },
+  { label: 'hatakikomi', name: 'はたき込み', family: 'TWIST_DOWN', expectedSubfamily: 'HATAKIKOMI' },
+  { label: 'hikiotoshi', name: '引き落とし', family: 'TWIST_DOWN', expectedSubfamily: 'HIKIOTOSHI' },
+  { label: 'makiotoshi', name: '巻き落とし', family: 'TWIST_DOWN', expectedSubfamily: 'MAKIOTOSHI' },
+  { label: 'twist-break', name: '合掌捻り', family: 'TWIST_DOWN', expectedSubfamily: 'TWIST_BREAK' },
+  { label: 'pull-break', name: '肩透かし', family: 'TWIST_DOWN', expectedSubfamily: 'PULL_BREAK' },
+  {
+    label: 'edge-twist',
+    name: '呼び戻し',
+    family: 'TWIST_DOWN',
+    expectedSubfamily: 'EDGE_TWIST',
+    finishRoute: 'EDGE_REVERSAL',
+    openingPhase: 'EDGE_BATTLE',
+    controlPhasePredecessor: 'EDGE_SCRAMBLE',
+    controlPhaseCandidate: 'EDGE_BATTLE',
+    controlConfidence: 'RENAMED',
+  },
+  { label: 'leg-twist', name: '渡し込み', family: 'TWIST_DOWN', expectedSubfamily: 'LEG_TWIST' },
+  { label: 'leg-pick', name: '足取り', family: 'TRIP_PICK', expectedSubfamily: 'LEG_PICK', rarity: 'RARE' },
+  { label: 'outer-trip', name: '外掛け', family: 'TRIP_PICK', expectedSubfamily: 'OUTER_TRIP' },
+  { label: 'inner-trip', name: '内掛け', family: 'TRIP_PICK', expectedSubfamily: 'INNER_TRIP' },
+  { label: 'kick-trip', name: '蹴手繰り', family: 'TRIP_PICK', expectedSubfamily: 'KICK_TRIP', rarity: 'RARE' },
+  { label: 'hook-throw', name: '河津掛け', family: 'TRIP_PICK', expectedSubfamily: 'HOOK_THROW', rarity: 'RARE' },
+  { label: 'leg-break', name: '三所攻め', family: 'TRIP_PICK', expectedSubfamily: 'LEG_BREAK', rarity: 'RARE' },
+  { label: 'soritech', name: '掛け反り', family: 'BACKWARD_BODY_DROP', expectedSubfamily: 'SORITECH', rarity: 'RARE' },
+  {
+    label: 'big-arch',
+    name: '未知大反り',
+    family: 'BACKWARD_BODY_DROP',
+    expectedSubfamily: 'BIG_ARCH',
+    finishRoute: 'EDGE_REVERSAL',
+    openingPhase: 'EDGE_BATTLE',
+    controlPhasePredecessor: 'EDGE_SCRAMBLE',
+    controlPhaseCandidate: 'EDGE_BATTLE',
+    controlConfidence: 'RENAMED',
+    kimaritePattern: 'BACKWARD_ARCH',
+    rarity: 'EXTREME',
+  },
+  {
+    label: 'sutemi-context',
+    name: '未知反り',
+    family: 'BACKWARD_BODY_DROP',
+    expectedSubfamily: 'SUTEMI',
+    rarity: 'RARE',
+  },
+  { label: 'rear-push-out', name: '送り出し', family: 'REAR', expectedSubfamily: 'REAR_PUSH_OUT' },
+  { label: 'rear-down', name: '送り倒し', family: 'REAR', expectedSubfamily: 'REAR_DOWN' },
+  { label: 'rear-grip', name: '後ろもたれ', family: 'REAR', expectedSubfamily: 'REAR_GRIP' },
+  { label: 'rear-break', name: '送り投げ', family: 'REAR', expectedSubfamily: 'REAR_BREAK' },
+  { label: 'rear-lift', name: '送り吊り出し', family: 'REAR', expectedSubfamily: 'REAR_LIFT' },
+  { label: 'isamiashi', name: '勇み足', family: 'NON_TECHNIQUE', expectedSubfamily: 'ISAMIASHI' },
+  { label: 'koshikudake', name: '腰砕け', family: 'NON_TECHNIQUE', expectedSubfamily: 'KOSHIKUDAKE' },
+  { label: 'touch-down', name: 'つき手', family: 'NON_TECHNIQUE', expectedSubfamily: 'TOUCH_DOWN' },
+  { label: 'step-out', name: '踏み出し', family: 'NON_TECHNIQUE', expectedSubfamily: 'STEP_OUT' },
+  { label: 'foul', name: '反則', family: 'NON_TECHNIQUE', expectedSubfamily: 'FOUL' },
+  { label: 'fusen', name: '不戦', family: 'NON_TECHNIQUE', expectedSubfamily: 'FUSEN' },
+];
+
+const genericFallbackSubfamilies: readonly RepresentativeSubfamilyFixture[] = ([
+  ['PUSH_THRUST', '未知押し', 'BELT_FORCE'],
+  ['FORCE_OUT', '未知寄り', 'PUSH_OUT'],
+  ['THROW', '未知投げ', 'PUSH_OUT'],
+  ['TWIST_DOWN', '未知落とし', 'PUSH_OUT'],
+  ['TRIP_PICK', '未知足技', 'PUSH_OUT'],
+  ['BACKWARD_BODY_DROP', '未知反り', 'PUSH_OUT'],
+  ['REAR', '未知送り', 'PUSH_OUT'],
+  ['NON_TECHNIQUE', '未知非技', 'PUSH_OUT'],
+] as const).map(([family, name, finishRoute]) => ({
+  label: `generic-${family.toLowerCase()}`,
+  name,
+  family,
+  expectedSubfamily: 'GENERIC',
+  finishRoute,
+  openingPhase: finishRoute === 'PUSH_OUT' ? 'MIXED' : undefined,
+  controlPhasePredecessor: finishRoute === 'PUSH_OUT' ? 'MIXED' : undefined,
+  controlPhaseCandidate: finishRoute === 'PUSH_OUT' ? 'MIXED' : undefined,
+  controlConfidence: finishRoute === 'PUSH_OUT' ? 'AMBIGUOUS' : undefined,
+}));
+
+const mirrorSubfamilyLabels = new Set([
+  'push-out',
+  'yori-out',
+  'belt-throw',
+  'hatakikomi',
+  'leg-pick',
+  'soritech',
+  'big-arch',
+  'isamiashi',
+]);
+
+const toSubfamilyFixture = (
+  fixture: RepresentativeSubfamilyFixture,
+  index: number,
+  labelPrefix: string,
+): Fixture => {
+  const defaults = familyDefaults[fixture.family];
+  return {
+    label: `${labelPrefix}-${fixture.label}`,
+    outcome: fixture.outcome,
+    input: {
+      openingPhase: fixture.openingPhase ?? defaults.openingPhase,
+      openingConfidence: fixture.openingConfidence ?? defaults.openingConfidence,
+      controlPhasePredecessor: fixture.controlPhasePredecessor ?? defaults.controlPhasePredecessor,
+      controlPhaseCandidate: fixture.controlPhaseCandidate ?? defaults.controlPhaseCandidate,
+      controlConfidence: fixture.controlConfidence ?? defaults.controlConfidence,
+      finishRoute: fixture.finishRoute ?? defaults.finishRoute,
+      kimaritePattern: fixture.kimaritePattern,
+      kimarite: kimarite(fixture.name, fixture.family, fixture.rarity),
+      victoryFactorTags: index % 2 === 0
+        ? ['victory-factor:kimarite-fit', 'victory-factor:phase-shape']
+        : ['victory-factor:style', 'victory-factor:pressure'],
+      hoshitoriContextTags: [HOSHITORI_CONTEXT_CYCLE[index % HOSHITORI_CONTEXT_CYCLE.length]],
+      banzukeContextTags: [BANZUKE_CONTEXT_CYCLE[index % BANZUKE_CONTEXT_CYCLE.length]],
+    },
+  };
+};
+
+const representativeFixtures = representativeSubfamilies.map((fixture, index) =>
+  toSubfamilyFixture(fixture, index, 'subfamily'),
+);
+
+const genericFallbackFixtures = genericFallbackSubfamilies.map((fixture, index) =>
+  toSubfamilyFixture(fixture, index + representativeSubfamilies.length, 'subfamily'),
+);
+
+const mirrorFixtures = representativeSubfamilies
+  .filter((fixture) => mirrorSubfamilyLabels.has(fixture.label))
+  .map((fixture, index) =>
+    toSubfamilyFixture({ ...fixture, outcome: 'LOSS' }, index + representativeSubfamilies.length + genericFallbackSubfamilies.length, 'mirror-loss'),
+  );
+
+const fixtures: readonly Fixture[] = [
+  ...baseFixtures,
+  ...representativeFixtures,
+  ...genericFallbackFixtures,
+  ...mirrorFixtures,
+];
+
+const expectedSubfamilyByLabel = new Map<string, CommentaryKimariteSubfamily>([
+  ...representativeSubfamilies.map((fixture) => [`subfamily-${fixture.label}`, fixture.expectedSubfamily] as const),
+  ...genericFallbackSubfamilies.map((fixture) => [`subfamily-${fixture.label}`, fixture.expectedSubfamily] as const),
+  ...representativeSubfamilies
+    .filter((fixture) => mirrorSubfamilyLabels.has(fixture.label))
+    .map((fixture) => [`mirror-loss-${fixture.label}`, fixture.expectedSubfamily] as const),
+]);
+
 const countBy = <T extends string>(values: readonly T[]): Record<string, number> => {
   const counts: Record<string, number> = {};
   for (const value of values) {
@@ -483,6 +807,16 @@ const sameKimariteShorts = new Set(sameKimariteScenarios.map((scenario) => scena
 const sameKimariteMaterialKeySets = new Set(sameKimariteScenarios.map((scenario) => scenario.commentary.materialKeys.join('|')));
 const materialKeyCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materialKeys));
 const materialTextCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.text)));
+const kimariteMaterialKeyCounts = countBy(scenarios.flatMap((scenario) =>
+  scenario.commentary.materials
+    .filter((material) => material.axis === 'KIMARITE')
+    .map((material) => material.key),
+));
+const kimariteMaterialTextCounts = countBy(scenarios.flatMap((scenario) =>
+  scenario.commentary.materials
+    .filter((material) => material.axis === 'KIMARITE')
+    .map((material) => material.text),
+));
 const shortCommentaryCounts = countBy(scenarios.map((scenario) => scenario.commentary.shortCommentary));
 const shortCommentaryLengths = scenarios.map((scenario) => scenario.commentary.shortCommentary.length);
 const shortPhraseCounts = countBy(scenarios.flatMap((scenario) => phraseSegments(scenario.commentary.shortCommentary)));
@@ -490,6 +824,8 @@ const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.m
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
 const kimariteCounts = countBy(scenarios.map((scenario) => scenario.snapshot.kimarite.name));
+const commentarySubfamilyCounts = countBy(scenarios.map((scenario) => scenario.commentarySubfamily.subfamily));
+const commentarySubfamilySourceCounts = countBy(scenarios.map((scenario) => scenario.commentarySubfamily.source));
 const hoshitoriCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.hoshitoriContextTags));
 const banzukeCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.banzukeContextTags));
 const outcomeCounts = countBy(scenarios.map((scenario) => scenario.commentary.outcome));
@@ -500,10 +836,14 @@ const lossShortSet = new Set(blackStarScenarios.map((scenario) => scenario.comme
 const scenarioAudits = scenarios.map((scenario) => {
   const axes = new Set(scenario.commentary.materials.map((material) => material.axis));
   const missingAxes = REQUIRED_AXES.filter((axis) => !axes.has(axis));
+  const expectedSubfamily = expectedSubfamilyByLabel.get(scenario.label);
   return {
     label: scenario.label,
     missingAxes,
     qualityFlags: qualityFlags(scenario),
+    expectedSubfamily,
+    actualSubfamily: scenario.commentarySubfamily.subfamily,
+    subfamilyMatchesExpectation: expectedSubfamily === undefined || expectedSubfamily === scenario.commentarySubfamily.subfamily,
     reflectedKeys: {
       opening: scenario.commentary.materialKeys.find((key) => key.startsWith('opening:')),
       control: scenario.commentary.materialKeys.find((key) => key.startsWith('control:')),
@@ -521,13 +861,31 @@ const criticalQualityFlags = scenarioAudits.flatMap((audit) =>
 const missingAxisFlags = scenarioAudits.flatMap((audit) =>
   audit.missingAxes.map((axis) => `${audit.label}:${axis}`),
 );
+const subfamilyMismatchFlags = scenarioAudits
+  .filter((audit) => !audit.subfamilyMatchesExpectation)
+  .map((audit) => `${audit.label}:expected=${audit.expectedSubfamily}:actual=${audit.actualSubfamily}`);
 const totalMaterialSlots = scenarios.reduce((sum, scenario) => sum + scenario.commentary.materialKeys.length, 0);
+const totalKimariteMaterialSlots = Object.values(kimariteMaterialKeyCounts).reduce((sum, count) => sum + count, 0);
 const totalShortPhraseSlots = Object.values(shortPhraseCounts).reduce((sum, count) => sum + count, 0);
 const repeatedMaterialKeySlots = repeatedSlotCount(materialKeyCounts);
 const repeatedMaterialTextSlots = repeatedSlotCount(materialTextCounts);
+const repeatedKimariteMaterialKeySlots = repeatedSlotCount(kimariteMaterialKeyCounts);
+const repeatedKimariteMaterialTextSlots = repeatedSlotCount(kimariteMaterialTextCounts);
 const repeatedShortCommentarySlots = repeatedSlotCount(shortCommentaryCounts);
 const repeatedShortPhraseSlots = repeatedSlotCount(shortPhraseCounts);
 const fallbackBanzukeSlots = scenarios.filter((scenario) => scenario.snapshot.banzukeContextTags.includes('RANK_EXPECTED_WIN')).length;
+const genericSubfamilySlots = scenarios.filter((scenario) => scenario.commentarySubfamily.subfamily === 'GENERIC').length;
+const familySubfamilySets = scenarios.reduce<Record<string, Set<string>>>((sets, scenario) => {
+  const family = scenario.commentarySubfamily.family;
+  sets[family] = sets[family] ?? new Set<string>();
+  sets[family].add(scenario.commentarySubfamily.subfamily);
+  return sets;
+}, {});
+const sameFamilyDifferentSubfamilyGroups = Object.fromEntries(
+  Object.entries(familySubfamilySets)
+    .filter(([, subfamilies]) => subfamilies.size > 1)
+    .map(([family, subfamilies]) => [family, Array.from(subfamilies).sort()]),
+);
 const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
 const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
 const duplicateShortCommentaryRate = scenarios.length > 0 ? repeatedShortCommentarySlots / scenarios.length : 0;
@@ -535,6 +893,115 @@ const topPhraseFrequency = scenarios.length > 0
   ? Math.max(0, ...Object.values(shortPhraseCounts)) / scenarios.length
   : 0;
 const fallbackContextRate = scenarios.length > 0 ? fallbackBanzukeSlots / scenarios.length : 0;
+const genericSubfamilyRate = scenarios.length > 0 ? genericSubfamilySlots / scenarios.length : 0;
+const sameFamilyDifferentSubfamilyRate = Object.keys(familySubfamilySets).length > 0
+  ? Object.keys(sameFamilyDifferentSubfamilyGroups).length / Object.keys(familySubfamilySets).length
+  : 0;
+const expectedSubfamilyKeys = Object.entries(COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY)
+  .flatMap(([family, subfamilies]) =>
+    subfamilies
+      .filter((subfamily) => subfamily !== 'GENERIC')
+      .map((subfamily) => `${family}:${subfamily}`),
+  );
+const coveredSubfamilyKeys = new Set(
+  scenarios
+    .filter((scenario) => scenario.commentarySubfamily.subfamily !== 'GENERIC')
+    .map((scenario) => `${scenario.commentarySubfamily.family}:${scenario.commentarySubfamily.subfamily}`),
+);
+const uncoveredSubfamiliesByFamily = Object.fromEntries(
+  Object.entries(COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY)
+    .map(([family, subfamilies]) => [
+      family,
+      subfamilies.filter((subfamily) =>
+        subfamily !== 'GENERIC' && !coveredSubfamilyKeys.has(`${family}:${subfamily}`),
+      ),
+    ] as const)
+    .filter(([, subfamilies]) => subfamilies.length > 0),
+);
+const subfamilyCoverageRate = expectedSubfamilyKeys.length > 0
+  ? coveredSubfamilyKeys.size / expectedSubfamilyKeys.length
+  : 0;
+const familyScenarioCounts = countBy(scenarios.map((scenario) => scenario.commentarySubfamily.family));
+const genericSubfamilyCountsByFamily = countBy(
+  scenarios
+    .filter((scenario) => scenario.commentarySubfamily.subfamily === 'GENERIC')
+    .map((scenario) => scenario.commentarySubfamily.family),
+);
+const genericSubfamilyRateByFamily = Object.fromEntries(
+  Object.entries(familyScenarioCounts).map(([family, count]) => [
+    family,
+    (genericSubfamilyCountsByFamily[family] ?? 0) / count,
+  ]),
+);
+const familiesWithHighGenericRate = Object.fromEntries(
+  Object.entries(genericSubfamilyRateByFamily).filter(([, rate]) => rate >= 0.2),
+);
+const contextSignature = (scenario: CommentaryScenario): string => [
+  scenario.snapshot.openingPhase,
+  scenario.snapshot.controlPhaseCandidate ?? 'UNAVAILABLE',
+  scenario.snapshot.transitionClassification,
+  scenario.snapshot.finishRoute,
+  scenario.snapshot.hoshitoriContextTags.join('|'),
+  scenario.snapshot.banzukeContextTags.join('|'),
+].join(':');
+const groupsByKimariteOutcome = scenarios.reduce<Record<string, CommentaryScenario[]>>((groups, scenario) => {
+  const key = `${scenario.commentary.kimarite}:${scenario.commentary.outcome}`;
+  groups[key] = groups[key] ?? [];
+  groups[key].push(scenario);
+  return groups;
+}, {});
+const sameKimariteDifferentContextGroups = Object.values(groupsByKimariteOutcome)
+  .filter((group) => group.length > 1 && new Set(group.map(contextSignature)).size > 1);
+const sameKimariteDifferentContextConfirmed = sameKimariteDifferentContextGroups
+  .filter((group) =>
+    new Set(group.map((scenario) => scenario.commentary.shortCommentary)).size > 1 &&
+    new Set(group.map((scenario) => scenario.commentary.materialKeys.join('|'))).size > 1,
+  );
+const sameKimariteDifferentContextRate = sameKimariteDifferentContextGroups.length > 0
+  ? sameKimariteDifferentContextConfirmed.length / sameKimariteDifferentContextGroups.length
+  : 0;
+const kimariteMaterialText = (scenario: CommentaryScenario): string =>
+  scenario.commentary.materials.find((material) => material.axis === 'KIMARITE')?.text ?? '';
+const groupsByKimarite = scenarios.reduce<Record<string, CommentaryScenario[]>>((groups, scenario) => {
+  groups[scenario.commentary.kimarite] = groups[scenario.commentary.kimarite] ?? [];
+  groups[scenario.commentary.kimarite].push(scenario);
+  return groups;
+}, {});
+const winLossMirrorGroups = Object.entries(groupsByKimarite)
+  .map(([kimariteName, group]) => ({
+    kimariteName,
+    wins: group.filter((scenario) => scenario.commentary.outcome === 'WIN'),
+    losses: group.filter((scenario) => scenario.commentary.outcome === 'LOSS'),
+  }))
+  .filter((group) => group.wins.length > 0 && group.losses.length > 0);
+const winLossMirrorVariationGroups = winLossMirrorGroups.filter((group) => {
+  const winTexts = new Set(group.wins.flatMap((scenario) => [
+    scenario.commentary.shortCommentary,
+    kimariteMaterialText(scenario),
+  ]));
+  const lossTexts = new Set(group.losses.flatMap((scenario) => [
+    scenario.commentary.shortCommentary,
+    kimariteMaterialText(scenario),
+  ]));
+  return [...winTexts].every((text) => !lossTexts.has(text));
+});
+const winLossMirrorVariationRate = winLossMirrorGroups.length > 0
+  ? winLossMirrorVariationGroups.length / winLossMirrorGroups.length
+  : 0;
+const fallbackPhrasePatterns = [
+  '細部の型は限定せず',
+  '勝負の形を残した',
+  '勝負の形を作れなかった',
+  '最後の形で後手に回った',
+] as const;
+const fallbackPhraseSlots = scenarios.flatMap((scenario) => [
+  ...phraseSegments(scenario.commentary.shortCommentary),
+  ...scenario.commentary.materials.map((material) => material.text),
+]).filter((text) => fallbackPhrasePatterns.some((pattern) => text.includes(pattern)));
+const totalPhraseAndMaterialSlots = totalShortPhraseSlots + totalMaterialSlots;
+const overusedFallbackPhraseRate = totalPhraseAndMaterialSlots > 0
+  ? fallbackPhraseSlots.length / totalPhraseAndMaterialSlots
+  : 0;
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
 invariant(scenarios.length >= 20, 'commentary generator should cover at least 20 fixed fixtures');
@@ -544,9 +1011,19 @@ invariant(sameKimariteShorts.size > 1, 'same kimarite should produce varied shor
 invariant(sameKimariteMaterialKeySets.size > 1, 'same kimarite should produce varied material keys');
 invariant(missingAxisFlags.length === 0, `all scenarios should reflect required axes: ${missingAxisFlags.join(', ')}`);
 invariant(criticalQualityFlags.length === 0, `commentary quality flags: ${criticalQualityFlags.join(', ')}`);
+invariant(subfamilyMismatchFlags.length === 0, `subfamily fixture mismatch: ${subfamilyMismatchFlags.join(', ')}`);
 invariant(duplicateShortCommentaryRate <= 0.05, `duplicate short commentary rate too high: ${duplicateShortCommentaryRate}`);
 invariant(topPhraseFrequency <= 0.25, `top phrase frequency too high: ${topPhraseFrequency}`);
 invariant(fallbackContextRate <= 0.35, `fallback context rate too high: ${fallbackContextRate}`);
+invariant(genericSubfamilyRate <= 0.1, `generic subfamily rate too high: ${genericSubfamilyRate}`);
+invariant(subfamilyCoverageRate >= 0.95, `subfamily coverage rate too low: ${subfamilyCoverageRate}`);
+invariant(sameKimariteDifferentContextRate >= 1, `same kimarite context variation too low: ${sameKimariteDifferentContextRate}`);
+invariant(winLossMirrorVariationRate >= 1, `win/loss mirror variation too low: ${winLossMirrorVariationRate}`);
+invariant(overusedFallbackPhraseRate <= 0.05, `fallback phrase usage too high: ${overusedFallbackPhraseRate}`);
+invariant(
+  Object.keys(sameFamilyDifferentSubfamilyGroups).length >= 4,
+  'same production family should produce multiple commentary subfamilies in fixed fixtures',
+);
 
 const audit = {
   japaneseNaturalness: {
@@ -574,11 +1051,18 @@ const audit = {
   materialKeyBias: {
     axisCounts,
     totalMaterialSlots,
+    totalKimariteMaterialSlots,
     repeatedMaterialKeySlots,
     repeatedMaterialTextSlots,
+    repeatedKimariteMaterialKeySlots,
+    repeatedKimariteMaterialTextSlots,
     duplicateMaterialKeyRate: totalMaterialSlots > 0 ? repeatedMaterialKeySlots / totalMaterialSlots : 0,
     duplicateMaterialTextRate: totalMaterialSlots > 0 ? repeatedMaterialTextSlots / totalMaterialSlots : 0,
+    duplicateKimariteMaterialKeyRate: totalKimariteMaterialSlots > 0 ? repeatedKimariteMaterialKeySlots / totalKimariteMaterialSlots : 0,
+    duplicateKimariteMaterialTextRate: totalKimariteMaterialSlots > 0 ? repeatedKimariteMaterialTextSlots / totalKimariteMaterialSlots : 0,
     duplicateMaterialKeys: duplicated(materialKeyCounts),
+    duplicateKimariteMaterialKeys: duplicated(kimariteMaterialKeyCounts),
+    duplicateKimariteMaterialTexts: duplicated(kimariteMaterialTextCounts),
     expectedSharedKeys: [
       '同一決まり手監査では finish:PUSH_OUT:* と kimarite:押し出し:* が重複し得る',
       'victory key は日本語ラベルではなく diagnostic tag 由来に固定',
@@ -592,9 +1076,16 @@ const audit = {
     duplicateShortCommentaryRate,
     topPhraseFrequency,
     fallbackContextRate,
+    genericSubfamilyRate,
+    sameFamilyDifferentSubfamilyRate,
+    sameKimariteDifferentContextRate,
+    winLossMirrorVariationRate,
+    overusedFallbackPhraseRate,
     repeatedShortCommentarySlots,
     repeatedShortPhraseSlots,
     totalShortPhraseSlots,
+    fallbackPhraseSlots: fallbackPhraseSlots.length,
+    fallbackPhrasePatterns,
     topPhrases: Object.fromEntries(
       Object.entries(shortPhraseCounts)
         .sort(([, a], [, b]) => b - a)
@@ -604,7 +1095,40 @@ const audit = {
       duplicateShortCommentaryRate: 0.05,
       topPhraseFrequency: 0.25,
       fallbackContextRate: 0.35,
+      genericSubfamilyRate: 0.1,
+      subfamilyCoverageRate: 0.95,
+      overusedFallbackPhraseRate: 0.05,
     },
+  },
+  kimariteSubfamilyVariation: {
+    subfamilyCoverageRate,
+    expectedConcreteSubfamilyCount: expectedSubfamilyKeys.length,
+    coveredConcreteSubfamilyCount: coveredSubfamilyKeys.size,
+    uncoveredSubfamiliesByFamily,
+    subfamilyCounts: commentarySubfamilyCounts,
+    sourceCounts: commentarySubfamilySourceCounts,
+    genericSubfamilySlots,
+    genericSubfamilyRate,
+    genericSubfamilyCountsByFamily,
+    genericSubfamilyRateByFamily,
+    familiesWithHighGenericRate,
+    sameFamilyDifferentSubfamilyGroups,
+    sameFamilyDifferentSubfamilyRate,
+    sameKimariteDifferentContextRate,
+    sameKimariteDifferentContextGroups: sameKimariteDifferentContextGroups.map((group) => ({
+      kimarite: group[0]?.commentary.kimarite ?? 'UNKNOWN',
+      outcome: group[0]?.commentary.outcome ?? 'WIN',
+      scenarioCount: group.length,
+      uniqueShortCommentaries: new Set(group.map((scenario) => scenario.commentary.shortCommentary)).size,
+      uniqueMaterialKeySets: new Set(group.map((scenario) => scenario.commentary.materialKeys.join('|'))).size,
+    })),
+    winLossMirrorVariationRate,
+    winLossMirrorGroups: winLossMirrorGroups.map((group) => ({
+      kimarite: group.kimariteName,
+      winCount: group.wins.length,
+      lossCount: group.losses.length,
+      variationConfirmed: winLossMirrorVariationGroups.some((confirmed) => confirmed.kimariteName === group.kimariteName),
+    })),
   },
   shortCommentaryLength: {
     min: Math.min(...shortCommentaryLengths),
@@ -623,6 +1147,7 @@ const audit = {
       transition: Object.keys(transitionCounts).length,
       finish: Object.keys(finishCounts).length,
       kimarite: Object.keys(kimariteCounts).length,
+      commentarySubfamily: Object.keys(commentarySubfamilyCounts).length,
       hoshitori: Object.keys(hoshitoriCounts).length,
       banzuke: Object.keys(banzukeCounts).length,
       outcome: Object.keys(outcomeCounts).length,
@@ -651,6 +1176,21 @@ const report = {
     ],
   },
   scenarioCount: scenarios.length,
+  metrics: {
+    subfamilyCoverageRate,
+    genericSubfamilyRate,
+    duplicateShortCommentaryRate,
+    duplicateMaterialKeyRate: totalMaterialSlots > 0 ? repeatedMaterialKeySlots / totalMaterialSlots : 0,
+    duplicateMaterialTextRate: totalMaterialSlots > 0 ? repeatedMaterialTextSlots / totalMaterialSlots : 0,
+    duplicateKimariteMaterialKeyRate: totalKimariteMaterialSlots > 0 ? repeatedKimariteMaterialKeySlots / totalKimariteMaterialSlots : 0,
+    duplicateKimariteMaterialTextRate: totalKimariteMaterialSlots > 0 ? repeatedKimariteMaterialTextSlots / totalKimariteMaterialSlots : 0,
+    sameKimariteDifferentContextRate,
+    sameFamilyDifferentSubfamilyRate,
+    winLossMirrorVariationRate,
+    contextReflectionRate: totalAxisSlots > 0 ? reflectedAxisSlots / totalAxisSlots : 0,
+    overusedFallbackPhraseRate,
+    japaneseNaturalness: criticalQualityFlags.length === 0,
+  },
   sameKimariteVariation: {
     kimarite: pushOut.name,
     scenarioCount: sameKimariteScenarios.length,
@@ -672,6 +1212,8 @@ const report = {
     transition: transitionCounts,
     finish: finishCounts,
     kimarite: kimariteCounts,
+    commentarySubfamily: commentarySubfamilyCounts,
+    commentarySubfamilySource: commentarySubfamilySourceCounts,
     hoshitori: hoshitoriCounts,
     banzuke: banzukeCounts,
     outcome: outcomeCounts,
@@ -681,6 +1223,8 @@ const report = {
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
     'shortCommentary no longer repeats the already visible kimarite / east-west result row',
     'shortCommentary uses O(1) deterministic phrase variants derived from existing BoutFlow axes',
+    'shortCommentary and kimarite material now use commentary-only kimarite subfamily without changing production family',
+    'win/loss prose branches into active and passive phrasing for each commentary subfamily',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
@@ -693,6 +1237,9 @@ const report = {
       transitionClassification: scenario.snapshot.transitionClassification,
       finishRoute: scenario.snapshot.finishRoute,
       kimarite: scenario.snapshot.kimarite.name,
+      kimaritePattern: scenario.snapshot.kimaritePattern,
+      commentarySubfamily: scenario.commentarySubfamily.subfamily,
+      commentarySubfamilySource: scenario.commentarySubfamily.source,
       victoryFactorTags: scenario.snapshot.victoryFactorTags,
       hoshitoriContextTags: scenario.snapshot.hoshitoriContextTags,
       banzukeContextTags: scenario.snapshot.banzukeContextTags,
@@ -724,14 +1271,26 @@ console.log(`bout flow commentary preview injection written: ${previewInjectionP
 console.log(JSON.stringify({
   diagnosticSeed: report.diagnosticSeed,
   scenarioCount: report.scenarioCount,
+  metrics: report.metrics,
   sameKimariteVariation: report.sameKimariteVariation,
   outcomeVariation: report.outcomeVariation,
   distinctCounts: report.audit.axisReflection.distinctCounts,
   duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
   duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
+  duplicateKimariteMaterialKeyRate: report.audit.materialKeyBias.duplicateKimariteMaterialKeyRate,
+  duplicateKimariteMaterialTextRate: report.audit.materialKeyBias.duplicateKimariteMaterialTextRate,
   duplicateShortCommentaryRate: report.audit.phraseVariation.duplicateShortCommentaryRate,
   topPhraseFrequency: report.audit.phraseVariation.topPhraseFrequency,
   fallbackContextRate: report.audit.phraseVariation.fallbackContextRate,
+  genericSubfamilyRate: report.audit.phraseVariation.genericSubfamilyRate,
+  subfamilyCoverageRate: report.audit.kimariteSubfamilyVariation.subfamilyCoverageRate,
+  sameFamilyDifferentSubfamilyRate: report.audit.phraseVariation.sameFamilyDifferentSubfamilyRate,
+  sameKimariteDifferentContextRate: report.audit.phraseVariation.sameKimariteDifferentContextRate,
+  winLossMirrorVariationRate: report.audit.phraseVariation.winLossMirrorVariationRate,
+  overusedFallbackPhraseRate: report.audit.phraseVariation.overusedFallbackPhraseRate,
+  sameFamilyDifferentSubfamilyGroups: report.audit.kimariteSubfamilyVariation.sameFamilyDifferentSubfamilyGroups,
+  familiesWithHighGenericRate: report.audit.kimariteSubfamilyVariation.familiesWithHighGenericRate,
+  uncoveredSubfamiliesByFamily: report.audit.kimariteSubfamilyVariation.uncoveredSubfamiliesByFamily,
   topPhrases: report.audit.phraseVariation.topPhrases,
   contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
   shortCommentaryLength: report.audit.shortCommentaryLength,

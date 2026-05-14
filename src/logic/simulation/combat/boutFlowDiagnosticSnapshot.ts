@@ -1,4 +1,5 @@
 import type { WinRoute } from '../../models';
+import type { KimaritePattern } from '../../kimarite/catalog';
 import type {
   BoutExplanationMaterialAxis,
   ControlPhaseCandidate,
@@ -33,6 +34,7 @@ export interface CreateBoutFlowDiagnosticSnapshotInput {
   readonly controlPhaseCandidate?: ControlPhaseCandidate;
   readonly controlConfidence: ControlPhaseCandidateConfidence;
   readonly finishRoute: WinRoute;
+  readonly kimaritePattern?: KimaritePattern;
   readonly kimarite: BoutFlowDiagnosticKimariteSnapshot;
   readonly victoryFactorTags?: readonly string[];
   readonly hoshitoriContextTags?: readonly HoshitoriContextTag[];
