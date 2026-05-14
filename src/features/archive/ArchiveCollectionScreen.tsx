@@ -1,12 +1,10 @@
 import React from "react";
 import {
-  BookOpen,
   ChevronRight,
   Compass,
   Eye as TelescopeIcon,
   LibraryBig,
   LockKeyhole,
-  Medal,
   ScrollText,
 } from "lucide-react";
 import { cn } from "../../shared/lib/cn";
@@ -56,6 +54,14 @@ interface MuseumSummary {
   recentRecordText: string;
   rankBreakdown: Array<{ label: string; count: number }>;
   highlights: Array<{ label: string; value: string; note: string }>;
+}
+
+interface MuseumProgressRow {
+  key: MuseumGroupKey;
+  title: string;
+  total: number;
+  unlocked: number;
+  nextCategory: ArchiveCategoryDefinition | null;
 }
 
 const GROUP_META: Record<MuseumGroupKey, Omit<MuseumGroup, "key" | "categories">> = {
@@ -285,14 +291,28 @@ const buildMuseumSummary = (
 const findRelatedCareer = (rows: CareerRow[], categoryId: ArchiveCategoryId): CareerRow | null =>
   rows.find((row) => toArchiveCategoryIds(row.archiveCategories).includes(categoryId)) ?? null;
 
-const resolveCareerReadingLine = (row: CareerRow): string => {
-  if (row.archiveTitles?.[0]?.reason) return row.archiveTitles[0].reason;
-  if (row.yushoCount.makuuchi > 0) return `幕内優勝 ${row.yushoCount.makuuchi}回を残した一代。`;
-  if (row.maxRank.name === "横綱") return "最高位まで届いた一代。";
-  if (row.maxRank.division === "Makuuchi") return "幕内まで足跡を残した一代。";
-  if (row.maxRank.division === "Juryo") return "関取として読める期間を持つ一代。";
-  return "観測結果として資料館に残した一代。";
-};
+const buildProgressRows = (
+  groups: MuseumGroup[],
+  collectedCategories: Set<string>,
+): MuseumProgressRow[] =>
+  groups
+    .filter((group) => group.categories.length > 0)
+    .map((group) => {
+      const missing = group.categories.find((category) => !collectedCategories.has(category.id)) ?? null;
+      return {
+        key: group.key,
+        title: group.title,
+        total: group.categories.length,
+        unlocked: group.categories.filter((category) => collectedCategories.has(category.id)).length,
+        nextCategory: missing,
+      };
+    });
+
+const buildGapCategories = (
+  groups: MuseumGroup[],
+  collectedCategories: Set<string>,
+): ArchiveCategoryDefinition[] =>
+  groups.flatMap((group) => group.categories.filter((category) => !collectedCategories.has(category.id))).slice(0, 5);
 
 export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = ({
   onOpenCareer,
@@ -347,6 +367,16 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
   const summary = React.useMemo(
     () => buildMuseumSummary(rows, collectedCategories, collectedTitleIds, allCategories.length, totalTitleSlots),
     [allCategories.length, collectedCategories, collectedTitleIds, rows, totalTitleSlots],
+  );
+
+  const progressRows = React.useMemo(
+    () => buildProgressRows(museumGroups, collectedCategories),
+    [collectedCategories, museumGroups],
+  );
+
+  const gapCategories = React.useMemo(
+    () => buildGapCategories(museumGroups, collectedCategories),
+    [collectedCategories, museumGroups],
   );
 
   const filtered = rows.filter((row) => {
@@ -497,15 +527,15 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
           )}
         </section>
 
-        <section className={cn(surface.panel, styles.recordsPanel)}>
+        <section className={cn(surface.panel, styles.metaPanel)}>
           <div className={styles.sectionHeader}>
             <div>
-              <div className={typography.kicker}>代表記録</div>
-              <h3 className={styles.sectionTitle}>この条件で読める一代</h3>
+              <div className={typography.kicker}>観測地図</div>
+              <h3 className={styles.sectionTitle}>未発見から次を決める</h3>
             </div>
             {!isAllEmpty ? (
               <span className={styles.countBadge}>
-                {filtered.length} / {rows.length}
+                参照 {filtered.length}
               </span>
             ) : null}
           </div>
@@ -513,15 +543,18 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
           {loading ? (
             <div className={styles.loading}>読み込み中...</div>
           ) : isAllEmpty ? (
-            <div className={styles.recordEmpty}>観測済みの一代が入ると、ここに代表記録が並びます。</div>
+            <div className={styles.recordEmpty}>観測済みの一代が入ると、ここに資料館全体の偏りが出ます。</div>
           ) : isFilterEmpty ? (
             <div className={styles.recordEmpty}>この条件に該当する一代はありません。分類やテーマを変えてください。</div>
           ) : (
-            <ul className={styles.recordList}>
-              {filtered.map((row) => (
-                <CareerRecordCard key={row.id} row={row} onOpenCareer={onOpenCareer} />
-              ))}
-            </ul>
+            <div className={styles.metaStack}>
+              <ProgressMap rows={progressRows} />
+              <GapPanel
+                categories={gapCategories}
+                onOpenObservationBuild={onOpenObservationBuild}
+              />
+              <ReferenceCareerList rows={filtered.slice(0, 5)} onOpenCareer={onOpenCareer} />
+            </div>
           )}
         </section>
       </div>
@@ -639,71 +672,107 @@ const CategoryGroup: React.FC<{
   );
 };
 
-const CareerRecordCard: React.FC<{
+const ProgressMap: React.FC<{ rows: MuseumProgressRow[] }> = ({ rows }) => (
+  <div className={styles.metaBlock}>
+    <div className={styles.metaHead}>
+      <h4>棚の進み具合</h4>
+      <span>分類単位</span>
+    </div>
+    <div className={styles.progressList}>
+      {rows.map((row) => {
+        const progress = row.total > 0 ? Math.round((row.unlocked / row.total) * 100) : 0;
+        return (
+          <div key={row.key} className={styles.progressItem}>
+            <div className={styles.progressItemHead}>
+              <strong>{row.title}</strong>
+              <span>
+                {row.unlocked} / {row.total}
+              </span>
+            </div>
+            <div className={styles.progressTrack} aria-hidden="true">
+              <span style={{ width: `${progress}%` }} />
+            </div>
+            <em>{row.nextCategory ? `次の余白: ${row.nextCategory.label}` : "この棚の分類は収集済み"}</em>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const GapPanel: React.FC<{
+  categories: ArchiveCategoryDefinition[];
+  onOpenObservationBuild?: () => void;
+}> = ({ categories, onOpenObservationBuild }) => (
+  <div className={styles.metaBlock}>
+    <div className={styles.metaHead}>
+      <h4>次に空いている余白</h4>
+      <span>{categories.length > 0 ? `${categories.length}件表示` : "空きなし"}</span>
+    </div>
+    {categories.length > 0 ? (
+      <ul className={styles.gapList}>
+        {categories.map((category) => (
+          <li key={category.id}>
+            <strong>{category.label}</strong>
+            <p>{resolveMissingHint(category)}</p>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div className={styles.recordEmpty}>表示中の分類棚はすべて埋まっています。</div>
+    )}
+    {onOpenObservationBuild ? (
+      <Button size="sm" variant="ghost" onClick={onOpenObservationBuild}>
+        次の観測設計へ
+        <ChevronRight className="ml-1 h-3.5 w-3.5" />
+      </Button>
+    ) : null}
+  </div>
+);
+
+const ReferenceCareerList: React.FC<{
+  rows: CareerRow[];
+  onOpenCareer: (careerId: string) => void;
+}> = ({ rows, onOpenCareer }) => (
+  <div className={styles.referenceBlock}>
+    <div className={styles.metaHead}>
+      <h4>関連する一代</h4>
+      <span>代表例だけ表示</span>
+    </div>
+    <ul className={styles.referenceList}>
+      {rows.map((row) => (
+        <ReferenceCareerRow key={row.id} row={row} onOpenCareer={onOpenCareer} />
+      ))}
+    </ul>
+  </div>
+);
+
+const ReferenceCareerRow: React.FC<{
   row: CareerRow;
   onOpenCareer: (careerId: string) => void;
 }> = ({ row, onOpenCareer }) => {
   const themeLabel = resolveThemeLabel(row.archiveThemeId);
   const categories = toArchiveCategoryIds(row.archiveCategories);
   const titles = row.archiveTitles ?? [];
-  const yushoTotal = row.yushoCount.makuuchi + row.yushoCount.juryo + row.yushoCount.makushita + row.yushoCount.others;
 
   return (
-    <li className={styles.recordCard}>
-      <div className={styles.recordHead}>
-        <div>
-          <span className={styles.recordLabel}>{themeLabel ?? "観測記録"}</span>
-          <h4>{row.shikona}</h4>
-        </div>
-        <BookOpen className={styles.recordIcon} />
-      </div>
-
-      <div className={styles.recordFacts}>
-        <span>
-          <em>最高位</em>
-          <strong>{formatRankName(row.maxRank)}</strong>
-        </span>
-        <span>
-          <em>通算</em>
-          <strong>{formatRecordLabel(row)}</strong>
-        </span>
-        <span>
-          <em>期間</em>
-          <strong>{formatCareerPeriod(row)}</strong>
-        </span>
-        <span>
-          <em>優勝</em>
-          <strong>{yushoTotal > 0 ? `${yushoTotal}回` : "なし"}</strong>
-        </span>
-      </div>
-
-      <p className={styles.recordReading}>{resolveCareerReadingLine(row)}</p>
-
-      {categories.length > 0 ? (
-        <div className={styles.tagRow}>
-          {categories.slice(0, 4).map((categoryId) => (
-            <span key={categoryId}>{ARCHIVE_CATEGORIES[categoryId]?.label ?? "未分類の記録"}</span>
+    <li className={styles.referenceRow}>
+      <div className={styles.referenceMain}>
+        <span className={styles.recordLabel}>{themeLabel ?? "観測記録"}</span>
+        <strong>{row.shikona}</strong>
+        <p>
+          {formatRankName(row.maxRank)} / {formatRecordLabel(row)} / {formatCareerPeriod(row)}
+        </p>
+        <div className={styles.referenceTags}>
+          {categories.slice(0, 2).map((categoryId) => (
+            <span key={categoryId}>{ARCHIVE_CATEGORIES[categoryId]?.label ?? "未分類"}</span>
           ))}
-          {categories.length > 4 ? <span>+{categories.length - 4}</span> : null}
+          {titles[0] ? <span>{titles[0].label}</span> : null}
         </div>
-      ) : null}
-
-      {titles.length > 0 ? (
-        <div className={styles.titleRow}>
-          {titles.slice(0, 3).map((title) => (
-            <span key={title.id} data-tier={title.tier}>
-              <Medal className={styles.titleIcon} />
-              {title.label}
-            </span>
-          ))}
-          {titles.length > 3 ? <span>+{titles.length - 3}</span> : null}
-        </div>
-      ) : null}
-
-      <div className={styles.recordFooter}>
-        <span>{row.bashoCount}場所</span>
+      </div>
+      <div className={styles.referenceAction}>
         <Button size="sm" variant="ghost" onClick={() => onOpenCareer(row.id)}>
-          この一代を読む
+          読む
         </Button>
       </div>
     </li>

@@ -61,7 +61,9 @@
 .summaryStat,
 .highlightCard,
 .categoryCard,
-.recordCard,
+.metaBlock,
+.referenceBlock,
+.referenceRow,
 .groupEmpty {
   border: 1px solid rgb(var(--twc-line) / 0.34);
   background: rgb(var(--twc-bg) / 0.46);
@@ -84,8 +86,10 @@
 .filterLabel,
 .categoryTop,
 .recordLabel,
-.recordFacts em,
-.recordFooter {
+.metaHead span,
+.progressItem em,
+.referenceMain p,
+.referenceTags span {
   font-family: "DotGothic16", monospace;
   font-size: 0.66rem;
   letter-spacing: 0.12em;
@@ -214,13 +218,13 @@
 
 .contentGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+  grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.58fr);
   gap: 1rem;
   align-items: start;
 }
 
 .collectionPanel,
-.recordsPanel {
+.metaPanel {
   display: grid;
   gap: 1rem;
   min-width: 0;
@@ -282,7 +286,6 @@
 
 .groupHead p,
 .categoryCard p,
-.recordReading,
 .emptyState p,
 .recordEmpty,
 .loading,
@@ -377,116 +380,157 @@
   max-width: 34rem;
 }
 
-.recordList {
+.metaStack,
+.progressList,
+.gapList,
+.referenceList {
   display: grid;
-  gap: 0.75rem;
   min-width: 0;
 }
 
-.recordCard {
+.metaStack {
+  gap: 0.85rem;
+}
+
+.metaBlock,
+.referenceBlock {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
   padding: 0.85rem;
 }
 
-.recordHead {
+.metaHead {
   display: flex;
   justify-content: space-between;
   gap: 0.7rem;
-  min-width: 0;
+  align-items: flex-start;
 }
 
-.recordHead h4 {
+.metaHead h4 {
   overflow-wrap: anywhere;
-  font-family: "Yuji Syuku", serif;
-  font-size: 1.55rem;
-  line-height: 1.15;
-  color: rgb(var(--twc-text) / 0.96);
+  color: rgb(var(--twc-text) / 0.92);
+  font-weight: 600;
 }
 
-.recordIcon {
-  flex: 0 0 auto;
-  width: 1.15rem;
-  height: 1.15rem;
-  color: rgb(var(--twc-brand) / 0.64);
+.progressList {
+  gap: 0.65rem;
 }
 
-.recordFacts {
+.progressItem {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.recordFacts span {
-  display: grid;
-  gap: 0.18rem;
+  gap: 0.35rem;
   min-width: 0;
-  border: 1px solid rgb(var(--twc-line) / 0.26);
-  background: rgb(var(--twc-bg) / 0.34);
-  padding: 0.45rem 0.5rem;
 }
 
-.recordFacts strong {
+.progressItemHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.progressItemHead strong {
+  overflow-wrap: anywhere;
+  color: rgb(var(--twc-text) / 0.86);
+  font-size: 0.78rem;
+}
+
+.progressItemHead span {
+  flex: 0 0 auto;
+  color: rgb(var(--twc-brand) / 0.86);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+}
+
+.progressTrack {
+  height: 0.38rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--twc-line) / 0.22);
+  background: rgb(var(--twc-bg) / 0.46);
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.72), rgb(var(--twc-gold) / 0.68));
+}
+
+.progressItem em {
+  overflow-wrap: anywhere;
+  letter-spacing: 0.03em;
+  line-height: 1.45;
+}
+
+.gapList {
+  gap: 0.55rem;
+}
+
+.gapList li {
+  display: grid;
+  gap: 0.25rem;
+  border-left: 2px solid rgb(var(--twc-brand) / 0.34);
+  padding-left: 0.65rem;
+}
+
+.gapList strong {
   overflow-wrap: anywhere;
   color: rgb(var(--twc-text) / 0.9);
-  font-size: 0.82rem;
 }
 
-.recordReading {
-  border-left: 2px solid rgb(var(--twc-brand) / 0.35);
-  padding-left: 0.65rem;
-  font-size: 0.83rem;
+.gapList p {
+  color: rgb(var(--twc-text) / 0.64);
+  font-size: 0.78rem;
+  line-height: 1.62;
 }
 
-.tagRow,
-.titleRow {
+.referenceList {
+  gap: 0.55rem;
+}
+
+.referenceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.72rem;
+}
+
+.referenceMain {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.referenceMain strong {
+  overflow-wrap: anywhere;
+  color: rgb(var(--twc-text) / 0.92);
+  font-size: 0.95rem;
+}
+
+.referenceMain p {
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+}
+
+.referenceTags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
-.tagRow span,
-.titleRow span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+.referenceTags span {
   max-width: 100%;
-  border: 1px solid rgb(var(--twc-line) / 0.28);
-  background: rgb(var(--twc-bg) / 0.38);
-  padding: 0.26rem 0.45rem;
-  color: rgb(var(--twc-text) / 0.68);
-  font-size: 0.72rem;
-  line-height: 1.3;
+  border: 1px solid rgb(var(--twc-line) / 0.25);
+  background: rgb(var(--twc-bg) / 0.35);
+  padding: 0.2rem 0.36rem;
   overflow-wrap: anywhere;
 }
 
-.titleRow span[data-tier="rare"],
-.titleRow span[data-tier="epic"] {
-  border-color: rgb(var(--twc-brand) / 0.34);
-  color: rgb(var(--twc-brand) / 0.88);
-}
-
-.titleRow span[data-tier="legendary"] {
-  border-color: rgb(var(--twc-gold) / 0.52);
-  color: rgb(var(--twc-gold) / 0.92);
-}
-
-.titleIcon {
+.referenceAction {
   flex: 0 0 auto;
-  width: 0.78rem;
-  height: 0.78rem;
-}
-
-.recordFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.7rem;
-}
-
-.recordFooter span {
-  color: rgb(var(--twc-text-bright) / 0.58);
 }
 
 .recordEmpty,
@@ -516,20 +560,19 @@
   .hero,
   .filters,
   .collectionPanel,
-  .recordsPanel {
+  .metaPanel {
     padding: 0.85rem;
   }
 
   .titleLine,
   .sectionHeader,
-  .recordHead,
-  .recordFooter {
+  .metaHead,
+  .referenceRow {
     align-items: flex-start;
   }
 
   .progressRail,
-  .highlightGrid,
-  .recordFacts {
+  .highlightGrid {
     grid-template-columns: 1fr;
   }
 
@@ -542,7 +585,7 @@
   }
 
   .sectionHeader,
-  .recordFooter {
+  .referenceRow {
     flex-direction: column;
   }
 
