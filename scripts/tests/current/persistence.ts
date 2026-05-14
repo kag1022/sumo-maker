@@ -1026,9 +1026,16 @@ export const tests: TestCase[] = [
       if (!detail?.playerRecord) return;
 
       const sameDivisionRows = detail.rows.filter((row) => row.division === detail.playerRecord?.division);
+      const sameDivisionNpcCount = step.npcBashoRecords.filter(
+        (row) => row.division === detail.playerRecord?.division,
+      ).length;
       const rankKeys = sameDivisionRows.map((row) =>
         `${row.division}:${row.rankName}:${row.rankNumber ?? ''}:${row.rankSide ?? ''}`);
 
+      assert.equal(
+        sameDivisionRows.length,
+        sameDivisionNpcCount + 1,
+      );
       assert.ok(
         sameDivisionRows.filter((row) => row.entityId === 'PLAYER').length === 1,
         'Expected exactly one PLAYER row in persisted lower-division detail rows',
@@ -1040,7 +1047,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'persistence: lower-division detail persists sekitori and player-nearby npc rows only',
+    name: 'persistence: lower-division detail persists the full player-division banzuke snapshot',
     run: async () => {
       await resetDb();
       const initial = createStatus({
@@ -1088,6 +1095,10 @@ export const tests: TestCase[] = [
             losses: 3,
             absent: 0,
             titles: [],
+            ability: 61,
+            form: -0.5,
+            heightCm: 181,
+            weightKg: 139,
           },
           {
             entityId: 'NPC-FAR',
@@ -1100,6 +1111,10 @@ export const tests: TestCase[] = [
             losses: 3,
             absent: 0,
             titles: [],
+            ability: 58,
+            form: 1.25,
+            heightCm: 188,
+            weightKg: 151,
           },
           {
             entityId: 'NPC-OPP',
@@ -1215,15 +1230,16 @@ export const tests: TestCase[] = [
       const persistedIds = new Set(detail.rows.map((row) => row.entityId));
       assert.deepEqual(
         [...persistedIds].sort(),
-        ['NPC-J', 'NPC-NEAR', 'NPC-OPP', 'NPC-YUSHO', 'PLAYER'].sort(),
+        ['NPC-J', 'NPC-FAR', 'NPC-NEAR', 'NPC-OPP', 'NPC-YUSHO', 'PLAYER'].sort(),
       );
-      assert.equal(persistedIds.has('NPC-FAR'), false);
       assert.equal(persistedIds.has('NPC-SD'), false);
+      assert.equal(detail.rows.find((row) => row.entityId === 'NPC-FAR')?.ability, 58);
+      assert.equal(detail.rows.find((row) => row.entityId === 'NPC-FAR')?.weightKg, 151);
       assert.equal(detail.bouts.length, 1);
       assert.equal(detail.diagnostics?.seq, 1);
       assert.equal(detail.banzukeDecisions.length, 1);
       assert.equal(rowsBySeq[0]?.rows.some((row) => row.entityId === 'NPC-NEAR'), true);
-      assert.equal(rowsBySeq[0]?.rows.some((row) => row.entityId === 'NPC-FAR'), false);
+      assert.equal(rowsBySeq[0]?.rows.some((row) => row.entityId === 'NPC-FAR'), true);
       assert.equal(populations.length, 1);
       assert.equal(decisions.length, 1);
     },

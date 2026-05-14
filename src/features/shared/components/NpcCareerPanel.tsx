@@ -17,25 +17,22 @@ export const NpcCareerPanel: React.FC<{
       </button>
     </div>
     <div className={styles.summaryGrid}>
-      <Metric label="在位場所" value={`${detail.appearances}`} />
-      <Metric label="最高位" value={detail.maxRankLabel} />
-      <Metric label="通算" value={detail.totalRecordLabel} />
-      <Metric label="優勝" value={`${detail.yushoCount}`} />
+      <Metric label="番付" value={detail.rankLabel} />
+      <Metric label="成績" value={detail.recordLabel} />
+      <Metric label="能力" value={detail.abilityLabel} />
+      <Metric label="体格" value={detail.bodyLabel} />
     </div>
     <div className={styles.summaryMeta}>
-      <span>{detail.firstBashoLabel}</span>
-      <span>{detail.lastBashoLabel}</span>
-      {detail.selectedRankLabel ? <span>{detail.selectedRankLabel}</span> : null}
-      {detail.selectedRecordLabel ? <span>{detail.selectedRecordLabel}</span> : null}
+      <span>{detail.bashoLabel}</span>
+      <span>{detail.sourceLabel}</span>
+      <span>{detail.styleLabel}</span>
+      <span>{detail.stableLabel}</span>
+      <span>{detail.careerBashoCountLabel}</span>
     </div>
-    <div className={styles.recentStrip}>
-      {detail.recentSlices.map((slice) => (
-        <div key={`${detail.entityId}-${slice.bashoSeq}`} className={styles.recentItem} data-selected={slice.selected}>
-          <div>{slice.bashoLabel}</div>
-          <div>{slice.rankLabel}</div>
-          <div>{slice.recordLabel}</div>
-        </div>
-      ))}
+    <div className={styles.snapshotBox}>
+      <div>{detail.bashoLabel}</div>
+      <div>{detail.rankLabel}</div>
+      <div>{detail.recordLabel}</div>
     </div>
   </section>
 );

@@ -5,7 +5,7 @@
 
 ## Persistence
 
-- Dexie DB 名: `sumo-maker-v14`
+- Dexie DB 名: `sumo-maker-v15`
 - 最新 Dexie schema version: `18`
 - DB 名と Dexie schema version は別物です。
 - 破壊的に旧 save を読めなくする変更では DB 名更新を検討します。
