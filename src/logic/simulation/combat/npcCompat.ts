@@ -7,9 +7,9 @@ import { resolveStableById } from '../heya/stableCatalog';
 import { STABLE_ARCHETYPE_BY_ID } from '../heya/stableArchetypeCatalog';
 import type { DivisionParticipant } from '../matchmaking/types';
 import { resolveCompetitiveFactor } from '../realism';
+import { resolveCombatKernelProbability } from './kernel';
 import {
   calculateMomentumBonus,
-  resolveBoutWinProb,
   resolveUnifiedNpcStrength,
 } from '../strength/model';
 
@@ -147,8 +147,12 @@ const resolveNpcWinProbability = (
     bonus: styleDiff,
     diffSoftCap: BALANCE.strength.npcDiffSoftCap,
   };
-  const probability = resolveBoutWinProb(winProbInput);
   const division = 'division' in a ? (a as DivisionParticipant & { division?: Division }).division : undefined;
+  const probability = resolveCombatKernelProbability({
+    source: 'NPC_MAIN',
+    ...winProbInput,
+    metadata: { division },
+  }).probability;
   recordBoutWinProbSnapshot({
     source: 'NPC_BOUT',
     call: 'NPC_MAIN',

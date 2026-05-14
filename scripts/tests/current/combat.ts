@@ -247,6 +247,18 @@ export const tests: TestCase[] = [
         },
       });
       assert.equal(baselineOutput.probability, directProbability);
+
+      const npcInput = {
+        ...probabilityInput,
+        diffSoftCap: 18,
+      };
+      const npcDirectProbability = resolveBoutWinProb(npcInput);
+      const npcOutput = resolveCombatKernelProbability({
+        source: 'NPC_MAIN',
+        ...npcInput,
+        metadata: { division: 'Makushita' },
+      });
+      assert.equal(npcOutput.probability, npcDirectProbability);
     },
   },
 ];
