@@ -22,12 +22,8 @@ const isLowerDivision = (division: Rank['division']): division is LowerDivision 
   division === 'Jonidan' ||
   division === 'Jonokuchi';
 
-const toNpcSnapshotFields = (npc?: PersistentActor): Partial<NpcBashoAggregate> => ({
+const toNpcRecordSnapshot = (npc?: PersistentActor): Partial<NpcBashoAggregate> => ({
   stableId: npc?.stableId,
-  ability: npc?.ability,
-  basePower: npc?.basePower,
-  form: npc?.form,
-  uncertainty: npc?.uncertainty,
   heightCm: npc?.heightCm,
   weightKg: npc?.weightKg,
   styleBias: npc?.styleBias,
@@ -50,7 +46,7 @@ export const buildSekitoriNpcRecords = (
         return {
           entityId: result.id,
           shikona: result.shikona,
-          ...toNpcSnapshotFields(npc),
+          ...toNpcRecordSnapshot(npc),
           division,
           rankName: rank.name,
           rankNumber: rank.number,
@@ -98,7 +94,7 @@ export const buildSameDivisionLowerNpcRecords = (
       return {
         entityId: result.id,
         shikona: result.shikona,
-        ...toNpcSnapshotFields(npc),
+        ...toNpcRecordSnapshot(npc),
         division,
         rankName: LOWER_DIVISION_NAME[division],
         rankNumber: number,

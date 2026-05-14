@@ -20,7 +20,7 @@ export interface NpcCareerDetail {
 const STYLE_LABELS: Record<string, string> = {
   PUSH: "押し",
   GRAPPLE: "四つ",
-  THROW: "投げ",
+  TECHNIQUE: "技",
   BALANCE: "万能",
 };
 

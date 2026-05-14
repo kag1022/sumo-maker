@@ -34,10 +34,6 @@ export interface NpcBashoAggregate {
   losses: number;
   absent: number;
   titles: string[];
-  ability?: number;
-  basePower?: number;
-  form?: number;
-  uncertainty?: number;
   heightCm?: number;
   weightKg?: number;
   styleBias?: EnemyStyleBias;
