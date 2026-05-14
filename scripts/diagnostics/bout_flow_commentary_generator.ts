@@ -429,9 +429,19 @@ const countBy = <T extends string>(values: readonly T[]): Record<string, number>
 const duplicated = (counts: Record<string, number>): Record<string, number> =>
   Object.fromEntries(Object.entries(counts).filter(([, count]) => count > 1));
 
+const repeatedSlotCount = (counts: Record<string, number>): number =>
+  Object.values(counts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+
+const phraseSegments = (text: string): readonly string[] =>
+  text
+    .split(/[。、]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length >= 4);
+
 const containsRawEnum = (text: string): boolean => /[A-Z]{2,}_[A-Z0-9_]+/.test(text);
 const containsOverclaim = (text: string): boolean => /必ず|絶対|完全に|間違いなく|唯一/.test(text);
 const containsBannedPlayerLabel = (text: string): boolean => /^(取口|体格|調子|展開)$/.test(text);
+const containsAwkwardConnection = (text: string): boolean => /た、/.test(text);
 
 const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   const texts = [
@@ -451,6 +461,9 @@ const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   }
   if (texts.some(containsOverclaim)) {
     flags.push('contains-overclaim-token');
+  }
+  if (texts.some(containsAwkwardConnection)) {
+    flags.push('contains-awkward-connection');
   }
   if (scenario.commentary.shortCommentary.length > 120) {
     flags.push('short-commentary-too-long');
@@ -472,6 +485,7 @@ const materialKeyCounts = countBy(scenarios.flatMap((scenario) => scenario.comme
 const materialTextCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.text)));
 const shortCommentaryCounts = countBy(scenarios.map((scenario) => scenario.commentary.shortCommentary));
 const shortCommentaryLengths = scenarios.map((scenario) => scenario.commentary.shortCommentary.length);
+const shortPhraseCounts = countBy(scenarios.flatMap((scenario) => phraseSegments(scenario.commentary.shortCommentary)));
 const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.axis)));
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
@@ -508,10 +522,19 @@ const missingAxisFlags = scenarioAudits.flatMap((audit) =>
   audit.missingAxes.map((axis) => `${audit.label}:${axis}`),
 );
 const totalMaterialSlots = scenarios.reduce((sum, scenario) => sum + scenario.commentary.materialKeys.length, 0);
-const repeatedMaterialKeySlots = Object.values(materialKeyCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-const repeatedMaterialTextSlots = Object.values(materialTextCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const totalShortPhraseSlots = Object.values(shortPhraseCounts).reduce((sum, count) => sum + count, 0);
+const repeatedMaterialKeySlots = repeatedSlotCount(materialKeyCounts);
+const repeatedMaterialTextSlots = repeatedSlotCount(materialTextCounts);
+const repeatedShortCommentarySlots = repeatedSlotCount(shortCommentaryCounts);
+const repeatedShortPhraseSlots = repeatedSlotCount(shortPhraseCounts);
+const fallbackBanzukeSlots = scenarios.filter((scenario) => scenario.snapshot.banzukeContextTags.includes('RANK_EXPECTED_WIN')).length;
 const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
 const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
+const duplicateShortCommentaryRate = scenarios.length > 0 ? repeatedShortCommentarySlots / scenarios.length : 0;
+const topPhraseFrequency = scenarios.length > 0
+  ? Math.max(0, ...Object.values(shortPhraseCounts)) / scenarios.length
+  : 0;
+const fallbackContextRate = scenarios.length > 0 ? fallbackBanzukeSlots / scenarios.length : 0;
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
 invariant(scenarios.length >= 20, 'commentary generator should cover at least 20 fixed fixtures');
@@ -521,6 +544,9 @@ invariant(sameKimariteShorts.size > 1, 'same kimarite should produce varied shor
 invariant(sameKimariteMaterialKeySets.size > 1, 'same kimarite should produce varied material keys');
 invariant(missingAxisFlags.length === 0, `all scenarios should reflect required axes: ${missingAxisFlags.join(', ')}`);
 invariant(criticalQualityFlags.length === 0, `commentary quality flags: ${criticalQualityFlags.join(', ')}`);
+invariant(duplicateShortCommentaryRate <= 0.05, `duplicate short commentary rate too high: ${duplicateShortCommentaryRate}`);
+invariant(topPhraseFrequency <= 0.25, `top phrase frequency too high: ${topPhraseFrequency}`);
+invariant(fallbackContextRate <= 0.35, `fallback context rate too high: ${fallbackContextRate}`);
 
 const audit = {
   japaneseNaturalness: {
@@ -530,6 +556,7 @@ const audit = {
       'no raw diagnostic enum tokens in prose',
       'no duplicate punctuation',
       'no overclaim tokens',
+      'no awkward terminal-form comma connections',
       'short commentary length stays bounded',
       'short commentary stays within one or two sentences',
       'no internal diagnostic factor labels in player-facing labels',
@@ -560,6 +587,24 @@ const audit = {
   duplicateExpressions: {
     duplicateShortCommentaries: duplicated(shortCommentaryCounts),
     duplicateMaterialTexts: duplicated(materialTextCounts),
+  },
+  phraseVariation: {
+    duplicateShortCommentaryRate,
+    topPhraseFrequency,
+    fallbackContextRate,
+    repeatedShortCommentarySlots,
+    repeatedShortPhraseSlots,
+    totalShortPhraseSlots,
+    topPhrases: Object.fromEntries(
+      Object.entries(shortPhraseCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 8),
+    ),
+    thresholds: {
+      duplicateShortCommentaryRate: 0.05,
+      topPhraseFrequency: 0.25,
+      fallbackContextRate: 0.35,
+    },
   },
   shortCommentaryLength: {
     min: Math.min(...shortCommentaryLengths),
@@ -635,6 +680,7 @@ const report = {
   materialImprovementsApplied: [
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
     'shortCommentary no longer repeats the already visible kimarite / east-west result row',
+    'shortCommentary uses O(1) deterministic phrase variants derived from existing BoutFlow axes',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
@@ -683,6 +729,10 @@ console.log(JSON.stringify({
   distinctCounts: report.audit.axisReflection.distinctCounts,
   duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
   duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
+  duplicateShortCommentaryRate: report.audit.phraseVariation.duplicateShortCommentaryRate,
+  topPhraseFrequency: report.audit.phraseVariation.topPhraseFrequency,
+  fallbackContextRate: report.audit.phraseVariation.fallbackContextRate,
+  topPhrases: report.audit.phraseVariation.topPhrases,
   contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
   shortCommentaryLength: report.audit.shortCommentaryLength,
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,
