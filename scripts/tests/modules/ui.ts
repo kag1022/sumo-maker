@@ -3,6 +3,11 @@ import { buildLiveBashoView, resolveBashoStakeLabel } from '../../../src/logic/s
 import { buildBanzukeReviewTabModel } from '../../../src/features/report/utils/banzukeReview';
 import { listDivisionRows } from '../../../src/features/shared/utils/banzukeRows';
 import { buildNpcCareerDetail } from '../../../src/features/shared/utils/npcCareerDetail';
+import {
+  buildStablemateSummaries,
+  resolveStableAffiliationLabel,
+  resolveStableRelationshipLabel,
+} from '../../../src/features/shared/utils/stablemateReading';
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from '../../../src/logic/persistence/careerHistory';
 
 const assert = {
@@ -283,10 +288,11 @@ const cases: TestCase[] = [
         form: 1.5,
       });
 
-      const model = buildNpcCareerDetail(detail, 'npc-1');
+      const model = buildNpcCareerDetail(detail, 'npc-1', 'stable-001');
       assert.ok(model, 'expected npc model');
       if (!model) return;
       assert.equal(model.stableLabel, '大樹部屋');
+      assert.equal(model.affiliationLabel, '同部屋');
       assert.equal(model.styleLabel, '押し');
       assert.equal(model.bodyLabel, '184cm / 142kg');
       assert.equal(model.careerBashoCountLabel, '18場所目');
@@ -307,6 +313,76 @@ const cases: TestCase[] = [
       assert.ok(model, 'expected npc model');
       if (!model) return;
       assert.equal(model.stableLabel, undefined);
+    },
+  },
+  {
+    name: 'ui: stablemate summaries classify saved same-stable rows lightly',
+    run: () => {
+      const baseRow = {
+        careerId: 'career-1',
+        seq: 12,
+        entityType: 'NPC' as const,
+        year: 2026,
+        month: 3,
+        division: 'Makushita' as const,
+        rankName: '幕下',
+        rankNumber: 10,
+        rankSide: 'East' as const,
+        wins: 4,
+        losses: 3,
+        absent: 0,
+        titles: [],
+        stableId: 'stable-001',
+      };
+      const rows: CareerBashoRecordsBySeq[] = [
+        {
+          bashoSeq: 12,
+          year: 2026,
+          month: 3,
+          rows: [
+            {
+              ...baseRow,
+              entityId: 'senior-1',
+              shikona: '兄山',
+              careerBashoCount: 24,
+            },
+            {
+              ...baseRow,
+              entityId: 'peer-1',
+              shikona: '同期海',
+              careerBashoCount: 12,
+            },
+            {
+              ...baseRow,
+              entityId: 'junior-1',
+              shikona: '弟富士',
+              careerBashoCount: 2,
+            },
+            {
+              ...baseRow,
+              entityId: 'other-1',
+              shikona: '他部屋',
+              stableId: 'stable-002',
+              careerBashoCount: 30,
+            },
+          ],
+        },
+      ];
+
+      const summaries = buildStablemateSummaries({ stableId: 'stable-001' }, rows);
+      assert.equal(summaries.length, 3);
+      assert.ok(summaries.some((entry) => entry.entityId === 'senior-1' && entry.relation === 'senior'), 'expected senior same-stable row');
+      assert.ok(summaries.some((entry) => entry.entityId === 'peer-1' && entry.relation === 'peer'), 'expected peer same-stable row');
+      assert.ok(summaries.some((entry) => entry.entityId === 'junior-1' && entry.relation === 'junior'), 'expected junior same-stable row');
+      assert.equal(summaries.some((entry) => entry.entityId === 'other-1'), false, 'expected other stable row to be ignored');
+    },
+  },
+  {
+    name: 'ui: stable relationship labels avoid raw stable ids',
+    run: () => {
+      assert.equal(resolveStableRelationshipLabel({ stableId: 'stable-001' }, 'stable-001'), '同部屋');
+      assert.equal(resolveStableAffiliationLabel({ stableId: 'stable-001' }, 'stable-999'), '大樹部屋');
+      assert.equal(resolveStableAffiliationLabel({ stableId: 'unknown-stable' }, 'stable-001'), undefined);
     },
   },
 ];

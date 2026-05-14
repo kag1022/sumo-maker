@@ -2,6 +2,7 @@ import React from "react";
 import { Archive, BookUser, Check, Copy, ExternalLink, Landmark, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
+import type { CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import {
   AUTO_TAG_LABELS,
   MANUAL_SAVE_TAG_LABELS,
@@ -18,6 +19,7 @@ import { summarizeRareKimariteEncounters } from "../../../logic/kimarite/rareEnc
 import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { buildStableEnvironmentReading } from "../../../logic/simulation/heya/stableEnvironment";
+import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { StatCard } from "../../../shared/ui/StatCard";
@@ -36,6 +38,7 @@ interface CareerEncyclopediaChapterProps {
   designReading: CareerDesignReadingModel;
   highestRankLabel: string;
   ledgerPoints?: CareerLedgerPoint[];
+  bashoRows: CareerBashoRecordsBySeq[];
   isSaved: boolean;
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
@@ -279,6 +282,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   designReading,
   highestRankLabel,
   ledgerPoints,
+  bashoRows,
   isSaved,
   detailState,
   detailBuildProgress,
@@ -305,6 +309,10 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const stableEnvironment = React.useMemo(
     () => buildStableEnvironmentReading(status),
     [status],
+  );
+  const stablemates = React.useMemo(
+    () => buildStablemateSummaries(status, bashoRows),
+    [bashoRows, status],
   );
   const retirementReason = React.useMemo(() => resolveRetirementReason(status), [status]);
   const learnedTraits = React.useMemo(
@@ -612,6 +620,27 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <p key={line}>{line}</p>
             ))}
           </div>
+          {stablemates.length > 0 ? (
+            <div className={styles.stablemateBlock}>
+              <div>
+                <div className={styles.label}>同部屋の主な力士</div>
+                <p className={styles.text}>保存済みの場所記録に同じ部屋として残った力士だけを拾います。</p>
+              </div>
+              <div className={styles.stablemateGrid}>
+                {stablemates.map((mate) => (
+                  <article key={mate.entityId} className={styles.stablemateCard} data-relation={mate.relation}>
+                    <div className={styles.stablemateTop}>
+                      <span>{mate.relationLabel}</span>
+                      <em>{mate.overlapBashoCount}場所</em>
+                    </div>
+                    <strong>{mate.shikona}</strong>
+                    <p>{mate.rankLabel} / {mate.recordLabel}</p>
+                    <small>{mate.firstSeenLabel}同じ部屋として記録。</small>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 

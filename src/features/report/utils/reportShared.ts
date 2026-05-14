@@ -335,6 +335,7 @@ export interface ReportBanzukeRow {
   entityId: string;
   entityType: 'PLAYER' | 'NPC';
   shikona: string;
+  stableId?: string;
   rank: Rank;
   rankLabel: string;
   wins: number;
@@ -1149,6 +1150,7 @@ export const buildBanzukeSnapshotForSeq = (
       entityId: row.entityId,
       entityType: row.entityType,
       shikona: row.shikona,
+      stableId: row.stableId,
       rank: buildRankFromRow(row),
       rankLabel: formatRankDisplayName(buildRankFromRow(row)),
       wins: row.wins,

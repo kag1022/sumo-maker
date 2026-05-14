@@ -423,6 +423,33 @@
   font-size: 0.75rem;
 }
 
+.banzukeNameCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.affiliationBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(var(--twc-brand) / 0.24);
+  background: rgb(var(--twc-brand) / 0.08);
+  padding: 0.12rem 0.38rem;
+  color: rgb(var(--twc-brand) / 0.84);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.affiliationBadge[data-same-stable="true"] {
+  border-color: rgb(var(--twc-action) / 0.38);
+  background: rgb(var(--twc-action) / 0.1);
+  color: rgb(var(--twc-action) / 0.9);
+}
+
 @media (max-width: 767px) {
   .head,
   .placeHero,
