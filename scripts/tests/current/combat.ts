@@ -28,18 +28,27 @@ import {
   resolveFinishRouteCandidates,
 } from '../../../src/logic/kimarite/finishRoute';
 import { resolveControlPhaseCandidate } from '../../../src/logic/simulation/combat/controlPhaseAdapter';
-import { createBoutFlowDiagnosticSnapshot } from '../../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
+import {
+  createBoutFlowDiagnosticSnapshot,
+  type BoutFlowDiagnosticSnapshot,
+} from '../../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
+import {
+  buildBoutFlowDiagnosticContextTags,
+  createBoutFlowDiagnosticSnapshotFromExplanationSnapshot,
+} from '../../../src/logic/simulation/combat/boutFlowDiagnosticBuilder';
 import {
   classifyPreBoutPhaseKimariteContradiction,
   resolveDiagnosticKimariteMetadata,
 } from '../../diagnostics/kimarite_family_classifier';
 import {
   type BoutExplanationSnapshot,
+  isBoutFlowDiagnosticSnapshotEnabled,
   isBoutExplanationSnapshotEnabled,
   isPreBoutPhaseSnapshotEnabled,
   recordBoutExplanationSnapshot,
   recordPreBoutPhaseSnapshot,
   type PreBoutPhaseSnapshot,
+  withBoutFlowDiagnosticSnapshotCollector,
   withBoutExplanationSnapshotCollector,
   withPreBoutPhaseSnapshotCollector,
 } from '../../../src/logic/simulation/diagnostics';
@@ -601,6 +610,100 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'combat control phase: pure builder fills victory hoshitori and banzuke context',
+    run: () => {
+      const factors = [
+        {
+          kind: 'ABILITY' as const,
+          direction: 'FOR_ATTACKER' as const,
+          strength: 'MEDIUM' as const,
+          label: '基礎能力差',
+        },
+        {
+          kind: 'PRESSURE' as const,
+          direction: 'NEUTRAL' as const,
+          strength: 'SMALL' as const,
+          label: '勝負所の文脈',
+        },
+      ];
+      const contextTags = buildBoutFlowDiagnosticContextTags({
+        factors,
+        boutOrdinal: 15,
+        calendarDay: 15,
+        currentWins: 7,
+        currentLosses: 7,
+        currentWinStreak: 2,
+        currentLossStreak: 0,
+        pressure: {
+          isFinalBout: true,
+          isKachiMakeDecider: true,
+          isKachikoshiDecider: true,
+          isPromotionRelevant: true,
+        },
+        titleImplication: 'NONE',
+        boundaryImplication: 'PROMOTION',
+        division: 'Juryo',
+        rank: { division: 'Juryo', name: '十両', number: 8, side: 'East' },
+        isKinboshiContext: false,
+      });
+      assert.ok(contextTags.victoryFactorTags.includes('victory-factor:ability'));
+      assert.ok(contextTags.hoshitoriContextTags.includes('FINAL_BOUT'));
+      assert.ok(contextTags.hoshitoriContextTags.includes('KACHI_MAKE_DECIDER'));
+      assert.ok(contextTags.hoshitoriContextTags.includes('KACHIKOSHI_DECIDER'));
+      assert.ok(contextTags.hoshitoriContextTags.includes('WIN_STREAK'));
+      assert.ok(contextTags.banzukeContextTags.includes('PROMOTION_RELEVANT'));
+      assert.ok(contextTags.banzukeContextTags.includes('SEKITORI_BOUNDARY'));
+
+      const flowSnapshot = createBoutFlowDiagnosticSnapshotFromExplanationSnapshot({
+        source: 'PLAYER_BOUT',
+        division: 'Juryo',
+        rank: { division: 'Juryo', name: '十両', number: 8, side: 'East' },
+        formatKind: 'SEKITORI_15',
+        totalBouts: 15,
+        calendarDay: 15,
+        boutOrdinal: 15,
+        currentWins: 7,
+        currentLosses: 7,
+        currentWinStreak: 2,
+        currentLossStreak: 0,
+        pressure: {
+          isFinalBout: true,
+          isKachiMakeDecider: true,
+          isKachikoshiDecider: true,
+          isPromotionRelevant: true,
+        },
+        boundaryImplication: 'PROMOTION',
+        preBoutPhaseWeights: {
+          THRUST_BATTLE: 3,
+          BELT_BATTLE: 0.4,
+          TECHNIQUE_SCRAMBLE: 0.2,
+          EDGE_BATTLE: 0.2,
+          QUICK_COLLAPSE: 0.1,
+          MIXED: 0.1,
+        },
+        kimarite: '押し出し',
+        winRoute: 'PUSH_OUT',
+        boutEngagement: {
+          phase: 'THRUST_BATTLE',
+          defenderCollapsed: false,
+          edgeCrisis: false,
+          gripEstablished: false,
+          weightDomination: true,
+        },
+        kimaritePattern: 'PUSH_ADVANCE',
+        factors,
+      });
+      assert.ok(flowSnapshot);
+      if (!flowSnapshot) return;
+      assert.equal(flowSnapshot.explanationCompleteness, 'COMPLETE_CONTEXT');
+      assert.deepEqual(flowSnapshot.missingExplanationAxes, []);
+      assert.ok(flowSnapshot.explanationCoverage.every((entry) => entry.status === 'AVAILABLE'));
+      assert.ok(flowSnapshot.victoryFactorTags.includes('victory-factor:ability'));
+      assert.ok(flowSnapshot.hoshitoriContextTags.includes('FINAL_BOUT'));
+      assert.ok(flowSnapshot.banzukeContextTags.includes('PROMOTION_RELEVANT'));
+    },
+  },
+  {
     name: 'combat finish route: production-equivalent candidates keep order and weights',
     run: () => {
       const winner = {
@@ -927,6 +1030,7 @@ export const tests: TestCase[] = [
     name: 'combat explanation: collector is opt-in and does not change rng or result shape',
     run: async () => {
       assert.equal(isBoutExplanationSnapshotEnabled(), false);
+      assert.equal(isBoutFlowDiagnosticSnapshotEnabled(), false);
       recordBoutExplanationSnapshot({
         source: 'PLAYER_BOUT',
         factors: [],
@@ -1003,15 +1107,20 @@ export const tests: TestCase[] = [
         baselineRng.rng,
       );
       const snapshots: BoutExplanationSnapshot[] = [];
+      const boutFlowSnapshots: Array<BoutFlowDiagnosticSnapshot & { runLabel?: string; seed?: number }> = [];
       const collectorRng = createCountingRng();
-      const collectedResult = await withBoutExplanationSnapshotCollector(
-        { runLabel: 'unit-explanation-player', seed: 4321 },
-        (snapshot) => snapshots.push(snapshot),
-        () => calculateBattleResult(
-          createTestStatus(),
-          createEnemy(),
-          context,
-          collectorRng.rng,
+      const collectedResult = await withBoutFlowDiagnosticSnapshotCollector(
+        { runLabel: 'unit-bout-flow-player', seed: 4321 },
+        (snapshot) => boutFlowSnapshots.push(snapshot),
+        async () => withBoutExplanationSnapshotCollector(
+          { runLabel: 'unit-explanation-player', seed: 4321 },
+          (snapshot) => snapshots.push(snapshot),
+          () => calculateBattleResult(
+            createTestStatus(),
+            createEnemy(),
+            context,
+            collectorRng.rng,
+          ),
         ),
       );
 
@@ -1026,6 +1135,10 @@ export const tests: TestCase[] = [
       assert.equal(snapshot.formatKind, 'SEKITORI_15');
       assert.equal(snapshot.calendarDay, 15);
       assert.equal(snapshot.boutOrdinal, 15);
+      assert.equal(snapshot.totalBouts, 15);
+      assert.equal(snapshot.currentWins, 7);
+      assert.equal(snapshot.currentLosses, 7);
+      assert.deepEqual(snapshot.rank, { division: 'Juryo', name: '十両', number: 8, side: 'East' });
       assert.equal(snapshot.pressure?.isKachiMakeDecider, true);
       assert.ok(snapshot.preBoutPhaseWeights !== undefined);
       assert.ok((snapshot.preBoutPhaseReasonTags?.length ?? 0) > 0);
@@ -1054,6 +1167,18 @@ export const tests: TestCase[] = [
       });
       assert.equal('preBoutPhase' in (snapshot as unknown as Record<string, unknown>), false);
       assert.equal(isBoutExplanationSnapshotEnabled(), false);
+      assert.equal(isBoutFlowDiagnosticSnapshotEnabled(), false);
+      assert.equal(boutFlowSnapshots.length, 1);
+      const [boutFlowSnapshot] = boutFlowSnapshots;
+      assert.equal(boutFlowSnapshot.runLabel, 'unit-bout-flow-player');
+      assert.equal(boutFlowSnapshot.seed, 4321);
+      assert.equal(boutFlowSnapshot.explanationCompleteness, 'COMPLETE_CONTEXT');
+      assert.deepEqual(boutFlowSnapshot.missingExplanationAxes, []);
+      assert.ok(boutFlowSnapshot.victoryFactorTags.length > 0);
+      assert.ok(boutFlowSnapshot.hoshitoriContextTags.includes('FINAL_BOUT'));
+      assert.ok(boutFlowSnapshot.hoshitoriContextTags.includes('KACHI_MAKE_DECIDER'));
+      assert.ok(boutFlowSnapshot.banzukeContextTags.includes('SEKITORI_BOUNDARY'));
+      assert.ok(boutFlowSnapshot.explanationCoverage.every((entry) => entry.status === 'AVAILABLE'));
     },
   },
 ];

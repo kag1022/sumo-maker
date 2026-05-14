@@ -6,6 +6,7 @@ import type { BashoFormatKind, BoutPressureContext } from './basho/formatPolicy'
 import type { CombatStyle } from './combat/types';
 import type { PreBoutPhaseWeights } from './combat/preBoutPhase';
 import type { BoutEngagement } from '../kimarite/engagement';
+import type { BoutFlowDiagnosticSnapshot } from './combat/boutFlowDiagnosticSnapshot';
 
 export interface SimulationDiagnostics {
   seq: number;
@@ -295,9 +296,19 @@ export interface BoutExplanationSnapshot {
   runLabel?: string;
   seed?: number;
   division?: Division;
+  rank?: Rank;
   formatKind?: BashoFormatKind;
+  totalBouts?: number;
   calendarDay?: number;
   boutOrdinal?: number;
+  currentWins?: number;
+  currentLosses?: number;
+  currentWinStreak?: number;
+  currentLossStreak?: number;
+  previousResult?: 'WIN' | 'LOSS' | 'ABSENT';
+  titleImplication?: 'DIRECT' | 'CHASE' | 'NONE';
+  boundaryImplication?: 'PROMOTION' | 'DEMOTION' | 'NONE';
+  isKinboshiContext?: boolean;
   baseWinProbability?: number;
   winProbability?: number;
   baselineWinProbability?: number;
@@ -345,5 +356,48 @@ export const withBoutExplanationSnapshotCollector = async <T>(
   } finally {
     boutExplanationSnapshotCollector = previousCollector;
     boutExplanationSnapshotRunContext = previousContext;
+  }
+};
+
+export interface BoutFlowDiagnosticSnapshotRunContext {
+  runLabel?: string;
+  seed?: number;
+}
+
+type CollectedBoutFlowDiagnosticSnapshot =
+  BoutFlowDiagnosticSnapshot & BoutFlowDiagnosticSnapshotRunContext;
+
+type BoutFlowDiagnosticSnapshotCollector = (snapshot: CollectedBoutFlowDiagnosticSnapshot) => void;
+
+let boutFlowDiagnosticSnapshotCollector: BoutFlowDiagnosticSnapshotCollector | null = null;
+let boutFlowDiagnosticSnapshotRunContext: BoutFlowDiagnosticSnapshotRunContext = {};
+
+export const recordBoutFlowDiagnosticSnapshot = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+): void => {
+  if (!boutFlowDiagnosticSnapshotCollector) return;
+  boutFlowDiagnosticSnapshotCollector({
+    ...boutFlowDiagnosticSnapshotRunContext,
+    ...snapshot,
+  });
+};
+
+export const isBoutFlowDiagnosticSnapshotEnabled = (): boolean =>
+  boutFlowDiagnosticSnapshotCollector !== null;
+
+export const withBoutFlowDiagnosticSnapshotCollector = async <T>(
+  context: BoutFlowDiagnosticSnapshotRunContext,
+  collector: BoutFlowDiagnosticSnapshotCollector,
+  run: () => Promise<T> | T,
+): Promise<T> => {
+  const previousCollector = boutFlowDiagnosticSnapshotCollector;
+  const previousContext = boutFlowDiagnosticSnapshotRunContext;
+  boutFlowDiagnosticSnapshotCollector = collector;
+  boutFlowDiagnosticSnapshotRunContext = context;
+  try {
+    return await run();
+  } finally {
+    boutFlowDiagnosticSnapshotCollector = previousCollector;
+    boutFlowDiagnosticSnapshotRunContext = previousContext;
   }
 };
