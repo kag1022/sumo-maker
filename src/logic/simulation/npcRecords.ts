@@ -5,7 +5,6 @@ import type { LowerDivisionQuotaWorld } from './lowerQuota';
 import { resolveTopDivisionRank } from './topDivision/rank';
 import type { SimulationWorld, TopDivision } from './world';
 import { resolveYushoResolution } from './yusho';
-import type { PersistentActor } from './npc/types';
 
 type LowerDivision = 'Makushita' | 'Sandanme' | 'Jonidan' | 'Jonokuchi';
 
@@ -22,18 +21,6 @@ const isLowerDivision = (division: Rank['division']): division is LowerDivision 
   division === 'Jonidan' ||
   division === 'Jonokuchi';
 
-const toNpcSnapshotFields = (npc?: PersistentActor): Partial<NpcBashoAggregate> => ({
-  stableId: npc?.stableId,
-  ability: npc?.ability,
-  basePower: npc?.basePower,
-  form: npc?.form,
-  uncertainty: npc?.uncertainty,
-  heightCm: npc?.heightCm,
-  weightKg: npc?.weightKg,
-  styleBias: npc?.styleBias,
-  careerBashoCount: npc?.careerBashoCount,
-});
-
 export const buildSekitoriNpcRecords = (
   world: SimulationWorld,
   makuuchiLayout: MakuuchiLayout,
@@ -46,11 +33,9 @@ export const buildSekitoriNpcRecords = (
       .filter((result) => !result.isPlayer)
       .map((result) => {
         const rank = resolveTopDivisionRank(division, result.rankScore, makuuchiLayout);
-        const npc = world.npcRegistry.get(result.id);
         return {
           entityId: result.id,
           shikona: result.shikona,
-          ...toNpcSnapshotFields(npc),
           division,
           rankName: rank.name,
           rankNumber: rank.number,
@@ -62,6 +47,7 @@ export const buildSekitoriNpcRecords = (
             ...(result.yusho ? ['YUSHO'] : []),
             ...(result.specialPrizes ?? []),
           ],
+          careerBashoCount: world.npcRegistry.get(result.id)?.careerBashoCount,
         };
       });
   };
@@ -98,7 +84,6 @@ export const buildSameDivisionLowerNpcRecords = (
       return {
         entityId: result.id,
         shikona: result.shikona,
-        ...toNpcSnapshotFields(npc),
         division,
         rankName: LOWER_DIVISION_NAME[division],
         rankNumber: number,
@@ -108,6 +93,7 @@ export const buildSameDivisionLowerNpcRecords = (
         losses: result.losses,
         absent: Math.max(0, 7 - (result.wins + result.losses)),
         titles: result.id === yushoId ? ['YUSHO'] : [],
+        careerBashoCount: npc?.careerBashoCount,
       };
     });
 };
