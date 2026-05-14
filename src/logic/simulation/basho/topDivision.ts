@@ -37,6 +37,11 @@ import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { TorikumiParticipant } from '../torikumi/types';
 import { resolvePerformanceMetrics } from './shared';
 import {
+  createBoutOrdinalContext,
+  createBoutPressureContext,
+  resolveBashoFormatPolicy,
+} from './formatPolicy';
+import {
   BashoSimulationResult,
   BoutOutcome,
   PlayerBoutDetail,
@@ -88,6 +93,10 @@ export const runTopDivisionBasho = (
   syncPlayerActorInWorld(world, status, rng);
   finalizeSekitoriPlayerPlacement(world, status);
   const numBouts = CONSTANTS.BOUTS_MAP[division];
+  const formatPolicy = resolveBashoFormatPolicy(division);
+  if (!formatPolicy) {
+    throw new Error(`Unsupported top division basho format: ${division}`);
+  }
   const kimariteCount: Record<string, number> = {};
   const winRouteCount: Record<string, number> = {};
   let wins = 0;
@@ -429,11 +438,27 @@ export const runTopDivisionBasho = (
         bashoFormDelta: opponent.bashoFormDelta,
       };
 
-      const isLastDay = day === numBouts;
+      const ordinal = createBoutOrdinalContext({
+        calendarDay: day,
+        boutOrdinal: day,
+        totalBouts: formatPolicy.totalBouts,
+      });
+      const isLastDay = ordinal.isFinalBout;
       const isYushoContention =
         pair.titleImplication === 'DIRECT' ||
         pair.titleImplication === 'CHASE' ||
         (isLastDay && wins >= numBouts - 2);
+      const pressure = createBoutPressureContext(
+        formatPolicy,
+        ordinal,
+        wins,
+        losses,
+        {
+          isYushoRelevant: isYushoContention,
+          titleImplication: pair.titleImplication,
+          boundaryImplication: pair.boundaryImplication,
+        },
+      );
       const boutContext: BoutContext = {
         day,
         currentWins: wins,
@@ -445,6 +470,9 @@ export const runTopDivisionBasho = (
         opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay,
         isYushoContention,
+        formatKind: formatPolicy.kind,
+        ordinal,
+        pressure,
         contentionTier: pair.contentionTier,
         titleImplication: pair.titleImplication,
         boundaryImplication: pair.boundaryImplication,

@@ -14,6 +14,11 @@ import {
   resolveRankBaselineAbility,
   resolveUnifiedNpcStrength,
 } from './simulation/strength/model';
+import type {
+  BashoFormatPolicy,
+  BoutOrdinalContext,
+  BoutPressureContext,
+} from './simulation/basho/formatPolicy';
 import {
   resolvePlayerFavoriteCompression,
   resolvePlayerStagnationState,
@@ -65,7 +70,7 @@ export interface BattleOpponent extends EnemyStats {
  * 取組コンテキスト（スキル判定に使用）
  */
 export interface BoutContext {
-  day: number;          // 何日目か (1~15)
+  day: number;          // カレンダー上の何日目か (1~15)
   currentWins: number;  // その場所の現在の勝ち数
   currentLosses: number; // その場所の現在の負け数
   consecutiveWins: number; // 連勝数
@@ -73,8 +78,11 @@ export interface BoutContext {
   currentLossStreak?: number; // その場所の現在連敗数
   opponentWinStreak?: number; // 相手の現在連勝数
   opponentLossStreak?: number; // 相手の現在連敗数
-  isLastDay: boolean;   // 千秋楽かどうか
+  isLastDay: boolean;   // 当人の最終取組かどうか（legacy 名）
   isYushoContention: boolean; // 優勝がかかっているか
+  formatKind?: BashoFormatPolicy['kind'];
+  ordinal?: BoutOrdinalContext;
+  pressure?: BoutPressureContext;
   contentionTier?: 'Leader' | 'Contender' | 'Outside';
   titleImplication?: 'DIRECT' | 'CHASE' | 'NONE';
   boundaryImplication?: 'PROMOTION' | 'DEMOTION' | 'NONE';
@@ -380,19 +388,51 @@ const resolveWinRoute = (
   return weightedPick(weights, rng);
 };
 
-const isSeventhWinMatch = (context?: BoutContext): boolean =>
-  (context?.currentWins ?? 0) === 6;
+const isKachiMakeDeciderBout = (context?: BoutContext): boolean =>
+  Boolean(context?.pressure?.isKachiMakeDecider);
 
-const isHighPressureBout = (context?: BoutContext): boolean =>
-  Boolean(
-    context && (
+const isYushoRelevantBout = (context?: BoutContext): boolean =>
+  context?.pressure
+    ? context.pressure.isYushoRelevant
+    : Boolean(
+      context && (
+        (context.isLastDay && context.isYushoContention) ||
+        context.titleImplication === 'DIRECT' ||
+        context.titleImplication === 'CHASE'
+      ),
+    );
+
+const isPromotionRelevantBout = (context?: BoutContext): boolean =>
+  context?.pressure
+    ? context.pressure.isPromotionRelevant
+    : context?.boundaryImplication === 'PROMOTION';
+
+const isDemotionRelevantBout = (context?: BoutContext): boolean =>
+  context?.pressure
+    ? context.pressure.isDemotionRelevant
+    : context?.boundaryImplication === 'DEMOTION';
+
+const isHighPressureBout = (context?: BoutContext): boolean => {
+  if (!context) return false;
+  if (context.pressure) {
+    return (
+      context.pressure.isFinalBout ||
+      context.pressure.isKachiMakeDecider ||
+      context.pressure.isYushoRelevant ||
+      context.pressure.isPromotionRelevant ||
+      context.pressure.isDemotionRelevant
+    );
+  }
+  return Boolean(
+    (
       context.isLastDay ||
       context.titleImplication === 'DIRECT' ||
       context.titleImplication === 'CHASE' ||
       context.boundaryImplication === 'PROMOTION' ||
       context.boundaryImplication === 'DEMOTION'
-    ),
+    )
   );
+};
 
 const canTriggerEdgeReversal = (
   winProbability: number,
@@ -407,6 +447,7 @@ const resolveBattleResult = (
 ): { isWin: boolean; kimarite: string; winRoute?: WinRoute; winProbability: number; opponentAbility: number } => {
   const traits = rikishi.traits || [];
   const numBouts = CONSTANTS.BOUTS_MAP[rikishi.rank.division];
+  const boutOrdinal = context?.ordinal?.boutOrdinal ?? context?.day;
   const currentWinStreak = Math.max(0, context?.currentWinStreak ?? context?.consecutiveWins ?? 0);
   const currentLossStreak = Math.max(0, context?.currentLossStreak ?? 0);
   const opponentWinStreak = Math.max(0, context?.opponentWinStreak ?? 0);
@@ -461,22 +502,18 @@ const resolveBattleResult = (
 
   if (traits.includes('KYOUSHINZOU')) {
     const isClutchSpot =
-      isSeventhWinMatch(context) ||
-      (context?.isLastDay && context.isYushoContention) ||
-      context?.titleImplication === 'DIRECT' ||
-      context?.titleImplication === 'CHASE' ||
-      context?.boundaryImplication === 'PROMOTION' ||
-      context?.boundaryImplication === 'DEMOTION';
+      isKachiMakeDeciderBout(context) ||
+      isYushoRelevantBout(context) ||
+      isPromotionRelevantBout(context) ||
+      isDemotionRelevantBout(context);
     if (isClutchSpot) myPower *= 1.1;
   }
   if (traits.includes('NOMI_NO_SHINZOU')) {
     const isImportantMatch = context && (
-      isSeventhWinMatch(context) ||
-      context.titleImplication === 'DIRECT' ||
-      context.titleImplication === 'CHASE' ||
-      context.boundaryImplication === 'PROMOTION' ||
-      context.boundaryImplication === 'DEMOTION' ||
-      (context.isLastDay && context.isYushoContention)
+      isKachiMakeDeciderBout(context) ||
+      isYushoRelevantBout(context) ||
+      isPromotionRelevantBout(context) ||
+      isDemotionRelevantBout(context)
     );
     if (enemy.rankValue <= 2 || isImportantMatch) myPower *= 0.8;
   }
@@ -484,14 +521,14 @@ const resolveBattleResult = (
     traits.includes('OOBUTAI_NO_ONI') &&
     context &&
     (
-      (context.isLastDay && context.isYushoContention) ||
+      isYushoRelevantBout(context) ||
       context.titleImplication === 'DIRECT'
     )
   ) {
     myPower *= 1.2;
   }
   if (traits.includes('RENSHOU_KAIDOU') && currentWinStreak >= 3) myPower += Math.min(8, currentWinStreak * 1.2);
-  if (traits.includes('SLOW_STARTER') && context) myPower *= context.day <= Math.ceil(numBouts / 2) ? 0.94 : 1.06;
+  if (traits.includes('SLOW_STARTER') && context) myPower *= (boutOrdinal ?? context.day) <= Math.ceil(numBouts / 2) ? 0.94 : 1.06;
   if (traits.includes('WEAK_LOWER_BACK') && context && context.currentLosses > context.currentWins) myPower *= 0.92;
   if (traits.includes('OPENING_DASH') && context && context.day <= 3) myPower *= 1.12;
   if (traits.includes('SENSHURAKU_KISHITSU') && context?.isLastDay) myPower *= 1.15;
@@ -505,13 +542,11 @@ const resolveBattleResult = (
     let dnaBonus = 0;
     if (context) {
       const isImportant =
-        isSeventhWinMatch(context) ||
-        (context.isLastDay && context.isYushoContention) ||
+        isKachiMakeDeciderBout(context) ||
+        isYushoRelevantBout(context) ||
         context.currentWins >= 10 ||
-        context.titleImplication === 'DIRECT' ||
-        context.titleImplication === 'CHASE' ||
-        context.boundaryImplication === 'PROMOTION' ||
-        context.boundaryImplication === 'DEMOTION';
+        isPromotionRelevantBout(context) ||
+        isDemotionRelevantBout(context);
       if (isImportant) dnaBonus += gv.clutchBias * 0.1;
     }
     if (context) {

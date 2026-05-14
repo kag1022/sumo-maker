@@ -3,6 +3,7 @@ import { createScopedModule } from '../shared/moduleUtils';
 
 export const simulationTestModule = createScopedModule('simulation', currentTests, [
   'battle',
+  'basho format',
   'engine',
   'growth',
   'matchmaking',

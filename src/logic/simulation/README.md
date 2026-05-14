@@ -55,6 +55,7 @@ runtime API を唯一の入口として使います。
 | `realism.ts` | aptitude profile / career band / stagnation / realism KPI |
 | `playerRealism.ts` | プレイヤー側の realism チェック。下位停滞、上位圧縮、期待勝数補正を持つ |
 | `injury.ts` | 怪我処理 |
+| `basho/formatPolicy.ts` | 15番制 / 7番制、カレンダー日、当人の取組順、勝ち越し・負け越し圧力の共通 policy |
 | `modelVersion.ts` | model version 正規化 |
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |

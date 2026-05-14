@@ -44,6 +44,11 @@ import {
   resolvePlayerStagnationState,
   resolvePlayerRetentionModifier,
 } from '../../../src/logic/simulation/playerRealism';
+import {
+  createBoutOrdinalContext,
+  createBoutPressureContext,
+  resolveBashoFormatPolicy,
+} from '../../../src/logic/simulation/basho/formatPolicy';
 import { calculateMomentumBonus, resolvePlayerAbility, resolveRankBaselineAbility } from '../../../src/logic/simulation/strength/model';
 import { updateAbilityAfterBasho } from '../../../src/logic/simulation/strength/update';
 import { resolveBashoFormDelta } from '../../../src/logic/simulation/variance/bashoVariance';
@@ -108,6 +113,107 @@ const assertUniqueTopRosterSlots = (
 };
 
 export const tests: TestCase[] = [
+  {
+    name: 'basho format: sekitori and lower pressure contexts preserve day and ordinal semantics',
+    run: () => {
+      const sekitori = resolveBashoFormatPolicy('Makuuchi');
+      const lower = resolveBashoFormatPolicy('Makushita');
+      assert.ok(Boolean(sekitori), 'Expected sekitori format policy');
+      assert.ok(Boolean(lower), 'Expected lower format policy');
+      if (!sekitori || !lower) return;
+
+      const sekitoriOrdinal = createBoutOrdinalContext({
+        calendarDay: 15,
+        boutOrdinal: 15,
+        totalBouts: sekitori.totalBouts,
+      });
+      assert.equal(sekitoriOrdinal.calendarDay, 15);
+      assert.equal(sekitoriOrdinal.boutOrdinal, 15);
+      assert.equal(sekitoriOrdinal.isFinalBout, true);
+      assert.equal(sekitoriOrdinal.remainingBouts, 0);
+
+      const lowerOrdinal = createBoutOrdinalContext({
+        calendarDay: 13,
+        boutOrdinal: 7,
+        totalBouts: lower.totalBouts,
+      });
+      assert.equal(lowerOrdinal.calendarDay, 13);
+      assert.equal(lowerOrdinal.boutOrdinal, 7);
+      assert.equal(lowerOrdinal.isFinalBout, true);
+      assert.equal(lowerOrdinal.remainingBouts, 0);
+
+      const lowerDecider = createBoutPressureContext(lower, lowerOrdinal, 3, 3);
+      assert.equal(lowerDecider.isKachikoshiDecider, true);
+      assert.equal(lowerDecider.isMakekoshiDecider, true);
+      assert.equal(lowerDecider.isKachiMakeDecider, true);
+
+      const sekitoriDecider = createBoutPressureContext(sekitori, sekitoriOrdinal, 7, 7);
+      assert.equal(sekitoriDecider.isKachikoshiDecider, true);
+      assert.equal(sekitoriDecider.isMakekoshiDecider, true);
+      assert.equal(sekitoriDecider.isKachiMakeDecider, true);
+
+      assert.equal(resolveBashoFormatPolicy('Maezumo'), null);
+    },
+  },
+  {
+    name: 'battle: currentWins six is not pressure when explicit pressure context is quiet',
+    run: () => {
+      const policy = resolveBashoFormatPolicy('Makuuchi');
+      assert.ok(Boolean(policy), 'Expected sekitori format policy');
+      if (!policy) return;
+      const ordinal = createBoutOrdinalContext({
+        calendarDay: 7,
+        boutOrdinal: 7,
+        totalBouts: policy.totalBouts,
+      });
+      const pressure = createBoutPressureContext(policy, ordinal, 6, 0);
+      assert.equal(pressure.isKachikoshiDecider, false);
+      assert.equal(pressure.isMakekoshiDecider, false);
+      assert.equal(pressure.isKachiMakeDecider, false);
+
+      const status = createStatus({
+        traits: ['KYOUSHINZOU'],
+        stats: {
+          tsuki: 70,
+          oshi: 70,
+          kumi: 70,
+          nage: 70,
+          koshi: 70,
+          deashi: 70,
+          waza: 70,
+          power: 70,
+        },
+      });
+      const baseline = createStatus({
+        traits: [],
+        stats: status.stats,
+      });
+      const enemy: EnemyStats = {
+        shikona: '標準敵',
+        rankValue: 7,
+        power: 70,
+        heightCm: 182,
+        weightKg: 140,
+        styleBias: 'BALANCE',
+      };
+      const context = {
+        day: 7,
+        currentWins: 6,
+        currentLosses: 0,
+        consecutiveWins: 0,
+        currentWinStreak: 0,
+        currentLossStreak: 0,
+        isLastDay: false,
+        isYushoContention: false,
+        formatKind: policy.kind,
+        ordinal,
+        pressure,
+      };
+      const result = calculateBattleResult(status, enemy, context, () => 0.5);
+      const baselineResult = calculateBattleResult(baseline, enemy, context, () => 0.5);
+      assert.equal(result.winProbability, baselineResult.winProbability);
+    },
+  },
   {
     name: 'battle: deterministic win path',
     run: () => {
