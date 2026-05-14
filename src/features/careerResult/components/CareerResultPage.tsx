@@ -102,8 +102,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
     ledger.points[ledger.points.length - 1] ??
     null;
   const selectedNpc = React.useMemo(
-    () => (selectedNpcId ? buildNpcCareerDetail(bashoRows, selectedNpcId, viewState.selectedBashoSeq) : null),
-    [bashoRows, selectedNpcId, viewState.selectedBashoSeq],
+    () => (selectedNpcId ? buildNpcCareerDetail(detail, selectedNpcId) : null),
+    [detail, selectedNpcId],
   );
   const placeSummary = React.useMemo(
     () => buildCareerPlaceSummary(detail, selectedPoint),
@@ -303,7 +303,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                   <div className={styles.sideEmpty}>
                     <div className={styles.sideEmptyKicker}>補助欄</div>
                     <div className={styles.sideEmptyTitle}>近傍力士を開く</div>
-                    <p className={styles.sideEmptyCopy}>番付や取組に表示される力士名を選ぶと、この場所で接していた相手の略歴を右側に表示します。</p>
+                    <p className={styles.sideEmptyCopy}>番付や取組に表示される力士名を選ぶと、この場所で保存された番付行を右側に表示します。</p>
                   </div>
                 )}
               </aside>

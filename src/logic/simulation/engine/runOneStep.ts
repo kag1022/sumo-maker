@@ -565,6 +565,12 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
 
   state.seq += 1;
 
+  const sekitoriNpc = buildSekitoriNpcRecords(world, bashoMakuuchiLayout);
+  const sameDivisionNpc = buildSameDivisionLowerNpcRecords(lowerDivisionQuotaWorld, currentRank);
+  const npcBashoRecords = mergeNpcBashoRecords(
+    sekitoriNpc,
+    currentRank.division === 'Makuuchi' || currentRank.division === 'Juryo' ? [] : sameDivisionNpc,
+  );
   const populationAdvance = runAttritionLeaguePhase(
     {
       world,
@@ -634,12 +640,6 @@ export const runOneStep = async (context: RunOneStepContext): Promise<Simulation
     },
   };
 
-  const sekitoriNpc = buildSekitoriNpcRecords(world, bashoMakuuchiLayout);
-  const sameDivisionNpc = buildSameDivisionLowerNpcRecords(lowerDivisionQuotaWorld, currentRank);
-  const npcBashoRecords = mergeNpcBashoRecords(
-    sekitoriNpc,
-    currentRank.division === 'Makuuchi' || currentRank.division === 'Juryo' ? [] : sameDivisionNpc,
-  );
   state.runtimeNarrative.rivalry = appendRuntimeRivalryStep(state.runtimeNarrative.rivalry, {
     bashoSeq: state.seq,
     year: bashoRecord.year,

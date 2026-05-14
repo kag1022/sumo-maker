@@ -50,7 +50,6 @@ import {
   resolveKimariteFamilyLabel,
   resolveKimariteRarityLabel,
 } from '../kimarite/catalog';
-import { getRankValueForChart } from '../ranking';
 import { deriveOyakataProfile } from '../oyakata/profile';
 import {
   ensureStyleIdentityProfile,
@@ -470,6 +469,7 @@ const toNpcBashoRows = (
     year,
     month,
     shikona: record.shikona,
+    stableId: record.stableId,
     division: record.division,
     rankName: record.rankName,
     rankNumber: record.rankNumber,
@@ -479,20 +479,19 @@ const toNpcBashoRows = (
     losses: record.losses,
     absent: record.absent,
     titles: record.titles,
+    ability: record.ability,
+    basePower: record.basePower,
+    form: record.form,
+    uncertainty: record.uncertainty,
+    heightCm: record.heightCm,
+    weightKg: record.weightKg,
+    styleBias: record.styleBias,
+    careerBashoCount: record.careerBashoCount,
   }));
 };
 
-const normalizePersistentOpponentId = (opponentId?: string): string | undefined => {
-  if (!opponentId) return undefined;
-  return opponentId.startsWith('JURYO_GUEST_')
-    ? opponentId.slice('JURYO_GUEST_'.length)
-    : opponentId;
-};
-
-const LOWER_DIVISION_PERSIST_NEARBY_RANGE = 5;
-
-const filterPersistedNpcRecords = (
-  chunk: Pick<AppendBashoChunkParams, 'playerRecord' | 'playerBouts' | 'npcRecords'>,
+const listPersistedNpcRecords = (
+  chunk: Pick<AppendBashoChunkParams, 'playerRecord' | 'npcRecords'>,
 ): NpcBashoAggregate[] => {
   const recordsById = new Map<string, NpcBashoAggregate>();
   for (const record of chunk.npcRecords) {
@@ -501,46 +500,12 @@ const filterPersistedNpcRecords = (
     }
   }
 
-  const selectedIds = new Set<string>();
-  for (const record of recordsById.values()) {
-    if (record.division === 'Makuuchi' || record.division === 'Juryo') {
-      selectedIds.add(record.entityId);
-    }
-  }
-
   const playerDivision = chunk.playerRecord.rank.division;
-  if (
-    playerDivision === 'Makushita' ||
-    playerDivision === 'Sandanme' ||
-    playerDivision === 'Jonidan' ||
-    playerDivision === 'Jonokuchi'
-  ) {
-    const playerRankValue = getRankValueForChart(chunk.playerRecord.rank);
-    for (const bout of chunk.playerBouts) {
-      const normalizedId = normalizePersistentOpponentId(bout.opponentId);
-      if (normalizedId && recordsById.has(normalizedId)) {
-        selectedIds.add(normalizedId);
-      }
-    }
-    for (const record of recordsById.values()) {
-      if (record.division !== playerDivision) continue;
-      const rankValue = getRankValueForChart({
-        division: record.division,
-        name: record.rankName,
-        number: record.rankNumber,
-        side: record.rankSide,
-      });
-      const isNearby = Math.abs(rankValue - playerRankValue) <= LOWER_DIVISION_PERSIST_NEARBY_RANGE;
-      const isTitled = (record.titles?.length ?? 0) > 0;
-      if (isNearby || isTitled) {
-        selectedIds.add(record.entityId);
-      }
-    }
-  }
-
-  return [...selectedIds]
-    .map((id) => recordsById.get(id))
-    .filter((record): record is NpcBashoAggregate => Boolean(record));
+  // 場所別画面の番付表はこの保存行だけを正とし、閲覧時にNPC現状態から復元しない。
+  return [...recordsById.values()].filter((record) =>
+    record.division === 'Makuuchi' ||
+    record.division === 'Juryo' ||
+    record.division === playerDivision);
 };
 
 const toBoutRows = (
@@ -833,7 +798,7 @@ const appendBashoChunksInternal = async (
 
   for (const chunk of chunks) {
     bashoRows.push(toPlayerBashoRow(chunk.careerId, chunk.seq, chunk.playerRecord, chunk.playerShikona));
-    const persistedNpcRecords = filterPersistedNpcRecords(chunk);
+    const persistedNpcRecords = listPersistedNpcRecords(chunk);
     bashoRows.push(...toNpcBashoRows(
       chunk.careerId,
       chunk.seq,
