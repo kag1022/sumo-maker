@@ -7,7 +7,9 @@ import {
   normalizePlayerBoutCompatInput,
   resolvePlayerBoutCompat,
 } from '../../../src/logic/simulation/combat/playerCompat';
+import { resolveCombatKernelProbability } from '../../../src/logic/simulation/combat/kernel';
 import { resolveBashoFormatPolicy } from '../../../src/logic/simulation/basho/formatPolicy';
+import { resolveBoutWinProb } from '../../../src/logic/simulation/strength/model';
 import type { TestCase } from '../types';
 import {
   assert,
@@ -205,6 +207,46 @@ export const tests: TestCase[] = [
       assert.equal(result.winRoute, 'PUSH_OUT');
       assert.equal(result.winProbability, 0.51);
       assert.equal(result.opponentAbility, 88);
+    },
+  },
+  {
+    name: 'combat kernel: source and metadata do not affect probability',
+    run: () => {
+      const probabilityInput = {
+        attackerAbility: 102,
+        defenderAbility: 97,
+        attackerStyle: 'PUSH' as const,
+        defenderStyle: 'TECHNIQUE' as const,
+        injuryPenalty: 1,
+        bonus: 0.35,
+      };
+      const directProbability = resolveBoutWinProb(probabilityInput);
+      const kernelOutput = resolveCombatKernelProbability({
+        source: 'PLAYER_BASE',
+        ...probabilityInput,
+        metadata: {
+          division: 'Juryo',
+          formatKind: 'SEKITORI_15',
+          calendarDay: 8,
+          boutOrdinal: 8,
+          pressureFlags: { isKachiMakeDecider: true },
+        },
+      });
+      assert.equal(kernelOutput.probability, directProbability);
+      assert.equal(kernelOutput.input.source, 'PLAYER_BASE');
+      assert.equal(kernelOutput.input.metadata?.calendarDay, 8);
+
+      const baselineOutput = resolveCombatKernelProbability({
+        source: 'PLAYER_BASELINE',
+        ...probabilityInput,
+        metadata: {
+          division: 'Makushita',
+          formatKind: 'LOWER_7',
+          calendarDay: 13,
+          boutOrdinal: 7,
+        },
+      });
+      assert.equal(baselineOutput.probability, directProbability);
     },
   },
 ];

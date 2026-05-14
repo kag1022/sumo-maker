@@ -13,6 +13,7 @@ import {
   type PlayerBoutCompatNormalizedInput,
   type PlayerBoutCompatResult,
 } from './simulation/combat/playerCompat';
+import { resolveCombatKernelProbability } from './simulation/combat/kernel';
 import {
   calculateMomentumBonus,
   resolveBoutWinProb,
@@ -592,7 +593,6 @@ const resolveBattleResult = (
     injuryPenalty,
     bonus: momentumDelta,
   };
-  const baseWinProbability = resolveBoutWinProb(baseWinProbInput);
   const baselineWinProbInput = {
     attackerAbility: resolveRankBaselineAbility(rikishi.rank) * playerCompetitiveFactor,
     defenderAbility: enemyAbility,
@@ -601,7 +601,23 @@ const resolveBattleResult = (
     injuryPenalty,
     bonus: momentumDelta,
   };
-  const baselineWinProbability = resolveBoutWinProb(baselineWinProbInput);
+  const combatKernelMetadata = {
+    division: rikishi.rank.division,
+    formatKind: context?.formatKind,
+    calendarDay: context?.ordinal?.calendarDay ?? context?.day,
+    boutOrdinal: context?.ordinal?.boutOrdinal,
+    pressureFlags: context?.pressure,
+  };
+  const baseWinProbability = resolveCombatKernelProbability({
+    source: 'PLAYER_BASE',
+    ...baseWinProbInput,
+    metadata: combatKernelMetadata,
+  }).probability;
+  const baselineWinProbability = resolveCombatKernelProbability({
+    source: 'PLAYER_BASELINE',
+    ...baselineWinProbInput,
+    metadata: combatKernelMetadata,
+  }).probability;
   const projectedExpectedWins = (context?.expectedWinsSoFar ?? 0) + baseWinProbability;
   const stagnation = resolvePlayerStagnationState({
     age: rikishi.age,
