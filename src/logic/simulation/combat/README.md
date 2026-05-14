@@ -29,11 +29,13 @@ Current builders are pure and readonly:
 
 `preBoutPhase.ts` is diagnostic-only infrastructure for future phase / explanation work. It derives inspectable PreBoutPhase weights from already-available combat descriptors and must not affect production battle resolution until a separate behavior task accepts the RNG and distribution impact.
 
-`boutFlowModel.ts` defines the future vocabulary for reading one bout as `OpeningPhase -> ControlPhase -> FinishRoute -> Kimarite`. It is a contract-only layer: current `PreBoutPhase` is the OpeningPhase predecessor, `BoutEngagement` / `EngagementPhase` is the ControlPhase predecessor, `WinRoute` is the FinishRoute predecessor, and `KimariteOutcomeResolution` / catalog metadata is the Kimarite layer. Current production battle behavior and diagnostics output remain unchanged.
+`boutFlowModel.ts` defines the complete future vocabulary for reading one bout as `OpeningPhase -> ControlPhase -> Transition -> FinishRoute -> Kimarite -> 勝敗要因 -> 星取文脈 -> 番付文脈`. It is a contract-only layer: current `PreBoutPhase` is the OpeningPhase predecessor, `BoutEngagement` / `EngagementPhase` is the ControlPhase predecessor, `WinRoute` is the FinishRoute predecessor, and `KimariteOutcomeResolution` / catalog metadata is the Kimarite layer. Current production battle behavior remains unchanged.
 
 `controlPhaseAdapter.ts` is diagnostic-only vocabulary glue. It converts `ControlPhasePredecessor` (`BoutEngagement.phase`) into a conservative `ControlPhaseCandidate` without sampling engagement, changing route bias, or treating the predecessor enum as the ideal ControlPhase enum. Direct mappings are limited to exact shared vocabulary, `EDGE_SCRAMBLE` is renamed to `EDGE_BATTLE`, and `MIXED` is marked ambiguous unless existing finish-route / kimarite-pattern evidence makes an inferred candidate readable.
 
-`boutFlowDiagnosticSnapshot.ts` composes a report-only snapshot for reading `OpeningPhase -> ControlPhaseCandidate -> FinishRoute -> Kimarite` as one flow. It adds opening/control confidence and transition classification, but it must remain outside production battle, persistence, worker protocol, and UI.
+`boutFlowDiagnosticSnapshot.ts` composes a report-only snapshot for reading `OpeningPhase -> ControlPhaseCandidate -> FinishRoute -> Kimarite` as one flow. It adds opening/control confidence, transition classification, and explanation-axis coverage (`FLOW_ONLY` / `FLOW_AND_RESULT` / `COMPLETE_CONTEXT`), but it must remain outside production battle, persistence, worker protocol, and UI.
+
+The complete design note is `BoutFlowCompleteDesign.md`. It defines the required type surface, explanation素材 axes, diagnostic indicators, acceptance conditions, and implementation roadmap before this model is allowed to become player-facing.
 
 Player PreBoutPhase snapshots are collected only through the opt-in diagnostics collector in `simulation/diagnostics.ts`. The collector records deterministic weights and reason tags only; it does not sample a phase with production RNG and must not add fields to `calculateBattleResult`, `PlayerBoutDetail`, persistence rows, worker protocol, App, or UI.
 
