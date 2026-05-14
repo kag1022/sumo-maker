@@ -458,6 +458,81 @@ const banzukeSpec = (tag: BanzukeContextTag): MaterialSpec => ({
   tags: [`banzuke:${tag}`],
 });
 
+const shortOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.openingPhase) {
+    case 'THRUST_BATTLE':
+      return '立合いから押し';
+    case 'BELT_BATTLE':
+      return snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? '差し手争いから離れ'
+        : '四つの攻防から組み止め';
+    case 'TECHNIQUE_SCRAMBLE':
+      return '相手の出方を見て';
+    case 'EDGE_BATTLE':
+      return '土俵際で残し';
+    case 'QUICK_COLLAPSE':
+      return '立合い直後の崩れを逃さず';
+    case 'MIXED':
+      return '押し、組み、いなしが交じる中で';
+  }
+};
+
+const shortControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.controlPhaseCandidate) {
+    case 'THRUST_BATTLE':
+      return snapshot.openingPhase === 'BELT_BATTLE'
+        ? '押して'
+        : '前に出て';
+    case 'BELT_BATTLE':
+      return snapshot.openingPhase === 'BELT_BATTLE' ? '' : '組み止めて';
+    case 'TECHNIQUE_SCRAMBLE':
+      return '動きに合わせ';
+    case 'EDGE_BATTLE':
+      return snapshot.openingPhase === 'EDGE_BATTLE' ? '' : '体を残し';
+    case 'QUICK_COLLAPSE':
+      return '';
+    case 'MIXED':
+      return '形を探り';
+    case undefined:
+      return '';
+  }
+};
+
+const shortFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.finishRoute) {
+    case 'PUSH_OUT':
+      return '土俵外へ出した';
+    case 'BELT_FORCE':
+      return '寄り切った';
+    case 'THROW_BREAK':
+      return '投げで崩した';
+    case 'PULL_DOWN':
+      return snapshot.openingPhase === 'QUICK_COLLAPSE'
+        ? '前に落とした'
+        : 'いなしで前に落とした';
+    case 'EDGE_REVERSAL':
+      return '体を入れ替えた';
+    case 'REAR_FINISH':
+      return '後ろを取って決めた';
+    case 'LEG_ATTACK':
+      return '足元から崩した';
+  }
+};
+
+const createShortCommentary = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  hoshitori: BoutFlowCommentaryMaterial,
+  banzuke: BoutFlowCommentaryMaterial,
+): string => {
+  const flowText = [
+    shortOpeningClause(snapshot),
+    shortControlClause(snapshot),
+    shortFinishClause(snapshot),
+  ].filter((text) => text.length > 0).join('、');
+
+  return `${snapshot.kimarite.name}。${flowText}。${hoshitori.text}${banzuke.text}`;
+};
+
 export const createBoutFlowCommentaryDiagnostic = (
   snapshot: BoutFlowDiagnosticSnapshot,
 ): BoutFlowCommentaryDiagnostic => {
@@ -529,7 +604,7 @@ export const createBoutFlowCommentaryDiagnostic = (
     `${transition.text}${finish.text}${kimarite.text}`,
     `${victory.text}${hoshitori.text}${banzuke.text}`,
   ];
-  const shortCommentary = `${snapshot.kimarite.name}。${transition.text}${hoshitori.text}${banzuke.text}`;
+  const shortCommentary = createShortCommentary(snapshot, hoshitori, banzuke);
 
   return {
     generated: true,

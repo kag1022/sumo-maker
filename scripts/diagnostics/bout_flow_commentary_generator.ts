@@ -375,6 +375,14 @@ const report = {
     'no kimarite selection call',
     'no DB, worker, or UI payload',
   ],
+  officialHomepageReference: {
+    source: 'https://www.sumo.or.jp/index.php',
+    inspectedContract: [
+      '取組解説は getMatchRikishi(...) から result_technic と result_comment を分けて表示する',
+      'result_comment は立合い、主導権、転換、土俵位置、決着、星取結果を短い一連の文で扱う',
+      '本文は公式文の丸写しではなく、情報密度と事実中心の構造だけを参考にする',
+    ],
+  },
   scenarioCount: scenarios.length,
   sameKimariteVariation: {
     kimarite: pushOut.name,
@@ -393,6 +401,7 @@ const report = {
   audit,
   materialImprovementsApplied: [
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
+    'shortCommentary now mirrors the official homepage shape of result technic plus compact bout explanation',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
@@ -436,4 +445,5 @@ console.log(JSON.stringify({
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,
   duplicateShortCommentaries: report.audit.duplicateExpressions.duplicateShortCommentaries,
   productionGuardrails: report.productionGuardrails,
+  officialHomepageReference: report.officialHomepageReference.inspectedContract,
 }, null, 2));
