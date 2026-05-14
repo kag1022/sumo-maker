@@ -39,6 +39,11 @@ import {
   toBoundarySnapshotsByDivision,
 } from './shared';
 import {
+  createBoutOrdinalContext,
+  createBoutPressureContext,
+  resolveBashoFormatPolicy,
+} from './formatPolicy';
+import {
   BashoSimulationResult,
   BoutOutcome,
   PlayerBoutDetail,
@@ -201,6 +206,10 @@ export const runLowerDivisionBasho = (
   }
 
   const numBouts = CONSTANTS.BOUTS_MAP[division];
+  const formatPolicy = resolveBashoFormatPolicy(division);
+  if (!formatPolicy) {
+    throw new Error(`Unsupported lower division basho format: ${division}`);
+  }
   let wins = 0;
   let losses = 0;
   let absent = 0;
@@ -478,11 +487,29 @@ export const runLowerDivisionBasho = (
         return;
       }
 
-      const isLastBout = player.boutsDone >= numBouts;
+      const boundaryImplication = resolvePlayerBoundaryImplication(pair, player.id);
+      const ordinal = createBoutOrdinalContext({
+        calendarDay: day,
+        // scheduler は onPair の前に boutsDone を加算するため、この時点の値が当人の取組順。
+        boutOrdinal: player.boutsDone,
+        totalBouts: formatPolicy.totalBouts,
+      });
+      const isLastBout = ordinal.isFinalBout;
       const isYushoContention =
         pair.titleImplication === 'DIRECT' ||
         pair.titleImplication === 'CHASE' ||
         (isLastBout && wins >= numBouts - 1);
+      const pressure = createBoutPressureContext(
+        formatPolicy,
+        ordinal,
+        wins,
+        losses,
+        {
+          isYushoRelevant: isYushoContention,
+          titleImplication: pair.titleImplication,
+          boundaryImplication,
+        },
+      );
       const boutContext: BoutContext = {
         day,
         currentWins: wins,
@@ -494,9 +521,12 @@ export const runLowerDivisionBasho = (
         opponentLossStreak: opponent.currentLossStreak ?? 0,
         isLastDay: isLastBout,
         isYushoContention,
+        formatKind: formatPolicy.kind,
+        ordinal,
+        pressure,
         contentionTier: pair.contentionTier,
         titleImplication: pair.titleImplication,
-        boundaryImplication: resolvePlayerBoundaryImplication(pair, player.id),
+        boundaryImplication,
         schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,
@@ -512,7 +542,7 @@ export const runLowerDivisionBasho = (
         rankSide,
         stableId: opponent.stableId,
         power: Math.round(opponent.power + (rng() * 2 - 1) * enemyPowerNoise),
-        ability: (opponent.ability ?? opponent.power) + (opponent.bashoFormDelta ?? 0),
+        ability: opponent.ability ?? opponent.power,
         styleBias: opponent.styleBias ?? 'BALANCE',
         heightCm: opponent.heightCm ?? 180,
         weightKg: opponent.weightKg ?? 130,

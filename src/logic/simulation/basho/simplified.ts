@@ -17,6 +17,11 @@ import {
 } from '../topDivision/bashoSummary';
 import { BashoSimulationResult, BoutOutcome, PlayerBoutDetail } from './types';
 import { resolvePerformanceMetrics } from './shared';
+import {
+  createBoutOrdinalContext,
+  createBoutPressureContext,
+  resolveBashoFormatPolicy,
+} from './formatPolicy';
 
 export const runSimplifiedBasho = (
   status: RikishiStatus,
@@ -25,6 +30,7 @@ export const runSimplifiedBasho = (
   rng: RandomSource,
 ): BashoSimulationResult => {
   const numBouts = CONSTANTS.BOUTS_MAP[status.rank.division];
+  const formatPolicy = resolveBashoFormatPolicy(status.rank.division);
   let wins = 0;
   let losses = 0;
   let absent = 0;
@@ -92,8 +98,24 @@ export const runSimplifiedBasho = (
     }
 
     const enemy = generateEnemy(status.rank.division, year, rng);
-    const isLastDay = day === numBouts;
+    const ordinal = formatPolicy
+      ? createBoutOrdinalContext({
+        calendarDay: day,
+        boutOrdinal: day,
+        totalBouts: formatPolicy.totalBouts,
+      })
+      : undefined;
+    const isLastDay = ordinal?.isFinalBout ?? day === numBouts;
     const isYushoContention = isLastDay && wins >= numBouts - 2;
+    const pressure = formatPolicy && ordinal
+      ? createBoutPressureContext(
+        formatPolicy,
+        ordinal,
+        wins,
+        losses,
+        { isYushoRelevant: isYushoContention },
+      )
+      : undefined;
 
     const boutContext: BoutContext = {
       day,
@@ -104,6 +126,9 @@ export const runSimplifiedBasho = (
       currentLossStreak,
       isLastDay,
       isYushoContention,
+      ...(formatPolicy && ordinal && pressure
+        ? { formatKind: formatPolicy.kind, ordinal, pressure }
+        : {}),
       previousResult,
       expectedWinsSoFar: expectedWins,
     };

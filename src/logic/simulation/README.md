@@ -20,6 +20,7 @@ runtime API を唯一の入口として使います。
 | パス | 役割 |
 |------|------|
 | `engine/` | 場所単位の進行エンジン本体 |
+| `combat/` | 将来の勝敗 kernel 向け readonly combat profile 契約 |
 | `torikumi/` | 取組編成 |
 | `strength/` | 能力更新・平均回帰・期待勝数差の反映 |
 | `retirement/` | 引退判定 |
@@ -55,9 +56,21 @@ runtime API を唯一の入口として使います。
 | `realism.ts` | aptitude profile / career band / stagnation / realism KPI |
 | `playerRealism.ts` | プレイヤー側の realism チェック。下位停滞、上位圧縮、期待勝数補正を持つ |
 | `injury.ts` | 怪我処理 |
+| `basho/formatPolicy.ts` | 15番制 / 7番制、カレンダー日、当人の取組順、勝ち越し・負け越し圧力の共通 policy |
+| `combat/profile.ts` | `BashoCombatProfile` の純粋 builder。現段階では勝敗結果には使わない |
+| `combat/playerCompat.ts` | player 取組用の互換 wrapper。現行 resolver への入力・RNG・戻り値を保ったまま境界だけを作る |
 | `modelVersion.ts` | model version 正規化 |
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |
+
+## 場所形式の意味論
+
+- `basho/formatPolicy.ts` は 15番制 / 7番制の場所形式を扱う。
+- `day` はカレンダー日、`boutOrdinal` は当人にとっての取組順を表す。
+- 下位は 15日間のカレンダー内に 7番を配置し、関取は 15日間に15番を取る。
+- `isLastDay` は legacy 名で、意味は千秋楽ではなく当人の最終予定取組。
+- プレイヤー取組の実在相手は raw ability と `bashoFormDelta` を分けて渡し、勝敗計算側で場所調子を一度だけ適用する。
+- 前相撲はこの段階では新 policy に入れず、legacy passthrough とする。
 
 ## 公開 API
 

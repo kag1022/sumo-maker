@@ -4,6 +4,7 @@ import { tests as currentTests } from './current';
 import { architectureTestModule } from './modules/architecture';
 import { banzukeTestModule } from './modules/banzuke';
 import { calibrationTestModule } from './modules/calibration';
+import { combatTestModule } from './modules/combat';
 import { compatTestModule } from './modules/compat';
 import { gameplayTestModule } from './modules/gameplay';
 import { experienceTestModule } from './modules/experience';
@@ -47,6 +48,7 @@ const normalizeSuites = (values: string[]): TestSuite[] => {
 export const testModules: TestModule[] = [
   architectureTestModule,
   calibrationTestModule,
+  combatTestModule,
   compatTestModule,
   banzukeTestModule,
   simulationTestModule,

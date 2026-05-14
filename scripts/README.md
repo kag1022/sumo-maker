@@ -28,6 +28,16 @@ sim tests の runner とテスト本体。
 長期分布系の report / probe / verification は `src/logic/simulation/observation/` を
 正式入口にし、`world` や `runOneStep` を直接呼ばないでください。
 
+### `diagnostics/`
+
+実装前の差分観測や入力 snapshot 用の軽量診断。
+
+- `combat_kernel_input_snapshot.ts` player / NPC の `resolveBoutWinProb` 入力を固定 seed で記録する
+- `npc_bout_mutation_parity.ts` NPC 取組の RNG 消費と mutation 形状を分岐別に記録する
+- `prebout_phase_diagnostics.ts` PreBoutPhase の診断用分布を固定 seed の合成サンプルで記録する
+- `prebout_phase_player_collector.ts` player 取組の PreBoutPhase weights を opt-in collector 経由で記録する
+- `bout_explanation_player_collector.ts` player 取組の説明材料を opt-in collector 経由で記録する
+
 ### `shared/`
 
 scripts 間共有の補助。
