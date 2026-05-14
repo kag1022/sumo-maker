@@ -2,7 +2,8 @@
 
 資料館のコレクション閲覧画面です。保存済みキャリアから解放された人物・親方・決まり手・実績を読むための UI を担当します。
 
-- `ArchiveCollectionScreen.tsx` 資料館の一覧、絞り込み、選択状態、表示カード
+- `ArchiveCollectionScreen.tsx` 資料館サマリー、分類別の収集棚、代表記録カード
+- `ArchiveCollectionScreen.module.css` 資料館画面専用の記録帳風レイアウト
 
 ## 設計ルール
 

@@ -1,17 +1,28 @@
-import React from 'react';
-import { LibraryBig, Eye as TelescopeIcon, Trophy, Layers } from 'lucide-react';
-import { cn } from '../../shared/lib/cn';
-import surface from '../../shared/styles/surface.module.css';
-import typography from '../../shared/styles/typography.module.css';
-import { Button } from '../../shared/ui/Button';
-import { getDb, type CareerRow } from '../../logic/persistence/db';
-import { listArchiveCategories, ARCHIVE_CATEGORIES } from '../../logic/archive/categories';
-import { OBSERVATION_THEMES } from '../../logic/archive/observationThemes';
+import React from "react";
+import {
+  BookOpen,
+  ChevronRight,
+  Compass,
+  Eye as TelescopeIcon,
+  LibraryBig,
+  LockKeyhole,
+  Medal,
+  ScrollText,
+} from "lucide-react";
+import { cn } from "../../shared/lib/cn";
+import surface from "../../shared/styles/surface.module.css";
+import typography from "../../shared/styles/typography.module.css";
+import { Button } from "../../shared/ui/Button";
+import { getDb, type CareerRow } from "../../logic/persistence/db";
+import { listArchiveCategories, ARCHIVE_CATEGORIES } from "../../logic/archive/categories";
+import { OBSERVATION_THEMES } from "../../logic/archive/observationThemes";
 import type {
+  ArchiveCategoryDefinition,
   ArchiveCategoryId,
   CareerTitleTier,
   ObservationThemeId,
-} from '../../logic/archive/types';
+} from "../../logic/archive/types";
+import styles from "./ArchiveCollectionScreen.module.css";
 
 interface ArchiveCollectionScreenProps {
   onOpenCareer: (careerId: string) => void;
@@ -19,24 +30,63 @@ interface ArchiveCollectionScreenProps {
 }
 
 type FilterMode =
-  | 'ALL'
-  | { kind: 'category'; id: ArchiveCategoryId }
-  | { kind: 'theme'; id: ObservationThemeId }
-  | { kind: 'tier'; tier: CareerTitleTier }
-  | 'TITLED';
+  | "ALL"
+  | { kind: "category"; id: ArchiveCategoryId }
+  | { kind: "theme"; id: ObservationThemeId }
+  | { kind: "tier"; tier: CareerTitleTier }
+  | "TITLED";
 
-const TITLE_TIER_STYLE: Record<CareerTitleTier, { wrap: string; label: string }> = {
-  common: { wrap: 'border-white/20 bg-white/[0.04]', label: 'text-text-dim' },
-  uncommon: { wrap: 'border-emerald-400/40 bg-emerald-400/8', label: 'text-emerald-200' },
-  rare: { wrap: 'border-sky-400/45 bg-sky-400/8', label: 'text-sky-200' },
-  epic: { wrap: 'border-fuchsia-400/50 bg-fuchsia-400/8', label: 'text-fuchsia-200' },
-  legendary: { wrap: 'border-amber-300/60 bg-amber-300/10', label: 'text-amber-100' },
+type MuseumGroupKey = "life" | "rank" | "honor" | "torikumi" | "rare";
+
+interface MuseumGroup {
+  key: MuseumGroupKey;
+  title: string;
+  lead: string;
+  categories: ArchiveCategoryDefinition[];
+}
+
+interface MuseumSummary {
+  observedCount: number;
+  savedCount: number;
+  unlockedCategoryCount: number;
+  unlockedTitleCount: number;
+  totalCategoryCount: number;
+  totalTitleSlots: number;
+  recentCareer: CareerRow | null;
+  recentRecordText: string;
+  rankBreakdown: Array<{ label: string; count: number }>;
+  highlights: Array<{ label: string; value: string; note: string }>;
+}
+
+const GROUP_META: Record<MuseumGroupKey, Omit<MuseumGroup, "key" | "categories">> = {
+  life: {
+    title: "力士人生の記録",
+    lead: "入門から終幕までの輪郭が残る棚。",
+  },
+  rank: {
+    title: "番付・昇進の記録",
+    lead: "どこまで上がり、どこで足踏みしたかを読む棚。",
+  },
+  honor: {
+    title: "優勝・賞の記録",
+    lead: "土俵で刻んだ結果と晴れ場を集める棚。",
+  },
+  torikumi: {
+    title: "取組・決まり手の記録",
+    lead: "相手関係や勝ち筋から一代を読むための棚。",
+  },
+  rare: {
+    title: "珍記録・例外的な一代",
+    lead: "まっすぐではない軌跡や、記録として残したい余白の棚。",
+  },
 };
 
+const GROUP_ORDER: MuseumGroupKey[] = ["life", "rank", "honor", "torikumi", "rare"];
+
 const TIER_FILTERS: Array<{ tier: CareerTitleTier; label: string }> = [
-  { tier: 'rare', label: 'R 以上' },
-  { tier: 'epic', label: 'EPIC 以上' },
-  { tier: 'legendary', label: 'LEGEND' },
+  { tier: "rare", label: "希少な称号" },
+  { tier: "epic", label: "特別な称号" },
+  { tier: "legendary", label: "伝説級の称号" },
 ];
 
 const tierRank: Record<CareerTitleTier, number> = {
@@ -47,14 +97,201 @@ const tierRank: Record<CareerTitleTier, number> = {
   legendary: 4,
 };
 
+const PROMOTION_CATEGORY_IDS = new Set<ArchiveCategoryId>([
+  "sekitori_reached",
+  "makuuchi_reached",
+  "sanyaku_reached",
+  "yokozuna_reached",
+]);
+
+const RARE_CATEGORY_IDS = new Set<ArchiveCategoryId>([
+  "fast_riser",
+  "late_bloomer",
+  "long_stagnation",
+]);
+
 const filterEquals = (a: FilterMode, b: FilterMode): boolean => {
   if (a === b) return true;
-  if (typeof a === 'string' || typeof b === 'string') return a === b;
+  if (typeof a === "string" || typeof b === "string") return a === b;
   if (a.kind !== b.kind) return false;
-  if (a.kind === 'tier' && b.kind === 'tier') return a.tier === b.tier;
-  if (a.kind === 'category' && b.kind === 'category') return a.id === b.id;
-  if (a.kind === 'theme' && b.kind === 'theme') return a.id === b.id;
+  if (a.kind === "tier" && b.kind === "tier") return a.tier === b.tier;
+  if (a.kind === "category" && b.kind === "category") return a.id === b.id;
+  if (a.kind === "theme" && b.kind === "theme") return a.id === b.id;
   return false;
+};
+
+const isArchiveCategoryId = (value: string): value is ArchiveCategoryId =>
+  value in ARCHIVE_CATEGORIES;
+
+const toArchiveCategoryIds = (values?: string[]): ArchiveCategoryId[] =>
+  (values ?? []).filter(isArchiveCategoryId);
+
+const formatRankName = (rank: CareerRow["maxRank"]): string => {
+  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
+  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
+  const number = rank.number || 1;
+  return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
+};
+
+const formatCareerPeriod = (
+  row: Pick<CareerRow, "careerStartYearMonth" | "careerEndYearMonth">,
+): string => `${row.careerStartYearMonth} - ${row.careerEndYearMonth || "現在"}`;
+
+const formatRecordLabel = (
+  row: Pick<CareerRow, "totalWins" | "totalLosses" | "totalAbsent">,
+): string => `${row.totalWins}勝${row.totalLosses}敗${row.totalAbsent > 0 ? `${row.totalAbsent}休` : ""}`;
+
+const resolveThemeLabel = (themeId?: string): string | null => {
+  if (!themeId) return null;
+  return OBSERVATION_THEMES[themeId as ObservationThemeId]?.label ?? "観測テーマ未詳";
+};
+
+const resolveCategoryGroupKey = (category: ArchiveCategoryDefinition): MuseumGroupKey => {
+  const text = `${category.label} ${category.description}`;
+  if (/優勝|賞/.test(text)) return "honor";
+  if (/取組|決まり手|宿敵|相手/.test(text)) return "torikumi";
+  if (/晩成|停滞|快進撃|珍|休場|復帰/.test(text)) return "rare";
+  if (/番付|昇進|横綱|大関|三役|幕内|十両|幕下|三段目|壁|関取/.test(text)) return "rank";
+  return "life";
+};
+
+const buildMuseumGroups = (categories: ArchiveCategoryDefinition[]): MuseumGroup[] => {
+  const grouped = new Map<MuseumGroupKey, ArchiveCategoryDefinition[]>();
+  for (const key of GROUP_ORDER) grouped.set(key, []);
+  for (const category of categories) {
+    const key = resolveCategoryGroupKey(category);
+    grouped.get(key)?.push(category);
+  }
+  return GROUP_ORDER.map((key) => ({
+    key,
+    ...GROUP_META[key],
+    categories: grouped.get(key) ?? [],
+  }));
+};
+
+const resolveCategoryReading = (category: ArchiveCategoryDefinition): string => {
+  if (category.id === "yokozuna_reached") return "最高位まで届いた一代を、番付の到達点として残します。";
+  if (category.id === "sekitori_reached") return "十両以上へ進んだ一代を、関取到達の記録として残します。";
+  if (category.id === "makuuchi_reached") return "幕内まで進んだ一代を、上位土俵への到達として残します。";
+  if (category.id === "sanyaku_reached") return "三役まで進んだ一代を、番付上位の記録として残します。";
+  if (category.id === "fast_riser") return "序盤から番付を動かした一代を、勢いのある軌跡として残します。";
+  if (category.id === "late_bloomer") return "遅れて花開いた一代を、時間をかけた伸びとして残します。";
+  if (category.id === "long_stagnation") return "長く同じ帯に留まった一代を、粘りや壁の記録として残します。";
+  if (category.id.startsWith("wall_") || category.id === "makushita_wall") {
+    return "届きそうで届かない番付帯を、読みどころとして残します。";
+  }
+  return "一代の中で見つかった特徴を、資料館の分類として残します。";
+};
+
+const resolveMissingHint = (category: ArchiveCategoryDefinition): string => {
+  if (PROMOTION_CATEGORY_IDS.has(category.id)) {
+    return "高い番付まで届く一代で見つかりやすい記録です。";
+  }
+  if (category.id === "fast_riser") {
+    return "序盤から番付を早く動かす一代で見つかりやすい記録です。";
+  }
+  if (category.id === "late_bloomer") {
+    return "序盤で決まらず、後半に伸びる一代で見つかりやすい記録です。";
+  }
+  if (category.id === "long_stagnation") {
+    return "長く土俵に残り、同じ番付帯で読みどころが出る一代で見つかりやすい記録です。";
+  }
+  return "まだ資料館にない軌跡です。違う入口条件で観測すると見つかる可能性があります。";
+};
+
+const resolveRecentRecordText = (row: CareerRow | null): string => {
+  if (!row) return "まだ記録は増えていません";
+  const delta = row.collectionDeltaCount ?? 0;
+  if (delta > 0) return `${row.shikona}で新規記録 ${delta}件`;
+  const titles = row.archiveTitles?.length ?? 0;
+  if (titles > 0) return `${row.shikona}で称号 ${titles}件`;
+  const categories = row.archiveCategories?.length ?? 0;
+  if (categories > 0) return `${row.shikona}で分類 ${categories}件`;
+  return `${row.shikona}を最近追加`;
+};
+
+const buildRankBreakdown = (rows: CareerRow[]): Array<{ label: string; count: number }> =>
+  [
+    { label: "横綱", count: rows.filter((row) => row.maxRank.name === "横綱").length },
+    { label: "大関", count: rows.filter((row) => row.maxRank.name === "大関").length },
+    { label: "三役", count: rows.filter((row) => ["関脇", "小結"].includes(row.maxRank.name)).length },
+    {
+      label: "幕内",
+      count: rows.filter((row) =>
+        row.maxRank.division === "Makuuchi" &&
+        !["横綱", "大関", "関脇", "小結"].includes(row.maxRank.name),
+      ).length,
+    },
+    { label: "十両以下", count: rows.filter((row) => row.maxRank.division !== "Makuuchi").length },
+  ].filter((entry) => entry.count > 0);
+
+const buildMuseumSummary = (
+  rows: CareerRow[],
+  collectedCategories: Set<string>,
+  collectedTitleIds: Set<string>,
+  totalCategoryCount: number,
+  totalTitleSlots: number,
+): MuseumSummary => {
+  const recentCareer = [...rows].sort((left, right) =>
+    (right.archiveJudgedAt || right.savedAt || right.updatedAt || "").localeCompare(
+      left.archiveJudgedAt || left.savedAt || left.updatedAt || "",
+    ),
+  )[0] ?? null;
+  const yushoCareers = rows.filter((row) =>
+    row.yushoCount.makuuchi + row.yushoCount.juryo + row.yushoCount.makushita + row.yushoCount.others > 0,
+  ).length;
+  const promotionUnlocked = [...PROMOTION_CATEGORY_IDS].filter((id) => collectedCategories.has(id)).length;
+  const rareUnlocked = [...RARE_CATEGORY_IDS].filter((id) => collectedCategories.has(id)).length;
+  const torikumiLikeRecords = rows.reduce((sum, row) => {
+    const titles = row.archiveTitles ?? [];
+    return sum + titles.filter((title) => /取組|決まり手|寄り切り|押し出し|投げ|宿敵/.test(title.label)).length;
+  }, 0);
+
+  return {
+    observedCount: rows.length,
+    savedCount: rows.filter((row) => row.state === "shelved" || row.savedAt).length,
+    unlockedCategoryCount: collectedCategories.size,
+    unlockedTitleCount: collectedTitleIds.size,
+    totalCategoryCount,
+    totalTitleSlots,
+    recentCareer,
+    recentRecordText: resolveRecentRecordText(recentCareer),
+    rankBreakdown: buildRankBreakdown(rows),
+    highlights: [
+      {
+        label: "最高位到達",
+        value: `${promotionUnlocked} / ${PROMOTION_CATEGORY_IDS.size}`,
+        note: promotionUnlocked > 0 ? "関取以上の到達記録あり" : "高位到達の記録は未収集",
+      },
+      {
+        label: "優勝・賞",
+        value: `${yushoCareers}代`,
+        note: collectedTitleIds.size > 0 ? `称号 ${collectedTitleIds.size}件` : "晴れ場の記録はこれから",
+      },
+      {
+        label: "珍記録",
+        value: `${rareUnlocked} / ${RARE_CATEGORY_IDS.size}`,
+        note: rareUnlocked > 0 ? "例外的な軌跡あり" : "まだ標準的な一代が中心",
+      },
+      {
+        label: "取組・決まり手",
+        value: `${torikumiLikeRecords}件`,
+        note: torikumiLikeRecords > 0 ? "取組由来の称号あり" : "今の保存情報では未収集",
+      },
+    ],
+  };
+};
+
+const findRelatedCareer = (rows: CareerRow[], categoryId: ArchiveCategoryId): CareerRow | null =>
+  rows.find((row) => toArchiveCategoryIds(row.archiveCategories).includes(categoryId)) ?? null;
+
+const resolveCareerReadingLine = (row: CareerRow): string => {
+  if (row.archiveTitles?.[0]?.reason) return row.archiveTitles[0].reason;
+  if (row.yushoCount.makuuchi > 0) return `幕内優勝 ${row.yushoCount.makuuchi}回を残した一代。`;
+  if (row.maxRank.name === "横綱") return "最高位まで届いた一代。";
+  if (row.maxRank.division === "Makuuchi") return "幕内まで足跡を残した一代。";
+  if (row.maxRank.division === "Juryo") return "関取として読める期間を持つ一代。";
+  return "観測結果として資料館に残した一代。";
 };
 
 export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = ({
@@ -62,7 +299,7 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
   onOpenObservationBuild,
 }) => {
   const [rows, setRows] = React.useState<CareerRow[]>([]);
-  const [filter, setFilter] = React.useState<FilterMode>('ALL');
+  const [filter, setFilter] = React.useState<FilterMode>("ALL");
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -74,7 +311,7 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
         if (cancelled) return;
         const judged = all
           .filter((row) => row.archiveJudgedAt)
-          .sort((a, b) => (b.archiveJudgedAt ?? '').localeCompare(a.archiveJudgedAt ?? ''));
+          .sort((a, b) => (b.archiveJudgedAt ?? "").localeCompare(a.archiveJudgedAt ?? ""));
         setRows(judged);
       } finally {
         if (!cancelled) setLoading(false);
@@ -89,38 +326,39 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
 
   const collectedCategories = React.useMemo(() => {
     const set = new Set<string>();
-    for (const r of rows) {
-      for (const c of r.archiveCategories ?? []) set.add(c);
+    for (const row of rows) {
+      for (const category of row.archiveCategories ?? []) set.add(category);
     }
     return set;
   }, [rows]);
 
   const collectedTitleIds = React.useMemo(() => {
     const set = new Set<string>();
-    for (const r of rows) {
-      for (const t of r.archiveTitles ?? []) set.add(t.id);
+    for (const row of rows) {
+      for (const title of row.archiveTitles ?? []) set.add(title.id);
     }
     return set;
   }, [rows]);
 
-  // Total titles known to the system (= max distinct title IDs we've ever seen +
-  // titles defined in the catalog). We don't import the title list to avoid
-  // tight coupling — use observed-distinct count for now.
-  const totalTitleSlots = React.useMemo(() => {
-    // Lower bound = collectedTitleIds size; if we know nothing, fall back to 8.
-    return Math.max(8, collectedTitleIds.size);
-  }, [collectedTitleIds]);
+  const totalTitleSlots = React.useMemo(() => Math.max(8, collectedTitleIds.size), [collectedTitleIds]);
 
-  const missingCategories = allCategories.filter((c) => !collectedCategories.has(c.id));
+  const museumGroups = React.useMemo(() => buildMuseumGroups(allCategories), [allCategories]);
 
-  const filtered = rows.filter((r) => {
-    if (filter === 'ALL') return true;
-    if (filter === 'TITLED') return (r.archiveTitles ?? []).length > 0;
-    if (filter.kind === 'theme') return r.archiveThemeId === filter.id;
-    if (filter.kind === 'category') return (r.archiveCategories ?? []).includes(filter.id);
-    if (filter.kind === 'tier') {
+  const summary = React.useMemo(
+    () => buildMuseumSummary(rows, collectedCategories, collectedTitleIds, allCategories.length, totalTitleSlots),
+    [allCategories.length, collectedCategories, collectedTitleIds, rows, totalTitleSlots],
+  );
+
+  const filtered = rows.filter((row) => {
+    if (filter === "ALL") return true;
+    if (filter === "TITLED") return (row.archiveTitles ?? []).length > 0;
+    if (filter.kind === "theme") return row.archiveThemeId === filter.id;
+    if (filter.kind === "category") return toArchiveCategoryIds(row.archiveCategories).includes(filter.id);
+    if (filter.kind === "tier") {
       const min = tierRank[filter.tier];
-      return (r.archiveTitles ?? []).some((t) => tierRank[(t.tier as CareerTitleTier) ?? 'common'] >= min);
+      return (row.archiveTitles ?? []).some((title) =>
+        tierRank[(title.tier as CareerTitleTier) ?? "common"] >= min,
+      );
     }
     return true;
   });
@@ -129,247 +367,184 @@ export const ArchiveCollectionScreen: React.FC<ArchiveCollectionScreenProps> = (
   const isFilterEmpty = !loading && rows.length > 0 && filtered.length === 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
-      {/* Hero */}
-      <section className={cn(surface.panel, 'space-y-4 p-6')}>
-        <div className="flex items-center gap-3">
-          <LibraryBig className="h-6 w-6 text-action" />
-          <div>
-            <div className={typography.kicker}>観測資料館</div>
-            <h2 className={cn(typography.heading, 'text-2xl text-text')}>
-              観測したキャリアを並べる場所
-            </h2>
+    <div className={styles.museum}>
+      <section className={cn(surface.panel, styles.hero)}>
+        <div className={styles.heroCopy}>
+          <div className={styles.titleLine}>
+            <LibraryBig className={styles.titleIcon} />
+            <div>
+              <div className={typography.kicker}>観測資料館</div>
+              <h2 className={styles.heroTitle}>観測した一代を、記録の棚として読む</h2>
+            </div>
+          </div>
+          <p className={styles.heroLead}>
+            保存された力士人生から、到達した番付、解放された称号、まだ空いている記録の余白を見渡します。
+          </p>
+          <div className={styles.progressRail} aria-label="資料館サマリー">
+            <SummaryStat label="観測済み" value={`${summary.observedCount}`} note="一代" />
+            <SummaryStat label="保存済み" value={`${summary.savedCount}`} note="書架入り" />
+            <SummaryStat
+              label="解放済み記録"
+              value={`${summary.unlockedCategoryCount + summary.unlockedTitleCount}`}
+              note={`分類 ${summary.unlockedCategoryCount}/${summary.totalCategoryCount}`}
+            />
+            <SummaryStat
+              label="最近増えた記録"
+              value={summary.recentCareer?.shikona ?? "未記録"}
+              note={summary.recentRecordText}
+            />
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <HeroStat
-            icon={<Layers className="h-4 w-4 text-action/80" />}
-            label="観測済みキャリア"
-            value={`${rows.length}`}
-            sub="件"
-          />
-          <HeroStat
-            icon={<LibraryBig className="h-4 w-4 text-emerald-300/80" />}
-            label="カテゴリ収集"
-            value={`${collectedCategories.size} / ${allCategories.length}`}
-          />
-          <HeroStat
-            icon={<Trophy className="h-4 w-4 text-amber-300/80" />}
-            label="称号収集"
-            value={`${collectedTitleIds.size} / ${totalTitleSlots}`}
-          />
-        </div>
+
+        <aside className={styles.heroAside} aria-label="到達状況">
+          <div className={styles.sealBox}>
+            <span>最高位到達者</span>
+            {summary.rankBreakdown.length > 0 ? (
+              <div className={styles.rankBreakdown}>
+                {summary.rankBreakdown.map((entry) => (
+                  <span key={entry.label}>
+                    {entry.label}
+                    <strong>{entry.count}</strong>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <em>まだ到達記録はありません</em>
+            )}
+          </div>
+          <div className={styles.highlightGrid}>
+            {summary.highlights.map((highlight) => (
+              <div key={highlight.label} className={styles.highlightCard}>
+                <span>{highlight.label}</span>
+                <strong>{highlight.value}</strong>
+                <em>{highlight.note}</em>
+              </div>
+            ))}
+          </div>
+        </aside>
       </section>
 
-      {/* Filters — grouped */}
       {!isAllEmpty ? (
-        <section className={cn(surface.panel, 'space-y-3 p-5')}>
-          <FilterGroup label="表示">
-            <FilterChip label="すべて" active={filter === 'ALL'} onClick={() => setFilter('ALL')} />
-            <FilterChip label="称号獲得のみ" active={filter === 'TITLED'} onClick={() => setFilter('TITLED')} />
+        <section className={cn(surface.panel, styles.filters)}>
+          <FilterGroup label="読む範囲">
+            <FilterChip label="すべて" active={filter === "ALL"} onClick={() => setFilter("ALL")} />
+            <FilterChip label="称号獲得のみ" active={filter === "TITLED"} onClick={() => setFilter("TITLED")} />
           </FilterGroup>
 
           <FilterGroup label="観測テーマ">
-            {(Object.keys(OBSERVATION_THEMES) as ObservationThemeId[]).map((t) => (
+            {(Object.keys(OBSERVATION_THEMES) as ObservationThemeId[]).map((themeId) => (
               <FilterChip
-                key={t}
-                label={OBSERVATION_THEMES[t].label}
-                active={filter !== 'ALL' && filter !== 'TITLED' && filter.kind === 'theme' && filter.id === t}
-                onClick={() => setFilter({ kind: 'theme', id: t })}
+                key={themeId}
+                label={OBSERVATION_THEMES[themeId].label}
+                active={filter !== "ALL" && filter !== "TITLED" && filter.kind === "theme" && filter.id === themeId}
+                onClick={() => setFilter({ kind: "theme", id: themeId })}
               />
             ))}
           </FilterGroup>
 
-          <FilterGroup label="カテゴリ">
-            {allCategories.map((c) => (
+          <FilterGroup label="記録分類">
+            {allCategories.map((category) => (
               <FilterChip
-                key={c.id}
-                label={c.label}
-                active={filterEquals(filter, { kind: 'category', id: c.id })}
-                dim={!collectedCategories.has(c.id)}
-                onClick={() => setFilter({ kind: 'category', id: c.id })}
+                key={category.id}
+                label={category.label}
+                active={filterEquals(filter, { kind: "category", id: category.id })}
+                dim={!collectedCategories.has(category.id)}
+                onClick={() => setFilter({ kind: "category", id: category.id })}
               />
             ))}
           </FilterGroup>
 
-          <FilterGroup label="称号tier">
-            {TIER_FILTERS.map((tf) => (
+          <FilterGroup label="称号の深度">
+            {TIER_FILTERS.map((tierFilter) => (
               <FilterChip
-                key={tf.tier}
-                label={tf.label}
-                active={filterEquals(filter, { kind: 'tier', tier: tf.tier })}
-                onClick={() => setFilter({ kind: 'tier', tier: tf.tier })}
+                key={tierFilter.tier}
+                label={tierFilter.label}
+                active={filterEquals(filter, { kind: "tier", tier: tierFilter.tier })}
+                onClick={() => setFilter({ kind: "tier", tier: tierFilter.tier })}
               />
             ))}
           </FilterGroup>
         </section>
       ) : null}
 
-      {/* Missing categories — collection hook */}
-      {!isAllEmpty && missingCategories.length > 0 ? (
-        <section className={cn(surface.panel, 'space-y-3 p-5')}>
-          <h3 className={cn(typography.heading, 'text-lg text-text')}>
-            未収集カテゴリ
-            <span className="ml-2 text-xs text-text-dim">
-              ({missingCategories.length} / {allCategories.length})
+      <div className={styles.contentGrid}>
+        <section className={cn(surface.panel, styles.collectionPanel)}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={typography.kicker}>読む順番</div>
+              <h3 className={styles.sectionTitle}>分類別の収集棚</h3>
+            </div>
+            <span className={styles.countBadge}>
+              {summary.unlockedCategoryCount} / {summary.totalCategoryCount}
             </span>
-          </h3>
-          <p className="text-[11px] text-text-dim">次の観測の手がかり。テーマ選びの参考に。</p>
-          <ul className="grid gap-1.5 text-xs text-text-dim sm:grid-cols-2">
-            {missingCategories.map((c) => (
-              <li key={c.id} className="border border-white/8 bg-white/[0.02] px-3 py-2">
-                <div className="text-text">{c.label}</div>
-                <div className="text-[11px] text-text-dim/80">{c.description}</div>
-              </li>
-            ))}
-          </ul>
+          </div>
+
+          {isAllEmpty ? (
+            <EmptyMuseumState onOpenObservationBuild={onOpenObservationBuild} />
+          ) : (
+            <div className={styles.groupList}>
+              {museumGroups.map((group) => (
+                <CategoryGroup
+                  key={group.key}
+                  group={group}
+                  rows={rows}
+                  collectedCategories={collectedCategories}
+                  onOpenCareer={onOpenCareer}
+                  onOpenObservationBuild={onOpenObservationBuild}
+                />
+              ))}
+            </div>
+          )}
         </section>
-      ) : null}
 
-      {!isAllEmpty && missingCategories.length === 0 ? (
-        <section className={cn(surface.panel, 'p-4 text-xs text-emerald-300')}>
-          すべてのカテゴリを収集済み。
-        </section>
-      ) : null}
-
-      {/* Career list */}
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-lg text-text')}>観測済みキャリア</h3>
-          {!isAllEmpty ? (
-            <span className="text-xs text-text-dim">
-              {filtered.length} / {rows.length} 件
-            </span>
-          ) : null}
-        </div>
-
-        {loading ? (
-          <div className="text-xs text-text-dim">読み込み中…</div>
-        ) : isAllEmpty ? (
-          <div className="space-y-3 border border-action/30 bg-action/[0.04] px-5 py-6 text-center">
-            <TelescopeIcon className="mx-auto h-7 w-7 text-action" />
-            <div className="text-sm text-text">まだ観測したキャリアがありません。</div>
-            <p className="mx-auto max-w-md text-xs text-text-dim leading-relaxed">
-              観測設計から、最初の相撲人生を観測してみましょう。
-              どんなキャリアになっても、ここに資料として残ります。
-            </p>
-            {onOpenObservationBuild ? (
-              <div className="pt-1">
-                <Button size="md" onClick={onOpenObservationBuild}>
-                  <TelescopeIcon className="mr-2 h-4 w-4" />
-                  観測設計へ
-                </Button>
-              </div>
+        <section className={cn(surface.panel, styles.recordsPanel)}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={typography.kicker}>代表記録</div>
+              <h3 className={styles.sectionTitle}>この条件で読める一代</h3>
+            </div>
+            {!isAllEmpty ? (
+              <span className={styles.countBadge}>
+                {filtered.length} / {rows.length}
+              </span>
             ) : null}
           </div>
-        ) : isFilterEmpty ? (
-          <div className="border border-white/10 bg-white/[0.02] px-4 py-6 text-center text-xs text-text-dim">
-            この条件に該当するキャリアはありません。フィルタを変更してください。
-          </div>
-        ) : (
-          <ul className="grid gap-3">
-            {filtered.map((row) => {
-              const themeId = row.archiveThemeId as ObservationThemeId | undefined;
-              const themeLabel = themeId
-                ? OBSERVATION_THEMES[themeId]?.label ?? themeId
-                : null;
-              const titles = row.archiveTitles ?? [];
-              const cats = row.archiveCategories ?? [];
-              return (
-                <li
-                  key={row.id}
-                  className={cn(
-                    'flex flex-col gap-2 border-l-2 border-white/15 bg-white/[0.02] px-4 py-3 transition hover:border-action/60 hover:bg-white/[0.04]',
-                  )}
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-base text-text">{row.shikona}</span>
-                      <span className="text-xs text-gold">{row.maxRank?.name ?? '-'}</span>
-                    </div>
-                    {themeLabel ? (
-                      <span className="border border-action/30 bg-action/8 px-2 py-0.5 text-[10px] text-action/90">
-                        {themeLabel}
-                      </span>
-                    ) : null}
-                  </div>
 
-                  {cats.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 text-[11px]">
-                      {cats.map((c) => (
-                        <span
-                          key={c}
-                          className="border border-white/12 bg-white/[0.02] px-1.5 py-0.5 text-text-dim"
-                        >
-                          {ARCHIVE_CATEGORIES[c as ArchiveCategoryId]?.label ?? c}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {titles.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {titles.map((t) => {
-                        const tier = (t.tier as CareerTitleTier) ?? 'common';
-                        const style = TITLE_TIER_STYLE[tier] ?? TITLE_TIER_STYLE.common;
-                        return (
-                          <span
-                            key={t.id}
-                            className={cn(
-                              'border px-2 py-0.5 text-[11px]',
-                              style.wrap,
-                              style.label,
-                            )}
-                          >
-                            {t.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center justify-between text-[11px] text-text-dim">
-                    <span>
-                      {row.bashoCount}場所 / 報酬 +{row.archiveRewardAwarded ?? 0} OP
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={() => onOpenCareer(row.id)}>
-                      開く
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+          {loading ? (
+            <div className={styles.loading}>読み込み中...</div>
+          ) : isAllEmpty ? (
+            <div className={styles.recordEmpty}>観測済みの一代が入ると、ここに代表記録が並びます。</div>
+          ) : isFilterEmpty ? (
+            <div className={styles.recordEmpty}>この条件に該当する一代はありません。分類やテーマを変えてください。</div>
+          ) : (
+            <ul className={styles.recordList}>
+              {filtered.map((row) => (
+                <CareerRecordCard key={row.id} row={row} onOpenCareer={onOpenCareer} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
 
-const HeroStat: React.FC<{
-  icon: React.ReactNode;
+const SummaryStat: React.FC<{
   label: string;
   value: string;
-  sub?: string;
-}> = ({ icon, label, value, sub }) => (
-  <div className="border border-white/10 bg-white/[0.02] px-4 py-3">
-    <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] text-text-dim uppercase">
-      {icon}
-      <span>{label}</span>
-    </div>
-    <div className="mt-1 flex items-baseline gap-1">
-      <span className="text-xl text-text">{value}</span>
-      {sub ? <span className="text-xs text-text-dim">{sub}</span> : null}
-    </div>
+  note: string;
+}> = ({ label, value, note }) => (
+  <div className={styles.summaryStat}>
+    <span>{label}</span>
+    <strong>{value}</strong>
+    <em>{note}</em>
   </div>
 );
 
 const FilterGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="space-y-1.5">
-    <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim/80 uppercase')}>
-      {label}
-    </div>
-    <div className="flex flex-wrap gap-1.5">{children}</div>
+  <div className={styles.filterGroup}>
+    <div className={styles.filterLabel}>{label}</div>
+    <div className={styles.filterChips}>{children}</div>
   </div>
 );
 
@@ -382,15 +557,155 @@ const FilterChip: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={cn(
-      'border px-2.5 py-1 text-[11px] transition',
-      active
-        ? 'border-action bg-action/15 text-text'
-        : dim
-          ? 'border-white/5 bg-white/[0.01] text-text-dim/60'
-          : 'border-white/10 bg-white/[0.02] text-text-dim hover:border-gold/40',
-    )}
+    className={styles.filterChip}
+    data-active={active ? "true" : "false"}
+    data-dim={dim ? "true" : "false"}
   >
     {label}
   </button>
 );
+
+const EmptyMuseumState: React.FC<{ onOpenObservationBuild?: () => void }> = ({ onOpenObservationBuild }) => (
+  <div className={styles.emptyState}>
+    <TelescopeIcon className={styles.emptyIcon} />
+    <strong>まだ資料館に一代がありません</strong>
+    <p>
+      観測設計から一代を観測すると、到達番付や称号がここに収蔵されます。
+      まずは結果保証ではなく、どんな人生が残るかを読むための一件を増やしてください。
+    </p>
+    {onOpenObservationBuild ? (
+      <Button size="md" onClick={onOpenObservationBuild}>
+        <Compass className="mr-2 h-4 w-4" />
+        次の観測設計へ
+      </Button>
+    ) : null}
+  </div>
+);
+
+const CategoryGroup: React.FC<{
+  group: MuseumGroup;
+  rows: CareerRow[];
+  collectedCategories: Set<string>;
+  onOpenCareer: (careerId: string) => void;
+  onOpenObservationBuild?: () => void;
+}> = ({ group, rows, collectedCategories, onOpenCareer, onOpenObservationBuild }) => {
+  const unlockedCount = group.categories.filter((category) => collectedCategories.has(category.id)).length;
+  return (
+    <article className={styles.categoryGroup}>
+      <header className={styles.groupHead}>
+        <div>
+          <h4>{group.title}</h4>
+          <p>{group.lead}</p>
+        </div>
+        <span>{group.categories.length > 0 ? `${unlockedCount} / ${group.categories.length}` : "分類待ち"}</span>
+      </header>
+
+      {group.categories.length === 0 ? (
+        <div className={styles.groupEmpty}>
+          この棚は、今の保存情報ではまだ分類されていません。今後の観測で読みどころが増えます。
+        </div>
+      ) : (
+        <div className={styles.categoryGrid}>
+          {group.categories.map((category) => {
+            const unlocked = collectedCategories.has(category.id);
+            const relatedCareer = unlocked ? findRelatedCareer(rows, category.id) : null;
+            return (
+              <div key={category.id} className={styles.categoryCard} data-unlocked={unlocked ? "true" : "false"}>
+                <div className={styles.categoryTop}>
+                  {unlocked ? <ScrollText className={styles.categoryIcon} /> : <LockKeyhole className={styles.categoryIcon} />}
+                  <span>{unlocked ? "収集済み" : "観測の余白"}</span>
+                </div>
+                <strong>{category.label}</strong>
+                <p>{unlocked ? resolveCategoryReading(category) : resolveMissingHint(category)}</p>
+                <div className={styles.categoryAction}>
+                  {relatedCareer ? (
+                    <Button size="sm" variant="ghost" onClick={() => onOpenCareer(relatedCareer.id)}>
+                      この記録を持つ一代を読む
+                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  ) : onOpenObservationBuild ? (
+                    <Button size="sm" variant="ghost" onClick={onOpenObservationBuild}>
+                      似た一代を探す
+                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </article>
+  );
+};
+
+const CareerRecordCard: React.FC<{
+  row: CareerRow;
+  onOpenCareer: (careerId: string) => void;
+}> = ({ row, onOpenCareer }) => {
+  const themeLabel = resolveThemeLabel(row.archiveThemeId);
+  const categories = toArchiveCategoryIds(row.archiveCategories);
+  const titles = row.archiveTitles ?? [];
+  const yushoTotal = row.yushoCount.makuuchi + row.yushoCount.juryo + row.yushoCount.makushita + row.yushoCount.others;
+
+  return (
+    <li className={styles.recordCard}>
+      <div className={styles.recordHead}>
+        <div>
+          <span className={styles.recordLabel}>{themeLabel ?? "観測記録"}</span>
+          <h4>{row.shikona}</h4>
+        </div>
+        <BookOpen className={styles.recordIcon} />
+      </div>
+
+      <div className={styles.recordFacts}>
+        <span>
+          <em>最高位</em>
+          <strong>{formatRankName(row.maxRank)}</strong>
+        </span>
+        <span>
+          <em>通算</em>
+          <strong>{formatRecordLabel(row)}</strong>
+        </span>
+        <span>
+          <em>期間</em>
+          <strong>{formatCareerPeriod(row)}</strong>
+        </span>
+        <span>
+          <em>優勝</em>
+          <strong>{yushoTotal > 0 ? `${yushoTotal}回` : "なし"}</strong>
+        </span>
+      </div>
+
+      <p className={styles.recordReading}>{resolveCareerReadingLine(row)}</p>
+
+      {categories.length > 0 ? (
+        <div className={styles.tagRow}>
+          {categories.slice(0, 4).map((categoryId) => (
+            <span key={categoryId}>{ARCHIVE_CATEGORIES[categoryId]?.label ?? "未分類の記録"}</span>
+          ))}
+          {categories.length > 4 ? <span>+{categories.length - 4}</span> : null}
+        </div>
+      ) : null}
+
+      {titles.length > 0 ? (
+        <div className={styles.titleRow}>
+          {titles.slice(0, 3).map((title) => (
+            <span key={title.id} data-tier={title.tier}>
+              <Medal className={styles.titleIcon} />
+              {title.label}
+            </span>
+          ))}
+          {titles.length > 3 ? <span>+{titles.length - 3}</span> : null}
+        </div>
+      ) : null}
+
+      <div className={styles.recordFooter}>
+        <span>{row.bashoCount}場所</span>
+        <Button size="sm" variant="ghost" onClick={() => onOpenCareer(row.id)}>
+          この一代を読む
+        </Button>
+      </div>
+    </li>
+  );
+};
