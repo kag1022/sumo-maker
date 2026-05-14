@@ -761,6 +761,8 @@ export const tests: TestCase[] = [
       assert.ok(new Set(generated.map((commentary) => commentary.shortCommentary)).size > 1);
       assert.ok(new Set(generated.map((commentary) => commentary.materialKeys.join('|'))).size > 1);
       assert.deepEqual(generated[0].victoryFactorLabels, ['基礎能力差', '取り口相性']);
+      assert.ok(generated[0].materialKeys.includes('victory:victory-factor:ability+victory-factor:style'));
+      assert.ok(generated[1].shortCommentary.includes('昇進材料'));
       assert.ok(generated[1].materialKeys.includes('hoshitori:KACHI_MAKE_DECIDER'));
       assert.ok(generated[1].materialKeys.includes('banzuke:PROMOTION_RELEVANT'));
       assert.ok(generated[2].materialKeys.includes('transition:EDGE_TURNAROUND'));

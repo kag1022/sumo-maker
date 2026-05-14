@@ -88,7 +88,7 @@ Useful acceptance diagnostics:
 - `missingExplanationAxes` trends down as context contracts are added.
 - Same kimarite can appear across multiple transition classifications and hoshitori/banzuke tags.
 - No diagnostic collector changes production `calculateBattleResult` result shape or RNG call count.
-- `scripts/diagnostics/bout_flow_commentary_generator.ts` confirms that the same kimarite yields different short commentary and material keys when Opening / Control / Transition / 星取 / 番付 context changes.
+- `scripts/diagnostics/bout_flow_commentary_generator.ts` confirms that the same kimarite yields different short commentary and material keys when Opening / Control / Transition / 星取 / 番付 context changes. It also records prose guardrails, material-key bias, duplicate expression counts, and axis-reflection coverage for manual review.
 
 ## Acceptance Conditions
 

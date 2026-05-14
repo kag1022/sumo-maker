@@ -61,11 +61,11 @@ const unique = <T extends string>(values: readonly T[]): readonly T[] =>
   Array.from(new Set(values));
 
 const OPENING_TEXT: Record<string, string> = {
-  THRUST_BATTLE: '立合いから押し合いの形になり、前に出る力が早く表れた。',
+  THRUST_BATTLE: '立合いから押し合いになり、先に前へ出る形を作った。',
   BELT_BATTLE: '序盤は四つに近い探り合いで、まわしと差し手の攻防が先に立った。',
-  TECHNIQUE_SCRAMBLE: '立合い後は技の探り合いになり、相手の出方を読む時間が生まれた。',
+  TECHNIQUE_SCRAMBLE: '立合い後は技の探り合いになり、相手の出方を読む間が生まれた。',
   EDGE_BATTLE: '序盤から土俵際を意識する窮屈な展開になった。',
-  QUICK_COLLAPSE: '立合い直後に体勢が崩れ、短い勝負の気配が強かった。',
+  QUICK_COLLAPSE: '立合い直後に体勢が崩れ、短い勝負の気配が濃かった。',
   MIXED: '序盤は押しと組みが混ざり、はっきりした形に固定されなかった。',
 };
 
@@ -88,8 +88,8 @@ const TRANSITION_TEXT: Record<BoutFlowTransitionClassification, string> = {
 };
 
 const FINISH_TEXT: Record<string, string> = {
-  PUSH_OUT: '最後は押し込む勝ち筋で土俵の外へ運んだ。',
-  BELT_FORCE: '最後は組み止めて寄る勝ち筋に収束した。',
+  PUSH_OUT: '最後は押し込んで土俵の外へ運んだ。',
+  BELT_FORCE: '最後は組み止めて寄り切る形に収束した。',
   THROW_BREAK: '最後は投げや崩しで相手の軸を外した。',
   PULL_DOWN: '最後はいなしや引きで前のめりを誘った。',
   EDGE_REVERSAL: '最後は土俵際の反転で勝敗をひっくり返した。',
@@ -116,9 +116,9 @@ const FACTOR_LABELS: Record<string, string> = {
   'victory-factor:momentum': '場所内の流れ',
   'victory-factor:injury': '負傷影響',
   'victory-factor:pressure': '勝負所の圧力',
-  'victory-factor:kimarite-fit': '決まり手との整合',
+  'victory-factor:kimarite-fit': '決まり手適性',
   'victory-factor:phase-shape': '展開の形',
-  'victory-factor:realism-compression': '番付帯に応じた補正',
+  'victory-factor:realism-compression': '番付帯の力関係',
 };
 
 const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
@@ -144,7 +144,7 @@ const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
   MAKEKOSHI_DECIDER: '負け越し回避の文脈があり、黒星なら場所の読みが変わる一番だった。',
   KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目に立つ一番だった。',
   YUSHO_DIRECT: '優勝争いを直接左右する一番で、勝敗の重みが明確だった。',
-  YUSHO_CHASE: '優勝争いを追う文脈があり、落とせない意味を持っていた。',
+  YUSHO_CHASE: '優勝争いを追う文脈があり、落とせない一番として読める。',
   WIN_STREAK: '連勝の流れを背負っており、勢いを継続する白星になった。',
   LOSS_STREAK: '連敗の流れを断つかどうかが見える一番だった。',
   RECOVERY_BOUT: '前の黒星から立て直す意味を持つ一番だった。',
@@ -164,11 +164,11 @@ const BANZUKE_PRIORITY: readonly BanzukeContextTag[] = [
 
 const BANZUKE_TEXT: Record<BanzukeContextTag, string> = {
   PROMOTION_RELEVANT: '番付上は昇進材料になり得る白星で、次の評価に残りやすい。',
-  DEMOTION_RELEVANT: '番付上は降下圧を避ける意味があり、負けの重さが大きい局面だった。',
+  DEMOTION_RELEVANT: '番付上は降下圧を避ける意味があり、この白星で踏みとどまった。',
   SAN_YAKU_PRESSURE: '三役以上の地位に見合う内容が問われる文脈だった。',
   SEKITORI_BOUNDARY: '関取境界に関わる番付文脈があり、単なる一勝以上の意味を持つ。',
   MAKUUCHI_BOUNDARY: '幕内境界に関わる番付文脈があり、地位維持や上昇の読みを左右する。',
-  KINBOSHI_CHANCE: '格上撃破の文脈があり、番付差を超える記録性がある。',
+  KINBOSHI_CHANCE: '格上相手の白星として、番付差を超える記録性がある。',
   RANK_GAP_UPSET: '番付差を覆す意味があり、結果の印象が強く残る。',
   RANK_EXPECTED_WIN: '番付上は自然に求められる内容で、取りこぼさないことが評価になる。',
 };
@@ -256,7 +256,7 @@ export const createBoutFlowCommentaryDiagnostic = (
       [`kimarite:${snapshot.kimarite.name}`, `family:${kimariteFamily}`],
     ),
     createMaterial(
-      `victory:${victoryFactorLabels.join('+') || 'mixed'}`,
+      `victory:${snapshot.victoryFactorTags.join('+') || 'mixed'}`,
       'VICTORY_FACTOR',
       'VICTORY_FACTOR',
       factorSummary,
@@ -283,7 +283,7 @@ export const createBoutFlowCommentaryDiagnostic = (
     `${materials[2].text}${materials[3].text}${materials[4].text}`,
     `${materials[5].text}${materials[6].text}${materials[7].text}`,
   ];
-  const shortCommentary = `${snapshot.kimarite.name}: ${materials[2].text}${materials[6].text}`;
+  const shortCommentary = `${snapshot.kimarite.name}: ${materials[2].text}${materials[6].text}${materials[7].text}`;
 
   return {
     generated: true,
