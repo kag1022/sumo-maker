@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark } from 'lucide-react';
 import { Button } from '../../shared/ui/Button';
 import surface from '../../shared/styles/surface.module.css';
 import typography from '../../shared/styles/typography.module.css';
@@ -29,6 +29,11 @@ import {
 import { OBSERVATION_THEMES } from '../../logic/archive/observationThemes';
 import { applyObservationBuildBias } from '../../logic/archive/applyObservationBuildBias';
 import { selectRandomEraSnapshot, toEraRunMetadata } from '../../logic/era/eraSnapshot';
+import {
+  listStableEnvironmentChoices,
+  resolveStableForEnvironmentChoice,
+  type StableEnvironmentChoiceId,
+} from '../../logic/simulation/heya/stableEnvironment';
 import {
   spendObservationPoints,
   getObservationPointState,
@@ -115,8 +120,11 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 }) => {
   const themes = React.useMemo(() => listObservationThemes(), []);
   const modifiers = React.useMemo(() => listObservationModifiers(), []);
+  const stableEnvironmentChoices = React.useMemo(() => listStableEnvironmentChoices(), []);
   const [themeId, setThemeId] = React.useState<ObservationThemeId>('random');
   const [modifierIds, setModifierIds] = React.useState<ObservationModifierId[]>([]);
+  const [stableEnvironmentChoiceId, setStableEnvironmentChoiceId] =
+    React.useState<StableEnvironmentChoiceId>('AUTO');
   const [isStarting, setIsStarting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -173,7 +181,11 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       }
       if (onRefreshMeta) await onRefreshMeta();
 
-      const draft = rollScoutDraft();
+      const stable = resolveStableForEnvironmentChoice(stableEnvironmentChoiceId);
+      const draft = {
+        ...rollScoutDraft(),
+        selectedStableId: stable.id,
+      };
       const baseStatus = buildInitialRikishiFromDraft(draft);
       const config = buildObservationConfig(themeId, modifierIds);
       const { status: biasedStatus } = applyObservationBuildBias(baseStatus, config);
@@ -199,6 +211,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const selectedModifiers = modifierIds
     .map((id) => OBSERVATION_MODIFIERS[id])
     .filter(Boolean);
+  const selectedStableEnvironment = stableEnvironmentChoices.find((choice) =>
+    choice.id === stableEnvironmentChoiceId);
 
   const insufficientReason: string | null = (() => {
     if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
@@ -287,6 +301,52 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                   <div className="text-[11px] text-action/80 leading-relaxed">→ {intent}</div>
                 ) : null}
                 <div className="text-[11px] text-amber-300/70">{theme.riskText}</div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 所属環境 */}
+      <section className={cn(surface.panel, 'space-y-3 p-5')}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Landmark className="h-5 w-5 text-gold" />
+            <div>
+              <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
+              <div className="mt-1 text-xs leading-relaxed text-text-dim">
+                部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
+              </div>
+            </div>
+          </div>
+          <div className="hidden text-[11px] text-text-dim sm:block">45部屋から直接選ばず、環境の系統だけを選びます。</div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {stableEnvironmentChoices.map((choice) => {
+            const active = choice.id === stableEnvironmentChoiceId;
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                onClick={() => setStableEnvironmentChoiceId(choice.id)}
+                className={cn(
+                  'group relative flex min-h-[9.25rem] flex-col gap-2 border px-4 py-4 text-left transition',
+                  active
+                    ? 'border-gold bg-gold/12 shadow-[0_0_0_1px_rgba(224,181,91,0.28)]'
+                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                )}
+              >
+                {active ? (
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-gold/60 bg-gold/15 px-1.5 py-0.5 text-[10px] tracking-wider text-gold">
+                    <CheckCircle2 className="h-3 w-3" />
+                    選択中
+                  </span>
+                ) : null}
+                <span className={cn('pr-16 text-base', active ? 'text-text' : 'text-text/90')}>
+                  {choice.label}
+                </span>
+                <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
+                <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
               </button>
             );
           })}
@@ -396,6 +456,11 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                 {mod.label}
               </span>
             ))}
+            {selectedStableEnvironment ? (
+              <span className="border border-gold/30 bg-gold/10 px-2 py-0.5 text-gold">
+                {selectedStableEnvironment.label}
+              </span>
+            ) : null}
             {selectedModifiers.length === 0 ? (
               <span className="text-text-dim/60">読み口の調整なし</span>
             ) : null}

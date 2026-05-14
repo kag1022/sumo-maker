@@ -10,6 +10,7 @@ export const gameplayTestModule = createScopedModule('gameplay', currentTests, [
   'kata',
   'kimarite',
   'logic-lab',
+  'observation build',
   'scout',
   'style identity',
   'traits',

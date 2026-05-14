@@ -370,6 +370,52 @@
   line-height: 1.55;
 }
 
+.stableEnvironmentPanel {
+  display: grid;
+  gap: 1rem;
+}
+
+.stableEnvironmentLead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.07), transparent 58%),
+    rgb(var(--twc-bg) / 0.46);
+  padding: 1rem;
+}
+
+.stableEnvironmentIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  background: rgb(var(--twc-brand) / 0.1);
+  color: rgb(var(--twc-brand) / 0.9);
+}
+
+.stableEnvironmentText {
+  margin-top: 0.35rem;
+  color: rgb(var(--twc-text) / 0.8);
+  line-height: 1.72;
+}
+
+.stableInfluenceList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.stableInfluenceList p {
+  border-left: 2px solid rgb(var(--twc-brand) / 0.34);
+  background: rgb(var(--twc-bg) / 0.34);
+  padding: 0.55rem 0.75rem;
+  color: rgb(var(--twc-text) / 0.72);
+  line-height: 1.7;
+}
+
 .saveReasonGrid {
   display: grid;
   gap: 0.45rem;
