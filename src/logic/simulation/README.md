@@ -20,6 +20,7 @@ runtime API を唯一の入口として使います。
 | パス | 役割 |
 |------|------|
 | `engine/` | 場所単位の進行エンジン本体 |
+| `combat/` | 将来の勝敗 kernel 向け readonly combat profile 契約 |
 | `torikumi/` | 取組編成 |
 | `strength/` | 能力更新・平均回帰・期待勝数差の反映 |
 | `retirement/` | 引退判定 |
@@ -56,6 +57,7 @@ runtime API を唯一の入口として使います。
 | `playerRealism.ts` | プレイヤー側の realism チェック。下位停滞、上位圧縮、期待勝数補正を持つ |
 | `injury.ts` | 怪我処理 |
 | `basho/formatPolicy.ts` | 15番制 / 7番制、カレンダー日、当人の取組順、勝ち越し・負け越し圧力の共通 policy |
+| `combat/profile.ts` | `BashoCombatProfile` の純粋 builder。現段階では勝敗結果には使わない |
 | `modelVersion.ts` | model version 正規化 |
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |

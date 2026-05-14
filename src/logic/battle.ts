@@ -27,6 +27,7 @@ import {
 import {
   resolveCompetitiveFactor,
 } from './simulation/realism';
+import { resolveStablePerformanceFactor } from './simulation/combat/profile';
 import {
   KimariteStyle,
   normalizeKimariteName,
@@ -42,8 +43,6 @@ import {
   resolveEngagementRouteBias,
 } from './kimarite/engagement';
 import { createKimariteRepertoireFromSeed, ensureKimariteRepertoire } from './kimarite/repertoire';
-import { resolveStableById } from './simulation/heya/stableCatalog';
-import { STABLE_ARCHETYPE_BY_ID } from './simulation/heya/stableArchetypeCatalog';
 import {
   ensureStyleIdentityProfile,
   resolveDisplayedStrengthStyles,
@@ -98,18 +97,6 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const resolveSignedStreak = (winStreak: number, lossStreak: number): number =>
   winStreak > 0 ? winStreak : lossStreak > 0 ? -lossStreak : 0;
-
-const resolveStablePerformanceFactor = (stableId?: string): number => {
-  if (!stableId) return 1;
-  const stable = resolveStableById(stableId);
-  if (!stable) return 1;
-  const training = STABLE_ARCHETYPE_BY_ID[stable.archetypeId]?.training;
-  if (!training) return 1;
-  const growth = training.growth8;
-  const avg =
-    (growth.tsuki + growth.oshi + growth.kumi + growth.nage + growth.koshi + growth.deashi + growth.waza + growth.power) / 8;
-  return Math.max(0.9, Math.min(1.1, avg));
-};
 
 const DEFAULT_BODY_METRICS: Record<RikishiStatus['bodyType'], { heightCm: number; weightKg: number }> = {
   NORMAL: { heightCm: 182, weightKg: 138 },
