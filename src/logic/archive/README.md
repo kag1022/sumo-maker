@@ -1,12 +1,11 @@
 # logic/archive
 
-保存済みキャリアを資料館・観測ビルドとして分類する純ロジックです。
+観測テーマと読み口調整を初期生成へ反映する純ロジックです。
 
-- `types.ts` 観測テーマ、modifier、資料館カテゴリの型
+- `types.ts` 観測テーマ、modifier、bias 定義の型
 - `observationThemes.ts` 観測テーマごとの bias 定義
 - `observationBuild.ts` modifier の合成、cost、validation
 - `applyObservationBuildBias.ts` scout で生成した初期状態への soft bias 適用
-- `categories.ts`, `titles.ts`, `rewards.ts` 保存後の分類、称号、報酬判定
 
 ## 設計ルール
 

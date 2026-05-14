@@ -1,5 +1,4 @@
-// Career Archive / Observation Build — types
-// Phase 2 of the career-archive-observation-system MVP.
+// Observation Build — types
 
 export type ObservationThemeId =
   | 'random'
@@ -59,53 +58,4 @@ export interface ObservationBuildConfig {
   themeId: ObservationThemeId;
   modifierIds: ObservationModifierId[];
   totalCost: number;
-}
-
-// ---- Archive judgment ----
-
-export type ArchiveCategoryId =
-  | 'sandanme_challenger'
-  | 'makushita_wall'
-  | 'sekitori_reached'
-  | 'makuuchi_reached'
-  | 'sanyaku_reached'
-  | 'yokozuna_reached'
-  | 'wall_juryo'
-  | 'wall_makuuchi'
-  | 'wall_sanyaku'
-  | 'fast_riser'
-  | 'late_bloomer'
-  | 'long_stagnation';
-
-export interface ArchiveCategoryDefinition {
-  id: ArchiveCategoryId;
-  label: string;
-  description: string;
-}
-
-export type CareerTitleTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-
-export interface CareerTitle {
-  id: string;
-  label: string;
-  tier: CareerTitleTier;
-  reason: string;
-}
-
-export interface CareerArchiveEntry {
-  id: string;
-  rikishiId: string;
-  shikona: string;
-  createdAt: string;
-  observationThemeId: ObservationThemeId;
-  observationModifierIds: ObservationModifierId[];
-  highestRankLabel: string;
-  highestRankBucket: string;
-  careerBashoCount: number;
-  titles: CareerTitle[];
-  categories: ArchiveCategoryId[];
-  rarityTier: string;
-  lifeScore?: number;
-  summaryText?: string;
-  sourceCareerId?: string;
 }

@@ -9,7 +9,6 @@ import { LogicLabScreen } from "../features/logicLab/components/LogicLabScreen";
 import { ArchiveScreen } from "../features/report/components/ArchiveScreen";
 import { ScoutScreen } from "../features/scout/components/ScoutScreen";
 import { ObservationBuildScreen } from "../features/observationBuild/ObservationBuildScreen";
-import { ArchiveCollectionScreen } from "../features/archive/ArchiveCollectionScreen";
 import { SettingsScreen } from "../features/settings/components/SettingsScreen";
 import { useSimulation } from "../features/simulation/hooks/useSimulation";
 import {
@@ -420,7 +419,6 @@ export const App: React.FC = () => {
         onOpenArchiveCareer: handleOpenCareer,
         onDeleteCareer: deleteCareerById,
         onOpenArchive: () => setActiveSection("archive"),
-        onOpenArchiveCollection: () => setActiveSection("archiveCollection"),
         onOpenCollection: () => setActiveSection("collection"),
         onOpenSettings: () => setActiveSection("settings"),
         onOpenScout: () => void handleSectionChange("scout"),
@@ -463,7 +461,6 @@ const renderSection = ({
   onOpenArchiveCareer,
   onDeleteCareer,
   onOpenArchive,
-  onOpenArchiveCollection,
   onOpenCollection,
   onOpenSettings,
   onOpenScout,
@@ -501,7 +498,6 @@ const renderSection = ({
   onOpenArchiveCareer: (careerId: string) => Promise<void>;
   onDeleteCareer: (careerId: string) => Promise<void>;
   onOpenArchive: () => void;
-  onOpenArchiveCollection: () => void;
   onOpenCollection: () => void;
   onOpenSettings: () => void;
   onOpenScout: () => void;
@@ -572,15 +568,6 @@ const renderSection = ({
     );
   }
 
-  if (activeSection === "archiveCollection") {
-    return (
-      <ArchiveCollectionScreen
-        onOpenCareer={(careerId) => void onOpenArchiveCareer(careerId)}
-        onOpenObservationBuild={onOpenScout}
-      />
-    );
-  }
-
   if (activeSection === "collection") {
     return <CollectionScreen onOpenArchive={onOpenArchive} observationPoints={observationPoints} />;
   }
@@ -646,7 +633,6 @@ const renderSection = ({
       onSave={onSaveCurrentCareer}
       onReturnToScout={onReturnToScout}
       onOpenArchive={onOpenArchive}
-      onOpenArchiveCollection={onOpenArchiveCollection}
     />
   );
 };
@@ -759,7 +745,6 @@ const getShellTitle = (section: AppSection, shikona?: string | null): string => 
   if (section === "basho") return shikona ? `${shikona} 節目劇場` : "節目劇場";
   if (section === "career") return shikona ? `${shikona} 力士記録` : "力士記録";
   if (section === "archive") return "保存済み記録";
-  if (section === "archiveCollection") return "観測資料館";
   if (section === "collection") return "記録 / 偉業";
   if (section === "settings") return "設定";
   if (section === "logicLab") return "ロジック検証";
