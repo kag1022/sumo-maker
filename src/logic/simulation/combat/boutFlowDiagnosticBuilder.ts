@@ -213,6 +213,7 @@ export const createBoutFlowDiagnosticSnapshotFromExplanationSnapshot = (
     controlPhaseCandidate: controlPhase.controlPhaseCandidate,
     controlConfidence: controlPhase.confidence,
     finishRoute: snapshot.winRoute as WinRoute,
+    kimaritePattern: snapshot.kimaritePattern,
     kimarite: resolveKimariteSnapshot(snapshot.kimarite),
     ...buildBoutFlowDiagnosticContextTags(snapshot),
   });

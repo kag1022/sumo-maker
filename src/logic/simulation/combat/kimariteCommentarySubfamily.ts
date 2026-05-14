@@ -242,8 +242,8 @@ const contextualSubfamily = (
     if (input.pattern === 'LEG_TRIP_PICK' || input.finishRoute === 'LEG_ATTACK') return 'LEG_BREAK';
   }
   if (family === 'BACKWARD_BODY_DROP') {
-    if (input.transitionClassification === 'EDGE_TURNAROUND' || input.finishRoute === 'EDGE_REVERSAL') return 'SUTEMI';
     if (input.pattern === 'BACKWARD_ARCH') return 'BIG_ARCH';
+    if (input.transitionClassification === 'EDGE_TURNAROUND' || input.finishRoute === 'EDGE_REVERSAL') return 'SUTEMI';
   }
   if (family === 'REAR') {
     if (input.finishRoute === 'REAR_FINISH' || input.pattern === 'REAR_CONTROL') return 'REAR_GRIP';

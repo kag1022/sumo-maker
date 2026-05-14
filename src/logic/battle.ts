@@ -56,6 +56,7 @@ import {
 } from './simulation/realism';
 import { resolveStablePerformanceFactor } from './simulation/combat/profile';
 import {
+  type KimaritePattern,
   KimariteStyle,
   normalizeKimariteName,
 } from './kimarite/catalog';
@@ -881,7 +882,7 @@ const resolveBattleResult = (
     finalIsWin: boolean,
     flow?: {
       readonly engagement?: BoutEngagement;
-      readonly kimaritePattern?: string;
+      readonly kimaritePattern?: KimaritePattern;
     },
   ): BoutFlowCommentary | undefined => {
     const factors = buildExplanationFactors(kimarite, winRoute, finalIsWin);
@@ -946,7 +947,9 @@ const resolveBattleResult = (
         boutContext: playerSelectionContext,
       });
       const kimarite = normalizeKimariteName(reversal.kimarite);
-      const boutFlowCommentary = resolveBoutFlowCommentary(kimarite, reversal.route, true);
+      const boutFlowCommentary = resolveBoutFlowCommentary(kimarite, reversal.route, true, {
+        kimaritePattern: reversal.pattern,
+      });
       return {
         isWin: true,
         kimarite,

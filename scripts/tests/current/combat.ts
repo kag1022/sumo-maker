@@ -706,6 +706,7 @@ export const tests: TestCase[] = [
       assert.ok(flowSnapshot.victoryFactorTags.includes('victory-factor:ability'));
       assert.ok(flowSnapshot.hoshitoriContextTags.includes('FINAL_BOUT'));
       assert.ok(flowSnapshot.banzukeContextTags.includes('PROMOTION_RELEVANT'));
+      assert.equal(flowSnapshot.kimaritePattern, 'PUSH_ADVANCE');
     },
   },
   {
