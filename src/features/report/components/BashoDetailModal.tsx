@@ -481,7 +481,7 @@ const RecordDetailLayout: React.FC<any> = ({
                     </div>
                     <div className="grid justify-items-end gap-1 text-text font-bold">
                       <span>{resolveBoutBadge(bout.result)}</span>
-                      {preview ? <span className="font-normal text-[10px] text-brand-line">解説</span> : null}
+                      {preview ? <span className="font-normal text-[10px] text-brand-line">取組解説</span> : null}
                     </div>
                   </button>
                 );

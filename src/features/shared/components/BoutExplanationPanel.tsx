@@ -20,12 +20,20 @@ interface BoutExplanationPanelProps {
 const factorText = (commentary: BoutFlowCommentary): string | null =>
   commentary.flowExplanation[2] ?? null;
 
+const displayFactorLabels = (commentary: BoutFlowCommentary): string[] => {
+  const labels = commentary.victoryFactorLabels.map((label) =>
+    label === "番付上の地力" ? "地力差" : label,
+  );
+  return [...new Set(labels)].slice(0, 3);
+};
+
 export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
   preview,
 }) => {
   const outcomeLabel = preview.commentary.outcome === "WIN" ? "勝因" : "敗因";
-  const mainFlow = preview.commentary.flowExplanation.slice(0, 2);
+  const mainFlow = preview.commentary.flowExplanation.slice(0, 2).filter(Boolean);
   const resultFactorText = factorText(preview.commentary);
+  const factorLabels = displayFactorLabels(preview.commentary);
 
   return (
     <section className={styles.panel} aria-label={`${preview.day}日目の取組解説`}>
@@ -42,17 +50,19 @@ export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
       <div className={styles.detailGrid}>
         <section className={styles.readingBlock}>
           <div className={styles.sectionTitle}>勝負の流れ</div>
-          {mainFlow.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
+          <div className={styles.flowList}>
+            {mainFlow.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
         </section>
 
         <section className={styles.readingBlock}>
           <div className={styles.sectionTitle}>{outcomeLabel}</div>
           {resultFactorText ? <p>{resultFactorText}</p> : null}
-          {preview.commentary.victoryFactorLabels.length > 0 ? (
+          {factorLabels.length > 0 ? (
             <div className={styles.factorList} aria-label={outcomeLabel}>
-              {preview.commentary.victoryFactorLabels.slice(0, 4).map((label) => (
+              {factorLabels.map((label) => (
                 <span key={label} className={styles.factor}>{label}</span>
               ))}
             </div>
