@@ -35,6 +35,8 @@ Current builders are pure and readonly:
 
 `boutFlowDiagnosticSnapshot.ts` composes a report-only snapshot for reading `OpeningPhase -> ControlPhaseCandidate -> FinishRoute -> Kimarite` as one flow. It adds opening/control confidence, transition classification, and explanation-axis coverage (`FLOW_ONLY` / `FLOW_AND_RESULT` / `COMPLETE_CONTEXT`), but it must remain outside production battle, persistence, worker protocol, and UI.
 
+`boutFlowDiagnosticBuilder.ts` is the pure bridge from existing `BoutExplanationSnapshot` data to a completed diagnostic flow snapshot. It derives victory-factor tags, hoshitori context tags, and banzuke context tags from already-computed values only. It does not inspect route weights, kimarite candidate weights, or consume RNG.
+
 The complete design note is `BoutFlowCompleteDesign.md`. It defines the required type surface, explanation素材 axes, diagnostic indicators, acceptance conditions, and implementation roadmap before this model is allowed to become player-facing.
 
 Player PreBoutPhase snapshots are collected only through the opt-in diagnostics collector in `simulation/diagnostics.ts`. The collector records deterministic weights and reason tags only; it does not sample a phase with production RNG and must not add fields to `calculateBattleResult`, `PlayerBoutDetail`, persistence rows, worker protocol, App, or UI.
@@ -51,6 +53,6 @@ Current BoutFlow diagnostics coverage:
 
 `preBoutPhaseRouteBias.ts` remains diagnostic / experiment infrastructure. Direct PreBoutPhase-to-route bias is not a production candidate by itself; any live behavior change must go through a separate flow-level design and validation task.
 
-Player BoutExplanation snapshots are also diagnostics-only. They assemble broad factor labels from already-computed player bout values after the result and kimarite are known. They must not expose raw coefficients, consume RNG, alter result/route/kimarite selection, or become persistence/UI fields without a separate contract task.
+Player BoutExplanation snapshots are also diagnostics-only. They assemble broad factor labels from already-computed player bout values after the result and kimarite are known. When the BoutFlow diagnostic collector is enabled, `battle.ts` may additionally pass that snapshot through `boutFlowDiagnosticBuilder.ts` and emit a `BoutFlowDiagnosticSnapshot`. This remains opt-in diagnostics and must not expose raw coefficients, consume RNG, alter result/route/kimarite selection, or become persistence/UI fields without a separate contract task.
 
 The profile is diagnostic infrastructure only in this phase. Production player and NPC bout outcomes must not route through it until a compatibility wrapper proves identical `resolveBoutWinProb` inputs and RNG order.

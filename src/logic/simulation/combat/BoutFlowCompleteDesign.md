@@ -66,7 +66,13 @@ The diagnostic snapshot now reports explanation-axis coverage:
 - `missingExplanationAxes`: exact axes that prevent complete explanation.
 - `explanationCompleteness`: `FLOW_ONLY`, `FLOW_AND_RESULT`, or `COMPLETE_CONTEXT`.
 
-Current player collector is expected to remain mostly `FLOW_ONLY` because it has opening/control/finish/kimarite but does not yet pass structured victory factor tags, hoshitori tags, and banzuke tags into `createBoutFlowDiagnosticSnapshot`.
+`boutFlowDiagnosticBuilder.ts` derives the first production-safe diagnostic tags from `BoutExplanationSnapshot`:
+
+- `victoryFactorTags` from broad explanation factors.
+- `hoshitoriContextTags` from bout ordinal, pressure flags, score, streak, previous result, and title implication.
+- `banzukeContextTags` from rank/division, promotion or demotion pressure, kinboshi context, and ordinary rank expectation fallback.
+
+This is still diagnostic-only. It reads values that already exist after result resolution and does not consume RNG or change selector inputs.
 
 Useful acceptance diagnostics:
 

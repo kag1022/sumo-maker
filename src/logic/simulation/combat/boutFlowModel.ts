@@ -90,6 +90,7 @@ export type HoshitoriContextTag =
   | 'FINAL_BOUT'
   | 'KACHIKOSHI_DECIDER'
   | 'MAKEKOSHI_DECIDER'
+  | 'KACHI_MAKE_DECIDER'
   | 'YUSHO_DIRECT'
   | 'YUSHO_CHASE'
   | 'WIN_STREAK'

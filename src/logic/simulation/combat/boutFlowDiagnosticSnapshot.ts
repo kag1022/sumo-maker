@@ -56,6 +56,9 @@ export interface BoutFlowExplanationAxisCoverage {
 }
 
 export interface BoutFlowDiagnosticSnapshot extends CreateBoutFlowDiagnosticSnapshotInput {
+  readonly victoryFactorTags: readonly string[];
+  readonly hoshitoriContextTags: readonly HoshitoriContextTag[];
+  readonly banzukeContextTags: readonly BanzukeContextTag[];
   readonly transitionClassification: BoutFlowTransitionClassification;
   readonly transitionReasonTags: readonly string[];
   readonly explanationCoverage: readonly BoutFlowExplanationAxisCoverage[];
@@ -200,10 +203,16 @@ const resolveBoutFlowExplanationCoverage = (
 export const createBoutFlowDiagnosticSnapshot = (
   input: CreateBoutFlowDiagnosticSnapshotInput,
 ): BoutFlowDiagnosticSnapshot => {
-  const transition = classifyBoutFlowTransition(input);
-  const coverage = resolveBoutFlowExplanationCoverage(input, transition.transitionClassification);
-  return {
+  const normalizedInput = {
     ...input,
+    victoryFactorTags: input.victoryFactorTags ?? [],
+    hoshitoriContextTags: input.hoshitoriContextTags ?? [],
+    banzukeContextTags: input.banzukeContextTags ?? [],
+  };
+  const transition = classifyBoutFlowTransition(normalizedInput);
+  const coverage = resolveBoutFlowExplanationCoverage(normalizedInput, transition.transitionClassification);
+  return {
+    ...normalizedInput,
     ...transition,
     ...coverage,
   };

@@ -19,12 +19,8 @@ import {
   type PreBoutPhase,
   type PreBoutPhaseWeights,
 } from '../../src/logic/simulation/combat/preBoutPhase';
-import { resolvePreBoutPhaseConfidence } from '../../src/logic/simulation/combat/preBoutPhaseRouteBias';
-import { resolveControlPhaseCandidate } from '../../src/logic/simulation/combat/controlPhaseAdapter';
-import {
-  createBoutFlowDiagnosticSnapshot,
-  type BoutFlowDiagnosticSnapshot,
-} from '../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
+import type { BoutFlowDiagnosticSnapshot } from '../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
+import { createBoutFlowDiagnosticSnapshotFromExplanationSnapshot } from '../../src/logic/simulation/combat/boutFlowDiagnosticBuilder';
 import { resolveDiagnosticKimariteMetadata } from './kimarite_family_classifier';
 
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
@@ -168,36 +164,7 @@ const resolveDominantOpeningPhase = (
 const resolveBoutFlowSnapshot = (
   snapshot: BoutExplanationSnapshot,
 ): BoutFlowDiagnosticSnapshot | undefined => {
-  if (
-    !snapshot.preBoutPhaseWeights ||
-    !snapshot.winRoute ||
-    !snapshot.kimarite ||
-    !snapshot.boutEngagement
-  ) {
-    return undefined;
-  }
-  const metadata = resolveDiagnosticKimariteMetadata(snapshot.kimarite);
-  const controlPhase = resolveControlPhaseCandidate({
-    engagement: snapshot.boutEngagement,
-    finishRoute: snapshot.winRoute,
-    kimaritePattern: snapshot.kimaritePattern,
-  });
-  const openingConfidence = resolvePreBoutPhaseConfidence(snapshot.preBoutPhaseWeights);
-  return createBoutFlowDiagnosticSnapshot({
-    openingPhase: openingConfidence.dominantPhase,
-    openingConfidence: openingConfidence.bucket,
-    controlPhasePredecessor: snapshot.boutEngagement.phase,
-    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
-    controlConfidence: controlPhase.confidence,
-    finishRoute: snapshot.winRoute,
-    kimarite: {
-      name: metadata.kimarite ?? snapshot.kimarite,
-      family: metadata.family,
-      diagnosticFamily: metadata.diagnosticFamily,
-      rarity: metadata.rarityBucket,
-      catalogStatus: metadata.catalogStatus,
-    },
-  });
+  return createBoutFlowDiagnosticSnapshotFromExplanationSnapshot(snapshot);
 };
 
 const withBoutFlow = (snapshot: BoutExplanationSnapshot): BoutExplanationSnapshot & {
@@ -331,6 +298,10 @@ const main = async (): Promise<void> => {
       kimariteFamilyDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.kimarite.family)),
       kimariteRarityDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.kimarite.rarity)),
       transitionClassificationDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.transitionClassification)),
+      explanationCompletenessDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.explanationCompleteness)),
+      missingExplanationAxisDistribution: countBy(boutFlowSnapshots.flatMap((snapshot) => snapshot.missingExplanationAxes)),
+      hoshitoriContextDistribution: countBy(boutFlowSnapshots.flatMap((snapshot) => snapshot.hoshitoriContextTags)),
+      banzukeContextDistribution: countBy(boutFlowSnapshots.flatMap((snapshot) => snapshot.banzukeContextTags)),
     },
     metadataCoverage: summarizeMetadataCoverage(snapshots),
     pressureCoverage: {

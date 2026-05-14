@@ -9,13 +9,17 @@ import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import {
   type BoutExplanationFactor,
+  type BoutExplanationSnapshot,
+  isBoutFlowDiagnosticSnapshotEnabled,
   isBoutExplanationSnapshotEnabled,
   isBoutWinProbSnapshotEnabled,
   isPreBoutPhaseSnapshotEnabled,
+  recordBoutFlowDiagnosticSnapshot,
   recordBoutExplanationSnapshot,
   recordBoutWinProbSnapshot,
   recordPreBoutPhaseSnapshot,
 } from './simulation/diagnostics';
+import { createBoutFlowDiagnosticSnapshotFromExplanationSnapshot } from './simulation/combat/boutFlowDiagnosticBuilder';
 import {
   resolvePlayerBoutCompat,
   type PlayerBoutCompatNormalizedInput,
@@ -512,6 +516,7 @@ const resolveBattleResult = (
   const enemyProfile = buildEnemyKimariteProfile(enemy);
   const shouldCollectPreBoutPhase = isPreBoutPhaseSnapshotEnabled();
   const shouldCollectBoutExplanation = isBoutExplanationSnapshotEnabled();
+  const shouldCollectBoutFlowDiagnostic = isBoutFlowDiagnosticSnapshotEnabled();
   let preBoutPhaseResolution: PreBoutPhaseResolution | undefined;
   let preBoutAttackerStyle: CombatStyle | undefined;
   let preBoutDefenderStyle: CombatStyle | undefined;
@@ -882,14 +887,24 @@ const resolveBattleResult = (
       readonly kimaritePattern?: string;
     },
   ): void => {
-    if (!shouldCollectBoutExplanation) return;
+    if (!shouldCollectBoutExplanation && !shouldCollectBoutFlowDiagnostic) return;
     const factors = buildExplanationFactors(kimarite, winRoute, finalIsWin);
-    recordBoutExplanationSnapshot({
+    const snapshot: BoutExplanationSnapshot = {
       source: 'PLAYER_BOUT',
       division: rikishi.rank.division,
+      rank: rikishi.rank,
       formatKind: context?.formatKind,
+      totalBouts: context?.ordinal?.totalBouts,
       calendarDay: context?.ordinal?.calendarDay ?? context?.day,
       boutOrdinal: context?.ordinal?.boutOrdinal,
+      currentWins: context?.currentWins,
+      currentLosses: context?.currentLosses,
+      currentWinStreak,
+      currentLossStreak,
+      previousResult: context?.previousResult,
+      titleImplication: context?.titleImplication,
+      boundaryImplication: context?.boundaryImplication,
+      isKinboshiContext: isPlayerKinboshi || isEnemyKinboshi,
       baseWinProbability,
       winProbability,
       baselineWinProbability,
@@ -903,7 +918,14 @@ const resolveBattleResult = (
       kimaritePattern: flow?.kimaritePattern,
       factors,
       shortCommentaryDraft: factors.slice(0, 3).map((factor) => factor.label).join('、'),
-    });
+    };
+    if (shouldCollectBoutExplanation) {
+      recordBoutExplanationSnapshot(snapshot);
+    }
+    if (shouldCollectBoutFlowDiagnostic) {
+      const boutFlowSnapshot = createBoutFlowDiagnosticSnapshotFromExplanationSnapshot(snapshot);
+      if (boutFlowSnapshot) recordBoutFlowDiagnosticSnapshot(boutFlowSnapshot);
+    }
   };
 
   if (!isWin && canTriggerEdgeReversal(winProbability, context)) {
