@@ -28,6 +28,7 @@ import {
   resolveFinishRouteCandidates,
 } from '../../../src/logic/kimarite/finishRoute';
 import { resolveControlPhaseCandidate } from '../../../src/logic/simulation/combat/controlPhaseAdapter';
+import { createBoutFlowDiagnosticSnapshot } from '../../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
 import {
   classifyPreBoutPhaseKimariteContradiction,
   resolveDiagnosticKimariteMetadata,
@@ -536,6 +537,54 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'combat control phase: bout flow diagnostic snapshot classifies transitions',
+    run: () => {
+      const aligned = createBoutFlowDiagnosticSnapshot({
+        openingPhase: 'THRUST_BATTLE',
+        openingConfidence: 'HIGH',
+        controlPhasePredecessor: 'THRUST_BATTLE',
+        controlPhaseCandidate: 'THRUST_BATTLE',
+        controlConfidence: 'DIRECT',
+        finishRoute: 'PUSH_OUT',
+        kimarite: {
+          name: '押し出し',
+          family: 'PUSH_THRUST',
+          diagnosticFamily: 'PUSH_THRUST',
+          rarity: 'COMMON',
+        },
+      });
+      assert.equal(aligned.transitionClassification, 'ALIGNED_FLOW');
+
+      const edge = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        openingPhase: 'BELT_BATTLE',
+        controlPhasePredecessor: 'EDGE_SCRAMBLE',
+        controlPhaseCandidate: 'EDGE_BATTLE',
+        controlConfidence: 'RENAMED',
+        finishRoute: 'EDGE_REVERSAL',
+      });
+      assert.equal(edge.transitionClassification, 'EDGE_TURNAROUND');
+
+      const technique = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        openingPhase: 'MIXED',
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+        controlConfidence: 'INFERRED',
+        finishRoute: 'THROW_BREAK',
+      });
+      assert.equal(technique.transitionClassification, 'TECHNIQUE_CONVERSION');
+
+      const ambiguous = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'MIXED',
+        controlConfidence: 'AMBIGUOUS',
+      });
+      assert.equal(ambiguous.transitionClassification, 'AMBIGUOUS_CONTROL');
+    },
+  },
+  {
     name: 'combat finish route: production-equivalent candidates keep order and weights',
     run: () => {
       const winner = {
@@ -964,6 +1013,8 @@ export const tests: TestCase[] = [
       assert.equal(snapshot.pressure?.isKachiMakeDecider, true);
       assert.ok(snapshot.preBoutPhaseWeights !== undefined);
       assert.ok((snapshot.preBoutPhaseReasonTags?.length ?? 0) > 0);
+      assert.ok(snapshot.boutEngagement !== undefined);
+      assert.ok(snapshot.kimaritePattern !== undefined);
       assert.equal(snapshot.kimarite, collectedResult.kimarite);
       assert.equal(snapshot.winRoute, collectedResult.winRoute);
       assert.ok(snapshot.factors.length > 0);

@@ -18,6 +18,10 @@ import {
   type ControlPhaseCandidateConfidence,
   resolveControlPhaseCandidate,
 } from '../../src/logic/simulation/combat/controlPhaseAdapter';
+import {
+  createBoutFlowDiagnosticSnapshot,
+  type BoutFlowDiagnosticSnapshot,
+} from '../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
 import type { BoutPressureContext } from '../../src/logic/simulation/basho/formatPolicy';
 import type { RandomSource } from '../../src/logic/simulation/deps';
 import {
@@ -89,6 +93,7 @@ interface HarnessRow {
   severity: ContradictionSeverity;
   contradiction: boolean;
   warningCount: number;
+  boutFlowSnapshot: BoutFlowDiagnosticSnapshot;
   boutFlow: {
     openingPhase: PreBoutPhase;
     openingPhaseWeights: PreBoutPhaseWeights;
@@ -317,6 +322,21 @@ const simulateCase = (
     route: winRoute,
     metadata: kimariteMetadata,
   });
+  const boutFlowSnapshot = createBoutFlowDiagnosticSnapshot({
+    openingPhase: dominantPhase,
+    openingConfidence: confidenceBucket,
+    controlPhasePredecessor: engagement.phase,
+    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+    controlConfidence: controlPhase.confidence,
+    finishRoute: winRoute,
+    kimarite: {
+      name: kimariteMetadata.kimarite ?? selected.kimarite,
+      family: kimariteMetadata.family,
+      diagnosticFamily: kimariteMetadata.diagnosticFamily,
+      rarity: kimariteMetadata.rarityBucket,
+      catalogStatus: kimariteMetadata.catalogStatus,
+    },
+  });
   return {
     caseId: testCase.id,
     mode,
@@ -339,6 +359,7 @@ const simulateCase = (
     severity: classified.severity,
     contradiction: classified.contradiction,
     warningCount: warnings.length,
+    boutFlowSnapshot,
     boutFlow: {
       openingPhase: dominantPhase,
       openingPhaseWeights: phaseResolution.weights,
@@ -503,6 +524,44 @@ const main = (): void => {
         OFF: countBy(offRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
         ENABLED: countBy(enabledRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
       },
+      transitionClassification: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+      },
+    },
+    boutFlowSnapshotDistribution: {
+      openingPhase: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.openingPhase)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.openingPhase)),
+      },
+      openingConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.openingConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.openingConfidence)),
+      },
+      controlPhaseCandidate: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.controlPhaseCandidate)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.controlPhaseCandidate)),
+      },
+      controlConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.controlConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.controlConfidence)),
+      },
+      finishRoute: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.finishRoute)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.finishRoute)),
+      },
+      kimariteFamily: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.kimarite.family)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.kimarite.family)),
+      },
+      kimariteRarity: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.kimarite.rarity)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.kimarite.rarity)),
+      },
+      transitionClassification: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+      },
     },
     routeDistribution: {
       OFF: offRouteCounts,
@@ -545,6 +604,11 @@ const main = (): void => {
       'ENABLED does not enable production behavior.',
       'Full downstream career RNG parity is not claimed.',
     ],
+    boutFlowSnapshots: offRows.slice(0, 16).map((row) => ({
+      caseId: row.caseId,
+      mode: row.mode,
+      snapshot: row.boutFlowSnapshot,
+    })),
     examples: {
       changedRoutes: enabledRows
         .filter((row, index) => row.winRoute !== offRows[index]?.winRoute)
@@ -554,6 +618,7 @@ const main = (): void => {
           offRoute: offRows.find((off) => off.caseId === row.caseId)?.winRoute,
           enabledRoute: row.winRoute,
           phase: row.dominantPhase,
+          boutFlowSnapshot: row.boutFlowSnapshot,
           boutFlow: row.boutFlow,
           confidence: row.confidenceBucket,
           offSeverity: offRows.find((off) => off.caseId === row.caseId)?.severity,
@@ -576,6 +641,7 @@ const main = (): void => {
     kimariteFamilyDistribution: report.kimariteFamilyDistribution,
     diagnosticFamilyDistribution: report.diagnosticFamilyDistribution,
     rarityDistribution: report.rarityDistribution,
+    boutFlowSnapshotDistribution: report.boutFlowSnapshotDistribution,
     warningCounts: report.warningCounts,
     acceptanceRead: report.acceptanceRead,
   }, null, 2));

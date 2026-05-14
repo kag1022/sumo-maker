@@ -57,6 +57,7 @@ import {
   type KimariteCompetitorProfile,
 } from './kimarite/selection';
 import {
+  type BoutEngagement,
   resolveBoutEngagement,
 } from './kimarite/engagement';
 import { resolveFinishRoute } from './kimarite/finishRoute';
@@ -876,6 +877,10 @@ const resolveBattleResult = (
     kimarite: string,
     winRoute: WinRoute | undefined,
     finalIsWin: boolean,
+    flow?: {
+      readonly engagement?: BoutEngagement;
+      readonly kimaritePattern?: string;
+    },
   ): void => {
     if (!shouldCollectBoutExplanation) return;
     const factors = buildExplanationFactors(kimarite, winRoute, finalIsWin);
@@ -894,6 +899,8 @@ const resolveBattleResult = (
       pressure: context?.pressure,
       kimarite,
       winRoute,
+      boutEngagement: flow?.engagement,
+      kimaritePattern: flow?.kimaritePattern,
       factors,
       shortCommentaryDraft: factors.slice(0, 3).map((factor) => factor.label).join('、'),
     });
@@ -948,7 +955,10 @@ const resolveBattleResult = (
   });
   const kimarite = normalizeKimariteName(selected.kimarite);
   const finalWinRoute = selected.route ?? winRoute;
-  recordExplanationSnapshot(kimarite, finalWinRoute, isWin);
+  recordExplanationSnapshot(kimarite, finalWinRoute, isWin, {
+    engagement,
+    kimaritePattern: selected.pattern,
+  });
   return {
     isWin,
     kimarite,
