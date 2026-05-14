@@ -8,6 +8,12 @@ import {
   resolvePlayerBoutCompat,
 } from '../../../src/logic/simulation/combat/playerCompat';
 import { resolveCombatKernelProbability } from '../../../src/logic/simulation/combat/kernel';
+import {
+  PRE_BOUT_PHASES,
+  resolvePreBoutPhaseDiagnostic,
+  resolvePreBoutPhaseWeights,
+  samplePreBoutPhase,
+} from '../../../src/logic/simulation/combat/preBoutPhase';
 import { resolveBashoFormatPolicy } from '../../../src/logic/simulation/basho/formatPolicy';
 import { resolveBoutWinProb } from '../../../src/logic/simulation/strength/model';
 import type { TestCase } from '../types';
@@ -262,6 +268,41 @@ export const tests: TestCase[] = [
         metadata: { division: 'Makushita' },
       });
       assert.equal(npcOutput.probability, npcDirectProbability);
+    },
+  },
+  {
+    name: 'combat phase: prebout resolver is deterministic and diagnostic-only',
+    run: () => {
+      const input = {
+        source: 'PLAYER_DIAGNOSTIC' as const,
+        attackerStyle: 'PUSH' as const,
+        defenderStyle: 'GRAPPLE' as const,
+        attackerPushStrength: 72,
+        defenderBeltStrength: 68,
+        attackerHeightCm: 188,
+        defenderHeightCm: 176,
+        attackerWeightKg: 152,
+        defenderWeightKg: 128,
+        formatKind: 'SEKITORI_15' as const,
+        pressure: {
+          isFinalBout: true,
+          isKachiMakeDecider: true,
+        },
+      };
+      const first = resolvePreBoutPhaseWeights(input);
+      const second = resolvePreBoutPhaseWeights(input);
+      assert.deepEqual(first, second);
+      PRE_BOUT_PHASES.forEach((phase) => {
+        assert.ok(Number.isFinite(first.weights[phase]), `${phase} weight should be finite`);
+        assert.ok(first.weights[phase] >= 0, `${phase} weight should be non-negative`);
+      });
+      assert.ok(first.weights.THRUST_BATTLE > 0);
+      assert.ok(first.weights.BELT_BATTLE > 0);
+      const sampledA = samplePreBoutPhase(first.weights, () => 0.2);
+      const sampledB = samplePreBoutPhase(first.weights, () => 0.2);
+      assert.equal(sampledA, sampledB);
+      const diagnostic = resolvePreBoutPhaseDiagnostic(input, () => 0.99);
+      assert.ok(PRE_BOUT_PHASES.includes(diagnostic.phase ?? 'MIXED'));
     },
   },
 ];
