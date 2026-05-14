@@ -16,8 +16,8 @@ import { RandomSource } from '../deps';
 import type { TopDivision } from '../world/types';
 
 const NPC_BASHO_KYUJOU_RATE: Record<Division, number> = {
-  Makuuchi: 0.020, // ref 2.5% — 上位三役の既存 kyujou が +0.5% 追加するため控えめ
-  Juryo: 0.022,    // ref 2.2%
+  Makuuchi: 0.014, // ref 2.5% — 上位三役の既存 kyujou と partial 増を踏まえて微減
+  Juryo: 0.019,    // ref 2.2% — 関取全休が過多だったため微減
   Makushita: 0.024, // ref 2.4%
   Sandanme: 0.036,  // ref 3.6%
   Jonidan: 0.052,   // ref 5.2%
@@ -40,6 +40,11 @@ export type NpcPartialKyujoPlan = {
   reason: NpcPartialKyujoReason;
 };
 
+const NPC_SEKITORI_PARTIAL_KYUJO_RATE: Record<TopDivision, { base: number; cap: number }> = {
+  Makuuchi: { base: 0.0098, cap: 0.045 },
+  Juryo: { base: 0.0082, cap: 0.035 },
+};
+
 export const resolveNpcPartialKyujoPlan = (
   input: {
     division: TopDivision;
@@ -57,26 +62,28 @@ export const resolveNpcPartialKyujoPlan = (
   if (input.isPlayer || input.bashoKyujo) return undefined;
 
   const topRankPressure =
-    input.rankName === '横綱' ? 0.0022 :
-      input.rankName === '大関' ? 0.0016 :
-        input.rankName === '関脇' || input.rankName === '小結' ? 0.0011 :
+    input.rankName === '横綱' ? 0.018 :
+      input.rankName === '大関' ? 0.014 :
+        input.rankName === '関脇' || input.rankName === '小結' ? 0.010 :
           0;
-  const divisionBase = input.division === 'Makuuchi' ? 0.0008 : 0.0006;
-  const agePressure = Math.max(0, input.age - 29) * 0.00025 + Math.max(0, input.age - 34) * 0.00045;
-  const formPressure = Math.max(0, 0.95 - input.form) * 0.004;
+  const divisionRate = NPC_SEKITORI_PARTIAL_KYUJO_RATE[input.division];
+  const agePressure = Math.max(0, input.age - 29) * 0.002 + Math.max(0, input.age - 34) * 0.003;
+  const formPressure = Math.max(0, 0.95 - input.form) * 0.02;
   const slumpPressure =
-    Math.max(0, input.stagnationPressure - 1.2) * 0.0006 +
-    Math.max(0, input.consecutiveMakekoshi - 1) * 0.0005 +
-    Math.max(0, input.recentAbsenceTotal - 1) * 0.00025;
-  const rate = Math.min(0.008, divisionBase + topRankPressure + agePressure + formPressure + slumpPressure);
+    (Math.max(0, input.stagnationPressure - 1.2) * 0.0006 +
+      Math.max(0, input.consecutiveMakekoshi - 1) * 0.0005 +
+      Math.max(0, input.recentAbsenceTotal - 1) * 0.00025) * 3;
+  const rate = Math.min(
+    divisionRate.cap,
+    divisionRate.base + topRankPressure + agePressure + formPressure + slumpPressure,
+  );
   if (rng() >= rate) return undefined;
 
   const roll = rng();
   const startDay =
-    roll < 0.12 ? 2 + Math.floor(rng() * 3) :
-      roll < 0.54 ? 5 + Math.floor(rng() * 4) :
-        roll < 0.88 ? 9 + Math.floor(rng() * 3) :
-          12 + Math.floor(rng() * 3);
+    roll < 0.36 ? 2 + Math.floor(rng() * 7) :
+      roll < 0.66 ? 9 + Math.floor(rng() * 4) :
+        13 + Math.floor(rng() * 3);
   const reasonRoll = rng();
   const reason: NpcPartialKyujoReason =
     reasonRoll < 0.58 ? 'injury' :
@@ -84,7 +91,7 @@ export const resolveNpcPartialKyujoPlan = (
         reasonRoll < 0.9 ? 'illness' :
           'unknown';
   return {
-    startDay: Math.max(2, Math.min(14, startDay)),
+    startDay: Math.max(2, Math.min(15, startDay)),
     reason,
   };
 };

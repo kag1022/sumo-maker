@@ -27,6 +27,7 @@
     "report:realism:aptitude": "node scripts/reports/run_realism_monte_carlo.cjs --aptitude",
     "report:realism:full": "node scripts/reports/run_realism_monte_carlo.cjs --full",
     "report:realism:mc": "node scripts/reports/run_realism_monte_carlo.cjs --full",
+    "report:kyujo:light": "npx tsx scripts/dev/diagnosePlayerNpcKyujoLight.ts",
     "report:population:tuning": "node scripts/reports/run_realism_monte_carlo.cjs --population",
     "report:kimarite": "node scripts/reports/kimarite_distribution.cjs",
     "report:kimarite:save": "node scripts/reports/kimarite_distribution.cjs --save",

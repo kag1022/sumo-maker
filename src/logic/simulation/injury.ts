@@ -11,7 +11,8 @@ export interface InjuryParticipation {
   conditionPenalty: number;
 }
 
-const FORCED_ABSENCE_SEVERITY = 7;
+const FORCED_ABSENCE_SEVERITY = 5;
+const PLAYER_INJURY_RATE_MULTIPLIER = 1.55;
 const SIDE_AWARE_TYPES = new Set<InjuryType>([
   'KNEE',
   'SHOULDER',
@@ -42,7 +43,7 @@ const resolveInjuryDisplayName = (
 
 export const resolveInjuryRate = (status: RikishiStatus): number => {
   const traits = status.traits || [];
-  let injuryRate = CONSTANTS.PROBABILITY.INJURY_PER_BOUT;
+  let injuryRate = CONSTANTS.PROBABILITY.INJURY_PER_BOUT * PLAYER_INJURY_RATE_MULTIPLIER;
   if (traits.includes('TETSUJIN')) {
     injuryRate *= 0.5;
   }
