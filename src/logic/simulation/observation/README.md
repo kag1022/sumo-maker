@@ -11,6 +11,14 @@
 - `summarizeObservationBatch()` batch 集計を返す
 - `runObservationVerificationSample()` verification 向けの batch 集計を返す
 
+## Verification population gate
+
+`annualAbsDeltaP90` は各年の banzuke active headcount の年末差分を絶対値で集計する
+小標本 smoke metric です。`population_calibration_heisei.json` の `annualTotalDelta`
+は signed quantile なので、この gate は calibration 直結の厳密比較ではありません。
+lower bound は 5 seed x 20 year の決定論サンプルで brittle にならないよう、
+実データの正方向 annual delta 最大値を最低限の churn 床として使います。
+
 ## ルール
 
 - `world`, `runOneStep`, `lowerQuota`, `sekitoriQuota` を直接読まない
