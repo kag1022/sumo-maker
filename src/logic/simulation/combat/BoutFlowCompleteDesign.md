@@ -72,6 +72,13 @@ The diagnostic snapshot now reports explanation-axis coverage:
 - `hoshitoriContextTags` from bout ordinal, pressure flags, score, streak, previous result, and title implication.
 - `banzukeContextTags` from rank/division, promotion or demotion pressure, kinboshi context, and ordinary rank expectation fallback.
 
+`boutFlowCommentary.ts` consumes only `COMPLETE_CONTEXT` snapshots and returns a runtime-only commentary contract:
+
+- `shortCommentary`: a compact bout note keyed by kimarite plus transition and context.
+- `victoryFactorLabels`: player-readable broad labels derived from diagnostic factor tags.
+- `flowExplanation`: deterministic Opening / Control / Transition / Finish / Kimarite / 星取 / 番付 explanation lines.
+- `materialKeys`: stable material identifiers for coverage reports and future UI review.
+
 This is still diagnostic-only. It reads values that already exist after result resolution and does not consume RNG or change selector inputs.
 
 Useful acceptance diagnostics:
@@ -81,6 +88,7 @@ Useful acceptance diagnostics:
 - `missingExplanationAxes` trends down as context contracts are added.
 - Same kimarite can appear across multiple transition classifications and hoshitori/banzuke tags.
 - No diagnostic collector changes production `calculateBattleResult` result shape or RNG call count.
+- `scripts/diagnostics/bout_flow_commentary_generator.ts` confirms that the same kimarite yields different short commentary and material keys when Opening / Control / Transition / 星取 / 番付 context changes.
 
 ## Acceptance Conditions
 
