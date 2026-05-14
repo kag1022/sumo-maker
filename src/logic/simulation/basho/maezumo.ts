@@ -106,6 +106,7 @@ export const runMaezumoBasho = (
       opponentRankNumber: 1,
       opponentRankSide: 'East',
       opponentStyleBias: enemy.styleBias ?? 'BALANCE',
+      boutFlowCommentary: result.boutFlowCommentary,
     });
   }
 

@@ -5,6 +5,7 @@ import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
+import type { PlayerBoutExplanationPreview } from "./BoutExplanationPreviewPanel";
 
 interface DockedBashoDetailPaneProps {
   state: BashoDetailModalState;
@@ -12,6 +13,7 @@ interface DockedBashoDetailPaneProps {
   detail: unknown;
   isLoading: boolean;
   errorMessage?: string | null;
+  playerBoutExplanationPreviews?: readonly PlayerBoutExplanationPreview[];
   onClose: () => void;
 }
 
@@ -21,6 +23,7 @@ export const DockedBashoDetailPane: React.FC<DockedBashoDetailPaneProps> = ({
   detail,
   isLoading,
   errorMessage,
+  playerBoutExplanationPreviews,
   onClose,
 }) => (
   <aside className={cn(surface.detailCard, "sticky top-5 self-start overflow-hidden")}>
@@ -46,6 +49,7 @@ export const DockedBashoDetailPane: React.FC<DockedBashoDetailPaneProps> = ({
         status={status}
         isLoading={isLoading}
         errorMessage={errorMessage}
+        playerBoutExplanationPreviews={playerBoutExplanationPreviews}
       />
     </div>
   </aside>

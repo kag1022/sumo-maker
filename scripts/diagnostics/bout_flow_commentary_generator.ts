@@ -35,6 +35,7 @@ interface KimariteFixture {
 interface Fixture {
   readonly label: string;
   readonly input: CreateBoutFlowDiagnosticSnapshotInput;
+  readonly outcome?: 'WIN' | 'LOSS';
 }
 
 interface CommentaryScenario {
@@ -76,7 +77,7 @@ const generateCommentary = (
   fixture: Fixture,
 ): CommentaryScenario => {
   const snapshot = createCompleteSnapshot(fixture);
-  const diagnostic = createBoutFlowCommentaryDiagnostic(snapshot);
+  const diagnostic = createBoutFlowCommentaryDiagnostic(snapshot, fixture.outcome ?? 'WIN');
   invariant(diagnostic.generated, `${fixture.label} commentary should be generated`);
   invariant(Boolean(diagnostic.commentary), `${fixture.label} commentary payload should exist`);
   if (!diagnostic.commentary) {
@@ -212,6 +213,209 @@ const fixtures: readonly Fixture[] = [
       banzukeContextTags: ['SEKITORI_BOUNDARY'],
     },
   },
+  {
+    label: 'loss-same-kimarite-push-expected-win',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'THRUST_BATTLE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'THRUST_BATTLE',
+      controlPhaseCandidate: 'THRUST_BATTLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'PUSH_OUT',
+      kimarite: pushOut,
+      victoryFactorTags: ['victory-factor:style', 'victory-factor:pressure'],
+      hoshitoriContextTags: ['EARLY_BASHO'],
+      banzukeContextTags: ['RANK_EXPECTED_WIN'],
+    },
+  },
+  {
+    label: 'loss-same-kimarite-push-kachikoshi',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'BELT_BATTLE',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'THRUST_BATTLE',
+      controlPhaseCandidate: 'THRUST_BATTLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'PUSH_OUT',
+      kimarite: pushOut,
+      victoryFactorTags: ['victory-factor:body', 'victory-factor:phase-shape'],
+      hoshitoriContextTags: ['KACHIKOSHI_DECIDER'],
+      banzukeContextTags: ['PROMOTION_RELEVANT'],
+    },
+  },
+  {
+    label: 'loss-same-kimarite-edge-chase',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'EDGE_BATTLE',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'EDGE_SCRAMBLE',
+      controlPhaseCandidate: 'EDGE_BATTLE',
+      controlConfidence: 'RENAMED',
+      finishRoute: 'PUSH_OUT',
+      kimarite: pushOut,
+      victoryFactorTags: ['victory-factor:momentum', 'victory-factor:kimarite-fit'],
+      hoshitoriContextTags: ['YUSHO_CHASE'],
+      banzukeContextTags: ['KINBOSHI_CHANCE'],
+    },
+  },
+  {
+    label: 'loss-yori-final-demotion',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'BELT_BATTLE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'BELT_BATTLE',
+      controlPhaseCandidate: 'BELT_BATTLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'BELT_FORCE',
+      kimarite: kimarite('寄り切り', 'FORCE_OUT'),
+      victoryFactorTags: ['victory-factor:ability', 'victory-factor:body'],
+      hoshitoriContextTags: ['FINAL_BOUT'],
+      banzukeContextTags: ['DEMOTION_RELEVANT'],
+    },
+  },
+  {
+    label: 'loss-pull-middle-boundary',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'QUICK_COLLAPSE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'QUICK_COLLAPSE',
+      controlPhaseCandidate: 'QUICK_COLLAPSE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'PULL_DOWN',
+      kimarite: kimarite('はたき込み', 'TWIST_DOWN'),
+      victoryFactorTags: ['victory-factor:style', 'victory-factor:kimarite-fit'],
+      hoshitoriContextTags: ['MIDDLE_BASHO'],
+      banzukeContextTags: ['SEKITORI_BOUNDARY'],
+    },
+  },
+  {
+    label: 'loss-throw-makekoshi',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'TECHNIQUE_SCRAMBLE',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'TECHNIQUE_SCRAMBLE',
+      controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'THROW_BREAK',
+      kimarite: kimarite('上手投げ', 'THROW'),
+      victoryFactorTags: ['victory-factor:pressure', 'victory-factor:phase-shape'],
+      hoshitoriContextTags: ['MAKEKOSHI_DECIDER'],
+      banzukeContextTags: ['MAKUUCHI_BOUNDARY'],
+    },
+  },
+  {
+    label: 'loss-leg-rank-expected',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'MIXED',
+      openingConfidence: 'LOW',
+      controlPhasePredecessor: 'TECHNIQUE_SCRAMBLE',
+      controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+      controlConfidence: 'INFERRED',
+      finishRoute: 'LEG_ATTACK',
+      kimarite: kimarite('外掛け', 'TRIP_PICK'),
+      victoryFactorTags: ['victory-factor:phase-shape', 'victory-factor:form'],
+      hoshitoriContextTags: ['LOSS_STREAK'],
+      banzukeContextTags: ['RANK_EXPECTED_WIN'],
+    },
+  },
+  {
+    label: 'loss-rear-finish-lead-protection',
+    outcome: 'LOSS',
+    input: {
+      openingPhase: 'MIXED',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'MIXED',
+      controlPhaseCandidate: 'MIXED',
+      controlConfidence: 'AMBIGUOUS',
+      finishRoute: 'REAR_FINISH',
+      kimarite: kimarite('送り出し', 'REAR'),
+      victoryFactorTags: ['victory-factor:momentum', 'victory-factor:style'],
+      hoshitoriContextTags: ['LEAD_PROTECTION'],
+      banzukeContextTags: ['SAN_YAKU_PRESSURE'],
+    },
+  },
+  {
+    label: 'win-yori-promotion',
+    input: {
+      openingPhase: 'BELT_BATTLE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'BELT_BATTLE',
+      controlPhaseCandidate: 'BELT_BATTLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'BELT_FORCE',
+      kimarite: kimarite('寄り倒し', 'FORCE_OUT'),
+      victoryFactorTags: ['victory-factor:ability', 'victory-factor:pressure'],
+      hoshitoriContextTags: ['KACHI_MAKE_DECIDER'],
+      banzukeContextTags: ['PROMOTION_RELEVANT'],
+    },
+  },
+  {
+    label: 'win-pull-quick-recovery',
+    input: {
+      openingPhase: 'QUICK_COLLAPSE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'QUICK_COLLAPSE',
+      controlPhaseCandidate: 'QUICK_COLLAPSE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'PULL_DOWN',
+      kimarite: kimarite('引き落とし', 'TWIST_DOWN'),
+      victoryFactorTags: ['victory-factor:kimarite-fit', 'victory-factor:style'],
+      hoshitoriContextTags: ['RECOVERY_BOUT'],
+      banzukeContextTags: ['RANK_EXPECTED_WIN'],
+    },
+  },
+  {
+    label: 'win-rear-middle-rank-gap',
+    input: {
+      openingPhase: 'MIXED',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'MIXED',
+      controlPhaseCandidate: 'MIXED',
+      controlConfidence: 'AMBIGUOUS',
+      finishRoute: 'REAR_FINISH',
+      kimarite: kimarite('送り倒し', 'REAR'),
+      victoryFactorTags: ['victory-factor:momentum', 'victory-factor:phase-shape'],
+      hoshitoriContextTags: ['MIDDLE_BASHO'],
+      banzukeContextTags: ['RANK_GAP_UPSET'],
+    },
+  },
+  {
+    label: 'win-edge-direct-yusho',
+    input: {
+      openingPhase: 'EDGE_BATTLE',
+      openingConfidence: 'HIGH',
+      controlPhasePredecessor: 'EDGE_SCRAMBLE',
+      controlPhaseCandidate: 'EDGE_BATTLE',
+      controlConfidence: 'RENAMED',
+      finishRoute: 'EDGE_REVERSAL',
+      kimarite: kimarite('小手投げ', 'THROW'),
+      victoryFactorTags: ['victory-factor:pressure', 'victory-factor:momentum'],
+      hoshitoriContextTags: ['YUSHO_DIRECT'],
+      banzukeContextTags: ['SAN_YAKU_PRESSURE'],
+    },
+  },
+  {
+    label: 'win-leg-early',
+    input: {
+      openingPhase: 'TECHNIQUE_SCRAMBLE',
+      openingConfidence: 'MEDIUM',
+      controlPhasePredecessor: 'TECHNIQUE_SCRAMBLE',
+      controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+      controlConfidence: 'DIRECT',
+      finishRoute: 'LEG_ATTACK',
+      kimarite: kimarite('内掛け', 'TRIP_PICK'),
+      victoryFactorTags: ['victory-factor:phase-shape', 'victory-factor:kimarite-fit'],
+      hoshitoriContextTags: ['EARLY_BASHO'],
+      banzukeContextTags: ['RANK_EXPECTED_WIN'],
+    },
+  },
 ];
 
 const countBy = <T extends string>(values: readonly T[]): Record<string, number> => {
@@ -225,8 +429,19 @@ const countBy = <T extends string>(values: readonly T[]): Record<string, number>
 const duplicated = (counts: Record<string, number>): Record<string, number> =>
   Object.fromEntries(Object.entries(counts).filter(([, count]) => count > 1));
 
+const repeatedSlotCount = (counts: Record<string, number>): number =>
+  Object.values(counts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+
+const phraseSegments = (text: string): readonly string[] =>
+  text
+    .split(/[。、]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length >= 4);
+
 const containsRawEnum = (text: string): boolean => /[A-Z]{2,}_[A-Z0-9_]+/.test(text);
 const containsOverclaim = (text: string): boolean => /必ず|絶対|完全に|間違いなく|唯一/.test(text);
+const containsBannedPlayerLabel = (text: string): boolean => /^(取口|体格|調子|展開)$/.test(text);
+const containsAwkwardConnection = (text: string): boolean => /た、/.test(text);
 
 const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   const texts = [
@@ -247,8 +462,17 @@ const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   if (texts.some(containsOverclaim)) {
     flags.push('contains-overclaim-token');
   }
+  if (texts.some(containsAwkwardConnection)) {
+    flags.push('contains-awkward-connection');
+  }
   if (scenario.commentary.shortCommentary.length > 120) {
     flags.push('short-commentary-too-long');
+  }
+  if ((scenario.commentary.shortCommentary.match(/。/g)?.length ?? 0) > 2) {
+    flags.push('short-commentary-too-many-sentences');
+  }
+  if (scenario.commentary.victoryFactorLabels.some(containsBannedPlayerLabel)) {
+    flags.push('contains-internal-factor-label');
   }
   return flags;
 };
@@ -261,12 +485,18 @@ const materialKeyCounts = countBy(scenarios.flatMap((scenario) => scenario.comme
 const materialTextCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.text)));
 const shortCommentaryCounts = countBy(scenarios.map((scenario) => scenario.commentary.shortCommentary));
 const shortCommentaryLengths = scenarios.map((scenario) => scenario.commentary.shortCommentary.length);
+const shortPhraseCounts = countBy(scenarios.flatMap((scenario) => phraseSegments(scenario.commentary.shortCommentary)));
 const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.axis)));
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
 const kimariteCounts = countBy(scenarios.map((scenario) => scenario.snapshot.kimarite.name));
 const hoshitoriCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.hoshitoriContextTags));
 const banzukeCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.banzukeContextTags));
+const outcomeCounts = countBy(scenarios.map((scenario) => scenario.commentary.outcome));
+const whiteStarScenarios = scenarios.filter((scenario) => scenario.commentary.outcome === 'WIN');
+const blackStarScenarios = scenarios.filter((scenario) => scenario.commentary.outcome === 'LOSS');
+const winShortSet = new Set(whiteStarScenarios.map((scenario) => scenario.commentary.shortCommentary));
+const lossShortSet = new Set(blackStarScenarios.map((scenario) => scenario.commentary.shortCommentary));
 const scenarioAudits = scenarios.map((scenario) => {
   const axes = new Set(scenario.commentary.materials.map((material) => material.axis));
   const missingAxes = REQUIRED_AXES.filter((axis) => !axes.has(axis));
@@ -292,17 +522,31 @@ const missingAxisFlags = scenarioAudits.flatMap((audit) =>
   audit.missingAxes.map((axis) => `${audit.label}:${axis}`),
 );
 const totalMaterialSlots = scenarios.reduce((sum, scenario) => sum + scenario.commentary.materialKeys.length, 0);
-const repeatedMaterialKeySlots = Object.values(materialKeyCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-const repeatedMaterialTextSlots = Object.values(materialTextCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const totalShortPhraseSlots = Object.values(shortPhraseCounts).reduce((sum, count) => sum + count, 0);
+const repeatedMaterialKeySlots = repeatedSlotCount(materialKeyCounts);
+const repeatedMaterialTextSlots = repeatedSlotCount(materialTextCounts);
+const repeatedShortCommentarySlots = repeatedSlotCount(shortCommentaryCounts);
+const repeatedShortPhraseSlots = repeatedSlotCount(shortPhraseCounts);
+const fallbackBanzukeSlots = scenarios.filter((scenario) => scenario.snapshot.banzukeContextTags.includes('RANK_EXPECTED_WIN')).length;
 const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
 const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
+const duplicateShortCommentaryRate = scenarios.length > 0 ? repeatedShortCommentarySlots / scenarios.length : 0;
+const topPhraseFrequency = scenarios.length > 0
+  ? Math.max(0, ...Object.values(shortPhraseCounts)) / scenarios.length
+  : 0;
+const fallbackContextRate = scenarios.length > 0 ? fallbackBanzukeSlots / scenarios.length : 0;
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
+invariant(scenarios.length >= 20, 'commentary generator should cover at least 20 fixed fixtures');
+invariant(whiteStarScenarios.length > 0 && blackStarScenarios.length > 0, 'white-star and black-star fixtures should both be present');
 invariant(new Set(sameKimariteScenarios.map((scenario) => scenario.commentary.kimarite)).size === 1, 'same-kimarite fixtures must use the same kimarite');
 invariant(sameKimariteShorts.size > 1, 'same kimarite should produce varied short commentary');
 invariant(sameKimariteMaterialKeySets.size > 1, 'same kimarite should produce varied material keys');
 invariant(missingAxisFlags.length === 0, `all scenarios should reflect required axes: ${missingAxisFlags.join(', ')}`);
 invariant(criticalQualityFlags.length === 0, `commentary quality flags: ${criticalQualityFlags.join(', ')}`);
+invariant(duplicateShortCommentaryRate <= 0.05, `duplicate short commentary rate too high: ${duplicateShortCommentaryRate}`);
+invariant(topPhraseFrequency <= 0.25, `top phrase frequency too high: ${topPhraseFrequency}`);
+invariant(fallbackContextRate <= 0.35, `fallback context rate too high: ${fallbackContextRate}`);
 
 const audit = {
   japaneseNaturalness: {
@@ -312,7 +556,10 @@ const audit = {
       'no raw diagnostic enum tokens in prose',
       'no duplicate punctuation',
       'no overclaim tokens',
+      'no awkward terminal-form comma connections',
       'short commentary length stays bounded',
+      'short commentary stays within one or two sentences',
+      'no internal diagnostic factor labels in player-facing labels',
     ],
     flags: criticalQualityFlags,
   },
@@ -341,6 +588,24 @@ const audit = {
     duplicateShortCommentaries: duplicated(shortCommentaryCounts),
     duplicateMaterialTexts: duplicated(materialTextCounts),
   },
+  phraseVariation: {
+    duplicateShortCommentaryRate,
+    topPhraseFrequency,
+    fallbackContextRate,
+    repeatedShortCommentarySlots,
+    repeatedShortPhraseSlots,
+    totalShortPhraseSlots,
+    topPhrases: Object.fromEntries(
+      Object.entries(shortPhraseCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 8),
+    ),
+    thresholds: {
+      duplicateShortCommentaryRate: 0.05,
+      topPhraseFrequency: 0.25,
+      fallbackContextRate: 0.35,
+    },
+  },
   shortCommentaryLength: {
     min: Math.min(...shortCommentaryLengths),
     max: Math.max(...shortCommentaryLengths),
@@ -360,6 +625,7 @@ const audit = {
       kimarite: Object.keys(kimariteCounts).length,
       hoshitori: Object.keys(hoshitoriCounts).length,
       banzuke: Object.keys(banzukeCounts).length,
+      outcome: Object.keys(outcomeCounts).length,
     },
   },
 };
@@ -373,7 +639,8 @@ const report = {
     'no production RNG call',
     'no route selection call',
     'no kimarite selection call',
-    'no DB, worker, or UI payload',
+    'no worker payload',
+    'does not write DB or render UI during diagnostics',
   ],
   officialHomepageReference: {
     source: 'https://www.sumo.or.jp/index.php',
@@ -391,17 +658,29 @@ const report = {
     uniqueMaterialKeySets: sameKimariteMaterialKeySets.size,
     variationConfirmed: sameKimariteShorts.size > 1 && sameKimariteMaterialKeySets.size > 1,
   },
+  outcomeVariation: {
+    counts: outcomeCounts,
+    winExamples: whiteStarScenarios.slice(0, 3).map((scenario) => scenario.commentary.shortCommentary),
+    lossExamples: blackStarScenarios.slice(0, 3).map((scenario) => scenario.commentary.shortCommentary),
+    whiteBlackTextDiffConfirmed:
+      whiteStarScenarios.length > 0 &&
+      blackStarScenarios.length > 0 &&
+      whiteStarScenarios.every((scenario) => !lossShortSet.has(scenario.commentary.shortCommentary)) &&
+      blackStarScenarios.every((scenario) => !winShortSet.has(scenario.commentary.shortCommentary)),
+  },
   distributions: {
     transition: transitionCounts,
     finish: finishCounts,
     kimarite: kimariteCounts,
     hoshitori: hoshitoriCounts,
     banzuke: banzukeCounts,
+    outcome: outcomeCounts,
   },
   audit,
   materialImprovementsApplied: [
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
-    'shortCommentary now mirrors the official homepage shape of result technic plus compact bout explanation',
+    'shortCommentary no longer repeats the already visible kimarite / east-west result row',
+    'shortCommentary uses O(1) deterministic phrase variants derived from existing BoutFlow axes',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
@@ -421,6 +700,7 @@ const report = {
       missingExplanationAxes: scenario.snapshot.missingExplanationAxes,
     },
     commentary: {
+      outcome: scenario.commentary.outcome,
       shortCommentary: scenario.commentary.shortCommentary,
       victoryFactorLabels: scenario.commentary.victoryFactorLabels,
       flowExplanation: scenario.commentary.flowExplanation,
@@ -432,14 +712,27 @@ const report = {
 const outPath = path.resolve('.tmp/bout-flow-commentary-generator.json');
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+const previewInjectionPath = path.resolve('.tmp/bout-flow-commentary-preview-injection.json');
+const previewInjection = scenarios.slice(0, 3).map((scenario, index) => ({
+  bashoSeq: 1,
+  day: index + 1,
+  commentary: scenario.commentary,
+}));
+fs.writeFileSync(previewInjectionPath, `${JSON.stringify(previewInjection, null, 2)}\n`, 'utf8');
 console.log(`bout flow commentary generator written: ${outPath}`);
+console.log(`bout flow commentary preview injection written: ${previewInjectionPath}`);
 console.log(JSON.stringify({
   diagnosticSeed: report.diagnosticSeed,
   scenarioCount: report.scenarioCount,
   sameKimariteVariation: report.sameKimariteVariation,
+  outcomeVariation: report.outcomeVariation,
   distinctCounts: report.audit.axisReflection.distinctCounts,
   duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
   duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
+  duplicateShortCommentaryRate: report.audit.phraseVariation.duplicateShortCommentaryRate,
+  topPhraseFrequency: report.audit.phraseVariation.topPhraseFrequency,
+  fallbackContextRate: report.audit.phraseVariation.fallbackContextRate,
+  topPhrases: report.audit.phraseVariation.topPhrases,
   contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
   shortCommentaryLength: report.audit.shortCommentaryLength,
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,

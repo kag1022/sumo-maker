@@ -760,13 +760,13 @@ export const tests: TestCase[] = [
       assert.equal(new Set(generated.map((commentary) => commentary.kimarite)).size, 1);
       assert.ok(new Set(generated.map((commentary) => commentary.shortCommentary)).size > 1);
       assert.ok(new Set(generated.map((commentary) => commentary.materialKeys.join('|'))).size > 1);
-      assert.deepEqual(generated[0].victoryFactorLabels, ['地力', '取り口']);
+      assert.deepEqual(generated[0].victoryFactorLabels, ['地力', '相撲の形']);
       assert.ok(generated[0].materialKeys.includes('victory:victory-factor:ability+victory-factor:style'));
       assert.ok(generated[1].shortCommentary.includes('昇進'));
-      assert.ok(generated[1].materialKeys.includes('hoshitori:KACHI_MAKE_DECIDER'));
-      assert.ok(generated[1].materialKeys.includes('banzuke:PROMOTION_RELEVANT'));
+      assert.ok(generated[1].materialKeys.some((key) => key.startsWith('hoshitori:KACHI_MAKE_DECIDER')));
+      assert.ok(generated[1].materialKeys.some((key) => key.startsWith('banzuke:PROMOTION_RELEVANT')));
       assert.ok(generated[2].materialKeys.some((key) => key.startsWith('transition:EDGE_TURNAROUND')));
-      assert.ok(generated[2].materialKeys.includes('banzuke:KINBOSHI_CHANCE'));
+      assert.ok(generated[2].materialKeys.some((key) => key.startsWith('banzuke:KINBOSHI_CHANCE')));
 
       const blocked = createBoutFlowCommentaryDiagnostic({
         ...aligned,
@@ -1101,7 +1101,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'combat explanation: collector is opt-in and does not change rng or result shape',
+    name: 'combat explanation: collector is opt-in and production commentary does not change rng',
     run: async () => {
       assert.equal(isBoutExplanationSnapshotEnabled(), false);
       assert.equal(isBoutFlowDiagnosticSnapshotEnabled(), false);
@@ -1180,6 +1180,13 @@ export const tests: TestCase[] = [
         context,
         baselineRng.rng,
       );
+      const baselineCommentary = baselineResult.boutFlowCommentary;
+      if (!baselineCommentary) {
+        throw new Error('expected production player bout commentary for COMPLETE_CONTEXT');
+      }
+      assert.equal(baselineCommentary.outcome, baselineResult.isWin ? 'WIN' : 'LOSS');
+      assert.equal(baselineCommentary.kimarite, baselineResult.kimarite);
+      assert.ok(!baselineCommentary.shortCommentary.includes(baselineResult.kimarite));
       const snapshots: BoutExplanationSnapshot[] = [];
       const boutFlowSnapshots: Array<BoutFlowDiagnosticSnapshot & { runLabel?: string; seed?: number }> = [];
       const collectorRng = createCountingRng();

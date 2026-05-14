@@ -568,6 +568,7 @@ const toBoutRows = (
   opponentRankName: bout.opponentRankName,
   opponentRankNumber: bout.opponentRankNumber,
   opponentRankSide: bout.opponentRankSide,
+  boutFlowCommentary: bout.boutFlowCommentary,
 }));
 
 const toImportantTorikumiRows = (
@@ -1497,6 +1498,7 @@ export const listCareerPlayerBoutsByBasho = async (
       opponentRankName: row.opponentRankName,
       opponentRankNumber: row.opponentRankNumber,
       opponentRankSide: row.opponentRankSide,
+      boutFlowCommentary: row.boutFlowCommentary,
     });
     grouped.set(row.bashoSeq, bouts);
   }
@@ -1587,6 +1589,7 @@ export const getCareerBashoDetail = async (
       opponentRankName: row.opponentRankName,
       opponentRankNumber: row.opponentRankNumber,
       opponentRankSide: row.opponentRankSide,
+      boutFlowCommentary: row.boutFlowCommentary,
     })),
     importantTorikumi,
     banzukeDecisions: banzukeDecisions

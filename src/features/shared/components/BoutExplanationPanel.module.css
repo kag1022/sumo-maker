@@ -1,0 +1,75 @@
+.panel {
+  display: grid;
+  gap: 0.9rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  background: rgb(var(--twc-bg-panel) / 0.72);
+  padding: 1rem;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.kicker,
+.sectionTitle {
+  color: rgb(var(--twc-brand) / 0.72);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+}
+
+.day {
+  color: rgb(var(--twc-text) / 0.52);
+  font-size: 0.74rem;
+}
+
+.summaryBlock,
+.readingBlock {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shortCommentary {
+  margin: 0;
+  color: rgb(var(--twc-text-bright) / 0.94);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.readingBlock {
+  border-top: 1px solid rgb(var(--twc-brand) / 0.12);
+  padding-top: 0.72rem;
+}
+
+.readingBlock p {
+  margin: 0;
+  color: rgb(var(--twc-text) / 0.76);
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.factorList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  margin-top: 0.1rem;
+}
+
+.factor {
+  border: 1px solid rgb(var(--twc-brand) / 0.22);
+  background: rgb(var(--twc-brand) / 0.07);
+  color: rgb(var(--twc-brand) / 0.9);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  padding: 0.16rem 0.46rem;
+}

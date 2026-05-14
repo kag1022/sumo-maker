@@ -21,6 +21,10 @@ import {
 } from './simulation/diagnostics';
 import { createBoutFlowDiagnosticSnapshotFromExplanationSnapshot } from './simulation/combat/boutFlowDiagnosticBuilder';
 import {
+  createBoutFlowCommentaryDiagnostic,
+  type BoutFlowCommentary,
+} from './simulation/combat/boutFlowCommentary';
+import {
   resolvePlayerBoutCompat,
   type PlayerBoutCompatNormalizedInput,
   type PlayerBoutCompatResult,
@@ -517,39 +521,32 @@ const resolveBattleResult = (
   const shouldCollectPreBoutPhase = isPreBoutPhaseSnapshotEnabled();
   const shouldCollectBoutExplanation = isBoutExplanationSnapshotEnabled();
   const shouldCollectBoutFlowDiagnostic = isBoutFlowDiagnosticSnapshotEnabled();
-  let preBoutPhaseResolution: PreBoutPhaseResolution | undefined;
-  let preBoutAttackerStyle: CombatStyle | undefined;
-  let preBoutDefenderStyle: CombatStyle | undefined;
-  let preBoutAttackerBodyScore: number | undefined;
-  let preBoutDefenderBodyScore: number | undefined;
-  if (shouldCollectPreBoutPhase || shouldCollectBoutExplanation) {
-    preBoutAttackerStyle = toCombatStyle(playerProfile.style);
-    preBoutDefenderStyle = toCombatStyle(enemyProfile.style);
-    preBoutAttackerBodyScore = resolveSizeScore(myHeight, myWeight);
-    preBoutDefenderBodyScore = resolveSizeScore(enemyHeight, enemyWeight);
-    preBoutPhaseResolution = resolvePreBoutPhaseWeights({
-      source: 'PLAYER_DIAGNOSTIC',
-      division: rikishi.rank.division,
-      formatKind: context?.formatKind,
-      attackerStyle: preBoutAttackerStyle,
-      defenderStyle: preBoutDefenderStyle,
-      attackerPushStrength: averageKimariteStats(playerProfile, ['tsuki', 'oshi', 'deashi']),
-      defenderPushStrength: averageKimariteStats(enemyProfile, ['tsuki', 'oshi', 'deashi']),
-      attackerBeltStrength: averageKimariteStats(playerProfile, ['kumi', 'koshi', 'power']),
-      defenderBeltStrength: averageKimariteStats(enemyProfile, ['kumi', 'koshi', 'power']),
-      attackerTechniqueStrength: averageKimariteStats(playerProfile, ['waza', 'nage', 'deashi']),
-      defenderTechniqueStrength: averageKimariteStats(enemyProfile, ['waza', 'nage', 'deashi']),
-      attackerEdgeStrength: averageKimariteStats(playerProfile, ['waza', 'koshi', 'deashi']),
-      defenderEdgeStrength: averageKimariteStats(enemyProfile, ['waza', 'koshi', 'deashi']),
-      attackerHeightCm: myHeight,
-      defenderHeightCm: enemyHeight,
-      attackerWeightKg: myWeight,
-      defenderWeightKg: enemyWeight,
-      attackerBodyScore: preBoutAttackerBodyScore,
-      defenderBodyScore: preBoutDefenderBodyScore,
-      pressure: context?.pressure,
-    });
-  }
+  const preBoutAttackerStyle: CombatStyle | undefined = toCombatStyle(playerProfile.style);
+  const preBoutDefenderStyle: CombatStyle | undefined = toCombatStyle(enemyProfile.style);
+  const preBoutAttackerBodyScore = resolveSizeScore(myHeight, myWeight);
+  const preBoutDefenderBodyScore = resolveSizeScore(enemyHeight, enemyWeight);
+  const preBoutPhaseResolution: PreBoutPhaseResolution = resolvePreBoutPhaseWeights({
+    source: 'PLAYER_DIAGNOSTIC',
+    division: rikishi.rank.division,
+    formatKind: context?.formatKind,
+    attackerStyle: preBoutAttackerStyle,
+    defenderStyle: preBoutDefenderStyle,
+    attackerPushStrength: averageKimariteStats(playerProfile, ['tsuki', 'oshi', 'deashi']),
+    defenderPushStrength: averageKimariteStats(enemyProfile, ['tsuki', 'oshi', 'deashi']),
+    attackerBeltStrength: averageKimariteStats(playerProfile, ['kumi', 'koshi', 'power']),
+    defenderBeltStrength: averageKimariteStats(enemyProfile, ['kumi', 'koshi', 'power']),
+    attackerTechniqueStrength: averageKimariteStats(playerProfile, ['waza', 'nage', 'deashi']),
+    defenderTechniqueStrength: averageKimariteStats(enemyProfile, ['waza', 'nage', 'deashi']),
+    attackerEdgeStrength: averageKimariteStats(playerProfile, ['waza', 'koshi', 'deashi']),
+    defenderEdgeStrength: averageKimariteStats(enemyProfile, ['waza', 'koshi', 'deashi']),
+    attackerHeightCm: myHeight,
+    defenderHeightCm: enemyHeight,
+    attackerWeightKg: myWeight,
+    defenderWeightKg: enemyWeight,
+    attackerBodyScore: preBoutAttackerBodyScore,
+    defenderBodyScore: preBoutDefenderBodyScore,
+    pressure: context?.pressure,
+  });
   if (shouldCollectPreBoutPhase && preBoutPhaseResolution) {
     recordPreBoutPhaseSnapshot({
       source: 'PLAYER_BOUT',
@@ -878,7 +875,7 @@ const resolveBattleResult = (
     }
     return factors;
   };
-  const recordExplanationSnapshot = (
+  const resolveBoutFlowCommentary = (
     kimarite: string,
     winRoute: WinRoute | undefined,
     finalIsWin: boolean,
@@ -886,8 +883,7 @@ const resolveBattleResult = (
       readonly engagement?: BoutEngagement;
       readonly kimaritePattern?: string;
     },
-  ): void => {
-    if (!shouldCollectBoutExplanation && !shouldCollectBoutFlowDiagnostic) return;
+  ): BoutFlowCommentary | undefined => {
     const factors = buildExplanationFactors(kimarite, winRoute, finalIsWin);
     const snapshot: BoutExplanationSnapshot = {
       source: 'PLAYER_BOUT',
@@ -922,10 +918,18 @@ const resolveBattleResult = (
     if (shouldCollectBoutExplanation) {
       recordBoutExplanationSnapshot(snapshot);
     }
+    const boutFlowSnapshot = createBoutFlowDiagnosticSnapshotFromExplanationSnapshot(snapshot);
     if (shouldCollectBoutFlowDiagnostic) {
-      const boutFlowSnapshot = createBoutFlowDiagnosticSnapshotFromExplanationSnapshot(snapshot);
       if (boutFlowSnapshot) recordBoutFlowDiagnosticSnapshot(boutFlowSnapshot);
     }
+    if (!boutFlowSnapshot || boutFlowSnapshot.explanationCompleteness !== 'COMPLETE_CONTEXT') {
+      return undefined;
+    }
+    const commentaryDiagnostic = createBoutFlowCommentaryDiagnostic(
+      boutFlowSnapshot,
+      finalIsWin ? 'WIN' : 'LOSS',
+    );
+    return commentaryDiagnostic.generated ? commentaryDiagnostic.commentary : undefined;
   };
 
   if (!isWin && canTriggerEdgeReversal(winProbability, context)) {
@@ -942,13 +946,14 @@ const resolveBattleResult = (
         boutContext: playerSelectionContext,
       });
       const kimarite = normalizeKimariteName(reversal.kimarite);
-      recordExplanationSnapshot(kimarite, reversal.route, true);
+      const boutFlowCommentary = resolveBoutFlowCommentary(kimarite, reversal.route, true);
       return {
         isWin: true,
         kimarite,
         winRoute: reversal.route,
         winProbability,
         opponentAbility,
+        boutFlowCommentary,
       };
     }
   }
@@ -977,7 +982,7 @@ const resolveBattleResult = (
   });
   const kimarite = normalizeKimariteName(selected.kimarite);
   const finalWinRoute = selected.route ?? winRoute;
-  recordExplanationSnapshot(kimarite, finalWinRoute, isWin, {
+  const boutFlowCommentary = resolveBoutFlowCommentary(kimarite, finalWinRoute, isWin, {
     engagement,
     kimaritePattern: selected.pattern,
   });
@@ -987,6 +992,7 @@ const resolveBattleResult = (
     winRoute: finalWinRoute,
     winProbability,
     opponentAbility,
+    boutFlowCommentary,
   };
 };
 
