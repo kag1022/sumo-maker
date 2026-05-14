@@ -226,6 +226,7 @@ const duplicated = (counts: Record<string, number>): Record<string, number> =>
   Object.fromEntries(Object.entries(counts).filter(([, count]) => count > 1));
 
 const containsRawEnum = (text: string): boolean => /[A-Z]{2,}_[A-Z0-9_]+/.test(text);
+const containsOverclaim = (text: string): boolean => /必ず|絶対|完全に|間違いなく|唯一/.test(text);
 
 const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   const texts = [
@@ -243,7 +244,10 @@ const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   if (texts.some((text) => /。。|、、/.test(text))) {
     flags.push('duplicate-punctuation');
   }
-  if (scenario.commentary.shortCommentary.length > 150) {
+  if (texts.some(containsOverclaim)) {
+    flags.push('contains-overclaim-token');
+  }
+  if (scenario.commentary.shortCommentary.length > 120) {
     flags.push('short-commentary-too-long');
   }
   return flags;
@@ -256,6 +260,7 @@ const sameKimariteMaterialKeySets = new Set(sameKimariteScenarios.map((scenario)
 const materialKeyCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materialKeys));
 const materialTextCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.text)));
 const shortCommentaryCounts = countBy(scenarios.map((scenario) => scenario.commentary.shortCommentary));
+const shortCommentaryLengths = scenarios.map((scenario) => scenario.commentary.shortCommentary.length);
 const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.axis)));
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
@@ -286,6 +291,11 @@ const criticalQualityFlags = scenarioAudits.flatMap((audit) =>
 const missingAxisFlags = scenarioAudits.flatMap((audit) =>
   audit.missingAxes.map((axis) => `${audit.label}:${axis}`),
 );
+const totalMaterialSlots = scenarios.reduce((sum, scenario) => sum + scenario.commentary.materialKeys.length, 0);
+const repeatedMaterialKeySlots = Object.values(materialKeyCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const repeatedMaterialTextSlots = Object.values(materialTextCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
+const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
 invariant(new Set(sameKimariteScenarios.map((scenario) => scenario.commentary.kimarite)).size === 1, 'same-kimarite fixtures must use the same kimarite');
@@ -301,6 +311,7 @@ const audit = {
       'no undefined/null tokens',
       'no raw diagnostic enum tokens in prose',
       'no duplicate punctuation',
+      'no overclaim tokens',
       'short commentary length stays bounded',
     ],
     flags: criticalQualityFlags,
@@ -315,9 +326,14 @@ const audit = {
   },
   materialKeyBias: {
     axisCounts,
+    totalMaterialSlots,
+    repeatedMaterialKeySlots,
+    repeatedMaterialTextSlots,
+    duplicateMaterialKeyRate: totalMaterialSlots > 0 ? repeatedMaterialKeySlots / totalMaterialSlots : 0,
+    duplicateMaterialTextRate: totalMaterialSlots > 0 ? repeatedMaterialTextSlots / totalMaterialSlots : 0,
     duplicateMaterialKeys: duplicated(materialKeyCounts),
     expectedSharedKeys: [
-      '同一決まり手監査では finish:PUSH_OUT と kimarite:押し出し:PUSH_THRUST が重複する',
+      '同一決まり手監査では finish:PUSH_OUT:* と kimarite:押し出し:* が重複し得る',
       'victory key は日本語ラベルではなく diagnostic tag 由来に固定',
     ],
   },
@@ -325,9 +341,18 @@ const audit = {
     duplicateShortCommentaries: duplicated(shortCommentaryCounts),
     duplicateMaterialTexts: duplicated(materialTextCounts),
   },
+  shortCommentaryLength: {
+    min: Math.min(...shortCommentaryLengths),
+    max: Math.max(...shortCommentaryLengths),
+    average: shortCommentaryLengths.reduce((sum, length) => sum + length, 0) / shortCommentaryLengths.length,
+    limit: 120,
+  },
   axisReflection: {
     requiredAxes: REQUIRED_AXES,
     allScenariosComplete: missingAxisFlags.length === 0,
+    reflectedAxisSlots,
+    totalAxisSlots,
+    contextReflectionRate: totalAxisSlots > 0 ? reflectedAxisSlots / totalAxisSlots : 0,
     scenarioAudits,
     distinctCounts: {
       transition: Object.keys(transitionCounts).length,
@@ -350,6 +375,14 @@ const report = {
     'no kimarite selection call',
     'no DB, worker, or UI payload',
   ],
+  officialHomepageReference: {
+    source: 'https://www.sumo.or.jp/index.php',
+    inspectedContract: [
+      '取組解説は getMatchRikishi(...) から result_technic と result_comment を分けて表示する',
+      'result_comment は立合い、主導権、転換、土俵位置、決着、星取結果を短い一連の文で扱う',
+      '本文は公式文の丸写しではなく、情報密度と事実中心の構造だけを参考にする',
+    ],
+  },
   scenarioCount: scenarios.length,
   sameKimariteVariation: {
     kimarite: pushOut.name,
@@ -368,8 +401,10 @@ const report = {
   audit,
   materialImprovementsApplied: [
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
+    'shortCommentary now mirrors the official homepage shape of result technic plus compact bout explanation',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
+    'axis materials now use deterministic variants keyed by flow/context shape',
   ],
   scenarios: scenarios.map((scenario) => ({
     label: scenario.label,
@@ -403,7 +438,12 @@ console.log(JSON.stringify({
   scenarioCount: report.scenarioCount,
   sameKimariteVariation: report.sameKimariteVariation,
   distinctCounts: report.audit.axisReflection.distinctCounts,
+  duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
+  duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
+  contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
+  shortCommentaryLength: report.audit.shortCommentaryLength,
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,
   duplicateShortCommentaries: report.audit.duplicateExpressions.duplicateShortCommentaries,
   productionGuardrails: report.productionGuardrails,
+  officialHomepageReference: report.officialHomepageReference.inspectedContract,
 }, null, 2));

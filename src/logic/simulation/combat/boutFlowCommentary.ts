@@ -45,11 +45,11 @@ export interface BoutFlowCommentaryDiagnostic {
   readonly commentary?: BoutFlowCommentary;
 }
 
-const labelOf = (
-  tag: string,
-  labels: Record<string, string>,
-  fallback: string,
-): string => labels[tag] ?? fallback;
+interface MaterialSpec {
+  readonly variant: string;
+  readonly text: string;
+  readonly tags: readonly string[];
+}
 
 const firstTag = <T extends string>(
   tags: readonly T[],
@@ -60,66 +60,339 @@ const firstTag = <T extends string>(
 const unique = <T extends string>(values: readonly T[]): readonly T[] =>
   Array.from(new Set(values));
 
-const OPENING_TEXT: Record<string, string> = {
-  THRUST_BATTLE: '立合いから押し合いになり、先に前へ出る形を作った。',
-  BELT_BATTLE: '序盤は四つに近い探り合いで、まわしと差し手の攻防が先に立った。',
-  TECHNIQUE_SCRAMBLE: '立合い後は技の探り合いになり、相手の出方を読む間が生まれた。',
-  EDGE_BATTLE: '序盤から土俵際を意識する窮屈な展開になった。',
-  QUICK_COLLAPSE: '立合い直後に体勢が崩れ、短い勝負の気配が濃かった。',
-  MIXED: '序盤は押しと組みが混ざり、はっきりした形に固定されなかった。',
+const textOf = (
+  value: string,
+  labels: Record<string, string>,
+  fallback: string,
+): string => labels[value] ?? fallback;
+
+const createMaterial = (
+  axis: BoutExplanationMaterialAxis,
+  segmentKind: BoutFlowCommentarySegmentKind,
+  key: string,
+  spec: MaterialSpec,
+): BoutFlowCommentaryMaterial => ({
+  key: `${key}:${spec.variant}`,
+  axis,
+  segmentKind,
+  text: spec.text,
+  tags: spec.tags,
+});
+
+const openingSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
+  switch (snapshot.openingPhase) {
+    case 'THRUST_BATTLE':
+      return snapshot.transitionClassification === 'ALIGNED_FLOW'
+        ? {
+          variant: 'straight-attack',
+          text: '立合いから押して、正面の圧力を先に出した。',
+          tags: ['opening:THRUST_BATTLE', 'opening-style:oshi'],
+        }
+        : {
+          variant: 'push-start-shift',
+          text: '立合いは押し合い、途中で攻め方が変わった。',
+          tags: ['opening:THRUST_BATTLE', 'transition-shape:shift'],
+        };
+    case 'BELT_BATTLE':
+      return snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? {
+          variant: 'belt-to-distance',
+          text: '序盤は差し手争い、そこから離れて押す形に移った。',
+          tags: ['opening:BELT_BATTLE', 'opening-style:yotsu', 'transition-shape:release'],
+        }
+        : {
+          variant: 'belt-first',
+          text: '序盤は四つの攻防、まわしを巡る展開になった。',
+          tags: ['opening:BELT_BATTLE', 'opening-style:yotsu'],
+        };
+    case 'TECHNIQUE_SCRAMBLE':
+      return {
+        variant: 'read-and-move',
+        text: '立合い後は相手の出方を見て、技へ移る間を作った。',
+        tags: ['opening:TECHNIQUE_SCRAMBLE', 'opening-style:waza'],
+      };
+    case 'EDGE_BATTLE':
+      return snapshot.finishRoute === 'EDGE_REVERSAL'
+        ? {
+          variant: 'edge-from-start-reversal',
+          text: '序盤から土俵際、残し合いのまま勝負が進んだ。',
+          tags: ['opening:EDGE_BATTLE', 'edge:early', 'finish:EDGE_REVERSAL'],
+        }
+        : {
+          variant: 'edge-from-start-pressure',
+          text: '序盤から土俵際を背負い、窮屈な体勢が続いた。',
+          tags: ['opening:EDGE_BATTLE', 'edge:early'],
+        };
+    case 'QUICK_COLLAPSE':
+      return {
+        variant: 'instant-break',
+        text: '立合い直後に体勢が崩れ、短い相撲になった。',
+        tags: ['opening:QUICK_COLLAPSE', 'tempo:quick'],
+      };
+    case 'MIXED':
+      return {
+        variant: 'mixed-entry',
+        text: '序盤は押し、組み、いなしが混じり、形が定まらなかった。',
+        tags: ['opening:MIXED', 'opening-style:mixed'],
+      };
+  }
 };
 
-const CONTROL_TEXT: Record<ControlPhaseCandidate, string> = {
-  THRUST_BATTLE: '主導権は押し合いの中で決まり、相手を下がらせる流れが続いた。',
-  BELT_BATTLE: '中盤は組み合いの主導権が焦点となり、腰の位置で優劣が出た。',
-  TECHNIQUE_SCRAMBLE: '主導権は技への変換で動き、単純な前進だけでは終わらなかった。',
-  EDGE_BATTLE: '土俵際で主導権が揺れ、残す力と詰める力がぶつかった。',
-  QUICK_COLLAPSE: '相手の体勢が早く崩れ、主導権争いは長引かなかった。',
-  MIXED: '押し、組み、いなしが混ざり、主導権は一方向には読みにくかった。',
+const controlSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
+  const phase = snapshot.controlPhaseCandidate;
+  if (!phase) {
+    return {
+      variant: `unavailable-${snapshot.controlConfidence}`,
+      text: '中盤の主導権は読み切れず、最後の形から補う内容になった。',
+      tags: ['control:UNAVAILABLE', `confidence:${snapshot.controlConfidence}`],
+    };
+  }
+
+  const variantByPhase: Record<ControlPhaseCandidate, MaterialSpec> = {
+    THRUST_BATTLE: snapshot.finishRoute === 'PUSH_OUT'
+      ? snapshot.openingPhase === 'BELT_BATTLE'
+        ? {
+          variant: `release-to-press-${snapshot.controlConfidence}`,
+          text: '差し手争いから離れ、押して前に出た。',
+          tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`, 'opening:BELT_BATTLE', 'finish:PUSH_OUT'],
+        }
+        : {
+          variant: `press-to-out-${snapshot.controlConfidence}`,
+          text: '中盤も押す圧力を保ち、相手を下がらせた。',
+          tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`, 'finish:PUSH_OUT'],
+        }
+      : {
+        variant: `press-control-${snapshot.controlConfidence}`,
+        text: '中盤は押しで主導権を握った。',
+        tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`],
+      },
+    BELT_BATTLE: snapshot.finishRoute === 'BELT_FORCE'
+      ? {
+        variant: `belt-force-${snapshot.controlConfidence}`,
+        text: '組み止めて腰を寄せ、寄りの形を作った。',
+        tags: ['control:BELT_BATTLE', `confidence:${snapshot.controlConfidence}`, 'finish:BELT_FORCE'],
+      }
+      : {
+        variant: `belt-control-${snapshot.controlConfidence}`,
+        text: '中盤はまわしと差し手の主導権を争った。',
+        tags: ['control:BELT_BATTLE', `confidence:${snapshot.controlConfidence}`],
+      },
+    TECHNIQUE_SCRAMBLE: snapshot.finishRoute === 'LEG_ATTACK'
+      ? {
+        variant: `low-attack-${snapshot.controlConfidence}`,
+        text: '技の応酬から低い攻めへつなげた。',
+        tags: ['control:TECHNIQUE_SCRAMBLE', `confidence:${snapshot.controlConfidence}`, 'finish:LEG_ATTACK'],
+      }
+      : {
+        variant: `technique-convert-${snapshot.controlConfidence}`,
+        text: '中盤は相手の動きに合わせ、技へ変えた。',
+        tags: ['control:TECHNIQUE_SCRAMBLE', `confidence:${snapshot.controlConfidence}`],
+      },
+    EDGE_BATTLE: snapshot.finishRoute === 'EDGE_REVERSAL'
+      ? {
+        variant: `edge-reverse-${snapshot.controlConfidence}`,
+        text: '土俵際で残し、反転の機を逃さなかった。',
+        tags: ['control:EDGE_BATTLE', `confidence:${snapshot.controlConfidence}`, 'finish:EDGE_REVERSAL'],
+      }
+      : {
+        variant: `edge-hold-${snapshot.controlConfidence}`,
+        text: '土俵際で残しながら、押し返す余地を作った。',
+        tags: ['control:EDGE_BATTLE', `confidence:${snapshot.controlConfidence}`],
+      },
+    QUICK_COLLAPSE: {
+      variant: `collapse-catch-${snapshot.controlConfidence}`,
+      text: '相手の崩れを見て、勝負を長引かせなかった。',
+      tags: ['control:QUICK_COLLAPSE', `confidence:${snapshot.controlConfidence}`],
+    },
+    MIXED: {
+      variant: `mixed-control-${snapshot.controlConfidence}`,
+      text: '押し、組み、いなしが交じり、主導権は一方向に固まらなかった。',
+      tags: ['control:MIXED', `confidence:${snapshot.controlConfidence}`],
+    },
+  };
+  return variantByPhase[phase];
 };
 
-const TRANSITION_TEXT: Record<BoutFlowTransitionClassification, string> = {
-  ALIGNED_FLOW: '序盤の形と決着までの流れがそのままつながった。',
-  CONTROL_SHIFT: '序盤の形から主導権が移り、勝ち筋が途中で変わった。',
-  TECHNIQUE_CONVERSION: '途中で技への変換が入り、流れを作り替えて決着した。',
-  EDGE_TURNAROUND: '土俵際の攻防が勝敗の焦点になり、そこで流れが決まった。',
-  QUICK_FINISH: '体勢の崩れを逃さず、短い手順で勝負をまとめた。',
-  AMBIGUOUS_CONTROL: '主導権の読みは割れたが、最後の形だけは結果に残った。',
+const transitionSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
+  const specs: Record<BoutFlowTransitionClassification, MaterialSpec> = {
+    ALIGNED_FLOW: snapshot.finishRoute === 'BELT_FORCE'
+      ? {
+        variant: 'yotsu-aligned',
+        text: '序盤の四つ相撲をそのまま寄りに結びつけた。',
+        tags: ['transition:ALIGNED_FLOW', 'finish:BELT_FORCE'],
+      }
+      : {
+        variant: 'aligned',
+        text: '序盤の形を崩さず、流れのまま決めた。',
+        tags: ['transition:ALIGNED_FLOW'],
+      },
+    CONTROL_SHIFT: {
+      variant: `${snapshot.openingPhase.toLowerCase()}-to-${snapshot.controlPhaseCandidate ?? 'unknown'.toLowerCase()}`,
+      text: snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? '序盤の形から押しに切り替えた。'
+        : '序盤の形から主導権が移った。',
+      tags: ['transition:CONTROL_SHIFT', `opening:${snapshot.openingPhase}`, `control:${snapshot.controlPhaseCandidate ?? 'UNAVAILABLE'}`],
+    },
+    TECHNIQUE_CONVERSION: snapshot.finishRoute === 'PULL_DOWN'
+      ? {
+        variant: 'pull-conversion',
+        text: '前へ出る相手を見て、いなしから崩した。',
+        tags: ['transition:TECHNIQUE_CONVERSION', 'finish:PULL_DOWN'],
+      }
+      : snapshot.finishRoute === 'LEG_ATTACK'
+        ? {
+          variant: 'leg-conversion',
+          text: '技の流れから足元を攻めた。',
+          tags: ['transition:TECHNIQUE_CONVERSION', 'finish:LEG_ATTACK'],
+        }
+        : snapshot.finishRoute === 'THROW_BREAK'
+          ? {
+            variant: 'throw-conversion',
+            text: '体勢を見て投げに移った。',
+            tags: ['transition:TECHNIQUE_CONVERSION', 'finish:THROW_BREAK'],
+          }
+          : {
+            variant: 'waza-conversion',
+            text: '途中で技に変え、相手の重心を外した。',
+            tags: ['transition:TECHNIQUE_CONVERSION'],
+          },
+    EDGE_TURNAROUND: snapshot.finishRoute === 'EDGE_REVERSAL'
+      ? {
+        variant: 'edge-reversal',
+        text: '土俵際で残し、反転して逆転した。',
+        tags: ['transition:EDGE_TURNAROUND', 'finish:EDGE_REVERSAL'],
+      }
+      : {
+        variant: 'edge-push-back',
+        text: '土俵際の攻防から押し返し、流れを戻した。',
+        tags: ['transition:EDGE_TURNAROUND'],
+      },
+    QUICK_FINISH: {
+      variant: 'quick',
+      text: '崩れを逃さず、短い手順で勝負をまとめた。',
+      tags: ['transition:QUICK_FINISH'],
+    },
+    AMBIGUOUS_CONTROL: {
+      variant: 'last-shape',
+      text: '主導権の読みは割れるが、最後の形が勝敗を決めた。',
+      tags: ['transition:AMBIGUOUS_CONTROL'],
+    },
+  };
+  return specs[snapshot.transitionClassification];
 };
 
-const FINISH_TEXT: Record<string, string> = {
-  PUSH_OUT: '最後は押し込んで土俵の外へ運んだ。',
-  BELT_FORCE: '最後は組み止めて寄り切る形に収束した。',
-  THROW_BREAK: '最後は投げや崩しで相手の軸を外した。',
-  PULL_DOWN: '最後はいなしや引きで前のめりを誘った。',
-  EDGE_REVERSAL: '最後は土俵際の反転で勝敗をひっくり返した。',
-  REAR_FINISH: '最後は相手の後ろを取る形に近づけた。',
-  LEG_ATTACK: '最後は足技や低い攻めで崩し切った。',
+const finishSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
+  switch (snapshot.finishRoute) {
+    case 'PUSH_OUT':
+      return snapshot.openingPhase === 'BELT_BATTLE'
+        ? {
+          variant: 'release-and-push',
+          text: '最後は離れて押し、土俵外へ出した。',
+          tags: ['finish:PUSH_OUT', 'opening:BELT_BATTLE'],
+        }
+        : {
+          variant: snapshot.openingPhase === 'EDGE_BATTLE' ? 'edge-push-out' : 'front-push-out',
+          text: snapshot.openingPhase === 'EDGE_BATTLE'
+            ? '最後は土俵際から押し返して外へ運んだ。'
+            : '最後は正面から押し切って土俵外へ出した。',
+          tags: ['finish:PUSH_OUT', `opening:${snapshot.openingPhase}`],
+        };
+    case 'BELT_FORCE':
+      return {
+        variant: 'yori',
+        text: '最後は体を寄せ、寄り切る形で決めた。',
+        tags: ['finish:BELT_FORCE'],
+      };
+    case 'THROW_BREAK':
+      return {
+        variant: 'throw-axis',
+        text: '最後は投げで相手の軸を崩した。',
+        tags: ['finish:THROW_BREAK'],
+      };
+    case 'PULL_DOWN':
+      return {
+        variant: 'pull-down',
+        text: '最後はいなしに乗せ、前のめりに崩した。',
+        tags: ['finish:PULL_DOWN'],
+      };
+    case 'EDGE_REVERSAL':
+      return {
+        variant: 'edge-turn',
+        text: '最後は土俵際で体を入れ替えた。',
+        tags: ['finish:EDGE_REVERSAL'],
+      };
+    case 'REAR_FINISH':
+      return {
+        variant: 'behind',
+        text: '最後は相手の後ろを取り、向きを制した。',
+        tags: ['finish:REAR_FINISH'],
+      };
+    case 'LEG_ATTACK':
+      return {
+        variant: 'leg',
+        text: '最後は足元を攻めて崩し切った。',
+        tags: ['finish:LEG_ATTACK'],
+      };
+  }
 };
 
 const KIMARITE_FAMILY_TEXT: Record<string, string> = {
-  PUSH_THRUST: '決まり手は押し・突きの系統で、前へ出る流れと結びついた。',
-  FORCE_OUT: '決まり手は寄り・極めの系統で、体を密着させた圧力が残った。',
-  THROW: '決まり手は投げの系統で、相手の重心を外す技量が結果になった。',
-  TWIST_DOWN: '決まり手は捻り・落としの系統で、相手の前進を逆用した。',
-  TRIP_PICK: '決まり手は足取り・掛けの系統で、足元への崩しが効いた。',
-  BACKWARD_BODY_DROP: '決まり手は反りの系統で、かなり特殊な体勢からの決着になった。',
-  REAR: '決まり手は送りの系統で、相手の向きを制したことが大きかった。',
-  NON_TECHNIQUE: '決まり手は非技で、勝負の崩れ方そのものが記録になった。',
+  PUSH_THRUST: '押し・突きの形で、前に出る圧力が決まり手に出た。',
+  FORCE_OUT: '寄りの形で、密着して前へ運んだ。',
+  THROW: '投げの形で、相手の重心を外した。',
+  TWIST_DOWN: '落とし・捻りの形で、相手の前進を崩した。',
+  TRIP_PICK: '足技の形で、足元から崩した。',
+  BACKWARD_BODY_DROP: '反りの形で、特殊な体勢を勝ちにつなげた。',
+  REAR: '送りの形で、相手の向きを制した。',
+  NON_TECHNIQUE: '非技の結果で、崩れ方そのものが勝敗になった。',
+};
+
+const kimariteSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
+  const family = snapshot.kimarite.family ?? snapshot.kimarite.diagnosticFamily;
+  const transitionVariant = snapshot.transitionClassification === 'CONTROL_SHIFT'
+    ? 'after-shift'
+    : snapshot.transitionClassification === 'EDGE_TURNAROUND'
+      ? 'after-edge'
+      : 'flow';
+  return {
+    variant: `${family}:${transitionVariant}`,
+    text: `${snapshot.kimarite.name}。${textOf(family, KIMARITE_FAMILY_TEXT, '決まり手は流れ全体と合わせて読む必要がある。')}`,
+    tags: [`kimarite:${snapshot.kimarite.name}`, `family:${family}`, `transition:${snapshot.transitionClassification}`],
+  };
 };
 
 const FACTOR_LABELS: Record<string, string> = {
-  'victory-factor:ability': '基礎能力差',
-  'victory-factor:style': '取り口相性',
-  'victory-factor:body': '体格差',
-  'victory-factor:form': '場所ごとの調子',
-  'victory-factor:momentum': '場所内の流れ',
-  'victory-factor:injury': '負傷影響',
-  'victory-factor:pressure': '勝負所の圧力',
-  'victory-factor:kimarite-fit': '決まり手適性',
-  'victory-factor:phase-shape': '展開の形',
-  'victory-factor:realism-compression': '番付帯の力関係',
+  'victory-factor:ability': '地力',
+  'victory-factor:style': '取り口',
+  'victory-factor:body': '体格',
+  'victory-factor:form': '調子',
+  'victory-factor:momentum': '流れ',
+  'victory-factor:injury': '状態差',
+  'victory-factor:pressure': '重圧対応',
+  'victory-factor:kimarite-fit': '得意形',
+  'victory-factor:phase-shape': '展開',
+  'victory-factor:realism-compression': '番付上の地力',
 };
+
+const buildVictoryFactorLabels = (
+  tags: readonly string[],
+): readonly string[] =>
+  unique(
+    tags
+      .filter((tag) => FACTOR_LABELS[tag])
+      .map((tag) => FACTOR_LABELS[tag]),
+  ).slice(0, 4);
+
+const victorySpec = (
+  tags: readonly string[],
+  labels: readonly string[],
+): MaterialSpec => ({
+  variant: tags.slice(0, 3).join('+') || 'mixed',
+  text: labels.length > 0
+    ? `勝因は${labels.join('、')}。`
+    : '勝因は展開全体に分散した。',
+  tags,
+});
 
 const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
   'YUSHO_DIRECT',
@@ -137,19 +410,25 @@ const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
 ];
 
 const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
-  EARLY_BASHO: '場所序盤の一番で、流れを作る意味が強い。',
-  MIDDLE_BASHO: '場所中盤の一番で、星の積み方が問われる局面だった。',
-  FINAL_BOUT: '当人にとっての最終取組で、場所の印象を締める一番だった。',
-  KACHIKOSHI_DECIDER: '勝ち越しを決める文脈があり、白星の意味は成績以上に重い。',
-  MAKEKOSHI_DECIDER: '負け越し回避の文脈があり、黒星なら場所の読みが変わる一番だった。',
-  KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目に立つ一番だった。',
-  YUSHO_DIRECT: '優勝争いを直接左右する一番で、勝敗の重みが明確だった。',
-  YUSHO_CHASE: '優勝争いを追う文脈があり、落とせない一番として読める。',
-  WIN_STREAK: '連勝の流れを背負っており、勢いを継続する白星になった。',
-  LOSS_STREAK: '連敗の流れを断つかどうかが見える一番だった。',
-  RECOVERY_BOUT: '前の黒星から立て直す意味を持つ一番だった。',
-  LEAD_PROTECTION: '勝ち星先行を守る文脈があり、崩れないことが価値になった。',
+  EARLY_BASHO: '序盤の白星で、場所の流れを作った。',
+  MIDDLE_BASHO: '中盤の一番で、星勘定を整えた。',
+  FINAL_BOUT: 'この場所最後の一番を白星で締めた。',
+  KACHIKOSHI_DECIDER: '勝ち越しを決める白星になった。',
+  MAKEKOSHI_DECIDER: '負け越しを避ける意味のある白星になった。',
+  KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で白星を挙げた。',
+  YUSHO_DIRECT: '優勝争いを直接動かす白星になった。',
+  YUSHO_CHASE: '優勝争いを追う立場で、落とせない一番を取った。',
+  WIN_STREAK: '連勝を伸ばし、場所の勢いを保った。',
+  LOSS_STREAK: '連敗を止め、流れを戻した。',
+  RECOVERY_BOUT: '前の黒星から立て直す白星になった。',
+  LEAD_PROTECTION: '白星先行を守る一番になった。',
 };
+
+const hoshitoriSpec = (tag: HoshitoriContextTag): MaterialSpec => ({
+  variant: tag,
+  text: HOSHITORI_TEXT[tag],
+  tags: [`hoshitori:${tag}`],
+});
 
 const BANZUKE_PRIORITY: readonly BanzukeContextTag[] = [
   'PROMOTION_RELEVANT',
@@ -163,38 +442,96 @@ const BANZUKE_PRIORITY: readonly BanzukeContextTag[] = [
 ];
 
 const BANZUKE_TEXT: Record<BanzukeContextTag, string> = {
-  PROMOTION_RELEVANT: '番付上は昇進材料になり得る白星で、次の評価に残りやすい。',
-  DEMOTION_RELEVANT: '番付上は降下圧を避ける意味があり、この白星で踏みとどまった。',
-  SAN_YAKU_PRESSURE: '三役以上の地位に見合う内容が問われる文脈だった。',
-  SEKITORI_BOUNDARY: '関取境界に関わる番付文脈があり、単なる一勝以上の意味を持つ。',
-  MAKUUCHI_BOUNDARY: '幕内境界に関わる番付文脈があり、地位維持や上昇の読みを左右する。',
-  KINBOSHI_CHANCE: '格上相手の白星として、番付差を超える記録性がある。',
-  RANK_GAP_UPSET: '番付差を覆す意味があり、結果の印象が強く残る。',
-  RANK_EXPECTED_WIN: '番付上は自然に求められる内容で、取りこぼさないことが評価になる。',
+  PROMOTION_RELEVANT: '昇進へ向けて材料となる白星。',
+  DEMOTION_RELEVANT: '番付降下の圧力を和らげる白星。',
+  SAN_YAKU_PRESSURE: '三役以上の地位で内容も問われる白星。',
+  SEKITORI_BOUNDARY: '関取境界で重みのある白星。',
+  MAKUUCHI_BOUNDARY: '幕内境界で地位を左右する白星。',
+  KINBOSHI_CHANCE: '格上相手に価値のある白星。',
+  RANK_GAP_UPSET: '番付差を覆す印象の強い白星。',
+  RANK_EXPECTED_WIN: '番付上、取りこぼせない一番を取った。',
 };
 
-const createMaterial = (
-  key: string,
-  axis: BoutExplanationMaterialAxis,
-  segmentKind: BoutFlowCommentarySegmentKind,
-  text: string,
-  tags: readonly string[],
-): BoutFlowCommentaryMaterial => ({
-  key,
-  axis,
-  segmentKind,
-  text,
-  tags,
+const banzukeSpec = (tag: BanzukeContextTag): MaterialSpec => ({
+  variant: tag,
+  text: BANZUKE_TEXT[tag],
+  tags: [`banzuke:${tag}`],
 });
 
-const buildVictoryFactorLabels = (
-  tags: readonly string[],
-): readonly string[] =>
-  unique(
-    tags
-      .filter((tag) => FACTOR_LABELS[tag])
-      .map((tag) => FACTOR_LABELS[tag]),
-  ).slice(0, 4);
+const shortOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.openingPhase) {
+    case 'THRUST_BATTLE':
+      return '立合いから押し';
+    case 'BELT_BATTLE':
+      return snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? '差し手争いから離れ'
+        : '四つの攻防から組み止め';
+    case 'TECHNIQUE_SCRAMBLE':
+      return '相手の出方を見て';
+    case 'EDGE_BATTLE':
+      return '土俵際で残し';
+    case 'QUICK_COLLAPSE':
+      return '立合い直後の崩れを逃さず';
+    case 'MIXED':
+      return '押し、組み、いなしが交じる中で';
+  }
+};
+
+const shortControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.controlPhaseCandidate) {
+    case 'THRUST_BATTLE':
+      return snapshot.openingPhase === 'BELT_BATTLE'
+        ? '押して'
+        : '前に出て';
+    case 'BELT_BATTLE':
+      return snapshot.openingPhase === 'BELT_BATTLE' ? '' : '組み止めて';
+    case 'TECHNIQUE_SCRAMBLE':
+      return '動きに合わせ';
+    case 'EDGE_BATTLE':
+      return snapshot.openingPhase === 'EDGE_BATTLE' ? '' : '体を残し';
+    case 'QUICK_COLLAPSE':
+      return '';
+    case 'MIXED':
+      return '形を探り';
+    case undefined:
+      return '';
+  }
+};
+
+const shortFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.finishRoute) {
+    case 'PUSH_OUT':
+      return '土俵外へ出した';
+    case 'BELT_FORCE':
+      return '寄り切った';
+    case 'THROW_BREAK':
+      return '投げで崩した';
+    case 'PULL_DOWN':
+      return snapshot.openingPhase === 'QUICK_COLLAPSE'
+        ? '前に落とした'
+        : 'いなしで前に落とした';
+    case 'EDGE_REVERSAL':
+      return '体を入れ替えた';
+    case 'REAR_FINISH':
+      return '後ろを取って決めた';
+    case 'LEG_ATTACK':
+      return '足元から崩した';
+  }
+};
+
+const createShortCommentary = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  hoshitori: BoutFlowCommentaryMaterial,
+  banzuke: BoutFlowCommentaryMaterial,
+): string => {
+  const flowText = [
+    shortOpeningClause(snapshot),
+    shortControlClause(snapshot),
+    shortFinishClause(snapshot),
+  ].filter((text) => text.length > 0).join('、');
+
+  return `${snapshot.kimarite.name}。${flowText}。${hoshitori.text}${banzuke.text}`;
+};
 
 export const createBoutFlowCommentaryDiagnostic = (
   snapshot: BoutFlowDiagnosticSnapshot,
@@ -211,79 +548,63 @@ export const createBoutFlowCommentaryDiagnostic = (
 
   const hoshitoriTag = firstTag(snapshot.hoshitoriContextTags, HOSHITORI_PRIORITY) ?? 'MIDDLE_BASHO';
   const banzukeTag = firstTag(snapshot.banzukeContextTags, BANZUKE_PRIORITY) ?? 'RANK_EXPECTED_WIN';
-  const kimariteFamily = snapshot.kimarite.family ?? snapshot.kimarite.diagnosticFamily;
   const victoryFactorLabels = buildVictoryFactorLabels(snapshot.victoryFactorTags);
-  const factorSummary = victoryFactorLabels.length
-    ? `勝敗要因は${victoryFactorLabels.join('、')}。`
-    : '勝敗要因は展開全体に分散している。';
 
+  const opening = createMaterial('OPENING', 'OPENING', `opening:${snapshot.openingPhase}`, openingSpec(snapshot));
+  const control = createMaterial(
+    'CONTROL',
+    'CONTROL',
+    `control:${snapshot.controlPhaseCandidate ?? 'UNAVAILABLE'}:${snapshot.controlConfidence}`,
+    controlSpec(snapshot),
+  );
+  const transition = createMaterial(
+    'TRANSITION',
+    'TRANSITION',
+    `transition:${snapshot.transitionClassification}`,
+    transitionSpec(snapshot),
+  );
+  const finish = createMaterial('FINISH_ROUTE', 'FINISH', `finish:${snapshot.finishRoute}`, finishSpec(snapshot));
+  const kimarite = createMaterial(
+    'KIMARITE',
+    'KIMARITE',
+    `kimarite:${snapshot.kimarite.name}`,
+    kimariteSpec(snapshot),
+  );
+  const victory = createMaterial(
+    'VICTORY_FACTOR',
+    'VICTORY_FACTOR',
+    'victory',
+    victorySpec(snapshot.victoryFactorTags, victoryFactorLabels),
+  );
+  const hoshitori = createMaterial(
+    'HOSHITORI_CONTEXT',
+    'HOSHITORI',
+    'hoshitori',
+    hoshitoriSpec(hoshitoriTag),
+  );
+  const banzuke = createMaterial(
+    'BANZUKE_CONTEXT',
+    'BANZUKE',
+    'banzuke',
+    banzukeSpec(banzukeTag),
+  );
   const materials = [
-    createMaterial(
-      `opening:${snapshot.openingPhase}`,
-      'OPENING',
-      'OPENING',
-      OPENING_TEXT[snapshot.openingPhase],
-      [`opening:${snapshot.openingPhase}`],
-    ),
-    createMaterial(
-      `control:${snapshot.controlPhaseCandidate ?? 'UNAVAILABLE'}:${snapshot.controlConfidence}`,
-      'CONTROL',
-      'CONTROL',
-      snapshot.controlPhaseCandidate
-        ? CONTROL_TEXT[snapshot.controlPhaseCandidate]
-        : '主導権は明確に読みにくく、決着側の情報から補う必要がある。',
-      [`control:${snapshot.controlPhaseCandidate ?? 'UNAVAILABLE'}`, `confidence:${snapshot.controlConfidence}`],
-    ),
-    createMaterial(
-      `transition:${snapshot.transitionClassification}`,
-      'TRANSITION',
-      'TRANSITION',
-      TRANSITION_TEXT[snapshot.transitionClassification],
-      [`transition:${snapshot.transitionClassification}`],
-    ),
-    createMaterial(
-      `finish:${snapshot.finishRoute}`,
-      'FINISH_ROUTE',
-      'FINISH',
-      FINISH_TEXT[snapshot.finishRoute],
-      [`finish:${snapshot.finishRoute}`],
-    ),
-    createMaterial(
-      `kimarite:${snapshot.kimarite.name}:${kimariteFamily}`,
-      'KIMARITE',
-      'KIMARITE',
-      `${snapshot.kimarite.name}。${labelOf(kimariteFamily, KIMARITE_FAMILY_TEXT, '決まり手の分類は補助的で、流れ全体と合わせて読む必要がある。')}`,
-      [`kimarite:${snapshot.kimarite.name}`, `family:${kimariteFamily}`],
-    ),
-    createMaterial(
-      `victory:${snapshot.victoryFactorTags.join('+') || 'mixed'}`,
-      'VICTORY_FACTOR',
-      'VICTORY_FACTOR',
-      factorSummary,
-      snapshot.victoryFactorTags,
-    ),
-    createMaterial(
-      `hoshitori:${hoshitoriTag}`,
-      'HOSHITORI_CONTEXT',
-      'HOSHITORI',
-      HOSHITORI_TEXT[hoshitoriTag],
-      [`hoshitori:${hoshitoriTag}`],
-    ),
-    createMaterial(
-      `banzuke:${banzukeTag}`,
-      'BANZUKE_CONTEXT',
-      'BANZUKE',
-      BANZUKE_TEXT[banzukeTag],
-      [`banzuke:${banzukeTag}`],
-    ),
+    opening,
+    control,
+    transition,
+    finish,
+    kimarite,
+    victory,
+    hoshitori,
+    banzuke,
   ] as const;
 
   const flowExplanation = [
-    `${materials[0].text}${materials[1].text}`,
-    `${materials[2].text}${materials[3].text}${materials[4].text}`,
-    `${materials[5].text}${materials[6].text}${materials[7].text}`,
+    `${opening.text}${control.text}`,
+    `${transition.text}${finish.text}${kimarite.text}`,
+    `${victory.text}${hoshitori.text}${banzuke.text}`,
   ];
-  const shortCommentary = `${snapshot.kimarite.name}: ${materials[2].text}${materials[6].text}${materials[7].text}`;
+  const shortCommentary = createShortCommentary(snapshot, hoshitori, banzuke);
 
   return {
     generated: true,
