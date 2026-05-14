@@ -74,12 +74,26 @@ interface HarnessRow {
   confidenceBucket: ConfidenceBucket;
   routeBiasApplied: boolean;
   routeBiasReasonTags: readonly string[];
+  controlPhasePredecessor: BoutEngagement['phase'];
   winRoute: WinRoute;
   kimarite: string;
   kimariteMetadata: DiagnosticKimariteMetadata;
   severity: ContradictionSeverity;
   contradiction: boolean;
   warningCount: number;
+  boutFlow: {
+    openingPhase: PreBoutPhase;
+    openingPhaseWeights: PreBoutPhaseWeights;
+    controlPhasePredecessor: BoutEngagement['phase'];
+    finishRoute: WinRoute;
+    kimarite: {
+      name: string;
+      family?: string;
+      diagnosticFamily: string;
+      rarity?: string;
+      catalogStatus: DiagnosticKimariteMetadata['catalogStatus'];
+    };
+  };
 }
 
 interface RateSummary {
@@ -382,12 +396,26 @@ const simulateCase = (
     confidenceBucket,
     routeBiasApplied: bias.applied,
     routeBiasReasonTags: bias.reasonTags,
+    controlPhasePredecessor: engagement.phase,
     winRoute,
     kimarite: selected.kimarite,
     kimariteMetadata,
     severity: classified.severity,
     contradiction: classified.contradiction,
     warningCount: warnings.length,
+    boutFlow: {
+      openingPhase: dominantPhase,
+      openingPhaseWeights: phaseResolution.weights,
+      controlPhasePredecessor: engagement.phase,
+      finishRoute: winRoute,
+      kimarite: {
+        name: kimariteMetadata.kimarite ?? selected.kimarite,
+        family: kimariteMetadata.family,
+        diagnosticFamily: kimariteMetadata.diagnosticFamily,
+        rarity: kimariteMetadata.rarityBucket,
+        catalogStatus: kimariteMetadata.catalogStatus,
+      },
+    },
   };
 };
 
@@ -511,6 +539,24 @@ const main = (): void => {
       ENABLED: enabledHighHardRate,
       relativeReduction: hardReductionRelative,
     },
+    boutFlowDistribution: {
+      openingPhase: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.openingPhase)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.openingPhase)),
+      },
+      controlPhasePredecessor: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhasePredecessor)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhasePredecessor)),
+      },
+      finishRoute: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.finishRoute)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.finishRoute)),
+      },
+      kimariteDiagnosticFamily: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
+      },
+    },
     routeDistribution: {
       OFF: offRouteCounts,
       ENABLED: enabledRouteCounts,
@@ -561,6 +607,7 @@ const main = (): void => {
           offRoute: offRows.find((off) => off.caseId === row.caseId)?.winRoute,
           enabledRoute: row.winRoute,
           phase: row.dominantPhase,
+          boutFlow: row.boutFlow,
           confidence: row.confidenceBucket,
           offSeverity: offRows.find((off) => off.caseId === row.caseId)?.severity,
           enabledSeverity: row.severity,

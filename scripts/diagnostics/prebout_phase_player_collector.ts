@@ -144,6 +144,26 @@ const summarizeWeightAverages = (
     ]),
   ) as Record<PreBoutPhase, number>;
 
+const resolveDominantOpeningPhase = (snapshot: PreBoutPhaseSnapshot): PreBoutPhase =>
+  PRE_BOUT_PHASES
+    .map((phase) => ({ phase, weight: Math.max(0, snapshot.weights[phase] ?? 0) }))
+    .sort((left, right) => right.weight - left.weight)[0]?.phase ?? 'MIXED';
+
+const withBoutFlow = (snapshot: PreBoutPhaseSnapshot): PreBoutPhaseSnapshot & {
+  boutFlow: {
+    openingPhase: PreBoutPhase;
+    openingPhaseWeights: PreBoutPhaseSnapshot['weights'];
+    openingPhaseReasonTags: PreBoutPhaseSnapshot['reasonTags'];
+  };
+} => ({
+  ...snapshot,
+  boutFlow: {
+    openingPhase: resolveDominantOpeningPhase(snapshot),
+    openingPhaseWeights: snapshot.weights,
+    openingPhaseReasonTags: snapshot.reasonTags,
+  },
+});
+
 const summarizePressure = (snapshots: PreBoutPhaseSnapshot[]): Record<string, number> => ({
   withPressure: snapshots.filter((snapshot) => snapshot.pressure).length,
   isKachiMakeDecider: snapshots.filter((snapshot) => snapshot.pressure?.isKachiMakeDecider).length,
@@ -221,6 +241,7 @@ const main = async (): Promise<void> => {
     scenarios,
     totalSnapshots: snapshots.length,
     phaseWeightAverages: summarizeWeightAverages(snapshots),
+    boutFlowOpeningPhaseDistribution: countBy(snapshots.map((snapshot) => resolveDominantOpeningPhase(snapshot))),
     metadataCoverage: summarizeMetadataCoverage(snapshots),
     pressureCounts: summarizePressure(snapshots),
     byDivision: countBy(snapshots.map((snapshot) => snapshot.division)),
@@ -232,7 +253,7 @@ const main = async (): Promise<void> => {
       'post-outcome engagement is intentionally unavailable',
       'BoutExplanation fields are intentionally unavailable',
     ],
-    samples: snapshots.slice(0, 12),
+    samples: snapshots.slice(0, 12).map(withBoutFlow),
   };
   const outPath = path.resolve('.tmp/prebout-phase-player-collector.json');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

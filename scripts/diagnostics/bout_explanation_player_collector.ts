@@ -14,6 +14,12 @@ import {
   withBoutExplanationSnapshotCollector,
 } from '../../src/logic/simulation/diagnostics';
 import type { Rank, RikishiStatus } from '../../src/logic/models';
+import {
+  PRE_BOUT_PHASES,
+  type PreBoutPhase,
+  type PreBoutPhaseWeights,
+} from '../../src/logic/simulation/combat/preBoutPhase';
+import { resolveDiagnosticKimariteMetadata } from './kimarite_family_classifier';
 
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
@@ -142,6 +148,51 @@ const summarizeMetadataCoverage = (snapshots: BoutExplanationSnapshot[]): Record
   shortCommentaryDraft: snapshots.filter((snapshot) => snapshot.shortCommentaryDraft !== undefined).length,
 });
 
+const resolveDominantOpeningPhase = (
+  weights: PreBoutPhaseWeights | undefined,
+): PreBoutPhase | undefined => {
+  if (!weights) return undefined;
+  return PRE_BOUT_PHASES
+    .map((phase) => ({ phase, weight: Math.max(0, weights[phase] ?? 0) }))
+    .sort((left, right) => right.weight - left.weight)[0]?.phase ?? 'MIXED';
+};
+
+const withBoutFlow = (snapshot: BoutExplanationSnapshot): BoutExplanationSnapshot & {
+  boutFlow: {
+    openingPhase?: PreBoutPhase;
+    openingPhaseWeights?: PreBoutPhaseWeights;
+    openingPhaseReasonTags?: BoutExplanationSnapshot['preBoutPhaseReasonTags'];
+    finishRoute?: BoutExplanationSnapshot['winRoute'];
+    kimarite?: {
+      name?: string;
+      family?: string;
+      diagnosticFamily: string;
+      rarity?: string;
+      catalogStatus: ReturnType<typeof resolveDiagnosticKimariteMetadata>['catalogStatus'];
+    };
+  };
+} => {
+  const metadata = resolveDiagnosticKimariteMetadata(snapshot.kimarite);
+  return {
+    ...snapshot,
+    boutFlow: {
+      openingPhase: resolveDominantOpeningPhase(snapshot.preBoutPhaseWeights),
+      openingPhaseWeights: snapshot.preBoutPhaseWeights,
+      openingPhaseReasonTags: snapshot.preBoutPhaseReasonTags,
+      finishRoute: snapshot.winRoute,
+      kimarite: snapshot.kimarite
+        ? {
+          name: metadata.kimarite ?? snapshot.kimarite,
+          family: metadata.family,
+          diagnosticFamily: metadata.diagnosticFamily,
+          rarity: metadata.rarityBucket,
+          catalogStatus: metadata.catalogStatus,
+        }
+        : undefined,
+    },
+  };
+};
+
 const assertGuardrails = (snapshots: BoutExplanationSnapshot[]): void => {
   if (!snapshots.length) {
     throw new Error('BoutExplanation player collector did not capture snapshots');
@@ -203,6 +254,12 @@ const main = async (): Promise<void> => {
     factorKindCounts: countBy(factorRows.map((factor) => factor.kind)),
     factorDirectionCounts: countBy(factorRows.map((factor) => factor.direction)),
     factorStrengthCounts: countBy(factorRows.map((factor) => factor.strength)),
+    boutFlow: {
+      openingPhaseDistribution: countBy(snapshots.map((snapshot) => resolveDominantOpeningPhase(snapshot.preBoutPhaseWeights))),
+      finishRouteDistribution: countBy(snapshots.map((snapshot) => snapshot.winRoute)),
+      kimariteDiagnosticFamilyDistribution: countBy(snapshots.map((snapshot) =>
+        resolveDiagnosticKimariteMetadata(snapshot.kimarite).diagnosticFamily)),
+    },
     metadataCoverage: summarizeMetadataCoverage(snapshots),
     pressureCoverage: {
       withPressure: snapshots.filter((snapshot) => snapshot.pressure).length,
@@ -217,7 +274,7 @@ const main = async (): Promise<void> => {
       'UI prose is intentionally unavailable',
       'persistence identifiers are intentionally unavailable',
     ],
-    samples: snapshots.slice(0, 8),
+    samples: snapshots.slice(0, 8).map(withBoutFlow),
   };
   const outPath = path.resolve('.tmp/bout-explanation-player-collector.json');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

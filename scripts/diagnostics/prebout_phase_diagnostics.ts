@@ -23,8 +23,14 @@ interface DiagnosticSample {
   bodyBucket: BodyBucket;
   pressureBucket: PressureBucket;
   phase: PreBoutPhase;
+  dominantOpeningPhase: PreBoutPhase;
   weights: PreBoutPhaseWeights;
   reasonTags: readonly string[];
+  boutFlow: {
+    openingPhase: PreBoutPhase;
+    openingPhaseWeights: PreBoutPhaseWeights;
+    openingPhaseReasonTags: readonly string[];
+  };
 }
 
 const divisions: Division[] = ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
@@ -133,6 +139,14 @@ const increment = (
   counts[resolved] = (counts[resolved] ?? 0) + 1;
 };
 
+const countBy = <T extends string | undefined>(
+  values: T[],
+): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  values.forEach((value) => increment(counts, value));
+  return counts;
+};
+
 const summarizePhaseCounts = (samples: DiagnosticSample[]): Record<string, number> => {
   const counts: Record<string, number> = {};
   samples.forEach((sample) => increment(counts, sample.phase));
@@ -161,6 +175,11 @@ const summarizeWeightAverages = (samples: DiagnosticSample[]): Record<PreBoutPha
     ]),
   ) as Record<PreBoutPhase, number>;
 
+const resolveDominantOpeningPhase = (weights: PreBoutPhaseWeights): PreBoutPhase =>
+  PRE_BOUT_PHASES
+    .map((phase) => ({ phase, weight: Math.max(0, weights[phase] ?? 0) }))
+    .sort((left, right) => right.weight - left.weight)[0]?.phase ?? 'MIXED';
+
 const main = (): void => {
   const rng = lcg(20260514);
   const samples: DiagnosticSample[] = [];
@@ -171,6 +190,7 @@ const main = (): void => {
           for (const pressureBucket of pressureBuckets) {
             const input = createInput(division, attackerStyle, defenderStyle, bodyBucket, pressureBucket);
             const resolution = resolvePreBoutPhaseDiagnostic(input, rng);
+            const dominantOpeningPhase = resolveDominantOpeningPhase(resolution.weights);
             samples.push({
               division,
               formatKind: input.formatKind,
@@ -179,8 +199,14 @@ const main = (): void => {
               bodyBucket,
               pressureBucket,
               phase: resolution.phase ?? 'MIXED',
+              dominantOpeningPhase,
               weights: resolution.weights,
               reasonTags: resolution.reasonTags,
+              boutFlow: {
+                openingPhase: dominantOpeningPhase,
+                openingPhaseWeights: resolution.weights,
+                openingPhaseReasonTags: resolution.reasonTags,
+              },
             });
           }
         }
@@ -195,6 +221,7 @@ const main = (): void => {
     totalSamples: samples.length,
     phaseWeightAverages: summarizeWeightAverages(samples),
     sampledPhaseDistribution: summarizePhaseCounts(samples),
+    boutFlowOpeningPhaseDistribution: countBy(samples.map((sample) => sample.boutFlow.openingPhase)),
     byAttackerStyle: summarizeBy(samples, (sample) => sample.attackerStyle),
     byDefenderStyle: summarizeBy(samples, (sample) => sample.defenderStyle),
     byDivision: summarizeBy(samples, (sample) => sample.division),

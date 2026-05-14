@@ -66,6 +66,7 @@ interface ClassifiedBout {
   pressureBucket: PressureBucket;
   attackerStyle?: CombatStyle;
   defenderStyle?: CombatStyle;
+  phaseWeights?: PreBoutPhaseWeights;
   phase: PhaseSummary;
   winRoute?: WinRoute;
   kimarite?: string;
@@ -73,6 +74,19 @@ interface ClassifiedBout {
   severity: ContradictionSeverity;
   contradiction: boolean;
   reason: string;
+  boutFlow: {
+    openingPhase: PreBoutPhase;
+    openingPhaseWeights?: PreBoutPhaseWeights;
+    openingPhaseConfidence: ConfidenceBucket;
+    finishRoute?: WinRoute;
+    kimarite: {
+      name?: string;
+      family?: string;
+      diagnosticFamily: string;
+      rarity?: string;
+      catalogStatus: DiagnosticKimariteMetadata['catalogStatus'];
+    };
+  };
 }
 
 interface CountRate {
@@ -427,6 +441,19 @@ const classifyRows = (
         metadata,
       })
       : { severity: 'UNKNOWN' as const, contradiction: false, reason: 'pre-bout phase weights unavailable' };
+    const boutFlow = {
+      openingPhase: phase.dominantPhase,
+      openingPhaseWeights: weights,
+      openingPhaseConfidence: phase.confidenceBucket,
+      finishRoute: snapshot.winRoute,
+      kimarite: {
+        name: metadata.kimarite ?? snapshot.kimarite,
+        family: metadata.family,
+        diagnosticFamily: metadata.diagnosticFamily,
+        rarity: metadata.rarityBucket,
+        catalogStatus: metadata.catalogStatus,
+      },
+    };
     return {
       index,
       runLabel: snapshot.runLabel,
@@ -438,6 +465,7 @@ const classifyRows = (
       pressureBucket: pressureBucketOf(snapshot),
       attackerStyle: phaseSnapshot?.attackerStyle,
       defenderStyle: phaseSnapshot?.defenderStyle,
+      phaseWeights: weights,
       phase,
       winRoute: snapshot.winRoute,
       kimarite: snapshot.kimarite,
@@ -445,6 +473,7 @@ const classifyRows = (
       severity: classified.severity,
       contradiction: classified.contradiction,
       reason: classified.reason,
+      boutFlow,
     };
   });
 
@@ -536,6 +565,13 @@ const main = async (): Promise<void> => {
     classifierRules: DIAGNOSTIC_KIMARITE_CLASSIFIER_RULES,
     totalSampledPlayerBouts: rows.length,
     summary,
+    boutFlow: {
+      openingPhaseDistribution: countBy(rows.map((row) => row.boutFlow.openingPhase)),
+      finishRouteDistribution: countBy(rows.map((row) => row.boutFlow.finishRoute)),
+      kimariteFamilyDistribution: countBy(rows.map((row) => row.boutFlow.kimarite.family)),
+      kimariteDiagnosticFamilyDistribution: countBy(rows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
+      kimariteRarityDistribution: countBy(rows.map((row) => row.boutFlow.kimarite.rarity)),
+    },
     severityCounts: countBy(rows.map((row) => row.severity)),
     phaseDistribution: countBy(rows.map((row) => row.phase.dominantPhase)),
     winRouteDistribution: countBy(rows.map((row) => row.winRoute)),
