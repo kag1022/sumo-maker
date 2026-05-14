@@ -1,6 +1,7 @@
 /* global console, process */
 import fs from 'node:fs';
 import path from 'node:path';
+import { BALANCE } from '../../src/logic/balance';
 import { runBashoDetailed } from '../../src/logic/simulation/basho';
 import {
   advanceLeaguePopulation,
@@ -188,6 +189,7 @@ const summarizeSnapshots = (snapshots: BoutWinProbSnapshot[]) => {
     attackerAbility: roundSummary(summarizeNumeric(rows.map((row) => row.attackerAbility))),
     defenderAbility: roundSummary(summarizeNumeric(rows.map((row) => row.defenderAbility))),
     bonus: roundSummary(summarizeNumeric(rows.map((row) => row.bonus))),
+    diffSoftCap: roundSummary(summarizeNumeric(rows.map((row) => row.diffSoftCap))),
     probability: roundSummary(summarizeNumeric(rows.map((row) => row.probability))),
     injuryPenalty: roundSummary(summarizeNumeric(rows.map((row) => row.injuryPenalty))),
   });
@@ -262,6 +264,41 @@ const summarizeSnapshots = (snapshots: BoutWinProbSnapshot[]) => {
   };
 };
 
+const assertSnapshotGuardrails = (
+  snapshots: BoutWinProbSnapshot[],
+  summary: ReturnType<typeof summarizeSnapshots>,
+): void => {
+  const playerBase = snapshots.filter((row) => row.source === 'PLAYER_BOUT' && row.call === 'PLAYER_BASE');
+  const playerBaseline = snapshots.filter((row) => row.source === 'PLAYER_BOUT' && row.call === 'PLAYER_BASELINE');
+  const npcMain = snapshots.filter((row) => row.source === 'NPC_BOUT' && row.call === 'NPC_MAIN');
+  if (!playerBase.length) {
+    throw new Error('PLAYER_BASE snapshots were not captured');
+  }
+  if (!playerBaseline.length) {
+    throw new Error('PLAYER_BASELINE snapshots were not captured');
+  }
+  if (playerBase.length !== playerBaseline.length) {
+    throw new Error(`PLAYER_BASE (${playerBase.length}) and PLAYER_BASELINE (${playerBaseline.length}) snapshot counts diverged`);
+  }
+  if (!npcMain.length) {
+    throw new Error('NPC_MAIN snapshots were not captured');
+  }
+  const invalidPlayer = [...playerBase, ...playerBaseline].find((row) =>
+    !Number.isFinite(row.attackerAbility) ||
+    !Number.isFinite(row.defenderAbility) ||
+    !Number.isFinite(row.probability));
+  if (invalidPlayer) {
+    throw new Error(`player kernel snapshot has invalid numeric fields: ${JSON.stringify(invalidPlayer)}`);
+  }
+  const invalidNpcSoftCap = npcMain.find((row) => row.diffSoftCap !== BALANCE.strength.npcDiffSoftCap);
+  if (invalidNpcSoftCap) {
+    throw new Error(`NPC_MAIN diffSoftCap drifted: ${invalidNpcSoftCap.diffSoftCap}`);
+  }
+  if (summary.player.opponentFormAudit.detectedDoubleCountCalls !== 0) {
+    throw new Error(`player opponent bashoFormDelta double-count detected: ${summary.player.opponentFormAudit.detectedDoubleCountCalls}`);
+  }
+};
+
 const runScenario = async (
   scenario: Scenario,
   snapshots: BoutWinProbSnapshot[],
@@ -296,6 +333,7 @@ const main = async (): Promise<void> => {
     await runScenario(scenario, snapshots);
   }
   const summary = summarizeSnapshots(snapshots);
+  assertSnapshotGuardrails(snapshots, summary);
   const outDir = path.join(process.cwd(), '.tmp');
   fs.mkdirSync(outDir, { recursive: true });
   const jsonPath = path.join(outDir, 'combat-kernel-input-snapshot.json');

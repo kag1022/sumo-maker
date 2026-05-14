@@ -120,6 +120,8 @@ const runCase = async (
     result,
     probabilityInput: snapshots[0]
       ? {
+        source: snapshots[0].source,
+        call: snapshots[0].call,
         attackerAbility: snapshots[0].attackerAbility,
         defenderAbility: snapshots[0].defenderAbility,
         attackerStyle: snapshots[0].attackerStyle,
@@ -155,8 +157,22 @@ const runApplyNpcFusenBoutCase = () => {
 };
 
 const assertExpectedCounts = (report: {
-  normalBout: { rngCalls: number };
-  fusenBranches: Record<string, { rngCalls: number }>;
+  normalBout: {
+    rngCalls: number;
+    rngValues: number[];
+    result: { aAbility?: number; bAbility?: number } | null;
+    probabilityInput: {
+      source?: string;
+      call?: string;
+      attackerAbility?: number;
+      defenderAbility?: number;
+      probability?: number;
+      diffSoftCap?: number;
+    } | null;
+    before: { a: ParticipantState; b: ParticipantState };
+    after: { a: ParticipantState; b: ParticipantState };
+  };
+  fusenBranches: Record<string, { rngCalls: number; probabilityInput: unknown }>;
   helperFusen: {
     mutationSummary: {
       winner: Record<string, unknown>;
@@ -167,9 +183,40 @@ const assertExpectedCounts = (report: {
   if (report.normalBout.rngCalls !== 3) {
     throw new Error(`normal NPC bout consumed ${report.normalBout.rngCalls} RNG calls; expected 3`);
   }
+  const expectedRngOrder = [0.65, 0.25, 0.3];
+  if (JSON.stringify(report.normalBout.rngValues) !== JSON.stringify(expectedRngOrder)) {
+    throw new Error(`normal NPC bout RNG order drifted: ${JSON.stringify(report.normalBout.rngValues)}`);
+  }
+  if (report.normalBout.probabilityInput?.source !== 'NPC_BOUT' || report.normalBout.probabilityInput.call !== 'NPC_MAIN') {
+    throw new Error(`normal NPC bout did not capture NPC_MAIN probability input: ${JSON.stringify(report.normalBout.probabilityInput)}`);
+  }
+  const aExpectedDelta = (report.normalBout.after.a.expectedWins ?? 0) - (report.normalBout.before.a.expectedWins ?? 0);
+  const bExpectedDelta = (report.normalBout.after.b.expectedWins ?? 0) - (report.normalBout.before.b.expectedWins ?? 0);
+  const probability = report.normalBout.probabilityInput.probability ?? Number.NaN;
+  if (Math.abs(aExpectedDelta - probability) > 0.000001 || Math.abs(bExpectedDelta - (1 - probability)) > 0.000001) {
+    throw new Error(`expectedWins mutation drifted from probability: a=${aExpectedDelta}, b=${bExpectedDelta}, p=${probability}`);
+  }
+  const bOpponentAbilityDelta = (report.normalBout.after.b.opponentAbilityTotal ?? 0) - (report.normalBout.before.b.opponentAbilityTotal ?? 0);
+  const aMetricAbility = report.normalBout.result?.aAbility ?? Number.NaN;
+  const aProbabilityAbility = report.normalBout.probabilityInput.attackerAbility ?? Number.NaN;
+  if (Math.abs(bOpponentAbilityDelta - aMetricAbility) > 0.000001) {
+    throw new Error(`opponentAbilityTotal did not use metric ability: delta=${bOpponentAbilityDelta}, metric=${aMetricAbility}`);
+  }
+  if (Math.abs(bOpponentAbilityDelta - aProbabilityAbility) < 0.000001) {
+    throw new Error('opponentAbilityTotal appears to use probability ability instead of metric ability');
+  }
+  if (
+    (report.normalBout.after.a.boutsSimulated ?? 0) - (report.normalBout.before.a.boutsSimulated ?? 0) !== 1 ||
+    (report.normalBout.after.b.boutsSimulated ?? 0) - (report.normalBout.before.b.boutsSimulated ?? 0) !== 1
+  ) {
+    throw new Error('normal NPC bout did not increment boutsSimulated for both participants');
+  }
   Object.entries(report.fusenBranches).forEach(([label, branch]) => {
     if (branch.rngCalls !== 0) {
       throw new Error(`${label} consumed ${branch.rngCalls} RNG calls; expected 0`);
+    }
+    if (branch.probabilityInput !== null) {
+      throw new Error(`${label} captured a probability input; fusen/no-contest branches must not call the kernel`);
     }
   });
   const oneSideBranches = [

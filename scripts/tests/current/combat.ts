@@ -220,8 +220,9 @@ export const tests: TestCase[] = [
         injuryPenalty: 1,
         bonus: 0.35,
       };
+      assert.equal(resolveCombatKernelProbability.length, 1);
       const directProbability = resolveBoutWinProb(probabilityInput);
-      const kernelOutput = resolveCombatKernelProbability({
+      const kernelInput = {
         source: 'PLAYER_BASE',
         ...probabilityInput,
         metadata: {
@@ -231,10 +232,12 @@ export const tests: TestCase[] = [
           boutOrdinal: 8,
           pressureFlags: { isKachiMakeDecider: true },
         },
-      });
+      } as const;
+      const kernelOutput = resolveCombatKernelProbability(kernelInput);
       assert.equal(kernelOutput.probability, directProbability);
       assert.equal(kernelOutput.input.source, 'PLAYER_BASE');
       assert.equal(kernelOutput.input.metadata?.calendarDay, 8);
+      assert.deepEqual(kernelOutput.input, kernelInput);
 
       const baselineOutput = resolveCombatKernelProbability({
         source: 'PLAYER_BASELINE',
