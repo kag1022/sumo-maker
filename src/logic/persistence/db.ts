@@ -21,7 +21,6 @@ import { SimulationModelVersion } from '../simulation/modelVersion';
 import type { ImportantTorikumiTrigger } from '../simulation/basho';
 import type { BoutFlowCommentary } from '../simulation/combat/boutFlowCommentary';
 import type { TorikumiMatchReason } from '../simulation/torikumi/types';
-import type { EnemyStyleBias } from '../catalog/enemyData';
 import { ensureKataProfile } from '../style/kata';
 import type { EraTag } from '../era/types';
 
@@ -99,7 +98,6 @@ export interface BashoRecordRow {
   year: number;
   month: number;
   shikona: string;
-  stableId?: string;
   division: string;
   rankName: string;
   rankNumber?: number;
@@ -109,14 +107,6 @@ export interface BashoRecordRow {
   losses: number;
   absent: number;
   titles: string[];
-  ability?: number;
-  basePower?: number;
-  form?: number;
-  uncertainty?: number;
-  heightCm?: number;
-  weightKg?: number;
-  styleBias?: EnemyStyleBias;
-  careerBashoCount?: number;
 }
 
 export type BoutResultType = 'WIN' | 'LOSS' | 'ABSENT';
@@ -289,7 +279,7 @@ class SumoMakerDatabase extends Dexie {
   researchThemeProgress!: Table<ResearchThemeProgressRow, string>;
 
   constructor() {
-    super('sumo-maker-v15');
+    super('sumo-maker-v14');
 
     this.version(1).stores({
       careers:
