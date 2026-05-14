@@ -257,7 +257,7 @@ export const resolveEngagementPatternFit = (
 
 /**
  * Engagement から WinRoute 選択時のバイアスを導出。
- * resolveWinRoute 側で掛け算することで、BELT_BATTLE engagement でも
+ * resolveFinishRoute 側で掛け算することで、BELT_BATTLE engagement でも
  * winner.style=PUSH が無理やり PUSH_OUT を取らないようにする。
  */
 export const resolveEngagementRouteBias = (

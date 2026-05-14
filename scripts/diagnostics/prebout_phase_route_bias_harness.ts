@@ -18,8 +18,8 @@ import type { RandomSource } from '../../src/logic/simulation/deps';
 import {
   type BoutEngagement,
   resolveBoutEngagement,
-  resolveEngagementRouteBias,
 } from '../../src/logic/kimarite/engagement';
+import { resolveFinishRoute } from '../../src/logic/kimarite/finishRoute';
 import {
   consumeKimariteSelectionWarnings,
   resolveKimariteOutcome,
@@ -211,95 +211,6 @@ const resolveHarnessCases = (): HarnessCase[] => {
   return cases;
 };
 
-const weightedPick = <T>(
-  entries: Array<{ value: T; weight: number }>,
-  rng: RandomSource,
-): T => {
-  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
-  let roll = rng() * total;
-  for (const entry of entries) {
-    roll -= Math.max(0, entry.weight);
-    if (roll <= 0) return entry.value;
-  }
-  return entries[entries.length - 1].value;
-};
-
-const localResolveWinRoute = (
-  winner: KimariteCompetitorProfile,
-  context: RouteSelectionContext,
-  engagement: BoutEngagement,
-  rng: RandomSource,
-  routeMultipliers?: Partial<Record<WinRoute, number>>,
-): WinRoute => {
-  const routeBias = resolveEngagementRouteBias(engagement);
-  const biasOf = (route: WinRoute): number => routeBias[route] ?? 1;
-  const phaseBiasOf = (route: WinRoute): number => routeMultipliers?.[route] ?? 1;
-  const rawWeights: Array<{ value: WinRoute; weight: number }> = [
-    {
-      value: 'PUSH_OUT',
-      weight:
-        (winner.style === 'PUSH' ? 2.6 : 0.2) +
-        ((winner.stats.oshi ?? 50) + (winner.stats.tsuki ?? 50)) / 90 +
-        (context.weightDiff >= 6 ? 0.35 : 0),
-    },
-    {
-      value: 'BELT_FORCE',
-      weight:
-        (winner.style === 'GRAPPLE' ? 2.6 : 0.25) +
-        ((winner.stats.kumi ?? 50) + (winner.stats.koshi ?? 50)) / 92 +
-        (context.weightDiff >= 0 ? 0.45 : 0),
-    },
-    {
-      value: 'THROW_BREAK',
-      weight:
-        (winner.style === 'TECHNIQUE' ? 2.4 : winner.style === 'GRAPPLE' ? 0.9 : 0.12) +
-        ((winner.stats.nage ?? 50) + (winner.stats.waza ?? 50)) / 94,
-    },
-    {
-      value: 'PULL_DOWN',
-      weight:
-        (winner.style === 'PUSH' ? 1.55 : winner.style === 'TECHNIQUE' ? 1.7 : winner.style === 'GRAPPLE' ? 0.38 : 0.22) +
-        (context.isUnderdog ? 0.45 : 0) +
-        (context.heightDiff >= 6 ? 0.18 : 0),
-    },
-    {
-      value: 'EDGE_REVERSAL',
-      weight:
-        context.isEdgeCandidate
-          ? 0.14 +
-            (winner.traits.includes('DOHYOUGIWA_MAJUTSU') ? 1.2 : 0) +
-            (winner.traits.includes('CLUTCH_REVERSAL') ? 1.0 : 0) +
-            (context.isUnderdog ? 0.45 : 0)
-          : 0,
-    },
-    {
-      value: 'REAR_FINISH',
-      weight:
-        context.isHighPressure || context.isLastDay
-          ? 0.04 +
-            (winner.traits.includes('READ_THE_BOUT') ? 0.65 : 0) +
-            (winner.style === 'TECHNIQUE' ? 0.3 : 0)
-          : 0,
-    },
-    {
-      value: 'LEG_ATTACK',
-      weight:
-        winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI')
-          ? 0.015 +
-            (winner.bodyType === 'SOPPU' ? 0.08 : 0) +
-            (context.isUnderdog ? 0.08 : 0)
-          : 0,
-    },
-  ];
-  const weights = rawWeights
-    .map((entry) => ({
-      ...entry,
-      weight: entry.weight * biasOf(entry.value) * phaseBiasOf(entry.value),
-    }))
-    .filter((entry) => entry.weight > 0.04);
-  return weightedPick(weights, rng);
-};
-
 const simulateCase = (
   testCase: HarnessCase,
   mode: HarnessMode,
@@ -359,7 +270,13 @@ const simulateCase = (
     pressure: testCase.pressure,
   });
   const routeMultipliers = mode === 'ENABLED' ? bias.multipliers : undefined;
-  const winRoute = localResolveWinRoute(winner, context, engagement, rng, routeMultipliers);
+  const winRoute = resolveFinishRoute({
+    winner,
+    context,
+    engagement,
+    rng,
+    routeMultipliers,
+  });
   consumeKimariteSelectionWarnings();
   const selected = resolveKimariteOutcome({
     winner,
@@ -594,7 +511,7 @@ const main = (): void => {
             : 'keep diagnostic-only',
     },
     limitations: [
-      'The harness uses a local route-selector equivalent because production resolveWinRoute is intentionally private.',
+      'The harness uses the shared finishRoute selector, with route multipliers applied only in ENABLED mode.',
       'ENABLED does not enable production behavior.',
       'Full downstream career RNG parity is not claimed.',
     ],
