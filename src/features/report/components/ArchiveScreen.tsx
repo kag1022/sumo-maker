@@ -15,6 +15,7 @@ import {
 } from "../../../logic/career/analysis";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import type { CareerSaveTag, ObservationRuleMode, ObservationStanceId } from "../../../logic/models";
+import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
@@ -79,6 +80,14 @@ interface ArchiveViewItem extends ArchiveItem {
   analysis: CareerAnalysisSummary | null;
 }
 
+interface ArchiveShelfSummary {
+  total: number;
+  rankBreakdown: Array<{ label: string; count: number }>;
+  winRateLabel: string;
+  topTags: Array<{ label: string; count: number }>;
+  recentItem: ArchiveViewItem | null;
+}
+
 const formatRankName = (rank: Rank): string => {
   const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
   if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
@@ -107,6 +116,73 @@ const toDateText = (value?: string): string => {
 const resolveWinRate = (item: Pick<ArchiveItem, "totalWins" | "totalLosses">): number => {
   const total = item.totalWins + item.totalLosses;
   return total > 0 ? item.totalWins / total : 0;
+};
+
+const formatWinRatePercent = (rate: number): string =>
+  `${(rate * 100).toFixed(1)}%`;
+
+const formatRecordLabel = (item: Pick<ArchiveItem, "totalWins" | "totalLosses" | "totalAbsent">): string =>
+  `${item.totalWins}勝${item.totalLosses}敗${item.totalAbsent > 0 ? `${item.totalAbsent}休` : ""}`;
+
+const formatCareerPeriod = (item: Pick<ArchiveItem, "careerStartYearMonth" | "careerEndYearMonth">): string =>
+  `${item.careerStartYearMonth} - ${item.careerEndYearMonth || "現在"}`;
+
+const resolveStableName = (item: ArchiveViewItem): string =>
+  item.finalStatus?.buildSummary?.initialConditionSummary?.stableName ??
+  item.finalStatus?.careerSeed?.stableName ??
+  (item.finalStatus ? resolveStableById(item.finalStatus.stableId)?.displayName : undefined) ??
+  "所属部屋未詳";
+
+const resolveReadingLine = (item: ArchiveViewItem): string =>
+  item.finalStatus?.buildSummary?.designPremises?.find((row) => row.category === "期待")?.interpretation ??
+  item.finalStatus?.buildSummary?.designInterpretation?.promotion ??
+  item.finalStatus?.careerNarrative?.careerIdentity ??
+  item.analysis?.saveRecommendation.reasons[0] ??
+  item.observerMemo ??
+  resolveArchiveLabel(item);
+
+const buildShelfSummary = (items: ArchiveViewItem[]): ArchiveShelfSummary => {
+  const total = items.length;
+  const rankGroups = [
+    { label: "横綱", count: items.filter((item) => item.maxRank.name === "横綱").length },
+    { label: "大関", count: items.filter((item) => item.maxRank.name === "大関").length },
+    { label: "三役", count: items.filter((item) => ["関脇", "小結"].includes(item.maxRank.name)).length },
+    { label: "幕内", count: items.filter((item) => item.maxRank.division === "Makuuchi" && !["横綱", "大関", "関脇", "小結"].includes(item.maxRank.name)).length },
+    { label: "十両以下", count: items.filter((item) => item.maxRank.division !== "Makuuchi").length },
+  ].filter((entry) => entry.count > 0);
+  const ratedItems = items.filter((item) => item.totalWins + item.totalLosses > 0);
+  const averageWinRate = ratedItems.length > 0
+    ? ratedItems.reduce((sum, item) => sum + resolveWinRate(item), 0) / ratedItems.length
+    : 0;
+  const winRateBand =
+    ratedItems.length === 0
+      ? "未集計"
+      : averageWinRate >= 0.58
+        ? "高勝率帯"
+        : averageWinRate >= 0.48
+          ? "標準帯"
+          : "苦闘帯";
+  const tagCounts = new Map<CareerSaveTag, number>();
+  for (const item of items) {
+    for (const tag of item.saveTags ?? []) {
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+    }
+  }
+  const topTags = [...tagCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || MANUAL_SAVE_TAG_LABELS[a[0]].localeCompare(MANUAL_SAVE_TAG_LABELS[b[0]], "ja"))
+    .slice(0, 4)
+    .map(([tag, count]) => ({ label: MANUAL_SAVE_TAG_LABELS[tag], count }));
+  const recentItem = [...items].sort((left, right) =>
+    (right.savedAt || right.updatedAt || "").localeCompare(left.savedAt || left.updatedAt || ""),
+  )[0] ?? null;
+
+  return {
+    total,
+    rankBreakdown: rankGroups,
+    winRateLabel: ratedItems.length > 0 ? `${formatWinRatePercent(averageWinRate)} / ${winRateBand}` : "未集計",
+    topTags,
+    recentItem,
+  };
 };
 
 const resolveRankSortValue = (rank: Rank): number => {
@@ -286,6 +362,10 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
     })),
     [items],
   );
+  const shelfSummary = React.useMemo(
+    () => buildShelfSummary(viewItems),
+    [viewItems],
+  );
 
   const filteredItems = React.useMemo(() => {
     const normalized = keyword.trim();
@@ -378,15 +458,15 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <button type="button" className={styles.filterChip} data-active={mode === "SHELF"} onClick={() => setMode("SHELF")}>
-            <span>一覧</span>
+            <span>書架</span>
             <Archive className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={styles.filterChip} data-active={mode === "COMPARE"} onClick={() => setMode("COMPARE")}>
-            <span>比較</span>
+            <span>二人を並べる</span>
             <GitCompare className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={styles.filterChip} data-active={mode === "SIMILAR"} onClick={() => setMode("SIMILAR")}>
-            <span>類似</span>
+            <span>似た一代を探す</span>
             <BarChart3 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -402,6 +482,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         </div>
 
         <div className={styles.filterGroup}>
+          <div className={typography.panelTitle}>基本フィルタ</div>
           {[
             { id: "ALL" as const, label: "すべて", count: items.length },
             {
@@ -426,6 +507,23 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
               }]
               : []),
+          ].map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className={styles.filterChip}
+              data-active={filter === entry.id}
+              onClick={() => setFilter(entry.id)}
+            >
+              <span>{entry.label}</span>
+              <span>{entry.count}件</span>
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.filterGroup}>
+          <div className={typography.panelTitle}>詳細フィルタ</div>
+          {[
             {
               id: "RARE" as const,
               label: "珍記録候補",
@@ -461,7 +559,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         </div>
 
         <div className={styles.filterGroup}>
-          <div className={typography.panelTitle}>高度フィルタ</div>
+          <div className={typography.panelTitle}>条件を掘る</div>
           <SelectFilter label="最高位" value={rankFilter} onChange={(value) => setRankFilter(value as RankFilter)} options={[
             ["ALL", "すべて"],
             ["YOKOZUNA_OZEKI", "横綱・大関"],
@@ -507,7 +605,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               { id: "YUSHO" as const, label: "優勝順" },
               { id: "RETIRE_AGE" as const, label: "引退年齢順" },
               { id: "MAX_RANK_AGE" as const, label: "最高位到達年齢順" },
-              { id: "PROMOTION" as const, label: "出世速度順" },
+              { id: "PROMOTION" as const, label: "昇進速度順" },
               { id: "STABILITY" as const, label: "安定度順" },
               { id: "TURBULENCE" as const, label: "波乱度順" },
               { id: "RARITY" as const, label: "珍記録度順" },
@@ -531,10 +629,38 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           <div className={styles.shelfHead}>
             <div>
               <div className={typography.kicker}>保存した人生</div>
-              <div className={typography.panelTitle}>保存済み記録</div>
-              <div className="text-sm text-text-dim">書架から一冊選ぶと、右側に開きかけの記録帳を表示します。</div>
+              <div className={typography.panelTitle}>私設書架</div>
+              <div className="text-sm text-text-dim">観測して残した力士人生を、書架の記録票として読み返します。</div>
             </div>
             <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
+          </div>
+
+          <div className={styles.shelfSummary}>
+            <article className={styles.summaryHero}>
+              <span>保存済み</span>
+              <strong>{shelfSummary.total}件</strong>
+              <em>{shelfSummary.recentItem ? `最近: ${shelfSummary.recentItem.shikona}` : "まだ記録はありません"}</em>
+            </article>
+            <article className={styles.summaryBlock}>
+              <span>最高位到達者</span>
+              <div className={styles.summaryChips}>
+                {shelfSummary.rankBreakdown.length > 0 ? shelfSummary.rankBreakdown.map((entry) => (
+                  <span key={entry.label}>{entry.label} {entry.count}</span>
+                )) : <span>未集計</span>}
+              </div>
+            </article>
+            <article className={styles.summaryBlock}>
+              <span>勝率帯</span>
+              <strong>{shelfSummary.winRateLabel}</strong>
+            </article>
+            <article className={styles.summaryBlock}>
+              <span>よく残る札</span>
+              <div className={styles.summaryChips}>
+                {shelfSummary.topTags.length > 0 ? shelfSummary.topTags.map((tag) => (
+                  <span key={tag.label}>{tag.label} {tag.count}</span>
+                )) : <span>保存タグなし</span>}
+              </div>
+            </article>
           </div>
 
           {filteredItems.length === 0 ? (
@@ -561,26 +687,27 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                   </div>
                   <div className={styles.cardMeta}>
                     <span>{formatRankName(item.maxRank)}</span>
-                    <span>{item.yushoCount.makuuchi}回</span>
-                    <span>{item.clearScore ?? 0}点</span>
+                    <span>{formatRecordLabel(item)}</span>
                   </div>
                   {item.analysis ? (
                     <div className={styles.cardMeta}>
-                      <span>{item.analysis.classificationLabel}</span>
+                      <span>{resolveStableName(item)}</span>
                       {import.meta.env.DEV ? (
                         <span>{resolveObservationStanceLabel(item.observationStanceId)}</span>
                       ) : null}
-                      <span>珍{Math.round(item.analysis.metrics.rarityScore)}</span>
+                      <span>{formatWinRatePercent(item.analysis.metrics.winRate)}</span>
                     </div>
                   ) : null}
                   <div className={styles.cardRecord}>
-                    {item.totalWins}勝 {item.totalLosses}敗{item.totalAbsent > 0 ? ` ${item.totalAbsent}休` : ""}
+                    {formatCareerPeriod(item)}
                   </div>
-                  {item.analysis?.saveRecommendation.reasons[0] ? (
-                    <div className={styles.cardRecord}>{item.analysis.saveRecommendation.reasons[0]}</div>
-                  ) : null}
+                  <div className={styles.cardRecord}>{resolveReadingLine(item)}</div>
                   {item.saveTags?.length ? (
-                    <div className={styles.cardRecord}>分類 {item.saveTags.length}件</div>
+                    <div className={styles.badges}>
+                      {item.saveTags.slice(0, 4).map((tag) => (
+                        <span key={tag} className={styles.pill} data-tone="state">{MANUAL_SAVE_TAG_LABELS[tag]}</span>
+                      ))}
+                    </div>
                   ) : null}
                   {item.analysis?.autoTags.length ? (
                     <div className={styles.badges}>
@@ -660,7 +787,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             <div>
               <div className={typography.kicker}>類似検索</div>
               <div className={typography.panelTitle}>似た人生を探す</div>
-              <div className="text-sm text-text-dim">最高位、到達年齢、在位、勝率、怪我、成長型から近い保存記録を探します。</div>
+              <div className="text-sm text-text-dim">最高位、到達年齢、在位、勝率、怪我、成長の流れから近い保存記録を探します。</div>
             </div>
           </div>
           <div className={styles.compareSelectors}>
@@ -706,15 +833,23 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
         {selectedItem ? (
           <>
-            <div className={styles.detailHead}>
+            <div className={styles.recordCover}>
               <div className={styles.detailChip}>
                 <Star className="h-3.5 w-3.5" />
                 {resolveArchiveLabel(selectedItem)}
               </div>
-              <div className={styles.detailTitle}>{selectedItem.shikona}</div>
-              <div className={styles.detailSubtitle}>
-                最高位 {formatRankName(selectedItem.maxRank)}
-                {selectedItem.title ? ` / ${selectedItem.title}` : ""}
+              <div>
+                <div className={styles.detailTitle}>{selectedItem.shikona}</div>
+                <div className={styles.detailSubtitle}>
+                  最高位 {formatRankName(selectedItem.maxRank)}
+                  {selectedItem.title ? ` / ${selectedItem.title}` : ""}
+                </div>
+              </div>
+              <div className={styles.coverLine}>{resolveReadingLine(selectedItem)}</div>
+              <div className={styles.coverFacts}>
+                <span>{resolveStableName(selectedItem)}</span>
+                <span>{formatCareerPeriod(selectedItem)}</span>
+                <span>{formatRecordLabel(selectedItem)}</span>
               </div>
             </div>
 
@@ -740,6 +875,10 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 <div className={styles.infoRow}>
                   <span>分類</span>
                   <span>{selectedItem.analysis.classificationLabel}</span>
+                </div>
+                <div className={styles.infoRow}>
+                  <span>入口条件の読み取り</span>
+                  <span>{resolveReadingLine(selectedItem)}</span>
                 </div>
                 {import.meta.env.DEV ? (
                   <div className={styles.infoRow}>
@@ -841,7 +980,18 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
             <div className={styles.actions}>
               <Button className="w-full" onClick={() => onOpen(selectedItem.id)}>
-                この記録を開く
+                番付推移・場所別を読む
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => setMode("COMPARE")}>
+                <GitCompare className="mr-2 h-4 w-4" />
+                二人を並べる
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => {
+                setSimilarTargetId(selectedItem.id);
+                setMode("SIMILAR");
+              }}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                似た一代を探す
               </Button>
               <Button
                 variant="danger"

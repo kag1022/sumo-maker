@@ -2,6 +2,9 @@
   position: relative;
   display: grid;
   gap: 1.05rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding: 1.05rem;
   border: 1px solid rgb(var(--twc-brand) / 0.22);
   border-radius: 0;
@@ -72,7 +75,7 @@
 .summaryRail {
   display: grid;
   gap: 0.65rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .summaryTile {
@@ -183,10 +186,12 @@
   display: grid;
   gap: 1rem;
   align-items: start;
+  grid-template-areas: "main detail";
   grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.85fr);
 }
 
 .mainPanel {
+  grid-area: main;
   min-width: 0;
   border: 1px solid rgb(var(--twc-brand) / 0.16);
   background:
@@ -284,7 +289,6 @@
 .lifeLinePanel {
   display: grid;
   gap: 0.7rem;
-  margin-bottom: 1.1rem;
   border: 1px solid rgb(var(--twc-brand) / 0.16);
   background:
     linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.78), rgb(var(--twc-bg) / 0.62)),
@@ -332,6 +336,46 @@
   stroke: rgb(var(--twc-brand) / 0.13);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+.lifeLineBand {
+  fill: rgb(var(--twc-bg) / 0.14);
+  stroke: rgb(255 255 255 / 0.035);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lifeLineBand[data-band="YOKOZUNA"],
+.lifeLineBand[data-band="OZEKI"] {
+  fill: rgb(var(--twc-award) / 0.055);
+}
+
+.lifeLineBand[data-band="SEKIWAKE"],
+.lifeLineBand[data-band="KOMUSUBI"] {
+  fill: rgb(var(--twc-action) / 0.055);
+}
+
+.lifeLineBand[data-band="MAEGASHIRA"],
+.lifeLineBand[data-band="JURYO"] {
+  fill: rgb(var(--twc-state) / 0.045);
+}
+
+.lifeLineBand[data-band="MAKUSHITA"],
+.lifeLineBand[data-band="SANDANME"] {
+  fill: rgb(var(--twc-brand) / 0.035);
+}
+
+.lifeLineBandLabel {
+  paint-order: stroke;
+  stroke: rgb(var(--twc-bg) / 0.92);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  fill: rgb(var(--twc-text-bright) / 0.54);
+  font-family: "DotGothic16", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-anchor: end;
+  pointer-events: none;
 }
 
 .lifeLineAxis {
@@ -411,8 +455,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-.lifeLineLabel,
-.lifeLineDelta {
+.lifeLineLabel {
   paint-order: stroke;
   stroke: rgb(var(--twc-bg) / 0.96);
   stroke-width: 5px;
@@ -424,30 +467,14 @@
   pointer-events: none;
 }
 
-.lifeLineLabel {
-  fill: rgb(var(--twc-brand) / 0.92);
-}
-
-.lifeLineDelta[data-tone="up"] {
-  fill: rgb(var(--twc-action) / 0.9);
-}
-
-.lifeLineDelta[data-tone="down"] {
-  fill: rgb(var(--twc-warning) / 0.9);
-}
-
-.lifeLineDelta[data-tone="flat"] {
-  fill: rgb(var(--twc-text-bright) / 0.58);
-}
-
-.lifeLineEventRail {
+.annotationRail {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.45rem;
   min-height: 4.2rem;
 }
 
-.lifeLineEvent {
+.annotationItem {
   display: grid;
   gap: 0.12rem;
   min-width: 0;
@@ -460,8 +487,8 @@
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
-.lifeLineEvent:hover,
-.lifeLineEvent[data-active="true"] {
+.annotationItem:hover,
+.annotationItem[data-active="true"] {
   border-color: rgb(var(--twc-brand) / 0.5);
   background:
     linear-gradient(180deg, rgb(var(--twc-brand) / 0.14), rgb(0 0 0 / 0.04)),
@@ -469,13 +496,32 @@
   transform: translateY(-1px);
 }
 
-.lifeLineEvent[data-peak="true"],
-.lifeLineEvent[data-promoted="true"] {
+.annotationItem[data-tone="peak"] {
   border-color: rgb(var(--twc-award) / 0.45);
   box-shadow: inset 3px 0 0 rgb(var(--twc-award) / 0.7);
 }
 
-.lifeLineEvent span {
+.annotationItem[data-tone="rise"] {
+  border-color: rgb(var(--twc-action) / 0.38);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-action) / 0.62);
+}
+
+.annotationItem[data-tone="fall"] {
+  border-color: rgb(var(--twc-warning) / 0.38);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-warning) / 0.62);
+}
+
+.annotationItem[data-tone="stagnation"] {
+  border-color: rgb(var(--twc-state) / 0.34);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-state) / 0.5);
+}
+
+.annotationItem[data-tone="return"] {
+  border-color: rgb(var(--twc-brand) / 0.34);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-brand) / 0.56);
+}
+
+.annotationItem span {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: "DotGothic16", monospace;
@@ -485,24 +531,31 @@
   white-space: nowrap;
 }
 
-.lifeLineEvent[data-peak="true"] span,
-.lifeLineEvent[data-promoted="true"] span {
+.annotationItem[data-tone="peak"] span {
   color: rgb(var(--twc-award) / 0.94);
 }
 
-.lifeLineEvent strong,
-.lifeLineEvent em {
+.annotationItem[data-tone="rise"] span {
+  color: rgb(var(--twc-action) / 0.92);
+}
+
+.annotationItem[data-tone="fall"] span {
+  color: rgb(var(--twc-warning) / 0.92);
+}
+
+.annotationItem strong,
+.annotationItem em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.lifeLineEvent strong {
+.annotationItem strong {
   color: rgb(var(--twc-text) / 0.92);
   font-size: 0.78rem;
 }
 
-.lifeLineEvent em {
+.annotationItem em {
   color: rgb(var(--twc-text-bright) / 0.56);
   font-style: normal;
   font-size: 0.68rem;
@@ -844,6 +897,7 @@
 }
 
 .detailPanel {
+  grid-area: detail;
   position: sticky;
   top: 1rem;
   display: grid;
@@ -1015,6 +1069,9 @@
 
   .layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "detail"
+      "main";
   }
 
   .detailPanel {
@@ -1022,11 +1079,40 @@
   }
 
   .summaryRail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 767px) {
+  .shell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .head {
+    order: 1;
+  }
+
+  .lifeLinePanel {
+    order: 2;
+  }
+
+  .summaryRail {
+    order: 3;
+  }
+
+  .toolbar {
+    order: 4;
+  }
+
+  .layout {
+    order: 5;
+  }
+
+  .heatmapBlock {
+    order: 6;
+  }
+
   .headStamp {
     display: none;
   }
@@ -1058,8 +1144,8 @@
     height: 15.5rem;
   }
 
-  .lifeLineEventRail {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .annotationRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .bandIndex {
@@ -1098,7 +1184,7 @@
     padding-bottom: 0.1rem;
   }
 
-  .lifeLineEventRail {
+  .annotationRail {
     grid-template-columns: 1fr;
   }
 }

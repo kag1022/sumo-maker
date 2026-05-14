@@ -61,6 +61,43 @@ const THEME_INTENT_HINT: Record<ObservationThemeId, string> = {
   late_bloomer: '晩成寄りに寄せる。序盤は伸びにくく、開花前の引退もある。',
 };
 
+const THEME_DISPLAY_COPY: Record<ObservationThemeId, string> = {
+  random: '特別な方向づけを置かず、力士人生の揺らぎをそのまま読む。',
+  realistic: '現実寄りの厳しさを残し、下位止まりや短い一代も含めて読む。',
+  featured: '注目を集めそうな入口条件に寄せる。大成は保証されない。',
+  makushita_wall: '幕下前後で足踏みする一代を読みやすくする。',
+  late_bloomer: '序盤の停滞から、後年の伸びが見えるかを読む。',
+};
+
+const MODIFIER_DISPLAY_COPY: Record<ObservationModifierId, { description: string; riskText?: string }> = {
+  small_body: {
+    description: '小兵らしい速さや技の見せ場が出やすい。大型相手には苦しい場面も残る。',
+  },
+  large_body: {
+    description: '体の大きさを生かした圧力が読みやすい。動きの鈍さや故障は起こり得る。',
+  },
+  oshizumo_style: {
+    description: '前に出る相撲や押し切る展開を読みやすくする。',
+  },
+  technical_style: {
+    description: '組み合いや技で局面を変える一代を読みやすくする。',
+  },
+  late_growth_bias: {
+    description: '序盤は伸び悩みやすいが、後半に味が出る一代を読みやすくする。',
+  },
+  stable_temperament: {
+    description: '大きく荒れにくい一代を読みやすくする。劇的な跳ね方はやや控えめ。',
+  },
+  volatile_temperament: {
+    description: '上振れと下振れがどちらも目立つ一代を読みやすくする。',
+    riskText: '怪我・短期失速・連敗も発生しやすくなる。',
+  },
+  injury_risk_high: {
+    description: '怪我や休場がキャリアの読みどころになりやすい。',
+    riskText: '長期休場や早期引退の確率が上がる。',
+  },
+};
+
 const GROUP_META: Record<ObservationModifierGroup, { label: string; hint: string }> = {
   body: { label: '体格', hint: '択一' },
   style: { label: '取り口', hint: '択一' },
@@ -166,7 +203,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const insufficientReason: string | null = (() => {
     if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
     if (insufficientOp) return `観測ポイントが足りません (あと ${totalCost - opBalance} OP 必要)。`;
-    if (validation.errors.length > 0) return validation.errors[0];
+    if (validation.errors.length > 0) return '選べない組み合わせが含まれています。選択を見直してください。';
     return null;
   })();
 
@@ -177,7 +214,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         <div className="flex items-center gap-3">
           <Eye className="h-6 w-6 text-action" />
           <div>
-            <div className={typography.kicker}>観測ビルド</div>
+            <div className={typography.kicker}>観測設計</div>
             <h2 className={cn(typography.heading, 'text-3xl text-text')}>どんな相撲人生を観測しますか</h2>
           </div>
         </div>
@@ -185,7 +222,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         <div className="grid gap-2 border-l-2 border-amber-300/30 bg-amber-300/[0.04] px-4 py-3 text-xs text-amber-100/85">
           <div className="flex items-start gap-2">
             <span className="mt-0.5 select-none text-amber-200/80">・</span>
-            <span>テーマと追加ビルドは、キャリアの傾向を少し寄せるだけです。</span>
+            <span>テーマと読み口の調整は、キャリアの傾向を少し寄せるだけです。</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="mt-0.5 select-none text-amber-200/80">・</span>
@@ -245,7 +282,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                     {theme.cost === 0 ? '無料' : `${theme.cost} OP`}
                   </span>
                 </div>
-                <div className="text-xs text-text-dim leading-relaxed">{theme.description}</div>
+                <div className="text-xs text-text-dim leading-relaxed">{THEME_DISPLAY_COPY[theme.id]}</div>
                 {intent ? (
                   <div className="text-[11px] text-action/80 leading-relaxed">→ {intent}</div>
                 ) : null}
@@ -259,7 +296,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       {/* Modifiers grouped */}
       <section className={cn(surface.panel, 'space-y-5 p-5')}>
         <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>追加ビルド</h3>
+          <h3 className={cn(typography.heading, 'text-xl text-text')}>読み口の調整</h3>
           <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
         </div>
 
@@ -279,6 +316,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                 {list.map((mod) => {
                   const active = modifierIds.includes(mod.id);
                   const isDiscount = mod.cost < 0;
+                  const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
                   return (
                     <button
                       key={mod.id}
@@ -309,9 +347,9 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                           </span>
                         </div>
                       </div>
-                      <div className="text-[11px] text-text-dim leading-relaxed">{mod.description}</div>
-                      {mod.riskText ? (
-                        <div className="text-[10px] text-amber-300/70">{mod.riskText}</div>
+                      <div className="text-[11px] text-text-dim leading-relaxed">{displayCopy.description}</div>
+                      {displayCopy.riskText ? (
+                        <div className="text-[10px] text-amber-300/70">{displayCopy.riskText}</div>
                       ) : null}
                     </button>
                   );
@@ -327,9 +365,9 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         <section className={cn(surface.panel, 'p-4')}>
           <ul className="space-y-1 text-xs text-red-300">
             {validation.errors.map((err, i) => (
-              <li key={i} className="flex items-start gap-2">
+              <li key={`${err}-${i}`} className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>{err}</span>
+                <span>選べない組み合わせが含まれています。選択を見直してください。</span>
               </li>
             ))}
           </ul>
@@ -359,7 +397,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
               </span>
             ))}
             {selectedModifiers.length === 0 ? (
-              <span className="text-text-dim/60">追加ビルドなし</span>
+              <span className="text-text-dim/60">読み口の調整なし</span>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

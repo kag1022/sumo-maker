@@ -45,6 +45,25 @@ interface CareerEncyclopediaChapterProps {
   onOpenArchive: () => void;
 }
 
+type CareerMilestoneTone = "start" | "rise" | "peak" | "honor" | "injury" | "return" | "end";
+
+const CAREER_MILESTONE_LIMIT = 12;
+const PINNED_MILESTONE_LABELS = new Set(["初土俵", "初勝ち越し", "最高位", "引退前最後"]);
+const PROMOTION_MILESTONE_LABELS = new Set(["新十両", "新入幕", "新三役", "新大関", "横綱昇進"]);
+
+interface CareerMilestoneView {
+  key: string;
+  label: string;
+  bashoLabel: string;
+  rankLabel: string;
+  recordLabel: string;
+  description: string;
+  tone: CareerMilestoneTone;
+  bashoSeq: number;
+  order: number;
+  priority: number;
+}
+
 const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   NORMAL: "均整型",
   SOPPU: "ソップ型",
@@ -109,6 +128,134 @@ const SectionHeading: React.FC<{ title: string }> = ({ title }) => (
     <span className={styles.sectionRule} />
   </div>
 );
+
+const toCoverReadingLine = (
+  designReading: CareerDesignReadingModel,
+  initial: NonNullable<RikishiStatus["buildSummary"]>["initialConditionSummary"] | undefined,
+): string => {
+  const expectation = designReading.premiseRows.find((row) => row.label === "期待")?.interpreted;
+  if (expectation) return expectation;
+  const firstInterpretation = designReading.interpretationRows[0]?.interpreted;
+  if (firstInterpretation) return firstInterpretation;
+  const entryLine = [
+    initial?.entryPathLabel,
+    initial?.temperamentLabel,
+    initial?.bodySeedLabel,
+  ].filter(Boolean).join("、");
+  return entryLine ? `${entryLine}として入口条件を読む。` : "入口条件と実結果の差を、番付推移と場所別記録から読む。";
+};
+
+const toMilestoneTone = (label: string, point: CareerLedgerPoint): CareerMilestoneTone => {
+  if (label === "初土俵") return "start";
+  if (label === "最高位") return "peak";
+  if (label.includes("優勝")) return "honor";
+  if (label.includes("休場")) return "injury";
+  if (label.includes("復帰") || label.startsWith("再")) return "return";
+  if (label.includes("最後")) return "end";
+  if (point.deltaValue > 0 || label.startsWith("新") || label.includes("勝ち越し")) return "rise";
+  return "start";
+};
+
+const getMilestonePriority = (label: string): number => {
+  if (label === "初土俵") return 0;
+  if (label === "引退前最後") return 1;
+  if (label === "最高位") return 2;
+  if (PROMOTION_MILESTONE_LABELS.has(label)) return 3;
+  if (label === "初勝ち越し") return 4;
+  if (label.includes("優勝")) return 5;
+  if (label.includes("復帰") || label.startsWith("再")) return 6;
+  if (label.includes("休場") || label === "全休") return 7;
+  return 8;
+};
+
+const selectCareerMilestones = (items: CareerMilestoneView[]): CareerMilestoneView[] => {
+  const sorted = items.sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
+  const unique = sorted.filter((item, index, current) =>
+    index === 0 ||
+    item.label !== current[index - 1].label ||
+    item.bashoSeq !== current[index - 1].bashoSeq,
+  );
+  if (unique.length <= CAREER_MILESTONE_LIMIT) return unique;
+
+  const selected = new Map<string, CareerMilestoneView>();
+  const add = (item: CareerMilestoneView | undefined) => {
+    if (item) selected.set(item.key, item);
+  };
+
+  for (const label of PINNED_MILESTONE_LABELS) {
+    add(unique.find((item) => item.label === label));
+  }
+  for (const label of PROMOTION_MILESTONE_LABELS) {
+    add(unique.find((item) => item.label === label));
+  }
+  add(unique.find((item) => item.label.includes("優勝")));
+  add(unique.find((item) => item.label.includes("休場") || item.label === "全休"));
+  add(unique.find((item) => item.label.includes("復帰") || item.label.startsWith("再")));
+
+  const remainingSlots = Math.max(0, CAREER_MILESTONE_LIMIT - selected.size);
+  unique
+    .filter((item) => !selected.has(item.key))
+    .sort((a, b) => a.priority - b.priority || a.bashoSeq - b.bashoSeq || a.order - b.order)
+    .slice(0, remainingSlots)
+    .forEach(add);
+
+  return [...selected.values()].sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
+};
+
+const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerMilestoneView[] => {
+  if (!points?.length) return [];
+
+  const items: CareerMilestoneView[] = [];
+  const used = new Set<string>();
+  const push = (point: CareerLedgerPoint, label: string, description: string, order: number) => {
+    const key = `${point.bashoSeq}-${label}`;
+    if (used.has(key)) return;
+    used.add(key);
+    items.push({
+      key,
+      label,
+      bashoLabel: point.bashoLabel,
+      rankLabel: point.rankLabel,
+      recordLabel: point.recordLabel,
+      description,
+      tone: toMilestoneTone(label, point),
+      bashoSeq: point.bashoSeq,
+      order,
+      priority: getMilestonePriority(label),
+    });
+  };
+
+  const firstPoint = points[0];
+  push(firstPoint, "初土俵", `${firstPoint.rankLabel}で記録が始まる。`, 0);
+
+  const firstKachikoshi = points.find((point) => point.wins > point.losses);
+  if (firstKachikoshi) {
+    push(firstKachikoshi, "初勝ち越し", `${firstKachikoshi.recordLabel}で白星が先行した。`, 10);
+  }
+
+  let sawAbsence = false;
+  for (const point of points) {
+    for (const tag of point.milestoneTags) {
+      const label = tag === "最高位到達" ? "最高位" : tag;
+      push(point, label, `${point.rankLabel} / ${point.recordLabel}`, 20);
+    }
+    if (point.eventFlags.includes("yusho")) {
+      push(point, "優勝", `${point.rankLabel}で${point.recordLabel}。`, 30);
+    }
+    if (point.eventFlags.includes("absent")) {
+      sawAbsence = true;
+      push(point, point.isFullAbsence ? "全休" : "休場", `${point.absent}休を記録。`, 40);
+    } else if (sawAbsence) {
+      sawAbsence = false;
+      push(point, "復帰", `${point.rankLabel}で土俵へ戻る。`, 45);
+    }
+  }
+
+  const lastPoint = points[points.length - 1];
+  push(lastPoint, "引退前最後", `${lastPoint.rankLabel} / ${lastPoint.recordLabel}`, 90);
+
+  return selectCareerMilestones(items);
+};
 
 const SAVE_TAGS: CareerSaveTag[] = [
   "GREAT_RIKISHI",
@@ -271,6 +418,18 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       ].filter((line): line is string => Boolean(line)).slice(0, 3),
     [narrative?.careerIdentity, narrative?.growthArc, narrative?.initialConditions, narrative?.retirementDigest],
   );
+  const coverReadingLine = React.useMemo(
+    () => toCoverReadingLine(designReading, initial),
+    [designReading, initial],
+  );
+  const coverSummaryLine =
+    narrative?.careerIdentity ??
+    narrative?.retirementDigest ??
+    overview.lifeSummary;
+  const careerMilestones = React.useMemo(
+    () => buildCareerMilestones(ledgerPoints),
+    [ledgerPoints],
+  );
   const saveDisabled = detailState !== "ready";
   const saveCopy = saveDisabled
     ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
@@ -324,18 +483,24 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       <div className={styles.cover}>
         <div className={styles.hero}>
           <div className={styles.copy}>
-            <p className={styles.label}>力士名鑑</p>
-            <h1 className={styles.name}>{status.shikona}</h1>
-            <div className={styles.rank}>{highestRankLabel}</div>
-            <div className={styles.origin}>
-              {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+            <div className={styles.coverHeader}>
+              <p className={styles.label}>力士記録表紙</p>
+              <h1 className={styles.name}>{status.shikona}</h1>
+              <div className={styles.rank}>{highestRankLabel}</div>
+              <div className={styles.origin}>
+                {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+              </div>
             </div>
-            <p className={styles.summary}>
-              {memoLines[0] ?? overview.lifeSummary}
+
+            <p className={styles.coverStatement}>
+              {coverSummaryLine}
             </p>
-            <p className={styles.playtestNote}>
-              稽古や取組を操作する育成ゲームではなく、設計した入口条件から力士のキャリアを観測するゲームです。
-            </p>
+
+            <div className={styles.coverReading}>
+              <span className={styles.summaryMetricLabel}>入口条件の読み取り</span>
+              <strong>{coverReadingLine}</strong>
+            </div>
+
             <div className={styles.summaryRow}>
               <div className={styles.summaryMetric}>
                 <span className={styles.summaryMetricLabel}>通算</span>
@@ -350,8 +515,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
               </div>
               <div className={styles.summaryMetric}>
-                <span className={styles.summaryMetricLabel}>観測点</span>
-                <strong className={styles.summaryMetricValue}>{observationPointsAwarded ?? 0}</strong>
+                <span className={styles.summaryMetricLabel}>所属</span>
+                <strong className={styles.summaryMetricValue}>{initial?.stableName ?? overview.stableName}</strong>
               </div>
             </div>
           </div>
@@ -365,109 +530,165 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               innerClassName={styles.portraitInner}
               presentation="blend"
             />
-          </div>
-        </div>
-
-        <div className={styles.actions}>
-          {!isSaved ? (
-            <>
-              <div className={styles.actionCopy}>
-                <div className={styles.label}>保存判断</div>
-                <div className={styles.text}>{saveCopy}</div>
-                <div className={styles.saveReasonGrid}>
-                  {analysis.saveRecommendation.reasons.map((reason) => (
-                    <div key={reason} className={styles.saveReason}>{reason}</div>
-                  ))}
-                </div>
-                {analysis.saveRecommendation.autoTags.length > 0 ? (
-                  <>
-                    <div className={styles.subtitle}>自動タグ候補</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {analysis.saveRecommendation.autoTags.map((tag) => (
-                        <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-                <div className={styles.subtitle}>手動保存タグ</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {SAVE_TAGS.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className={styles.traitMeta}
-                      data-active={selectedSaveTags.includes(tag)}
-                      data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
-                      onClick={() => toggleSaveTag(tag)}
-                    >
-                      {MANUAL_SAVE_TAG_LABELS[tag]}
-                    </button>
-                  ))}
-                </div>
+            <div className={styles.coverRecordSeal}>
+              <span>最高位</span>
+              <strong>{highestRankLabel}</strong>
+              <em>{overview.totalRecordLabel}</em>
+            </div>
+            <div className={styles.coverRecordStack}>
+              <div>
+                <span>在位</span>
+                <strong>{overview.careerPeriodLabel}</strong>
               </div>
-              <div className={styles.actionButtons}>
-                <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
-                </Button>
-                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                  <ExternalLink className="h-4 w-4" />
-                  フィードバックフォーム
-                </a>
-                {copyState === "error" ? (
-                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
-                ) : null}
-                <Button
-                  size="lg"
-                  disabled={saveDisabled || saveState === "saving"}
-                  onClick={() => void handleSave()}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存する"}
-                </Button>
-                <Button variant="outline" onClick={onReturnToScout}>
-                  保存せず次の観測へ
-                </Button>
-                {saveState === "error" ? (
-                  <div className={styles.saveError}>保存に失敗しました。記録整理が完了しているか確認してください。</div>
-                ) : null}
+              <div>
+                <span>観測点</span>
+                <strong>{observationPointsAwarded ?? 0}</strong>
               </div>
-            </>
-          ) : (
-            <div className={styles.savedPanel}>
-              <div className={styles.savedIcon}>
-                <Check className="h-5 w-5" />
-              </div>
-              <div className={styles.actionCopy}>
-                <div className={styles.label}>保存完了</div>
-                <div className={styles.savedTitle}>この力士人生は保存済みです。</div>
-                <p className={styles.text}>
-                  保存済み記録から再読、比較、類似検索に進めます。ここで表示を空にする意味はないので、保存後も状態を明示します。
-                </p>
-              </div>
-              <div className={styles.actionButtons}>
-                <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copyState === "copied" ? "コピーしました" : "結果情報をコピー"}
-                </Button>
-                <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                  <ExternalLink className="h-4 w-4" />
-                  フィードバックフォーム
-                </a>
-                {copyState === "error" ? (
-                  <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
-                ) : null}
-                <Button size="lg" onClick={onOpenArchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  保存済み記録を開く
-                </Button>
-                <Button variant="outline" onClick={onReturnToScout}>
-                  次の観測へ
-                </Button>
+              <div>
+                <span>勝率</span>
+                <strong>{overview.winRateLabel}</strong>
               </div>
             </div>
-          )}
+          </div>
         </div>
+      </div>
+
+      {careerMilestones.length > 0 ? (
+        <div className={styles.timelineSection}>
+          <SectionHeading title="キャリア年表" />
+          <div className={styles.timelineIntro}>
+            <div>
+              <div className={styles.label}>記録の節目</div>
+              <p className={styles.text}>初土俵から最後の場所まで、存在する節目だけを時系列で拾います。</p>
+            </div>
+            <div className={styles.timelineCount}>{careerMilestones.length}件</div>
+          </div>
+          <div className={styles.timeline}>
+            {careerMilestones.map((milestone) => (
+              <article key={milestone.key} className={styles.timelineItem} data-tone={milestone.tone}>
+                <div className={styles.timelineMarker} />
+                <div className={styles.timelineBody}>
+                  <div className={styles.timelineTop}>
+                    <span>{milestone.bashoLabel}</span>
+                    <strong>{milestone.label}</strong>
+                  </div>
+                  <div className={styles.timelineRank}>{milestone.rankLabel}</div>
+                  <p>{milestone.description}</p>
+                  <em>{milestone.recordLabel}</em>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={styles.actions}>
+        {!isSaved ? (
+          <>
+            <div className={styles.actionCopy}>
+              <div className={styles.label}>保存判断</div>
+              <div className={styles.text}>{saveCopy}</div>
+              <div className={styles.saveReasonGrid}>
+                {analysis.saveRecommendation.reasons.map((reason) => (
+                  <div key={reason} className={styles.saveReason}>{reason}</div>
+                ))}
+              </div>
+              {analysis.saveRecommendation.autoTags.length > 0 ? (
+                <>
+                  <div className={styles.subtitle}>自動タグ候補</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {analysis.saveRecommendation.autoTags.map((tag) => (
+                      <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+              <div className={styles.subtitle}>手動保存タグ</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SAVE_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={styles.traitMeta}
+                    data-active={selectedSaveTags.includes(tag)}
+                    data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
+                    onClick={() => toggleSaveTag(tag)}
+                  >
+                    {MANUAL_SAVE_TAG_LABELS[tag]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.actionButtons}>
+              {import.meta.env.DEV ? (
+                <>
+                  <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
+                  </Button>
+                  <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                    <ExternalLink className="h-4 w-4" />
+                    検証フォーム
+                  </a>
+                  {copyState === "error" ? (
+                    <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                  ) : null}
+                </>
+              ) : null}
+              <Button
+                size="lg"
+                disabled={saveDisabled || saveState === "saving"}
+                onClick={() => void handleSave()}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存する"}
+              </Button>
+              <Button variant="outline" onClick={onReturnToScout}>
+                保存せず次の観測へ
+              </Button>
+              {saveState === "error" ? (
+                <div className={styles.saveError}>保存に失敗しました。記録整理が完了しているか確認してください。</div>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className={styles.savedPanel}>
+            <div className={styles.savedIcon}>
+              <Check className="h-5 w-5" />
+            </div>
+            <div className={styles.actionCopy}>
+              <div className={styles.label}>保存完了</div>
+              <div className={styles.savedTitle}>この力士人生は保存済みです。</div>
+              <p className={styles.text}>
+                保存済み記録から再読、比較、類似検索に進めます。ここで表示を空にする意味はないので、保存後も状態を明示します。
+              </p>
+            </div>
+            <div className={styles.actionButtons}>
+              {import.meta.env.DEV ? (
+                <>
+                  <Button variant="secondary" onClick={() => void handleCopyReport()}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
+                  </Button>
+                  <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
+                    <ExternalLink className="h-4 w-4" />
+                    検証フォーム
+                  </a>
+                  {copyState === "error" ? (
+                    <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
+                  ) : null}
+                </>
+              ) : null}
+              <Button size="lg" onClick={onOpenArchive}>
+                <Archive className="mr-2 h-4 w-4" />
+                保存済み記録を開く
+              </Button>
+              <Button variant="outline" onClick={onReturnToScout}>
+                次の観測へ
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {import.meta.env.DEV ? (
@@ -498,22 +719,24 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </div>
       ) : null}
 
-      <div className={styles.section}>
-        <SectionHeading title="限定公開メモ" />
-        <div className={styles.releasePanel}>
-          <div>
-            <div className={styles.label}>テスター向け</div>
-            <p className={styles.text}>
-              結果の違和感、面白かったズレ、番付推移の不自然さは「結果情報をコピー」してフォームへ送ってください。
-            </p>
-          </div>
-          <div className={styles.limitList}>
-            {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
-              <span key={limitation}>{limitation}</span>
-            ))}
+      {import.meta.env.DEV ? (
+        <div className={styles.section}>
+          <SectionHeading title="検証メモ" />
+          <div className={styles.releasePanel}>
+            <div>
+              <div className={styles.label}>開発確認用</div>
+              <p className={styles.text}>
+                結果の違和感、面白かったズレ、番付推移の不自然さは「検証用情報をコピー」してフォームへ送ってください。
+              </p>
+            </div>
+            <div className={styles.limitList}>
+              {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
+                <span key={limitation}>{limitation}</span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {designReading.premiseRows.length > 0 || designReading.interpretationRows.length > 0 ? (
         <div className={styles.section}>
@@ -521,9 +744,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           <div className={styles.designReadingHeader}>
             <div>
               <div className={styles.label}>設計読解</div>
-              <p className={styles.text}>入口で置いた前提、内部解釈、実際に残ったキャリア傾向を同じ行で読みます。</p>
+              <p className={styles.text}>入口で置いた前提、読み取り、実際に残ったキャリア傾向を同じ行で読みます。</p>
             </div>
-            {designReading.debugRows.length > 0 ? (
+            {import.meta.env.DEV && designReading.debugRows.length > 0 ? (
               <div className={styles.debugStrip}>
                 {designReading.debugRows.map((row) => (
                   <span key={row.label}>{row.label}: {row.value}</span>
@@ -535,7 +758,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             <div className={styles.designReadingTableHead}>
               <span>軸</span>
               <span>設計時の前提</span>
-              <span>システム解釈</span>
+              <span>入口条件の読み取り</span>
               <span>実際の発現</span>
             </div>
             {(designReading.premiseRows.length > 0 ? designReading.premiseRows : designReading.interpretationRows).slice(0, 8).map((row) => (

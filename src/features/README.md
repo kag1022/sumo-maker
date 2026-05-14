@@ -7,7 +7,6 @@
 
 | ディレクトリ | 画面・役割（UI 上の名称） | README |
 |-------------|---------------------------|--------|
-| `archive/` | 保存済み記録の資料館寄りアーカイブ | [archive/README.md](./archive/README.md) |
 | `scout/` | 新弟子設計（スカウト） | [scout/README.md](./scout/README.md) |
 | `observationBuild/` | 観測テーマと追加ビルド選択 | [observationBuild/README.md](./observationBuild/README.md) |
 | `observation/` | 観測導線の旧/予備領域 | [observation/README.md](./observation/README.md) |

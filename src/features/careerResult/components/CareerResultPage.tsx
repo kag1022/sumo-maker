@@ -11,7 +11,6 @@ import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import { Button } from "../../../shared/ui/Button";
 import { CareerEncyclopediaChapter } from "./CareerEncyclopediaChapter";
-import { CareerArchivePanel } from "./CareerArchivePanel";
 import { CareerWorldSection } from "./CareerWorldSection";
 import { CareerPlaceChapter } from "./CareerPlaceChapter";
 import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
@@ -51,7 +50,6 @@ interface CareerResultPageProps {
   onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
   onOpenArchive: () => void;
-  onOpenArchiveCollection?: () => void;
 }
 
 const CHAPTERS: Array<{
@@ -89,7 +87,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   onSave,
   onReturnToScout,
   onOpenArchive,
-  onOpenArchiveCollection,
 }) => {
   const chapterRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null);
@@ -236,21 +233,6 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
         <>
           {viewState.activeChapter === "encyclopedia" ? (
             <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
-              <section className={styles.readingNote}>
-                <div className={styles.readingKicker}>閲覧ガイド</div>
-                <div className={styles.readingTitle}>
-                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
-                </div>
-                <p className={styles.readingCopy}>
-                  {canReadDetails
-                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
-                    : detailLoadingLabel}
-                </p>
-              </section>
-              <CareerArchivePanel
-                careerId={careerId}
-                onOpenArchive={onOpenArchiveCollection ?? onOpenArchive}
-              />
               <CareerEncyclopediaChapter
                 status={status}
                 overview={overview}
@@ -266,6 +248,17 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 onReturnToScout={onReturnToScout}
                 onOpenArchive={onOpenArchive}
               />
+              <section className={styles.readingNote}>
+                <div className={styles.readingKicker}>閲覧ガイド</div>
+                <div className={styles.readingTitle}>
+                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
+                </div>
+                <p className={styles.readingCopy}>
+                  {canReadDetails
+                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
+                    : detailLoadingLabel}
+                </p>
+              </section>
               <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
             </motion.div>
           ) : null}

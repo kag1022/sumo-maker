@@ -6,14 +6,13 @@
 .cover {
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(0, 1.38fr) minmax(300px, 0.72fr);
   align-items: stretch;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+  gap: clamp(1rem, 2.2vw, 1.6rem);
   padding: clamp(1rem, 2.4vw, 1.5rem);
   border: 1px solid rgb(var(--twc-brand) / 0.22);
   background:
@@ -28,6 +27,12 @@
   display: grid;
   gap: 0.7rem;
   align-content: start;
+  min-width: 0;
+}
+
+.coverHeader {
+  display: grid;
+  gap: 0.4rem;
 }
 
 .label,
@@ -41,6 +46,7 @@
 }
 
 .name {
+  overflow-wrap: anywhere;
   font-family: "Yuji Syuku", serif;
   font-size: clamp(3.2rem, 7vw, 5.8rem);
   line-height: 0.96;
@@ -48,6 +54,7 @@
 }
 
 .rank {
+  overflow-wrap: anywhere;
   font-family: "Yuji Syuku", serif;
   font-size: clamp(1.5rem, 2.6vw, 2.6rem);
   color: rgb(var(--twc-brand) / 0.92);
@@ -55,6 +62,7 @@
 
 .text,
 .summary,
+.coverStatement,
 .actionCopy,
 .copyLine,
 .traitBody,
@@ -68,10 +76,24 @@
   color: rgb(var(--twc-text) / 0.72);
 }
 
-.playtestNote {
-  border-left: 2px solid rgb(var(--twc-brand) / 0.48);
-  padding-left: 0.75rem;
-  color: rgb(var(--twc-text) / 0.72);
+.coverStatement {
+  max-width: 46rem;
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.12rem, 2.1vw, 1.55rem);
+  line-height: 1.55;
+  color: rgb(var(--twc-text) / 0.9);
+}
+
+.coverReading {
+  display: grid;
+  gap: 0.35rem;
+  border-left: 2px solid rgb(var(--twc-brand) / 0.5);
+  padding: 0.25rem 0 0.25rem 0.8rem;
+}
+
+.coverReading strong {
+  color: rgb(var(--twc-text) / 0.86);
+  font-weight: 600;
   line-height: 1.65;
 }
 
@@ -96,6 +118,7 @@
 .summaryMetric {
   display: grid;
   gap: 0.3rem;
+  min-width: 0;
   padding: 0.7rem 0.8rem;
 }
 
@@ -114,12 +137,15 @@
 .gridItemValue,
 .noteValue,
 .traitTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: rgb(var(--twc-text) / 0.94);
 }
 
 .portraitDock {
   display: grid;
-  align-items: end;
+  gap: 0.75rem;
+  align-content: end;
   justify-items: end;
   min-height: 280px;
   background: radial-gradient(ellipse at center bottom, rgb(var(--twc-brand) / 0.12), transparent 62%);
@@ -134,15 +160,214 @@
   justify-content: flex-end;
 }
 
+.coverRecordSeal,
+.coverRecordStack {
+  width: min(100%, 360px);
+  border: 1px solid rgb(var(--twc-brand) / 0.24);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg) / 0.58), rgb(var(--twc-bg-panel) / 0.4)),
+    rgb(var(--twc-bg) / 0.42);
+}
+
+.coverRecordSeal {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  box-shadow: inset 4px 0 0 rgb(var(--twc-brand) / 0.42);
+}
+
+.coverRecordSeal span,
+.coverRecordSeal em,
+.coverRecordStack span {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  color: rgb(var(--twc-brand) / 0.72);
+  font-style: normal;
+}
+
+.coverRecordSeal strong {
+  overflow-wrap: anywhere;
+  color: rgb(var(--twc-text) / 0.96);
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.3rem, 2vw, 1.75rem);
+}
+
+.coverRecordSeal em {
+  color: rgb(var(--twc-text) / 0.64);
+}
+
+.coverRecordStack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.coverRecordStack div {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border-left: 1px solid rgb(var(--twc-line) / 0.26);
+}
+
+.coverRecordStack div:first-child {
+  border-left: 0;
+}
+
+.coverRecordStack strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--twc-text) / 0.9);
+  white-space: nowrap;
+}
+
 .actions {
   display: grid;
-  align-content: space-between;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.34fr);
+  align-items: end;
   gap: 1rem;
   padding: 1rem;
   border-color: rgb(var(--twc-brand) / 0.22);
   background:
     linear-gradient(180deg, rgb(var(--twc-brand) / 0.08), rgb(0 0 0 / 0.05)),
     rgb(var(--twc-bg-panel) / 0.72);
+}
+
+.timelineSection {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.16);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand-panel) / 0.18), transparent 40%),
+    rgb(var(--twc-bg-panel) / 0.34);
+  padding: 1rem;
+}
+
+.timelineIntro {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.timelineCount {
+  flex: 0 0 auto;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  background: rgb(var(--twc-bg) / 0.42);
+  padding: 0.45rem 0.65rem;
+  color: rgb(var(--twc-brand) / 0.86);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.65rem;
+}
+
+.timelineItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  min-width: 0;
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.48);
+  padding: 0.75rem;
+}
+
+.timelineItem[data-tone="rise"] {
+  border-color: rgb(var(--twc-action) / 0.32);
+}
+
+.timelineItem[data-tone="peak"],
+.timelineItem[data-tone="honor"] {
+  border-color: rgb(var(--twc-award) / 0.38);
+}
+
+.timelineItem[data-tone="injury"] {
+  border-color: rgb(var(--twc-danger) / 0.3);
+}
+
+.timelineItem[data-tone="return"] {
+  border-color: rgb(var(--twc-state) / 0.34);
+}
+
+.timelineItem[data-tone="end"] {
+  border-color: rgb(var(--twc-brand) / 0.42);
+}
+
+.timelineMarker {
+  width: 0.78rem;
+  height: 0.78rem;
+  margin-top: 0.22rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.58);
+  background: rgb(var(--twc-bg) / 0.92);
+  box-shadow: 0 0 0 3px rgb(var(--twc-brand) / 0.08);
+}
+
+.timelineItem[data-tone="rise"] .timelineMarker {
+  border-color: rgb(var(--twc-action) / 0.72);
+}
+
+.timelineItem[data-tone="peak"] .timelineMarker,
+.timelineItem[data-tone="honor"] .timelineMarker {
+  border-color: rgb(var(--twc-award) / 0.8);
+  background: rgb(var(--twc-award) / 0.18);
+}
+
+.timelineItem[data-tone="injury"] .timelineMarker {
+  border-color: rgb(var(--twc-danger) / 0.72);
+}
+
+.timelineItem[data-tone="return"] .timelineMarker {
+  border-color: rgb(var(--twc-state) / 0.72);
+}
+
+.timelineBody {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.timelineTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.timelineTop span,
+.timelineBody em {
+  font-family: "DotGothic16", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-style: normal;
+}
+
+.timelineTop strong {
+  color: rgb(var(--twc-brand) / 0.88);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.timelineRank {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--twc-text) / 0.94);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timelineBody p {
+  color: rgb(var(--twc-text) / 0.68);
+  font-size: 0.8rem;
+  line-height: 1.55;
 }
 
 .saveReasonGrid {
@@ -572,6 +797,7 @@
 @media (max-width: 1023px) {
   .cover,
   .hero,
+  .actions,
   .layout {
     grid-template-columns: 1fr;
   }
@@ -611,6 +837,13 @@
 }
 
 @media (max-width: 767px) {
+  .hero,
+  .timelineSection,
+  .actions,
+  .section {
+    padding: 0.85rem;
+  }
+
   .summaryRow {
     grid-template-columns: 1fr;
   }
@@ -621,5 +854,42 @@
 
   .rank {
     font-size: clamp(1.2rem, 6vw, 1.8rem);
+  }
+
+  .portraitDock {
+    justify-items: stretch;
+  }
+
+  .portrait {
+    justify-self: center;
+    width: min(100%, 240px);
+    min-height: 220px;
+  }
+
+  .coverRecordSeal,
+  .coverRecordStack {
+    width: 100%;
+  }
+
+  .coverRecordStack {
+    grid-template-columns: 1fr;
+  }
+
+  .coverRecordStack div {
+    border-top: 1px solid rgb(var(--twc-line) / 0.26);
+    border-left: 0;
+  }
+
+  .coverRecordStack div:first-child {
+    border-top: 0;
+  }
+
+  .timelineIntro,
+  .timelineTop {
+    display: grid;
+  }
+
+  .timeline {
+    grid-template-columns: 1fr;
   }
 }

@@ -78,13 +78,9 @@ export interface CareerRow {
   bestScoreRank?: number;
   yokozunaOrdinal?: number;
   detailState?: 'building' | 'ready' | 'error';
-  // ---- Career Archive / Observation Build (optional, no schema bump) ----
+  // ---- Observation Build metadata (optional, no schema bump) ----
   archiveThemeId?: string;
   archiveModifierIds?: string[];
-  archiveCategories?: string[];
-  archiveTitles?: Array<{ id: string; label: string; tier: string; reason: string }>;
-  archiveJudgedAt?: string;
-  archiveRewardAwarded?: number;
   // ---- Anonymous EraSnapshot (optional, no schema bump) ----
   eraSnapshotId?: string;
   eraTags?: EraTag[];

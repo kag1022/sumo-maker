@@ -1,0 +1,338 @@
+.shell {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.header,
+.row {
+  display: grid;
+  grid-template-columns: 2.8rem minmax(8.5rem, 1.4fr) minmax(6rem, 0.62fr) minmax(6.5rem, 0.62fr) minmax(6rem, 0.62fr) minmax(8.5rem, 1.4fr);
+  align-items: stretch;
+}
+
+.header {
+  padding: 0 0.65rem;
+  color: rgb(var(--twc-brand) / 0.68);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+}
+
+.header span {
+  padding: 0.1rem 0.45rem;
+}
+
+.header span:nth-child(3),
+.header span:nth-child(4),
+.header span:nth-child(5) {
+  text-align: center;
+}
+
+.header span:nth-child(6) {
+  text-align: right;
+}
+
+.list {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.row {
+  position: relative;
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background:
+    linear-gradient(90deg, rgb(var(--twc-bg) / 0.38), rgb(var(--twc-bg-panel) / 0.42));
+  color: rgb(var(--twc-text) / 0.84);
+}
+
+.row[data-important="true"] {
+  border-color: rgb(var(--twc-brand) / 0.36);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-brand) / 0.62);
+}
+
+.row[data-fallback="true"] {
+  background:
+    linear-gradient(90deg, rgb(var(--twc-bg) / 0.42), rgb(var(--twc-bg-panel) / 0.38));
+}
+
+.row[data-absence="true"] {
+  background:
+    linear-gradient(90deg, rgb(var(--twc-bg) / 0.34), rgb(var(--twc-bg-panel) / 0.32));
+}
+
+.day,
+.wrestlerName,
+.resultCell,
+.kimarite {
+  min-width: 0;
+  padding: 0.62rem 0.7rem;
+  border-right: 1px solid rgb(255 255 255 / 0.05);
+}
+
+.day {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.12rem;
+  border-right-color: rgb(var(--twc-brand) / 0.1);
+  color: rgb(var(--twc-brand) / 0.72);
+  font-family: "DotGothic16", monospace;
+}
+
+.day strong {
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.day span {
+  font-size: 0.58rem;
+}
+
+.wrestlerName {
+  display: grid;
+  gap: 0.16rem;
+  align-content: center;
+}
+
+.wrestlerName[data-align="west"] {
+  justify-items: end;
+  text-align: right;
+  border-right: 0;
+}
+
+.wrestlerName strong,
+.wrestlerButton {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: rgb(var(--twc-text) / 0.96);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1rem;
+  line-height: 1.22;
+}
+
+.wrestlerName[data-player="true"] strong {
+  color: rgb(var(--twc-text-bright) / 0.98);
+}
+
+.wrestlerName span {
+  overflow-wrap: anywhere;
+  color: rgb(var(--twc-text) / 0.48);
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+.wrestlerButton {
+  justify-self: start;
+  text-align: inherit;
+  transition: color 120ms ease;
+}
+
+.wrestlerName[data-align="west"] .wrestlerButton {
+  justify-self: end;
+}
+
+.wrestlerButton:hover {
+  color: rgb(var(--twc-brand) / 0.95);
+}
+
+.resultCell {
+  display: grid;
+  gap: 0.14rem;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  font-family: "BIZ UDPGothic", sans-serif;
+}
+
+.resultCell strong {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.resultCell span {
+  color: rgb(var(--twc-text) / 0.56);
+  font-size: 0.67rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.resultCell[data-tone="win"] strong {
+  color: var(--chart-win);
+}
+
+.resultCell[data-tone="loss"] strong {
+  color: var(--chart-loss);
+}
+
+.resultCell[data-tone="absence"] strong {
+  color: var(--chart-absent);
+}
+
+.resultCell[data-tone="muted"] strong {
+  color: rgb(var(--twc-text) / 0.38);
+}
+
+.kimarite {
+  display: grid;
+  place-items: center;
+  color: rgb(var(--twc-brand) / 0.82);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.kimarite span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.absencePanel {
+  grid-column: 2 / -1;
+  display: grid;
+  gap: 0.16rem;
+  align-content: center;
+  min-width: 0;
+  padding: 0.62rem 0.7rem;
+  color: rgb(var(--twc-text) / 0.7);
+}
+
+.absencePanel strong {
+  color: var(--chart-absent);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.absencePanel span {
+  color: rgb(var(--twc-text) / 0.5);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.detailPanel {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.45rem 0.7rem 0.58rem;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-brand) / 0.045);
+}
+
+.importantTag {
+  flex: 0 0 auto;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  color: rgb(var(--twc-brand) / 0.9);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.detailPanel p {
+  margin: 0;
+  color: rgb(var(--twc-text) / 0.62);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .header {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) 5.4rem minmax(0, 1fr);
+    grid-template-areas:
+      "day day day"
+      "eastName kimarite westName"
+      "eastResult kimarite westResult"
+      "detail detail detail";
+  }
+
+  .day {
+    grid-area: day;
+    justify-content: flex-start;
+    border-right: 0;
+    border-bottom: 1px solid rgb(var(--twc-brand) / 0.1);
+    padding: 0.42rem 0.65rem;
+  }
+
+  .wrestlerName[data-align="east"] {
+    grid-area: eastName;
+  }
+
+  .wrestlerName[data-align="west"] {
+    grid-area: westName;
+  }
+
+  .resultCell[data-align="east"] {
+    grid-area: eastResult;
+  }
+
+  .resultCell[data-align="west"] {
+    grid-area: westResult;
+  }
+
+  .kimarite {
+    grid-area: kimarite;
+    border-left: 1px solid rgb(255 255 255 / 0.05);
+    border-right: 1px solid rgb(255 255 255 / 0.05);
+  }
+
+  .detailPanel {
+    grid-area: detail;
+  }
+
+  .absencePanel {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgb(255 255 255 / 0.05);
+  }
+
+  .wrestlerName,
+  .resultCell,
+  .kimarite {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "day"
+      "eastName"
+      "eastResult"
+      "kimarite"
+      "westResult"
+      "westName"
+      "detail";
+  }
+
+  .wrestlerName[data-align="west"],
+  .resultCell[data-align="west"] {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .resultCell {
+    justify-items: start;
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: baseline;
+  }
+
+  .kimarite {
+    place-items: start;
+    border-top: 1px solid rgb(255 255 255 / 0.05);
+    border-bottom: 1px solid rgb(255 255 255 / 0.05);
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .detailPanel {
+    display: grid;
+    gap: 0.32rem;
+  }
+}
