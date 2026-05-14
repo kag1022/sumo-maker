@@ -831,11 +831,11 @@ export const tests: TestCase[] = [
               kimarite: '押し出し',
               outcome: 'WIN',
               shortCommentary: '押し出し。立合いから押し、土俵外へ出した。中盤の白星で、星勘定を整えた。番付上、取りこぼせない一番を取った。',
-              victoryFactorLabels: ['展開', '取り口'],
+              victoryFactorLabels: ['立合い', '相撲の形'],
               flowExplanation: [
                 '立合いから押して、正面の圧力を先に出した。中盤も押す圧力を保ち、相手を下がらせた。',
                 '序盤の形を崩さず、流れのまま決めた。最後は正面から押し切って土俵外へ出した。押し出し。押し・突きの形で、前に出る圧力が決まり手に出た。',
-                '勝因は展開、取り口。中盤の一番で、星勘定を整えた。番付上、取りこぼせない一番を取った。',
+                '勝因は立合い、相撲の形に出た。中盤の一番で、星勘定を整えた。番付上、取りこぼせない一番を取った。',
               ],
               materialKeys: [
                 'opening:THRUST_BATTLE:straight-attack',
@@ -914,7 +914,7 @@ export const tests: TestCase[] = [
       assert.equal(detail?.playerRecord?.entityId, 'PLAYER');
       assert.equal(detail?.bouts[0]?.day, 1);
       assert.equal(detail?.bouts[0]?.boutFlowCommentary?.shortCommentary.includes('押し出し'), true);
-      assert.deepEqual(detail?.bouts[0]?.boutFlowCommentary?.victoryFactorLabels, ['展開', '取り口']);
+      assert.deepEqual(detail?.bouts[0]?.boutFlowCommentary?.victoryFactorLabels, ['立合い', '相撲の形']);
       assert.equal(detail?.importantTorikumi[0]?.trigger, 'SEKITORI_BOUNDARY');
       assert.equal(detail?.banzukeDecisions[0]?.seq, 1);
     },

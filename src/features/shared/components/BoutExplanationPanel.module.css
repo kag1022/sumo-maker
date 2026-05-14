@@ -1,23 +1,25 @@
 .panel {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.9rem;
   border: 1px solid rgb(var(--twc-brand) / 0.2);
   background: rgb(var(--twc-bg-panel) / 0.72);
   padding: 1rem;
 }
 
-.head {
+.head,
+.resultLine {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.kicker {
-  color: rgb(var(--twc-brand) / 0.7);
+.kicker,
+.sectionTitle {
+  color: rgb(var(--twc-brand) / 0.72);
   font-family: "DotGothic16", monospace;
   font-size: 0.66rem;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
 }
 
 .day {
@@ -25,12 +27,9 @@
   font-size: 0.74rem;
 }
 
-.resultBand {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(5.4rem, 0.62fr) minmax(0, 1fr);
-  align-items: stretch;
-  border: 1px solid rgb(var(--twc-brand) / 0.14);
-  background: rgb(var(--twc-bg) / 0.36);
+.resultLine {
+  border: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-bg) / 0.28);
 }
 
 .rikishiCell,
@@ -38,7 +37,12 @@
   display: grid;
   align-content: center;
   min-width: 0;
-  padding: 0.62rem 0.72rem;
+  padding: 0.56rem 0.68rem;
+}
+
+.rikishiCell {
+  flex: 1 1 0;
+  gap: 0.12rem;
 }
 
 .rikishiCell[data-align="west"] {
@@ -51,7 +55,7 @@
   overflow-wrap: anywhere;
   color: rgb(var(--twc-text-bright) / 0.94);
   font-family: "Yuji Syuku", serif;
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   line-height: 1.22;
 }
 
@@ -62,32 +66,58 @@
 }
 
 .mark {
-  color: rgb(var(--twc-brand) / 0.8);
+  color: rgb(var(--twc-brand) / 0.82);
   font-family: "BIZ UDPGothic", sans-serif;
   font-size: 0.8rem;
 }
 
 .kimariteCell {
+  flex: 0 0 6.2rem;
   justify-items: center;
   border-inline: 1px solid rgb(255 255 255 / 0.06);
-  color: rgb(var(--twc-brand) / 0.88);
+  color: rgb(var(--twc-brand) / 0.9);
   font-family: "DotGothic16", monospace;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-align: center;
 }
 
+.summaryBlock,
+.readingBlock {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .shortCommentary {
   margin: 0;
-  color: rgb(var(--twc-text) / 0.9);
-  font-size: 0.86rem;
-  line-height: 1.75;
+  color: rgb(var(--twc-text-bright) / 0.94);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.readingBlock {
+  border-top: 1px solid rgb(var(--twc-brand) / 0.12);
+  padding-top: 0.72rem;
+}
+
+.readingBlock p {
+  margin: 0;
+  color: rgb(var(--twc-text) / 0.76);
+  font-size: 0.78rem;
+  line-height: 1.65;
 }
 
 .factorList {
   display: flex;
   flex-wrap: wrap;
   gap: 0.38rem;
+  margin-top: 0.1rem;
 }
 
 .factor {
@@ -100,45 +130,15 @@
   padding: 0.16rem 0.46rem;
 }
 
-.section {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.sectionTitle {
-  color: rgb(var(--twc-text) / 0.56);
-  font-family: "DotGothic16", monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-}
-
-.flowList {
-  display: grid;
-  gap: 0.38rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.flowList li,
-.contextRow {
-  border: 1px solid rgb(var(--twc-brand) / 0.12);
-  background: rgb(var(--twc-bg) / 0.28);
-  color: rgb(var(--twc-text) / 0.7);
-  font-size: 0.74rem;
-  line-height: 1.55;
-  padding: 0.48rem 0.62rem;
-}
-
 .contextGrid {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 
-.contextRow strong {
+.contextGrid strong {
   display: inline-block;
-  min-width: 3.8rem;
-  color: rgb(var(--twc-text) / 0.86);
+  min-width: 3.2rem;
+  color: rgb(var(--twc-text) / 0.9);
   font-family: "DotGothic16", monospace;
   font-size: 0.68rem;
   font-weight: normal;
@@ -146,8 +146,15 @@
 }
 
 @media (max-width: 560px) {
-  .resultBand {
-    grid-template-columns: 1fr;
+  .resultLine {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .rikishiCell,
+  .kimariteCell {
+    width: 100%;
   }
 
   .rikishiCell[data-align="west"] {

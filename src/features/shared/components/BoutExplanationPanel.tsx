@@ -73,6 +73,9 @@ const materialTextBySegment = (
 ): string | null =>
   commentary.materials.find((material) => material.segmentKind === segmentKind)?.text ?? null;
 
+const factorText = (commentary: BoutFlowCommentary): string | null =>
+  commentary.flowExplanation[2] ?? null;
+
 const RikishiCell: React.FC<{
   readonly participant: ParticipantView;
   readonly align: "east" | "west";
@@ -93,6 +96,9 @@ export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
   const participants = resolveParticipants(bout, playerShikona, playerRank);
   const hoshitoriText = materialTextBySegment(preview.commentary, "HOSHITORI");
   const banzukeText = materialTextBySegment(preview.commentary, "BANZUKE");
+  const outcomeLabel = preview.commentary.outcome === "WIN" ? "勝因" : "敗因";
+  const mainFlow = preview.commentary.flowExplanation.slice(0, 2);
+  const resultFactorText = factorText(preview.commentary);
 
   return (
     <section className={styles.panel} aria-label={`${preview.day}日目の取組解説`}>
@@ -101,50 +107,55 @@ export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
         <div className={styles.day}>{preview.day}日目</div>
       </div>
 
-      <div className={styles.resultBand}>
+      <div className={styles.resultLine}>
         <RikishiCell participant={participants.east} align="east" />
         <div className={styles.kimariteCell}>{preview.commentary.kimarite}</div>
         <RikishiCell participant={participants.west} align="west" />
       </div>
 
-      <p className={styles.shortCommentary}>{preview.commentary.shortCommentary}</p>
+      <section className={styles.summaryBlock} aria-label="短評">
+        <div className={styles.sectionTitle}>短評</div>
+        <p className={styles.shortCommentary}>{preview.commentary.shortCommentary}</p>
+      </section>
 
-      {preview.commentary.victoryFactorLabels.length > 0 ? (
-        <div className={styles.factorList} aria-label="勝敗要因">
-          {preview.commentary.victoryFactorLabels.map((label) => (
-            <span key={label} className={styles.factor}>{label}</span>
+      <div className={styles.detailGrid}>
+        <section className={styles.readingBlock}>
+          <div className={styles.sectionTitle}>勝負の流れ</div>
+          {mainFlow.map((line) => (
+            <p key={line}>{line}</p>
           ))}
-        </div>
-      ) : null}
+        </section>
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>展開</div>
-        <ul className={styles.flowList}>
-          {preview.commentary.flowExplanation.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      </div>
+        <section className={styles.readingBlock}>
+          <div className={styles.sectionTitle}>{outcomeLabel}</div>
+          {resultFactorText ? <p>{resultFactorText}</p> : null}
+          {preview.commentary.victoryFactorLabels.length > 0 ? (
+            <div className={styles.factorList} aria-label={outcomeLabel}>
+              {preview.commentary.victoryFactorLabels.slice(0, 4).map((label) => (
+                <span key={label} className={styles.factor}>{label}</span>
+              ))}
+            </div>
+          ) : null}
+        </section>
 
-      {(hoshitoriText || banzukeText) && (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>文脈</div>
+        <section className={styles.readingBlock}>
+          <div className={styles.sectionTitle}>場所内の意味</div>
           <div className={styles.contextGrid}>
             {hoshitoriText ? (
-              <div className={styles.contextRow}>
+              <p>
                 <strong>星取</strong>
                 {hoshitoriText}
-              </div>
+              </p>
             ) : null}
             {banzukeText ? (
-              <div className={styles.contextRow}>
+              <p>
                 <strong>番付</strong>
                 {banzukeText}
-              </div>
+              </p>
             ) : null}
           </div>
-        </div>
-      )}
+        </section>
+      </div>
     </section>
   );
 };

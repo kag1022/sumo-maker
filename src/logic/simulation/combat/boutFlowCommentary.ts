@@ -366,14 +366,14 @@ const kimariteSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
 
 const FACTOR_LABELS: Record<string, string> = {
   'victory-factor:ability': '地力',
-  'victory-factor:style': '取り口',
-  'victory-factor:body': '体格',
-  'victory-factor:form': '調子',
-  'victory-factor:momentum': '流れ',
-  'victory-factor:injury': '状態差',
-  'victory-factor:pressure': '重圧対応',
-  'victory-factor:kimarite-fit': '得意形',
-  'victory-factor:phase-shape': '展開',
+  'victory-factor:style': '相撲の形',
+  'victory-factor:body': '当たりの強さ',
+  'victory-factor:form': '当日の動き',
+  'victory-factor:momentum': '場所の流れ',
+  'victory-factor:injury': '状態',
+  'victory-factor:pressure': '勝負所',
+  'victory-factor:kimarite-fit': '決め手',
+  'victory-factor:phase-shape': '立合い',
   'victory-factor:realism-compression': '番付上の地力',
 };
 
@@ -393,8 +393,8 @@ const victorySpec = (
 ): MaterialSpec => ({
   variant: tags.slice(0, 3).join('+') || 'mixed',
   text: labels.length > 0
-    ? `${outcome === 'WIN' ? '勝因' : '敗因'}は${labels.join('、')}。`
-    : `${outcome === 'WIN' ? '勝因' : '敗因'}は展開全体に分散した。`,
+    ? `${outcome === 'WIN' ? '勝因' : '敗因'}は${labels.join('、')}に出た。`
+    : `${outcome === 'WIN' ? '勝因' : '敗因'}は最後の形に集約された。`,
   tags: [...tags, `outcome:${outcome}`],
 });
 
@@ -414,11 +414,11 @@ const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
 ];
 
 const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
-  EARLY_BASHO: '序盤の白星で、場所の流れを作った。',
-  MIDDLE_BASHO: '中盤の一番で、星勘定を整えた。',
-  FINAL_BOUT: 'この場所最後の一番を白星で締めた。',
+  EARLY_BASHO: '序盤の白星で、場所の入りを整えた。',
+  MIDDLE_BASHO: '中盤の一番を取り、星勘定を崩さなかった。',
+  FINAL_BOUT: '場所最後の一番を白星で締めた。',
   KACHIKOSHI_DECIDER: '勝ち越しを決める白星になった。',
-  MAKEKOSHI_DECIDER: '負け越しを避ける意味のある白星になった。',
+  MAKEKOSHI_DECIDER: '負け越しを避け、踏みとどまる白星になった。',
   KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で白星を挙げた。',
   YUSHO_DIRECT: '優勝争いを直接動かす白星になった。',
   YUSHO_CHASE: '優勝争いを追う立場で、落とせない一番を取った。',
@@ -429,9 +429,9 @@ const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
 };
 
 const HOSHITORI_LOSS_TEXT: Record<HoshitoriContextTag, string> = {
-  EARLY_BASHO: '序盤の黒星で、場所の立て直しが必要になった。',
+  EARLY_BASHO: '序盤の黒星で、早い立て直しが必要になった。',
   MIDDLE_BASHO: '中盤の一番を落とし、星勘定が重くなった。',
-  FINAL_BOUT: 'この場所最後の一番を黒星で終えた。',
+  FINAL_BOUT: '場所最後の一番を黒星で終えた。',
   KACHIKOSHI_DECIDER: '勝ち越しを決めきれない黒星になった。',
   MAKEKOSHI_DECIDER: '負け越しが決まる黒星になった。',
   KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で黒星を喫した。',
@@ -443,10 +443,39 @@ const HOSHITORI_LOSS_TEXT: Record<HoshitoriContextTag, string> = {
   LEAD_PROTECTION: '白星先行を守りきれない一番になった。',
 };
 
-const hoshitoriSpec = (tag: HoshitoriContextTag, outcome: BoutFlowCommentaryOutcome): MaterialSpec => ({
-  variant: tag,
-  text: outcome === 'WIN' ? HOSHITORI_TEXT[tag] : HOSHITORI_LOSS_TEXT[tag],
-  tags: [`hoshitori:${tag}`, `outcome:${outcome}`],
+const hoshitoriLead = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome,
+): string => {
+  if (snapshot.finishRoute === 'PUSH_OUT') return outcome === 'WIN' ? '押し相撲で' : '押し込まれて';
+  if (snapshot.finishRoute === 'BELT_FORCE') return outcome === 'WIN' ? '四つに組んで' : '組み止められて';
+  if (snapshot.finishRoute === 'THROW_BREAK') return outcome === 'WIN' ? '投げで崩し' : '投げで崩され';
+  if (snapshot.finishRoute === 'PULL_DOWN') return outcome === 'WIN' ? 'いなしで崩し' : 'いなしに崩され';
+  if (snapshot.finishRoute === 'EDGE_REVERSAL') return outcome === 'WIN' ? '土俵際で残し' : '土俵際で逆転を許し';
+  if (snapshot.finishRoute === 'REAR_FINISH') return outcome === 'WIN' ? '後ろを取り' : '後ろを取られ';
+  return outcome === 'WIN' ? '足元を攻め' : '足元を攻められ';
+};
+
+const banzukeLead = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome,
+): string => {
+  if (snapshot.openingPhase === 'EDGE_BATTLE') return outcome === 'WIN' ? '土俵際をしのぎ、' : '土俵際で後手となり、';
+  if (snapshot.openingPhase === 'BELT_BATTLE') return outcome === 'WIN' ? '組み合いを制し、' : '組み合いで主導権を渡し、';
+  if (snapshot.openingPhase === 'TECHNIQUE_SCRAMBLE') return outcome === 'WIN' ? '技の流れをつかみ、' : '技の流れで崩され、';
+  if (snapshot.openingPhase === 'QUICK_COLLAPSE') return outcome === 'WIN' ? '短い相撲をものにし、' : '早い崩れを止められず、';
+  if (snapshot.openingPhase === 'MIXED') return outcome === 'WIN' ? '攻防が移る中で取り切り、' : '攻防が移る中で取り切れず、';
+  return outcome === 'WIN' ? '前に出る内容で、' : '前に出られ、';
+};
+
+const hoshitoriSpec = (
+  tag: HoshitoriContextTag,
+  outcome: BoutFlowCommentaryOutcome,
+  snapshot: BoutFlowDiagnosticSnapshot,
+): MaterialSpec => ({
+  variant: `${tag}:${outcome}:${snapshot.finishRoute}`,
+  text: `${hoshitoriLead(snapshot, outcome)}${outcome === 'WIN' ? HOSHITORI_TEXT[tag] : HOSHITORI_LOSS_TEXT[tag]}`,
+  tags: [`hoshitori:${tag}`, `outcome:${outcome}`, `finish:${snapshot.finishRoute}`],
 });
 
 const BANZUKE_PRIORITY: readonly BanzukeContextTag[] = [
@@ -482,13 +511,71 @@ const BANZUKE_LOSS_TEXT: Record<BanzukeContextTag, string> = {
   RANK_EXPECTED_WIN: '番付上、落としたくない一番を落とした。',
 };
 
-const banzukeSpec = (tag: BanzukeContextTag, outcome: BoutFlowCommentaryOutcome): MaterialSpec => ({
-  variant: tag,
-  text: outcome === 'WIN' ? BANZUKE_TEXT[tag] : BANZUKE_LOSS_TEXT[tag],
-  tags: [`banzuke:${tag}`, `outcome:${outcome}`],
+const banzukeSpec = (
+  tag: BanzukeContextTag,
+  outcome: BoutFlowCommentaryOutcome,
+  snapshot: BoutFlowDiagnosticSnapshot,
+): MaterialSpec => ({
+  variant: `${tag}:${outcome}:${snapshot.openingPhase}`,
+  text: `${banzukeLead(snapshot, outcome)}${outcome === 'WIN' ? BANZUKE_TEXT[tag] : BANZUKE_LOSS_TEXT[tag]}`,
+  tags: [`banzuke:${tag}`, `outcome:${outcome}`, `opening:${snapshot.openingPhase}`],
 });
 
-const shortOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+const SHORT_HOSHITORI_TEXT: Record<BoutFlowCommentaryOutcome, Record<HoshitoriContextTag, string>> = {
+  WIN: {
+    EARLY_BASHO: '序盤の流れを作り',
+    MIDDLE_BASHO: '中盤の星勘定を整え',
+    FINAL_BOUT: '場所を白星で締め',
+    KACHIKOSHI_DECIDER: '勝ち越しを決め',
+    MAKEKOSHI_DECIDER: '負け越しを避け',
+    KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目を制し',
+    YUSHO_DIRECT: '優勝争いを直接動かし',
+    YUSHO_CHASE: '優勝争いで落とせない一番を取り',
+    WIN_STREAK: '連勝を伸ばし',
+    LOSS_STREAK: '連敗を止め',
+    RECOVERY_BOUT: '前の黒星から立て直し',
+    LEAD_PROTECTION: '白星先行を守り',
+  },
+  LOSS: {
+    EARLY_BASHO: '序盤で立て直しを迫られ',
+    MIDDLE_BASHO: '中盤の星勘定を重くし',
+    FINAL_BOUT: '場所を黒星で終え',
+    KACHIKOSHI_DECIDER: '勝ち越しを決めきれず',
+    MAKEKOSHI_DECIDER: '負け越しが決まり',
+    KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で落とし',
+    YUSHO_DIRECT: '優勝争いを左右する一番を落とし',
+    YUSHO_CHASE: '優勝争いで落とせない一番を落とし',
+    WIN_STREAK: '連勝が止まり',
+    LOSS_STREAK: '連敗を止められず',
+    RECOVERY_BOUT: '前の黒星から立て直せず',
+    LEAD_PROTECTION: '白星先行を守れず',
+  },
+};
+
+const SHORT_BANZUKE_TEXT: Record<BoutFlowCommentaryOutcome, Record<BanzukeContextTag, string>> = {
+  WIN: {
+    PROMOTION_RELEVANT: '昇進へ向けても材料を残した',
+    DEMOTION_RELEVANT: '番付降下の圧力を和らげた',
+    SAN_YAKU_PRESSURE: '地位に見合う内容を示した',
+    SEKITORI_BOUNDARY: '関取境界で重みのある白星にした',
+    MAKUUCHI_BOUNDARY: '幕内境界で地位を支える白星にした',
+    KINBOSHI_CHANCE: '格上相手に価値を出した',
+    RANK_GAP_UPSET: '番付差を覆す印象を残した',
+    RANK_EXPECTED_WIN: '番付上も落とせない一番を取った',
+  },
+  LOSS: {
+    PROMOTION_RELEVANT: '昇進へ向けて痛い黒星となった',
+    DEMOTION_RELEVANT: '番付降下の圧力を強めた',
+    SAN_YAKU_PRESSURE: '地位に見合う内容を残せなかった',
+    SEKITORI_BOUNDARY: '関取境界で重い黒星となった',
+    MAKUUCHI_BOUNDARY: '幕内境界で地位を揺らす黒星となった',
+    KINBOSHI_CHANCE: '格上相手に及ばなかった',
+    RANK_GAP_UPSET: '番付差を生かしきれなかった',
+    RANK_EXPECTED_WIN: '番付上も落としたくない一番を落とした',
+  },
+};
+
+const winOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   switch (snapshot.openingPhase) {
     case 'THRUST_BATTLE':
       return '立合いから押し';
@@ -507,7 +594,26 @@ const shortOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   }
 };
 
-const shortControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+const lossOpeningClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.openingPhase) {
+    case 'THRUST_BATTLE':
+      return '相手に立合いから押され';
+    case 'BELT_BATTLE':
+      return snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? '差し手争いから離れたところを押され'
+        : '四つの攻防で組み止められ';
+    case 'TECHNIQUE_SCRAMBLE':
+      return '動きに合わせられ';
+    case 'EDGE_BATTLE':
+      return '土俵際の攻防で残され';
+    case 'QUICK_COLLAPSE':
+      return '立合い直後の崩れを突かれ';
+    case 'MIXED':
+      return '押し、組み、いなしが交じる中で後手に回り';
+  }
+};
+
+const winControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   switch (snapshot.controlPhaseCandidate) {
     case 'THRUST_BATTLE':
       return snapshot.openingPhase === 'BELT_BATTLE'
@@ -528,7 +634,7 @@ const shortControlClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   }
 };
 
-const shortFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+const winFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   switch (snapshot.finishRoute) {
     case 'PUSH_OUT':
       return '土俵外へ出した';
@@ -549,18 +655,52 @@ const shortFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
   }
 };
 
+const lossFinishClause = (snapshot: BoutFlowDiagnosticSnapshot): string => {
+  switch (snapshot.finishRoute) {
+    case 'PUSH_OUT':
+      return '土俵外へ出された';
+    case 'BELT_FORCE':
+      return '寄り切られた';
+    case 'THROW_BREAK':
+      return '投げで崩された';
+    case 'PULL_DOWN':
+      return snapshot.openingPhase === 'QUICK_COLLAPSE'
+        ? '前に落ちた'
+        : 'いなしで前に落とされた';
+    case 'EDGE_REVERSAL':
+      return '体を入れ替えられた';
+    case 'REAR_FINISH':
+      return '後ろを取られて決まった';
+    case 'LEG_ATTACK':
+      return '足元から崩された';
+  }
+};
+
+const firstSentence = (
+  snapshot: BoutFlowDiagnosticSnapshot,
+  outcome: BoutFlowCommentaryOutcome,
+): string => {
+  const clauses = outcome === 'WIN'
+    ? [
+      winOpeningClause(snapshot),
+      winControlClause(snapshot),
+      winFinishClause(snapshot),
+    ]
+    : [
+      lossOpeningClause(snapshot),
+      lossFinishClause(snapshot),
+    ];
+  const flowText = clauses.filter((text) => text.length > 0).join('、');
+  return `${snapshot.kimarite.name}で${outcome === 'WIN' ? '白星' : '黒星'}、${flowText}。`;
+};
+
 const createShortCommentary = (
   snapshot: BoutFlowDiagnosticSnapshot,
-  hoshitori: BoutFlowCommentaryMaterial,
-  banzuke: BoutFlowCommentaryMaterial,
+  hoshitoriTag: HoshitoriContextTag,
+  banzukeTag: BanzukeContextTag,
+  outcome: BoutFlowCommentaryOutcome,
 ): string => {
-  const flowText = [
-    shortOpeningClause(snapshot),
-    shortControlClause(snapshot),
-    shortFinishClause(snapshot),
-  ].filter((text) => text.length > 0).join('、');
-
-  return `${snapshot.kimarite.name}。${flowText}。${hoshitori.text}${banzuke.text}`;
+  return `${firstSentence(snapshot, outcome)}${SHORT_HOSHITORI_TEXT[outcome][hoshitoriTag]}、${SHORT_BANZUKE_TEXT[outcome][banzukeTag]}。`;
 };
 
 export const createBoutFlowCommentaryDiagnostic = (
@@ -611,13 +751,13 @@ export const createBoutFlowCommentaryDiagnostic = (
     'HOSHITORI_CONTEXT',
     'HOSHITORI',
     'hoshitori',
-    hoshitoriSpec(hoshitoriTag, outcome),
+    hoshitoriSpec(hoshitoriTag, outcome, snapshot),
   );
   const banzuke = createMaterial(
     'BANZUKE_CONTEXT',
     'BANZUKE',
     'banzuke',
-    banzukeSpec(banzukeTag, outcome),
+    banzukeSpec(banzukeTag, outcome, snapshot),
   );
   const materials = [
     opening,
@@ -632,10 +772,10 @@ export const createBoutFlowCommentaryDiagnostic = (
 
   const flowExplanation = [
     `${opening.text}${control.text}`,
-    `${transition.text}${finish.text}${kimarite.text}`,
-    `${victory.text}${hoshitori.text}${banzuke.text}`,
+    `${transition.text}${finish.text}`,
+    `${victory.text}${kimarite.text}`,
   ];
-  const shortCommentary = createShortCommentary(snapshot, hoshitori, banzuke);
+  const shortCommentary = createShortCommentary(snapshot, hoshitoriTag, banzukeTag, outcome);
 
   return {
     generated: true,
