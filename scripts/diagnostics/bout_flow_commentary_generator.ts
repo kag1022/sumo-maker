@@ -10,6 +10,7 @@ import {
   createBoutFlowCommentaryDiagnostic,
   type BoutFlowCommentary,
 } from '../../src/logic/simulation/combat/boutFlowCommentary';
+import { resolveCommentaryKimariteSubfamily } from '../../src/logic/simulation/combat/kimariteCommentarySubfamily';
 import type { BoutExplanationMaterialAxis } from '../../src/logic/simulation/combat/boutFlowModel';
 
 const DIAGNOSTIC_SEED = 20260515;
@@ -42,6 +43,7 @@ interface CommentaryScenario {
   readonly label: string;
   readonly snapshot: BoutFlowDiagnosticSnapshot;
   readonly commentary: BoutFlowCommentary;
+  readonly commentarySubfamily: ReturnType<typeof resolveCommentaryKimariteSubfamily>;
 }
 
 const invariant = (condition: boolean, message: string): void => {
@@ -87,6 +89,13 @@ const generateCommentary = (
     label: fixture.label,
     snapshot,
     commentary: diagnostic.commentary,
+    commentarySubfamily: resolveCommentaryKimariteSubfamily({
+      name: snapshot.kimarite.name,
+      family: snapshot.kimarite.family,
+      diagnosticFamily: snapshot.kimarite.diagnosticFamily,
+      finishRoute: snapshot.finishRoute,
+      transitionClassification: snapshot.transitionClassification,
+    }),
   };
 };
 
@@ -490,6 +499,8 @@ const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.m
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
 const kimariteCounts = countBy(scenarios.map((scenario) => scenario.snapshot.kimarite.name));
+const commentarySubfamilyCounts = countBy(scenarios.map((scenario) => scenario.commentarySubfamily.subfamily));
+const commentarySubfamilySourceCounts = countBy(scenarios.map((scenario) => scenario.commentarySubfamily.source));
 const hoshitoriCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.hoshitoriContextTags));
 const banzukeCounts = countBy(scenarios.flatMap((scenario) => scenario.snapshot.banzukeContextTags));
 const outcomeCounts = countBy(scenarios.map((scenario) => scenario.commentary.outcome));
@@ -528,6 +539,18 @@ const repeatedMaterialTextSlots = repeatedSlotCount(materialTextCounts);
 const repeatedShortCommentarySlots = repeatedSlotCount(shortCommentaryCounts);
 const repeatedShortPhraseSlots = repeatedSlotCount(shortPhraseCounts);
 const fallbackBanzukeSlots = scenarios.filter((scenario) => scenario.snapshot.banzukeContextTags.includes('RANK_EXPECTED_WIN')).length;
+const genericSubfamilySlots = scenarios.filter((scenario) => scenario.commentarySubfamily.subfamily === 'GENERIC').length;
+const familySubfamilySets = scenarios.reduce<Record<string, Set<string>>>((sets, scenario) => {
+  const family = scenario.commentarySubfamily.family;
+  sets[family] = sets[family] ?? new Set<string>();
+  sets[family].add(scenario.commentarySubfamily.subfamily);
+  return sets;
+}, {});
+const sameFamilyDifferentSubfamilyGroups = Object.fromEntries(
+  Object.entries(familySubfamilySets)
+    .filter(([, subfamilies]) => subfamilies.size > 1)
+    .map(([family, subfamilies]) => [family, Array.from(subfamilies).sort()]),
+);
 const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
 const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
 const duplicateShortCommentaryRate = scenarios.length > 0 ? repeatedShortCommentarySlots / scenarios.length : 0;
@@ -535,6 +558,10 @@ const topPhraseFrequency = scenarios.length > 0
   ? Math.max(0, ...Object.values(shortPhraseCounts)) / scenarios.length
   : 0;
 const fallbackContextRate = scenarios.length > 0 ? fallbackBanzukeSlots / scenarios.length : 0;
+const genericSubfamilyRate = scenarios.length > 0 ? genericSubfamilySlots / scenarios.length : 0;
+const sameFamilyDifferentSubfamilyRate = Object.keys(familySubfamilySets).length > 0
+  ? Object.keys(sameFamilyDifferentSubfamilyGroups).length / Object.keys(familySubfamilySets).length
+  : 0;
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
 invariant(scenarios.length >= 20, 'commentary generator should cover at least 20 fixed fixtures');
@@ -547,6 +574,11 @@ invariant(criticalQualityFlags.length === 0, `commentary quality flags: ${critic
 invariant(duplicateShortCommentaryRate <= 0.05, `duplicate short commentary rate too high: ${duplicateShortCommentaryRate}`);
 invariant(topPhraseFrequency <= 0.25, `top phrase frequency too high: ${topPhraseFrequency}`);
 invariant(fallbackContextRate <= 0.35, `fallback context rate too high: ${fallbackContextRate}`);
+invariant(genericSubfamilyRate <= 0.1, `generic subfamily rate too high: ${genericSubfamilyRate}`);
+invariant(
+  Object.keys(sameFamilyDifferentSubfamilyGroups).length >= 4,
+  'same production family should produce multiple commentary subfamilies in fixed fixtures',
+);
 
 const audit = {
   japaneseNaturalness: {
@@ -592,6 +624,8 @@ const audit = {
     duplicateShortCommentaryRate,
     topPhraseFrequency,
     fallbackContextRate,
+    genericSubfamilyRate,
+    sameFamilyDifferentSubfamilyRate,
     repeatedShortCommentarySlots,
     repeatedShortPhraseSlots,
     totalShortPhraseSlots,
@@ -604,7 +638,16 @@ const audit = {
       duplicateShortCommentaryRate: 0.05,
       topPhraseFrequency: 0.25,
       fallbackContextRate: 0.35,
+      genericSubfamilyRate: 0.1,
     },
+  },
+  kimariteSubfamilyVariation: {
+    subfamilyCounts: commentarySubfamilyCounts,
+    sourceCounts: commentarySubfamilySourceCounts,
+    genericSubfamilySlots,
+    genericSubfamilyRate,
+    sameFamilyDifferentSubfamilyGroups,
+    sameFamilyDifferentSubfamilyRate,
   },
   shortCommentaryLength: {
     min: Math.min(...shortCommentaryLengths),
@@ -623,6 +666,7 @@ const audit = {
       transition: Object.keys(transitionCounts).length,
       finish: Object.keys(finishCounts).length,
       kimarite: Object.keys(kimariteCounts).length,
+      commentarySubfamily: Object.keys(commentarySubfamilyCounts).length,
       hoshitori: Object.keys(hoshitoriCounts).length,
       banzuke: Object.keys(banzukeCounts).length,
       outcome: Object.keys(outcomeCounts).length,
@@ -672,6 +716,8 @@ const report = {
     transition: transitionCounts,
     finish: finishCounts,
     kimarite: kimariteCounts,
+    commentarySubfamily: commentarySubfamilyCounts,
+    commentarySubfamilySource: commentarySubfamilySourceCounts,
     hoshitori: hoshitoriCounts,
     banzuke: banzukeCounts,
     outcome: outcomeCounts,
@@ -681,6 +727,8 @@ const report = {
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
     'shortCommentary no longer repeats the already visible kimarite / east-west result row',
     'shortCommentary uses O(1) deterministic phrase variants derived from existing BoutFlow axes',
+    'shortCommentary and kimarite material now use commentary-only kimarite subfamily without changing production family',
+    'win/loss prose branches into active and passive phrasing for each commentary subfamily',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
     'axis materials now use deterministic variants keyed by flow/context shape',
@@ -693,6 +741,8 @@ const report = {
       transitionClassification: scenario.snapshot.transitionClassification,
       finishRoute: scenario.snapshot.finishRoute,
       kimarite: scenario.snapshot.kimarite.name,
+      commentarySubfamily: scenario.commentarySubfamily.subfamily,
+      commentarySubfamilySource: scenario.commentarySubfamily.source,
       victoryFactorTags: scenario.snapshot.victoryFactorTags,
       hoshitoriContextTags: scenario.snapshot.hoshitoriContextTags,
       banzukeContextTags: scenario.snapshot.banzukeContextTags,
@@ -732,6 +782,9 @@ console.log(JSON.stringify({
   duplicateShortCommentaryRate: report.audit.phraseVariation.duplicateShortCommentaryRate,
   topPhraseFrequency: report.audit.phraseVariation.topPhraseFrequency,
   fallbackContextRate: report.audit.phraseVariation.fallbackContextRate,
+  genericSubfamilyRate: report.audit.phraseVariation.genericSubfamilyRate,
+  sameFamilyDifferentSubfamilyRate: report.audit.phraseVariation.sameFamilyDifferentSubfamilyRate,
+  sameFamilyDifferentSubfamilyGroups: report.audit.kimariteSubfamilyVariation.sameFamilyDifferentSubfamilyGroups,
   topPhrases: report.audit.phraseVariation.topPhrases,
   contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
   shortCommentaryLength: report.audit.shortCommentaryLength,

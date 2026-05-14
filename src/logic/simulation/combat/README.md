@@ -39,6 +39,8 @@ Current builders are pure and readonly:
 
 `boutFlowCommentary.ts` is the commentary contract for complete diagnostic snapshots. It accepts only `BoutFlowDiagnosticSnapshot` values whose completeness is `COMPLETE_CONTEXT` and deterministically returns short commentary, victory-factor labels, flow explanation lines, material keys, and the player outcome (`WIN` / `LOSS`). Production player bouts use this only after win probability, result roll, engagement sampling, finish route, and kimarite selection have already completed; it does not consume RNG or feed back into selectors.
 
+`kimariteCommentarySubfamily.ts` is commentary-only kimarite vocabulary. It resolves a `kimarite.name` / production family / pattern / finish route / BoutFlow transition into a deterministic explanation subfamily such as push-out, belt throw, pull-down, leg pick, rear finish, or non-technique fallback. It must not change the production kimarite catalog family, route selection, kimarite selection, RNG order, DB schema, worker protocol, or UI contract.
+
 The complete design note is `BoutFlowCompleteDesign.md`. It defines the required type surface, explanation素材 axes, diagnostic indicators, acceptance conditions, and implementation roadmap before this model is allowed to become player-facing.
 
 `PlayerBoutExplanationPreviewDesign.md` records the earlier preview audit. The current throughline stores player-only `BoutFlowCommentary` on `PlayerBoutDetail` / `BoutRecordRow` and `BashoDetailModal` / `DockedBashoDetailPane` render it in the selected player bout detail panel. The dev preview injection path remains useful for fixed-seed UI checks, but saved player bout commentary is now the primary source when present.

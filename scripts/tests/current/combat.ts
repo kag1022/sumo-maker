@@ -38,6 +38,10 @@ import {
 } from '../../../src/logic/simulation/combat/boutFlowDiagnosticBuilder';
 import { createBoutFlowCommentaryDiagnostic } from '../../../src/logic/simulation/combat/boutFlowCommentary';
 import {
+  COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY,
+  resolveCommentaryKimariteSubfamily,
+} from '../../../src/logic/simulation/combat/kimariteCommentarySubfamily';
+import {
   classifyPreBoutPhaseKimariteContradiction,
   resolveDiagnosticKimariteMetadata,
 } from '../../diagnostics/kimarite_family_classifier';
@@ -775,6 +779,152 @@ export const tests: TestCase[] = [
       });
       assert.equal(blocked.generated, false);
       assert.ok(blocked.reasonTags.includes('missing:VICTORY_FACTOR'));
+    },
+  },
+  {
+    name: 'combat commentary: kimarite subfamily changes prose inside same production family',
+    run: () => {
+      const createThrowSnapshot = (name: string) => createBoutFlowDiagnosticSnapshot({
+        openingPhase: 'TECHNIQUE_SCRAMBLE',
+        openingConfidence: 'MEDIUM',
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+        controlConfidence: 'DIRECT',
+        finishRoute: 'THROW_BREAK',
+        kimarite: {
+          name,
+          family: 'THROW',
+          diagnosticFamily: 'THROW',
+          rarity: 'COMMON',
+          catalogStatus: 'OFFICIAL',
+        },
+        victoryFactorTags: ['victory-factor:phase-shape', 'victory-factor:kimarite-fit'],
+        hoshitoriContextTags: ['MIDDLE_BASHO'],
+        banzukeContextTags: ['RANK_EXPECTED_WIN'],
+      });
+      const throwCommentaries = ['上手投げ', '小手投げ', '掬い投げ'].map((name) => {
+        const diagnostic = createBoutFlowCommentaryDiagnostic(createThrowSnapshot(name), 'WIN');
+        assert.equal(diagnostic.generated, true);
+        assert.ok(diagnostic.commentary);
+        return diagnostic.commentary as NonNullable<typeof diagnostic.commentary>;
+      });
+      const kimariteMaterials = throwCommentaries.map((commentary) =>
+        commentary.materials.find((material) => material.axis === 'KIMARITE'),
+      );
+      assert.equal(new Set(throwCommentaries.map((commentary) => commentary.kimarite)).size, 3);
+      assert.ok(new Set(throwCommentaries.map((commentary) => commentary.shortCommentary)).size > 1);
+      assert.ok(new Set(kimariteMaterials.map((material) => material?.text)).size > 1);
+      assert.ok(new Set(throwCommentaries.map((commentary) => commentary.flowExplanation.join('|'))).size > 1);
+      assert.ok(kimariteMaterials.some((material) => material?.key.includes('BELT_THROW')));
+      assert.ok(kimariteMaterials.some((material) => material?.key.includes('ARM_THROW')));
+      assert.ok(kimariteMaterials.some((material) => material?.key.includes('SCOOP_THROW')));
+
+      const win = createBoutFlowCommentaryDiagnostic(createThrowSnapshot('小手投げ'), 'WIN').commentary;
+      const loss = createBoutFlowCommentaryDiagnostic(createThrowSnapshot('小手投げ'), 'LOSS').commentary;
+      assert.ok(win);
+      assert.ok(loss);
+      if (!win || !loss) return;
+      assert.ok(win.shortCommentary !== loss.shortCommentary);
+      assert.ok(
+        win.materials.find((material) => material.axis === 'KIMARITE')?.text !==
+          loss.materials.find((material) => material.axis === 'KIMARITE')?.text,
+      );
+      assert.ok(loss.shortCommentary.includes('投げられた') || loss.shortCommentary.includes('振られた'));
+
+      const genericSnapshot = createBoutFlowDiagnosticSnapshot({
+        openingPhase: 'MIXED',
+        openingConfidence: 'LOW',
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'MIXED',
+        controlConfidence: 'AMBIGUOUS',
+        finishRoute: 'PUSH_OUT',
+        kimarite: {
+          name: '未知技',
+          family: 'NON_TECHNIQUE',
+          diagnosticFamily: 'NON_TECHNIQUE',
+          rarity: 'COMMON',
+          catalogStatus: 'UNKNOWN',
+        },
+        victoryFactorTags: ['victory-factor:phase-shape'],
+        hoshitoriContextTags: ['EARLY_BASHO'],
+        banzukeContextTags: ['RANK_EXPECTED_WIN'],
+      });
+      const generic = createBoutFlowCommentaryDiagnostic(genericSnapshot, 'WIN').commentary;
+      assert.ok(generic);
+      if (!generic) return;
+      const genericMaterial = generic.materials.find((material) => material.axis === 'KIMARITE');
+      assert.ok(genericMaterial?.key.includes('GENERIC'));
+      assert.ok(genericMaterial?.text.includes('細部の型は限定せず'));
+      assert.ok(generic.shortCommentary.includes('最後の形') || generic.shortCommentary.includes('勝負の形'));
+    },
+  },
+  {
+    name: 'combat commentary subfamily: representative names resolve without production selectors',
+    run: () => {
+      Object.entries(COMMENTARY_KIMARITE_SUBFAMILIES_BY_FAMILY).forEach(([family, subfamilies]) => {
+        assert.ok(subfamilies.length > 1, `${family} should define concrete subfamilies`);
+        assert.ok(subfamilies.includes('GENERIC'), `${family} should expose explicit GENERIC fallback`);
+      });
+
+      const representativeCases = [
+        ['押し出し', 'PUSH_THRUST', 'PUSH_OUT'],
+        ['突き倒し', 'PUSH_THRUST', 'THRUST_DOWN'],
+        ['寄り切り', 'FORCE_OUT', 'YORI_OUT'],
+        ['浴びせ倒し', 'FORCE_OUT', 'ABISE_DOWN'],
+        ['吊り出し', 'FORCE_OUT', 'LIFT_FORCE'],
+        ['上手投げ', 'THROW', 'BELT_THROW'],
+        ['小手投げ', 'THROW', 'ARM_THROW'],
+        ['掬い投げ', 'THROW', 'SCOOP_THROW'],
+        ['突き落とし', 'TWIST_DOWN', 'TSUKIOTOSHI'],
+        ['叩き込み', 'TWIST_DOWN', 'HATAKIKOMI'],
+        ['引き落とし', 'TWIST_DOWN', 'HIKIOTOSHI'],
+        ['巻き落とし', 'TWIST_DOWN', 'MAKIOTOSHI'],
+        ['足取り', 'TRIP_PICK', 'LEG_PICK'],
+        ['外掛け', 'TRIP_PICK', 'OUTER_TRIP'],
+        ['内掛け', 'TRIP_PICK', 'INNER_TRIP'],
+        ['蹴手繰り', 'TRIP_PICK', 'KICK_TRIP'],
+        ['掛け反り', 'BACKWARD_BODY_DROP', 'SORITECH'],
+        ['送り出し', 'REAR', 'REAR_PUSH_OUT'],
+        ['送り倒し', 'REAR', 'REAR_DOWN'],
+        ['勇み足', 'NON_TECHNIQUE', 'ISAMIASHI'],
+        ['腰砕け', 'NON_TECHNIQUE', 'KOSHIKUDAKE'],
+        ['つき手', 'NON_TECHNIQUE', 'TOUCH_DOWN'],
+        ['踏み出し', 'NON_TECHNIQUE', 'STEP_OUT'],
+        ['反則', 'NON_TECHNIQUE', 'FOUL'],
+        ['不戦', 'NON_TECHNIQUE', 'FUSEN'],
+      ] as const;
+
+      representativeCases.forEach(([name, family, expected]) => {
+        const resolved = resolveCommentaryKimariteSubfamily({ name, family });
+        assert.equal(resolved.family, family);
+        assert.equal(resolved.subfamily, expected);
+        assert.equal(resolved.source, 'NAME');
+      });
+
+      const contextualThrow = resolveCommentaryKimariteSubfamily({
+        name: '未知投げ',
+        family: 'THROW',
+        finishRoute: 'THROW_BREAK',
+        transitionClassification: 'TECHNIQUE_CONVERSION',
+      });
+      assert.equal(contextualThrow.subfamily, 'BODY_BREAK_THROW');
+      assert.equal(contextualThrow.source, 'FAMILY_CONTEXT');
+
+      const contextualEdge = resolveCommentaryKimariteSubfamily({
+        name: '未知技',
+        family: 'TWIST_DOWN',
+        finishRoute: 'EDGE_REVERSAL',
+        transitionClassification: 'EDGE_TURNAROUND',
+      });
+      assert.equal(contextualEdge.subfamily, 'EDGE_TWIST');
+      assert.equal(contextualEdge.source, 'FAMILY_CONTEXT');
+
+      const generic = resolveCommentaryKimariteSubfamily({
+        name: '未知技',
+        family: 'NON_TECHNIQUE',
+      });
+      assert.equal(generic.subfamily, 'GENERIC');
+      assert.equal(generic.source, 'GENERIC');
     },
   },
   {
