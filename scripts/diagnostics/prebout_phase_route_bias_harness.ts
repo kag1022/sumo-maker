@@ -13,6 +13,11 @@ import {
   resolvePreBoutPhaseRouteBias,
   type PreBoutPhaseRouteBiasExperimentMode,
 } from '../../src/logic/simulation/combat/preBoutPhaseRouteBias';
+import {
+  type ControlPhaseCandidate,
+  type ControlPhaseCandidateConfidence,
+  resolveControlPhaseCandidate,
+} from '../../src/logic/simulation/combat/controlPhaseAdapter';
 import type { BoutPressureContext } from '../../src/logic/simulation/basho/formatPolicy';
 import type { RandomSource } from '../../src/logic/simulation/deps';
 import {
@@ -75,6 +80,9 @@ interface HarnessRow {
   routeBiasApplied: boolean;
   routeBiasReasonTags: readonly string[];
   controlPhasePredecessor: BoutEngagement['phase'];
+  controlPhaseCandidate?: ControlPhaseCandidate;
+  controlPhaseCandidateConfidence: ControlPhaseCandidateConfidence;
+  controlPhaseCandidateReasonTags: readonly string[];
   winRoute: WinRoute;
   kimarite: string;
   kimariteMetadata: DiagnosticKimariteMetadata;
@@ -85,6 +93,9 @@ interface HarnessRow {
     openingPhase: PreBoutPhase;
     openingPhaseWeights: PreBoutPhaseWeights;
     controlPhasePredecessor: BoutEngagement['phase'];
+    controlPhaseCandidate?: ControlPhaseCandidate;
+    controlPhaseCandidateConfidence: ControlPhaseCandidateConfidence;
+    controlPhaseCandidateReasonTags: readonly string[];
     finishRoute: WinRoute;
     kimarite: {
       name: string;
@@ -288,6 +299,11 @@ const simulateCase = (
   });
   const warnings = consumeKimariteSelectionWarnings();
   const kimariteMetadata = resolveDiagnosticKimariteMetadata(selected.kimarite);
+  const controlPhase = resolveControlPhaseCandidate({
+    engagement,
+    finishRoute: winRoute,
+    kimaritePattern: selected.pattern,
+  });
   const confidence = bias.phaseConfidence ?? resolvePreBoutPhaseRouteBias({
     mode: 'DIAGNOSTIC',
     phaseWeights: phaseResolution.weights,
@@ -314,6 +330,9 @@ const simulateCase = (
     routeBiasApplied: bias.applied,
     routeBiasReasonTags: bias.reasonTags,
     controlPhasePredecessor: engagement.phase,
+    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+    controlPhaseCandidateConfidence: controlPhase.confidence,
+    controlPhaseCandidateReasonTags: controlPhase.reasonTags,
     winRoute,
     kimarite: selected.kimarite,
     kimariteMetadata,
@@ -324,6 +343,9 @@ const simulateCase = (
       openingPhase: dominantPhase,
       openingPhaseWeights: phaseResolution.weights,
       controlPhasePredecessor: engagement.phase,
+      controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+      controlPhaseCandidateConfidence: controlPhase.confidence,
+      controlPhaseCandidateReasonTags: controlPhase.reasonTags,
       finishRoute: winRoute,
       kimarite: {
         name: kimariteMetadata.kimarite ?? selected.kimarite,
@@ -464,6 +486,14 @@ const main = (): void => {
       controlPhasePredecessor: {
         OFF: countBy(offRows.map((row) => row.boutFlow.controlPhasePredecessor)),
         ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhasePredecessor)),
+      },
+      controlPhaseCandidate: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhaseCandidate)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhaseCandidate)),
+      },
+      controlPhaseCandidateConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhaseCandidateConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhaseCandidateConfidence)),
       },
       finishRoute: {
         OFF: countBy(offRows.map((row) => row.boutFlow.finishRoute)),

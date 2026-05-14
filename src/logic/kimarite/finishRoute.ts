@@ -26,6 +26,13 @@ export interface ResolveFinishRouteInput {
   readonly routeMultipliers?: Partial<Record<WinRoute, number>>;
 }
 
+export type ResolveFinishRouteCandidatesInput = Omit<ResolveFinishRouteInput, 'rng'>;
+
+export interface FinishRouteCandidate {
+  readonly value: WinRoute;
+  readonly weight: number;
+}
+
 const weightedPick = <T,>(
   entries: Array<{ value: T; weight: number }>,
   rng: RandomSource,
@@ -39,13 +46,12 @@ const weightedPick = <T,>(
   return entries[entries.length - 1].value;
 };
 
-export const resolveFinishRoute = ({
+export const resolveFinishRouteCandidates = ({
   winner,
   context,
   engagement,
-  rng,
   routeMultipliers,
-}: ResolveFinishRouteInput): WinRoute => {
+}: ResolveFinishRouteCandidatesInput): FinishRouteCandidate[] => {
   // Engagement に応じて route の重みを事前スケーリング。
   // BELT_BATTLE 下で PUSH 力士が無理に PUSH_OUT を取らないよう、×0.2〜×2.2 で引き寄せる。
   const routeBias = engagement ? resolveEngagementRouteBias(engagement) : {};
@@ -55,7 +61,7 @@ export const resolveFinishRoute = ({
   const secondaryRoutes = winner.repertoire?.secondaryRoutes ?? [];
   const secondaryBoost = (route: WinRoute, value: number): number =>
     secondaryRoutes.includes(route) ? value : 0;
-  const rawWeights: Array<{ value: WinRoute; weight: number }> = [
+  const rawWeights: FinishRouteCandidate[] = [
     {
       value: 'PUSH_OUT',
       weight:
@@ -123,8 +129,13 @@ export const resolveFinishRoute = ({
           : 0,
     },
   ];
-  const weights = rawWeights
+  return rawWeights
     .map((entry) => ({ ...entry, weight: entry.weight * biasOf(entry.value) * multiplierOf(entry.value) }))
     .filter((entry) => entry.weight > 0.04);
+};
+
+export const resolveFinishRoute = (input: ResolveFinishRouteInput): WinRoute => {
+  const { rng } = input;
+  const weights = resolveFinishRouteCandidates(input);
   return weightedPick(weights, rng);
 };

@@ -15,6 +15,7 @@ export type ControlPhase =
   | 'MIXED';
 
 export type ControlPhasePredecessor = BoutEngagement['phase'];
+export type ControlPhaseCandidate = ControlPhase;
 
 export type FinishRoute = WinRoute;
 
