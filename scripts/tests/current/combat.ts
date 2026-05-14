@@ -554,6 +554,13 @@ export const tests: TestCase[] = [
         },
       });
       assert.equal(aligned.transitionClassification, 'ALIGNED_FLOW');
+      assert.equal(aligned.explanationCompleteness, 'FLOW_ONLY');
+      assert.ok(aligned.missingExplanationAxes.includes('VICTORY_FACTOR'));
+      assert.ok(aligned.missingExplanationAxes.includes('HOSHITORI_CONTEXT'));
+      assert.ok(aligned.missingExplanationAxes.includes('BANZUKE_CONTEXT'));
+      assert.ok(aligned.explanationCoverage.some((entry) =>
+        entry.axis === 'OPENING' && entry.status === 'AVAILABLE',
+      ));
 
       const edge = createBoutFlowDiagnosticSnapshot({
         ...aligned,
@@ -582,6 +589,15 @@ export const tests: TestCase[] = [
         controlConfidence: 'AMBIGUOUS',
       });
       assert.equal(ambiguous.transitionClassification, 'AMBIGUOUS_CONTROL');
+
+      const complete = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        victoryFactorTags: ['victory-factor:ability'],
+        hoshitoriContextTags: ['KACHIKOSHI_DECIDER'],
+        banzukeContextTags: ['PROMOTION_RELEVANT'],
+      });
+      assert.equal(complete.explanationCompleteness, 'COMPLETE_CONTEXT');
+      assert.deepEqual(complete.missingExplanationAxes, []);
     },
   },
   {

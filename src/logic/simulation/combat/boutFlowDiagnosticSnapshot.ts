@@ -1,7 +1,10 @@
 import type { WinRoute } from '../../models';
 import type {
+  BoutExplanationMaterialAxis,
   ControlPhaseCandidate,
   ControlPhasePredecessor,
+  BanzukeContextTag,
+  HoshitoriContextTag,
   OpeningPhase,
 } from './boutFlowModel';
 import type { ControlPhaseCandidateConfidence } from './controlPhaseAdapter';
@@ -31,11 +34,33 @@ export interface CreateBoutFlowDiagnosticSnapshotInput {
   readonly controlConfidence: ControlPhaseCandidateConfidence;
   readonly finishRoute: WinRoute;
   readonly kimarite: BoutFlowDiagnosticKimariteSnapshot;
+  readonly victoryFactorTags?: readonly string[];
+  readonly hoshitoriContextTags?: readonly HoshitoriContextTag[];
+  readonly banzukeContextTags?: readonly BanzukeContextTag[];
+}
+
+export type BoutFlowExplanationAxisStatus =
+  | 'AVAILABLE'
+  | 'PARTIAL'
+  | 'MISSING';
+
+export type BoutFlowExplanationCompleteness =
+  | 'FLOW_ONLY'
+  | 'FLOW_AND_RESULT'
+  | 'COMPLETE_CONTEXT';
+
+export interface BoutFlowExplanationAxisCoverage {
+  readonly axis: BoutExplanationMaterialAxis;
+  readonly status: BoutFlowExplanationAxisStatus;
+  readonly reasonTags: readonly string[];
 }
 
 export interface BoutFlowDiagnosticSnapshot extends CreateBoutFlowDiagnosticSnapshotInput {
   readonly transitionClassification: BoutFlowTransitionClassification;
   readonly transitionReasonTags: readonly string[];
+  readonly explanationCoverage: readonly BoutFlowExplanationAxisCoverage[];
+  readonly missingExplanationAxes: readonly BoutExplanationMaterialAxis[];
+  readonly explanationCompleteness: BoutFlowExplanationCompleteness;
 }
 
 const TECHNIQUE_FINISH_ROUTES: readonly WinRoute[] = [
@@ -89,12 +114,97 @@ const classifyBoutFlowTransition = (
   };
 };
 
+const axisCoverage = (
+  axis: BoutExplanationMaterialAxis,
+  status: BoutFlowExplanationAxisStatus,
+  reasonTags: readonly string[],
+): BoutFlowExplanationAxisCoverage => ({
+  axis,
+  status,
+  reasonTags,
+});
+
+const resolveBoutFlowExplanationCoverage = (
+  input: CreateBoutFlowDiagnosticSnapshotInput,
+  transitionClassification: BoutFlowTransitionClassification,
+): Pick<BoutFlowDiagnosticSnapshot, 'explanationCoverage' | 'missingExplanationAxes' | 'explanationCompleteness'> => {
+  const coverage: BoutFlowExplanationAxisCoverage[] = [
+    axisCoverage('OPENING', 'AVAILABLE', [`opening:${input.openingPhase}:${input.openingConfidence}`]),
+    axisCoverage(
+      'CONTROL',
+      input.controlPhaseCandidate &&
+        input.controlConfidence !== 'UNAVAILABLE' &&
+        input.controlConfidence !== 'AMBIGUOUS'
+        ? 'AVAILABLE'
+        : input.controlPhaseCandidate
+          ? 'PARTIAL'
+          : 'MISSING',
+      [`control:${input.controlPhaseCandidate ?? 'UNAVAILABLE'}:${input.controlConfidence}`],
+    ),
+    axisCoverage(
+      'TRANSITION',
+      transitionClassification === 'AMBIGUOUS_CONTROL' ? 'PARTIAL' : 'AVAILABLE',
+      [`transition:${transitionClassification}`],
+    ),
+    axisCoverage('FINISH_ROUTE', 'AVAILABLE', [`finish:${input.finishRoute}`]),
+    axisCoverage(
+      'KIMARITE',
+      input.kimarite.name ? 'AVAILABLE' : 'MISSING',
+      [`kimarite:${input.kimarite.diagnosticFamily}`],
+    ),
+    axisCoverage(
+      'VICTORY_FACTOR',
+      (input.victoryFactorTags?.length ?? 0) > 0 ? 'AVAILABLE' : 'MISSING',
+      input.victoryFactorTags?.length ? input.victoryFactorTags : ['victory-factor:missing'],
+    ),
+    axisCoverage(
+      'HOSHITORI_CONTEXT',
+      (input.hoshitoriContextTags?.length ?? 0) > 0 ? 'AVAILABLE' : 'MISSING',
+      input.hoshitoriContextTags?.length ? input.hoshitoriContextTags : ['hoshitori-context:missing'],
+    ),
+    axisCoverage(
+      'BANZUKE_CONTEXT',
+      (input.banzukeContextTags?.length ?? 0) > 0 ? 'AVAILABLE' : 'MISSING',
+      input.banzukeContextTags?.length ? input.banzukeContextTags : ['banzuke-context:missing'],
+    ),
+    axisCoverage(
+      'OUTCOME_MEANING',
+      (input.victoryFactorTags?.length ?? 0) > 0 &&
+        ((input.hoshitoriContextTags?.length ?? 0) > 0 || (input.banzukeContextTags?.length ?? 0) > 0)
+        ? 'AVAILABLE'
+        : 'MISSING',
+      ['outcome-meaning:requires-victory-and-context'],
+    ),
+  ];
+  const missingExplanationAxes = coverage
+    .filter((entry) => entry.status === 'MISSING')
+    .map((entry) => entry.axis);
+  const explanationCompleteness: BoutFlowExplanationCompleteness =
+    missingExplanationAxes.length === 0
+      ? 'COMPLETE_CONTEXT'
+      : coverage.some((entry) =>
+        (entry.axis === 'VICTORY_FACTOR' ||
+          entry.axis === 'HOSHITORI_CONTEXT' ||
+          entry.axis === 'BANZUKE_CONTEXT') &&
+        entry.status === 'AVAILABLE',
+      )
+        ? 'FLOW_AND_RESULT'
+        : 'FLOW_ONLY';
+  return {
+    explanationCoverage: coverage,
+    missingExplanationAxes,
+    explanationCompleteness,
+  };
+};
+
 export const createBoutFlowDiagnosticSnapshot = (
   input: CreateBoutFlowDiagnosticSnapshotInput,
 ): BoutFlowDiagnosticSnapshot => {
   const transition = classifyBoutFlowTransition(input);
+  const coverage = resolveBoutFlowExplanationCoverage(input, transition.transitionClassification);
   return {
     ...input,
     ...transition,
+    ...coverage,
   };
 };

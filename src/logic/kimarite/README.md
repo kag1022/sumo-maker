@@ -15,7 +15,7 @@
 ## 設計ルール
 
 - 決まり手のリアリティは「珍しい技を増やす」ではなく、型ごとの勝ち筋と反復の納得感で作る
-- `BoutFlowModel` の 4 層語彙では、`WinRoute` が FinishRoute、`KimariteOutcomeResolution` と catalog metadata が Kimarite 層に対応する
+- `BoutFlowModel` の完成形語彙では、`WinRoute` が FinishRoute、`KimariteOutcomeResolution` と catalog metadata が Kimarite 層に対応する。勝敗要因・星取文脈・番付文脈は kimarite selector ではなく explanation 側で結合する
 - `BoutEngagement.phase` は理想 ControlPhase そのものではない。診断では `simulation/combat/controlPhaseAdapter.ts` を通し、`ControlPhasePredecessor` と `ControlPhaseCandidate` を分けて読む
 - 現行 production path は変更しない。PreBoutPhase route-bias helper は診断・実験用であり、それ単体を本番の勝ち筋制御にしない
 - production の FinishRoute 選択では `routeMultipliers` を渡さない。実験用 multiplier は diagnostics だけで使う
