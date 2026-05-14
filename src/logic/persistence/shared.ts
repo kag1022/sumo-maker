@@ -470,6 +470,7 @@ const toNpcBashoRows = (
     year,
     month,
     shikona: record.shikona,
+    stableId: record.stableId,
     division: record.division,
     rankName: record.rankName,
     rankNumber: record.rankNumber,
@@ -479,6 +480,10 @@ const toNpcBashoRows = (
     losses: record.losses,
     absent: record.absent,
     titles: record.titles,
+    heightCm: record.heightCm,
+    weightKg: record.weightKg,
+    styleBias: record.styleBias,
+    careerBashoCount: record.careerBashoCount,
   }));
 };
 

@@ -10,6 +10,18 @@ const rankValueFromRow = (row: BashoRecordRow): number =>
     side: row.rankSide ?? undefined,
   });
 
+const sideOrder = (side: BashoRecordRow['rankSide']): number =>
+  side === 'East' ? 0 : side === 'West' ? 1 : 2;
+
+const compareDivisionRows = (left: BashoRecordRow, right: BashoRecordRow): number => {
+  const rankDelta = rankValueFromRow(left) - rankValueFromRow(right);
+  if (rankDelta !== 0) return rankDelta;
+  const sideDelta = sideOrder(left.rankSide) - sideOrder(right.rankSide);
+  if (sideDelta !== 0) return sideDelta;
+  if (left.entityType !== right.entityType) return left.entityType === 'PLAYER' ? -1 : 1;
+  return left.shikona.localeCompare(right.shikona, 'ja');
+};
+
 export const listDivisionRows = (
   rows: BashoRecordRow[],
   playerRow: BashoRecordRow,
@@ -17,7 +29,7 @@ export const listDivisionRows = (
   rows
     .filter((row) => row.division === playerRow.division)
     .slice()
-    .sort((left, right) => rankValueFromRow(left) - rankValueFromRow(right));
+    .sort(compareDivisionRows);
 
 export const groupNearbyRanks = (
   rows: BashoRecordRow[],

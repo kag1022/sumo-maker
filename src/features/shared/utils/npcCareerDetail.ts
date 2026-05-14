@@ -1,32 +1,33 @@
-import type { CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
+import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
+import type { BashoRecordRow } from "../../../logic/persistence/db";
 import type { Division } from "../../../logic/models";
 import { formatRankDisplayName } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
+import { resolveStableById } from "../../../logic/simulation/heya";
 
 export interface NpcCareerDetail {
   entityId: string;
   shikona: string;
-  appearances: number;
-  totalRecordLabel: string;
-  maxRankLabel: string;
-  selectedRankLabel: string | null;
-  selectedRecordLabel: string | null;
-  firstBashoLabel: string;
-  lastBashoLabel: string;
-  yushoCount: number;
-  recentSlices: Array<{
-    bashoSeq: number;
-    bashoLabel: string;
-    rankLabel: string;
-    recordLabel: string;
-    selected: boolean;
-  }>;
+  bashoLabel: string;
+  rankLabel: string;
+  recordLabel: string;
+  bodyLabel?: string;
+  styleLabel?: string;
+  stableLabel?: string;
+  careerBashoCountLabel?: string;
 }
 
-const formatRecordLabel = (wins: number, losses: number, absent: number) =>
+const STYLE_LABELS: Record<string, string> = {
+  PUSH: "押し",
+  GRAPPLE: "四つ",
+  TECHNIQUE: "技",
+  BALANCE: "万能",
+};
+
+const formatRecordLabel = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
 
-const rankLabelFromRow = (row: CareerBashoRecordsBySeq["rows"][number]) =>
+const rankLabelFromRow = (row: BashoRecordRow): string =>
   formatRankDisplayName({
     division: row.division as Division,
     name: row.rankName,
@@ -35,79 +36,34 @@ const rankLabelFromRow = (row: CareerBashoRecordsBySeq["rows"][number]) =>
     specialStatus: row.rankSpecialStatus,
   });
 
-const rankSortScore = (row: CareerBashoRecordsBySeq["rows"][number]) => {
-  const divisionOrder: Record<string, number> = {
-    Makuuchi: 0,
-    Juryo: 1,
-    Makushita: 2,
-    Sandanme: 3,
-    Jonidan: 4,
-    Jonokuchi: 5,
-    Maezumo: 6,
-  };
-  return (
-    (divisionOrder[row.division] ?? 99) * 1000 +
-    (row.rankNumber ?? 0) * 2 +
-    (row.rankSide === "West" ? 1 : 0)
-  );
+const formatBodyLabel = (row: BashoRecordRow): string | undefined => {
+  const height = Number.isFinite(row.heightCm) ? `${Math.round(row.heightCm!)}cm` : null;
+  const weight = Number.isFinite(row.weightKg) ? `${Math.round(row.weightKg!)}kg` : null;
+  return [height, weight].filter(Boolean).join(" / ") || undefined;
 };
 
+const formatStableLabel = (stableId: string | undefined): string | undefined =>
+  stableId ? resolveStableById(stableId)?.displayName : undefined;
+
+const formatCareerBashoCountLabel = (careerBashoCount: number | undefined): string | undefined =>
+  Number.isFinite(careerBashoCount) ? `${careerBashoCount}場所目` : undefined;
+
 export const buildNpcCareerDetail = (
-  bashoRows: CareerBashoRecordsBySeq[],
+  detail: CareerBashoDetail | null,
   entityId: string,
-  selectedBashoSeq: number | null,
 ): NpcCareerDetail | null => {
-  const appearances = bashoRows
-    .map((basho) => {
-      const row = basho.rows.find((entry) => entry.entityType === "NPC" && entry.entityId === entityId);
-      if (!row) return null;
-      return {
-        bashoSeq: basho.bashoSeq,
-        bashoLabel: formatBashoLabel(basho.year, basho.month),
-        row,
-      };
-    })
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (!appearances.length) return null;
-
-  const bestRow = appearances
-    .map((entry) => entry.row)
-    .slice()
-    .sort((left, right) => rankSortScore(left) - rankSortScore(right))[0];
-  const selectedEntry =
-    (selectedBashoSeq != null && appearances.find((entry) => entry.bashoSeq === selectedBashoSeq)) ?? null;
-
-  const totals = appearances.reduce(
-    (acc, entry) => {
-      acc.wins += entry.row.wins;
-      acc.losses += entry.row.losses;
-      acc.absent += entry.row.absent;
-      if (entry.row.titles.includes("YUSHO")) acc.yushoCount += 1;
-      return acc;
-    },
-    { wins: 0, losses: 0, absent: 0, yushoCount: 0 },
-  );
+  const row = detail?.rows.find((entry) => entry.entityType === "NPC" && entry.entityId === entityId);
+  if (!detail || !row) return null;
 
   return {
     entityId,
-    shikona: appearances[appearances.length - 1]?.row.shikona ?? appearances[0].row.shikona,
-    appearances: appearances.length,
-    totalRecordLabel: formatRecordLabel(totals.wins, totals.losses, totals.absent),
-    maxRankLabel: rankLabelFromRow(bestRow),
-    selectedRankLabel: selectedEntry ? rankLabelFromRow(selectedEntry.row) : null,
-    selectedRecordLabel: selectedEntry
-      ? formatRecordLabel(selectedEntry.row.wins, selectedEntry.row.losses, selectedEntry.row.absent)
-      : null,
-    firstBashoLabel: appearances[0].bashoLabel,
-    lastBashoLabel: appearances[appearances.length - 1].bashoLabel,
-    yushoCount: totals.yushoCount,
-    recentSlices: appearances.slice(-8).map((entry) => ({
-      bashoSeq: entry.bashoSeq,
-      bashoLabel: entry.bashoLabel,
-      rankLabel: rankLabelFromRow(entry.row),
-      recordLabel: formatRecordLabel(entry.row.wins, entry.row.losses, entry.row.absent),
-      selected: entry.bashoSeq === selectedBashoSeq,
-    })),
+    shikona: row.shikona,
+    bashoLabel: formatBashoLabel(detail.year, detail.month),
+    rankLabel: rankLabelFromRow(row),
+    recordLabel: formatRecordLabel(row.wins, row.losses, row.absent),
+    bodyLabel: formatBodyLabel(row),
+    styleLabel: row.styleBias ? STYLE_LABELS[row.styleBias] ?? row.styleBias : undefined,
+    stableLabel: formatStableLabel(row.stableId),
+    careerBashoCountLabel: formatCareerBashoCountLabel(row.careerBashoCount),
   };
 };

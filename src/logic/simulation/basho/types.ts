@@ -24,6 +24,7 @@ export interface PlayerBoutDetail {
 export interface NpcBashoAggregate {
   entityId: string;
   shikona: string;
+  stableId?: string;
   division: Rank['division'];
   rankName: string;
   rankNumber?: number;
@@ -33,6 +34,9 @@ export interface NpcBashoAggregate {
   losses: number;
   absent: number;
   titles: string[];
+  heightCm?: number;
+  weightKg?: number;
+  styleBias?: EnemyStyleBias;
   careerBashoCount?: number;
 }
 
