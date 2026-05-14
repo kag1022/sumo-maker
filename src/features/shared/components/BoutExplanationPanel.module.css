@@ -73,18 +73,3 @@
   letter-spacing: 0.04em;
   padding: 0.16rem 0.46rem;
 }
-
-.contextGrid {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.contextGrid strong {
-  display: inline-block;
-  min-width: 3.2rem;
-  color: rgb(var(--twc-text) / 0.9);
-  font-family: "DotGothic16", monospace;
-  font-size: 0.68rem;
-  font-weight: normal;
-  letter-spacing: 0.08em;
-}

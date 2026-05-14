@@ -17,20 +17,12 @@ interface BoutExplanationPanelProps {
   readonly playerRank: Rank;
 }
 
-const materialTextBySegment = (
-  commentary: BoutFlowCommentary,
-  segmentKind: "HOSHITORI" | "BANZUKE",
-): string | null =>
-  commentary.materials.find((material) => material.segmentKind === segmentKind)?.text ?? null;
-
 const factorText = (commentary: BoutFlowCommentary): string | null =>
   commentary.flowExplanation[2] ?? null;
 
 export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
   preview,
 }) => {
-  const hoshitoriText = materialTextBySegment(preview.commentary, "HOSHITORI");
-  const banzukeText = materialTextBySegment(preview.commentary, "BANZUKE");
   const outcomeLabel = preview.commentary.outcome === "WIN" ? "勝因" : "敗因";
   const mainFlow = preview.commentary.flowExplanation.slice(0, 2);
   const resultFactorText = factorText(preview.commentary);
@@ -65,24 +57,6 @@ export const BoutExplanationPanel: React.FC<BoutExplanationPanelProps> = ({
               ))}
             </div>
           ) : null}
-        </section>
-
-        <section className={styles.readingBlock}>
-          <div className={styles.sectionTitle}>場所内の意味</div>
-          <div className={styles.contextGrid}>
-            {hoshitoriText ? (
-              <p>
-                <strong>星取</strong>
-                {hoshitoriText}
-              </p>
-            ) : null}
-            {banzukeText ? (
-              <p>
-                <strong>番付</strong>
-                {banzukeText}
-              </p>
-            ) : null}
-          </div>
         </section>
       </div>
     </section>
