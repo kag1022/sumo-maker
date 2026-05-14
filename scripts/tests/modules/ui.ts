@@ -2,6 +2,7 @@ import { TestCase, TestModule } from '../types';
 import { buildLiveBashoView, resolveBashoStakeLabel } from '../../../src/logic/simulation/liveBashoView';
 import { buildBanzukeReviewTabModel } from '../../../src/features/report/utils/banzukeReview';
 import { listDivisionRows } from '../../../src/features/shared/utils/banzukeRows';
+import { buildNpcCareerDetail } from '../../../src/features/shared/utils/npcCareerDetail';
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from '../../../src/logic/persistence/careerHistory';
 
 const assert = {
@@ -263,6 +264,49 @@ const cases: TestCase[] = [
       assert.equal(rows[0]?.entityId, 'east-npc');
       assert.equal(rows[1]?.rankSide, 'West');
       assert.equal(rows[2]?.entityId, 'PLAYER');
+    },
+  },
+  {
+    name: 'ui: npc panel model exposes saved record fields without internal ability labels',
+    run: () => {
+      const { detail } = createDetail();
+      const npcRow = detail.rows.find((row) => row.entityId === 'npc-1');
+      assert.ok(npcRow, 'expected npc row');
+      if (!npcRow) return;
+      Object.assign(npcRow, {
+        stableId: 'stable-001',
+        styleBias: 'PUSH',
+        heightCm: 184,
+        weightKg: 142,
+        careerBashoCount: 18,
+        ability: 72,
+        form: 1.5,
+      });
+
+      const model = buildNpcCareerDetail(detail, 'npc-1');
+      assert.ok(model, 'expected npc model');
+      if (!model) return;
+      assert.equal(model.stableLabel, '大樹部屋');
+      assert.equal(model.styleLabel, '押し');
+      assert.equal(model.bodyLabel, '184cm / 142kg');
+      assert.equal(model.careerBashoCountLabel, '18場所目');
+      assert.equal('abilityLabel' in model, false);
+      assert.equal('sourceLabel' in model, false);
+    },
+  },
+  {
+    name: 'ui: npc panel model hides unresolved stable ids',
+    run: () => {
+      const { detail } = createDetail();
+      const npcRow = detail.rows.find((row) => row.entityId === 'npc-1');
+      assert.ok(npcRow, 'expected npc row');
+      if (!npcRow) return;
+      Object.assign(npcRow, { stableId: 'unknown-stable' });
+
+      const model = buildNpcCareerDetail(detail, 'npc-1');
+      assert.ok(model, 'expected npc model');
+      if (!model) return;
+      assert.equal(model.stableLabel, undefined);
     },
   },
 ];

@@ -3,6 +3,7 @@ import type { BashoRecordRow } from "../../../logic/persistence/db";
 import type { Division } from "../../../logic/models";
 import { formatRankDisplayName } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
+import { resolveStableById } from "../../../logic/simulation/heya";
 
 export interface NpcCareerDetail {
   entityId: string;
@@ -10,12 +11,10 @@ export interface NpcCareerDetail {
   bashoLabel: string;
   rankLabel: string;
   recordLabel: string;
-  sourceLabel: string;
-  abilityLabel: string;
-  bodyLabel: string;
-  styleLabel: string;
-  stableLabel: string;
-  careerBashoCountLabel: string;
+  bodyLabel?: string;
+  styleLabel?: string;
+  stableLabel?: string;
+  careerBashoCountLabel?: string;
 }
 
 const STYLE_LABELS: Record<string, string> = {
@@ -37,21 +36,17 @@ const rankLabelFromRow = (row: BashoRecordRow): string =>
     specialStatus: row.rankSpecialStatus,
   });
 
-const formatNumberLabel = (value: number | undefined, digits = 0): string =>
-  Number.isFinite(value) ? `${value!.toFixed(digits)}` : "保存なし";
-
-const formatBodyLabel = (row: BashoRecordRow): string => {
+const formatBodyLabel = (row: BashoRecordRow): string | undefined => {
   const height = Number.isFinite(row.heightCm) ? `${Math.round(row.heightCm!)}cm` : null;
   const weight = Number.isFinite(row.weightKg) ? `${Math.round(row.weightKg!)}kg` : null;
-  return [height, weight].filter(Boolean).join(" / ") || "保存なし";
+  return [height, weight].filter(Boolean).join(" / ") || undefined;
 };
 
-const formatAbilityLabel = (row: BashoRecordRow): string => {
-  if (!Number.isFinite(row.ability) && !Number.isFinite(row.form)) return "保存なし";
-  const ability = Number.isFinite(row.ability) ? `能力 ${Math.round(row.ability!)}` : null;
-  const form = Number.isFinite(row.form) ? `調子 ${row.form!.toFixed(1)}` : null;
-  return [ability, form].filter(Boolean).join(" / ");
-};
+const formatStableLabel = (stableId: string | undefined): string | undefined =>
+  stableId ? resolveStableById(stableId)?.displayName : undefined;
+
+const formatCareerBashoCountLabel = (careerBashoCount: number | undefined): string | undefined =>
+  Number.isFinite(careerBashoCount) ? `${careerBashoCount}場所目` : undefined;
 
 export const buildNpcCareerDetail = (
   detail: CareerBashoDetail | null,
@@ -66,13 +61,9 @@ export const buildNpcCareerDetail = (
     bashoLabel: formatBashoLabel(detail.year, detail.month),
     rankLabel: rankLabelFromRow(row),
     recordLabel: formatRecordLabel(row.wins, row.losses, row.absent),
-    sourceLabel: "場所保存時点の番付行",
-    abilityLabel: formatAbilityLabel(row),
     bodyLabel: formatBodyLabel(row),
-    styleLabel: row.styleBias ? STYLE_LABELS[row.styleBias] ?? row.styleBias : "保存なし",
-    stableLabel: row.stableId ?? "保存なし",
-    careerBashoCountLabel: Number.isFinite(row.careerBashoCount)
-      ? `${formatNumberLabel(row.careerBashoCount)}場所目`
-      : "保存なし",
+    styleLabel: row.styleBias ? STYLE_LABELS[row.styleBias] ?? row.styleBias : undefined,
+    stableLabel: formatStableLabel(row.stableId),
+    careerBashoCountLabel: formatCareerBashoCountLabel(row.careerBashoCount),
   };
 };

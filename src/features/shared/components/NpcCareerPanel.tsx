@@ -11,6 +11,7 @@ export const NpcCareerPanel: React.FC<{
       <div className={styles.toolbarPrimary}>
         <span className={styles.subtitle}>NPC力士</span>
         <span className={styles.caption}>{detail.shikona}</span>
+        <span className={styles.caption}>{detail.bashoLabel}</span>
       </div>
       <button type="button" className={styles.clearButton} onClick={onClear}>
         閉じる
@@ -19,20 +20,10 @@ export const NpcCareerPanel: React.FC<{
     <div className={styles.summaryGrid}>
       <Metric label="番付" value={detail.rankLabel} />
       <Metric label="成績" value={detail.recordLabel} />
-      <Metric label="能力" value={detail.abilityLabel} />
-      <Metric label="体格" value={detail.bodyLabel} />
-    </div>
-    <div className={styles.summaryMeta}>
-      <span>{detail.bashoLabel}</span>
-      <span>{detail.sourceLabel}</span>
-      <span>{detail.styleLabel}</span>
-      <span>{detail.stableLabel}</span>
-      <span>{detail.careerBashoCountLabel}</span>
-    </div>
-    <div className={styles.snapshotBox}>
-      <div>{detail.bashoLabel}</div>
-      <div>{detail.rankLabel}</div>
-      <div>{detail.recordLabel}</div>
+      {detail.styleLabel ? <Metric label="取り口" value={detail.styleLabel} /> : null}
+      {detail.bodyLabel ? <Metric label="体格" value={detail.bodyLabel} /> : null}
+      {detail.stableLabel ? <Metric label="部屋" value={detail.stableLabel} /> : null}
+      {detail.careerBashoCountLabel ? <Metric label="在位" value={detail.careerBashoCountLabel} /> : null}
     </div>
   </section>
 );
