@@ -7,13 +7,26 @@ import {
 } from './catalog/enemyData';
 import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
-import { isBoutWinProbSnapshotEnabled, recordBoutWinProbSnapshot } from './simulation/diagnostics';
+import {
+  type BoutExplanationFactor,
+  isBoutExplanationSnapshotEnabled,
+  isBoutWinProbSnapshotEnabled,
+  isPreBoutPhaseSnapshotEnabled,
+  recordBoutExplanationSnapshot,
+  recordBoutWinProbSnapshot,
+  recordPreBoutPhaseSnapshot,
+} from './simulation/diagnostics';
 import {
   resolvePlayerBoutCompat,
   type PlayerBoutCompatNormalizedInput,
   type PlayerBoutCompatResult,
 } from './simulation/combat/playerCompat';
 import { resolveCombatKernelProbability } from './simulation/combat/kernel';
+import {
+  type PreBoutPhaseResolution,
+  resolvePreBoutPhaseWeights,
+} from './simulation/combat/preBoutPhase';
+import type { CombatStyle } from './simulation/combat/types';
 import {
   calculateMomentumBonus,
   resolveBoutWinProb,
@@ -137,6 +150,51 @@ const toKimariteStyle = (tactics: RikishiStatus['tactics']): KimariteStyle =>
     tactics === 'GRAPPLE' ? 'GRAPPLE' :
       tactics === 'TECHNIQUE' ? 'TECHNIQUE' :
         'BALANCE';
+
+const toCombatStyle = (
+  style: KimariteStyle | EnemyStyleBias | undefined,
+): CombatStyle | undefined => {
+  if (!style) return undefined;
+  if (style === 'PUSH' || style === 'GRAPPLE' || style === 'TECHNIQUE') return style;
+  return 'BALANCED';
+};
+
+const averageKimariteStats = (
+  profile: KimariteCompetitorProfile,
+  keys: Array<keyof RikishiStatus['stats']>,
+): number | undefined => {
+  const values = keys
+    .map((key) => profile.stats[key])
+    .filter((value): value is number => Number.isFinite(value));
+  if (!values.length) return undefined;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const explanationStrengthFromAbs = (
+  value: number,
+  medium: number,
+  large: number,
+): BoutExplanationFactor['strength'] => {
+  const abs = Math.abs(value);
+  if (abs >= large) return 'LARGE';
+  if (abs >= medium) return 'MEDIUM';
+  return 'SMALL';
+};
+
+const explanationDirectionFromDelta = (
+  value: number,
+): BoutExplanationFactor['direction'] => {
+  if (value > 0) return 'FOR_ATTACKER';
+  if (value < 0) return 'FOR_DEFENDER';
+  return 'NEUTRAL';
+};
+
+const addExplanationFactor = (
+  factors: BoutExplanationFactor[],
+  factor: BoutExplanationFactor,
+): void => {
+  factors.push(factor);
+};
 
 const buildEnemyKimariteStats = (
   enemy: BattleOpponent,
@@ -561,6 +619,57 @@ const resolveBattleResult = (
     usedSignatureMove,
   );
   const enemyProfile = buildEnemyKimariteProfile(enemy);
+  const shouldCollectPreBoutPhase = isPreBoutPhaseSnapshotEnabled();
+  const shouldCollectBoutExplanation = isBoutExplanationSnapshotEnabled();
+  let preBoutPhaseResolution: PreBoutPhaseResolution | undefined;
+  let preBoutAttackerStyle: CombatStyle | undefined;
+  let preBoutDefenderStyle: CombatStyle | undefined;
+  let preBoutAttackerBodyScore: number | undefined;
+  let preBoutDefenderBodyScore: number | undefined;
+  if (shouldCollectPreBoutPhase || shouldCollectBoutExplanation) {
+    preBoutAttackerStyle = toCombatStyle(playerProfile.style);
+    preBoutDefenderStyle = toCombatStyle(enemyProfile.style);
+    preBoutAttackerBodyScore = resolveSizeScore(myHeight, myWeight);
+    preBoutDefenderBodyScore = resolveSizeScore(enemyHeight, enemyWeight);
+    preBoutPhaseResolution = resolvePreBoutPhaseWeights({
+      source: 'PLAYER_DIAGNOSTIC',
+      division: rikishi.rank.division,
+      formatKind: context?.formatKind,
+      attackerStyle: preBoutAttackerStyle,
+      defenderStyle: preBoutDefenderStyle,
+      attackerPushStrength: averageKimariteStats(playerProfile, ['tsuki', 'oshi', 'deashi']),
+      defenderPushStrength: averageKimariteStats(enemyProfile, ['tsuki', 'oshi', 'deashi']),
+      attackerBeltStrength: averageKimariteStats(playerProfile, ['kumi', 'koshi', 'power']),
+      defenderBeltStrength: averageKimariteStats(enemyProfile, ['kumi', 'koshi', 'power']),
+      attackerTechniqueStrength: averageKimariteStats(playerProfile, ['waza', 'nage', 'deashi']),
+      defenderTechniqueStrength: averageKimariteStats(enemyProfile, ['waza', 'nage', 'deashi']),
+      attackerEdgeStrength: averageKimariteStats(playerProfile, ['waza', 'koshi', 'deashi']),
+      defenderEdgeStrength: averageKimariteStats(enemyProfile, ['waza', 'koshi', 'deashi']),
+      attackerHeightCm: myHeight,
+      defenderHeightCm: enemyHeight,
+      attackerWeightKg: myWeight,
+      defenderWeightKg: enemyWeight,
+      attackerBodyScore: preBoutAttackerBodyScore,
+      defenderBodyScore: preBoutDefenderBodyScore,
+      pressure: context?.pressure,
+    });
+  }
+  if (shouldCollectPreBoutPhase && preBoutPhaseResolution) {
+    recordPreBoutPhaseSnapshot({
+      source: 'PLAYER_BOUT',
+      division: rikishi.rank.division,
+      formatKind: context?.formatKind,
+      calendarDay: context?.ordinal?.calendarDay ?? context?.day,
+      boutOrdinal: context?.ordinal?.boutOrdinal,
+      attackerStyle: preBoutAttackerStyle,
+      defenderStyle: preBoutDefenderStyle,
+      attackerBodyScore: preBoutAttackerBodyScore,
+      defenderBodyScore: preBoutDefenderBodyScore,
+      pressure: context?.pressure,
+      weights: preBoutPhaseResolution.weights,
+      reasonTags: preBoutPhaseResolution.reasonTags,
+    });
+  }
 
   const bonus = myPower - basePower;
   const playerCompetitiveFactor = resolveCompetitiveFactor(rikishi);
@@ -754,6 +863,151 @@ const resolveBattleResult = (
     isTitleDecider,
     isKinboshiChance: isEnemyKinboshi,
   };
+  const buildExplanationFactors = (
+    kimarite: string,
+    winRoute: WinRoute | undefined,
+    finalIsWin: boolean,
+  ): BoutExplanationFactor[] => {
+    const factors: BoutExplanationFactor[] = [];
+    const abilityDelta = myAbility - enemyAbility;
+    if (Math.abs(abilityDelta) >= 3) {
+      addExplanationFactor(factors, {
+        kind: 'ABILITY',
+        direction: explanationDirectionFromDelta(abilityDelta),
+        strength: explanationStrengthFromAbs(abilityDelta, 8, 18),
+        label: '基礎能力差',
+      });
+    }
+    if (playerStyle || enemy.styleBias) {
+      addExplanationFactor(factors, {
+        kind: 'STYLE',
+        direction: 'NEUTRAL',
+        strength: 'SMALL',
+        label: '取り口相性',
+      });
+    }
+    if (Math.abs(sizeDiff) >= 2) {
+      addExplanationFactor(factors, {
+        kind: 'BODY',
+        direction: explanationDirectionFromDelta(sizeDiff),
+        strength: explanationStrengthFromAbs(sizeDiff, 5, 9),
+        label: '体格差',
+      });
+    }
+    const formDelta = (context?.bashoFormDelta ?? 0) - enemyBashoFormDelta;
+    if (Math.abs(formDelta) >= 1) {
+      addExplanationFactor(factors, {
+        kind: 'FORM',
+        direction: explanationDirectionFromDelta(formDelta),
+        strength: explanationStrengthFromAbs(formDelta, 4, 9),
+        label: '場所ごとの調子',
+      });
+    }
+    if (context?.pressure && (
+      context.pressure.isKachiMakeDecider ||
+      context.pressure.isFinalBout ||
+      context.pressure.isYushoRelevant ||
+      context.pressure.isPromotionRelevant ||
+      context.pressure.isDemotionRelevant
+    )) {
+      const pressureLabel = context.pressure.isKachiMakeDecider
+        ? '勝ち越し/負け越しのかかる一番'
+        : context.pressure.isYushoRelevant
+          ? '優勝争いの文脈'
+          : '勝負所の文脈';
+      addExplanationFactor(factors, {
+        kind: 'PRESSURE',
+        direction: 'NEUTRAL',
+        strength: context.pressure.isKachiMakeDecider || context.pressure.isYushoRelevant ? 'MEDIUM' : 'SMALL',
+        label: pressureLabel,
+      });
+    }
+    if (Math.abs(momentumDelta) >= 0.1) {
+      addExplanationFactor(factors, {
+        kind: 'MOMENTUM',
+        direction: explanationDirectionFromDelta(momentumDelta),
+        strength: explanationStrengthFromAbs(momentumDelta, 1, 2),
+        label: '場所内の流れ',
+      });
+    }
+    if (injuryPenalty > 0) {
+      addExplanationFactor(factors, {
+        kind: 'INJURY',
+        direction: 'FOR_DEFENDER',
+        strength: explanationStrengthFromAbs(injuryPenalty, 3, 7),
+        label: '負傷影響',
+      });
+    }
+    if (preBoutPhaseResolution) {
+      const dominantPhase = Object.entries(preBoutPhaseResolution.weights)
+        .reduce((best, entry) => entry[1] > best[1] ? entry : best);
+      const phaseLabel =
+        dominantPhase[0] === 'THRUST_BATTLE' ? '押し合いになりやすい展開' :
+          dominantPhase[0] === 'BELT_BATTLE' ? '組み合いになりやすい展開' :
+            dominantPhase[0] === 'TECHNIQUE_SCRAMBLE' ? '技の応酬になりやすい展開' :
+              dominantPhase[0] === 'EDGE_BATTLE' ? '土俵際になりやすい展開' :
+                dominantPhase[0] === 'QUICK_COLLAPSE' ? '早い崩れが起きやすい展開' :
+                  '展開が混ざりやすい一番';
+      addExplanationFactor(factors, {
+        kind: 'PHASE',
+        direction: 'NEUTRAL',
+        strength: 'SMALL',
+        label: phaseLabel,
+      });
+    }
+    const realismDelta = winProbability - baseWinProbability;
+    if (Math.abs(realismDelta) >= 0.01) {
+      addExplanationFactor(factors, {
+        kind: 'REALISM',
+        direction: explanationDirectionFromDelta(realismDelta),
+        strength: explanationStrengthFromAbs(realismDelta, 0.03, 0.08),
+        label: '番付帯に応じた補正',
+      });
+    }
+    if (kimarite || winRoute) {
+      addExplanationFactor(factors, {
+        kind: 'KIMARITE',
+        direction: finalIsWin ? 'FOR_ATTACKER' : 'FOR_DEFENDER',
+        strength: 'SMALL',
+        label: '決まり手との整合',
+      });
+    }
+    if (!factors.length) {
+      addExplanationFactor(factors, {
+        kind: 'UNKNOWN',
+        direction: 'NEUTRAL',
+        strength: 'SMALL',
+        label: '決定的でない要素',
+      });
+    }
+    return factors;
+  };
+  const recordExplanationSnapshot = (
+    kimarite: string,
+    winRoute: WinRoute | undefined,
+    finalIsWin: boolean,
+  ): void => {
+    if (!shouldCollectBoutExplanation) return;
+    const factors = buildExplanationFactors(kimarite, winRoute, finalIsWin);
+    recordBoutExplanationSnapshot({
+      source: 'PLAYER_BOUT',
+      division: rikishi.rank.division,
+      formatKind: context?.formatKind,
+      calendarDay: context?.ordinal?.calendarDay ?? context?.day,
+      boutOrdinal: context?.ordinal?.boutOrdinal,
+      baseWinProbability,
+      winProbability,
+      baselineWinProbability,
+      compressedWinProbability: winProbability,
+      preBoutPhaseWeights: preBoutPhaseResolution?.weights,
+      preBoutPhaseReasonTags: preBoutPhaseResolution?.reasonTags,
+      pressure: context?.pressure,
+      kimarite,
+      winRoute,
+      factors,
+      shortCommentaryDraft: factors.slice(0, 3).map((factor) => factor.label).join('、'),
+    });
+  };
 
   if (!isWin && canTriggerEdgeReversal(winProbability, context)) {
     const hasDohyogiwa = traits.includes('DOHYOUGIWA_MAJUTSU') && rng() < 0.06;
@@ -768,9 +1022,11 @@ const resolveBattleResult = (
         allowNonTechnique: false,
         boutContext: playerSelectionContext,
       });
+      const kimarite = normalizeKimariteName(reversal.kimarite);
+      recordExplanationSnapshot(kimarite, reversal.route, true);
       return {
         isWin: true,
-        kimarite: normalizeKimariteName(reversal.kimarite),
+        kimarite,
         winRoute: reversal.route,
         winProbability,
         opponentAbility,
@@ -795,10 +1051,13 @@ const resolveBattleResult = (
     allowNonTechnique: true,
     boutContext: selectionContextWithEngagement,
   });
+  const kimarite = normalizeKimariteName(selected.kimarite);
+  const finalWinRoute = selected.route ?? winRoute;
+  recordExplanationSnapshot(kimarite, finalWinRoute, isWin);
   return {
     isWin,
-    kimarite: normalizeKimariteName(selected.kimarite),
-    winRoute: selected.route ?? winRoute,
+    kimarite,
+    winRoute: finalWinRoute,
     winProbability,
     opponentAbility,
   };

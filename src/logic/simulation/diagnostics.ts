@@ -1,8 +1,10 @@
 import type { EnemyStyleBias } from '../catalog/enemyData';
-import type { Division, Rank } from '../models';
+import type { Division, Rank, WinRoute } from '../models';
 import type { SimulationModelVersion } from './modelVersion';
 import type { BanzukeEngineVersion } from '../banzuke/types';
-import type { BashoFormatKind } from './basho/formatPolicy';
+import type { BashoFormatKind, BoutPressureContext } from './basho/formatPolicy';
+import type { CombatStyle } from './combat/types';
+import type { PreBoutPhaseWeights } from './combat/preBoutPhase';
 
 export interface SimulationDiagnostics {
   seq: number;
@@ -188,5 +190,157 @@ export const withBoutWinProbSnapshotCollector = async <T>(
   } finally {
     boutWinProbSnapshotCollector = previousCollector;
     boutWinProbSnapshotRunContext = previousContext;
+  }
+};
+
+export type PreBoutPhaseSnapshotSource = 'PLAYER_BOUT';
+
+export interface PreBoutPhaseSnapshotRunContext {
+  runLabel?: string;
+  seed?: number;
+}
+
+export interface PreBoutPhaseSnapshot {
+  source: PreBoutPhaseSnapshotSource;
+  runLabel?: string;
+  seed?: number;
+  division?: Division;
+  formatKind?: BashoFormatKind;
+  calendarDay?: number;
+  boutOrdinal?: number;
+  attackerStyle?: CombatStyle;
+  defenderStyle?: CombatStyle;
+  attackerBodyScore?: number;
+  defenderBodyScore?: number;
+  pressure?: Partial<BoutPressureContext>;
+  weights: PreBoutPhaseWeights;
+  reasonTags: readonly string[];
+}
+
+type PreBoutPhaseSnapshotCollector = (snapshot: PreBoutPhaseSnapshot) => void;
+
+let preBoutPhaseSnapshotCollector: PreBoutPhaseSnapshotCollector | null = null;
+let preBoutPhaseSnapshotRunContext: PreBoutPhaseSnapshotRunContext = {};
+
+export const recordPreBoutPhaseSnapshot = (
+  snapshot: PreBoutPhaseSnapshot,
+): void => {
+  if (!preBoutPhaseSnapshotCollector) return;
+  preBoutPhaseSnapshotCollector({
+    ...preBoutPhaseSnapshotRunContext,
+    ...snapshot,
+  });
+};
+
+export const isPreBoutPhaseSnapshotEnabled = (): boolean =>
+  preBoutPhaseSnapshotCollector !== null;
+
+export const withPreBoutPhaseSnapshotCollector = async <T>(
+  context: PreBoutPhaseSnapshotRunContext,
+  collector: PreBoutPhaseSnapshotCollector,
+  run: () => Promise<T> | T,
+): Promise<T> => {
+  const previousCollector = preBoutPhaseSnapshotCollector;
+  const previousContext = preBoutPhaseSnapshotRunContext;
+  preBoutPhaseSnapshotCollector = collector;
+  preBoutPhaseSnapshotRunContext = context;
+  try {
+    return await run();
+  } finally {
+    preBoutPhaseSnapshotCollector = previousCollector;
+    preBoutPhaseSnapshotRunContext = previousContext;
+  }
+};
+
+export type BoutExplanationSnapshotSource = 'PLAYER_BOUT';
+
+export type ExplanationFactorDirection =
+  | 'FOR_ATTACKER'
+  | 'FOR_DEFENDER'
+  | 'NEUTRAL';
+
+export type ExplanationFactorKind =
+  | 'ABILITY'
+  | 'STYLE'
+  | 'BODY'
+  | 'FORM'
+  | 'PRESSURE'
+  | 'MOMENTUM'
+  | 'INJURY'
+  | 'KIMARITE'
+  | 'PHASE'
+  | 'REALISM'
+  | 'UNKNOWN';
+
+export type ExplanationFactorStrength =
+  | 'SMALL'
+  | 'MEDIUM'
+  | 'LARGE';
+
+export interface BoutExplanationFactor {
+  kind: ExplanationFactorKind;
+  direction: ExplanationFactorDirection;
+  strength: ExplanationFactorStrength;
+  label: string;
+}
+
+export interface BoutExplanationSnapshotRunContext {
+  runLabel?: string;
+  seed?: number;
+}
+
+export interface BoutExplanationSnapshot {
+  source: BoutExplanationSnapshotSource;
+  runLabel?: string;
+  seed?: number;
+  division?: Division;
+  formatKind?: BashoFormatKind;
+  calendarDay?: number;
+  boutOrdinal?: number;
+  baseWinProbability?: number;
+  winProbability?: number;
+  baselineWinProbability?: number;
+  compressedWinProbability?: number;
+  preBoutPhaseWeights?: PreBoutPhaseWeights;
+  preBoutPhaseReasonTags?: readonly string[];
+  pressure?: Partial<BoutPressureContext>;
+  kimarite?: string;
+  winRoute?: WinRoute;
+  factors: readonly BoutExplanationFactor[];
+  shortCommentaryDraft?: string;
+}
+
+type BoutExplanationSnapshotCollector = (snapshot: BoutExplanationSnapshot) => void;
+
+let boutExplanationSnapshotCollector: BoutExplanationSnapshotCollector | null = null;
+let boutExplanationSnapshotRunContext: BoutExplanationSnapshotRunContext = {};
+
+export const recordBoutExplanationSnapshot = (
+  snapshot: BoutExplanationSnapshot,
+): void => {
+  if (!boutExplanationSnapshotCollector) return;
+  boutExplanationSnapshotCollector({
+    ...boutExplanationSnapshotRunContext,
+    ...snapshot,
+  });
+};
+
+export const isBoutExplanationSnapshotEnabled = (): boolean =>
+  boutExplanationSnapshotCollector !== null;
+
+export const withBoutExplanationSnapshotCollector = async <T>(
+  context: BoutExplanationSnapshotRunContext,
+  collector: BoutExplanationSnapshotCollector,
+  run: () => Promise<T> | T,
+): Promise<T> => {
+  const previousCollector = boutExplanationSnapshotCollector;
+  const previousContext = boutExplanationSnapshotRunContext;
+  boutExplanationSnapshotCollector = collector;
+  boutExplanationSnapshotRunContext = context;
+  try {
+    return await run();
+  } finally {
+    boutExplanationSnapshotCollector = previousCollector;
+    boutExplanationSnapshotRunContext = previousContext;
   }
 };

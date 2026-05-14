@@ -14,6 +14,17 @@ import {
   resolvePreBoutPhaseWeights,
   samplePreBoutPhase,
 } from '../../../src/logic/simulation/combat/preBoutPhase';
+import {
+  type BoutExplanationSnapshot,
+  isBoutExplanationSnapshotEnabled,
+  isPreBoutPhaseSnapshotEnabled,
+  recordBoutExplanationSnapshot,
+  recordPreBoutPhaseSnapshot,
+  type PreBoutPhaseSnapshot,
+  withBoutExplanationSnapshotCollector,
+  withPreBoutPhaseSnapshotCollector,
+} from '../../../src/logic/simulation/diagnostics';
+import { calculateBattleResult } from '../../../src/logic/battle';
 import { resolveBashoFormatPolicy } from '../../../src/logic/simulation/basho/formatPolicy';
 import { resolveBoutWinProb } from '../../../src/logic/simulation/strength/model';
 import type { TestCase } from '../types';
@@ -303,6 +314,234 @@ export const tests: TestCase[] = [
       assert.equal(sampledA, sampledB);
       const diagnostic = resolvePreBoutPhaseDiagnostic(input, () => 0.99);
       assert.ok(PRE_BOUT_PHASES.includes(diagnostic.phase ?? 'MIXED'));
+    },
+  },
+  {
+    name: 'combat phase: prebout collector is opt-in and records no sampled phase',
+    run: async () => {
+      const weights = resolvePreBoutPhaseWeights({
+        source: 'PLAYER_DIAGNOSTIC',
+        attackerStyle: 'PUSH',
+        defenderStyle: 'BALANCED',
+      }).weights;
+      assert.equal(isPreBoutPhaseSnapshotEnabled(), false);
+      recordPreBoutPhaseSnapshot({
+        source: 'PLAYER_BOUT',
+        weights,
+        reasonTags: [],
+      });
+      assert.equal(isPreBoutPhaseSnapshotEnabled(), false);
+
+      const status = createStatus({
+        rank: { division: 'Juryo', name: '十両', number: 8, side: 'East' },
+        tactics: 'PUSH',
+        bodyMetrics: { heightCm: 188, weightKg: 152 },
+        stats: {
+          tsuki: 72,
+          oshi: 70,
+          kumi: 44,
+          nage: 48,
+          koshi: 52,
+          deashi: 64,
+          waza: 50,
+          power: 66,
+        },
+      });
+      const enemy = {
+        shikona: '診断相手',
+        rankValue: 6,
+        power: 84,
+        ability: 87,
+        heightCm: 181,
+        weightKg: 139,
+        styleBias: 'GRAPPLE' as const,
+      };
+      const context = {
+        day: 15,
+        currentWins: 7,
+        currentLosses: 7,
+        consecutiveWins: 0,
+        isLastDay: true,
+        isYushoContention: false,
+        formatKind: 'SEKITORI_15' as const,
+        ordinal: {
+          calendarDay: 15,
+          boutOrdinal: 15,
+          totalBouts: 15 as const,
+          isFinalBout: true,
+          remainingBouts: 0,
+        },
+        pressure: {
+          isKachiMakeDecider: true,
+          isKachikoshiDecider: true,
+          isMakekoshiDecider: true,
+          isYushoRelevant: false,
+          isPromotionRelevant: false,
+          isDemotionRelevant: false,
+          isFinalBout: true,
+        },
+      };
+      const snapshots: PreBoutPhaseSnapshot[] = [];
+      await withPreBoutPhaseSnapshotCollector(
+        { runLabel: 'unit-prebout-player', seed: 1234 },
+        (snapshot) => snapshots.push(snapshot),
+        () => {
+          calculateBattleResult(status, enemy, context, () => 0.42);
+        },
+      );
+
+      assert.equal(snapshots.length, 1);
+      const [snapshot] = snapshots;
+      assert.equal(snapshot.source, 'PLAYER_BOUT');
+      assert.equal(snapshot.runLabel, 'unit-prebout-player');
+      assert.equal(snapshot.seed, 1234);
+      assert.equal(snapshot.division, 'Juryo');
+      assert.equal(snapshot.formatKind, 'SEKITORI_15');
+      assert.equal(snapshot.calendarDay, 15);
+      assert.equal(snapshot.boutOrdinal, 15);
+      assert.equal(snapshot.attackerStyle, 'PUSH');
+      assert.equal(snapshot.defenderStyle, 'GRAPPLE');
+      assert.equal(snapshot.pressure?.isKachiMakeDecider, true);
+      assert.ok(Number.isFinite(snapshot.attackerBodyScore));
+      assert.ok(Number.isFinite(snapshot.defenderBodyScore));
+      assert.ok(snapshot.reasonTags.length > 0);
+      PRE_BOUT_PHASES.forEach((phase) => {
+        assert.ok(Number.isFinite(snapshot.weights[phase]), `${phase} weight should be finite`);
+        assert.ok(snapshot.weights[phase] >= 0, `${phase} weight should be non-negative`);
+      });
+      assert.equal('phase' in (snapshot as unknown as Record<string, unknown>), false);
+      assert.equal(isPreBoutPhaseSnapshotEnabled(), false);
+    },
+  },
+  {
+    name: 'combat explanation: collector is opt-in and does not change rng or result shape',
+    run: async () => {
+      assert.equal(isBoutExplanationSnapshotEnabled(), false);
+      recordBoutExplanationSnapshot({
+        source: 'PLAYER_BOUT',
+        factors: [],
+      });
+      assert.equal(isBoutExplanationSnapshotEnabled(), false);
+
+      const createTestStatus = () => createStatus({
+        rank: { division: 'Juryo', name: '十両', number: 8, side: 'East' },
+        tactics: 'PUSH',
+        bodyMetrics: { heightCm: 188, weightKg: 152 },
+        currentCondition: 56,
+        injuryLevel: 2,
+        stats: {
+          tsuki: 72,
+          oshi: 70,
+          kumi: 44,
+          nage: 48,
+          koshi: 52,
+          deashi: 64,
+          waza: 50,
+          power: 66,
+        },
+      });
+      const createEnemy = () => ({
+        shikona: '説明相手',
+        rankValue: 6,
+        power: 84,
+        ability: 87,
+        heightCm: 181,
+        weightKg: 139,
+        styleBias: 'GRAPPLE' as const,
+        bashoFormDelta: -2,
+      });
+      const context = {
+        day: 15,
+        currentWins: 7,
+        currentLosses: 7,
+        consecutiveWins: 0,
+        isLastDay: true,
+        isYushoContention: false,
+        formatKind: 'SEKITORI_15' as const,
+        ordinal: {
+          calendarDay: 15,
+          boutOrdinal: 15,
+          totalBouts: 15 as const,
+          isFinalBout: true,
+          remainingBouts: 0,
+        },
+        pressure: {
+          isKachiMakeDecider: true,
+          isKachikoshiDecider: true,
+          isMakekoshiDecider: true,
+          isYushoRelevant: false,
+          isPromotionRelevant: false,
+          isDemotionRelevant: false,
+          isFinalBout: true,
+        },
+        bashoFormDelta: 3,
+      };
+      const createCountingRng = () => {
+        let calls = 0;
+        const rng = () => {
+          calls += 1;
+          return 0.42;
+        };
+        return { rng, getCalls: () => calls };
+      };
+
+      const baselineRng = createCountingRng();
+      const baselineResult = calculateBattleResult(
+        createTestStatus(),
+        createEnemy(),
+        context,
+        baselineRng.rng,
+      );
+      const snapshots: BoutExplanationSnapshot[] = [];
+      const collectorRng = createCountingRng();
+      const collectedResult = await withBoutExplanationSnapshotCollector(
+        { runLabel: 'unit-explanation-player', seed: 4321 },
+        (snapshot) => snapshots.push(snapshot),
+        () => calculateBattleResult(
+          createTestStatus(),
+          createEnemy(),
+          context,
+          collectorRng.rng,
+        ),
+      );
+
+      assert.deepEqual(collectedResult, baselineResult);
+      assert.equal(collectorRng.getCalls(), baselineRng.getCalls());
+      assert.equal(snapshots.length, 1);
+      const [snapshot] = snapshots;
+      assert.equal(snapshot.source, 'PLAYER_BOUT');
+      assert.equal(snapshot.runLabel, 'unit-explanation-player');
+      assert.equal(snapshot.seed, 4321);
+      assert.equal(snapshot.division, 'Juryo');
+      assert.equal(snapshot.formatKind, 'SEKITORI_15');
+      assert.equal(snapshot.calendarDay, 15);
+      assert.equal(snapshot.boutOrdinal, 15);
+      assert.equal(snapshot.pressure?.isKachiMakeDecider, true);
+      assert.ok(snapshot.preBoutPhaseWeights !== undefined);
+      assert.ok((snapshot.preBoutPhaseReasonTags?.length ?? 0) > 0);
+      assert.equal(snapshot.kimarite, collectedResult.kimarite);
+      assert.equal(snapshot.winRoute, collectedResult.winRoute);
+      assert.ok(snapshot.factors.length > 0);
+      snapshot.factors.forEach((factor) => {
+        assert.ok([
+          'ABILITY',
+          'STYLE',
+          'BODY',
+          'FORM',
+          'PRESSURE',
+          'MOMENTUM',
+          'INJURY',
+          'KIMARITE',
+          'PHASE',
+          'REALISM',
+          'UNKNOWN',
+        ].includes(factor.kind), `unexpected factor kind ${factor.kind}`);
+        assert.ok(['FOR_ATTACKER', 'FOR_DEFENDER', 'NEUTRAL'].includes(factor.direction));
+        assert.ok(['SMALL', 'MEDIUM', 'LARGE'].includes(factor.strength));
+        assert.ok(!/[0-9]/.test(factor.label), `factor label exposes a raw number: ${factor.label}`);
+      });
+      assert.equal('preBoutPhase' in (snapshot as unknown as Record<string, unknown>), false);
+      assert.equal(isBoutExplanationSnapshotEnabled(), false);
     },
   },
 ];
