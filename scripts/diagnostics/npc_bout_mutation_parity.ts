@@ -157,6 +157,12 @@ const runApplyNpcFusenBoutCase = () => {
 const assertExpectedCounts = (report: {
   normalBout: { rngCalls: number };
   fusenBranches: Record<string, { rngCalls: number }>;
+  helperFusen: {
+    mutationSummary: {
+      winner: Record<string, unknown>;
+      loser: Record<string, unknown>;
+    };
+  };
 }): void => {
   if (report.normalBout.rngCalls !== 3) {
     throw new Error(`normal NPC bout consumed ${report.normalBout.rngCalls} RNG calls; expected 3`);
@@ -164,6 +170,32 @@ const assertExpectedCounts = (report: {
   Object.entries(report.fusenBranches).forEach(([label, branch]) => {
     if (branch.rngCalls !== 0) {
       throw new Error(`${label} consumed ${branch.rngCalls} RNG calls; expected 0`);
+    }
+  });
+  const oneSideBranches = [
+    report.fusenBranches.aBashoKyujo,
+    report.fusenBranches.bBashoKyujo,
+    report.fusenBranches.aInactive,
+    report.fusenBranches.bInactive,
+  ];
+  oneSideBranches.forEach((branch) => {
+    const changedKeys = [
+      ...Object.keys(branch.mutationSummary.a),
+      ...Object.keys(branch.mutationSummary.b),
+    ];
+    ['expectedWins', 'opponentAbilityTotal', 'boutsSimulated'].forEach((field) => {
+      if (changedKeys.includes(field)) {
+        throw new Error(`fusen branch mutated ${field}; expected only fought bouts to update it`);
+      }
+    });
+  });
+  const helperKeys = [
+    ...Object.keys(report.helperFusen.mutationSummary.winner),
+    ...Object.keys(report.helperFusen.mutationSummary.loser),
+  ];
+  ['expectedWins', 'opponentAbilityTotal', 'boutsSimulated'].forEach((field) => {
+    if (helperKeys.includes(field)) {
+      throw new Error(`applyNpcFusenBout mutated ${field}; expected only fought bouts to update it`);
     }
   });
 };
@@ -201,16 +233,17 @@ const main = async (): Promise<void> => {
       'normal simulateNpcBout consumes two noise RNG calls followed by the result-roll RNG call',
       'normal simulateNpcBout mutates expectedWins, opponentAbilityTotal, and boutsSimulated before the result roll in code order',
       'normal simulateNpcBout mutates wins/losses and streaks after the result roll in code order',
-      'bashoKyujo simulateNpcBout branches mutate expectedWins and boutsSimulated but do not increment loser.losses',
-      'inactive simulateNpcBout branches mutate wins/losses and streaks but do not mutate expectedWins or boutsSimulated',
-      'applyNpcFusenBout increments loser.losses, unlike simulateNpcBout bashoKyujo branches',
+      'one-side bashoKyujo and inactive branches share the same fusen mutation shape',
+      'fusen branches mutate only wins/losses and streaks; expectedWins, opponentAbilityTotal, and boutsSimulated stay fought-bout-only',
+      'applyNpcFusenBout is aligned with simulateNpcBout one-side fusen branches',
     ],
     futureWrapperInvariants: [
       'normal path must consume exactly three RNG values in order: aNoise, bNoise, result roll',
       'fusen, inactive, and double-kyujo paths must consume zero RNG values',
       'probability input must preserve attackerAbility, defenderAbility, attackerStyle, defenderStyle, bonus, diffSoftCap, and probability',
       'expectedWins and opponentAbilityTotal mutation must remain before result roll if the function is split',
-      'record and streak mutation must preserve branch-specific differences until explicitly normalized in a separate task',
+      'fusen paths must not mutate expectedWins, opponentAbilityTotal, or boutsSimulated',
+      'one-side fusen paths must increment winner.wins, loser.losses, and update streaks consistently',
     ],
   };
   assertExpectedCounts(report);
@@ -224,9 +257,11 @@ const main = async (): Promise<void> => {
     fusenRngCalls: Object.fromEntries(
       Object.entries(report.fusenBranches).map(([key, value]) => [key, value.rngCalls]),
     ),
-    bashoKyujoLoserLossMutation: {
+    fusenLoserLossMutation: {
       aBashoKyujo: report.fusenBranches.aBashoKyujo.mutationSummary.a.losses ?? null,
       bBashoKyujo: report.fusenBranches.bBashoKyujo.mutationSummary.b.losses ?? null,
+      aInactive: report.fusenBranches.aInactive.mutationSummary.a.losses ?? null,
+      bInactive: report.fusenBranches.bInactive.mutationSummary.b.losses ?? null,
       helperFusen: report.helperFusen.mutationSummary.loser.losses ?? null,
     },
   }, null, 2));

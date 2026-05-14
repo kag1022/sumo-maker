@@ -136,6 +136,19 @@ const resolveNpcWinProbability = (
   return probability;
 };
 
+export const applyNpcFusenBout = (
+  winner: DivisionParticipant,
+  loser: DivisionParticipant,
+): void => {
+  // 不戦は星取だけを動かし、期待勝数・相手強度・試行数は実際に取った一番だけに限定する。
+  winner.wins += 1;
+  loser.losses += 1;
+  winner.currentWinStreak = (winner.currentWinStreak ?? 0) + 1;
+  winner.currentLossStreak = 0;
+  loser.currentLossStreak = (loser.currentLossStreak ?? 0) + 1;
+  loser.currentWinStreak = 0;
+};
+
 export const simulateNpcBout = (
   a: DivisionParticipant,
   b: DivisionParticipant,
@@ -147,27 +160,15 @@ export const simulateNpcBout = (
   bAbility?: number;
   fusen?: boolean;
 } | null => {
-  const applyFusenWin = (winner: DivisionParticipant, loser: DivisionParticipant): void => {
-    const expectedWin = 0.96;
-    winner.expectedWins = (winner.expectedWins ?? 0) + expectedWin;
-    loser.expectedWins = (loser.expectedWins ?? 0) + (1 - expectedWin);
-    winner.boutsSimulated = (winner.boutsSimulated ?? 0) + 1;
-    loser.boutsSimulated = (loser.boutsSimulated ?? 0) + 1;
-    winner.wins += 1;
-    winner.currentWinStreak = (winner.currentWinStreak ?? 0) + 1;
-    winner.currentLossStreak = 0;
-    loser.currentLossStreak = 0;
-    loser.currentWinStreak = 0;
-  };
   if (a.bashoKyujo && b.bashoKyujo) {
     return null;
   }
   if (a.bashoKyujo) {
-    applyFusenWin(b, a);
+    applyNpcFusenBout(b, a);
     return { aWon: false, aWinProbability: 0.04, fusen: true };
   }
   if (b.bashoKyujo) {
-    applyFusenWin(a, b);
+    applyNpcFusenBout(a, b);
     return { aWon: true, aWinProbability: 0.96, fusen: true };
   }
   if (!a.active && !b.active) {
@@ -176,23 +177,13 @@ export const simulateNpcBout = (
   }
   if (!a.active) {
     // aが休場 -> bの不戦勝
-    b.wins += 1;
-    a.losses += 1;
-    b.currentWinStreak = (b.currentWinStreak ?? 0) + 1;
-    b.currentLossStreak = 0;
-    a.currentLossStreak = (a.currentLossStreak ?? 0) + 1;
-    a.currentWinStreak = 0;
-    return { aWon: false, fusen: true };
+    applyNpcFusenBout(b, a);
+    return { aWon: false, aWinProbability: 0.04, fusen: true };
   }
   if (!b.active) {
     // bが休場 -> aの不戦勝
-    a.wins += 1;
-    b.losses += 1;
-    a.currentWinStreak = (a.currentWinStreak ?? 0) + 1;
-    a.currentLossStreak = 0;
-    b.currentLossStreak = (b.currentLossStreak ?? 0) + 1;
-    b.currentWinStreak = 0;
-    return { aWon: true, fusen: true };
+    applyNpcFusenBout(a, b);
+    return { aWon: true, aWinProbability: 0.96, fusen: true };
   }
 
   a.currentWinStreak = Math.max(0, a.currentWinStreak ?? 0);
@@ -242,29 +233,7 @@ export const simulateNpcBout = (
   };
 };
 
-export const applyNpcFusenBout = (
-  winner: DivisionParticipant,
-  loser: DivisionParticipant,
-): void => {
-  const expectedWin = 0.96;
-  winner.expectedWins = (winner.expectedWins ?? 0) + expectedWin;
-  loser.expectedWins = (loser.expectedWins ?? 0) + (1 - expectedWin);
-  winner.boutsSimulated = (winner.boutsSimulated ?? 0) + 1;
-  loser.boutsSimulated = (loser.boutsSimulated ?? 0) + 1;
-  winner.wins += 1;
-  loser.losses += 1;
-  winner.currentWinStreak = (winner.currentWinStreak ?? 0) + 1;
-  winner.currentLossStreak = 0;
-  loser.currentLossStreak = (loser.currentLossStreak ?? 0) + 1;
-  loser.currentWinStreak = 0;
-};
-
 export const applyNpcDoubleKyujo = (
-  a: DivisionParticipant,
-  b: DivisionParticipant,
-): void => {
-  a.currentWinStreak = 0;
-  a.currentLossStreak = 0;
-  b.currentWinStreak = 0;
-  b.currentLossStreak = 0;
-};
+  _a: DivisionParticipant,
+  _b: DivisionParticipant,
+): void => undefined;

@@ -23,7 +23,7 @@ import {
   type SimulationProgressSnapshot,
 } from '../../../src/logic/simulation/engine';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
-import { createDailyMatchups, createFacedMap, simulateNpcBout } from '../../../src/logic/simulation/matchmaking';
+import { applyNpcFusenBout, createDailyMatchups, createFacedMap, simulateNpcBout } from '../../../src/logic/simulation/matchmaking';
 import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from '../../../src/logic/simulation/lowerQuota';
 import {
   advanceTopDivisionBanzuke,
@@ -56,6 +56,7 @@ import { LOGIC_LAB_DEFAULT_PRESET } from '../../../src/features/logicLab/presets
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 
 import type { TestCase } from '../types';
+import type { DivisionParticipant } from '../../../src/logic/simulation/matchmaking/types';
 import {
   assert,
   fail,
@@ -988,6 +989,53 @@ export const tests: TestCase[] = [
           `Expected monotonic npc win rates, got ${winRates.join(',')}`,
         );
       }
+    },
+  },
+  {
+    name: 'matchmaking: npc fusen branches keep fought-bout metrics unchanged',
+    run: () => {
+      const createNpc = (id: string): DivisionParticipant => ({
+        id,
+        shikona: id,
+        isPlayer: false,
+        stableId: 'stable-001',
+        rankScore: id === 'A' ? 1 : 2,
+        power: 90,
+        ability: 90,
+        styleBias: 'BALANCE' as const,
+        aptitudeFactor: 1,
+        wins: id === 'A' ? 2 : 1,
+        losses: id === 'A' ? 1 : 2,
+        currentWinStreak: id === 'A' ? 1 : 0,
+        currentLossStreak: id === 'A' ? 0 : 1,
+        expectedWins: id === 'A' ? 2.4 : 1.8,
+        opponentAbilityTotal: id === 'A' ? 180 : 170,
+        boutsSimulated: 3,
+        active: true,
+      });
+      const aKyujo = createNpc('A');
+      const bWinner = createNpc('B');
+      aKyujo.bashoKyujo = true;
+      const result = simulateNpcBout(aKyujo, bWinner, sequenceRng([0.1]));
+      assert.equal(result?.fusen, true);
+      assert.equal(bWinner.wins, 2);
+      assert.equal(aKyujo.losses, 2);
+      assert.equal(aKyujo.expectedWins, 2.4);
+      assert.equal(bWinner.expectedWins, 1.8);
+      assert.equal(aKyujo.boutsSimulated, 3);
+      assert.equal(bWinner.boutsSimulated, 3);
+      assert.equal(aKyujo.opponentAbilityTotal, 180);
+      assert.equal(bWinner.opponentAbilityTotal, 170);
+
+      const helperWinner = createNpc('A');
+      const helperLoser = createNpc('B');
+      applyNpcFusenBout(helperWinner, helperLoser);
+      assert.equal(helperWinner.wins, 3);
+      assert.equal(helperLoser.losses, 3);
+      assert.equal(helperWinner.expectedWins, 2.4);
+      assert.equal(helperLoser.expectedWins, 1.8);
+      assert.equal(helperWinner.boutsSimulated, 3);
+      assert.equal(helperLoser.boutsSimulated, 3);
     },
   },
   {
