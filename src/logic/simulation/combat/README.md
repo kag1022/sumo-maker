@@ -41,6 +41,8 @@ Current builders are pure and readonly:
 
 The complete design note is `BoutFlowCompleteDesign.md`. It defines the required type surface, explanation素材 axes, diagnostic indicators, acceptance conditions, and implementation roadmap before this model is allowed to become player-facing.
 
+`PlayerBoutExplanationPreviewDesign.md` audits where a future player-facing BoutFlowCommentary preview should appear. The current decision is to start with an opt-in preview panel in `BashoDetailModal` / `DockedBashoDetailPane` after a dev-only preview prop exists, and not to add mock UI while `PlayerBoutDetail` lacks `COMPLETE_CONTEXT`.
+
 Player PreBoutPhase snapshots are collected only through the opt-in diagnostics collector in `simulation/diagnostics.ts`. The collector records deterministic weights and reason tags only; it does not sample a phase with production RNG and must not add fields to `calculateBattleResult`, `PlayerBoutDetail`, persistence rows, worker protocol, App, or UI.
 
 Diagnostics that already join phase, route, engagement, or kimarite may emit additive `boutFlow` fields alongside legacy JSON fields. These fields are report vocabulary only and must not become production payloads without a separate protocol task.
