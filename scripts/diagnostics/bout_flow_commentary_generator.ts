@@ -226,6 +226,7 @@ const duplicated = (counts: Record<string, number>): Record<string, number> =>
   Object.fromEntries(Object.entries(counts).filter(([, count]) => count > 1));
 
 const containsRawEnum = (text: string): boolean => /[A-Z]{2,}_[A-Z0-9_]+/.test(text);
+const containsOverclaim = (text: string): boolean => /必ず|絶対|完全に|間違いなく|唯一/.test(text);
 
 const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   const texts = [
@@ -243,7 +244,10 @@ const qualityFlags = (scenario: CommentaryScenario): readonly string[] => {
   if (texts.some((text) => /。。|、、/.test(text))) {
     flags.push('duplicate-punctuation');
   }
-  if (scenario.commentary.shortCommentary.length > 150) {
+  if (texts.some(containsOverclaim)) {
+    flags.push('contains-overclaim-token');
+  }
+  if (scenario.commentary.shortCommentary.length > 120) {
     flags.push('short-commentary-too-long');
   }
   return flags;
@@ -256,6 +260,7 @@ const sameKimariteMaterialKeySets = new Set(sameKimariteScenarios.map((scenario)
 const materialKeyCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materialKeys));
 const materialTextCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.text)));
 const shortCommentaryCounts = countBy(scenarios.map((scenario) => scenario.commentary.shortCommentary));
+const shortCommentaryLengths = scenarios.map((scenario) => scenario.commentary.shortCommentary.length);
 const axisCounts = countBy(scenarios.flatMap((scenario) => scenario.commentary.materials.map((material) => material.axis)));
 const transitionCounts = countBy(scenarios.map((scenario) => scenario.snapshot.transitionClassification));
 const finishCounts = countBy(scenarios.map((scenario) => scenario.snapshot.finishRoute));
@@ -306,6 +311,7 @@ const audit = {
       'no undefined/null tokens',
       'no raw diagnostic enum tokens in prose',
       'no duplicate punctuation',
+      'no overclaim tokens',
       'short commentary length stays bounded',
     ],
     flags: criticalQualityFlags,
@@ -334,6 +340,12 @@ const audit = {
   duplicateExpressions: {
     duplicateShortCommentaries: duplicated(shortCommentaryCounts),
     duplicateMaterialTexts: duplicated(materialTextCounts),
+  },
+  shortCommentaryLength: {
+    min: Math.min(...shortCommentaryLengths),
+    max: Math.max(...shortCommentaryLengths),
+    average: shortCommentaryLengths.reduce((sum, length) => sum + length, 0) / shortCommentaryLengths.length,
+    limit: 120,
   },
   axisReflection: {
     requiredAxes: REQUIRED_AXES,
@@ -420,6 +432,7 @@ console.log(JSON.stringify({
   duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
   duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
   contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
+  shortCommentaryLength: report.audit.shortCommentaryLength,
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,
   duplicateShortCommentaries: report.audit.duplicateExpressions.duplicateShortCommentaries,
   productionGuardrails: report.productionGuardrails,

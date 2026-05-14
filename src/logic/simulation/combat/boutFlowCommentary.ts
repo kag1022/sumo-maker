@@ -90,7 +90,7 @@ const openingSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
         }
         : {
           variant: 'push-start-shift',
-          text: '立合いは押し合い、途中で勝ち筋が動いた。',
+          text: '立合いは押し合い、途中で攻め方が変わった。',
           tags: ['opening:THRUST_BATTLE', 'transition-shape:shift'],
         };
     case 'BELT_BATTLE':
@@ -150,11 +150,17 @@ const controlSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
 
   const variantByPhase: Record<ControlPhaseCandidate, MaterialSpec> = {
     THRUST_BATTLE: snapshot.finishRoute === 'PUSH_OUT'
-      ? {
-        variant: `press-to-out-${snapshot.controlConfidence}`,
-        text: '中盤も押す圧力を保ち、相手を下がらせた。',
-        tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`, 'finish:PUSH_OUT'],
-      }
+      ? snapshot.openingPhase === 'BELT_BATTLE'
+        ? {
+          variant: `release-to-press-${snapshot.controlConfidence}`,
+          text: '差し手争いから離れ、押して前に出た。',
+          tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`, 'opening:BELT_BATTLE', 'finish:PUSH_OUT'],
+        }
+        : {
+          variant: `press-to-out-${snapshot.controlConfidence}`,
+          text: '中盤も押す圧力を保ち、相手を下がらせた。',
+          tags: ['control:THRUST_BATTLE', `confidence:${snapshot.controlConfidence}`, 'finish:PUSH_OUT'],
+        }
       : {
         variant: `press-control-${snapshot.controlConfidence}`,
         text: '中盤は押しで主導権を握った。',
@@ -222,7 +228,9 @@ const transitionSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
       },
     CONTROL_SHIFT: {
       variant: `${snapshot.openingPhase.toLowerCase()}-to-${snapshot.controlPhaseCandidate ?? 'unknown'.toLowerCase()}`,
-      text: '序盤の形から主導権が移り、勝ち筋を変えた。',
+      text: snapshot.controlPhaseCandidate === 'THRUST_BATTLE'
+        ? '序盤の形から押しに切り替えた。'
+        : '序盤の形から主導権が移った。',
       tags: ['transition:CONTROL_SHIFT', `opening:${snapshot.openingPhase}`, `control:${snapshot.controlPhaseCandidate ?? 'UNAVAILABLE'}`],
     },
     TECHNIQUE_CONVERSION: snapshot.finishRoute === 'PULL_DOWN'
@@ -231,15 +239,27 @@ const transitionSpec = (snapshot: BoutFlowDiagnosticSnapshot): MaterialSpec => {
         text: '前へ出る相手を見て、いなしから崩した。',
         tags: ['transition:TECHNIQUE_CONVERSION', 'finish:PULL_DOWN'],
       }
-      : {
-        variant: 'waza-conversion',
-        text: '途中で技に変え、相手の重心を外した。',
-        tags: ['transition:TECHNIQUE_CONVERSION'],
-      },
+      : snapshot.finishRoute === 'LEG_ATTACK'
+        ? {
+          variant: 'leg-conversion',
+          text: '技の流れから足元を攻めた。',
+          tags: ['transition:TECHNIQUE_CONVERSION', 'finish:LEG_ATTACK'],
+        }
+        : snapshot.finishRoute === 'THROW_BREAK'
+          ? {
+            variant: 'throw-conversion',
+            text: '体勢を見て投げに移った。',
+            tags: ['transition:TECHNIQUE_CONVERSION', 'finish:THROW_BREAK'],
+          }
+          : {
+            variant: 'waza-conversion',
+            text: '途中で技に変え、相手の重心を外した。',
+            tags: ['transition:TECHNIQUE_CONVERSION'],
+          },
     EDGE_TURNAROUND: snapshot.finishRoute === 'EDGE_REVERSAL'
       ? {
         variant: 'edge-reversal',
-        text: '土俵際で残し、反転して勝負を拾った。',
+        text: '土俵際で残し、反転して逆転した。',
         tags: ['transition:EDGE_TURNAROUND', 'finish:EDGE_REVERSAL'],
       }
       : {
@@ -392,7 +412,7 @@ const HOSHITORI_PRIORITY: readonly HoshitoriContextTag[] = [
 const HOSHITORI_TEXT: Record<HoshitoriContextTag, string> = {
   EARLY_BASHO: '序盤の白星で、場所の流れを作った。',
   MIDDLE_BASHO: '中盤の一番で、星勘定を整えた。',
-  FINAL_BOUT: '当人の千秋楽相当の一番を白星で締めた。',
+  FINAL_BOUT: 'この場所最後の一番を白星で締めた。',
   KACHIKOSHI_DECIDER: '勝ち越しを決める白星になった。',
   MAKEKOSHI_DECIDER: '負け越しを避ける意味のある白星になった。',
   KACHI_MAKE_DECIDER: '勝ち越しと負け越しの境目で白星を挙げた。',
