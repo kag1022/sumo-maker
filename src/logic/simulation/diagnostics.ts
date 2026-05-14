@@ -5,6 +5,7 @@ import type { BanzukeEngineVersion } from '../banzuke/types';
 import type { BashoFormatKind, BoutPressureContext } from './basho/formatPolicy';
 import type { CombatStyle } from './combat/types';
 import type { PreBoutPhaseWeights } from './combat/preBoutPhase';
+import type { BoutEngagement } from '../kimarite/engagement';
 
 export interface SimulationDiagnostics {
   seq: number;
@@ -306,6 +307,8 @@ export interface BoutExplanationSnapshot {
   pressure?: Partial<BoutPressureContext>;
   kimarite?: string;
   winRoute?: WinRoute;
+  boutEngagement?: BoutEngagement;
+  kimaritePattern?: string;
   factors: readonly BoutExplanationFactor[];
   shortCommentaryDraft?: string;
 }

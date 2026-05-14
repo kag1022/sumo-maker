@@ -29,7 +29,25 @@ Current builders are pure and readonly:
 
 `preBoutPhase.ts` is diagnostic-only infrastructure for future phase / explanation work. It derives inspectable PreBoutPhase weights from already-available combat descriptors and must not affect production battle resolution until a separate behavior task accepts the RNG and distribution impact.
 
+`boutFlowModel.ts` defines the future vocabulary for reading one bout as `OpeningPhase -> ControlPhase -> FinishRoute -> Kimarite`. It is a contract-only layer: current `PreBoutPhase` is the OpeningPhase predecessor, `BoutEngagement` / `EngagementPhase` is the ControlPhase predecessor, `WinRoute` is the FinishRoute predecessor, and `KimariteOutcomeResolution` / catalog metadata is the Kimarite layer. Current production battle behavior and diagnostics output remain unchanged.
+
+`controlPhaseAdapter.ts` is diagnostic-only vocabulary glue. It converts `ControlPhasePredecessor` (`BoutEngagement.phase`) into a conservative `ControlPhaseCandidate` without sampling engagement, changing route bias, or treating the predecessor enum as the ideal ControlPhase enum. Direct mappings are limited to exact shared vocabulary, `EDGE_SCRAMBLE` is renamed to `EDGE_BATTLE`, and `MIXED` is marked ambiguous unless existing finish-route / kimarite-pattern evidence makes an inferred candidate readable.
+
+`boutFlowDiagnosticSnapshot.ts` composes a report-only snapshot for reading `OpeningPhase -> ControlPhaseCandidate -> FinishRoute -> Kimarite` as one flow. It adds opening/control confidence and transition classification, but it must remain outside production battle, persistence, worker protocol, and UI.
+
 Player PreBoutPhase snapshots are collected only through the opt-in diagnostics collector in `simulation/diagnostics.ts`. The collector records deterministic weights and reason tags only; it does not sample a phase with production RNG and must not add fields to `calculateBattleResult`, `PlayerBoutDetail`, persistence rows, worker protocol, App, or UI.
+
+Diagnostics that already join phase, route, engagement, or kimarite may emit additive `boutFlow` fields alongside legacy JSON fields. These fields are report vocabulary only and must not become production payloads without a separate protocol task.
+
+Current BoutFlow diagnostics coverage:
+
+- OpeningPhase is covered by synthetic and player PreBoutPhase collectors through dominant weights and reason tags.
+- ControlPhasePredecessor / ControlPhaseCandidate is still diagnostic-only vocabulary. The route-bias harness emits synthetic snapshots, and the player explanation collector emits snapshots only from already-sampled engagement metadata.
+- BoutFlow diagnostic snapshots are emitted by `prebout_phase_route_bias_harness` and `bout_explanation_player_collector`. The explanation collector uses the already-sampled post-outcome engagement from `battle.ts`; it must not resample engagement or alter the production route / kimarite path.
+- FinishRoute is covered wherever legacy `winRoute` is already collected. `resolveFinishRoute` is the shared selector for production and the route-bias harness; diagnostics pass `routeMultipliers` only in explicit ENABLED harness mode.
+- Kimarite is covered in player explanation, contradiction, and route-bias diagnostics when catalog metadata is available; opening-only collectors intentionally omit it.
+
+`preBoutPhaseRouteBias.ts` remains diagnostic / experiment infrastructure. Direct PreBoutPhase-to-route bias is not a production candidate by itself; any live behavior change must go through a separate flow-level design and validation task.
 
 Player BoutExplanation snapshots are also diagnostics-only. They assemble broad factor labels from already-computed player bout values after the result and kimarite are known. They must not expose raw coefficients, consume RNG, alter result/route/kimarite selection, or become persistence/UI fields without a separate contract task.
 

@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import {
   buildGeneratedOpponentBashoCombatProfile,
   buildNpcBashoCombatProfile,
   buildPlayerBashoCombatProfile,
 } from '../../../src/logic/simulation/combat/profile';
+import type { Trait, WinRoute } from '../../../src/logic/models';
 import {
   normalizePlayerBoutCompatInput,
   resolvePlayerBoutCompat,
@@ -19,6 +21,14 @@ import {
   resolvePreBoutPhaseConfidence,
   resolvePreBoutPhaseRouteBias,
 } from '../../../src/logic/simulation/combat/preBoutPhaseRouteBias';
+import type { BoutEngagement } from '../../../src/logic/kimarite/engagement';
+import {
+  type FinishRouteContext,
+  resolveFinishRoute,
+  resolveFinishRouteCandidates,
+} from '../../../src/logic/kimarite/finishRoute';
+import { resolveControlPhaseCandidate } from '../../../src/logic/simulation/combat/controlPhaseAdapter';
+import { createBoutFlowDiagnosticSnapshot } from '../../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
 import {
   classifyPreBoutPhaseKimariteContradiction,
   resolveDiagnosticKimariteMetadata,
@@ -60,6 +70,29 @@ const assertNoPerBoutFields = (profile: Record<string, unknown>): void => {
   ].forEach((field) => {
     assert.equal(field in profile, false);
   });
+};
+
+const assertAlmostEqual = (actual: number | undefined, expected: number, label: string): void => {
+  assert.ok(actual !== undefined, `${label} should be defined`);
+  if (actual === undefined) return;
+  assert.ok(Math.abs(actual - expected) < 0.0000001, `${label}: expected ${expected}, got ${actual}`);
+};
+
+const finishRouteContext: FinishRouteContext = {
+  isHighPressure: true,
+  isLastDay: false,
+  isUnderdog: true,
+  isEdgeCandidate: true,
+  weightDiff: 8,
+  heightDiff: 7,
+};
+
+const finishRouteEngagement: BoutEngagement = {
+  phase: 'MIXED',
+  defenderCollapsed: false,
+  edgeCrisis: true,
+  gripEstablished: false,
+  weightDomination: false,
 };
 
 export const tests: TestCase[] = [
@@ -447,6 +480,306 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'combat control phase: diagnostic adapter keeps predecessor separate from candidate',
+    run: () => {
+      const unavailable = resolveControlPhaseCandidate({});
+      assert.equal(unavailable.controlPhasePredecessor, undefined);
+      assert.equal(unavailable.controlPhaseCandidate, undefined);
+      assert.equal(unavailable.confidence, 'UNAVAILABLE');
+
+      const thrust = resolveControlPhaseCandidate({
+        engagement: {
+          ...finishRouteEngagement,
+          phase: 'THRUST_BATTLE',
+        },
+        finishRoute: 'PUSH_OUT',
+      });
+      assert.equal(thrust.controlPhasePredecessor, 'THRUST_BATTLE');
+      assert.equal(thrust.controlPhaseCandidate, 'THRUST_BATTLE');
+      assert.equal(thrust.confidence, 'DIRECT');
+
+      const edge = resolveControlPhaseCandidate({
+        engagement: {
+          ...finishRouteEngagement,
+          phase: 'EDGE_SCRAMBLE',
+          edgeCrisis: true,
+        },
+        finishRoute: 'EDGE_REVERSAL',
+      });
+      assert.equal(edge.controlPhasePredecessor, 'EDGE_SCRAMBLE');
+      assert.equal(edge.controlPhaseCandidate, 'EDGE_BATTLE');
+      assert.equal(edge.confidence, 'RENAMED');
+
+      const mixedTechnique = resolveControlPhaseCandidate({
+        engagement: {
+          ...finishRouteEngagement,
+          phase: 'MIXED',
+          edgeCrisis: false,
+        },
+        finishRoute: 'THROW_BREAK',
+      });
+      assert.equal(mixedTechnique.controlPhasePredecessor, 'MIXED');
+      assert.equal(mixedTechnique.controlPhaseCandidate, 'TECHNIQUE_SCRAMBLE');
+      assert.equal(mixedTechnique.confidence, 'INFERRED');
+
+      const mixedAmbiguous = resolveControlPhaseCandidate({
+        engagement: {
+          ...finishRouteEngagement,
+          phase: 'MIXED',
+          edgeCrisis: false,
+          gripEstablished: false,
+        },
+        finishRoute: 'PUSH_OUT',
+      });
+      assert.equal(mixedAmbiguous.controlPhasePredecessor, 'MIXED');
+      assert.equal(mixedAmbiguous.controlPhaseCandidate, 'MIXED');
+      assert.equal(mixedAmbiguous.confidence, 'AMBIGUOUS');
+    },
+  },
+  {
+    name: 'combat control phase: bout flow diagnostic snapshot classifies transitions',
+    run: () => {
+      const aligned = createBoutFlowDiagnosticSnapshot({
+        openingPhase: 'THRUST_BATTLE',
+        openingConfidence: 'HIGH',
+        controlPhasePredecessor: 'THRUST_BATTLE',
+        controlPhaseCandidate: 'THRUST_BATTLE',
+        controlConfidence: 'DIRECT',
+        finishRoute: 'PUSH_OUT',
+        kimarite: {
+          name: '押し出し',
+          family: 'PUSH_THRUST',
+          diagnosticFamily: 'PUSH_THRUST',
+          rarity: 'COMMON',
+        },
+      });
+      assert.equal(aligned.transitionClassification, 'ALIGNED_FLOW');
+
+      const edge = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        openingPhase: 'BELT_BATTLE',
+        controlPhasePredecessor: 'EDGE_SCRAMBLE',
+        controlPhaseCandidate: 'EDGE_BATTLE',
+        controlConfidence: 'RENAMED',
+        finishRoute: 'EDGE_REVERSAL',
+      });
+      assert.equal(edge.transitionClassification, 'EDGE_TURNAROUND');
+
+      const technique = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        openingPhase: 'MIXED',
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'TECHNIQUE_SCRAMBLE',
+        controlConfidence: 'INFERRED',
+        finishRoute: 'THROW_BREAK',
+      });
+      assert.equal(technique.transitionClassification, 'TECHNIQUE_CONVERSION');
+
+      const ambiguous = createBoutFlowDiagnosticSnapshot({
+        ...aligned,
+        controlPhasePredecessor: 'MIXED',
+        controlPhaseCandidate: 'MIXED',
+        controlConfidence: 'AMBIGUOUS',
+      });
+      assert.equal(ambiguous.transitionClassification, 'AMBIGUOUS_CONTROL');
+    },
+  },
+  {
+    name: 'combat finish route: production-equivalent candidates keep order and weights',
+    run: () => {
+      const winner = {
+        style: 'TECHNIQUE' as const,
+        bodyType: 'SOPPU' as const,
+        stats: {
+          tsuki: 66,
+          oshi: 72,
+          kumi: 54,
+          koshi: 56,
+          nage: 88,
+          waza: 84,
+        },
+        traits: ['DOHYOUGIWA_MAJUTSU', 'READ_THE_BOUT'] as Trait[],
+        repertoire: {
+          version: 1 as const,
+          provisional: false,
+          primaryRoutes: ['PUSH_OUT' as const],
+          secondaryRoutes: ['PULL_DOWN' as const, 'LEG_ATTACK' as const],
+          entries: [],
+        },
+      };
+      const candidates = resolveFinishRouteCandidates({
+        winner,
+        context: finishRouteContext,
+      });
+      assert.deepEqual(
+        candidates.map((candidate) => candidate.value),
+        [
+          'PUSH_OUT',
+          'BELT_FORCE',
+          'THROW_BREAK',
+          'PULL_DOWN',
+          'EDGE_REVERSAL',
+          'REAR_FINISH',
+          'LEG_ATTACK',
+        ],
+      );
+      const weights = Object.fromEntries(candidates.map((candidate) => [candidate.value, candidate.weight]));
+      assertAlmostEqual(weights.PUSH_OUT, 0.2 + 2.2 + (72 + 66) / 90 + 0.35, 'PUSH_OUT');
+      assertAlmostEqual(weights.BELT_FORCE, 0.25 + (54 + 56) / 92 + 0.45, 'BELT_FORCE');
+      assertAlmostEqual(weights.THROW_BREAK, 2.4 + (88 + 84) / 94, 'THROW_BREAK');
+      assertAlmostEqual(weights.PULL_DOWN, 1.7 + 1.65 + 0.45 + 0.18, 'PULL_DOWN');
+      assertAlmostEqual(weights.EDGE_REVERSAL, 0.14 + 1.2 + 0.45, 'EDGE_REVERSAL');
+      assertAlmostEqual(weights.REAR_FINISH, 0.04 + 0.65 + 0.3, 'REAR_FINISH');
+      assertAlmostEqual(weights.LEG_ATTACK, 0.015 + 0.1 + 0.08 + 0.08, 'LEG_ATTACK');
+    },
+  },
+  {
+    name: 'combat finish route: threshold and rng consumption are fixed',
+    run: () => {
+      const winner = {
+        style: 'PUSH' as const,
+        bodyType: 'NORMAL' as const,
+        stats: {
+          tsuki: 50,
+          oshi: 50,
+          kumi: 50,
+          koshi: 50,
+          nage: 50,
+          waza: 50,
+        },
+        traits: [] as Trait[],
+      };
+      const thresholdCandidates = resolveFinishRouteCandidates({
+        winner,
+        context: {
+          ...finishRouteContext,
+          isHighPressure: true,
+          isUnderdog: false,
+          isEdgeCandidate: false,
+          weightDiff: 0,
+          heightDiff: 0,
+        },
+      });
+      assert.equal(thresholdCandidates.some((candidate) => candidate.value === 'REAR_FINISH'), false);
+      let calls = 0;
+      const selected = resolveFinishRoute({
+        winner: {
+          ...winner,
+          style: 'TECHNIQUE',
+          bodyType: 'SOPPU',
+          traits: ['ARAWAZASHI'] as Trait[],
+        },
+        context: finishRouteContext,
+        rng: () => {
+          calls += 1;
+          return 0.99;
+        },
+      });
+      assert.equal(calls, 1);
+      assert.equal(selected, 'LEG_ATTACK');
+    },
+  },
+  {
+    name: 'combat finish route: route multipliers are explicit diagnostics-only input',
+    run: () => {
+      const routes: readonly WinRoute[] = [
+        'PUSH_OUT',
+        'BELT_FORCE',
+        'THROW_BREAK',
+        'PULL_DOWN',
+        'EDGE_REVERSAL',
+        'REAR_FINISH',
+        'LEG_ATTACK',
+      ];
+      const winner = {
+        style: 'PUSH' as const,
+        bodyType: 'NORMAL' as const,
+        stats: {
+          tsuki: 70,
+          oshi: 76,
+          kumi: 48,
+          koshi: 52,
+          nage: 48,
+          waza: 50,
+        },
+        traits: [] as Trait[],
+      };
+      const phaseWeights: PreBoutPhaseWeights = {
+        THRUST_BATTLE: 3,
+        BELT_BATTLE: 0.4,
+        TECHNIQUE_SCRAMBLE: 0.3,
+        EDGE_BATTLE: 0.2,
+        QUICK_COLLAPSE: 0.2,
+        MIXED: 0.1,
+      };
+      const offBias = resolvePreBoutPhaseRouteBias({
+        mode: 'OFF',
+        phaseWeights,
+        routeCandidates: routes,
+      });
+      const diagnosticBias = resolvePreBoutPhaseRouteBias({
+        mode: 'DIAGNOSTIC',
+        phaseWeights,
+        routeCandidates: routes,
+      });
+      const enabledBias = resolvePreBoutPhaseRouteBias({
+        mode: 'ENABLED',
+        phaseWeights,
+        routeCandidates: routes,
+      });
+      const baseCandidates = resolveFinishRouteCandidates({
+        winner,
+        context: finishRouteContext,
+        engagement: finishRouteEngagement,
+      });
+      assert.equal(offBias.applied, false);
+      assert.deepEqual(offBias.multipliers, {});
+      assert.equal(diagnosticBias.applied, true);
+      assert.equal(enabledBias.applied, true);
+      assert.deepEqual(
+        resolveFinishRouteCandidates({
+          winner,
+          context: finishRouteContext,
+          engagement: finishRouteEngagement,
+          routeMultipliers: offBias.multipliers,
+        }),
+        baseCandidates,
+      );
+      assert.deepEqual(
+        resolveFinishRouteCandidates({
+          winner,
+          context: finishRouteContext,
+          engagement: finishRouteEngagement,
+        }),
+        baseCandidates,
+      );
+      const enabledCandidates = resolveFinishRouteCandidates({
+        winner,
+        context: finishRouteContext,
+        engagement: finishRouteEngagement,
+        routeMultipliers: enabledBias.multipliers,
+      });
+      const basePush = baseCandidates.find((candidate) => candidate.value === 'PUSH_OUT')?.weight;
+      const enabledPush = enabledCandidates.find((candidate) => candidate.value === 'PUSH_OUT')?.weight;
+      assert.ok((enabledPush ?? 0) > (basePush ?? 0), 'ENABLED multiplier should only affect explicit diagnostic input');
+
+      const battleSource = readFileSync('src/logic/battle.ts', 'utf8');
+      const productionCallMatches = battleSource.match(/resolveFinishRoute\(\{/g) ?? [];
+      assert.equal(productionCallMatches.length, 1);
+      const callStart = battleSource.indexOf('resolveFinishRoute({');
+      const callEnd = battleSource.indexOf('});', callStart);
+      assert.ok(callStart >= 0 && callEnd > callStart, 'battle.ts should call resolveFinishRoute');
+      const productionCall = battleSource.slice(callStart, callEnd);
+      assert.equal(productionCall.includes('routeMultipliers'), false);
+
+      const harnessSource = readFileSync('scripts/diagnostics/prebout_phase_route_bias_harness.ts', 'utf8');
+      assert.ok(
+        harnessSource.includes("const routeMultipliers = mode === 'ENABLED' ? bias.multipliers : undefined;"),
+        'route bias harness should apply multipliers only in ENABLED mode',
+      );
+    },
+  },
+  {
     name: 'combat diagnostic kimarite classifier: hard labels require clear mismatch',
     run: () => {
       const mixed = classifyPreBoutPhaseKimariteContradiction({
@@ -680,6 +1013,8 @@ export const tests: TestCase[] = [
       assert.equal(snapshot.pressure?.isKachiMakeDecider, true);
       assert.ok(snapshot.preBoutPhaseWeights !== undefined);
       assert.ok((snapshot.preBoutPhaseReasonTags?.length ?? 0) > 0);
+      assert.ok(snapshot.boutEngagement !== undefined);
+      assert.ok(snapshot.kimaritePattern !== undefined);
       assert.equal(snapshot.kimarite, collectedResult.kimarite);
       assert.equal(snapshot.winRoute, collectedResult.winRoute);
       assert.ok(snapshot.factors.length > 0);

@@ -14,6 +14,18 @@ import {
   withBoutExplanationSnapshotCollector,
 } from '../../src/logic/simulation/diagnostics';
 import type { Rank, RikishiStatus } from '../../src/logic/models';
+import {
+  PRE_BOUT_PHASES,
+  type PreBoutPhase,
+  type PreBoutPhaseWeights,
+} from '../../src/logic/simulation/combat/preBoutPhase';
+import { resolvePreBoutPhaseConfidence } from '../../src/logic/simulation/combat/preBoutPhaseRouteBias';
+import { resolveControlPhaseCandidate } from '../../src/logic/simulation/combat/controlPhaseAdapter';
+import {
+  createBoutFlowDiagnosticSnapshot,
+  type BoutFlowDiagnosticSnapshot,
+} from '../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
+import { resolveDiagnosticKimariteMetadata } from './kimarite_family_classifier';
 
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
@@ -140,7 +152,98 @@ const summarizeMetadataCoverage = (snapshots: BoutExplanationSnapshot[]): Record
   kimarite: snapshots.filter((snapshot) => snapshot.kimarite !== undefined).length,
   winRoute: snapshots.filter((snapshot) => snapshot.winRoute !== undefined).length,
   shortCommentaryDraft: snapshots.filter((snapshot) => snapshot.shortCommentaryDraft !== undefined).length,
+  boutEngagement: snapshots.filter((snapshot) => snapshot.boutEngagement !== undefined).length,
+  kimaritePattern: snapshots.filter((snapshot) => snapshot.kimaritePattern !== undefined).length,
 });
+
+const resolveDominantOpeningPhase = (
+  weights: PreBoutPhaseWeights | undefined,
+): PreBoutPhase | undefined => {
+  if (!weights) return undefined;
+  return PRE_BOUT_PHASES
+    .map((phase) => ({ phase, weight: Math.max(0, weights[phase] ?? 0) }))
+    .sort((left, right) => right.weight - left.weight)[0]?.phase ?? 'MIXED';
+};
+
+const resolveBoutFlowSnapshot = (
+  snapshot: BoutExplanationSnapshot,
+): BoutFlowDiagnosticSnapshot | undefined => {
+  if (
+    !snapshot.preBoutPhaseWeights ||
+    !snapshot.winRoute ||
+    !snapshot.kimarite ||
+    !snapshot.boutEngagement
+  ) {
+    return undefined;
+  }
+  const metadata = resolveDiagnosticKimariteMetadata(snapshot.kimarite);
+  const controlPhase = resolveControlPhaseCandidate({
+    engagement: snapshot.boutEngagement,
+    finishRoute: snapshot.winRoute,
+    kimaritePattern: snapshot.kimaritePattern,
+  });
+  const openingConfidence = resolvePreBoutPhaseConfidence(snapshot.preBoutPhaseWeights);
+  return createBoutFlowDiagnosticSnapshot({
+    openingPhase: openingConfidence.dominantPhase,
+    openingConfidence: openingConfidence.bucket,
+    controlPhasePredecessor: snapshot.boutEngagement.phase,
+    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+    controlConfidence: controlPhase.confidence,
+    finishRoute: snapshot.winRoute,
+    kimarite: {
+      name: metadata.kimarite ?? snapshot.kimarite,
+      family: metadata.family,
+      diagnosticFamily: metadata.diagnosticFamily,
+      rarity: metadata.rarityBucket,
+      catalogStatus: metadata.catalogStatus,
+    },
+  });
+};
+
+const withBoutFlow = (snapshot: BoutExplanationSnapshot): BoutExplanationSnapshot & {
+  boutFlowSnapshot?: BoutFlowDiagnosticSnapshot;
+  boutFlow: {
+    openingPhase?: PreBoutPhase;
+    openingPhaseWeights?: PreBoutPhaseWeights;
+    openingPhaseReasonTags?: BoutExplanationSnapshot['preBoutPhaseReasonTags'];
+    controlPhasePredecessor?: NonNullable<BoutExplanationSnapshot['boutEngagement']>['phase'];
+    controlPhaseCandidate?: BoutFlowDiagnosticSnapshot['controlPhaseCandidate'];
+    controlConfidence?: BoutFlowDiagnosticSnapshot['controlConfidence'];
+    finishRoute?: BoutExplanationSnapshot['winRoute'];
+    kimarite?: {
+      name?: string;
+      family?: string;
+      diagnosticFamily: string;
+      rarity?: string;
+      catalogStatus: ReturnType<typeof resolveDiagnosticKimariteMetadata>['catalogStatus'];
+    };
+  };
+} => {
+  const metadata = resolveDiagnosticKimariteMetadata(snapshot.kimarite);
+  const boutFlowSnapshot = resolveBoutFlowSnapshot(snapshot);
+  return {
+    ...snapshot,
+    boutFlowSnapshot,
+    boutFlow: {
+      openingPhase: resolveDominantOpeningPhase(snapshot.preBoutPhaseWeights),
+      openingPhaseWeights: snapshot.preBoutPhaseWeights,
+      openingPhaseReasonTags: snapshot.preBoutPhaseReasonTags,
+      controlPhasePredecessor: snapshot.boutEngagement?.phase,
+      controlPhaseCandidate: boutFlowSnapshot?.controlPhaseCandidate,
+      controlConfidence: boutFlowSnapshot?.controlConfidence,
+      finishRoute: snapshot.winRoute,
+      kimarite: snapshot.kimarite
+        ? {
+          name: metadata.kimarite ?? snapshot.kimarite,
+          family: metadata.family,
+          diagnosticFamily: metadata.diagnosticFamily,
+          rarity: metadata.rarityBucket,
+          catalogStatus: metadata.catalogStatus,
+        }
+        : undefined,
+    },
+  };
+};
 
 const assertGuardrails = (snapshots: BoutExplanationSnapshot[]): void => {
   if (!snapshots.length) {
@@ -196,6 +299,9 @@ const main = async (): Promise<void> => {
   }
   assertGuardrails(snapshots);
   const factorRows = snapshots.flatMap((snapshot) => snapshot.factors);
+  const boutFlowSnapshots = snapshots
+    .map(resolveBoutFlowSnapshot)
+    .filter((snapshot): snapshot is BoutFlowDiagnosticSnapshot => Boolean(snapshot));
   const report = {
     generatedAt: new Date().toISOString(),
     scenarios,
@@ -203,6 +309,29 @@ const main = async (): Promise<void> => {
     factorKindCounts: countBy(factorRows.map((factor) => factor.kind)),
     factorDirectionCounts: countBy(factorRows.map((factor) => factor.direction)),
     factorStrengthCounts: countBy(factorRows.map((factor) => factor.strength)),
+    boutFlow: {
+      openingPhaseDistribution: countBy(snapshots.map((snapshot) => resolveDominantOpeningPhase(snapshot.preBoutPhaseWeights))),
+      controlPhaseCandidateDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.controlPhaseCandidate)),
+      controlConfidenceDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.controlConfidence)),
+      finishRouteDistribution: countBy(snapshots.map((snapshot) => snapshot.winRoute)),
+      kimariteDiagnosticFamilyDistribution: countBy(snapshots.map((snapshot) =>
+        resolveDiagnosticKimariteMetadata(snapshot.kimarite).diagnosticFamily)),
+      transitionClassificationDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.transitionClassification)),
+    },
+    boutFlowSnapshot: {
+      coverage: {
+        available: boutFlowSnapshots.length,
+        missing: snapshots.length - boutFlowSnapshots.length,
+      },
+      openingPhaseDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.openingPhase)),
+      openingConfidenceDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.openingConfidence)),
+      controlPhaseCandidateDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.controlPhaseCandidate)),
+      controlConfidenceDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.controlConfidence)),
+      finishRouteDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.finishRoute)),
+      kimariteFamilyDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.kimarite.family)),
+      kimariteRarityDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.kimarite.rarity)),
+      transitionClassificationDistribution: countBy(boutFlowSnapshots.map((snapshot) => snapshot.transitionClassification)),
+    },
     metadataCoverage: summarizeMetadataCoverage(snapshots),
     pressureCoverage: {
       withPressure: snapshots.filter((snapshot) => snapshot.pressure).length,
@@ -217,7 +346,7 @@ const main = async (): Promise<void> => {
       'UI prose is intentionally unavailable',
       'persistence identifiers are intentionally unavailable',
     ],
-    samples: snapshots.slice(0, 8),
+    samples: snapshots.slice(0, 8).map(withBoutFlow),
   };
   const outPath = path.resolve('.tmp/bout-explanation-player-collector.json');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

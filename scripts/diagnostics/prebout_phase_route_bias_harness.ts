@@ -13,13 +13,22 @@ import {
   resolvePreBoutPhaseRouteBias,
   type PreBoutPhaseRouteBiasExperimentMode,
 } from '../../src/logic/simulation/combat/preBoutPhaseRouteBias';
+import {
+  type ControlPhaseCandidate,
+  type ControlPhaseCandidateConfidence,
+  resolveControlPhaseCandidate,
+} from '../../src/logic/simulation/combat/controlPhaseAdapter';
+import {
+  createBoutFlowDiagnosticSnapshot,
+  type BoutFlowDiagnosticSnapshot,
+} from '../../src/logic/simulation/combat/boutFlowDiagnosticSnapshot';
 import type { BoutPressureContext } from '../../src/logic/simulation/basho/formatPolicy';
 import type { RandomSource } from '../../src/logic/simulation/deps';
 import {
   type BoutEngagement,
   resolveBoutEngagement,
-  resolveEngagementRouteBias,
 } from '../../src/logic/kimarite/engagement';
+import { resolveFinishRoute } from '../../src/logic/kimarite/finishRoute';
 import {
   consumeKimariteSelectionWarnings,
   resolveKimariteOutcome,
@@ -74,12 +83,33 @@ interface HarnessRow {
   confidenceBucket: ConfidenceBucket;
   routeBiasApplied: boolean;
   routeBiasReasonTags: readonly string[];
+  controlPhasePredecessor: BoutEngagement['phase'];
+  controlPhaseCandidate?: ControlPhaseCandidate;
+  controlPhaseCandidateConfidence: ControlPhaseCandidateConfidence;
+  controlPhaseCandidateReasonTags: readonly string[];
   winRoute: WinRoute;
   kimarite: string;
   kimariteMetadata: DiagnosticKimariteMetadata;
   severity: ContradictionSeverity;
   contradiction: boolean;
   warningCount: number;
+  boutFlowSnapshot: BoutFlowDiagnosticSnapshot;
+  boutFlow: {
+    openingPhase: PreBoutPhase;
+    openingPhaseWeights: PreBoutPhaseWeights;
+    controlPhasePredecessor: BoutEngagement['phase'];
+    controlPhaseCandidate?: ControlPhaseCandidate;
+    controlPhaseCandidateConfidence: ControlPhaseCandidateConfidence;
+    controlPhaseCandidateReasonTags: readonly string[];
+    finishRoute: WinRoute;
+    kimarite: {
+      name: string;
+      family?: string;
+      diagnosticFamily: string;
+      rarity?: string;
+      catalogStatus: DiagnosticKimariteMetadata['catalogStatus'];
+    };
+  };
 }
 
 interface RateSummary {
@@ -197,95 +227,6 @@ const resolveHarnessCases = (): HarnessCase[] => {
   return cases;
 };
 
-const weightedPick = <T>(
-  entries: Array<{ value: T; weight: number }>,
-  rng: RandomSource,
-): T => {
-  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
-  let roll = rng() * total;
-  for (const entry of entries) {
-    roll -= Math.max(0, entry.weight);
-    if (roll <= 0) return entry.value;
-  }
-  return entries[entries.length - 1].value;
-};
-
-const localResolveWinRoute = (
-  winner: KimariteCompetitorProfile,
-  context: RouteSelectionContext,
-  engagement: BoutEngagement,
-  rng: RandomSource,
-  routeMultipliers?: Partial<Record<WinRoute, number>>,
-): WinRoute => {
-  const routeBias = resolveEngagementRouteBias(engagement);
-  const biasOf = (route: WinRoute): number => routeBias[route] ?? 1;
-  const phaseBiasOf = (route: WinRoute): number => routeMultipliers?.[route] ?? 1;
-  const rawWeights: Array<{ value: WinRoute; weight: number }> = [
-    {
-      value: 'PUSH_OUT',
-      weight:
-        (winner.style === 'PUSH' ? 2.6 : 0.2) +
-        ((winner.stats.oshi ?? 50) + (winner.stats.tsuki ?? 50)) / 90 +
-        (context.weightDiff >= 6 ? 0.35 : 0),
-    },
-    {
-      value: 'BELT_FORCE',
-      weight:
-        (winner.style === 'GRAPPLE' ? 2.6 : 0.25) +
-        ((winner.stats.kumi ?? 50) + (winner.stats.koshi ?? 50)) / 92 +
-        (context.weightDiff >= 0 ? 0.45 : 0),
-    },
-    {
-      value: 'THROW_BREAK',
-      weight:
-        (winner.style === 'TECHNIQUE' ? 2.4 : winner.style === 'GRAPPLE' ? 0.9 : 0.12) +
-        ((winner.stats.nage ?? 50) + (winner.stats.waza ?? 50)) / 94,
-    },
-    {
-      value: 'PULL_DOWN',
-      weight:
-        (winner.style === 'PUSH' ? 1.55 : winner.style === 'TECHNIQUE' ? 1.7 : winner.style === 'GRAPPLE' ? 0.38 : 0.22) +
-        (context.isUnderdog ? 0.45 : 0) +
-        (context.heightDiff >= 6 ? 0.18 : 0),
-    },
-    {
-      value: 'EDGE_REVERSAL',
-      weight:
-        context.isEdgeCandidate
-          ? 0.14 +
-            (winner.traits.includes('DOHYOUGIWA_MAJUTSU') ? 1.2 : 0) +
-            (winner.traits.includes('CLUTCH_REVERSAL') ? 1.0 : 0) +
-            (context.isUnderdog ? 0.45 : 0)
-          : 0,
-    },
-    {
-      value: 'REAR_FINISH',
-      weight:
-        context.isHighPressure || context.isLastDay
-          ? 0.04 +
-            (winner.traits.includes('READ_THE_BOUT') ? 0.65 : 0) +
-            (winner.style === 'TECHNIQUE' ? 0.3 : 0)
-          : 0,
-    },
-    {
-      value: 'LEG_ATTACK',
-      weight:
-        winner.style === 'TECHNIQUE' || winner.traits.includes('ARAWAZASHI')
-          ? 0.015 +
-            (winner.bodyType === 'SOPPU' ? 0.08 : 0) +
-            (context.isUnderdog ? 0.08 : 0)
-          : 0,
-    },
-  ];
-  const weights = rawWeights
-    .map((entry) => ({
-      ...entry,
-      weight: entry.weight * biasOf(entry.value) * phaseBiasOf(entry.value),
-    }))
-    .filter((entry) => entry.weight > 0.04);
-  return weightedPick(weights, rng);
-};
-
 const simulateCase = (
   testCase: HarnessCase,
   mode: HarnessMode,
@@ -345,7 +286,13 @@ const simulateCase = (
     pressure: testCase.pressure,
   });
   const routeMultipliers = mode === 'ENABLED' ? bias.multipliers : undefined;
-  const winRoute = localResolveWinRoute(winner, context, engagement, rng, routeMultipliers);
+  const winRoute = resolveFinishRoute({
+    winner,
+    context,
+    engagement,
+    rng,
+    routeMultipliers,
+  });
   consumeKimariteSelectionWarnings();
   const selected = resolveKimariteOutcome({
     winner,
@@ -357,6 +304,11 @@ const simulateCase = (
   });
   const warnings = consumeKimariteSelectionWarnings();
   const kimariteMetadata = resolveDiagnosticKimariteMetadata(selected.kimarite);
+  const controlPhase = resolveControlPhaseCandidate({
+    engagement,
+    finishRoute: winRoute,
+    kimaritePattern: selected.pattern,
+  });
   const confidence = bias.phaseConfidence ?? resolvePreBoutPhaseRouteBias({
     mode: 'DIAGNOSTIC',
     phaseWeights: phaseResolution.weights,
@@ -370,6 +322,21 @@ const simulateCase = (
     route: winRoute,
     metadata: kimariteMetadata,
   });
+  const boutFlowSnapshot = createBoutFlowDiagnosticSnapshot({
+    openingPhase: dominantPhase,
+    openingConfidence: confidenceBucket,
+    controlPhasePredecessor: engagement.phase,
+    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+    controlConfidence: controlPhase.confidence,
+    finishRoute: winRoute,
+    kimarite: {
+      name: kimariteMetadata.kimarite ?? selected.kimarite,
+      family: kimariteMetadata.family,
+      diagnosticFamily: kimariteMetadata.diagnosticFamily,
+      rarity: kimariteMetadata.rarityBucket,
+      catalogStatus: kimariteMetadata.catalogStatus,
+    },
+  });
   return {
     caseId: testCase.id,
     mode,
@@ -382,12 +349,33 @@ const simulateCase = (
     confidenceBucket,
     routeBiasApplied: bias.applied,
     routeBiasReasonTags: bias.reasonTags,
+    controlPhasePredecessor: engagement.phase,
+    controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+    controlPhaseCandidateConfidence: controlPhase.confidence,
+    controlPhaseCandidateReasonTags: controlPhase.reasonTags,
     winRoute,
     kimarite: selected.kimarite,
     kimariteMetadata,
     severity: classified.severity,
     contradiction: classified.contradiction,
     warningCount: warnings.length,
+    boutFlowSnapshot,
+    boutFlow: {
+      openingPhase: dominantPhase,
+      openingPhaseWeights: phaseResolution.weights,
+      controlPhasePredecessor: engagement.phase,
+      controlPhaseCandidate: controlPhase.controlPhaseCandidate,
+      controlPhaseCandidateConfidence: controlPhase.confidence,
+      controlPhaseCandidateReasonTags: controlPhase.reasonTags,
+      finishRoute: winRoute,
+      kimarite: {
+        name: kimariteMetadata.kimarite ?? selected.kimarite,
+        family: kimariteMetadata.family,
+        diagnosticFamily: kimariteMetadata.diagnosticFamily,
+        rarity: kimariteMetadata.rarityBucket,
+        catalogStatus: kimariteMetadata.catalogStatus,
+      },
+    },
   };
 };
 
@@ -511,6 +499,70 @@ const main = (): void => {
       ENABLED: enabledHighHardRate,
       relativeReduction: hardReductionRelative,
     },
+    boutFlowDistribution: {
+      openingPhase: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.openingPhase)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.openingPhase)),
+      },
+      controlPhasePredecessor: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhasePredecessor)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhasePredecessor)),
+      },
+      controlPhaseCandidate: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhaseCandidate)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhaseCandidate)),
+      },
+      controlPhaseCandidateConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.controlPhaseCandidateConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.controlPhaseCandidateConfidence)),
+      },
+      finishRoute: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.finishRoute)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.finishRoute)),
+      },
+      kimariteDiagnosticFamily: {
+        OFF: countBy(offRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlow.kimarite.diagnosticFamily)),
+      },
+      transitionClassification: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+      },
+    },
+    boutFlowSnapshotDistribution: {
+      openingPhase: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.openingPhase)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.openingPhase)),
+      },
+      openingConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.openingConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.openingConfidence)),
+      },
+      controlPhaseCandidate: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.controlPhaseCandidate)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.controlPhaseCandidate)),
+      },
+      controlConfidence: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.controlConfidence)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.controlConfidence)),
+      },
+      finishRoute: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.finishRoute)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.finishRoute)),
+      },
+      kimariteFamily: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.kimarite.family)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.kimarite.family)),
+      },
+      kimariteRarity: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.kimarite.rarity)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.kimarite.rarity)),
+      },
+      transitionClassification: {
+        OFF: countBy(offRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+        ENABLED: countBy(enabledRows.map((row) => row.boutFlowSnapshot.transitionClassification)),
+      },
+    },
     routeDistribution: {
       OFF: offRouteCounts,
       ENABLED: enabledRouteCounts,
@@ -548,10 +600,15 @@ const main = (): void => {
             : 'keep diagnostic-only',
     },
     limitations: [
-      'The harness uses a local route-selector equivalent because production resolveWinRoute is intentionally private.',
+      'The harness uses the shared finishRoute selector, with route multipliers applied only in ENABLED mode.',
       'ENABLED does not enable production behavior.',
       'Full downstream career RNG parity is not claimed.',
     ],
+    boutFlowSnapshots: offRows.slice(0, 16).map((row) => ({
+      caseId: row.caseId,
+      mode: row.mode,
+      snapshot: row.boutFlowSnapshot,
+    })),
     examples: {
       changedRoutes: enabledRows
         .filter((row, index) => row.winRoute !== offRows[index]?.winRoute)
@@ -561,6 +618,8 @@ const main = (): void => {
           offRoute: offRows.find((off) => off.caseId === row.caseId)?.winRoute,
           enabledRoute: row.winRoute,
           phase: row.dominantPhase,
+          boutFlowSnapshot: row.boutFlowSnapshot,
+          boutFlow: row.boutFlow,
           confidence: row.confidenceBucket,
           offSeverity: offRows.find((off) => off.caseId === row.caseId)?.severity,
           enabledSeverity: row.severity,
@@ -582,6 +641,7 @@ const main = (): void => {
     kimariteFamilyDistribution: report.kimariteFamilyDistribution,
     diagnosticFamilyDistribution: report.diagnosticFamilyDistribution,
     rarityDistribution: report.rarityDistribution,
+    boutFlowSnapshotDistribution: report.boutFlowSnapshotDistribution,
     warningCounts: report.warningCounts,
     acceptanceRead: report.acceptanceRead,
   }, null, 2));
