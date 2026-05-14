@@ -286,6 +286,11 @@ const criticalQualityFlags = scenarioAudits.flatMap((audit) =>
 const missingAxisFlags = scenarioAudits.flatMap((audit) =>
   audit.missingAxes.map((axis) => `${audit.label}:${axis}`),
 );
+const totalMaterialSlots = scenarios.reduce((sum, scenario) => sum + scenario.commentary.materialKeys.length, 0);
+const repeatedMaterialKeySlots = Object.values(materialKeyCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const repeatedMaterialTextSlots = Object.values(materialTextCounts).reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+const totalAxisSlots = scenarioAudits.length * REQUIRED_AXES.length;
+const reflectedAxisSlots = scenarioAudits.reduce((sum, audit) => sum + REQUIRED_AXES.length - audit.missingAxes.length, 0);
 
 invariant(sameKimariteScenarios.length === 3, 'same-kimarite audit fixtures should be present');
 invariant(new Set(sameKimariteScenarios.map((scenario) => scenario.commentary.kimarite)).size === 1, 'same-kimarite fixtures must use the same kimarite');
@@ -315,9 +320,14 @@ const audit = {
   },
   materialKeyBias: {
     axisCounts,
+    totalMaterialSlots,
+    repeatedMaterialKeySlots,
+    repeatedMaterialTextSlots,
+    duplicateMaterialKeyRate: totalMaterialSlots > 0 ? repeatedMaterialKeySlots / totalMaterialSlots : 0,
+    duplicateMaterialTextRate: totalMaterialSlots > 0 ? repeatedMaterialTextSlots / totalMaterialSlots : 0,
     duplicateMaterialKeys: duplicated(materialKeyCounts),
     expectedSharedKeys: [
-      '同一決まり手監査では finish:PUSH_OUT と kimarite:押し出し:PUSH_THRUST が重複する',
+      '同一決まり手監査では finish:PUSH_OUT:* と kimarite:押し出し:* が重複し得る',
       'victory key は日本語ラベルではなく diagnostic tag 由来に固定',
     ],
   },
@@ -328,6 +338,9 @@ const audit = {
   axisReflection: {
     requiredAxes: REQUIRED_AXES,
     allScenariosComplete: missingAxisFlags.length === 0,
+    reflectedAxisSlots,
+    totalAxisSlots,
+    contextReflectionRate: totalAxisSlots > 0 ? reflectedAxisSlots / totalAxisSlots : 0,
     scenarioAudits,
     distinctCounts: {
       transition: Object.keys(transitionCounts).length,
@@ -370,6 +383,7 @@ const report = {
     'shortCommentary now includes banzuke context as well as transition and hoshitori context',
     'victory material keys use diagnostic factor tags instead of Japanese labels',
     '硬い説明調だった一部素材を相撲短評として読みやすい表現に調整',
+    'axis materials now use deterministic variants keyed by flow/context shape',
   ],
   scenarios: scenarios.map((scenario) => ({
     label: scenario.label,
@@ -403,6 +417,9 @@ console.log(JSON.stringify({
   scenarioCount: report.scenarioCount,
   sameKimariteVariation: report.sameKimariteVariation,
   distinctCounts: report.audit.axisReflection.distinctCounts,
+  duplicateMaterialKeyRate: report.audit.materialKeyBias.duplicateMaterialKeyRate,
+  duplicateMaterialTextRate: report.audit.materialKeyBias.duplicateMaterialTextRate,
+  contextReflectionRate: report.audit.axisReflection.contextReflectionRate,
   japaneseNaturalness: report.audit.japaneseNaturalness.pass,
   duplicateShortCommentaries: report.audit.duplicateExpressions.duplicateShortCommentaries,
   productionGuardrails: report.productionGuardrails,
