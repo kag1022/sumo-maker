@@ -53,7 +53,7 @@ Current BoutFlow diagnostics coverage:
 - FinishRoute is covered wherever legacy `winRoute` is already collected. `resolveFinishRoute` is the shared selector for production and the route-bias harness; diagnostics pass `routeMultipliers` only in explicit ENABLED harness mode.
 - Kimarite is covered in player explanation, contradiction, and route-bias diagnostics when catalog metadata is available; opening-only collectors intentionally omit it.
 
-`scripts/diagnostics/bout_flow_commentary_generator.ts` is an opt-in fixed-seed diagnostic generator for the commentary contract. It feeds synthetic `COMPLETE_CONTEXT` snapshots with the same kimarite through `boutFlowCommentary.ts` and verifies that Opening / Control / Transition / Finish / 星取 / 番付 context changes produce different material keys and short commentary without touching production RNG or selectors.
+`scripts/diagnostics/bout_flow_commentary_generator.ts` is an opt-in fixed-seed diagnostic generator for the commentary contract. It feeds synthetic `COMPLETE_CONTEXT` snapshots through `boutFlowCommentary.ts` and verifies that Opening / Control / Transition / Finish / Kimarite / 星取 / 番付 context changes produce different material keys and short commentary without touching production RNG or selectors. The report also audits Japanese prose guardrails, sumo-expression notes, material-key bias, duplicate short commentary, duplicate material text, and per-axis reflection.
 
 `preBoutPhaseRouteBias.ts` remains diagnostic / experiment infrastructure. Direct PreBoutPhase-to-route bias is not a production candidate by itself; any live behavior change must go through a separate flow-level design and validation task.
 
