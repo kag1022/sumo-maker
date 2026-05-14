@@ -10,10 +10,19 @@ import {
 import { resolveCombatKernelProbability } from '../../../src/logic/simulation/combat/kernel';
 import {
   PRE_BOUT_PHASES,
+  type PreBoutPhaseWeights,
   resolvePreBoutPhaseDiagnostic,
   resolvePreBoutPhaseWeights,
   samplePreBoutPhase,
 } from '../../../src/logic/simulation/combat/preBoutPhase';
+import {
+  resolvePreBoutPhaseConfidence,
+  resolvePreBoutPhaseRouteBias,
+} from '../../../src/logic/simulation/combat/preBoutPhaseRouteBias';
+import {
+  classifyPreBoutPhaseKimariteContradiction,
+  resolveDiagnosticKimariteMetadata,
+} from '../../diagnostics/kimarite_family_classifier';
 import {
   type BoutExplanationSnapshot,
   isBoutExplanationSnapshotEnabled,
@@ -314,6 +323,158 @@ export const tests: TestCase[] = [
       assert.equal(sampledA, sampledB);
       const diagnostic = resolvePreBoutPhaseDiagnostic(input, () => 0.99);
       assert.ok(PRE_BOUT_PHASES.includes(diagnostic.phase ?? 'MIXED'));
+    },
+  },
+  {
+    name: 'combat phase route bias: helper is pure and neutral when disabled',
+    run: () => {
+      const weights: PreBoutPhaseWeights = {
+        THRUST_BATTLE: 3,
+        BELT_BATTLE: 0.4,
+        TECHNIQUE_SCRAMBLE: 0.3,
+        EDGE_BATTLE: 0.2,
+        QUICK_COLLAPSE: 0.2,
+        MIXED: 0.1,
+      };
+      const routeCandidates = ['PUSH_OUT', 'BELT_FORCE', 'THROW_BREAK'] as const;
+      const pressure = { isFinalBout: true };
+      const before = JSON.stringify({ weights, routeCandidates, pressure });
+      const first = resolvePreBoutPhaseRouteBias({
+        mode: 'OFF',
+        phaseWeights: weights,
+        routeCandidates,
+        pressure,
+      });
+      const second = resolvePreBoutPhaseRouteBias({
+        mode: 'OFF',
+        phaseWeights: weights,
+        routeCandidates,
+        pressure,
+      });
+      assert.equal(first.applied, false);
+      assert.deepEqual(first.multipliers, {});
+      assert.deepEqual(first, second);
+      assert.equal(JSON.stringify({ weights, routeCandidates, pressure }), before);
+
+      const missingWeights = resolvePreBoutPhaseRouteBias({
+        mode: 'DIAGNOSTIC',
+        routeCandidates,
+      });
+      assert.equal(missingWeights.applied, false);
+      assert.deepEqual(missingWeights.multipliers, {});
+    },
+  },
+  {
+    name: 'combat phase route bias: confidence and neutral cases follow thresholds',
+    run: () => {
+      const low: PreBoutPhaseWeights = {
+        THRUST_BATTLE: 1,
+        BELT_BATTLE: 1,
+        TECHNIQUE_SCRAMBLE: 1,
+        EDGE_BATTLE: 1,
+        QUICK_COLLAPSE: 1,
+        MIXED: 1,
+      };
+      const lowConfidence = resolvePreBoutPhaseConfidence(low);
+      assert.equal(lowConfidence.bucket, 'LOW');
+      const lowBias = resolvePreBoutPhaseRouteBias({
+        mode: 'DIAGNOSTIC',
+        phaseWeights: low,
+        routeCandidates: ['PUSH_OUT', 'BELT_FORCE'],
+      });
+      assert.equal(lowBias.applied, false);
+      assert.deepEqual(lowBias.multipliers, {});
+
+      const mixed: PreBoutPhaseWeights = {
+        THRUST_BATTLE: 0.8,
+        BELT_BATTLE: 0.8,
+        TECHNIQUE_SCRAMBLE: 0.8,
+        EDGE_BATTLE: 0.4,
+        QUICK_COLLAPSE: 0.4,
+        MIXED: 3,
+      };
+      const mixedConfidence = resolvePreBoutPhaseConfidence(mixed);
+      assert.equal(mixedConfidence.dominantPhase, 'MIXED');
+      const mixedBias = resolvePreBoutPhaseRouteBias({
+        mode: 'ENABLED',
+        phaseWeights: mixed,
+        routeCandidates: ['PUSH_OUT', 'BELT_FORCE', 'THROW_BREAK'],
+      });
+      assert.equal(mixedBias.applied, false);
+      assert.deepEqual(mixedBias.multipliers, {});
+    },
+  },
+  {
+    name: 'combat phase route bias: high thrust applies filtered bounded multipliers',
+    run: () => {
+      const weights: PreBoutPhaseWeights = {
+        THRUST_BATTLE: 3,
+        BELT_BATTLE: 0.4,
+        TECHNIQUE_SCRAMBLE: 0.3,
+        EDGE_BATTLE: 0.2,
+        QUICK_COLLAPSE: 0.2,
+        MIXED: 0.1,
+      };
+      const confidence = resolvePreBoutPhaseConfidence(weights);
+      assert.equal(confidence.dominantPhase, 'THRUST_BATTLE');
+      assert.equal(confidence.bucket, 'HIGH');
+
+      const bias = resolvePreBoutPhaseRouteBias({
+        mode: 'ENABLED',
+        phaseWeights: weights,
+        routeCandidates: ['PUSH_OUT', 'BELT_FORCE', 'THROW_BREAK'],
+      });
+      assert.equal(bias.applied, true);
+      assert.deepEqual(bias.multipliers, {
+        PUSH_OUT: 1.15,
+        BELT_FORCE: 0.7,
+        THROW_BREAK: 0.7,
+      });
+      assert.ok(bias.reasonTags.includes('phase-route-bias:THRUST_BATTLE:HIGH'));
+      assert.ok(bias.reasonTags.includes('route:PUSH_OUT:1.15'));
+      assert.equal('PULL_DOWN' in bias.multipliers, false);
+      Object.values(bias.multipliers).forEach((multiplier) => {
+        assert.ok((multiplier ?? 1) >= 0.7);
+        assert.ok((multiplier ?? 1) <= 1.15);
+      });
+
+      const again = resolvePreBoutPhaseRouteBias({
+        mode: 'ENABLED',
+        phaseWeights: weights,
+        routeCandidates: ['PUSH_OUT', 'BELT_FORCE', 'THROW_BREAK'],
+      });
+      assert.deepEqual(again, bias);
+    },
+  },
+  {
+    name: 'combat diagnostic kimarite classifier: hard labels require clear mismatch',
+    run: () => {
+      const mixed = classifyPreBoutPhaseKimariteContradiction({
+        phase: 'MIXED',
+        confidenceBucket: 'HIGH',
+        route: 'BELT_FORCE',
+        metadata: resolveDiagnosticKimariteMetadata('寄り切り'),
+      });
+      assert.equal(mixed.severity, 'NONE');
+      assert.equal(mixed.contradiction, false);
+
+      const thrustBelt = classifyPreBoutPhaseKimariteContradiction({
+        phase: 'THRUST_BATTLE',
+        confidenceBucket: 'HIGH',
+        route: 'BELT_FORCE',
+        metadata: resolveDiagnosticKimariteMetadata('寄り切り'),
+      });
+      assert.equal(thrustBelt.severity, 'HARD');
+      assert.equal(thrustBelt.contradiction, true);
+
+      const thrustThrow = classifyPreBoutPhaseKimariteContradiction({
+        phase: 'THRUST_BATTLE',
+        confidenceBucket: 'MEDIUM',
+        route: 'THROW_BREAK',
+        metadata: resolveDiagnosticKimariteMetadata('掬い投げ'),
+      });
+      assert.equal(thrustThrow.severity, 'UNKNOWN');
+      assert.equal(thrustThrow.contradiction, false);
     },
   },
   {

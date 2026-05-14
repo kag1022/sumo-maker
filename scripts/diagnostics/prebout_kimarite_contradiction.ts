@@ -23,18 +23,17 @@ import {
 import type { CombatStyle } from '../../src/logic/simulation/combat/types';
 import type { Rank, RikishiStatus, WinRoute } from '../../src/logic/models';
 import {
-  findNonTechniqueEntry,
-  findOfficialKimariteEntry,
-  type KimariteFamily,
-  type KimaritePattern,
-  type KimariteRarityBucket,
-  type KimariteTag,
-} from '../../src/logic/kimarite/catalog';
+  DIAGNOSTIC_KIMARITE_CLASSIFIER_RULES,
+  classifyPreBoutPhaseKimariteContradiction,
+  resolveDiagnosticKimariteMetadata,
+  type DiagnosticContradictionSeverity,
+  type DiagnosticKimariteMetadata,
+} from './kimarite_family_classifier';
 
 const OFFICIAL_BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
-type ContradictionSeverity = 'NONE' | 'SOFT' | 'HARD' | 'UNKNOWN';
-type ConfidenceBucket = 'low' | 'medium' | 'high';
+type ContradictionSeverity = DiagnosticContradictionSeverity;
+type ConfidenceBucket = 'LOW' | 'MEDIUM' | 'HIGH';
 type StylePreset = 'BALANCE' | 'PUSH' | 'GRAPPLE' | 'TECHNIQUE';
 type PressureBucket = 'NONE' | 'FINAL' | 'KACHI_MAKE' | 'YUSHO_OR_BOUNDARY';
 
@@ -56,18 +55,6 @@ interface PhaseSummary {
   totalWeight: number;
 }
 
-interface KimariteMetadata {
-  kimarite?: string;
-  family?: KimariteFamily;
-  rarityBucket?: KimariteRarityBucket;
-  class?: string;
-  tags: KimariteTag[];
-  requiredPatterns: KimaritePattern[];
-  patternRole?: string;
-  contextTags: string[];
-  catalogStatus: 'OFFICIAL' | 'NON_TECHNIQUE' | 'UNKNOWN';
-}
-
 interface ClassifiedBout {
   index: number;
   runLabel?: string;
@@ -82,7 +69,7 @@ interface ClassifiedBout {
   phase: PhaseSummary;
   winRoute?: WinRoute;
   kimarite?: string;
-  kimariteMetadata: KimariteMetadata;
+  kimariteMetadata: DiagnosticKimariteMetadata;
   severity: ContradictionSeverity;
   contradiction: boolean;
   reason: string;
@@ -91,8 +78,12 @@ interface ClassifiedBout {
 interface CountRate {
   count: number;
   contradictions: number;
+  hard: number;
+  soft: number;
   unknown: number;
   contradictionRate: number;
+  hardRate: number;
+  softRate: number;
   unknownRate: number;
 }
 
@@ -306,10 +297,10 @@ const summarizePhase = (weights: PreBoutPhaseWeights): PhaseSummary => {
   const margin = top.weight - second.weight;
   const confidenceBucket: ConfidenceBucket =
     confidence >= 0.27 || margin >= 0.7
-      ? 'high'
+      ? 'HIGH'
       : confidence >= 0.22 || margin >= 0.35
-        ? 'medium'
-        : 'low';
+        ? 'MEDIUM'
+        : 'LOW';
   return {
     dominantPhase: top.phase,
     confidence: round(confidence),
@@ -319,229 +310,6 @@ const summarizePhase = (weights: PreBoutPhaseWeights): PhaseSummary => {
     secondWeight: round(second.weight),
     totalWeight: round(totalWeight),
   };
-};
-
-const resolveKimariteMetadata = (
-  kimarite: string | undefined,
-): KimariteMetadata => {
-  if (!kimarite) {
-    return {
-      tags: [],
-      requiredPatterns: [],
-      contextTags: [],
-      catalogStatus: 'UNKNOWN',
-    };
-  }
-  const official = findOfficialKimariteEntry(kimarite);
-  if (official) {
-    return {
-      kimarite: official.name,
-      family: official.family,
-      rarityBucket: official.rarityBucket,
-      class: official.class,
-      tags: [...official.tags],
-      requiredPatterns: [...official.requiredPatterns],
-      patternRole: official.patternRole,
-      contextTags: [...official.contextTags],
-      catalogStatus: 'OFFICIAL',
-    };
-  }
-  const nonTechnique = findNonTechniqueEntry(kimarite);
-  if (nonTechnique) {
-    return {
-      kimarite: nonTechnique.name,
-      family: nonTechnique.family,
-      rarityBucket: nonTechnique.rarityBucket,
-      class: nonTechnique.class,
-      tags: [],
-      requiredPatterns: ['NON_TECHNIQUE'],
-      contextTags: [],
-      catalogStatus: 'NON_TECHNIQUE',
-    };
-  }
-  return {
-    kimarite,
-    tags: [],
-    requiredPatterns: [],
-    contextTags: [],
-    catalogStatus: 'UNKNOWN',
-  };
-};
-
-const hasTag = (metadata: KimariteMetadata, tag: KimariteTag): boolean =>
-  metadata.tags.includes(tag);
-
-const hasPattern = (metadata: KimariteMetadata, pattern: KimaritePattern): boolean =>
-  metadata.requiredPatterns.includes(pattern);
-
-const hasContext = (metadata: KimariteMetadata, contextTag: string): boolean =>
-  metadata.contextTags.includes(contextTag);
-
-const isBeltHeavy = (route: WinRoute | undefined, metadata: KimariteMetadata): boolean =>
-  route === 'BELT_FORCE' ||
-  hasTag(metadata, 'belt') ||
-  hasPattern(metadata, 'BELT_FORCE');
-
-const isThrowHeavy = (route: WinRoute | undefined, metadata: KimariteMetadata): boolean =>
-  route === 'THROW_BREAK' ||
-  metadata.family === 'THROW' ||
-  hasPattern(metadata, 'THROW_EXCHANGE');
-
-const isLegAttackHeavy = (route: WinRoute | undefined, metadata: KimariteMetadata): boolean =>
-  route === 'LEG_ATTACK' ||
-  metadata.family === 'TRIP_PICK' ||
-  hasTag(metadata, 'leg') ||
-  hasTag(metadata, 'trip') ||
-  hasPattern(metadata, 'LEG_TRIP_PICK');
-
-const isPullOrTwist = (route: WinRoute | undefined, metadata: KimariteMetadata): boolean =>
-  route === 'PULL_DOWN' ||
-  metadata.family === 'TWIST_DOWN' ||
-  hasTag(metadata, 'pull') ||
-  hasTag(metadata, 'twist') ||
-  hasPattern(metadata, 'PULL_DOWN');
-
-const isDirectPush = (route: WinRoute | undefined, metadata: KimariteMetadata): boolean =>
-  route === 'PUSH_OUT' ||
-  metadata.family === 'PUSH_THRUST' ||
-  hasPattern(metadata, 'PUSH_ADVANCE');
-
-const isTechniqueCompatible = (
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): boolean =>
-  route === 'THROW_BREAK' ||
-  route === 'PULL_DOWN' ||
-  route === 'LEG_ATTACK' ||
-  metadata.family === 'THROW' ||
-  metadata.family === 'TWIST_DOWN' ||
-  metadata.family === 'TRIP_PICK' ||
-  metadata.family === 'BACKWARD_BODY_DROP' ||
-  hasTag(metadata, 'pull') ||
-  hasTag(metadata, 'twist') ||
-  hasTag(metadata, 'trip') ||
-  hasTag(metadata, 'leg');
-
-const isEdgeCompatible = (
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): boolean =>
-  route === 'EDGE_REVERSAL' ||
-  route === 'PULL_DOWN' ||
-  route === 'THROW_BREAK' ||
-  hasTag(metadata, 'edge') ||
-  hasContext(metadata, 'EDGE') ||
-  hasPattern(metadata, 'EDGE_REVERSAL') ||
-  metadata.kimarite === '押し倒し' ||
-  metadata.kimarite === '突き倒し' ||
-  metadata.kimarite === '突き落とし';
-
-const isCollapseCompatible = (
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): boolean =>
-  route === 'PUSH_OUT' ||
-  route === 'PULL_DOWN' ||
-  metadata.family === 'PUSH_THRUST' ||
-  metadata.family === 'TWIST_DOWN' ||
-  metadata.family === 'NON_TECHNIQUE' ||
-  hasTag(metadata, 'pull') ||
-  hasTag(metadata, 'twist');
-
-const isLongBelt = (
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): boolean =>
-  route === 'BELT_FORCE' && isBeltHeavy(route, metadata) && !isCollapseCompatible(route, metadata);
-
-const isRareComplexThrow = (
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): boolean =>
-  (metadata.rarityBucket === 'RARE' || metadata.rarityBucket === 'EXTREME') &&
-  (route === 'THROW_BREAK' || metadata.family === 'THROW' || metadata.family === 'BACKWARD_BODY_DROP');
-
-const severityForConfidence = (
-  phase: PhaseSummary,
-  highSeverity: ContradictionSeverity = 'HARD',
-): ContradictionSeverity => {
-  if (phase.confidenceBucket === 'high') return highSeverity;
-  if (phase.confidenceBucket === 'medium') return 'SOFT';
-  return 'UNKNOWN';
-};
-
-const classifyContradiction = (
-  phase: PhaseSummary,
-  route: WinRoute | undefined,
-  metadata: KimariteMetadata,
-): { severity: ContradictionSeverity; reason: string } => {
-  if (phase.dominantPhase === 'MIXED') {
-    return { severity: 'NONE', reason: 'mixed phase has no default contradiction rule' };
-  }
-  if (!route || metadata.catalogStatus === 'UNKNOWN') {
-    return { severity: 'UNKNOWN', reason: 'route or kimarite catalog metadata unavailable' };
-  }
-
-  if (phase.dominantPhase === 'THRUST_BATTLE') {
-    const contradiction = (isBeltHeavy(route, metadata) || isThrowHeavy(route, metadata) || isLegAttackHeavy(route, metadata)) && !isPullOrTwist(route, metadata);
-    if (contradiction) {
-      return {
-        severity: severityForConfidence(phase),
-        reason: 'thrust phase paired with belt/throw/leg-heavy outcome',
-      };
-    }
-    return { severity: 'NONE', reason: 'thrust phase compatible with push, pull, collapse, or mixed force outcome' };
-  }
-
-  if (phase.dominantPhase === 'BELT_BATTLE') {
-    const pureThrust = isDirectPush(route, metadata) && !isBeltHeavy(route, metadata) && !isThrowHeavy(route, metadata);
-    if (isPullOrTwist(route, metadata) || pureThrust) {
-      return {
-        severity: severityForConfidence(phase),
-        reason: pureThrust
-          ? 'belt phase paired with pure thrust/push outcome'
-          : 'belt phase paired with pull-down or twist-down outcome',
-      };
-    }
-    return { severity: 'NONE', reason: 'belt phase compatible with belt force, throws, or close-body technique' };
-  }
-
-  if (phase.dominantPhase === 'TECHNIQUE_SCRAMBLE') {
-    const directCommonForce =
-      (route === 'PUSH_OUT' || route === 'BELT_FORCE') &&
-      (metadata.family === 'PUSH_THRUST' || metadata.family === 'FORCE_OUT') &&
-      metadata.rarityBucket === 'COMMON' &&
-      !isTechniqueCompatible(route, metadata);
-    if (directCommonForce) {
-      return {
-        severity: phase.confidenceBucket === 'low' ? 'UNKNOWN' : 'SOFT',
-        reason: 'technique phase paired with common direct force outcome',
-      };
-    }
-    return { severity: 'NONE', reason: 'technique phase compatible with adaptive or non-basic outcome' };
-  }
-
-  if (phase.dominantPhase === 'EDGE_BATTLE') {
-    if (!isEdgeCompatible(route, metadata)) {
-      return {
-        severity: severityForConfidence(phase),
-        reason: 'edge phase paired with no edge-compatible route, tag, or pattern',
-      };
-    }
-    return { severity: 'NONE', reason: 'edge phase compatible with edge, throw, pull, or collapse outcome' };
-  }
-
-  if (phase.dominantPhase === 'QUICK_COLLAPSE') {
-    if (!isCollapseCompatible(route, metadata) && (isLongBelt(route, metadata) || isRareComplexThrow(route, metadata))) {
-      return {
-        severity: severityForConfidence(phase),
-        reason: 'quick collapse phase paired with long belt battle or rare complex throw',
-      };
-    }
-    return { severity: 'NONE', reason: 'quick collapse phase compatible with immediate force, pull, twist, or non-technique outcome' };
-  }
-
-  return { severity: 'UNKNOWN', reason: 'unhandled phase' };
 };
 
 const countBy = <T extends string | undefined>(
@@ -557,12 +325,18 @@ const countBy = <T extends string | undefined>(
 
 const summarizeRate = (rows: ClassifiedBout[]): CountRate => {
   const contradictions = rows.filter((row) => row.contradiction).length;
+  const hard = rows.filter((row) => row.severity === 'HARD').length;
+  const soft = rows.filter((row) => row.severity === 'SOFT').length;
   const unknown = rows.filter((row) => row.severity === 'UNKNOWN').length;
   return {
     count: rows.length,
     contradictions,
+    hard,
+    soft,
     unknown,
     contradictionRate: rows.length ? round(contradictions / rows.length) : 0,
+    hardRate: rows.length ? round(hard / rows.length) : 0,
+    softRate: rows.length ? round(soft / rows.length) : 0,
     unknownRate: rows.length ? round(unknown / rows.length) : 0,
   };
 };
@@ -639,15 +413,20 @@ const classifyRows = (
         dominantPhase: 'MIXED' as const,
         confidence: 0,
         margin: 0,
-        confidenceBucket: 'low' as const,
+        confidenceBucket: 'LOW' as const,
         topWeight: 0,
         secondWeight: 0,
         totalWeight: 0,
       };
-    const metadata = resolveKimariteMetadata(snapshot.kimarite);
+    const metadata = resolveDiagnosticKimariteMetadata(snapshot.kimarite);
     const classified = weights
-      ? classifyContradiction(phase, snapshot.winRoute, metadata)
-      : { severity: 'UNKNOWN' as const, reason: 'pre-bout phase weights unavailable' };
+      ? classifyPreBoutPhaseKimariteContradiction({
+        phase: phase.dominantPhase,
+        confidenceBucket: phase.confidenceBucket,
+        route: snapshot.winRoute,
+        metadata,
+      })
+      : { severity: 'UNKNOWN' as const, contradiction: false, reason: 'pre-bout phase weights unavailable' };
     return {
       index,
       runLabel: snapshot.runLabel,
@@ -664,7 +443,7 @@ const classifyRows = (
       kimarite: snapshot.kimarite,
       kimariteMetadata: metadata,
       severity: classified.severity,
-      contradiction: classified.severity === 'SOFT' || classified.severity === 'HARD',
+      contradiction: classified.contradiction,
       reason: classified.reason,
     };
   });
@@ -739,7 +518,7 @@ const main = async (): Promise<void> => {
 
   const summary = summarizeRate(rows);
   const highConfidenceContradictions = rows
-    .filter((row) => row.contradiction && row.phase.confidenceBucket === 'high')
+    .filter((row) => row.contradiction && row.phase.confidenceBucket === 'HIGH')
     .slice(0, 20);
   const report = {
     generatedAt: new Date().toISOString(),
@@ -754,12 +533,14 @@ const main = async (): Promise<void> => {
       contradictionRate: '(SOFT + HARD) / total sampled player bouts',
       unknownRate: 'UNKNOWN / total sampled player bouts',
     },
+    classifierRules: DIAGNOSTIC_KIMARITE_CLASSIFIER_RULES,
     totalSampledPlayerBouts: rows.length,
     summary,
     severityCounts: countBy(rows.map((row) => row.severity)),
     phaseDistribution: countBy(rows.map((row) => row.phase.dominantPhase)),
     winRouteDistribution: countBy(rows.map((row) => row.winRoute)),
     kimariteFamilyDistribution: countBy(rows.map((row) => row.kimariteMetadata.family)),
+    diagnosticFamilyDistribution: countBy(rows.map((row) => row.kimariteMetadata.diagnosticFamily)),
     winRouteDistributionByDominantPhase: summarizeNestedCounts(
       rows,
       (row) => row.phase.dominantPhase,
@@ -770,9 +551,15 @@ const main = async (): Promise<void> => {
       (row) => row.phase.dominantPhase,
       (row) => row.kimariteMetadata.family,
     ),
+    diagnosticFamilyDistributionByDominantPhase: summarizeNestedCounts(
+      rows,
+      (row) => row.phase.dominantPhase,
+      (row) => row.kimariteMetadata.diagnosticFamily,
+    ),
     contradictionRateByDominantPhase: summarizeRateBy(rows, (row) => row.phase.dominantPhase),
     contradictionRateByWinRoute: summarizeRateBy(rows, (row) => row.winRoute),
     contradictionRateByKimariteFamily: summarizeRateBy(rows, (row) => row.kimariteMetadata.family),
+    contradictionRateByDiagnosticFamily: summarizeRateBy(rows, (row) => row.kimariteMetadata.diagnosticFamily),
     contradictionRateByPhaseConfidence: summarizeRateBy(rows, (row) => row.phase.confidenceBucket),
     contradictionRateByDivision: summarizeRateBy(rows, (row) => row.division),
     contradictionRateByFormatKind: summarizeRateBy(rows, (row) => row.formatKind),
@@ -785,12 +572,30 @@ const main = async (): Promise<void> => {
         .filter((row) => row.contradiction)
         .map((row) => `${row.phase.dominantPhase} -> ${row.reason}`),
     ),
+    topHardRules: countBy(
+      rows
+        .filter((row) => row.severity === 'HARD')
+        .map((row) => `${row.phase.dominantPhase} -> ${row.reason}`),
+    ),
+    topUnknownReasons: countBy(
+      rows
+        .filter((row) => row.severity === 'UNKNOWN')
+        .map((row) => `${row.phase.dominantPhase} -> ${row.reason}`),
+    ),
     unknownCasesAndReasons: countBy(
       rows
         .filter((row) => row.severity === 'UNKNOWN')
         .map((row) => row.reason),
     ),
     highConfidenceContradictionExamples: highConfidenceContradictions,
+    examplesByDominantPhase: Object.fromEntries(
+      PRE_BOUT_PHASES.map((phase) => [
+        phase,
+        rows
+          .filter((row) => row.phase.dominantPhase === phase)
+          .slice(0, 6),
+      ]),
+    ),
     contradictionExamplesBySeverity: {
       hard: rows.filter((row) => row.severity === 'HARD').slice(0, 12),
       soft: rows.filter((row) => row.severity === 'SOFT').slice(0, 12),
@@ -815,8 +620,10 @@ const main = async (): Promise<void> => {
     phaseDistribution: report.phaseDistribution,
     contradictionRateByDominantPhase: report.contradictionRateByDominantPhase,
     contradictionRateByWinRoute: report.contradictionRateByWinRoute,
+    contradictionRateByDiagnosticFamily: report.contradictionRateByDiagnosticFamily,
     mostCommonContradictionTypes: report.mostCommonContradictionTypes,
-    unknownCasesAndReasons: report.unknownCasesAndReasons,
+    topHardRules: report.topHardRules,
+    topUnknownReasons: report.topUnknownReasons,
   }, null, 2));
 };
 
