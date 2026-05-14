@@ -3,6 +3,10 @@ import {
   buildNpcBashoCombatProfile,
   buildPlayerBashoCombatProfile,
 } from '../../../src/logic/simulation/combat/profile';
+import {
+  normalizePlayerBoutCompatInput,
+  resolvePlayerBoutCompat,
+} from '../../../src/logic/simulation/combat/playerCompat';
 import { resolveBashoFormatPolicy } from '../../../src/logic/simulation/basho/formatPolicy';
 import type { TestCase } from '../types';
 import {
@@ -151,6 +155,56 @@ export const tests: TestCase[] = [
       assert.equal(resolveBashoFormatPolicy('Maezumo'), null);
       assert.equal(profile.division, 'Maezumo');
       assert.equal(profile.formatKind, undefined);
+    },
+  },
+  {
+    name: 'combat profile: player compat wrapper preserves input references and result shape',
+    run: () => {
+      const status = createStatus();
+      const enemy = {
+        shikona: '互換山',
+        rankValue: 6,
+        power: 84,
+        ability: 88,
+        heightCm: 182,
+        weightKg: 144,
+        styleBias: 'BALANCE' as const,
+      };
+      const context = {
+        day: 1,
+        currentWins: 0,
+        currentLosses: 0,
+        consecutiveWins: 0,
+        isLastDay: false,
+        isYushoContention: false,
+      };
+      const rng = () => 0.42;
+      const normalized = normalizePlayerBoutCompatInput({ rikishi: status, enemy, context, rng });
+      assert.equal(normalized.rikishi, status);
+      assert.equal(normalized.enemy, enemy);
+      assert.equal(normalized.context, context);
+      assert.equal(normalized.rng, rng);
+      const result = resolvePlayerBoutCompat(
+        { rikishi: status, enemy, context, rng },
+        (input) => {
+          assert.equal(input.rikishi, status);
+          assert.equal(input.enemy, enemy);
+          assert.equal(input.context, context);
+          assert.equal(input.rng, rng);
+          return {
+            isWin: true,
+            kimarite: '押し出し',
+            winRoute: 'PUSH_OUT',
+            winProbability: 0.51,
+            opponentAbility: 88,
+          };
+        },
+      );
+      assert.equal(result.isWin, true);
+      assert.equal(result.kimarite, '押し出し');
+      assert.equal(result.winRoute, 'PUSH_OUT');
+      assert.equal(result.winProbability, 0.51);
+      assert.equal(result.opponentAbility, 88);
     },
   },
 ];

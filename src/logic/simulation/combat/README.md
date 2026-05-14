@@ -21,4 +21,6 @@ Current builders are pure and readonly:
 - `buildNpcBashoCombatProfile`
 - `buildGeneratedOpponentBashoCombatProfile`
 
+`playerCompat.ts` is the player-bout compatibility boundary. It currently normalizes and forwards the existing `calculateBattleResult` inputs to the legacy player battle resolver without changing formulas, RNG order, or return shape.
+
 The profile is diagnostic infrastructure only in this phase. Production player and NPC bout outcomes must not route through it until a compatibility wrapper proves identical `resolveBoutWinProb` inputs and RNG order.

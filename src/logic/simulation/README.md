@@ -58,6 +58,7 @@ runtime API を唯一の入口として使います。
 | `injury.ts` | 怪我処理 |
 | `basho/formatPolicy.ts` | 15番制 / 7番制、カレンダー日、当人の取組順、勝ち越し・負け越し圧力の共通 policy |
 | `combat/profile.ts` | `BashoCombatProfile` の純粋 builder。現段階では勝敗結果には使わない |
+| `combat/playerCompat.ts` | player 取組用の互換 wrapper。現行 resolver への入力・RNG・戻り値を保ったまま境界だけを作る |
 | `modelVersion.ts` | model version 正規化 |
 | `workerProtocol.ts` | UI ↔ worker のメッセージ契約 |
 | `deps.ts` | 依存注入口 |

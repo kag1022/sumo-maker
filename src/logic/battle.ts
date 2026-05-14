@@ -9,6 +9,11 @@ import { CONSTANTS } from './constants';
 import { RandomSource } from './simulation/deps';
 import { isBoutWinProbSnapshotEnabled, recordBoutWinProbSnapshot } from './simulation/diagnostics';
 import {
+  resolvePlayerBoutCompat,
+  type PlayerBoutCompatNormalizedInput,
+  type PlayerBoutCompatResult,
+} from './simulation/combat/playerCompat';
+import {
   calculateMomentumBonus,
   resolveBoutWinProb,
   resolvePlayerAbility,
@@ -432,7 +437,7 @@ const resolveBattleResult = (
   enemy: BattleOpponent,
   context?: BoutContext,
   rng: RandomSource = Math.random,
-): { isWin: boolean; kimarite: string; winRoute?: WinRoute; winProbability: number; opponentAbility: number } => {
+): PlayerBoutCompatResult => {
   const traits = rikishi.traits || [];
   const numBouts = CONSTANTS.BOUTS_MAP[rikishi.rank.division];
   const boutOrdinal = context?.ordinal?.boutOrdinal ?? context?.day;
@@ -788,8 +793,12 @@ export const calculateBattleResult = (
   enemy: BattleOpponent,
   context?: BoutContext,
   rng: RandomSource = Math.random,
-): { isWin: boolean; kimarite: string; winRoute?: WinRoute; winProbability: number; opponentAbility: number } =>
-  resolveBattleResult(rikishi, enemy, context, rng);
+): PlayerBoutCompatResult =>
+  resolvePlayerBoutCompat(
+    { rikishi, enemy, context, rng },
+    (input: PlayerBoutCompatNormalizedInput) =>
+      resolveBattleResult(input.rikishi, input.enemy, input.context, input.rng),
+  );
 
 /**
  * 階級に応じた敵を生成する（静的プールから取得）
