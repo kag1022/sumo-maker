@@ -36,6 +36,7 @@ import {
   buildBoutFlowDiagnosticContextTags,
   createBoutFlowDiagnosticSnapshotFromExplanationSnapshot,
 } from '../../../src/logic/simulation/combat/boutFlowDiagnosticBuilder';
+import { createBoutFlowCommentaryDiagnostic } from '../../../src/logic/simulation/combat/boutFlowCommentary';
 import {
   classifyPreBoutPhaseKimariteContradiction,
   resolveDiagnosticKimariteMetadata,
@@ -701,6 +702,77 @@ export const tests: TestCase[] = [
       assert.ok(flowSnapshot.victoryFactorTags.includes('victory-factor:ability'));
       assert.ok(flowSnapshot.hoshitoriContextTags.includes('FINAL_BOUT'));
       assert.ok(flowSnapshot.banzukeContextTags.includes('PROMOTION_RELEVANT'));
+    },
+  },
+  {
+    name: 'combat commentary: same kimarite varies by flow and context without rng',
+    run: () => {
+      const base = {
+        finishRoute: 'PUSH_OUT' as const,
+        kimarite: {
+          name: '押し出し',
+          family: 'PUSH_THRUST',
+          diagnosticFamily: 'PUSH_THRUST',
+          rarity: 'COMMON',
+          catalogStatus: 'OFFICIAL',
+        },
+        victoryFactorTags: ['victory-factor:ability', 'victory-factor:style'],
+      };
+      const aligned = createBoutFlowDiagnosticSnapshot({
+        ...base,
+        openingPhase: 'THRUST_BATTLE',
+        openingConfidence: 'HIGH',
+        controlPhasePredecessor: 'THRUST_BATTLE',
+        controlPhaseCandidate: 'THRUST_BATTLE',
+        controlConfidence: 'DIRECT',
+        hoshitoriContextTags: ['EARLY_BASHO', 'WIN_STREAK'],
+        banzukeContextTags: ['RANK_EXPECTED_WIN'],
+      });
+      const boundary = createBoutFlowDiagnosticSnapshot({
+        ...base,
+        openingPhase: 'BELT_BATTLE',
+        openingConfidence: 'MEDIUM',
+        controlPhasePredecessor: 'THRUST_BATTLE',
+        controlPhaseCandidate: 'THRUST_BATTLE',
+        controlConfidence: 'DIRECT',
+        hoshitoriContextTags: ['KACHI_MAKE_DECIDER', 'FINAL_BOUT'],
+        banzukeContextTags: ['PROMOTION_RELEVANT', 'SEKITORI_BOUNDARY'],
+        victoryFactorTags: ['victory-factor:pressure', 'victory-factor:body'],
+      });
+      const edge = createBoutFlowDiagnosticSnapshot({
+        ...base,
+        openingPhase: 'EDGE_BATTLE',
+        openingConfidence: 'HIGH',
+        controlPhasePredecessor: 'EDGE_SCRAMBLE',
+        controlPhaseCandidate: 'EDGE_BATTLE',
+        controlConfidence: 'RENAMED',
+        hoshitoriContextTags: ['YUSHO_CHASE', 'RECOVERY_BOUT'],
+        banzukeContextTags: ['KINBOSHI_CHANCE'],
+        victoryFactorTags: ['victory-factor:momentum', 'victory-factor:kimarite-fit'],
+      });
+      const commentaries = [aligned, boundary, edge].map((snapshot) => {
+        const diagnostic = createBoutFlowCommentaryDiagnostic(snapshot);
+        assert.equal(diagnostic.generated, true);
+        assert.ok(diagnostic.commentary);
+        return diagnostic.commentary as NonNullable<typeof diagnostic.commentary>;
+      });
+      const generated = commentaries;
+      assert.equal(new Set(generated.map((commentary) => commentary.kimarite)).size, 1);
+      assert.ok(new Set(generated.map((commentary) => commentary.shortCommentary)).size > 1);
+      assert.ok(new Set(generated.map((commentary) => commentary.materialKeys.join('|'))).size > 1);
+      assert.deepEqual(generated[0].victoryFactorLabels, ['基礎能力差', '取り口相性']);
+      assert.ok(generated[1].materialKeys.includes('hoshitori:KACHI_MAKE_DECIDER'));
+      assert.ok(generated[1].materialKeys.includes('banzuke:PROMOTION_RELEVANT'));
+      assert.ok(generated[2].materialKeys.includes('transition:EDGE_TURNAROUND'));
+      assert.ok(generated[2].materialKeys.includes('banzuke:KINBOSHI_CHANCE'));
+
+      const blocked = createBoutFlowCommentaryDiagnostic({
+        ...aligned,
+        explanationCompleteness: 'FLOW_ONLY',
+        missingExplanationAxes: ['VICTORY_FACTOR'],
+      });
+      assert.equal(blocked.generated, false);
+      assert.ok(blocked.reasonTags.includes('missing:VICTORY_FACTOR'));
     },
   },
   {

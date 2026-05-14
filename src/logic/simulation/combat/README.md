@@ -37,6 +37,8 @@ Current builders are pure and readonly:
 
 `boutFlowDiagnosticBuilder.ts` is the pure bridge from existing `BoutExplanationSnapshot` data to a completed diagnostic flow snapshot. It derives victory-factor tags, hoshitori context tags, and banzuke context tags from already-computed values only. It does not inspect route weights, kimarite candidate weights, or consume RNG.
 
+`boutFlowCommentary.ts` is the runtime-only commentary contract for complete diagnostic snapshots. It accepts only `BoutFlowDiagnosticSnapshot` values whose completeness is `COMPLETE_CONTEXT` and deterministically returns short commentary, victory-factor labels, flow explanation lines, and material keys. It is not imported by production battle, persistence, worker protocol, App, or UI code.
+
 The complete design note is `BoutFlowCompleteDesign.md`. It defines the required type surface, explanation素材 axes, diagnostic indicators, acceptance conditions, and implementation roadmap before this model is allowed to become player-facing.
 
 Player PreBoutPhase snapshots are collected only through the opt-in diagnostics collector in `simulation/diagnostics.ts`. The collector records deterministic weights and reason tags only; it does not sample a phase with production RNG and must not add fields to `calculateBattleResult`, `PlayerBoutDetail`, persistence rows, worker protocol, App, or UI.
@@ -50,6 +52,8 @@ Current BoutFlow diagnostics coverage:
 - BoutFlow diagnostic snapshots are emitted by `prebout_phase_route_bias_harness` and `bout_explanation_player_collector`. The explanation collector uses the already-sampled post-outcome engagement from `battle.ts`; it must not resample engagement or alter the production route / kimarite path.
 - FinishRoute is covered wherever legacy `winRoute` is already collected. `resolveFinishRoute` is the shared selector for production and the route-bias harness; diagnostics pass `routeMultipliers` only in explicit ENABLED harness mode.
 - Kimarite is covered in player explanation, contradiction, and route-bias diagnostics when catalog metadata is available; opening-only collectors intentionally omit it.
+
+`scripts/diagnostics/bout_flow_commentary_generator.ts` is an opt-in fixed-seed diagnostic generator for the commentary contract. It feeds synthetic `COMPLETE_CONTEXT` snapshots with the same kimarite through `boutFlowCommentary.ts` and verifies that Opening / Control / Transition / Finish / 星取 / 番付 context changes produce different material keys and short commentary without touching production RNG or selectors.
 
 `preBoutPhaseRouteBias.ts` remains diagnostic / experiment infrastructure. Direct PreBoutPhase-to-route bias is not a production candidate by itself; any live behavior change must go through a separate flow-level design and validation task.
 
