@@ -1,7 +1,8 @@
 import React from "react";
-import { type Division } from "../../../logic/models";
+import { type Division, type Rank } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../../logic/ranking";
+import { BoutExplanationPanel } from "../../shared/components/BoutExplanationPanel";
 import styles from "./OfficialBoutResultList.module.css";
 
 type BoutResult = "WIN" | "LOSS" | "ABSENT";
@@ -27,6 +28,7 @@ interface ParticipantCell {
 
 interface OfficialBoutRow {
   day: number;
+  bout: CareerBashoDetail["bouts"][number];
   east: ParticipantCell;
   west: ParticipantCell;
   kimarite: string;
@@ -160,6 +162,7 @@ const buildOfficialRows = (detail: CareerBashoDetail): OfficialBoutRow[] => {
 
     return {
       day: bout.day,
+      bout,
       east,
       west,
       kimarite: bout.kimarite ?? (result === "ABSENT" ? "休場" : "決まり手未詳"),
@@ -195,11 +198,26 @@ const ResultCell: React.FC<{ cell: ParticipantCell; align: "east" | "west" }> = 
   </div>
 );
 
+const resolvePlayerRank = (
+  playerRecord: CareerBashoDetail["playerRecord"],
+): Rank | null => {
+  if (!playerRecord) return null;
+  return {
+    division: playerRecord.division as Rank["division"],
+    name: playerRecord.rankName,
+    number: playerRecord.rankNumber,
+    side: playerRecord.rankSide,
+    specialStatus: playerRecord.rankSpecialStatus,
+  };
+};
+
 export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
   detail,
   onSelectNpc,
 }) => {
   const rows = React.useMemo(() => buildOfficialRows(detail), [detail]);
+  const playerRank = React.useMemo(() => resolvePlayerRank(detail.playerRecord), [detail.playerRecord]);
+  const [selectedExplanationDay, setSelectedExplanationDay] = React.useState<number | null>(null);
 
   return (
     <div className={styles.shell}>
@@ -212,45 +230,75 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
         <span>西力士</span>
       </div>
       <div className={styles.list}>
-        {rows.map((row) => (
-          <article
-            key={`${row.day}-${row.east.shikona}-${row.west.shikona}-${row.kimarite}`}
-            className={styles.row}
-            data-important={Boolean(row.importantNote)}
-            data-fallback={row.isFallbackPlacement}
-            data-absence={row.isAbsence}
-          >
-            <div className={styles.day}>
-              <strong>{row.day}</strong>
-              <span>日</span>
-            </div>
-            {row.isAbsence ? (
-              <div className={styles.absencePanel}>
-                <strong>休場により取組なし</strong>
-                <span>
-                  {row.east.shikona}
-                  {row.east.recordLabel ? ` / 最終成績 ${row.east.recordLabel}` : ""}
-                </span>
+        {rows.map((row) => {
+          const commentary = row.bout.boutFlowCommentary;
+          const canShowExplanation = Boolean(commentary && playerRank && detail.playerRecord);
+          const isExplanationOpen = selectedExplanationDay === row.day;
+          return (
+            <article
+              key={`${row.day}-${row.east.shikona}-${row.west.shikona}-${row.kimarite}`}
+              className={styles.row}
+              data-important={Boolean(row.importantNote)}
+              data-fallback={row.isFallbackPlacement}
+              data-absence={row.isAbsence}
+              data-explanation={canShowExplanation}
+            >
+              <div className={styles.day}>
+                <strong>{row.day}</strong>
+                <span>日</span>
               </div>
-            ) : (
-              <>
-                <WrestlerName cell={row.east} align="east" onSelectNpc={onSelectNpc} />
-                <ResultCell cell={row.east} align="east" />
-                <div className={styles.kimarite}>
-                  <span>{row.kimarite}</span>
+              {row.isAbsence ? (
+                <div className={styles.absencePanel}>
+                  <strong>休場により取組なし</strong>
+                  <span>
+                    {row.east.shikona}
+                    {row.east.recordLabel ? ` / 最終成績 ${row.east.recordLabel}` : ""}
+                  </span>
                 </div>
-                <ResultCell cell={row.west} align="west" />
-                <WrestlerName cell={row.west} align="west" onSelectNpc={onSelectNpc} />
-              </>
-            )}
-            {row.importantNote ? (
-              <div className={styles.detailPanel}>
-                <span className={styles.importantTag}>{row.importantLabel}</span>
-                <p>{row.importantNote.summary}</p>
-              </div>
-            ) : null}
-          </article>
-        ))}
+              ) : (
+                <>
+                  <WrestlerName cell={row.east} align="east" onSelectNpc={onSelectNpc} />
+                  <ResultCell cell={row.east} align="east" />
+                  <div className={styles.kimarite}>
+                    <span>{row.kimarite}</span>
+                    {canShowExplanation ? (
+                      <button
+                        type="button"
+                        className={styles.explanationButton}
+                        aria-expanded={isExplanationOpen}
+                        onClick={() => setSelectedExplanationDay((current) => current === row.day ? null : row.day)}
+                      >
+                        取組解説
+                      </button>
+                    ) : null}
+                  </div>
+                  <ResultCell cell={row.west} align="west" />
+                  <WrestlerName cell={row.west} align="west" onSelectNpc={onSelectNpc} />
+                </>
+              )}
+              {row.importantNote ? (
+                <div className={styles.detailPanel}>
+                  <span className={styles.importantTag}>{row.importantLabel}</span>
+                  <p>{row.importantNote.summary}</p>
+                </div>
+              ) : null}
+              {canShowExplanation && isExplanationOpen && commentary && playerRank && detail.playerRecord ? (
+                <div className={styles.explanationPanel}>
+                  <BoutExplanationPanel
+                    preview={{
+                      bashoSeq: detail.bashoSeq,
+                      day: row.day,
+                      commentary,
+                    }}
+                    bout={row.bout}
+                    playerShikona={detail.playerRecord.shikona}
+                    playerRank={playerRank}
+                  />
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
     </div>
   );

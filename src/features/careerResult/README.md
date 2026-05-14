@@ -21,6 +21,7 @@
 - `components/CareerPlaceChapter.tsx` 場所単位の章
 - `components/CareerReviewChapter.tsx` 総括の章
 - `components/CareerTrajectoryChapter.tsx` 番付推移の章
+- `components/OfficialBoutResultList.tsx` 公式風の取組結果一覧。player bout に保存済み `BoutFlowCommentary` がある場合は決まり手下の「取組解説」ボタンから詳細を開く
 - `utils/` 表示整形
 
 ## 依存

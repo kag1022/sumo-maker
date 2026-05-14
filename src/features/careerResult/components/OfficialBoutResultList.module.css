@@ -174,6 +174,7 @@
 
 .kimarite {
   display: grid;
+  gap: 0.32rem;
   place-items: center;
   color: rgb(var(--twc-brand) / 0.82);
   font-family: "DotGothic16", monospace;
@@ -185,6 +186,28 @@
 .kimarite span {
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+.explanationButton {
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  background: rgb(var(--twc-brand) / 0.08);
+  color: rgb(var(--twc-brand) / 0.92);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 0.32rem 0.46rem;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.explanationButton:hover,
+.explanationButton[aria-expanded="true"] {
+  border-color: rgb(var(--twc-brand) / 0.56);
+  background: rgb(var(--twc-brand) / 0.16);
+  color: rgb(var(--twc-text-bright) / 0.95);
 }
 
 .absencePanel {
@@ -237,6 +260,13 @@
   line-height: 1.45;
 }
 
+.explanationPanel {
+  grid-column: 2 / -1;
+  padding: 0.58rem 0.7rem 0.72rem;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.12);
+  background: rgb(var(--twc-bg) / 0.18);
+}
+
 @media (max-width: 900px) {
   .header {
     display: none;
@@ -248,7 +278,8 @@
       "day day day"
       "eastName kimarite westName"
       "eastResult kimarite westResult"
-      "detail detail detail";
+      "detail detail detail"
+      "explanation explanation explanation";
   }
 
   .day {
@@ -285,6 +316,10 @@
     grid-area: detail;
   }
 
+  .explanationPanel {
+    grid-area: explanation;
+  }
+
   .absencePanel {
     grid-column: 1 / -1;
     border-top: 1px solid rgb(255 255 255 / 0.05);
@@ -307,7 +342,8 @@
       "kimarite"
       "westResult"
       "westName"
-      "detail";
+      "detail"
+      "explanation";
   }
 
   .wrestlerName[data-align="west"],
@@ -334,5 +370,9 @@
   .detailPanel {
     display: grid;
     gap: 0.32rem;
+  }
+
+  .explanationPanel {
+    padding-inline: 0.65rem;
   }
 }

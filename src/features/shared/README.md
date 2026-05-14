@@ -12,6 +12,7 @@
 ## 主要ファイル
 
 - `components/NpcCareerPanel.tsx` NPC キャリアパネル
+- `components/BoutExplanationPanel.tsx` player 取組解説パネル。report / careerResult の場所詳細で共有する
 - `models/` feature 横断の表示 read model 型
   - `models/banzukeReview.ts` report / careerResult で共有する番付審議表示モデル型
 - `utils/` 共有整形ヘルパー

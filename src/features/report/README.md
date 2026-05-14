@@ -25,7 +25,7 @@
 - `components/AchievementView.tsx` 実績詳細
 - `components/BashoDetailModal.tsx` 場所詳細モーダル
 - `components/DockedBashoDetailPane.tsx` 横付け版場所詳細
-- `components/BoutExplanationPreviewPanel.tsx` player 取組解説パネル。保存済み `PlayerBoutDetail.boutFlowCommentary` を優先し、dev 固定 seed preview も同じ表示 contract で確認できる
+- `components/BoutExplanationPreviewPanel.tsx` `features/shared` の player 取組解説パネルを report 側へ再 export する互換入口。保存済み `PlayerBoutDetail.boutFlowCommentary` を優先し、dev 固定 seed preview も同じ表示 contract で確認できる
 - `utils/` 表示整形
 
 ## 依存
