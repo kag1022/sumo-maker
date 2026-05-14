@@ -1,6 +1,7 @@
 import { TestCase, TestModule } from '../types';
 import { buildLiveBashoView, resolveBashoStakeLabel } from '../../../src/logic/simulation/liveBashoView';
 import { buildBanzukeReviewTabModel } from '../../../src/features/report/utils/banzukeReview';
+import { listDivisionRows } from '../../../src/features/shared/utils/banzukeRows';
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from '../../../src/logic/persistence/careerHistory';
 
 const assert = {
@@ -228,6 +229,40 @@ const cases: TestCase[] = [
       assert.equal(model?.lane.toRankLabel, '西十両13枚目');
       assert.ok(model?.summaryLines[0].includes('実測帯'), 'expected empirical summary');
       assert.ok(model?.nearbyRows.some((row) => row.isPlayer && row.movementText.includes('西十両13枚目')), 'expected player movement');
+    },
+  },
+  {
+    name: 'ui: place banzuke rows sort east before west in the same rank slot',
+    run: () => {
+      const { detail } = createDetail();
+      const player = detail.playerRecord;
+      assert.ok(player, 'expected player row');
+      if (!player) return;
+      const playerRow = { ...player, rankNumber: 5, rankSide: 'East' as const };
+      const rows = listDivisionRows([
+        {
+          ...playerRow,
+          entityId: 'west-npc',
+          entityType: 'NPC',
+          shikona: '西山',
+          rankNumber: 4,
+          rankSide: 'West',
+        },
+        {
+          ...playerRow,
+          entityId: 'east-npc',
+          entityType: 'NPC',
+          shikona: '東海',
+          rankNumber: 4,
+          rankSide: 'East',
+        },
+        playerRow,
+      ], playerRow);
+
+      assert.equal(rows[0]?.rankSide, 'East');
+      assert.equal(rows[0]?.entityId, 'east-npc');
+      assert.equal(rows[1]?.rankSide, 'West');
+      assert.equal(rows[2]?.entityId, 'PLAYER');
     },
   },
 ];
