@@ -370,6 +370,123 @@
   line-height: 1.55;
 }
 
+.stableEnvironmentPanel {
+  display: grid;
+  gap: 1rem;
+}
+
+.stableEnvironmentLead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  border: 1px solid rgb(var(--twc-brand) / 0.2);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.07), transparent 58%),
+    rgb(var(--twc-bg) / 0.46);
+  padding: 1rem;
+}
+
+.stableEnvironmentIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(var(--twc-brand) / 0.28);
+  background: rgb(var(--twc-brand) / 0.1);
+  color: rgb(var(--twc-brand) / 0.9);
+}
+
+.stableEnvironmentText {
+  margin-top: 0.35rem;
+  color: rgb(var(--twc-text) / 0.8);
+  line-height: 1.72;
+}
+
+.stableInfluenceList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.stableInfluenceList p {
+  border-left: 2px solid rgb(var(--twc-brand) / 0.34);
+  background: rgb(var(--twc-bg) / 0.34);
+  padding: 0.55rem 0.75rem;
+  color: rgb(var(--twc-text) / 0.72);
+  line-height: 1.7;
+}
+
+.stablemateBlock {
+  display: grid;
+  gap: 0.8rem;
+  border-top: 1px solid rgb(var(--twc-brand) / 0.14);
+  padding-top: 0.95rem;
+}
+
+.stablemateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.65rem;
+}
+
+.stablemateCard {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background: rgb(var(--twc-bg) / 0.42);
+  padding: 0.75rem 0.8rem;
+}
+
+.stablemateCard[data-relation="senior"] {
+  border-color: rgb(var(--twc-brand) / 0.34);
+}
+
+.stablemateCard[data-relation="peer"] {
+  border-color: rgb(var(--twc-action) / 0.28);
+}
+
+.stablemateCard[data-relation="junior"] {
+  border-color: rgb(var(--twc-state) / 0.28);
+}
+
+.stablemateTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}
+
+.stablemateTop span {
+  color: rgb(var(--twc-brand) / 0.78);
+}
+
+.stablemateTop em {
+  color: rgb(var(--twc-text-bright) / 0.5);
+  font-style: normal;
+}
+
+.stablemateCard strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--twc-text) / 0.94);
+}
+
+.stablemateCard p {
+  color: rgb(var(--twc-text) / 0.68);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.stablemateCard small {
+  color: rgb(var(--twc-text-bright) / 0.54);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
 .saveReasonGrid {
   display: grid;
   gap: 0.45rem;

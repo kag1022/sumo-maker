@@ -28,7 +28,7 @@ runtime API を唯一の入口として使います。
 | `actors/` | キャリア主体のライフサイクル |
 | `basho/` | 場所単体の状態 |
 | `boundary/` | 境界処理 |
-| `heya/` | 部屋レベルの集計 |
+| `heya/` | 部屋カタログ、一門、部屋系統、所属環境の選択・読解 |
 | `lower/`, `sekitori/`, `topDivision/` | 階層別の進行 |
 | `npc/` | NPC 挙動 |
 | `npc/tsukedashi.ts` | 年次の低頻度付出 NPC 計画と一場所限定の特殊表示管理 |

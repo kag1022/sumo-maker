@@ -17,3 +17,4 @@
   - `models/banzukeReview.ts` report / careerResult で共有する番付審議表示モデル型
 - `utils/` 共有整形ヘルパー
   - `utils/banzukeRows.ts` 場所詳細 row から同一 division の近傍番付を抽出する表示補助
+  - `utils/stablemateReading.ts` 保存済み場所 row から同部屋力士と同部屋/同一門ラベルを軽量に読む補助

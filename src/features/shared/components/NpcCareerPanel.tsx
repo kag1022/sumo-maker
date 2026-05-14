@@ -22,6 +22,7 @@ export const NpcCareerPanel: React.FC<{
       <Metric label="成績" value={detail.recordLabel} />
       {detail.styleLabel ? <Metric label="取り口" value={detail.styleLabel} /> : null}
       {detail.bodyLabel ? <Metric label="体格" value={detail.bodyLabel} /> : null}
+      {detail.affiliationLabel ? <Metric label="所属関係" value={detail.affiliationLabel} /> : null}
       {detail.stableLabel ? <Metric label="部屋" value={detail.stableLabel} /> : null}
       {detail.careerBashoCountLabel ? <Metric label="在位" value={detail.careerBashoCountLabel} /> : null}
     </div>

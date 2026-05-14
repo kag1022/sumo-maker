@@ -4,6 +4,7 @@ import type { Division } from "../../../logic/models";
 import { formatRankDisplayName } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
 import { resolveStableById } from "../../../logic/simulation/heya";
+import { resolveStableRelationshipLabel } from "./stablemateReading";
 
 export interface NpcCareerDetail {
   entityId: string;
@@ -14,6 +15,7 @@ export interface NpcCareerDetail {
   bodyLabel?: string;
   styleLabel?: string;
   stableLabel?: string;
+  affiliationLabel?: string;
   careerBashoCountLabel?: string;
 }
 
@@ -51,6 +53,7 @@ const formatCareerBashoCountLabel = (careerBashoCount: number | undefined): stri
 export const buildNpcCareerDetail = (
   detail: CareerBashoDetail | null,
   entityId: string,
+  playerStableId?: string,
 ): NpcCareerDetail | null => {
   const row = detail?.rows.find((entry) => entry.entityType === "NPC" && entry.entityId === entityId);
   if (!detail || !row) return null;
@@ -64,6 +67,7 @@ export const buildNpcCareerDetail = (
     bodyLabel: formatBodyLabel(row),
     styleLabel: row.styleBias ? STYLE_LABELS[row.styleBias] ?? row.styleBias : undefined,
     stableLabel: formatStableLabel(row.stableId),
+    affiliationLabel: playerStableId ? resolveStableRelationshipLabel(row, playerStableId) : undefined,
     careerBashoCountLabel: formatCareerBashoCountLabel(row.careerBashoCount),
   };
 };

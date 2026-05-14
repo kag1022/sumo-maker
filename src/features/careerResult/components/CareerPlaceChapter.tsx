@@ -11,6 +11,7 @@ import type {
   CareerPlaceTabId,
 } from "../utils/careerResultModel";
 import { groupNearbyRanks, listDivisionRows } from "../../shared/utils/banzukeRows";
+import { resolveStableRelationshipLabel } from "../../shared/utils/stablemateReading";
 import { OfficialBoutResultList } from "./OfficialBoutResultList";
 import styles from "./CareerPlaceChapter.module.css";
 import table from "../../../shared/styles/table.module.css";
@@ -20,6 +21,7 @@ interface CareerPlaceChapterProps {
   point: CareerLedgerPoint | null;
   detail: CareerBashoDetail | null;
   summary: CareerPlaceSummaryModel | null;
+  playerStableId: string;
   placeTab: CareerPlaceTabId;
   isLoading: boolean;
   hasPersistence: boolean;
@@ -50,6 +52,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
   point,
   detail,
   summary,
+  playerStableId,
   placeTab,
   isLoading,
   hasPersistence,
@@ -261,6 +264,7 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                 <tbody>
                   {activeRows.map((row) => {
                     const isPlayer = row.entityType === "PLAYER";
+                    const affiliationLabel = isPlayer ? undefined : resolveStableRelationshipLabel(row, playerStableId);
                     const resultMark = row.wins > row.losses
                       ? RESULT_MARK.WIN
                       : row.losses > row.wins
@@ -271,9 +275,16 @@ export const CareerPlaceChapter: React.FC<CareerPlaceChapterProps> = ({
                         <td>
                           <span className={styles.banzukeResultDot} style={resultMark.style}>{resultMark.symbol}</span>
                           {row.entityType === "NPC" ? (
-                            <button type="button" className={table.linkButton} onClick={() => onSelectNpc(row.entityId)}>
-                              {row.shikona}
-                            </button>
+                            <span className={styles.banzukeNameCell}>
+                              <button type="button" className={table.linkButton} onClick={() => onSelectNpc(row.entityId)}>
+                                {row.shikona}
+                              </button>
+                              {affiliationLabel ? (
+                                <span className={styles.affiliationBadge} data-same-stable={affiliationLabel === "同部屋"}>
+                                  {affiliationLabel}
+                                </span>
+                              ) : null}
+                            </span>
                           ) : (
                             <span className="font-medium">{row.shikona}</span>
                           )}

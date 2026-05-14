@@ -1,7 +1,8 @@
 import React from "react";
-import { Archive, BookUser, Check, Copy, ExternalLink, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
+import { Archive, BookUser, Check, Copy, ExternalLink, Landmark, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
+import type { CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import {
   AUTO_TAG_LABELS,
   MANUAL_SAVE_TAG_LABELS,
@@ -17,6 +18,8 @@ import {
 import { summarizeRareKimariteEncounters } from "../../../logic/kimarite/rareEncounters";
 import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
+import { buildStableEnvironmentReading } from "../../../logic/simulation/heya/stableEnvironment";
+import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { StatCard } from "../../../shared/ui/StatCard";
@@ -35,6 +38,7 @@ interface CareerEncyclopediaChapterProps {
   designReading: CareerDesignReadingModel;
   highestRankLabel: string;
   ledgerPoints?: CareerLedgerPoint[];
+  bashoRows: CareerBashoRecordsBySeq[];
   isSaved: boolean;
   detailState: "idle" | "building" | "ready" | "error";
   detailBuildProgress: DetailBuildProgress | null;
@@ -278,6 +282,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   designReading,
   highestRankLabel,
   ledgerPoints,
+  bashoRows,
   isSaved,
   detailState,
   detailBuildProgress,
@@ -301,6 +306,14 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const initial = status.buildSummary?.initialConditionSummary;
   const growth = status.buildSummary?.growthSummary;
   const narrative = status.careerNarrative;
+  const stableEnvironment = React.useMemo(
+    () => buildStableEnvironmentReading(status),
+    [status],
+  );
+  const stablemates = React.useMemo(
+    () => buildStablemateSummaries(status, bashoRows),
+    [bashoRows, status],
+  );
   const retirementReason = React.useMemo(() => resolveRetirementReason(status), [status]);
   const learnedTraits = React.useMemo(
     () =>
@@ -316,14 +329,14 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     () =>
       [
         { label: "最高位", value: highestRankLabel },
-        { label: "所属部屋", value: initial?.stableName ?? overview.stableName },
+        { label: "所属部屋", value: stableEnvironment.stableName },
         { label: "出身地", value: initial?.birthplace ?? status.profile.birthplace },
         { label: "入門年齢", value: `${initial?.entryAge ?? status.entryAge}歳` },
         { label: "現在体格", value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg` },
         { label: "引退年齢", value: `${status.age}歳` },
         retirementReason ? { label: "引退理由", value: retirementReason } : null,
       ].filter((row): row is { label: string; value: string } => Boolean(row?.value)),
-    [highestRankLabel, initial?.birthplace, initial?.entryAge, initial?.stableName, overview.stableName, retirementReason, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
+    [highestRankLabel, initial?.birthplace, initial?.entryAge, retirementReason, stableEnvironment.stableName, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
   );
   const subProfileRows = React.useMemo(
     () =>
@@ -488,7 +501,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <h1 className={styles.name}>{status.shikona}</h1>
               <div className={styles.rank}>{highestRankLabel}</div>
               <div className={styles.origin}>
-                {initial?.birthplace ?? overview.birthplace} / {initial?.stableName ?? overview.stableName}
+                {initial?.birthplace ?? overview.birthplace} / {stableEnvironment.stableName}
               </div>
             </div>
 
@@ -516,7 +529,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               </div>
               <div className={styles.summaryMetric}>
                 <span className={styles.summaryMetricLabel}>所属</span>
-                <strong className={styles.summaryMetricValue}>{initial?.stableName ?? overview.stableName}</strong>
+                <strong className={styles.summaryMetricValue}>{stableEnvironment.stableName}</strong>
               </div>
             </div>
           </div>
@@ -581,6 +594,55 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </div>
         </div>
       ) : null}
+
+      <div className={styles.section}>
+        <SectionHeading title="所属部屋での歩み" />
+        <div className={styles.stableEnvironmentPanel}>
+          <div className={styles.stableEnvironmentLead}>
+            <div className={styles.stableEnvironmentIcon}>
+              <Landmark className="h-5 w-5" />
+            </div>
+            <div>
+              <div className={styles.label}>所属環境</div>
+              <p className={styles.stableEnvironmentText}>{stableEnvironment.lead}</p>
+            </div>
+          </div>
+          <KeyValueGrid
+            rows={[
+              { label: "所属部屋", value: stableEnvironment.stableName },
+              { label: "一門", value: stableEnvironment.ichimonName },
+              { label: "部屋系統", value: stableEnvironment.archetypeName },
+              { label: "規模", value: stableEnvironment.scaleLabel },
+            ]}
+          />
+          <div className={styles.stableInfluenceList}>
+            {stableEnvironment.influenceLines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+          {stablemates.length > 0 ? (
+            <div className={styles.stablemateBlock}>
+              <div>
+                <div className={styles.label}>同部屋の主な力士</div>
+                <p className={styles.text}>保存済みの場所記録に同じ部屋として残った力士だけを拾います。</p>
+              </div>
+              <div className={styles.stablemateGrid}>
+                {stablemates.map((mate) => (
+                  <article key={mate.entityId} className={styles.stablemateCard} data-relation={mate.relation}>
+                    <div className={styles.stablemateTop}>
+                      <span>{mate.relationLabel}</span>
+                      <em>{mate.overlapBashoCount}場所</em>
+                    </div>
+                    <strong>{mate.shikona}</strong>
+                    <p>{mate.rankLabel} / {mate.recordLabel}</p>
+                    <small>{mate.firstSeenLabel}同じ部屋として記録。</small>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <div className={styles.actions}>
         {!isSaved ? (

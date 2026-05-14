@@ -102,8 +102,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
     ledger.points[ledger.points.length - 1] ??
     null;
   const selectedNpc = React.useMemo(
-    () => (selectedNpcId ? buildNpcCareerDetail(detail, selectedNpcId) : null),
-    [detail, selectedNpcId],
+    () => (selectedNpcId ? buildNpcCareerDetail(detail, selectedNpcId, status.stableId) : null),
+    [detail, selectedNpcId, status.stableId],
   );
   const placeSummary = React.useMemo(
     () => buildCareerPlaceSummary(detail, selectedPoint),
@@ -239,6 +239,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 designReading={designReading}
                 highestRankLabel={highestRankLabel}
                 ledgerPoints={ledger.points}
+                bashoRows={bashoRows}
                 isSaved={isSaved}
                 detailState={detailState}
                 detailBuildProgress={detailBuildProgress}
@@ -288,6 +289,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                   point={selectedPoint}
                   detail={detail}
                   summary={placeSummary}
+                  playerStableId={status.stableId}
                   placeTab={viewState.placeTab}
                   isLoading={detailLoading}
                   hasPersistence={Boolean(careerId)}

@@ -15,6 +15,7 @@ import {
   buildImportantBanzukeDecisionDigests,
   buildImportantTorikumiDigests,
 } from "../utils/reportTimeline";
+import { resolveStableRelationshipLabel } from "../../shared/utils/stablemateReading";
 import { readDevBoutExplanationPreviews } from "../utils/boutExplanationPreviewInjection";
 import {
   BoutExplanationPanel,
@@ -327,6 +328,7 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({
       detail={detail}
       playerRecord={playerRecord}
       playerRank={playerRank}
+      playerStableId={status.stableId}
       snapshot={snapshot}
       boutMarks={boutMarks}
       playerBoutExplanationPreviews={mergedPreviews}
@@ -338,6 +340,7 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({
       detail={detail}
       playerRecord={playerRecord}
       playerRank={playerRank}
+      playerStableId={status.stableId}
       snapshot={snapshot}
       boutMarks={boutMarks}
       decisionDigests={decisionDigests}
@@ -350,6 +353,7 @@ export const BashoDetailBody: React.FC<BashoDetailBodyProps> = ({
       detail={detail}
       playerRecord={playerRecord}
       playerRank={playerRank}
+      playerStableId={status.stableId}
       snapshot={snapshot}
       boutMarks={boutMarks}
       torikumiDigests={torikumiDigests}
@@ -365,7 +369,12 @@ const MetricCard: React.FC<{ label: string; value: string; meta: string }> = ({ 
   </div>
 );
 
-const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>; highlightOpponentId?: string }> = ({ snapshot, boutMarks, highlightOpponentId }) => {
+const SnapshotList: React.FC<{
+  snapshot: any;
+  boutMarks: Record<string, string>;
+  playerStableId: string;
+  highlightOpponentId?: string;
+}> = ({ snapshot, boutMarks, playerStableId, highlightOpponentId }) => {
   if (!snapshot) return <div className={reportCommon.empty}>この場所の番付表は保存されていません。</div>;
   return (
     <div className="space-y-2">
@@ -376,6 +385,7 @@ const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>;
       )}
       {snapshot.rows.map((row: any) => {
         const boutMark = boutMarks[row.entityId];
+        const affiliationLabel = row.isPlayer ? undefined : resolveStableRelationshipLabel(row, playerStableId);
         const highlightClass = row.isPlayer
           ? "border-action/55 bg-action/10"
           : row.entityId === highlightOpponentId
@@ -391,6 +401,7 @@ const SnapshotList: React.FC<{ snapshot: any; boutMarks: Record<string, string>;
               <div className="flex items-center gap-2 min-w-0">
                 <span className={`truncate ${row.isPlayer || row.entityId === highlightOpponentId ? "text-text" : "text-text-dim"}`}>{row.shikona}</span>
                 {boutMark && <span className={cn(typography.label, "border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line")}>{boutMark}</span>}
+                {affiliationLabel && <span className={cn(typography.label, "border border-brand-muted/60 px-1.5 py-0.5 text-[10px] text-brand-line")}>{affiliationLabel}</span>}
                 {row.isYushoWinner && <span className={cn(typography.label, "border border-warning/45 px-1.5 py-0.5 text-[10px] text-warning-bright")}>優勝</span>}
               </div>
             </div>
@@ -409,6 +420,7 @@ const RecordDetailLayout: React.FC<any> = ({
   detail,
   playerRecord,
   playerRank,
+  playerStableId,
   snapshot,
   boutMarks,
   playerBoutExplanationPreviews,
@@ -509,14 +521,14 @@ const RecordDetailLayout: React.FC<any> = ({
             </h3>
             {snapshot && snapshot.totalRowCount > snapshot.rows.length && <p className="text-xs text-text-dim">{snapshot.totalRowCount}枠中 {snapshot.rows.length}件を表示</p>}
           </div>
-          <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
+          <SnapshotList snapshot={snapshot} boutMarks={boutMarks} playerStableId={playerStableId} highlightOpponentId={state.highlightOpponentId} />
         </section>
       </div>
     </>
   );
 };
 
-const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, snapshot, boutMarks, decisionDigests, torikumiDigests }) => (
+const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, playerStableId, snapshot, boutMarks, decisionDigests, torikumiDigests }) => (
   <>
     <section className="grid gap-3 md:grid-cols-3">
       <MetricCard label="山場" value={bashoLabel} meta="この場所が番付推移の節目になった理由を読む" />
@@ -575,7 +587,7 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
                 <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
               </h3>
             </div>
-            <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
+            <SnapshotList snapshot={snapshot} boutMarks={boutMarks} playerStableId={playerStableId} highlightOpponentId={state.highlightOpponentId} />
           </section>
           <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -606,7 +618,7 @@ const RankContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRec
   </>
 );
 
-const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, snapshot, boutMarks, torikumiDigests }) => {
+const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRecord, playerRank, playerStableId, snapshot, boutMarks, torikumiDigests }) => {
   const highlightedBouts = detail.bouts.filter((bout: any) => bout.opponentId === state.highlightOpponentId);
   const featuredBouts = highlightedBouts.length > 0 ? highlightedBouts : detail.bouts.slice(0, 4);
   const rivalSummary =
@@ -684,7 +696,7 @@ const RivalContextLayout: React.FC<any> = ({ bashoLabel, state, detail, playerRe
                   <ScrollText className="w-4 h-4 text-brand-line" /> 当時の番付表
                 </h3>
               </div>
-              <SnapshotList snapshot={snapshot} boutMarks={boutMarks} highlightOpponentId={state.highlightOpponentId} />
+              <SnapshotList snapshot={snapshot} boutMarks={boutMarks} playerStableId={playerStableId} highlightOpponentId={state.highlightOpponentId} />
             </section>
             <section className={cn(surface.detailCard, "p-4 sm:p-5")}>
               <div className="flex items-center justify-between gap-3 mb-3">

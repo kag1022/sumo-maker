@@ -25,6 +25,11 @@ import { buildHoshitoriGrid } from '../../../src/features/report/utils/hoshitori
 import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from '../../../src/features/logicLab/presets';
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 import { resolveSimulationPhaseOnCompletion, resolveSimulationPhaseOnStart, shouldCaptureObservations } from '../../../src/logic/simulation/appFlow';
+import {
+  buildStableEnvironmentReading,
+  listStableEnvironmentChoices,
+  resolveStableForEnvironmentChoice,
+} from '../../../src/logic/simulation/heya/stableEnvironment';
 import { applyTraitAwakeningsForBasho, buildLockedTraitJourney } from '../../../src/logic/traits';
 
 import type { TestCase } from '../types';
@@ -628,6 +633,32 @@ export const tests: TestCase[] = [
     run: () => {
       const draft = rollScoutDraft(lcg(20260313));
       assert.equal(draft.selectedStableId, 'stable-001');
+    },
+  },
+  {
+    name: 'observation build: stable environment choices resolve to existing stable status fields',
+    run: () => {
+      const choices = listStableEnvironmentChoices();
+      assert.equal(choices.length, 7);
+
+      for (const choice of choices) {
+        const stable = resolveStableForEnvironmentChoice(choice.id, lcg(20260515));
+        if (choice.id !== 'AUTO') {
+          assert.equal(stable.archetypeId, choice.id);
+        }
+        const rikishi = buildInitialRikishiFromDraft({
+          ...createScoutDraft(),
+          selectedStableId: stable.id,
+        });
+        assert.equal(rikishi.stableId, stable.id);
+        assert.equal(rikishi.ichimonId, stable.ichimonId);
+        assert.equal(rikishi.stableArchetypeId, stable.archetypeId);
+
+        const reading = buildStableEnvironmentReading(rikishi);
+        assert.equal(reading.stableName, stable.displayName);
+        assert.ok(!reading.lead.includes(stable.id), 'UI reading should not expose stable ids');
+        assert.ok(reading.influenceLines.length >= 3);
+      }
     },
   },
   {
