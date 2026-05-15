@@ -1,7 +1,6 @@
 import React from 'react';
 import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark } from 'lucide-react';
 import { Button } from '../../shared/ui/Button';
-import surface from '../../shared/styles/surface.module.css';
 import typography from '../../shared/styles/typography.module.css';
 import { cn } from '../../shared/lib/cn';
 import {
@@ -70,6 +69,7 @@ import {
   STYLE_BUILD_COST,
   TALENT_PROFILE_BUILD_COST,
 } from './buildModeCosts';
+import styles from './ObservationBuildScreen.module.css';
 
 type ObservationGenerationMode = 'OBSERVE_RANDOM' | 'BUILD';
 
@@ -117,6 +117,86 @@ const TALENT_PROFILE_OPTIONS: Array<{ value: ScoutTalentProfile; label: string; 
   { value: 'GENIUS', label: SCOUT_TALENT_PROFILE_LABELS.GENIUS, note: '天才型として、素質と成長の上振れを明示的に置く。', cost: TALENT_PROFILE_BUILD_COST.GENIUS },
 ];
 
+const formatCostLabel = (cost: number): string => {
+  if (cost === 0) return '無料';
+  return cost > 0 ? `+${cost} OP` : `${cost} OP`;
+};
+
+const resolveCostTone = (cost: number): 'free' | 'cost' | 'discount' => {
+  if (cost === 0) return 'free';
+  return cost > 0 ? 'cost' : 'discount';
+};
+
+const CostPill: React.FC<{ cost: number; tone?: 'free' | 'cost' | 'discount' | 'risk' }> = ({
+  cost,
+  tone,
+}) => (
+  <span className={styles.costPill} data-tone={tone ?? resolveCostTone(cost)}>
+    {formatCostLabel(cost)}
+  </span>
+);
+
+const ActiveBadge: React.FC = () => (
+  <span className={styles.activeBadge}>
+    <CheckCircle2 className="h-3 w-3" />
+    選択中
+  </span>
+);
+
+const MetaPill: React.FC<{ children: React.ReactNode; tone?: 'risk' | 'discount' }> = ({
+  children,
+  tone,
+}) => (
+  <span className={styles.metaPill} data-tone={tone}>
+    {children}
+  </span>
+);
+
+const ChoiceCard: React.FC<{
+  title: string;
+  note: string;
+  active: boolean;
+  onClick: () => void;
+  cost?: number;
+  detail?: React.ReactNode;
+  tall?: boolean;
+  children?: React.ReactNode;
+}> = ({ title, note, active, onClick, cost, detail, tall = false, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(styles.choiceCard, tall ? styles.choiceCardTall : undefined)}
+    data-active={active}
+  >
+    <div className={styles.choiceHead}>
+      <span className={styles.choiceTitle}>{title}</span>
+      <div className={styles.pillRow}>
+        {cost !== undefined ? <CostPill cost={cost} /> : null}
+        {active ? <ActiveBadge /> : null}
+      </div>
+    </div>
+    <div className={styles.choiceNote}>{note}</div>
+    {detail ? <div className={styles.choiceDetail}>{detail}</div> : null}
+    {children}
+  </button>
+);
+
+const SectionHeader: React.FC<{
+  title: string;
+  meta?: string;
+  icon?: React.ReactNode;
+}> = ({ title, meta, icon }) => (
+  <div className={styles.sectionHeader}>
+    <div className="flex items-start gap-3">
+      {icon}
+      <div className={styles.headingBlock}>
+        <h3 className={cn(typography.heading, 'text-xl text-text')}>{title}</h3>
+        {meta ? <div className={styles.sectionMeta}>{meta}</div> : null}
+      </div>
+    </div>
+  </div>
+);
+
 const OptionalBuildChoiceGrid = <T extends string>({
   value,
   autoLabel,
@@ -131,38 +211,23 @@ const OptionalBuildChoiceGrid = <T extends string>({
   onChange: (value: T | undefined) => void;
 }) => {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <button
-        type="button"
+    <div className={styles.choiceGrid}>
+      <ChoiceCard
+        title={autoLabel}
+        note={autoNote}
+        active={value === undefined}
         onClick={() => onChange(undefined)}
-        className={cn(
-          'min-h-[7.5rem] border px-4 py-3 text-left transition',
-          value === undefined
-            ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-            : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-        )}
-      >
-        <div className="text-sm text-text">{autoLabel}</div>
-        <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{autoNote}</div>
-      </button>
+        cost={0}
+      />
       {options.map((option) => (
-        <button
+        <ChoiceCard
           key={option.value}
-          type="button"
+          title={option.label}
+          note={option.note}
+          active={value === option.value}
           onClick={() => onChange(option.value)}
-          className={cn(
-            'min-h-[7.5rem] border px-4 py-3 text-left transition',
-            value === option.value
-              ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-              : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-          )}
-        >
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="text-sm text-text">{option.label}</div>
-            <div className="text-xs text-gold">+{option.cost} OP</div>
-          </div>
-          <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
-        </button>
+          cost={option.cost}
+        />
       ))}
     </div>
   );
@@ -439,8 +504,9 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const selectedModifiers = effectiveModifierIds
     .map((id) => OBSERVATION_MODIFIERS[id])
     .filter(Boolean);
-  const selectedStableEnvironment = stableEnvironmentChoices.find((choice) =>
-    choice.id === (generationMode === 'BUILD' ? stableEnvironmentChoiceId : 'AUTO'));
+  const selectedStableEnvironment = generationMode === 'BUILD'
+    ? stableEnvironmentChoices.find((choice) => choice.id === stableEnvironmentChoiceId)
+    : undefined;
   const selectedBuildLabels = generationMode === 'BUILD'
     ? [
       growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : null,
@@ -458,9 +524,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   })();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-32">
-      {/* Header */}
-      <section className={cn(surface.panel, 'space-y-4 p-6')}>
+    <div className={styles.screen}>
+      <section className={styles.heroPanel}>
         <div className="flex items-center gap-3">
           <Eye className="h-6 w-6 text-action" />
           <div>
@@ -469,131 +534,89 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
           </div>
         </div>
 
-        <div className="grid gap-2 border-l-2 border-amber-300/30 bg-amber-300/[0.04] px-4 py-3 text-xs text-amber-100/85">
+        <div className={styles.notice}>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
             <span>テーマと読み口の調整は、キャリアの傾向を少し寄せるだけです。</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
             <span>番付環境・怪我・成長の揺らぎで、思った通りには進みません。</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
             <span>思い通りにならないキャリアも、資料館の一部になります。</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border border-gold/15 bg-bg/20 px-4 py-3 text-sm">
+        <div className={styles.resourceStrip}>
           <div className="flex items-center gap-2">
             <Coins className="h-4 w-4 text-gold" />
             <span className="text-xs text-text-dim">観測ポイント</span>
-            <span className="text-text">{opBalance}</span>
+            <span className={styles.summaryCost}>{opBalance}</span>
           </div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-action" />
             <span className="text-xs text-text-dim">生成札</span>
-            <span className="text-text">{tokenBalance}</span>
+            <span className={styles.summaryCost}>{tokenBalance}</span>
           </div>
         </div>
       </section>
 
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-baseline justify-between gap-4">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>生成モード</h3>
-          <div className="text-[11px] text-text-dim">
-            直接能力値は表示せず、観測の幅か入口条件だけを選びます。
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <section className={styles.sectionPanel}>
+        <SectionHeader
+          title="生成モード"
+          meta="直接能力値は表示せず、観測の幅か入口条件だけを選びます。"
+        />
+        <div className={styles.choiceGrid}>
           {MODE_OPTIONS.map((mode) => {
             const active = generationMode === mode.id;
             return (
-              <button
+              <ChoiceCard
                 key={mode.id}
-                type="button"
+                title={mode.label}
+                note={mode.summary}
+                active={active}
                 onClick={() => changeGenerationMode(mode.id)}
-                className={cn(
-                  'min-h-[8rem] border px-4 py-4 text-left transition',
-                  active
-                    ? 'border-action bg-action/15 shadow-[0_0_0_1px_rgba(255,159,64,0.35)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg text-text">{mode.label}</span>
-                  {active ? (
-                    <span className="inline-flex items-center gap-1 border border-action/60 bg-action/20 px-1.5 py-0.5 text-[10px] tracking-wider text-action">
-                      <CheckCircle2 className="h-3 w-3" />
-                      選択中
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-2 text-xs leading-relaxed text-text-dim">{mode.summary}</div>
-              </button>
+                tall
+              />
             );
           })}
         </div>
       </section>
 
-      {/* Themes */}
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>観測テーマ</h3>
-          <div className="text-[11px] text-text-dim">迷ったら 0 OP の「完全ランダム」から。</div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <section className={styles.sectionPanel}>
+        <SectionHeader title="観測テーマ" meta="迷ったら 0 OP の「完全ランダム」から。" />
+        <div className={styles.choiceGrid}>
           {themes.map((theme) => {
             const active = theme.id === themeId;
             const intent = THEME_INTENT_HINT[theme.id];
             return (
-              <button
+              <ChoiceCard
                 key={theme.id}
-                type="button"
+                title={theme.label}
+                note={THEME_DISPLAY_COPY[theme.id]}
+                active={active}
                 onClick={() => setThemeId(theme.id)}
-                className={cn(
-                  'group relative flex flex-col gap-2 border px-4 py-4 text-left transition',
-                  active
-                    ? 'border-action bg-action/15 shadow-[0_0_0_1px_rgba(255,159,64,0.35)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                cost={theme.cost}
+                detail={(
+                  <>
+                    {intent ? <span>{intent}</span> : null}
+                    <span>{theme.riskText}</span>
+                  </>
                 )}
-              >
-                {active ? (
-                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-action/60 bg-action/20 px-1.5 py-0.5 text-[10px] tracking-wider text-action">
-                    <CheckCircle2 className="h-3 w-3" />
-                    選択中
-                  </span>
-                ) : null}
-                <div className="flex items-baseline gap-2 pr-16">
-                  <span className={cn('text-lg', active ? 'text-text' : 'text-text/90')}>{theme.label}</span>
-                  <span className={cn('ml-auto text-sm', active ? 'text-gold' : 'text-gold/80')}>
-                    {theme.cost === 0 ? '無料' : `${theme.cost} OP`}
-                  </span>
-                </div>
-                <div className="text-xs text-text-dim leading-relaxed">{THEME_DISPLAY_COPY[theme.id]}</div>
-                {intent ? (
-                  <div className="text-[11px] text-action/80 leading-relaxed">→ {intent}</div>
-                ) : null}
-                <div className="text-[11px] text-amber-300/70">{theme.riskText}</div>
-              </button>
+              />
             );
           })}
         </div>
       </section>
 
       {generationMode === 'BUILD' ? (
-        <section className={cn(surface.panel, 'space-y-5 p-5')}>
-          <div className="flex items-baseline justify-between gap-4">
-            <h3 className={cn(typography.heading, 'text-xl text-text')}>ビルド方針</h3>
-            <div className="text-[11px] text-text-dim">
-              ここでは能力値ではなく、キャリア前提だけを選びます。強い前提ほど OP が重くなります。
-            </div>
-          </div>
+        <section className={styles.sectionPanel}>
+          <SectionHeader
+            title="ビルド方針"
+            meta="ここでは能力値ではなく、キャリア前提だけを選びます。強い前提ほど OP が重くなります。"
+          />
 
-          <div className="space-y-2">
-            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-              成長型
-            </div>
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>成長型</div>
             <OptionalBuildChoiceGrid<GrowthType>
               value={growthType}
               autoLabel="候補札に任せる"
@@ -603,10 +626,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-              得意な型
-            </div>
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>得意な型</div>
             <OptionalBuildChoiceGrid<StyleArchetype>
               value={preferredStyle}
               autoLabel="体格と部屋に任せる"
@@ -616,10 +637,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-              付出・入門資格
-            </div>
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>付出・入門資格</div>
             <OptionalBuildChoiceGrid<EntryArchetype>
               value={entryArchetype}
               autoLabel="候補札に任せる"
@@ -629,33 +648,18 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-              素質の輪郭
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>素質の輪郭</div>
+            <div className={styles.choiceGrid}>
               {TALENT_PROFILE_OPTIONS.map((option) => (
-                <button
+                <ChoiceCard
                   key={option.value}
-                  type="button"
+                  title={option.label}
+                  note={option.note}
+                  active={talentProfile === option.value}
                   onClick={() => setTalentProfile(option.value)}
-                  className={cn(
-                    'min-h-[7.5rem] border px-4 py-3 text-left transition',
-                    talentProfile === option.value
-                      ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-                      : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                  )}
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="text-sm text-text">{option.label}</div>
-                    {option.cost > 0 ? (
-                      <div className="text-xs text-gold">+{option.cost} OP</div>
-                    ) : (
-                      <div className="text-xs text-text-dim">無料</div>
-                    )}
-                  </div>
-                  <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
-                </button>
+                  cost={option.cost}
+                />
               ))}
             </div>
           </div>
@@ -664,50 +668,26 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 
       {/* 所属環境 */}
       {generationMode === 'BUILD' ? (
-        <section className={cn(surface.panel, 'space-y-3 p-5')}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Landmark className="h-5 w-5 text-gold" />
-              <div>
-                <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
-                <div className="mt-1 text-xs leading-relaxed text-text-dim">
-                部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
-                  {stableEnvironmentChoiceId !== 'AUTO' ? ` 環境指定は +${STABLE_ENVIRONMENT_BUILD_COST} OP です。` : ''}
-                </div>
-              </div>
-            </div>
-            <div className="hidden text-[11px] text-text-dim sm:block">45部屋から直接選ばず、環境の系統だけを選びます。</div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section className={styles.sectionPanel}>
+          <SectionHeader
+            title="所属環境"
+            meta={`部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。45部屋から直接選ばず、環境の系統だけを選びます。${stableEnvironmentChoiceId !== 'AUTO' ? ` 環境指定は +${STABLE_ENVIRONMENT_BUILD_COST} OP です。` : ''}`}
+            icon={<Landmark className="h-5 w-5 text-gold" />}
+          />
+          <div className={styles.choiceGridThree}>
             {stableEnvironmentChoices.map((choice) => {
               const active = choice.id === stableEnvironmentChoiceId;
               return (
-                <button
+                <ChoiceCard
                   key={choice.id}
-                  type="button"
+                  title={choice.label}
+                  note={choice.summary}
+                  active={active}
                   onClick={() => setStableEnvironmentChoiceId(choice.id)}
-                  className={cn(
-                    'group relative flex min-h-[9.25rem] flex-col gap-2 border px-4 py-4 text-left transition',
-                    active
-                      ? 'border-gold bg-gold/12 shadow-[0_0_0_1px_rgba(224,181,91,0.28)]'
-                      : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                  )}
-                >
-                  {active ? (
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-gold/60 bg-gold/15 px-1.5 py-0.5 text-[10px] tracking-wider text-gold">
-                      <CheckCircle2 className="h-3 w-3" />
-                    選択中
-                    </span>
-                  ) : null}
-                  <span className={cn('pr-16 text-base', active ? 'text-text' : 'text-text/90')}>
-                    {choice.label}
-                  </span>
-                  <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
-                  <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
-                  <span className="mt-auto text-xs text-gold">
-                    {choice.id === 'AUTO' ? '無料' : `+${STABLE_ENVIRONMENT_BUILD_COST} OP`}
-                  </span>
-                </button>
+                  cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
+                  detail={<span>{choice.detail}</span>}
+                  tall
+                />
               );
             })}
           </div>
@@ -716,64 +696,39 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 
       {/* Modifiers grouped */}
       {generationMode === 'BUILD' ? (
-        <section className={cn(surface.panel, 'space-y-5 p-5')}>
-          <div className="flex items-baseline justify-between">
-            <h3 className={cn(typography.heading, 'text-xl text-text')}>読み口の調整</h3>
-            <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
-          </div>
+        <section className={styles.sectionPanel}>
+          <SectionHeader title="読み口の調整" meta="体格・取り口・成長は択一、リスクは複数可。" />
 
           {GROUP_ORDER.map((group) => {
             const list = modifiersByGroup[group];
             if (!list || list.length === 0) return null;
             const meta = GROUP_META[group];
             return (
-              <div key={group} className="space-y-2">
+              <div key={group} className={styles.optionalGroup}>
                 <div className="flex items-baseline gap-2">
-                  <span className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-                    {meta.label}
-                  </span>
-                  <span className="text-[10px] text-text-dim/70">({meta.hint})</span>
+                  <span className={cn(typography.label, styles.groupLabel)}>{meta.label}</span>
+                  <span className={styles.sectionMeta}>({meta.hint})</span>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className={styles.choiceGrid}>
                   {list.map((mod) => {
                     const active = modifierIds.includes(mod.id);
                     const isDiscount = mod.cost < 0;
                     const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
                     return (
-                      <button
+                      <ChoiceCard
                         key={mod.id}
-                        type="button"
+                        title={mod.label}
+                        note={displayCopy.description}
+                        active={active}
                         onClick={() => toggleModifier(mod.id)}
-                        className={cn(
-                          'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
-                          active
-                            ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-                            : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                        )}
+                        cost={mod.cost}
+                        detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
                       >
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-sm text-text">{mod.label}</span>
-                          <div className="flex items-center gap-1.5">
-                            {isDiscount ? (
-                              <span className="border border-emerald-400/40 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] tracking-wider text-emerald-300">
-                              割引
-                              </span>
-                            ) : null}
-                            {mod.riskText ? (
-                              <span className="border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] tracking-wider text-amber-200">
-                              リスク
-                              </span>
-                            ) : null}
-                            <span className={cn('text-xs', isDiscount ? 'text-emerald-400' : 'text-gold')}>
-                              {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
-                            </span>
-                          </div>
+                        <div className={styles.pillRow}>
+                          {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
+                          {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
                         </div>
-                        <div className="text-[11px] text-text-dim leading-relaxed">{displayCopy.description}</div>
-                        {displayCopy.riskText ? (
-                          <div className="text-[10px] text-amber-300/70">{displayCopy.riskText}</div>
-                        ) : null}
-                      </button>
+                      </ChoiceCard>
                     );
                   })}
                 </div>
@@ -785,8 +740,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 
       {/* Validation errors (if any) */}
       {validation.errors.length > 0 ? (
-        <section className={cn(surface.panel, 'p-4')}>
-          <ul className="space-y-1 text-xs text-red-300">
+        <section className={styles.validationPanel}>
+          <ul className="space-y-1">
             {validation.errors.map((err, i) => (
               <li key={`${err}-${i}`} className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -798,26 +753,26 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       ) : null}
 
       {errorMessage ? (
-        <section className={cn(surface.panel, 'p-4 text-xs text-red-300')}>{errorMessage}</section>
+        <section className={styles.validationPanel}>{errorMessage}</section>
       ) : null}
 
       {/* Sticky bottom summary */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-bg/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-          <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[11px]">
+      <div className={styles.stickySummary}>
+        <div className={styles.summaryInner}>
+          <div className={styles.summaryChips}>
             <span className="text-text-dim">あなたの観測:</span>
-            <span className="border border-white/15 bg-white/[0.03] px-2 py-0.5 text-text-dim">
+            <span className={styles.summaryChip}>
               {generationMode === 'BUILD' ? 'ビルドモード' : '観測モード'}
             </span>
             {selectedTheme ? (
-              <span className="border border-action/40 bg-action/10 px-2 py-0.5 text-text">
+              <span className={styles.summaryChip}>
                 {selectedTheme.label}
               </span>
             ) : null}
             {selectedBuildLabels.map((label) => (
               <span
                 key={label}
-                className="border border-action/30 bg-action/10 px-2 py-0.5 text-action"
+                className={styles.summaryChip}
               >
                 {label}
               </span>
@@ -825,13 +780,13 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             {selectedModifiers.map((mod) => (
               <span
                 key={mod.id}
-                className="border border-white/15 bg-white/[0.03] px-2 py-0.5 text-text-dim"
+                className={styles.summaryChip}
               >
                 {mod.label}
               </span>
             ))}
             {selectedStableEnvironment ? (
-              <span className="border border-gold/30 bg-gold/10 px-2 py-0.5 text-gold">
+              <span className={styles.summaryChip}>
                 {selectedStableEnvironment.label}
               </span>
             ) : null}
@@ -846,12 +801,12 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             {generationMode === 'BUILD' ? (
               <div>
                 <span className="text-text-dim">ビルド</span>{' '}
-                <span className="text-gold">{directBuildCost} OP</span>
+                <span className={styles.summaryCost}>{directBuildCost} OP</span>
               </div>
             ) : null}
             <div>
               <span className="text-text-dim">消費</span>{' '}
-              <span className={cn(insufficientOp ? 'text-red-400' : 'text-gold')}>{totalCost} OP</span>
+              <span className={cn(insufficientOp ? 'text-red-400' : styles.summaryCost)}>{totalCost} OP</span>
             </div>
             <div>
               <span className="text-text-dim">観測後</span>{' '}
