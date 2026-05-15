@@ -248,6 +248,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 onSave={onSave}
                 onReturnToScout={onReturnToScout}
                 onOpenArchive={onOpenArchive}
+                onOpenChapter={(chapter) => setChapter(chapter)}
               />
               <section className={styles.readingNote}>
                 <div className={styles.readingKicker}>閲覧ガイド</div>

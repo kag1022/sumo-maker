@@ -58,6 +58,19 @@ export interface CareerYearBand {
   size: number;
 }
 
+export interface CareerRankScaleBand {
+  key: CareerLedgerBandKey;
+  label: string;
+  min: number;
+  max: number;
+  weight: number;
+}
+
+export interface CareerRankScaleLayoutBand extends CareerRankScaleBand {
+  y: number;
+  height: number;
+}
+
 export interface CareerLedgerModel {
   points: CareerLedgerPoint[];
   yearBands: CareerYearBand[];
@@ -121,6 +134,49 @@ const BAND_DEFINITIONS: Array<{ key: CareerLedgerBandKey; label: string; weight:
 ];
 
 export const CAREER_LEDGER_BANDS = BAND_DEFINITIONS;
+
+export const CAREER_RANK_SCALE_BANDS: CareerRankScaleBand[] = [
+  { key: "YOKOZUNA", label: "横綱", min: 0, max: 9, weight: 0.5 },
+  { key: "OZEKI", label: "大関", min: 10, max: 19, weight: 0.5 },
+  { key: "SEKIWAKE", label: "関脇", min: 20, max: 29, weight: 0.5 },
+  { key: "KOMUSUBI", label: "小結", min: 30, max: 39, weight: 0.5 },
+  { key: "MAEGASHIRA", label: "前頭", min: 40, max: 59, weight: 0.95 },
+  { key: "JURYO", label: "十両", min: 60, max: 79, weight: 0.95 },
+  { key: "MAKUSHITA", label: "幕下", min: 80, max: 149, weight: 2.25 },
+  { key: "SANDANME", label: "三段目", min: 150, max: 259, weight: 3.1 },
+  { key: "JONIDAN", label: "序二段", min: 260, max: 369, weight: 3.1 },
+  { key: "JONOKUCHI", label: "序ノ口", min: 370, max: 460, weight: 2.45 },
+];
+
+export const getCareerRankScaleLayout = (plotHeight: number): CareerRankScaleLayoutBand[] => {
+  const totalWeight = CAREER_RANK_SCALE_BANDS.reduce((sum, band) => sum + band.weight, 0);
+  let cursor = 0;
+  return CAREER_RANK_SCALE_BANDS.map((band) => {
+    const height = (band.weight / totalWeight) * plotHeight;
+    const result = {
+      ...band,
+      y: cursor,
+      height,
+    };
+    cursor += height;
+    return result;
+  });
+};
+
+export const getCareerRankScalePosition = (
+  rankValue: number,
+  layout: CareerRankScaleLayoutBand[],
+): { y: number; band: CareerRankScaleLayoutBand } => {
+  const band =
+    layout.find((entry) => rankValue >= entry.min && rankValue <= entry.max) ??
+    layout[layout.length - 1];
+  const range = Math.max(1, band.max - band.min);
+  const ratio = Math.max(0, Math.min(1, (rankValue - band.min) / range));
+  return {
+    y: band.y + band.height * (0.12 + ratio * 0.76),
+    band,
+  };
+};
 
 const toBandKey = (rank: Rank): CareerLedgerBandKey => {
   if (rank.name === "横綱") return "YOKOZUNA";

@@ -1,5 +1,19 @@
 import React from "react";
-import { Archive, BookUser, Check, Copy, ExternalLink, Landmark, Save, Sparkles, Star, Swords, Trophy } from "lucide-react";
+import {
+  Archive,
+  BarChart3,
+  BookOpenText,
+  Check,
+  Copy,
+  ExternalLink,
+  Landmark,
+  Save,
+  Sparkles,
+  Star,
+  Swords,
+  Trophy,
+  UserRound,
+} from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
 import type { CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
@@ -22,9 +36,9 @@ import { buildStableEnvironmentReading } from "../../../logic/simulation/heya/st
 import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
-import { StatCard } from "../../../shared/ui/StatCard";
 import { RankBadge } from "../../../shared/ui/RankBadge";
 import type { CareerDesignReadingModel, CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
+import { getCareerRankScaleLayout, getCareerRankScalePosition } from "../utils/careerResultModel";
 import { FEEDBACK_FORM_URL, RELEASE_KNOWN_LIMITATIONS } from "../utils/releaseFeedback";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 import { WinRateTrendChart } from "./WinRateTrendChart";
@@ -47,11 +61,12 @@ interface CareerEncyclopediaChapterProps {
   onSave: (metadata?: { saveTags?: CareerSaveTag[]; observerMemo?: string }) => void | Promise<void>;
   onReturnToScout: () => void;
   onOpenArchive: () => void;
+  onOpenChapter: (chapter: "trajectory" | "place") => void;
 }
 
 type CareerMilestoneTone = "start" | "rise" | "peak" | "honor" | "injury" | "return" | "end";
 
-const CAREER_MILESTONE_LIMIT = 12;
+const CAREER_MILESTONE_LIMIT = 10;
 const PINNED_MILESTONE_LABELS = new Set(["初土俵", "初勝ち越し", "最高位", "引退前最後"]);
 const PROMOTION_MILESTONE_LABELS = new Set(["新十両", "新入幕", "新三役", "新大関", "横綱昇進"]);
 
@@ -75,13 +90,20 @@ const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   MUSCULAR: "筋骨型",
 };
 
-const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"]): string => {
-  if (raw && BODY_LABELS[raw as keyof typeof BODY_LABELS]) {
-    return BODY_LABELS[raw as keyof typeof BODY_LABELS];
-  }
-  if (raw && raw.length > 0) return raw;
-  return BODY_LABELS[fallback];
-};
+const SAVE_TAGS: CareerSaveTag[] = [
+  "GREAT_RIKISHI",
+  "UNFINISHED_TALENT",
+  "LATE_BLOOM_SUCCESS",
+  "INJURY_TRAGEDY",
+  "TURBULENT_LIFE",
+  "STABLE_MAKUUCHI",
+  "JURYO_CRAFTSMAN",
+  "GENERATION_LEADER",
+  "RIVALRY_MEMORY",
+  "RARE_RECORD",
+  "RESEARCH_SAMPLE",
+  "FAVORITE",
+];
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
@@ -92,46 +114,17 @@ const formatWinRate = (wins: number, losses: number): string => {
   return `${((wins / total) * 100).toFixed(1)}%`;
 };
 
+const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"]): string => {
+  if (raw && BODY_LABELS[raw as keyof typeof BODY_LABELS]) return BODY_LABELS[raw as keyof typeof BODY_LABELS];
+  if (raw && raw.length > 0) return raw;
+  return BODY_LABELS[fallback];
+};
+
 const resolveRetirementReason = (status: RikishiStatus): string | null => {
   const event = [...status.history.events].reverse().find((entry) => entry.type === "RETIREMENT");
   if (!event) return null;
   return event.description.replace(/^引退 \(/, "").replace(/\)$/, "") || null;
 };
-
-const InfoCard: React.FC<{
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ title, icon, children }) => (
-  <section className={styles.card}>
-    <div className={styles.cardHead}>
-      <span className={styles.cardIcon}>{icon}</span>
-      <div className={styles.cardTitle}>{title}</div>
-    </div>
-    {children}
-  </section>
-);
-
-const KeyValueGrid: React.FC<{
-  rows: Array<{ label: string; value: string }>;
-}> = ({ rows }) => (
-  <div className={styles.grid}>
-    {rows.map((row) => (
-      <div key={row.label} className={styles.gridItem}>
-        <span className={styles.gridItemLabel}>{row.label}</span>
-        <strong className={styles.gridItemValue}>{row.value}</strong>
-      </div>
-    ))}
-  </div>
-);
-
-const SectionHeading: React.FC<{ title: string }> = ({ title }) => (
-  <div className={styles.sectionHead}>
-    <span className={styles.sectionMark} />
-    <span className={styles.sectionTitle}>{title}</span>
-    <span className={styles.sectionRule} />
-  </div>
-);
 
 const toCoverReadingLine = (
   designReading: CareerDesignReadingModel,
@@ -186,21 +179,16 @@ const selectCareerMilestones = (items: CareerMilestoneView[]): CareerMilestoneVi
     if (item) selected.set(item.key, item);
   };
 
-  for (const label of PINNED_MILESTONE_LABELS) {
-    add(unique.find((item) => item.label === label));
-  }
-  for (const label of PROMOTION_MILESTONE_LABELS) {
-    add(unique.find((item) => item.label === label));
-  }
+  for (const label of PINNED_MILESTONE_LABELS) add(unique.find((item) => item.label === label));
+  for (const label of PROMOTION_MILESTONE_LABELS) add(unique.find((item) => item.label === label));
   add(unique.find((item) => item.label.includes("優勝")));
   add(unique.find((item) => item.label.includes("休場") || item.label === "全休"));
   add(unique.find((item) => item.label.includes("復帰") || item.label.startsWith("再")));
 
-  const remainingSlots = Math.max(0, CAREER_MILESTONE_LIMIT - selected.size);
   unique
     .filter((item) => !selected.has(item.key))
     .sort((a, b) => a.priority - b.priority || a.bashoSeq - b.bashoSeq || a.order - b.order)
-    .slice(0, remainingSlots)
+    .slice(0, Math.max(0, CAREER_MILESTONE_LIMIT - selected.size))
     .forEach(add);
 
   return [...selected.values()].sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
@@ -233,9 +221,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
   push(firstPoint, "初土俵", `${firstPoint.rankLabel}で記録が始まる。`, 0);
 
   const firstKachikoshi = points.find((point) => point.wins > point.losses);
-  if (firstKachikoshi) {
-    push(firstKachikoshi, "初勝ち越し", `${firstKachikoshi.recordLabel}で白星が先行した。`, 10);
-  }
+  if (firstKachikoshi) push(firstKachikoshi, "初勝ち越し", `${firstKachikoshi.recordLabel}で白星が先行した。`, 10);
 
   let sawAbsence = false;
   for (const point of points) {
@@ -243,9 +229,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
       const label = tag === "最高位到達" ? "最高位" : tag;
       push(point, label, `${point.rankLabel} / ${point.recordLabel}`, 20);
     }
-    if (point.eventFlags.includes("yusho")) {
-      push(point, "優勝", `${point.rankLabel}で${point.recordLabel}。`, 30);
-    }
+    if (point.eventFlags.includes("yusho")) push(point, "優勝", `${point.rankLabel}で${point.recordLabel}。`, 30);
     if (point.eventFlags.includes("absent")) {
       sawAbsence = true;
       push(point, point.isFullAbsence ? "全休" : "休場", `${point.absent}休を記録。`, 40);
@@ -261,20 +245,82 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
   return selectCareerMilestones(items);
 };
 
-const SAVE_TAGS: CareerSaveTag[] = [
-  "GREAT_RIKISHI",
-  "UNFINISHED_TALENT",
-  "LATE_BLOOM_SUCCESS",
-  "INJURY_TRAGEDY",
-  "TURBULENT_LIFE",
-  "STABLE_MAKUUCHI",
-  "JURYO_CRAFTSMAN",
-  "GENERATION_LEADER",
-  "RIVALRY_MEMORY",
-  "RARE_RECORD",
-  "RESEARCH_SAMPLE",
-  "FAVORITE",
-];
+const SectionHeading: React.FC<{ eyebrow: string; title: string; copy?: string }> = ({ eyebrow, title, copy }) => (
+  <div className={styles.sectionHead}>
+    <div>
+      <div className={styles.eyebrow}>{eyebrow}</div>
+      <h2>{title}</h2>
+    </div>
+    {copy ? <p>{copy}</p> : null}
+  </div>
+);
+
+const DataGrid: React.FC<{ rows: Array<{ label: string; value: string }> }> = ({ rows }) => (
+  <div className={styles.dataGrid}>
+    {rows.map((row) => (
+      <div key={row.label} className={styles.dataCell}>
+        <span>{row.label}</span>
+        <strong>{row.value}</strong>
+      </div>
+    ))}
+  </div>
+);
+
+const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
+  if (!points || points.length < 2) {
+    return <div className={styles.sparkEmpty}>番付推移は詳細整理後に表示されます。</div>;
+  }
+  const width = 560;
+  const height = 176;
+  const padding = { top: 12, right: 18, bottom: 22, left: 54 };
+  const plotHeight = height - padding.top - padding.bottom;
+  const plotWidth = width - padding.left - padding.right;
+  const bandLayout = getCareerRankScaleLayout(plotHeight);
+  const toPointPosition = (point: CareerLedgerPoint, index: number) => {
+    const rankPosition = getCareerRankScalePosition(point.rankValue, bandLayout);
+    return {
+      x: padding.left + (index / Math.max(1, points.length - 1)) * plotWidth,
+      y: padding.top + rankPosition.y,
+    };
+  };
+  const path = points.map((point, index) => {
+    const { x, y } = toPointPosition(point, index);
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+  const peak = points.reduce((best, point) => (point.rankValue < best.rankValue ? point : best), points[0]);
+  const peakIndex = points.findIndex((point) => point.bashoSeq === peak.bashoSeq);
+  const peakPosition = toPointPosition(peak, peakIndex);
+  const firstPosition = toPointPosition(points[0], 0);
+  const lastPosition = toPointPosition(points[points.length - 1], points.length - 1);
+
+  return (
+    <svg className={styles.sparkline} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="階級帯上の番付推移要約">
+      {bandLayout.map((band) => (
+        <g key={`mini-band-${band.key}`}>
+          <rect
+            x={padding.left}
+            y={padding.top + band.y}
+            width={plotWidth}
+            height={band.height}
+            className={styles.sparkBand}
+            data-band={band.key}
+          />
+          <text x={padding.left - 8} y={padding.top + band.y + band.height / 2 + 4} className={styles.sparkBandLabel}>
+            {band.label}
+          </text>
+        </g>
+      ))}
+      <path d={path} className={styles.sparkPathGhost} />
+      <path d={path} className={styles.sparkPath} />
+      <circle cx={firstPosition.x} cy={firstPosition.y} r="4" className={styles.sparkEndpoint} />
+      <circle cx={lastPosition.x} cy={lastPosition.y} r="4" className={styles.sparkEndpoint} />
+      <circle cx={peakPosition.x} cy={peakPosition.y} r="6" className={styles.sparkPeak} />
+      <text x={Math.min(width - 58, Math.max(padding.left + 8, peakPosition.x + 10))} y={Math.max(18, peakPosition.y - 8)} className={styles.sparkLabel}>最高位</text>
+      <text x={firstPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">初土俵</text>
+      <text x={lastPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">終幕</text>
+    </svg>
+  );
+};
 
 export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
   status,
@@ -291,6 +337,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   onSave,
   onReturnToScout,
   onOpenArchive,
+  onOpenChapter,
 }) => {
   const [selectedSaveTags, setSelectedSaveTags] = React.useState<CareerSaveTag[]>([]);
   const [saveState, setSaveState] = React.useState<"idle" | "saving" | "error">("idle");
@@ -303,17 +350,12 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   React.useEffect(() => {
     setSelectedSaveTags(analysis.saveRecommendation.suggestedManualTags.slice(0, 3));
   }, [analysis.saveRecommendation.suggestedManualTags]);
+
   const initial = status.buildSummary?.initialConditionSummary;
   const growth = status.buildSummary?.growthSummary;
   const narrative = status.careerNarrative;
-  const stableEnvironment = React.useMemo(
-    () => buildStableEnvironmentReading(status),
-    [status],
-  );
-  const stablemates = React.useMemo(
-    () => buildStablemateSummaries(status, bashoRows),
-    [bashoRows, status],
-  );
+  const stableEnvironment = React.useMemo(() => buildStableEnvironmentReading(status), [status]);
+  const stablemates = React.useMemo(() => buildStablemateSummaries(status, bashoRows), [bashoRows, status]);
   const retirementReason = React.useMemo(() => resolveRetirementReason(status), [status]);
   const learnedTraits = React.useMemo(
     () =>
@@ -325,102 +367,45 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         })),
     [status.traitJourney],
   );
-  const profileRows = React.useMemo(
-    () =>
-      [
-        { label: "最高位", value: highestRankLabel },
-        { label: "所属部屋", value: stableEnvironment.stableName },
-        { label: "出身地", value: initial?.birthplace ?? status.profile.birthplace },
-        { label: "入門年齢", value: `${initial?.entryAge ?? status.entryAge}歳` },
-        { label: "現在体格", value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg` },
-        { label: "引退年齢", value: `${status.age}歳` },
-        retirementReason ? { label: "引退理由", value: retirementReason } : null,
-      ].filter((row): row is { label: string; value: string } => Boolean(row?.value)),
-    [highestRankLabel, initial?.birthplace, initial?.entryAge, retirementReason, stableEnvironment.stableName, status.age, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.entryAge, status.profile.birthplace],
-  );
-  const subProfileRows = React.useMemo(
-    () =>
-      [
-        initial?.entryPathLabel ? { label: "入門経路", value: initial.entryPathLabel } : null,
-        initial?.temperamentLabel ? { label: "気質", value: initial.temperamentLabel } : null,
-        initial?.bodySeedLabel ? { label: "身体の素地", value: initial.bodySeedLabel } : null,
-        { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
-      ].filter((row): row is { label: string; value: string } => Boolean(row)),
-    [growth?.bodyTypeLabel, initial, status.bodyType],
-  );
   const totalSansho = React.useMemo(
     () => status.history.records.reduce((sum, record) => sum + (record.specialPrizes?.length ?? 0), 0),
     [status.history.records],
   );
-  const topMoves = React.useMemo(
-    () =>
-      Object.entries(status.history.kimariteTotal ?? {})
-        .filter(([, count]) => count > 0)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 2)
-        .map(([move]) => move),
-    [status.history.kimariteTotal],
+  const kinboshi = React.useMemo(
+    () => status.history.records.reduce((sum, record) => sum + (record.kinboshi ?? 0), 0),
+    [status.history.records],
   );
-  const styleIdentity = React.useMemo(
-    () => ensureStyleIdentityProfile(status).styleIdentityProfile,
-    [status],
-  );
-  const strengthStyles = React.useMemo(
-    () => resolveDisplayedStrengthStyles(styleIdentity),
-    [styleIdentity],
-  );
-  const strengthLabel = React.useMemo(
-    () => resolveStyleLabelsOrFallback(strengthStyles),
-    [strengthStyles],
-  );
+  const styleIdentity = React.useMemo(() => ensureStyleIdentityProfile(status).styleIdentityProfile, [status]);
+  const strengthStyles = React.useMemo(() => resolveDisplayedStrengthStyles(styleIdentity), [styleIdentity]);
+  const strengthLabel = React.useMemo(() => resolveStyleLabelsOrFallback(strengthStyles), [strengthStyles]);
   const weaknessLabel = React.useMemo(
     () => resolveStyleLabelsOrFallback(resolveDisplayedWeakStyles(styleIdentity)),
     [styleIdentity],
   );
-  const signatureLines = React.useMemo(() => {
-    const lines: Array<{ label: string; value: string }> = [];
-    lines.push({
-      label: "得意な型",
-      value: strengthLabel,
-    });
-    lines.push({
-      label: "苦手な型",
-      value: weaknessLabel,
-    });
-    const signatureSummary = summarizeSignatureKimarite(
-      status.history.kimariteTotal,
-      strengthStyles,
-      3,
-    );
-    const representativeMoves = signatureSummary.selectedMoves;
-    if (representativeMoves.length > 0) {
-      lines.push({
-        label: "代表技",
-        value: representativeMoves.join(" / "),
-      });
-    }
-    return lines;
-  }, [status.history.kimariteTotal, strengthLabel, strengthStyles, weaknessLabel]);
+  const signatureSummary = React.useMemo(
+    () => summarizeSignatureKimarite(status.history.kimariteTotal, strengthStyles, 3),
+    [status.history.kimariteTotal, strengthStyles],
+  );
   const rareKimariteEncounters = React.useMemo(
-    () => summarizeRareKimariteEncounters(status.history.kimariteTotal).slice(0, 5),
+    () => summarizeRareKimariteEncounters(status.history.kimariteTotal).slice(0, 4),
     [status.history.kimariteTotal],
   );
-  const recordRows = React.useMemo(
-    () =>
-      [
-        { label: "通算成績", value: formatRecordText(status.history.totalWins, status.history.totalLosses, status.history.totalAbsent) },
-        { label: "勝率", value: formatWinRate(status.history.totalWins, status.history.totalLosses) },
-        { label: "幕内優勝", value: `${status.history.yushoCount.makuuchi}回` },
-        totalSansho > 0 ? { label: "三賞", value: `${totalSansho}回` } : null,
-        (status.history.records.some((record) => (record.kinboshi ?? 0) > 0))
-          ? {
-            label: "金星",
-            value: `${status.history.records.reduce((sum, record) => sum + (record.kinboshi ?? 0), 0)}個`,
-          }
-          : null,
-      ].filter((row): row is { label: string; value: string } => Boolean(row)),
-    [status.history.records, status.history.totalAbsent, status.history.totalLosses, status.history.totalWins, status.history.yushoCount.makuuchi, totalSansho],
-  );
+  const careerMilestones = React.useMemo(() => buildCareerMilestones(ledgerPoints), [ledgerPoints]);
+  const bodyTimeline = status.history.bodyTimeline ?? [];
+  const entryWeight = bodyTimeline.length > 0 ? bodyTimeline[0].weightKg : undefined;
+  const peakWeight = bodyTimeline.length > 0 ? Math.max(...bodyTimeline.map((b) => b.weightKg)) : undefined;
+  const traitAwakenings = status.history.traitAwakenings ?? [];
+  const totalBashoForTimeline = status.history.records.filter((r) => r.rank.division !== "Maezumo").length;
+  const nonMaezumoRecords = status.history.records.filter((record) => record.rank.division !== "Maezumo");
+  const makuuchiBasho = nonMaezumoRecords.filter((record) => record.rank.division === "Makuuchi").length;
+  const yushoCount = status.history.yushoCount;
+  const coverReadingLine = React.useMemo(() => toCoverReadingLine(designReading, initial), [designReading, initial]);
+  const coverSummaryLine = narrative?.careerIdentity ?? narrative?.retirementDigest ?? overview.lifeSummary;
+  const saveDisabled = detailState !== "ready";
+  const saveProgress = `${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}`;
+  const saveCopy = saveDisabled
+    ? `詳細記録を整理中 ${saveProgress}。保存判断は読めますが、保存操作は整理完了後に開きます。`
+    : `分類「${analysis.classificationLabel}」。保存推奨 ${analysis.saveRecommendation.score}点、珍記録度 ${analysis.saveRecommendation.rarityScore}点。`;
   const memoLines = React.useMemo(
     () =>
       [
@@ -428,25 +413,44 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         narrative?.careerIdentity,
         narrative?.growthArc,
         narrative?.retirementDigest,
-      ].filter((line): line is string => Boolean(line)).slice(0, 3),
+      ].filter((line): line is string => Boolean(line)).slice(0, 4),
     [narrative?.careerIdentity, narrative?.growthArc, narrative?.initialConditions, narrative?.retirementDigest],
   );
-  const coverReadingLine = React.useMemo(
-    () => toCoverReadingLine(designReading, initial),
-    [designReading, initial],
+
+  const profileRows = React.useMemo(
+    () =>
+      [
+        { label: "出身", value: initial?.birthplace ?? status.profile.birthplace },
+        { label: "所属", value: stableEnvironment.stableName },
+        { label: "入門", value: `${initial?.entryAge ?? status.entryAge}歳 / ${initial?.entryPathLabel ?? "経路未詳"}` },
+        { label: "気質", value: initial?.temperamentLabel ?? status.profile.personality },
+        { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
+        { label: "晩年体格", value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg` },
+        retirementReason ? { label: "終幕", value: retirementReason } : null,
+      ].filter((row): row is { label: string; value: string } => Boolean(row)),
+    [growth?.bodyTypeLabel, initial, retirementReason, stableEnvironment.stableName, status.bodyMetrics.heightCm, status.bodyMetrics.weightKg, status.bodyType, status.entryAge, status.profile.birthplace, status.profile.personality],
   );
-  const coverSummaryLine =
-    narrative?.careerIdentity ??
-    narrative?.retirementDigest ??
-    overview.lifeSummary;
-  const careerMilestones = React.useMemo(
-    () => buildCareerMilestones(ledgerPoints),
-    [ledgerPoints],
+
+  const recordRows = React.useMemo(
+    () =>
+      [
+        { label: "通算成績", value: formatRecordText(status.history.totalWins, status.history.totalLosses, status.history.totalAbsent) },
+        { label: "通算勝率", value: formatWinRate(status.history.totalWins, status.history.totalLosses) },
+        { label: "最高位", value: highestRankLabel },
+        { label: "在位場所", value: `${nonMaezumoRecords.length}場所` },
+        { label: "幕内在位", value: `${makuuchiBasho}場所` },
+        { label: "幕内優勝", value: `${yushoCount.makuuchi}回` },
+        { label: "十両優勝", value: `${yushoCount.juryo ?? 0}回` },
+        { label: "幕下優勝", value: `${yushoCount.makushita ?? 0}回` },
+        { label: "下位優勝", value: `${yushoCount.others ?? 0}回` },
+        { label: "三賞", value: `${totalSansho}回` },
+        { label: "金星", value: `${kinboshi}個` },
+      ],
+    [highestRankLabel, kinboshi, makuuchiBasho, nonMaezumoRecords.length, status.history.totalAbsent, status.history.totalLosses, status.history.totalWins, totalSansho, yushoCount.juryo, yushoCount.makushita, yushoCount.makuuchi, yushoCount.others],
   );
-  const saveDisabled = detailState !== "ready";
-  const saveCopy = saveDisabled
-    ? `記録整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}。保存は整理完了後に開きます。`
-    : `保存推奨 ${analysis.saveRecommendation.score}点 / 珍記録度 ${analysis.saveRecommendation.rarityScore}点。分類は「${analysis.classificationLabel}」。`;
+
+  const designRows = (designReading.premiseRows.length > 0 ? designReading.premiseRows : designReading.interpretationRows).slice(0, 5);
+
   const toggleSaveTag = React.useCallback((tag: CareerSaveTag) => {
     setSelectedSaveTags((current) =>
       current.includes(tag)
@@ -474,67 +478,11 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     }
   }, [designReading.feedbackReportText]);
 
-  const kpiStats = React.useMemo(() => {
-    const nonMaezumoRecords = status.history.records.filter((r) => r.rank.division !== "Maezumo");
-    const makuuchiBasho = nonMaezumoRecords.filter((r) => r.rank.division === "Makuuchi").length;
-    const totalBasho = nonMaezumoRecords.length;
-    const totalDecisions = status.history.totalWins + status.history.totalLosses;
-    const winRate = totalDecisions > 0 ? ((status.history.totalWins / totalDecisions) * 100).toFixed(1) : "-";
-    const yusho = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo;
-    const kinboshi = nonMaezumoRecords.reduce((sum, r) => sum + (r.kinboshi ?? 0), 0);
-    return { makuuchiBasho, totalBasho, winRate, yusho, kinboshi };
-  }, [status.history]);
-
-  const bodyTimeline = status.history.bodyTimeline ?? [];
-  const entryWeight = bodyTimeline.length > 0 ? bodyTimeline[0].weightKg : undefined;
-  const peakWeight = bodyTimeline.length > 0 ? Math.max(...bodyTimeline.map((b) => b.weightKg)) : undefined;
-  const traitAwakenings = status.history.traitAwakenings ?? [];
-  const totalBashoForTimeline = status.history.records.filter((r) => r.rank.division !== "Maezumo").length;
-
   return (
     <section className={styles.shell}>
-      <div className={styles.cover}>
-        <div className={styles.hero}>
-          <div className={styles.copy}>
-            <div className={styles.coverHeader}>
-              <p className={styles.label}>力士記録表紙</p>
-              <h1 className={styles.name}>{status.shikona}</h1>
-              <div className={styles.rank}>{highestRankLabel}</div>
-              <div className={styles.origin}>
-                {initial?.birthplace ?? overview.birthplace} / {stableEnvironment.stableName}
-              </div>
-            </div>
-
-            <p className={styles.coverStatement}>
-              {coverSummaryLine}
-            </p>
-
-            <div className={styles.coverReading}>
-              <span className={styles.summaryMetricLabel}>入口条件の読み取り</span>
-              <strong>{coverReadingLine}</strong>
-            </div>
-
-            <div className={styles.summaryRow}>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryMetricLabel}>通算</span>
-                <strong className={styles.summaryMetricValue}>{overview.totalRecordLabel}</strong>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryMetricLabel}>勝率</span>
-                <strong className={styles.summaryMetricValue}>{overview.winRateLabel}</strong>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryMetricLabel}>在位</span>
-                <strong className={styles.summaryMetricValue}>{overview.careerPeriodLabel}</strong>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryMetricLabel}>所属</span>
-                <strong className={styles.summaryMetricValue}>{stableEnvironment.stableName}</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.portraitDock}>
+      <div className={styles.resultDesk}>
+        <aside className={styles.identityPanel}>
+          <div className={styles.portraitStage}>
             <RikishiPortrait
               bodyType={status.bodyType}
               bodyMetrics={status.bodyMetrics}
@@ -543,135 +491,93 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               innerClassName={styles.portraitInner}
               presentation="blend"
             />
-            <div className={styles.coverRecordSeal}>
+          </div>
+          <div className={styles.identityStack}>
+            <div className={styles.rankSeal}>
               <span>最高位</span>
               <strong>{highestRankLabel}</strong>
-              <em>{overview.totalRecordLabel}</em>
             </div>
-            <div className={styles.coverRecordStack}>
-              <div>
-                <span>在位</span>
-                <strong>{overview.careerPeriodLabel}</strong>
-              </div>
-              <div>
-                <span>観測点</span>
-                <strong>{observationPointsAwarded ?? 0}</strong>
-              </div>
-              <div>
-                <span>勝率</span>
-                <strong>{overview.winRateLabel}</strong>
-              </div>
-            </div>
+            <DataGrid rows={profileRows} />
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {careerMilestones.length > 0 ? (
-        <div className={styles.timelineSection}>
-          <SectionHeading title="キャリア年表" />
-          <div className={styles.timelineIntro}>
-            <div>
-              <div className={styles.label}>記録の節目</div>
-              <p className={styles.text}>初土俵から最後の場所まで、存在する節目だけを時系列で拾います。</p>
+        <main className={styles.outcomePanel}>
+          <div className={styles.titleBlock}>
+            <div className={styles.eyebrow}>Rikishi Dossier</div>
+            <h1>{status.shikona}</h1>
+            <div className={styles.rankLine}>
+              <RankBadge division={status.history.maxRank.division} name={highestRankLabel} size="sm" />
+              <span>{initial?.birthplace ?? overview.birthplace} / {stableEnvironment.stableName}</span>
             </div>
-            <div className={styles.timelineCount}>{careerMilestones.length}件</div>
+            <p className={styles.statement}>{coverSummaryLine}</p>
+            <div className={styles.readingLine}>
+              <span>入口条件</span>
+              <strong>{coverReadingLine}</strong>
+            </div>
           </div>
-          <div className={styles.timeline}>
-            {careerMilestones.map((milestone) => (
-              <article key={milestone.key} className={styles.timelineItem} data-tone={milestone.tone}>
-                <div className={styles.timelineMarker} />
-                <div className={styles.timelineBody}>
-                  <div className={styles.timelineTop}>
-                    <span>{milestone.bashoLabel}</span>
-                    <strong>{milestone.label}</strong>
-                  </div>
-                  <div className={styles.timelineRank}>{milestone.rankLabel}</div>
-                  <p>{milestone.description}</p>
-                  <em>{milestone.recordLabel}</em>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
-      <div className={styles.section}>
-        <SectionHeading title="所属部屋での歩み" />
-        <div className={styles.stableEnvironmentPanel}>
-          <div className={styles.stableEnvironmentLead}>
-            <div className={styles.stableEnvironmentIcon}>
-              <Landmark className="h-5 w-5" />
-            </div>
-            <div>
-              <div className={styles.label}>所属環境</div>
-              <p className={styles.stableEnvironmentText}>{stableEnvironment.lead}</p>
-            </div>
+          <div className={styles.kpiGrid}>
+            <article>
+              <span>通算</span>
+              <strong>{overview.totalRecordLabel}</strong>
+            </article>
+            <article>
+              <span>勝率</span>
+              <strong>{overview.winRateLabel}</strong>
+            </article>
+            <article>
+              <span>在位</span>
+              <strong>{overview.careerPeriodLabel}</strong>
+            </article>
+            <article>
+              <span>観測点</span>
+              <strong>{observationPointsAwarded ?? 0}</strong>
+            </article>
           </div>
-          <KeyValueGrid
-            rows={[
-              { label: "所属部屋", value: stableEnvironment.stableName },
-              { label: "一門", value: stableEnvironment.ichimonName },
-              { label: "部屋系統", value: stableEnvironment.archetypeName },
-              { label: "規模", value: stableEnvironment.scaleLabel },
-            ]}
-          />
-          <div className={styles.stableInfluenceList}>
-            {stableEnvironment.influenceLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-          {stablemates.length > 0 ? (
-            <div className={styles.stablemateBlock}>
+
+          <div className={styles.trajectoryPreview}>
+            <div className={styles.previewHead}>
               <div>
-                <div className={styles.label}>同部屋の主な力士</div>
-                <p className={styles.text}>保存済みの場所記録に同じ部屋として残った力士だけを拾います。</p>
+                <span className={styles.eyebrow}>Career Arc</span>
+                <h3>階級帯で見る番付人生</h3>
+                <p className={styles.previewCopy}>上ほど高位。横方向は時間、線は場所ごとの在位階級を表します。</p>
               </div>
-              <div className={styles.stablemateGrid}>
-                {stablemates.map((mate) => (
-                  <article key={mate.entityId} className={styles.stablemateCard} data-relation={mate.relation}>
-                    <div className={styles.stablemateTop}>
-                      <span>{mate.relationLabel}</span>
-                      <em>{mate.overlapBashoCount}場所</em>
-                    </div>
-                    <strong>{mate.shikona}</strong>
-                    <p>{mate.rankLabel} / {mate.recordLabel}</p>
-                    <small>{mate.firstSeenLabel}同じ部屋として記録。</small>
-                  </article>
-                ))}
-              </div>
+              <Button variant="secondary" size="sm" onClick={() => onOpenChapter("trajectory")}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                番付推移へ
+              </Button>
             </div>
-          ) : null}
-        </div>
-      </div>
+            <MiniTrajectory points={ledgerPoints} />
+          </div>
+        </main>
 
-      <div className={styles.actions}>
-        {!isSaved ? (
-          <>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存判断</div>
-              <div className={styles.text}>{saveCopy}</div>
-              <div className={styles.saveReasonGrid}>
-                {analysis.saveRecommendation.reasons.map((reason) => (
-                  <div key={reason} className={styles.saveReason}>{reason}</div>
+        <aside className={styles.decisionPanel}>
+          {!isSaved ? (
+            <>
+              <div className={styles.decisionScore}>
+                <span>保存推奨</span>
+                <strong>{analysis.saveRecommendation.score}</strong>
+                <em>{analysis.classificationLabel}</em>
+              </div>
+              <p className={styles.decisionCopy}>{saveCopy}</p>
+              <div className={styles.reasonList}>
+                {analysis.saveRecommendation.reasons.slice(0, 4).map((reason) => (
+                  <div key={reason}>{reason}</div>
                 ))}
               </div>
               {analysis.saveRecommendation.autoTags.length > 0 ? (
-                <>
-                  <div className={styles.subtitle}>自動タグ候補</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {analysis.saveRecommendation.autoTags.map((tag) => (
-                      <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
-                    ))}
-                  </div>
-                </>
+                <div className={styles.tagCloud}>
+                  {analysis.saveRecommendation.autoTags.map((tag) => (
+                    <span key={tag} className={styles.autoTag}>{AUTO_TAG_LABELS[tag]}</span>
+                  ))}
+                </div>
               ) : null}
-              <div className={styles.subtitle}>手動保存タグ</div>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className={styles.saveTags}>
                 {SAVE_TAGS.map((tag) => (
                   <button
                     key={tag}
                     type="button"
-                    className={styles.traitMeta}
+                    className={styles.saveTag}
                     data-active={selectedSaveTags.includes(tag)}
                     data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
                     onClick={() => toggleSaveTag(tag)}
@@ -680,116 +586,250 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                   </button>
                 ))}
               </div>
-            </div>
-            <div className={styles.actionButtons}>
-              {import.meta.env.DEV ? (
-                <>
-                  <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
-                  </Button>
-                  <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                    <ExternalLink className="h-4 w-4" />
-                    検証フォーム
-                  </a>
-                  {copyState === "error" ? (
-                    <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
-                  ) : null}
-                </>
-              ) : null}
-              <Button
-                size="lg"
-                disabled={saveDisabled || saveState === "saving"}
-                onClick={() => void handleSave()}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存する"}
+              <div className={styles.commandStack}>
+                <Button size="lg" disabled={saveDisabled || saveState === "saving"} onClick={() => void handleSave()}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存"}
+                </Button>
+                <Button variant="outline" onClick={onReturnToScout}>
+                  保存せず次の観測へ
+                </Button>
+                {saveState === "error" ? <div className={styles.saveError}>保存に失敗しました。</div> : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.savedState}>
+                <Check className="h-5 w-5" />
+                <div>
+                  <span>保存完了</span>
+                  <strong>この一代は名鑑に残っています。</strong>
+                </div>
+              </div>
+              <p className={styles.decisionCopy}>保存済み記録から再読、比較、類似検索に進めます。</p>
+              <div className={styles.commandStack}>
+                <Button size="lg" onClick={onOpenArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  保存済み記録を開く
+                </Button>
+                <Button variant="outline" onClick={onReturnToScout}>
+                  次の観測へ
+                </Button>
+              </div>
+            </>
+          )}
+          {import.meta.env.DEV ? (
+            <div className={styles.devCommands}>
+              <Button variant="secondary" size="sm" onClick={() => void handleCopyReport()}>
+                <Copy className="mr-2 h-4 w-4" />
+                {copyState === "copied" ? "コピー済み" : "検証情報"}
               </Button>
-              <Button variant="outline" onClick={onReturnToScout}>
-                保存せず次の観測へ
-              </Button>
-              {saveState === "error" ? (
-                <div className={styles.saveError}>保存に失敗しました。記録整理が完了しているか確認してください。</div>
-              ) : null}
+              <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                検証フォーム
+              </a>
+              {copyState === "error" ? <span>コピーに失敗しました。</span> : null}
             </div>
-          </>
-        ) : (
-          <div className={styles.savedPanel}>
-            <div className={styles.savedIcon}>
-              <Check className="h-5 w-5" />
-            </div>
-            <div className={styles.actionCopy}>
-              <div className={styles.label}>保存完了</div>
-              <div className={styles.savedTitle}>この力士人生は保存済みです。</div>
-              <p className={styles.text}>
-                保存済み記録から再読、比較、類似検索に進めます。ここで表示を空にする意味はないので、保存後も状態を明示します。
-              </p>
-            </div>
-            <div className={styles.actionButtons}>
-              {import.meta.env.DEV ? (
-                <>
-                  <Button variant="secondary" onClick={() => void handleCopyReport()}>
-                    <Copy className="mr-2 h-4 w-4" />
-                    {copyState === "copied" ? "コピーしました" : "検証用情報をコピー"}
-                  </Button>
-                  <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer" className={styles.feedbackLink}>
-                    <ExternalLink className="h-4 w-4" />
-                    検証フォーム
-                  </a>
-                  {copyState === "error" ? (
-                    <div className={styles.saveError}>コピーに失敗しました。ブラウザの権限を確認してください。</div>
-                  ) : null}
-                </>
-              ) : null}
-              <Button size="lg" onClick={onOpenArchive}>
-                <Archive className="mr-2 h-4 w-4" />
-                保存済み記録を開く
-              </Button>
-              <Button variant="outline" onClick={onReturnToScout}>
-                次の観測へ
-              </Button>
-            </div>
-          </div>
-        )}
+          ) : null}
+        </aside>
       </div>
 
-      {import.meta.env.DEV ? (
-        <div className={styles.section}>
-          <SectionHeading title="観測結果 (Legacy / 表示視点)" />
-          <div className={styles.observationPanel} data-tone={stanceAnalysis.tone}>
-            <div className={styles.observationHead}>
-              <div>
-                <div className={styles.label}>{stanceAnalysis.stanceLabel}</div>
-                <div className={styles.observationVerdict}>{stanceAnalysis.verdict}</div>
-              </div>
-              <div className={styles.observationScore}>{stanceAnalysis.score}</div>
-            </div>
-            <div className={styles.observationMetrics}>
-              {stanceAnalysis.highlightRows.map((row) => (
-                <div key={row.key} className={styles.observationMetric}>
-                  <span>{row.label}</span>
-                  <strong>{row.display}</strong>
-                </div>
-              ))}
-            </div>
-            <div className={styles.observationReasons}>
-              {stanceAnalysis.reasonLines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
+      <div className={styles.chapterJump}>
+        <button type="button" onClick={() => onOpenChapter("trajectory")}>
+          <BarChart3 className="h-4 w-4" />
+          <span>番付推移を読む</span>
+          <strong>上昇、停滞、陥落、復帰</strong>
+        </button>
+        <button type="button" onClick={() => onOpenChapter("place")}>
+          <BookOpenText className="h-4 w-4" />
+          <span>場所別を読む</span>
+          <strong>番付表、取組、周辺力士</strong>
+        </button>
+      </div>
+
+      <section className={styles.insightGrid}>
+        <article className={styles.insightCard} data-tone="story">
+          <div className={styles.cardHead}>
+            <Sparkles className="h-4 w-4" />
+            <h3>人物像</h3>
           </div>
+          <div className={styles.copyStack}>
+            {(memoLines.length > 0 ? memoLines : [overview.lifeSummary]).map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        </article>
+
+        <article className={styles.insightCard} data-tone="style">
+          <div className={styles.cardHead}>
+            <Swords className="h-4 w-4" />
+            <h3>取り口</h3>
+          </div>
+          <DataGrid
+            rows={[
+              { label: "得意な型", value: strengthLabel },
+              { label: "苦手な型", value: weaknessLabel },
+              { label: "代表技", value: signatureSummary.selectedMoves.length > 0 ? signatureSummary.selectedMoves.join(" / ") : "記録なし" },
+            ]}
+          />
+          {rareKimariteEncounters.length > 0 ? (
+            <div className={styles.rareList}>
+              {rareKimariteEncounters.map((encounter) => (
+                <span key={encounter.kimariteId}>{encounter.name} / {encounter.count}回</span>
+              ))}
+            </div>
+          ) : null}
+        </article>
+
+        <article className={styles.insightCard} data-tone="stable">
+          <div className={styles.cardHead}>
+            <Landmark className="h-4 w-4" />
+            <h3>所属部屋</h3>
+          </div>
+          <p className={styles.cardLead}>{stableEnvironment.lead}</p>
+          <DataGrid
+            rows={[
+              { label: "所属部屋", value: stableEnvironment.stableName },
+              { label: "一門", value: stableEnvironment.ichimonName },
+              { label: "部屋系統", value: stableEnvironment.archetypeName },
+              { label: "規模", value: stableEnvironment.scaleLabel },
+            ]}
+          />
+        </article>
+
+        <article className={styles.insightCard} data-tone="record">
+          <div className={styles.cardHead}>
+            <Trophy className="h-4 w-4" />
+            <h3>主要実績</h3>
+          </div>
+          <DataGrid rows={recordRows} />
+        </article>
+      </section>
+
+      {careerMilestones.length > 0 ? (
+        <section className={styles.timelinePanel}>
+          <SectionHeading
+            eyebrow="Milestones"
+            title="この一代の節目"
+            copy="初土俵から終幕まで、主要な転機だけを一本の時間軸で読ませます。"
+          />
+          <div className={styles.timelineRail}>
+            {careerMilestones.map((milestone) => (
+              <article key={milestone.key} className={styles.timelineItem} data-tone={milestone.tone}>
+                <div className={styles.timelineDate}>
+                  <span>{milestone.bashoLabel}</span>
+                  <em>{milestone.recordLabel}</em>
+                </div>
+                <div className={styles.timelineEvent}>
+                  <strong>{milestone.label}</strong>
+                  <em>{milestone.rankLabel}</em>
+                </div>
+                <p className={styles.timelineDescription}>{milestone.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className={styles.atlas}>
+        <SectionHeading
+          eyebrow="Database"
+          title="読解データベース"
+          copy="表紙で判断し、ここでは根拠を確認します。詳細な時系列は番付推移と場所別へ送ります。"
+        />
+        <div className={styles.atlasGrid}>
+          <article className={styles.atlasPanel}>
+            <div className={styles.cardHead}>
+              <UserRound className="h-4 w-4" />
+              <h3>基本帳面</h3>
+            </div>
+            <DataGrid rows={profileRows} />
+          </article>
+
+          {designRows.length > 0 ? (
+            <article className={styles.atlasPanel}>
+              <div className={styles.cardHead}>
+                <Star className="h-4 w-4" />
+                <h3>設計との差分</h3>
+              </div>
+              <div className={styles.designTable}>
+                {designRows.map((row) => (
+                  <div key={`${row.label}-${row.designed}`}>
+                    <span>{row.label}</span>
+                    <p>{row.interpreted}</p>
+                    <strong>{row.realized}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {stablemates.length > 0 ? (
+            <article className={styles.atlasPanel}>
+              <div className={styles.cardHead}>
+                <Landmark className="h-4 w-4" />
+                <h3>同部屋の主な力士</h3>
+              </div>
+              <div className={styles.stablemateGrid}>
+                {stablemates.map((mate) => (
+                  <div key={mate.entityId} className={styles.stablemateCard} data-relation={mate.relation}>
+                    <span>{mate.relationLabel} / {mate.overlapBashoCount}場所</span>
+                    <strong>{mate.shikona}</strong>
+                    <p>{mate.rankLabel} / {mate.recordLabel}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {learnedTraits.length > 0 ? (
+            <article className={styles.atlasPanel}>
+              <div className={styles.cardHead}>
+                <Sparkles className="h-4 w-4" />
+                <h3>特性</h3>
+              </div>
+              <div className={styles.traitGrid}>
+                {learnedTraits.slice(0, 8).map((entry) => (
+                  <div key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className={styles.traitCard}>
+                    <strong>{entry.data?.name ?? entry.trait}</strong>
+                    <span>{TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}</span>
+                    <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
         </div>
+      </section>
+
+      {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
+        <section className={styles.chartSection}>
+          <SectionHeading eyebrow="Graphs" title="補助図譜" copy="数値は記録を読むための補助に留めます。" />
+          <div className={styles.chartGrid}>
+            {ledgerPoints && ledgerPoints.length > 4 ? <WinRateTrendChart points={ledgerPoints} /> : null}
+            {bodyTimeline.length > 4 ? (
+              <BodyWeightChart bodyTimeline={bodyTimeline} entryWeight={entryWeight} peakWeight={peakWeight} />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {traitAwakenings.length > 0 ? (
+        <section className={styles.chartSection}>
+          <SectionHeading eyebrow="Traits" title="特性年譜" />
+          <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
+        </section>
       ) : null}
 
       {import.meta.env.DEV ? (
-        <div className={styles.section}>
-          <SectionHeading title="検証メモ" />
-          <div className={styles.releasePanel}>
-            <div>
-              <div className={styles.label}>開発確認用</div>
-              <p className={styles.text}>
-                結果の違和感、面白かったズレ、番付推移の不自然さは「検証用情報をコピー」してフォームへ送ってください。
-              </p>
+        <section className={styles.devPanel}>
+          <SectionHeading eyebrow="Dev" title="検証欄" copy="通常の読解UIから分離した開発確認用の領域です。" />
+          <div className={styles.devGrid}>
+            <div className={styles.observationPanel} data-tone={stanceAnalysis.tone}>
+              <span>{stanceAnalysis.stanceLabel}</span>
+              <strong>{stanceAnalysis.verdict}</strong>
+              <em>{stanceAnalysis.score}</em>
+              {stanceAnalysis.reasonLines.map((line) => <p key={line}>{line}</p>)}
             </div>
             <div className={styles.limitList}>
               {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
@@ -797,205 +837,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               ))}
             </div>
           </div>
-        </div>
-      ) : null}
-
-      {designReading.premiseRows.length > 0 || designReading.interpretationRows.length > 0 ? (
-        <div className={styles.section}>
-          <SectionHeading title="設計前提と発現" />
-          <div className={styles.designReadingHeader}>
-            <div>
-              <div className={styles.label}>設計読解</div>
-              <p className={styles.text}>入口で置いた前提、読み取り、実際に残ったキャリア傾向を同じ行で読みます。</p>
-            </div>
-            {import.meta.env.DEV && designReading.debugRows.length > 0 ? (
-              <div className={styles.debugStrip}>
-                {designReading.debugRows.map((row) => (
-                  <span key={row.label}>{row.label}: {row.value}</span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <div className={styles.designReadingTable}>
-            <div className={styles.designReadingTableHead}>
-              <span>軸</span>
-              <span>設計時の前提</span>
-              <span>入口条件の読み取り</span>
-              <span>実際の発現</span>
-            </div>
-            {(designReading.premiseRows.length > 0 ? designReading.premiseRows : designReading.interpretationRows).slice(0, 8).map((row) => (
-              <div key={`${row.label}-${row.designed}`} className={styles.designReadingRow}>
-                <span className={styles.designAxis}>{row.label}</span>
-                <p>{row.designed}</p>
-                <p>{row.interpreted}</p>
-                <p className={styles.designRealized}>{row.realized}</p>
-              </div>
-            ))}
-          </div>
-          <div className={styles.observationReasons}>
-            {designReading.divergenceLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className={styles.section}>
-        <SectionHeading title="名跡要覧" />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          <StatCard
-            label="在位場所数"
-            value={kpiStats.totalBasho}
-            subtext={kpiStats.makuuchiBasho > 0 ? `幕内 ${kpiStats.makuuchiBasho}場所` : undefined}
-          />
-          <StatCard
-            label="通算勝率"
-            value={`${kpiStats.winRate}%`}
-            subtext={`${status.history.totalWins}勝${status.history.totalLosses}敗`}
-            tone="win"
-          />
-          <StatCard
-            label="最高位"
-            value={(
-              <RankBadge
-                division={status.history.maxRank.division}
-                name={highestRankLabel}
-                size="sm"
-              />
-            )}
-          />
-          <StatCard
-            label="幕内場所"
-            value={kpiStats.makuuchiBasho}
-            subtext="幕内在位"
-            tone="gold"
-          />
-          <StatCard
-            label="優勝"
-            value={`${kpiStats.yusho}回`}
-            subtext={status.history.yushoCount.makuuchi > 0 ? `幕内 ${status.history.yushoCount.makuuchi}回` : undefined}
-            tone={kpiStats.yusho > 0 ? "gold" : "default"}
-          />
-          <StatCard
-            label="金星"
-            value={`${kpiStats.kinboshi}個`}
-            tone={kpiStats.kinboshi > 0 ? "action" : "default"}
-          />
-        </div>
-      </div>
-
-      {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
-        <div className={styles.section}>
-          <SectionHeading title="軌跡図譜" />
-          <div className={styles.chartGrid}>
-            {ledgerPoints && ledgerPoints.length > 4 ? (
-              <WinRateTrendChart points={ledgerPoints} />
-            ) : null}
-            {bodyTimeline.length > 4 ? (
-              <BodyWeightChart
-                bodyTimeline={bodyTimeline}
-                entryWeight={entryWeight}
-                peakWeight={peakWeight}
-              />
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className={styles.section}>
-        <SectionHeading title="基本帳面" />
-        <div className={styles.layout}>
-          <InfoCard title="基本データ票" icon={<BookUser className="h-4 w-4" />}>
-            <KeyValueGrid rows={profileRows} />
-            {subProfileRows.length > 0 ? (
-              <>
-                <div className={styles.subtitle}>補足</div>
-                <KeyValueGrid rows={subProfileRows} />
-              </>
-            ) : null}
-          </InfoCard>
-
-          <InfoCard title="力士像の補足" icon={<Swords className="h-4 w-4" />}>
-            {signatureLines.length > 0 ? (
-              <div className={styles.stack}>
-                {signatureLines.map((line) => (
-                  <div key={line.label} className={styles.note}>
-                    <span className={styles.noteLabel}>{line.label}</span>
-                    <strong className={styles.noteValue}>{line.value}</strong>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.empty}>得意な技はまだ定まっていません。</div>
-            )}
-
-            <div className={styles.subtitle}>人物メモ</div>
-            <div className={styles.stack}>
-              {(memoLines.length > 1 ? memoLines.slice(1) : [overview.lifeSummary]).map((line) => (
-                <p key={line} className={styles.copyLine}>{line}</p>
-              ))}
-            </div>
-
-            {rareKimariteEncounters.length > 0 ? (
-              <>
-                <div className={styles.subtitle}>珍しい決まり手の記録</div>
-                <p className={styles.text}>この力士のキャリア中に記録された、出現頻度の低い決まり手。</p>
-                <div className={styles.rareEncounterList}>
-                  {rareKimariteEncounters.map((encounter) => (
-                    <div key={encounter.kimariteId} className={styles.rareEncounter}>
-                      <span className={styles.rareEncounterName}>{encounter.name}</span>
-                      <span className={styles.rareEncounterMeta}>
-                        {encounter.label} / {encounter.count}回記録
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : null}
-
-            <div className={styles.subtitle}>特性</div>
-            {learnedTraits.length > 0 ? (
-              <div className={styles.traits}>
-                {learnedTraits.map((entry) => (
-                  <article key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`} className={styles.trait}>
-                    <div className={styles.traitHead}>
-                      <strong className={styles.traitTitle}>{entry.data?.name ?? entry.trait}</strong>
-                      <span className={styles.traitMeta}>
-                        {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} / {formatTraitAcquisitionLabel(entry)}
-                      </span>
-                    </div>
-                    <p className={styles.traitBody}>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.empty}>記録された特性はありません。</div>
-            )}
-          </InfoCard>
-
-          <InfoCard title="主要実績" icon={<Trophy className="h-4 w-4" />}>
-            <KeyValueGrid rows={recordRows} />
-            {topMoves.length > 0 ? (
-              <div className={styles.recordNote}>
-                <Star className="h-3.5 w-3.5" />
-                <span className={styles.text}>勝ち筋に多かった決まり手: {topMoves.join(" / ")}</span>
-              </div>
-            ) : null}
-            {memoLines.length > 0 ? (
-              <div className={styles.recordNote}>
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className={styles.text}>{memoLines[0]}</span>
-              </div>
-            ) : null}
-          </InfoCard>
-        </div>
-      </div>
-
-      {traitAwakenings.length > 0 ? (
-        <div className={styles.section}>
-          <SectionHeading title="特性年譜" />
-          <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
-        </div>
+        </section>
       ) : null}
     </section>
   );
