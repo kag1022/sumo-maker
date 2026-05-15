@@ -38,8 +38,8 @@ import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
 import { Button } from "../../../shared/ui/Button";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { RankBadge } from "../../../shared/ui/RankBadge";
-import type { CareerDesignReadingModel, CareerLedgerPoint, CareerOverviewModel } from "../utils/careerResultModel";
-import { getCareerRankScaleLayout, getCareerRankScalePosition } from "../utils/careerResultModel";
+import type { CareerDesignReadingModel, CareerLedgerPoint, CareerOverviewModel, CareerRankScaleLayoutBand } from "../utils/careerResultModel";
+import { CAREER_RANK_SCALE_BANDS, getCareerRankScalePosition } from "../utils/careerResultModel";
 import { FEEDBACK_FORM_URL, RELEASE_KNOWN_LIMITATIONS } from "../utils/releaseFeedback";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 import { WinRateTrendChart } from "./WinRateTrendChart";
@@ -69,7 +69,7 @@ type CareerMilestoneTone = "start" | "rise" | "peak" | "honor" | "injury" | "ret
 
 const CAREER_MILESTONE_LIMIT = 10;
 const PINNED_MILESTONE_LABELS = new Set(["初土俵", "初勝ち越し", "最高位", "引退前最後"]);
-const PROMOTION_MILESTONE_LABELS = new Set(["新十両", "新入幕", "新三役", "新大関", "横綱昇進"]);
+const PROMOTION_MILESTONE_LABELS = new Set(["新十両", "再十両", "新入幕", "再入幕", "新小結", "再小結", "新関脇", "再関脇", "新大関", "再大関", "横綱昇進"]);
 
 interface CareerMilestoneView {
   key: string;
@@ -268,16 +268,45 @@ const DataGrid: React.FC<{ rows: Array<{ label: string; value: string }> }> = ({
   </div>
 );
 
+const buildMiniRankScaleLayout = (
+  points: CareerLedgerPoint[],
+  plotHeight: number,
+): CareerRankScaleLayoutBand[] => {
+  const observedValues = points.map((point) => point.rankValue);
+  const highestValue = Math.min(...observedValues);
+  const lowestValue = Math.max(...observedValues);
+  const firstBandIndex = CAREER_RANK_SCALE_BANDS.findIndex((band) => highestValue >= band.min && highestValue <= band.max);
+  const lastBandIndex = CAREER_RANK_SCALE_BANDS.findIndex((band) => lowestValue >= band.min && lowestValue <= band.max);
+  const from = Math.max(0, (firstBandIndex < 0 ? 0 : firstBandIndex) - 1);
+  const to = Math.min(
+    CAREER_RANK_SCALE_BANDS.length - 1,
+    (lastBandIndex < 0 ? CAREER_RANK_SCALE_BANDS.length - 1 : lastBandIndex) + 1,
+  );
+  const visibleBands = CAREER_RANK_SCALE_BANDS.slice(from, to + 1);
+  const totalWeight = visibleBands.reduce((sum, band) => sum + band.weight, 0);
+  let cursor = 0;
+  return visibleBands.map((band) => {
+    const height = (band.weight / totalWeight) * plotHeight;
+    const result = {
+      ...band,
+      y: cursor,
+      height,
+    };
+    cursor += height;
+    return result;
+  });
+};
+
 const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
   if (!points || points.length < 2) {
     return <div className={styles.sparkEmpty}>番付推移は詳細整理後に表示されます。</div>;
   }
   const width = 560;
   const height = 176;
-  const padding = { top: 12, right: 18, bottom: 22, left: 54 };
+  const padding = { top: 8, right: 18, bottom: 24, left: 58 };
   const plotHeight = height - padding.top - padding.bottom;
   const plotWidth = width - padding.left - padding.right;
-  const bandLayout = getCareerRankScaleLayout(plotHeight);
+  const bandLayout = buildMiniRankScaleLayout(points, plotHeight);
   const toPointPosition = (point: CareerLedgerPoint, index: number) => {
     const rankPosition = getCareerRankScalePosition(point.rankValue, bandLayout);
     return {
@@ -294,6 +323,10 @@ const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({
   const peakPosition = toPointPosition(peak, peakIndex);
   const firstPosition = toPointPosition(points[0], 0);
   const lastPosition = toPointPosition(points[points.length - 1], points.length - 1);
+  const peakLabelX = Math.min(width - 58, Math.max(padding.left + 16, peakPosition.x + 12));
+  const peakLabelY = peakPosition.y < padding.top + 24
+    ? peakPosition.y + 22
+    : Math.max(padding.top + 16, peakPosition.y - 10);
 
   return (
     <svg className={styles.sparkline} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="階級帯上の番付推移要約">
@@ -317,7 +350,7 @@ const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({
       <circle cx={firstPosition.x} cy={firstPosition.y} r="4" className={styles.sparkEndpoint} />
       <circle cx={lastPosition.x} cy={lastPosition.y} r="4" className={styles.sparkEndpoint} />
       <circle cx={peakPosition.x} cy={peakPosition.y} r="6" className={styles.sparkPeak} />
-      <text x={Math.min(width - 58, Math.max(padding.left + 8, peakPosition.x + 10))} y={Math.max(18, peakPosition.y - 8)} className={styles.sparkLabel}>最高位</text>
+      <text x={peakLabelX} y={peakLabelY} className={styles.sparkLabel}>最高位</text>
       <text x={firstPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">初土俵</text>
       <text x={lastPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">終幕</text>
     </svg>
@@ -542,7 +575,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <div>
                 <span className={styles.eyebrow}>Career Arc</span>
                 <h3>階級帯で見る番付人生</h3>
-                <p className={styles.previewCopy}>上ほど高位。横方向は時間、線は場所ごとの在位階級を表します。</p>
+                <p className={styles.previewCopy}>横方向は時間、線は場所ごとの在位階級を表します。</p>
               </div>
               <Button variant="secondary" size="sm" onClick={() => onOpenChapter("trajectory")}>
                 <BarChart3 className="mr-2 h-4 w-4" />

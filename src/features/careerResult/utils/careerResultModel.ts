@@ -2,7 +2,7 @@ import type { BashoRecord } from "../../../logic/models";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
-import { formatHighestRankDisplayName, formatRankDisplayName, getRankValueForChart } from "../../../logic/ranking";
+import { formatHighestRankDisplayName, formatRankDisplayName, formatRankMovementDisplay, getRankValueForChart } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
 
 export interface CareerWindowState {
@@ -221,7 +221,8 @@ const resolveMilestoneTags = (
   lastSeq: number,
   hasSeenJuryo: boolean,
   hasSeenMakuuchi: boolean,
-  hasSeenSanyaku: boolean,
+  hasSeenKomusubi: boolean,
+  hasSeenSekiwake: boolean,
   hasSeenOzeki: boolean,
 ): string[] => {
   const tags: string[] = [];
@@ -232,8 +233,15 @@ const resolveMilestoneTags = (
   if (prev && prev.rank.division !== "Makuuchi" && record.rank.division === "Makuuchi") {
     tags.push(hasSeenMakuuchi ? "再入幕" : "新入幕");
   }
-  if (prev && !SANYAKU_NAMES.has(prev.rank.name) && SANYAKU_NAMES.has(record.rank.name)) {
-    tags.push(hasSeenSanyaku ? "再三役" : "新三役");
+  const isPromotionToCurrentRank = prev
+    ? getRankValueForChart(prev.rank) > getRankValueForChart(record.rank)
+    : false;
+  if (prev && isPromotionToCurrentRank && SANYAKU_NAMES.has(record.rank.name) && prev.rank.name !== record.rank.name) {
+    if (record.rank.name === "関脇") {
+      tags.push(hasSeenSekiwake ? "再関脇" : "新関脇");
+    } else {
+      tags.push(hasSeenKomusubi ? "再小結" : "新小結");
+    }
   }
   if (prev && prev.rank.name !== "大関" && record.rank.name === "大関") {
     tags.push(hasSeenOzeki ? "再大関" : "新大関");
@@ -258,7 +266,7 @@ const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined):
   }
   return {
     deltaValue,
-    deltaLabel: deltaValue > 0 ? `+${deltaValue}枚` : `${deltaValue}枚`,
+    deltaLabel: formatRankMovementDisplay(current.rank, next.rank, deltaValue),
   };
 };
 
@@ -420,7 +428,8 @@ export const buildCareerLedgerModel = (
   const lastSeq = records.length;
   let hasSeenJuryo = false;
   let hasSeenMakuuchi = false;
-  let hasSeenSanyaku = false;
+  let hasSeenKomusubi = false;
+  let hasSeenSekiwake = false;
   let hasSeenOzeki = false;
 
   const rawPoints = records.map((record, index) => {
@@ -432,7 +441,8 @@ export const buildCareerLedgerModel = (
       lastSeq,
       hasSeenJuryo,
       hasSeenMakuuchi,
-      hasSeenSanyaku,
+      hasSeenKomusubi,
+      hasSeenSekiwake,
       hasSeenOzeki,
     );
     if (record.rank.division === "Juryo" || record.rank.division === "Makuuchi") {
@@ -441,8 +451,11 @@ export const buildCareerLedgerModel = (
     if (record.rank.division === "Makuuchi") {
       hasSeenMakuuchi = true;
     }
-    if (SANYAKU_NAMES.has(record.rank.name)) {
-      hasSeenSanyaku = true;
+    if (record.rank.name === "小結") {
+      hasSeenKomusubi = true;
+    }
+    if (record.rank.name === "関脇") {
+      hasSeenSekiwake = true;
     }
     if (record.rank.name === "大関" || record.rank.name === "横綱") {
       hasSeenOzeki = true;

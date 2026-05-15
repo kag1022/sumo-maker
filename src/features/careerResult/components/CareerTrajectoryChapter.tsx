@@ -36,8 +36,10 @@ const MILESTONE_PRIORITY = [
   "横綱昇進",
   "新大関",
   "再大関",
-  "新三役",
-  "再三役",
+  "新関脇",
+  "再関脇",
+  "新小結",
+  "再小結",
   "新入幕",
   "再入幕",
   "新十両",
@@ -50,7 +52,7 @@ const MILESTONE_PRIORITY = [
 
 const HIDDEN_VISUAL_TAGS = new Set<string>();
 const GRAPH_TEXT_LABELS = new Set(["最高位到達", "横綱昇進", "新大関"]);
-const PROMOTION_MARKER_TAGS = new Set(["横綱昇進", "新大関", "再大関", "新三役", "再三役", "新入幕", "再入幕", "新十両", "再十両"]);
+const PROMOTION_MARKER_TAGS = new Set(["横綱昇進", "新大関", "再大関", "新関脇", "再関脇", "新小結", "再小結", "新入幕", "再入幕", "新十両", "再十両"]);
 
 const AXIS_GROUP_LABELS: Array<{
   key: CareerLedgerPoint["bandKey"];
@@ -124,8 +126,7 @@ interface TrajectorySummary {
 }
 
 const toDeltaText = (point: CareerLedgerPoint): string => {
-  if (Math.abs(point.deltaValue) < 0.01) return "変動なし";
-  return point.deltaValue > 0 ? `+${point.deltaValue}枚` : `${point.deltaValue}枚`;
+  return point.deltaLabel;
 };
 
 const resolvePointLabel = (point: CareerLedgerPoint, isPeak: boolean): { label: string | null; priority: number } => {
@@ -146,8 +147,8 @@ const getAnnotationTone = (kind: TrajectoryAnnotationKind): "peak" | "rise" | "f
 
 const summarizeAnnotation = (annotation: TrajectoryAnnotation): string => {
   if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${formatHighestRankDisplayName(annotation.point.rank)} / ${annotation.point.recordLabel}`;
-  if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.value ?? annotation.point.deltaValue}枚上昇`;
-  if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${Math.abs(annotation.value ?? annotation.point.deltaValue)}枚下降`;
+  if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.point.deltaLabel}`;
+  if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${annotation.point.deltaLabel}`;
   if (annotation.kind === "stagnation") return `${getBandLabel(annotation.point.bandKey)}に${annotation.length ?? 0}場所`;
   return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel}へ戻る`;
 };
@@ -216,7 +217,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
     ? {
       kind: "rise" as const,
       label: "急上昇",
-      summary: `${maxRisePoint.bashoLabel}から${maxRisePoint.deltaValue}枚上昇`,
+      summary: `${maxRisePoint.bashoLabel}から${maxRisePoint.deltaLabel}`,
       point: maxRisePoint,
       value: maxRisePoint.deltaValue,
     }
@@ -225,7 +226,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
     ? {
       kind: "fall" as const,
       label: "急落",
-      summary: `${maxFallPoint.bashoLabel}から${Math.abs(maxFallPoint.deltaValue)}枚下降`,
+      summary: `${maxFallPoint.bashoLabel}から${maxFallPoint.deltaLabel}`,
       point: maxFallPoint,
       value: maxFallPoint.deltaValue,
     }
@@ -495,12 +496,12 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         <article className={styles.summaryTile}>
           <ArrowUpRight className="h-4 w-4" />
           <span>最大上昇</span>
-          <strong>{trajectorySummary.maxRise ? `${trajectorySummary.maxRise.value}枚` : "該当なし"}</strong>
+          <strong>{trajectorySummary.maxRise ? trajectorySummary.maxRise.point.deltaLabel : "該当なし"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <ArrowDownRight className="h-4 w-4" />
           <span>最大下降</span>
-          <strong>{trajectorySummary.maxFall ? `${Math.abs(trajectorySummary.maxFall.value ?? 0)}枚` : "該当なし"}</strong>
+          <strong>{trajectorySummary.maxFall ? trajectorySummary.maxFall.point.deltaLabel : "該当なし"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <MapPinned className="h-4 w-4" />
