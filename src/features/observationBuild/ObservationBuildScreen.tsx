@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark } from 'lucide-react';
+import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark, ScrollText, ClipboardList } from 'lucide-react';
 import { Button } from '../../shared/ui/Button';
 import typography from '../../shared/styles/typography.module.css';
 import { cn } from '../../shared/lib/cn';
@@ -79,7 +79,7 @@ const MODE_OPTIONS: Array<{ id: ObservationGenerationMode; label: string; summar
   {
     id: 'BUILD',
     label: 'ビルドモード',
-    summary: '直接能力値を触らず、体格・取り口・成長型・付出・天才型などの前提を選ぶ。',
+    summary: '体格・取り口・成長型・付出・天才型など、候補札の前提を選ぶ。',
   },
 ];
 
@@ -190,6 +190,31 @@ const SectionHeader: React.FC<{
         <h3 className={cn(typography.heading, 'text-xl text-text')}>{title}</h3>
         {meta ? <div className={styles.sectionMeta}>{meta}</div> : null}
       </div>
+    </div>
+  </div>
+);
+
+const ScoutSlipRow: React.FC<{ label: string; value: string; muted?: boolean }> = ({
+  label,
+  value,
+  muted = false,
+}) => (
+  <div className={styles.scoutSlipRow} data-muted={muted}>
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+const SelectionLog: React.FC<{ items: string[] }> = ({ items }) => (
+  <div className={styles.selectionLog}>
+    <div className={styles.logHeader}>
+      <ClipboardList className="h-4 w-4" />
+      選定ログ
+    </div>
+    <div className={styles.logList}>
+      {items.map((item) => (
+        <div key={item} className={styles.logItem}>{item}</div>
+      ))}
     </div>
   </div>
 );
@@ -400,6 +425,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const validation = validateBuild(themeId, effectiveModifierIds);
   const opBalance = observationPoints?.points ?? 0;
   const tokenBalance = generationTokens?.tokens ?? 0;
+  const tokenAfterGeneration = Math.max(0, tokenBalance - 1);
   const insufficientOp = totalCost > opBalance;
   const insufficientToken = tokenBalance <= 0;
   const canStart = validation.ok && !insufficientOp && !insufficientToken && !isStarting;
@@ -500,12 +526,37 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     : undefined;
   const selectedBuildLabels = generationMode === 'BUILD'
     ? [
+      bodyModifierId ? OBSERVATION_MODIFIERS[bodyModifierId].label : null,
       growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : null,
       preferredStyle ? STYLE_LABELS[preferredStyle] : null,
       entryArchetype ? ENTRY_ARCHETYPE_LABELS[entryArchetype] : null,
       talentProfile !== 'AUTO' ? SCOUT_TALENT_PROFILE_LABELS[talentProfile] : null,
     ].filter((label): label is string => Boolean(label))
     : [];
+  const selectedRiskModifiers = selectedModifiers.filter((mod) => RISK_MODIFIER_IDS.includes(mod.id));
+  const bodyLabel = bodyModifierId ? OBSERVATION_MODIFIERS[bodyModifierId].label : '候補札に任せる';
+  const styleLabel = preferredStyle ? STYLE_LABELS[preferredStyle] : '体格と部屋に任せる';
+  const growthLabel = growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : '候補札に任せる';
+  const entryLabel = entryArchetype ? ENTRY_ARCHETYPE_LABELS[entryArchetype] : '候補札に任せる';
+  const talentLabel = talentProfile !== 'AUTO' ? SCOUT_TALENT_PROFILE_LABELS[talentProfile] : '候補札に任せる';
+  const stableLabel = selectedStableEnvironment?.label ?? 'おまかせ';
+  const riskLabel = selectedRiskModifiers.length > 0
+    ? selectedRiskModifiers.map((mod) => mod.label).join(' / ')
+    : '通常の揺らぎ';
+  const draftTone = generationMode === 'OBSERVE_RANDOM'
+    ? '観測テーマだけを決め、候補札の乱数をそのまま受ける。'
+    : selectedBuildLabels.length > 0 || selectedStableEnvironment
+      ? '入口条件を絞り、読みたい一代へ少し寄せる。'
+      : 'ビルド枠は開いているが、追加指定は置かない。';
+  const selectionLogItems = [
+    `生成札: 1枚使用 / 残 ${tokenAfterGeneration}`,
+    `観測テーマ: ${selectedTheme?.label ?? '未選択'} (${formatCostLabel(selectedTheme?.cost ?? 0)})`,
+    generationMode === 'OBSERVE_RANDOM'
+      ? '観測モード: テーマ以外は完全ランダム'
+      : `ビルド設定: ${selectedBuildLabels.length + (selectedStableEnvironment ? 1 : 0) + selectedRiskModifiers.length}件指定`,
+    totalCost > 0 ? `観測ポイント: ${totalCost} OP 消費` : '観測ポイント: 消費なし',
+    insufficientOp ? `不足: あと ${totalCost - opBalance} OP` : `観測後: ${remainingOp} OP`,
+  ];
 
   const insufficientReason: string | null = (() => {
     if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
@@ -516,12 +567,12 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 
   return (
     <div className={styles.screen}>
-      <section className={styles.heroPanel}>
-        <div className="flex items-center gap-3">
-          <Eye className="h-6 w-6 text-action" />
+      <section className={styles.draftHeader}>
+        <div className={styles.headerTitleRow}>
+          <ScrollText className="h-6 w-6 text-action" />
           <div>
-            <div className={typography.kicker}>観測設計</div>
-            <h2 className={cn(typography.heading, 'text-3xl text-text')}>どんな相撲人生を観測しますか</h2>
+            <div className={typography.kicker}>新弟子選定所</div>
+            <h2 className={cn(typography.heading, 'text-3xl text-text')}>観測札を切る</h2>
           </div>
         </div>
 
@@ -537,212 +588,260 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
           </div>
         </div>
 
-        <div className={styles.resourceStrip}>
-          <div className="flex items-center gap-2">
+        <div className={styles.draftHud}>
+          <div className={styles.hudChip}>
             <Coins className="h-4 w-4 text-gold" />
-            <span className="text-xs text-text-dim">観測ポイント</span>
-            <span className={styles.summaryCost}>{opBalance}</span>
+            <span>観測ポイント</span>
+            <strong>{opBalance}</strong>
           </div>
-          <div className="flex items-center gap-2">
+          <div className={styles.hudChip}>
             <Sparkles className="h-4 w-4 text-action" />
-            <span className="text-xs text-text-dim">生成札</span>
-            <span className={styles.summaryCost}>{tokenBalance}</span>
+            <span>生成札</span>
+            <strong>{tokenBalance}</strong>
+          </div>
+          <div className={styles.hudChip} data-alert={insufficientOp ? 'true' : 'false'}>
+            <span>消費</span>
+            <strong>{totalCost} OP</strong>
+          </div>
+          <div className={styles.hudChip}>
+            <span>観測後</span>
+            <strong>{remainingOp} OP</strong>
           </div>
         </div>
       </section>
 
-      <section className={styles.sectionPanel}>
-        <SectionHeader
-          title="生成モード"
-          meta="直接能力値は表示せず、観測の幅か入口条件だけを選びます。"
-        />
-        <div className={styles.choiceGrid}>
-          {MODE_OPTIONS.map((mode) => {
-            const active = generationMode === mode.id;
-            return (
-              <ChoiceCard
-                key={mode.id}
-                title={mode.label}
-                note={mode.summary}
-                active={active}
-                onClick={() => changeGenerationMode(mode.id)}
-                tall
-              />
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={styles.sectionPanel}>
-        <SectionHeader title="観測テーマ" meta="迷ったら 0 OP の「完全ランダム」から。" />
-        <div className={styles.choiceGrid}>
-          {themes.map((theme) => {
-            const active = theme.id === themeId;
-            const intent = THEME_INTENT_HINT[theme.id];
-            return (
-              <ChoiceCard
-                key={theme.id}
-                title={theme.label}
-                note={THEME_DISPLAY_COPY[theme.id]}
-                active={active}
-                onClick={() => setThemeId(theme.id)}
-                cost={theme.cost}
-                detail={(
-                  <>
-                    {intent ? <span>{intent}</span> : null}
-                    <span>{theme.riskText}</span>
-                  </>
-                )}
-              />
-            );
-          })}
-        </div>
-      </section>
-
-      {generationMode === 'BUILD' ? (
-        <section className={styles.sectionPanel}>
-          <SectionHeader
-            title="ビルド設定"
-            meta="体格・型・成長・入門資格・素質・所属環境・リスクをここでまとめて選びます。強い前提ほど OP が重くなります。"
-          />
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>体格</div>
-            <OptionalBuildChoiceGrid<ObservationModifierId>
-              value={bodyModifierId}
-              autoLabel="候補札に任せる"
-              autoNote="小兵、大型、標準寄りのいずれも候補札の揺らぎに任せます。"
-              options={BODY_MODIFIER_OPTIONS}
-              onChange={(id) => setExclusiveModifier(id, BODY_MODIFIER_IDS)}
+      <div className={styles.boardShell}>
+        <main className={styles.boardMain}>
+          <section className={styles.sectionPanel}>
+            <SectionHeader
+              title="生成モード"
+              meta="観測の幅と入口条件だけを札として選びます。"
             />
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>取り口</div>
-            <OptionalBuildChoiceGrid<StyleArchetype>
-              value={preferredStyle}
-              autoLabel="体格と部屋に任せる"
-              autoNote="身体素地と所属環境から自然な型を決めます。"
-              options={STYLE_OPTIONS}
-              onChange={setPreferredStyle}
-            />
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>成長型</div>
-            <OptionalBuildChoiceGrid<GrowthType>
-              value={growthType}
-              autoLabel="候補札に任せる"
-              autoNote="経歴と素質から自然な成長型を決めます。"
-              options={GROWTH_TYPE_OPTIONS}
-              onChange={setGrowthType}
-            />
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>付出・入門資格</div>
-            <OptionalBuildChoiceGrid<EntryArchetype>
-              value={entryArchetype}
-              autoLabel="候補札に任せる"
-              autoNote="入門経路に応じた自然な資格で始めます。"
-              options={ENTRY_ARCHETYPE_OPTIONS}
-              onChange={changeEntryArchetype}
-            />
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>素質の輪郭</div>
             <div className={styles.choiceGrid}>
-              {TALENT_PROFILE_OPTIONS.map((option) => (
-                <ChoiceCard
-                  key={option.value}
-                  title={option.label}
-                  note={option.note}
-                  active={talentProfile === option.value}
-                  onClick={() => setTalentProfile(option.value)}
-                  cost={option.cost}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className="flex items-center gap-2">
-              <Landmark className="h-4 w-4 text-gold" />
-              <div className={cn(typography.label, styles.groupLabel)}>所属環境</div>
-            </div>
-            <div className={styles.sectionMeta}>
-              45部屋から直接選ばず、入門先の稽古の空気だけを一代の読み筋として置きます。
-            </div>
-            <div className={styles.choiceGridThree}>
-              {stableEnvironmentChoices.map((choice) => {
-                const active = choice.id === stableEnvironmentChoiceId;
+              {MODE_OPTIONS.map((mode) => {
+                const active = generationMode === mode.id;
                 return (
                   <ChoiceCard
-                    key={choice.id}
-                    title={choice.label}
-                    note={choice.summary}
+                    key={mode.id}
+                    title={mode.label}
+                    note={mode.summary}
                     active={active}
-                    onClick={() => setStableEnvironmentChoiceId(choice.id)}
-                    cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
-                    detail={<span>{choice.detail}</span>}
+                    onClick={() => changeGenerationMode(mode.id)}
                     tall
                   />
                 );
               })}
             </div>
-          </div>
+          </section>
 
-          <div className={styles.optionalGroup}>
-            <div className="flex items-baseline gap-2">
-              <span className={cn(typography.label, styles.groupLabel)}>リスク傾向</span>
-              <span className={styles.sectionMeta}>(複数可)</span>
-            </div>
+          <section className={styles.sectionPanel}>
+            <SectionHeader title="観測テーマ" meta="迷ったら 0 OP の「完全ランダム」から。" />
             <div className={styles.choiceGrid}>
-              {RISK_MODIFIER_IDS.map((id) => {
-                const mod = OBSERVATION_MODIFIERS[id];
-                const active = modifierIds.includes(id);
-                const isDiscount = mod.cost < 0;
-                const displayCopy = MODIFIER_DISPLAY_COPY[id];
+              {themes.map((theme) => {
+                const active = theme.id === themeId;
+                const intent = THEME_INTENT_HINT[theme.id];
                 return (
                   <ChoiceCard
-                    key={mod.id}
-                    title={mod.label}
-                    note={displayCopy.description}
+                    key={theme.id}
+                    title={theme.label}
+                    note={THEME_DISPLAY_COPY[theme.id]}
                     active={active}
-                    onClick={() => toggleRiskModifier(id)}
-                    cost={mod.cost}
-                    detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
-                  >
-                    <div className={styles.pillRow}>
-                      {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
-                      {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
-                    </div>
-                  </ChoiceCard>
+                    onClick={() => setThemeId(theme.id)}
+                    cost={theme.cost}
+                    detail={(
+                      <>
+                        {intent ? <span>{intent}</span> : null}
+                        <span>{theme.riskText}</span>
+                      </>
+                    )}
+                  />
                 );
               })}
             </div>
+          </section>
+
+          {generationMode === 'BUILD' ? (
+            <section className={styles.sectionPanel}>
+              <SectionHeader
+                title="ビルド設定"
+                meta="体格・型・成長・入門資格・素質・所属環境・リスクをここでまとめて選びます。強い前提ほど OP が重くなります。"
+              />
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>体格</div>
+                <OptionalBuildChoiceGrid<ObservationModifierId>
+                  value={bodyModifierId}
+                  autoLabel="候補札に任せる"
+                  autoNote="小兵、大型、標準寄りのいずれも候補札の揺らぎに任せます。"
+                  options={BODY_MODIFIER_OPTIONS}
+                  onChange={(id) => setExclusiveModifier(id, BODY_MODIFIER_IDS)}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>取り口</div>
+                <OptionalBuildChoiceGrid<StyleArchetype>
+                  value={preferredStyle}
+                  autoLabel="体格と部屋に任せる"
+                  autoNote="身体素地と所属環境から自然な型を決めます。"
+                  options={STYLE_OPTIONS}
+                  onChange={setPreferredStyle}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>成長型</div>
+                <OptionalBuildChoiceGrid<GrowthType>
+                  value={growthType}
+                  autoLabel="候補札に任せる"
+                  autoNote="経歴と素質から自然な成長型を決めます。"
+                  options={GROWTH_TYPE_OPTIONS}
+                  onChange={setGrowthType}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>付出・入門資格</div>
+                <OptionalBuildChoiceGrid<EntryArchetype>
+                  value={entryArchetype}
+                  autoLabel="候補札に任せる"
+                  autoNote="入門経路に応じた自然な資格で始めます。"
+                  options={ENTRY_ARCHETYPE_OPTIONS}
+                  onChange={changeEntryArchetype}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>素質の輪郭</div>
+                <div className={styles.choiceGrid}>
+                  {TALENT_PROFILE_OPTIONS.map((option) => (
+                    <ChoiceCard
+                      key={option.value}
+                      title={option.label}
+                      note={option.note}
+                      active={talentProfile === option.value}
+                      onClick={() => setTalentProfile(option.value)}
+                      cost={option.cost}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className="flex items-center gap-2">
+                  <Landmark className="h-4 w-4 text-gold" />
+                  <div className={cn(typography.label, styles.groupLabel)}>所属環境</div>
+                </div>
+                <div className={styles.sectionMeta}>
+              45部屋から直接選ばず、入門先の稽古の空気だけを一代の読み筋として置きます。
+                </div>
+                <div className={styles.choiceGridThree}>
+                  {stableEnvironmentChoices.map((choice) => {
+                    const active = choice.id === stableEnvironmentChoiceId;
+                    return (
+                      <ChoiceCard
+                        key={choice.id}
+                        title={choice.label}
+                        note={choice.summary}
+                        active={active}
+                        onClick={() => setStableEnvironmentChoiceId(choice.id)}
+                        cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
+                        detail={<span>{choice.detail}</span>}
+                        tall
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn(typography.label, styles.groupLabel)}>リスク傾向</span>
+                  <span className={styles.sectionMeta}>(複数可)</span>
+                </div>
+                <div className={styles.choiceGrid}>
+                  {RISK_MODIFIER_IDS.map((id) => {
+                    const mod = OBSERVATION_MODIFIERS[id];
+                    const active = modifierIds.includes(id);
+                    const isDiscount = mod.cost < 0;
+                    const displayCopy = MODIFIER_DISPLAY_COPY[id];
+                    return (
+                      <ChoiceCard
+                        key={mod.id}
+                        title={mod.label}
+                        note={displayCopy.description}
+                        active={active}
+                        onClick={() => toggleRiskModifier(id)}
+                        cost={mod.cost}
+                        detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
+                      >
+                        <div className={styles.pillRow}>
+                          {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
+                          {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
+                        </div>
+                      </ChoiceCard>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Validation errors (if any) */}
+          {validation.errors.length > 0 ? (
+            <section className={styles.validationPanel}>
+              <ul className="space-y-1">
+                {validation.errors.map((err, i) => (
+                  <li key={`${err}-${i}`} className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>選べない組み合わせが含まれています。選択を見直してください。</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {errorMessage ? (
+            <section className={styles.validationPanel}>{errorMessage}</section>
+          ) : null}
+        </main>
+
+        <aside className={styles.boardRail} aria-label="新弟子札プレビュー">
+          <div className={styles.scoutSlip}>
+            <div className={styles.scoutSlipHeader}>
+              <div>
+                <div className={styles.scoutSlipKicker}>候補札</div>
+                <h3 className={cn(typography.heading, styles.scoutSlipTitle)}>新弟子札</h3>
+              </div>
+              <span className={styles.scoutStamp}>{generationMode === 'BUILD' ? '選定中' : '観測'}</span>
+            </div>
+            <div className={styles.scoutSlipLead}>{draftTone}</div>
+            <div className={styles.scoutSlipRows}>
+              <ScoutSlipRow label="モード" value={generationMode === 'BUILD' ? 'ビルドモード' : '観測モード'} />
+              <ScoutSlipRow label="観測テーマ" value={selectedTheme?.label ?? '未選択'} />
+              {generationMode === 'BUILD' ? (
+                <>
+                  <ScoutSlipRow label="体格" value={bodyLabel} muted={!bodyModifierId} />
+                  <ScoutSlipRow label="取り口" value={styleLabel} muted={!preferredStyle} />
+                  <ScoutSlipRow label="成長" value={growthLabel} muted={!growthType} />
+                  <ScoutSlipRow label="入門資格" value={entryLabel} muted={!entryArchetype} />
+                  <ScoutSlipRow label="素質" value={talentLabel} muted={talentProfile === 'AUTO'} />
+                  <ScoutSlipRow label="所属環境" value={stableLabel} muted={!selectedStableEnvironment} />
+                  <ScoutSlipRow label="リスク" value={riskLabel} muted={selectedRiskModifiers.length === 0} />
+                </>
+              ) : (
+                <ScoutSlipRow label="候補札" value="テーマ以外は完全ランダム" />
+              )}
+            </div>
+            <div className={styles.scoutSlipCost}>
+              <span>合計消費</span>
+              <strong>{totalCost} OP</strong>
+            </div>
           </div>
-        </section>
-      ) : null}
 
-      {/* Validation errors (if any) */}
-      {validation.errors.length > 0 ? (
-        <section className={styles.validationPanel}>
-          <ul className="space-y-1">
-            {validation.errors.map((err, i) => (
-              <li key={`${err}-${i}`} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>選べない組み合わせが含まれています。選択を見直してください。</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {errorMessage ? (
-        <section className={styles.validationPanel}>{errorMessage}</section>
-      ) : null}
+          <SelectionLog items={selectionLogItems} />
+        </aside>
+      </div>
 
       {/* Sticky bottom summary */}
       <div className={styles.stickySummary}>
