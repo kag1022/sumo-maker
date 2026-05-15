@@ -59,7 +59,7 @@ const CHAPTERS: Array<{
 }> = [
   { id: "encyclopedia", label: "力士名鑑", icon: BookUser },
   { id: "trajectory", label: "番付推移", icon: ScrollText },
-  { id: "place", label: "場所別", icon: Table2 },
+  { id: "place", label: "場所別記録", icon: Table2 },
 ];
 
 const chapterTransition = {
@@ -157,7 +157,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       <div className={styles.ribbonShell}>
         <div className={styles.ribbon}>
           <div className={styles.ribbonCurrent}>
-            <div className={styles.ribbonLabel}>{activeChapterLabel}</div>
+            <div className={styles.ribbonLabel}>力士記録 / {activeChapterLabel}</div>
             <div className={styles.ribbonMeta}>
               {selectedMeta}
             </div>
@@ -253,11 +253,11 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
               <section className={styles.readingNote}>
                 <div className={styles.readingKicker}>閲覧ガイド</div>
                 <div className={styles.readingTitle}>
-                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
+                  {canReadDetails ? "力士名鑑から番付推移と場所別記録へ読み進めます。" : "力士名鑑は先に開けますが、詳細ページは記録整理後に開きます。"}
                 </div>
                 <p className={styles.readingCopy}>
                   {canReadDetails
-                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
+                    ? "まず一代の輪郭を掴み、番付推移と場所別記録で根拠を読み込みます。"
                     : detailLoadingLabel}
                 </p>
               </section>
@@ -305,8 +305,8 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
                 ) : (
                   <div className={styles.sideEmpty}>
                     <div className={styles.sideEmptyKicker}>補助欄</div>
-                    <div className={styles.sideEmptyTitle}>近傍力士を開く</div>
-                    <p className={styles.sideEmptyCopy}>番付や取組に表示される力士名を選ぶと、この場所で保存された番付行を右側に表示します。</p>
+                    <div className={styles.sideEmptyTitle}>周辺力士を見る</div>
+                    <p className={styles.sideEmptyCopy}>場所別記録の番付や取組から力士名を選ぶと、この場所で残った番付行をここに表示します。</p>
                   </div>
                 )}
               </aside>

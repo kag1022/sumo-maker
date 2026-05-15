@@ -1,7 +1,7 @@
 import { BashoRecord, CollectionTier, Rank, RikishiStatus } from '../models';
 import { formatHighestRankDisplayName, getRankValueForChart } from '../ranking';
 
-export const CLEAR_SCORE_VERSION = 2;
+export const CLEAR_SCORE_VERSION = 3;
 
 export type CareerRecordBadgeKey =
   | 'YOKOZUNA_REACHED'
@@ -74,17 +74,17 @@ const sumItems = (items: CareerClearScoreItem[], maxScore: number): number =>
 
 const resolveMaxRankScore = (rank: Rank): number => {
   const number = rank.number ?? 1;
-  if (rank.name === '横綱') return 140;
-  if (rank.name === '大関') return 122;
-  if (rank.name === '関脇') return 108;
-  if (rank.name === '小結') return 98;
-  if (rank.division === 'Makuuchi') return roundScore(clamp(96 - number * 1.2, 74, 94));
-  if (rank.division === 'Juryo') return roundScore(clamp(74 - number * 1.4, 54, 72));
-  if (rank.division === 'Makushita') return roundScore(clamp(56 - number * 0.42, 30, 54));
-  if (rank.division === 'Sandanme') return roundScore(clamp(34 - number * 0.12, 16, 32));
-  if (rank.division === 'Jonidan') return roundScore(clamp(20 - number * 0.055, 8, 18));
-  if (rank.division === 'Jonokuchi') return roundScore(clamp(11 - number * 0.06, 4, 10));
-  return 2;
+  if (rank.name === '横綱') return 1350;
+  if (rank.name === '大関') return 1150;
+  if (rank.name === '関脇') return 1000;
+  if (rank.name === '小結') return 920;
+  if (rank.division === 'Makuuchi') return roundScore(clamp(840 - number * 8, 650, 820));
+  if (rank.division === 'Juryo') return roundScore(clamp(590 - number * 10, 410, 570));
+  if (rank.division === 'Makushita') return roundScore(clamp(420 - number * 3, 235, 410));
+  if (rank.division === 'Sandanme') return roundScore(clamp(330 - number * 1.35, 170, 315));
+  if (rank.division === 'Jonidan') return roundScore(clamp(190 - number * 0.8, 95, 178));
+  if (rank.division === 'Jonokuchi') return roundScore(clamp(118 - number * 0.72, 58, 110));
+  return 35;
 };
 
 const countMakuuchiBasho = (records: BashoRecord[]): number =>
@@ -181,7 +181,7 @@ const buildClearScoreCategories = (
     'RANK_REACHED',
     '到達した地位',
     '最高位と関取到達を評価',
-    140,
+    1450,
     [
       {
         label: '最高位',
@@ -191,12 +191,12 @@ const buildClearScoreCategories = (
       {
         label: '幕内在位',
         detail: `${options.makuuchiBasho}場所`,
-        score: Math.min(18, options.makuuchiBasho * 0.45),
+        score: Math.min(80, options.makuuchiBasho * 2.2),
       },
       {
         label: '関取在位',
         detail: `${options.sekitoriBasho}場所`,
-        score: Math.min(14, options.sekitoriBasho * 0.25),
+        score: Math.min(50, options.sekitoriBasho * 1.1),
       },
     ],
   );
@@ -205,27 +205,27 @@ const buildClearScoreCategories = (
     'WINS_BUILT',
     '積み上げた白星',
     '通算勝利、勝率、勝ち越しの安定を評価',
-    128,
+    420,
     [
       {
         label: '通算勝利',
         detail: `${history.totalWins}勝`,
-        score: Math.min(70, history.totalWins * 0.18),
+        score: Math.min(180, history.totalWins * 0.45),
       },
       {
         label: '勝率上積み',
         detail: totalDecisions > 0 ? `通算勝率 ${(winRate * 100).toFixed(1)}%` : '取組なし',
-        score: Math.max(0, Math.min(38, (winRate - 0.5) * 190)),
+        score: Math.max(0, Math.min(75, (winRate - 0.5) * 350)),
       },
       {
         label: '勝ち越し',
         detail: `${kachikoshiCount}場所`,
-        score: Math.min(20, kachikoshiCount * 0.7),
+        score: Math.min(42, kachikoshiCount * 1.6),
       },
       {
         label: '連続勝ち越し',
         detail: `${options.maxKachikoshiStreak}場所連続`,
-        score: options.maxKachikoshiStreak >= 3 ? Math.min(14, options.maxKachikoshiStreak * 2.4) : 0,
+        score: options.maxKachikoshiStreak >= 3 ? Math.min(30, options.maxKachikoshiStreak * 5) : 0,
       },
     ],
   );
@@ -234,42 +234,42 @@ const buildClearScoreCategories = (
     'HONORS_RECORDED',
     '記録に残る実績',
     '優勝、三賞、金星、二桁勝利を評価',
-    170,
+    1100,
     [
       {
         label: '幕内優勝',
         detail: `${history.yushoCount.makuuchi}回`,
-        score: history.yushoCount.makuuchi * 55,
+        score: history.yushoCount.makuuchi * 180,
       },
       {
         label: '十両優勝',
         detail: `${history.yushoCount.juryo}回`,
-        score: history.yushoCount.juryo * 32,
+        score: history.yushoCount.juryo * 75,
       },
       {
         label: '下位優勝',
         detail: `${history.yushoCount.makushita + history.yushoCount.others}回`,
-        score: history.yushoCount.makushita * 18 + history.yushoCount.others * 8,
+        score: history.yushoCount.makushita * 45 + history.yushoCount.others * 22,
       },
       {
         label: '準優勝',
         detail: `${junYushoCount}回`,
-        score: Math.min(30, junYushoCount * 10),
+        score: Math.min(120, junYushoCount * 35),
       },
       {
         label: '三賞',
         detail: `${options.sanshoCount}回`,
-        score: Math.min(50, options.sanshoCount * 10),
+        score: Math.min(180, options.sanshoCount * 36),
       },
       {
         label: '金星',
         detail: `${options.kinboshiCount}個`,
-        score: Math.min(45, options.kinboshiCount * 9),
+        score: Math.min(150, options.kinboshiCount * 30),
       },
       {
         label: '二桁勝利',
         detail: `${options.doubleDigitWins}場所`,
-        score: Math.min(24, options.doubleDigitWins * 4),
+        score: Math.min(130, options.doubleDigitWins * 22),
       },
     ],
   );
@@ -278,32 +278,32 @@ const buildClearScoreCategories = (
     'CAREER_CHARACTER',
     'この一代らしさ',
     '長さ、浮沈、晩成、終盤の伸びを評価',
-    110,
+    420,
     [
       {
         label: '在位の長さ',
         detail: `${records.length}場所`,
-        score: Math.min(45, records.length * 0.75),
+        score: Math.min(170, records.length * 2.25),
       },
       {
         label: '番付上昇幅',
         detail: movement.maxRise > 0 ? `番付推移で最大${Math.round(movement.maxRise)}相当上昇` : '大きな上昇なし',
-        score: Math.min(24, movement.maxRise * 0.18),
+        score: Math.min(95, movement.maxRise * 0.9),
       },
       {
         label: '浮沈の大きさ',
         detail: movement.maxDrop > 0 ? `番付推移で最大${Math.round(movement.maxDrop)}相当下降` : '大きな下降なし',
-        score: movement.maxDrop >= 35 ? Math.min(16, movement.maxDrop * 0.12) : 0,
+        score: movement.maxDrop >= 35 ? Math.min(60, movement.maxDrop * 0.45) : 0,
       },
       {
         label: '晩成の山',
         detail: peakLate ? 'キャリア後半に最高位を更新' : '最高位は前半から中盤',
-        score: peakLate ? 15 : 0,
+        score: peakLate ? 55 : 0,
       },
       {
         label: '休まず残した記録',
         detail: history.totalAbsent > 0 ? `${history.totalAbsent}休` : '休場なし',
-        score: history.totalAbsent === 0 && records.length >= 18 ? 10 : 0,
+        score: history.totalAbsent === 0 && records.length >= 18 ? 40 : 0,
       },
     ],
   );

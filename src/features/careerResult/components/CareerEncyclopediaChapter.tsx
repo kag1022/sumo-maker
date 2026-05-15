@@ -555,8 +555,17 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
   return (
     <section className={styles.shell}>
-      <div className={styles.resultDesk}>
-        <aside className={styles.identityPanel}>
+      <div className={styles.ledgerPage}>
+        <header className={styles.ledgerHeader}>
+          <div>
+            <span>名鑑登録票</span>
+            <strong>{status.shikona}</strong>
+          </div>
+          <em>{overview.careerPeriodLabel} / {highestRankLabel}</em>
+        </header>
+
+        <aside className={styles.portraitColumn}>
+          <div className={styles.columnLabel}>肖像欄</div>
           <div className={styles.portraitStage}>
             <RikishiPortrait
               bodyType={status.bodyType}
@@ -568,7 +577,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             />
           </div>
           <div className={styles.identityStack}>
-            <div className={styles.rankSeal}>
+            <div className={styles.registerPlate}>
               <span>最高位</span>
               <strong>{highestRankLabel}</strong>
             </div>
@@ -576,9 +585,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </div>
         </aside>
 
-        <main className={styles.outcomePanel}>
+        <main className={styles.coverColumn}>
           <div className={styles.titleBlock}>
-            <div className={styles.eyebrow}>Rikishi Dossier</div>
+            <div className={styles.eyebrow}>名鑑登録票</div>
             <h1>{status.shikona}</h1>
             <div className={styles.rankLine}>
               <RankBadge division={status.history.maxRank.division} name={highestRankLabel} size="sm" />
@@ -613,7 +622,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           <div className={styles.trajectoryPreview}>
             <div className={styles.previewHead}>
               <div>
-                <span className={styles.eyebrow}>Career Arc</span>
+                <span className={styles.eyebrow}>番付略図</span>
                 <h3>階級帯で見る番付人生</h3>
                 <p className={styles.previewCopy}>横方向は時間、線は場所ごとの在位階級を表します。</p>
               </div>
@@ -626,7 +635,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           </div>
         </main>
 
-        <aside className={styles.decisionPanel}>
+        <aside className={styles.ratingColumn}>
+          <div className={styles.columnLabel}>評定欄</div>
           {!isSaved ? (
             <>
               <ClearScoreBreakdown summary={clearScoreSummary} />
@@ -660,7 +670,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
               <div className={styles.commandStack}>
                 <Button size="lg" disabled={saveDisabled || saveState === "saving"} onClick={() => void handleSave()}>
                   <Save className="mr-2 h-4 w-4" />
-                  {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "この人生を保存"}
+                  {saveDisabled ? "記録整理中" : saveState === "saving" ? "保存中" : "名鑑に綴じる"}
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
                   保存せず次の観測へ
@@ -677,12 +687,12 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                   <strong>この一代は名鑑に残っています。</strong>
                 </div>
               </div>
-              <p className={styles.decisionCopy}>保存済み記録から再読、比較、類似検索に進めます。</p>
+              <p className={styles.decisionCopy}>保存名鑑から再読、比較、類似検索に進めます。</p>
               <ClearScoreBreakdown summary={clearScoreSummary} />
               <div className={styles.commandStack}>
                 <Button size="lg" onClick={onOpenArchive}>
                   <Archive className="mr-2 h-4 w-4" />
-                  保存済み記録を開く
+                  保存名鑑を開く
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
                   次の観測へ
@@ -706,15 +716,15 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </aside>
       </div>
 
-      <div className={styles.chapterJump}>
+      <div className={styles.ledgerLinks}>
         <button type="button" onClick={() => onOpenChapter("trajectory")}>
           <BarChart3 className="h-4 w-4" />
-          <span>番付推移を読む</span>
+          <span>番付推移を見る</span>
           <strong>上昇、停滞、陥落、復帰</strong>
         </button>
         <button type="button" onClick={() => onOpenChapter("place")}>
           <BookOpenText className="h-4 w-4" />
-          <span>場所別を読む</span>
+          <span>場所別記録を見る</span>
           <strong>番付表、取組、周辺力士</strong>
         </button>
       </div>
@@ -772,7 +782,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         <article className={styles.insightCard} data-tone="record">
           <div className={styles.cardHead}>
             <Trophy className="h-4 w-4" />
-            <h3>主要実績</h3>
+            <h3>主な実績</h3>
           </div>
           <DataGrid rows={recordRows} />
         </article>
@@ -781,9 +791,9 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       {careerMilestones.length > 0 ? (
         <section className={styles.timelinePanel}>
           <SectionHeading
-            eyebrow="Milestones"
-            title="この一代の節目"
-            copy="初土俵から終幕まで、主要な転機だけを一本の時間軸で読ませます。"
+            eyebrow="年表"
+            title="一代の節目"
+            copy="初土俵から終幕まで、主要な転機だけを抜き出します。"
           />
           <div className={styles.timelineRail}>
             {careerMilestones.map((milestone) => (
@@ -805,15 +815,15 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
       <section className={styles.atlas}>
         <SectionHeading
-          eyebrow="Database"
-          title="読解データベース"
-          copy="表紙で判断し、ここでは根拠を確認します。詳細な時系列は番付推移と場所別へ送ります。"
+          eyebrow="記録"
+          title="詳細記録"
+          copy="表紙で判断し、ここでは根拠を確認します。細かな時系列は番付推移と場所別記録で読みます。"
         />
         <div className={styles.atlasGrid}>
           <article className={styles.atlasPanel}>
             <div className={styles.cardHead}>
               <UserRound className="h-4 w-4" />
-              <h3>基本帳面</h3>
+              <h3>基本情報</h3>
             </div>
             <DataGrid rows={profileRows} />
           </article>
@@ -822,7 +832,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             <article className={styles.atlasPanel}>
               <div className={styles.cardHead}>
                 <Star className="h-4 w-4" />
-                <h3>設計との差分</h3>
+                <h3>入門時の条件</h3>
               </div>
               <div className={styles.designTable}>
                 {designRows.map((row) => (
@@ -876,7 +886,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
       {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
         <section className={styles.chartSection}>
-          <SectionHeading eyebrow="Graphs" title="補助図譜" copy="数値は記録を読むための補助に留めます。" />
+          <SectionHeading eyebrow="グラフ" title="推移グラフ" copy="数値は記録を読むための補助に留めます。" />
           <div className={styles.chartGrid}>
             {ledgerPoints && ledgerPoints.length > 4 ? <WinRateTrendChart points={ledgerPoints} /> : null}
             {bodyTimeline.length > 4 ? (
@@ -888,7 +898,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
       {traitAwakenings.length > 0 ? (
         <section className={styles.chartSection}>
-          <SectionHeading eyebrow="Traits" title="特性年譜" />
+          <SectionHeading eyebrow="特性" title="特性年譜" />
           <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
         </section>
       ) : null}

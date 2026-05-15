@@ -822,6 +822,67 @@ class SumoMakerDatabase extends Dexie {
           });
         }
       });
+
+    this.version(20)
+      .stores({
+        careers:
+          '&id, state, detailState, updatedAt, savedAt, careerStartYearMonth, careerEndYearMonth, rewardGrantedAt, buildIntent, lineageId, selectedOyakataId, parentCareerId, generation, careerIndex, clearScore, bestScoreRank, observationRuleMode, observationStanceId',
+        bashoRecords:
+          '&[careerId+seq+entityId], careerId, [careerId+seq], [careerId+entityType], division',
+        boutRecords: '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq]',
+        importantTorikumi:
+          '&[careerId+bashoSeq+day], careerId, [careerId+bashoSeq], trigger',
+        meta: '&key, updatedAt',
+        banzukePopulation: '&[careerId+seq], careerId, seq, [careerId+year+month]',
+        banzukeDecisions:
+          '&[careerId+seq+rikishiId], careerId, [careerId+seq], rikishiId, modelVersion, proposalSource',
+        simulationDiagnostics: '&[careerId+seq], careerId, [careerId+year+month]',
+        walletTransactions: '&id, createdAt, reason, careerId',
+        careerRewardLedger: '&careerId, grantedAt, pointsAwarded',
+        collectionEntries: '&id, type, key, [type+key], unlockedAt, sourceCareerId, isNew',
+        adRewardLedger: '&id, [day+slot], day, type, createdAt',
+        oyakataProfiles: '&id, sourceCareerId',
+        generationTokenLedger: '&id, createdAt, reason, careerId',
+        observationPointLedger: '&id, createdAt, reason, careerId',
+        careerObservationClaims: '&careerId, claimedAt',
+        observerUpgrades: '&id, unlockedAt',
+        researchThemeProgress: '&id, completedAt, sourceCareerId',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<CareerRow, string>('careers');
+        const rows = await table.toArray();
+        const scoredRows = rows.map((row) => {
+          if (!row.finalStatus) return row;
+          const summary = buildCareerClearScoreSummary(row.finalStatus);
+          return {
+            ...row,
+            clearScore: summary.clearScore,
+            clearScoreVersion: CLEAR_SCORE_VERSION,
+            recordBadgeKeys: summary.badges.map((badge) => badge.key),
+          };
+        });
+
+        const ranked = scoredRows
+          .filter((row) => row.state === 'shelved')
+          .slice()
+          .sort((left, right) => {
+            const scoreDelta = (right.clearScore ?? 0) - (left.clearScore ?? 0);
+            if (scoreDelta !== 0) return scoreDelta;
+            const savedDelta = (right.savedAt ?? '').localeCompare(left.savedAt ?? '');
+            if (savedDelta !== 0) return savedDelta;
+            return right.updatedAt.localeCompare(left.updatedAt);
+          });
+        const bestScoreRankById = new Map(ranked.map((row, index) => [row.id, index + 1]));
+
+        for (const row of scoredRows) {
+          await table.update(row.id, {
+            clearScore: row.clearScore,
+            clearScoreVersion: row.clearScoreVersion,
+            recordBadgeKeys: row.recordBadgeKeys,
+            bestScoreRank: bestScoreRankById.get(row.id),
+          });
+        }
+      });
   }
 }
 
