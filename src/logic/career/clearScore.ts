@@ -1,7 +1,7 @@
 import { BashoRecord, CollectionTier, Rank, RikishiStatus } from '../models';
 import { formatHighestRankDisplayName, getRankValueForChart } from '../ranking';
 
-export const CLEAR_SCORE_VERSION = 1;
+export const CLEAR_SCORE_VERSION = 2;
 
 export type CareerRecordBadgeKey =
   | 'YOKOZUNA_REACHED'
@@ -24,6 +24,27 @@ export interface CareerRecordBadge {
   scoreBonus: number;
 }
 
+export type CareerClearScoreCategoryKey =
+  | 'RANK_REACHED'
+  | 'WINS_BUILT'
+  | 'HONORS_RECORDED'
+  | 'CAREER_CHARACTER';
+
+export interface CareerClearScoreItem {
+  label: string;
+  detail: string;
+  score: number;
+}
+
+export interface CareerClearScoreCategory {
+  key: CareerClearScoreCategoryKey;
+  label: string;
+  detail: string;
+  score: number;
+  maxScore: number;
+  items: CareerClearScoreItem[];
+}
+
 export interface CareerRecordCatalogEntry {
   key: CareerRecordBadgeKey;
   label: string;
@@ -38,13 +59,32 @@ export interface CareerClearScoreSummary {
   competitiveScore: number;
   recordBonus: number;
   rankScore: number;
+  categories: CareerClearScoreCategory[];
   featuredBadgeKeys: CareerRecordBadgeKey[];
   badges: CareerRecordBadge[];
 }
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const roundScore = (value: number): number => Math.round(value);
+
+const sumItems = (items: CareerClearScoreItem[], maxScore: number): number =>
+  clamp(roundScore(items.reduce((sum, item) => sum + item.score, 0)), 0, maxScore);
+
 const resolveMaxRankScore = (rank: Rank): number => {
-  const rankValue = Math.min(470, getRankValueForChart(rank));
-  return Math.max(40, Math.round((500 - rankValue) * 0.72));
+  const number = rank.number ?? 1;
+  if (rank.name === '横綱') return 140;
+  if (rank.name === '大関') return 122;
+  if (rank.name === '関脇') return 108;
+  if (rank.name === '小結') return 98;
+  if (rank.division === 'Makuuchi') return roundScore(clamp(96 - number * 1.2, 74, 94));
+  if (rank.division === 'Juryo') return roundScore(clamp(74 - number * 1.4, 54, 72));
+  if (rank.division === 'Makushita') return roundScore(clamp(56 - number * 0.42, 30, 54));
+  if (rank.division === 'Sandanme') return roundScore(clamp(34 - number * 0.12, 16, 32));
+  if (rank.division === 'Jonidan') return roundScore(clamp(20 - number * 0.055, 8, 18));
+  if (rank.division === 'Jonokuchi') return roundScore(clamp(11 - number * 0.06, 4, 10));
+  return 2;
 };
 
 const countMakuuchiBasho = (records: BashoRecord[]): number =>
@@ -74,6 +114,201 @@ const resolveMaxKachikoshiStreak = (records: BashoRecord[]): number => {
     current = 0;
   }
   return best;
+};
+
+const countJunYusho = (records: BashoRecord[]): number =>
+  records.filter((record) => record.junYusho).length;
+
+const countKachikoshi = (records: BashoRecord[]): number =>
+  records.filter((record) => record.wins > record.losses).length;
+
+const resolveRankMovementStats = (
+  records: BashoRecord[],
+): { maxRise: number; maxDrop: number; peakIndex: number } => {
+  const rankedRecords = records.filter((record) => record.rank.division !== 'Maezumo');
+  if (!rankedRecords.length) return { maxRise: 0, maxDrop: 0, peakIndex: -1 };
+  const values = rankedRecords.map((record) => getRankValueForChart(record.rank));
+  let maxRise = 0;
+  let maxDrop = 0;
+  let peakIndex = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] < values[peakIndex]) peakIndex = index;
+    if (index === 0) continue;
+    maxRise = Math.max(maxRise, values[index - 1] - values[index]);
+    maxDrop = Math.max(maxDrop, values[index] - values[index - 1]);
+  }
+  return { maxRise, maxDrop, peakIndex };
+};
+
+const buildScoreCategory = (
+  key: CareerClearScoreCategoryKey,
+  label: string,
+  detail: string,
+  maxScore: number,
+  items: CareerClearScoreItem[],
+): CareerClearScoreCategory => ({
+  key,
+  label,
+  detail,
+  maxScore,
+  items: items.filter((item) => item.score > 0),
+  score: sumItems(items, maxScore),
+});
+
+const buildClearScoreCategories = (
+  status: RikishiStatus,
+  options: {
+    rankScore: number;
+    makuuchiBasho: number;
+    sekitoriBasho: number;
+    sanshoCount: number;
+    kinboshiCount: number;
+    doubleDigitWins: number;
+    maxKachikoshiStreak: number;
+  },
+): CareerClearScoreCategory[] => {
+  const { history } = status;
+  const records = history.records;
+  const totalDecisions = history.totalWins + history.totalLosses;
+  const winRate = totalDecisions > 0 ? history.totalWins / totalDecisions : 0;
+  const kachikoshiCount = countKachikoshi(records);
+  const junYushoCount = countJunYusho(records);
+  const movement = resolveRankMovementStats(records);
+  const peakLate = movement.peakIndex >= Math.floor(records.length * 0.62) && records.length >= 18;
+  const rankLabel = formatHighestRankDisplayName(history.maxRank);
+
+  const rankCategory = buildScoreCategory(
+    'RANK_REACHED',
+    '到達した地位',
+    '最高位と関取到達を評価',
+    140,
+    [
+      {
+        label: '最高位',
+        detail: `${rankLabel}まで番付を上げた`,
+        score: options.rankScore,
+      },
+      {
+        label: '幕内在位',
+        detail: `${options.makuuchiBasho}場所`,
+        score: Math.min(18, options.makuuchiBasho * 0.45),
+      },
+      {
+        label: '関取在位',
+        detail: `${options.sekitoriBasho}場所`,
+        score: Math.min(14, options.sekitoriBasho * 0.25),
+      },
+    ],
+  );
+
+  const winsCategory = buildScoreCategory(
+    'WINS_BUILT',
+    '積み上げた白星',
+    '通算勝利、勝率、勝ち越しの安定を評価',
+    128,
+    [
+      {
+        label: '通算勝利',
+        detail: `${history.totalWins}勝`,
+        score: Math.min(70, history.totalWins * 0.18),
+      },
+      {
+        label: '勝率上積み',
+        detail: totalDecisions > 0 ? `通算勝率 ${(winRate * 100).toFixed(1)}%` : '取組なし',
+        score: Math.max(0, Math.min(38, (winRate - 0.5) * 190)),
+      },
+      {
+        label: '勝ち越し',
+        detail: `${kachikoshiCount}場所`,
+        score: Math.min(20, kachikoshiCount * 0.7),
+      },
+      {
+        label: '連続勝ち越し',
+        detail: `${options.maxKachikoshiStreak}場所連続`,
+        score: options.maxKachikoshiStreak >= 3 ? Math.min(14, options.maxKachikoshiStreak * 2.4) : 0,
+      },
+    ],
+  );
+
+  const honorsCategory = buildScoreCategory(
+    'HONORS_RECORDED',
+    '記録に残る実績',
+    '優勝、三賞、金星、二桁勝利を評価',
+    170,
+    [
+      {
+        label: '幕内優勝',
+        detail: `${history.yushoCount.makuuchi}回`,
+        score: history.yushoCount.makuuchi * 55,
+      },
+      {
+        label: '十両優勝',
+        detail: `${history.yushoCount.juryo}回`,
+        score: history.yushoCount.juryo * 32,
+      },
+      {
+        label: '下位優勝',
+        detail: `${history.yushoCount.makushita + history.yushoCount.others}回`,
+        score: history.yushoCount.makushita * 18 + history.yushoCount.others * 8,
+      },
+      {
+        label: '準優勝',
+        detail: `${junYushoCount}回`,
+        score: Math.min(30, junYushoCount * 10),
+      },
+      {
+        label: '三賞',
+        detail: `${options.sanshoCount}回`,
+        score: Math.min(50, options.sanshoCount * 10),
+      },
+      {
+        label: '金星',
+        detail: `${options.kinboshiCount}個`,
+        score: Math.min(45, options.kinboshiCount * 9),
+      },
+      {
+        label: '二桁勝利',
+        detail: `${options.doubleDigitWins}場所`,
+        score: Math.min(24, options.doubleDigitWins * 4),
+      },
+    ],
+  );
+
+  const characterCategory = buildScoreCategory(
+    'CAREER_CHARACTER',
+    'この一代らしさ',
+    '長さ、浮沈、晩成、終盤の伸びを評価',
+    110,
+    [
+      {
+        label: '在位の長さ',
+        detail: `${records.length}場所`,
+        score: Math.min(45, records.length * 0.75),
+      },
+      {
+        label: '番付上昇幅',
+        detail: movement.maxRise > 0 ? `番付推移で最大${Math.round(movement.maxRise)}相当上昇` : '大きな上昇なし',
+        score: Math.min(24, movement.maxRise * 0.18),
+      },
+      {
+        label: '浮沈の大きさ',
+        detail: movement.maxDrop > 0 ? `番付推移で最大${Math.round(movement.maxDrop)}相当下降` : '大きな下降なし',
+        score: movement.maxDrop >= 35 ? Math.min(16, movement.maxDrop * 0.12) : 0,
+      },
+      {
+        label: '晩成の山',
+        detail: peakLate ? 'キャリア後半に最高位を更新' : '最高位は前半から中盤',
+        score: peakLate ? 15 : 0,
+      },
+      {
+        label: '休まず残した記録',
+        detail: history.totalAbsent > 0 ? `${history.totalAbsent}休` : '休場なし',
+        score: history.totalAbsent === 0 && records.length >= 18 ? 10 : 0,
+      },
+    ],
+  );
+
+  return [rankCategory, winsCategory, honorsCategory, characterCategory];
 };
 
 const createBadge = (
@@ -186,37 +421,33 @@ export const buildCareerRecordBadges = (status: RikishiStatus): CareerRecordBadg
 export const buildCareerClearScoreSummary = (status: RikishiStatus): CareerClearScoreSummary => {
   const { history } = status;
   const records = history.records;
-  const totalDecisions = history.totalWins + history.totalLosses;
-  const winRate = totalDecisions > 0 ? history.totalWins / totalDecisions : 0;
   const makuuchiBasho = countMakuuchiBasho(records);
   const sekitoriBasho = countSekitoriBasho(records);
   const sanshoCount = countSansho(records);
   const kinboshiCount = countKinboshi(records);
   const doubleDigitWins = countDoubleDigitWins(records);
+  const maxKachikoshiStreak = resolveMaxKachikoshiStreak(records);
   const rankScore = resolveMaxRankScore(history.maxRank);
   const badges = buildCareerRecordBadges(status);
   const recordBonus = badges.reduce((sum, badge) => sum + badge.scoreBonus, 0);
-
-  const competitiveScore =
-    rankScore +
-    history.yushoCount.makuuchi * 150 +
-    history.yushoCount.juryo * 72 +
-    history.yushoCount.makushita * 34 +
-    history.yushoCount.others * 12 +
-    sanshoCount * 14 +
-    kinboshiCount * 12 +
-    Math.min(96, makuuchiBasho * 4) +
-    Math.min(84, sekitoriBasho * 2) +
-    Math.min(72, Math.round(records.length * 1.35)) +
-    Math.min(72, doubleDigitWins * 8) +
-    Math.max(0, Math.round((winRate - 0.5) * 180));
+  const categories = buildClearScoreCategories(status, {
+    rankScore,
+    makuuchiBasho,
+    sekitoriBasho,
+    sanshoCount,
+    kinboshiCount,
+    doubleDigitWins,
+    maxKachikoshiStreak,
+  });
+  const competitiveScore = categories.reduce((sum, category) => sum + category.score, 0);
 
   return {
     version: CLEAR_SCORE_VERSION,
-    clearScore: competitiveScore + recordBonus,
+    clearScore: competitiveScore,
     competitiveScore,
     recordBonus,
     rankScore,
+    categories,
     featuredBadgeKeys: badges.slice(0, 3).map((badge) => badge.key),
     badges,
   };

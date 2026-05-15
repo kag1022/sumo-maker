@@ -23,6 +23,7 @@ import {
   buildCareerAnalysisSummary,
   buildCareerStanceAnalysis,
 } from "../../../logic/career/analysis";
+import { buildCareerClearScoreSummary, type CareerClearScoreSummary } from "../../../logic/career/clearScore";
 import {
   ensureStyleIdentityProfile,
   resolveDisplayedStrengthStyles,
@@ -357,6 +358,36 @@ const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({
   );
 };
 
+const ClearScoreBreakdown: React.FC<{ summary: CareerClearScoreSummary }> = ({ summary }) => (
+  <section className={styles.clearScorePanel} aria-label="総評点の内訳">
+    <div className={styles.clearScoreHead}>
+      <div>
+        <span>総評点</span>
+        <p>保存後の記録帳で並び替えに使う評価点です。</p>
+      </div>
+      <strong>{summary.clearScore}</strong>
+    </div>
+    <div className={styles.clearScoreRows}>
+      {summary.categories.map((category) => {
+        const percent = Math.round((category.score / category.maxScore) * 100);
+        const detail = category.items.slice(0, 2).map((item) => item.detail).join(" / ") || category.detail;
+        return (
+          <article key={category.key} className={styles.clearScoreRow}>
+            <div className={styles.clearScoreRowTop}>
+              <span>{category.label}</span>
+              <strong>+{category.score}</strong>
+            </div>
+            <p>{detail}</p>
+            <div className={styles.clearScoreMeter} aria-hidden="true">
+              <span style={{ width: `${Math.min(100, percent)}%` }} />
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  </section>
+);
+
 export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
   status,
   overview,
@@ -378,6 +409,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const [saveState, setSaveState] = React.useState<"idle" | "saving" | "error">("idle");
   const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
   const analysis = React.useMemo(() => buildCareerAnalysisSummary(status), [status]);
+  const clearScoreSummary = React.useMemo(() => buildCareerClearScoreSummary(status), [status]);
   const stanceAnalysis = React.useMemo(
     () => buildCareerStanceAnalysis(analysis, observationStanceId),
     [analysis, observationStanceId],
@@ -595,6 +627,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 <em>{analysis.classificationLabel}</em>
               </div>
               <p className={styles.decisionCopy}>{saveCopy}</p>
+              <ClearScoreBreakdown summary={clearScoreSummary} />
               <div className={styles.reasonList}>
                 {analysis.saveRecommendation.reasons.slice(0, 4).map((reason) => (
                   <div key={reason}>{reason}</div>
@@ -642,6 +675,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                 </div>
               </div>
               <p className={styles.decisionCopy}>保存済み記録から再読、比較、類似検索に進めます。</p>
+              <ClearScoreBreakdown summary={clearScoreSummary} />
               <div className={styles.commandStack}>
                 <Button size="lg" onClick={onOpenArchive}>
                   <Archive className="mr-2 h-4 w-4" />
