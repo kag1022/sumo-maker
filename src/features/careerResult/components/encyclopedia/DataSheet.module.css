@@ -1,0 +1,65 @@
+.sheet {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sheet[data-layout="grid"] {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(5.4rem, 0.42fr) minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: baseline;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 1px solid rgb(var(--twc-award) / 0.22);
+  background:
+    linear-gradient(90deg, rgb(var(--twc-award) / 0.06), transparent 36%),
+    rgb(var(--twc-bg) / 0.32);
+}
+
+.sheet[data-layout="grid"] .row {
+  grid-template-columns: 1fr;
+  gap: 0.22rem;
+  align-content: start;
+  align-items: start;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid rgb(var(--twc-line) / 0.32);
+  background: rgb(var(--twc-bg) / 0.42);
+  border-left: 1px solid rgb(var(--twc-award) / 0.22);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgb(var(--twc-award) / 0.78);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--twc-text) / 0.94);
+  font-size: 0.92rem;
+  line-height: 1.32;
+  font-weight: 500;
+}
+
+.sheet[data-mono="true"] .value {
+  font-family: "DotGothic16", monospace;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.18rem;
+  }
+}

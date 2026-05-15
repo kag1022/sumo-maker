@@ -1,0 +1,65 @@
+.led {
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgb(var(--twc-text-faint) / 0.42);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4), 0 0 4px transparent;
+  flex-shrink: 0;
+}
+
+.led[data-state="active"] {
+  background: rgb(var(--twc-state) / 0.88);
+  box-shadow:
+    0 0 0 1px rgb(var(--twc-state) / 0.4),
+    0 0 8px rgb(var(--twc-state) / 0.5);
+}
+
+.led[data-state="locked"] {
+  background: rgb(var(--twc-award) / 0.86);
+  box-shadow:
+    0 0 0 1px rgb(var(--twc-award) / 0.42),
+    0 0 8px rgb(var(--twc-award) / 0.42);
+}
+
+.led[data-state="warn"] {
+  background: rgb(var(--twc-danger) / 0.86);
+  box-shadow:
+    0 0 0 1px rgb(var(--twc-danger) / 0.42),
+    0 0 8px rgb(var(--twc-danger) / 0.42);
+}
+
+.led[data-state="info"] {
+  background: rgb(var(--twc-action) / 0.86);
+  box-shadow:
+    0 0 0 1px rgb(var(--twc-action) / 0.42),
+    0 0 8px rgb(var(--twc-action) / 0.42);
+}
+
+.led[data-state="off"] {
+  background: rgb(var(--twc-text-faint) / 0.2);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.32);
+}
+
+.led[data-size="sm"] {
+  width: 0.34rem;
+  height: 0.34rem;
+}
+
+.led[data-size="lg"] {
+  width: 0.55rem;
+  height: 0.55rem;
+}
+
+@keyframes ledPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.led[data-pulse="true"] {
+  animation: ledPulse 1.8s ease-in-out infinite;
+}
