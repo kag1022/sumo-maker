@@ -28,6 +28,13 @@
 - `components/OfficialBoutResultList.tsx` 公式風の取組結果一覧。player bout に保存済み `BoutFlowCommentary` がある場合は決まり手下の「取組解説」ボタンから詳細を開く
 - `utils/` 表示整形
 
+## 実装メモ
+
+- `CareerResultPage.tsx` の章切替では、`AnimatePresence mode="wait"` を使わない。
+  番付推移で場所を選んだあとに力士名鑑へ戻る操作で、前章の終了アニメーションが
+  `opacity: 0` のまま残り、力士名鑑本文が空白に見える再発バグが起きたため。
+  章本文は即時に差し替え、入場側の軽い `motion` だけに留める。
+
 ## 依存
 
 - `src/logic/careerNarrative.ts` ストーリー合成

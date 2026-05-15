@@ -33,11 +33,12 @@
 
 .worldKicker,
 .positionLabel,
-.keyPeopleTitle,
-.keyPeopleCopy,
+.chapterTitle,
+.chapterLead,
 .keyCardKicker,
 .keyCardMeta,
 .relationTitle,
+.relationLead,
 .relationCount,
 .rowMeta,
 .moreCount {
@@ -81,7 +82,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
   min-height: 10rem;
-  border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
 }
 
 .narrativeCard {
@@ -136,12 +136,16 @@
   line-height: 1.45;
 }
 
-.keyPeople {
+.chapterSection {
   padding: 1rem 1.15rem 1.15rem;
   border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
 }
 
-.keyPeopleHead {
+.chapterSection:last-child {
+  border-bottom: 0;
+}
+
+.chapterHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -149,14 +153,18 @@
   margin-bottom: 0.75rem;
 }
 
-.keyPeopleTitle {
+.chapterTitle {
+  margin: 0;
   color: rgb(var(--twc-text) / 0.94);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
-.keyPeopleCopy {
+.chapterLead {
+  margin: 0;
   color: rgb(var(--twc-text-bright) / 0.58);
   font-size: 0.7rem;
+  line-height: 1.6;
+  text-align: right;
 }
 
 .keyCardGrid {
@@ -209,21 +217,20 @@
 
 .relationGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.75rem;
 }
 
-.relationColumn {
+.relationGroup {
   display: grid;
   align-content: start;
   gap: 0.75rem;
   min-width: 0;
-  padding: 1rem;
-  border-right: 1px solid rgb(var(--twc-line) / 0.28);
-  background: rgb(var(--twc-bg) / 0.16);
-}
-
-.relationColumn:last-child {
-  border-right: 0;
+  padding: 0.85rem;
+  border: 1px solid rgb(var(--twc-line) / 0.25);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg) / 0.22), transparent),
+    rgb(var(--twc-bg) / 0.14);
 }
 
 .relationHead {
@@ -235,9 +242,24 @@
   border-bottom: 1px solid rgb(var(--twc-brand) / 0.2);
 }
 
+.relationLabelStack {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .relationTitle {
   color: rgb(var(--twc-text) / 0.92);
   font-size: 0.8rem;
+}
+
+.relationLead {
+  overflow: hidden;
+  color: rgb(var(--twc-text-bright) / 0.48);
+  font-size: 0.64rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .relationCount {
@@ -319,8 +341,7 @@
 
 @media (max-width: 1080px) {
   .worldHead,
-  .worldHero,
-  .relationGrid {
+  .worldHero {
     grid-template-columns: 1fr;
   }
 
@@ -329,14 +350,6 @@
     border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
   }
 
-  .relationColumn {
-    border-right: 0;
-    border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
-  }
-
-  .relationColumn:last-child {
-    border-bottom: 0;
-  }
 }
 
 @media (max-width: 767px) {
@@ -346,18 +359,21 @@
   }
 
   .worldHead,
-  .keyPeople,
-  .relationColumn {
+  .chapterSection {
     padding-inline: 0.85rem;
   }
 
   .worldHead,
-  .keyPeopleHead {
+  .chapterHead {
     align-items: start;
   }
 
-  .keyPeopleHead {
+  .chapterHead {
     display: grid;
+  }
+
+  .chapterLead {
+    text-align: left;
   }
 
   .positionCard,
@@ -379,5 +395,9 @@
 
   .narrativeCard {
     padding: 1rem 0.95rem;
+  }
+
+  .relationGrid {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
 import type {
   CareerBashoDetail,
@@ -54,7 +54,6 @@ interface CareerResultPageProps {
 const chapterTransition = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
   transition: { duration: 0.2, ease: "easeOut" as const },
 };
 
@@ -156,97 +155,95 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
       />
 
       <div ref={chapterRef} className={styles.body}>
-        <AnimatePresence initial={false} mode="wait">
-          {viewState.activeChapter === "encyclopedia" ? (
-            <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
-              <CareerEncyclopediaChapter
-                status={status}
-                overview={overview}
-                designReading={designReading}
-                highestRankLabel={highestRankLabel}
-                ledgerPoints={ledger.points}
-                bashoRows={bashoRows}
-                isSaved={isSaved}
-                detailState={detailState}
-                detailBuildProgress={detailBuildProgress}
-                observationPointsAwarded={observationPointsAwarded}
-                observationStanceId={observationStanceId}
-                onSave={onSave}
-                onReturnToScout={onReturnToScout}
-                onOpenArchive={onOpenArchive}
-                onOpenChapter={(chapter) => setChapter(chapter)}
-              />
-              <section className={styles.readingNote}>
-                <div className={styles.readingKicker}>閲覧案内</div>
-                <div className={styles.readingTitle}>
-                  {canReadDetails ? "力士名鑑から番付推移と場所別記録へ読み進めます。" : "力士名鑑は先に開けますが、他のページは整理完了後に開きます。"}
-                </div>
-                <p className={styles.readingCopy}>
-                  {canReadDetails
-                    ? "まず一代の輪郭を力士名鑑で掴み、番付推移と場所別記録で根拠を読み込みます。"
-                    : detailLoadingLabel}
-                </p>
-              </section>
-              <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
-            </motion.div>
-          ) : null}
-
-          {viewState.activeChapter === "trajectory" && canReadDetails ? (
-            <motion.div key="trajectory" {...chapterTransition}>
-              <CareerTrajectoryChapter
-                ledger={ledger}
-                selectedPoint={selectedPoint}
-                selectionSummary={placeSummary}
-                detail={detail}
-                detailLoading={detailLoading}
-                hasPersistence={Boolean(careerId)}
-                viewState={viewState}
-                onSelectBasho={onSelectBasho}
-                onWindowChange={(window) => onViewStateChange(window)}
-                onOpenChapter={(chapter) => openChapterWithPoint(chapter, selectedPoint?.bashoSeq)}
-              />
-            </motion.div>
-          ) : null}
-
-          {viewState.activeChapter === "place" && canReadDetails ? (
-            <motion.div key="place" className={styles.split} {...chapterTransition}>
-              <div className={styles.mainPane}>
-                <CareerPlaceChapter
-                  ledger={ledger}
-                  point={selectedPoint}
-                  detail={detail}
-                  summary={placeSummary}
-                  playerStableId={status.stableId}
-                  placeTab={viewState.placeTab}
-                  isLoading={detailLoading}
-                  hasPersistence={Boolean(careerId)}
-                  onSelectBasho={onSelectBasho}
-                  onSelectNpc={setSelectedNpcId}
-                  onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
-                />
+        {viewState.activeChapter === "encyclopedia" ? (
+          <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
+            <CareerEncyclopediaChapter
+              status={status}
+              overview={overview}
+              designReading={designReading}
+              highestRankLabel={highestRankLabel}
+              ledgerPoints={ledger.points}
+              bashoRows={bashoRows}
+              isSaved={isSaved}
+              detailState={detailState}
+              detailBuildProgress={detailBuildProgress}
+              observationPointsAwarded={observationPointsAwarded}
+              observationStanceId={observationStanceId}
+              onSave={onSave}
+              onReturnToScout={onReturnToScout}
+              onOpenArchive={onOpenArchive}
+              onOpenChapter={(chapter) => setChapter(chapter)}
+            />
+            <section className={styles.readingNote}>
+              <div className={styles.readingKicker}>閲覧案内</div>
+              <div className={styles.readingTitle}>
+                {canReadDetails ? "力士名鑑から番付推移と場所別記録へ読み進めます。" : "力士名鑑は先に開けますが、他のページは整理完了後に開きます。"}
               </div>
-              <aside className={styles.sidePane}>
-                {selectedNpc ? (
-                  <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
-                ) : (
-                  <div className={styles.sideEmpty}>
-                    <div className={styles.sideEmptyKicker}>補助欄</div>
-                    <div className={styles.sideEmptyTitle}>周辺力士を見る</div>
-                    <p className={styles.sideEmptyCopy}>場所別記録の番付や取組から力士名を選ぶと、この場所で残った番付行をこの補助欄に表示します。</p>
-                  </div>
-                )}
-              </aside>
-            </motion.div>
-          ) : null}
+              <p className={styles.readingCopy}>
+                {canReadDetails
+                  ? "まず一代の輪郭を力士名鑑で掴み、番付推移と場所別記録で根拠を読み込みます。"
+                  : detailLoadingLabel}
+              </p>
+            </section>
+            <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
+          </motion.div>
+        ) : null}
 
-          {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
-            <motion.section key="detail-lock" className={styles.readingNote} {...chapterTransition}>
-              <div className={styles.readingKicker}>整理中</div>
-              <div className={styles.readingTitle}>詳細ページはまだ開けません。</div>
-              <p className={styles.readingCopy}>{detailLoadingLabel}</p>
-            </motion.section>
-          ) : null}
-        </AnimatePresence>
+        {viewState.activeChapter === "trajectory" && canReadDetails ? (
+          <motion.div key="trajectory" {...chapterTransition}>
+            <CareerTrajectoryChapter
+              ledger={ledger}
+              selectedPoint={selectedPoint}
+              selectionSummary={placeSummary}
+              detail={detail}
+              detailLoading={detailLoading}
+              hasPersistence={Boolean(careerId)}
+              viewState={viewState}
+              onSelectBasho={onSelectBasho}
+              onWindowChange={(window) => onViewStateChange(window)}
+              onOpenChapter={(chapter) => openChapterWithPoint(chapter, selectedPoint?.bashoSeq)}
+            />
+          </motion.div>
+        ) : null}
+
+        {viewState.activeChapter === "place" && canReadDetails ? (
+          <motion.div key="place" className={styles.split} {...chapterTransition}>
+            <div className={styles.mainPane}>
+              <CareerPlaceChapter
+                ledger={ledger}
+                point={selectedPoint}
+                detail={detail}
+                summary={placeSummary}
+                playerStableId={status.stableId}
+                placeTab={viewState.placeTab}
+                isLoading={detailLoading}
+                hasPersistence={Boolean(careerId)}
+                onSelectBasho={onSelectBasho}
+                onSelectNpc={setSelectedNpcId}
+                onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
+              />
+            </div>
+            <aside className={styles.sidePane}>
+              {selectedNpc ? (
+                <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
+              ) : (
+                <div className={styles.sideEmpty}>
+                  <div className={styles.sideEmptyKicker}>補助欄</div>
+                  <div className={styles.sideEmptyTitle}>周辺力士を見る</div>
+                  <p className={styles.sideEmptyCopy}>場所別記録の番付や取組から力士名を選ぶと、この場所で残った番付行をこの補助欄に表示します。</p>
+                </div>
+              )}
+            </aside>
+          </motion.div>
+        ) : null}
+
+        {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
+          <motion.section key="detail-lock" className={styles.readingNote} {...chapterTransition}>
+            <div className={styles.readingKicker}>整理中</div>
+            <div className={styles.readingTitle}>詳細ページはまだ開けません。</div>
+            <p className={styles.readingCopy}>{detailLoadingLabel}</p>
+          </motion.section>
+        ) : null}
       </div>
     </div>
   );
