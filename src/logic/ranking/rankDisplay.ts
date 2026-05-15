@@ -32,7 +32,8 @@ export const formatRankDisplayName = (rank: Rank): string => {
   if (rank.division === 'Maezumo') return '前相撲';
   const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
   if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
+  const number = rank.number || 1;
+  return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
 };
 
 export const formatHighestRankDisplayName = (rank: Rank): string => {
@@ -41,5 +42,6 @@ export const formatHighestRankDisplayName = (rank: Rank): string => {
   }
   if (rank.division === 'Maezumo') return '前相撲';
   if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return rank.name;
-  return `${rank.name}${rank.number || 1}枚目`;
+  const number = rank.number || 1;
+  return number === 1 ? `${rank.name}筆頭` : `${rank.name}${number}枚目`;
 };

@@ -4,7 +4,7 @@ import {
   Rank,
   RikishiStatus,
 } from '../models';
-import { formatHighestRankDisplayName, getRankValue, getRankValueForChart } from '../ranking';
+import { formatHighestRankDisplayName, formatRankDisplayName, getRankValue, getRankValueForChart } from '../ranking';
 
 export interface ObservationStanceDefinition {
   id: ObservationStanceId;
@@ -268,10 +268,7 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
 const formatRankName = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
+  return formatRankDisplayName(rank);
 };
 
 const rankTier = (rank: Rank): number => {

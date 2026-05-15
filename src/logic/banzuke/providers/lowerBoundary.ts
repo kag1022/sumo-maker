@@ -1,4 +1,5 @@
 import { Rank } from '../../models';
+import { formatRankDisplayName } from '../../ranking';
 import { BanzukeEngineVersion } from '../types';
 import {
   OptimizerPlacementTrace,
@@ -171,8 +172,7 @@ const toRank = (
 };
 
 const toRankLabel = (rank: Rank): string => {
-  const side = rank.side === 'West' ? '西' : '東';
-  return `${side}${rank.name}${rank.number ?? 1}枚目`;
+  return formatRankDisplayName(rank);
 };
 
 const resolvePlayerMandatoryFlags = (
