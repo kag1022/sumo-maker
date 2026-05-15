@@ -52,6 +52,12 @@ interface RelationItem {
 type RelationNodeSlot = "mapNorthWest" | "mapNorthEast" | "mapSouthWest" | "mapSouthEast";
 type RelationNodeTone = "rival" | "race" | "peer" | "era" | "strong";
 
+interface RelationNodeRecord {
+  wins: number;
+  losses: number;
+  meetings: number;
+}
+
 interface RelationMapNode {
   id: string;
   role: string;
@@ -59,6 +65,8 @@ interface RelationMapNode {
   meta: string;
   tone: RelationNodeTone;
   slot: RelationNodeSlot;
+  tier: RankTierMeta;
+  record?: RelationNodeRecord;
 }
 
 interface RelationScaleItem {
@@ -82,12 +90,15 @@ interface HierarchyItem {
   name: string;
   meta: string;
   isPlayer?: boolean;
+  tier?: RankTierMeta;
+  record?: RelationNodeRecord;
 }
 
 interface HierarchyTier {
   key: string;
   label: string;
   note: string;
+  positionBadge?: RelativePosition;
   items: HierarchyItem[];
 }
 
@@ -118,6 +129,79 @@ const RELATION_NODE_SLOTS: RelationNodeSlot[] = [
   "mapSouthEast",
 ];
 
+type RankTierKey =
+  | "yokozuna"
+  | "ozeki"
+  | "sanyaku"
+  | "maegashira"
+  | "juryo"
+  | "makushita"
+  | "lower"
+  | "unknown";
+
+interface RankTierMeta {
+  key: RankTierKey;
+  level: number;
+  symbol: string;
+  shortLabel: string;
+}
+
+const RANK_TIER_FALLBACK: RankTierMeta = {
+  key: "unknown",
+  level: -1,
+  symbol: "?",
+  shortLabel: "不明",
+};
+
+const resolveRankTier = (label?: string | null): RankTierMeta => {
+  if (!label) return RANK_TIER_FALLBACK;
+  if (label.startsWith("横綱")) return { key: "yokozuna", level: 6, symbol: "横", shortLabel: "横綱" };
+  if (label.startsWith("大関")) return { key: "ozeki", level: 5, symbol: "大", shortLabel: "大関" };
+  if (label.startsWith("関脇")) return { key: "sanyaku", level: 4, symbol: "役", shortLabel: "三役" };
+  if (label.startsWith("小結")) return { key: "sanyaku", level: 4, symbol: "役", shortLabel: "三役" };
+  if (label.startsWith("前頭")) return { key: "maegashira", level: 3, symbol: "前", shortLabel: "前頭" };
+  if (label.startsWith("十両")) return { key: "juryo", level: 2, symbol: "両", shortLabel: "十両" };
+  if (label.startsWith("幕下")) return { key: "makushita", level: 1, symbol: "幕", shortLabel: "幕下" };
+  if (label.startsWith("三段目")) return { key: "lower", level: 0, symbol: "下", shortLabel: "下位" };
+  if (label.startsWith("序二段")) return { key: "lower", level: 0, symbol: "下", shortLabel: "下位" };
+  if (label.startsWith("序")) return { key: "lower", level: 0, symbol: "下", shortLabel: "下位" };
+  return RANK_TIER_FALLBACK;
+};
+
+const rankTierClassMap: Record<RankTierKey, string> = {
+  yokozuna: styles.tierYokozuna,
+  ozeki: styles.tierOzeki,
+  sanyaku: styles.tierSanyaku,
+  maegashira: styles.tierMaegashira,
+  juryo: styles.tierJuryo,
+  makushita: styles.tierMakushita,
+  lower: styles.tierLower,
+  unknown: styles.tierUnknown,
+};
+
+type RelativePosition = "above" | "same" | "below" | "unknown";
+
+const positionLabelMap: Record<RelativePosition, string> = {
+  above: "↑ 本人より上",
+  same: "= 同じ階層",
+  below: "↓ 本人より下",
+  unknown: "・ 比較不能",
+};
+
+const positionClassMap: Record<RelativePosition, string> = {
+  above: styles.posAbove,
+  same: styles.posSame,
+  below: styles.posBelow,
+  unknown: styles.posUnknown,
+};
+
+const SLOT_POSITIONS: Record<RelationNodeSlot, { x: number; y: number }> = {
+  mapNorthWest: { x: 18, y: 26 },
+  mapNorthEast: { x: 82, y: 26 },
+  mapSouthWest: { x: 18, y: 74 },
+  mapSouthEast: { x: 82, y: 74 },
+};
+
 const resolveMapToneClass = (tone: RelationNodeTone): string => {
   switch (tone) {
     case "race":
@@ -131,6 +215,22 @@ const resolveMapToneClass = (tone: RelationNodeTone): string => {
     case "rival":
     default:
       return styles.mapToneRival;
+  }
+};
+
+const resolveMapLineClass = (tone: RelationNodeTone): string => {
+  switch (tone) {
+    case "race":
+      return styles.lineRace;
+    case "peer":
+      return styles.linePeer;
+    case "era":
+      return styles.lineEra;
+    case "strong":
+      return styles.lineStrong;
+    case "rival":
+    default:
+      return styles.lineRival;
   }
 };
 
@@ -158,8 +258,7 @@ const DetailChapterSection: React.FC<DetailChapterSectionProps> = ({
       </span>
       <span className={styles.detailMeta}>
         <span className={styles.detailCount}>{summary}</span>
-        <span className={styles.openText}>開く</span>
-        <span className={styles.closeText}>閉じる</span>
+        <span className={styles.detailAction} aria-hidden="true" />
       </span>
     </summary>
     <div className={styles.detailBody}>{children}</div>
@@ -201,29 +300,98 @@ const RelationGroup: React.FC<RelationGroupProps> = ({ title, lead, count, items
 interface RelationMapProps {
   shikona: string;
   positionLabel: string;
+  playerTier: RankTierMeta;
   nodes: RelationMapNode[];
 }
 
-const RelationMap: React.FC<RelationMapProps> = ({ shikona, positionLabel, nodes }) => (
+const RelationMap: React.FC<RelationMapProps> = ({ shikona, positionLabel, playerTier, nodes }) => (
   <div className={styles.relationMap} aria-label="このキャリアの関係図">
+    <svg
+      className={styles.mapConnectors}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {nodes.map((node) => {
+        const pos = SLOT_POSITIONS[node.slot];
+        return (
+          <g key={`line-${node.tone}-${node.id}`} className={resolveMapLineClass(node.tone)}>
+            <line
+              className={styles.mapConnectorLine}
+              x1={pos.x}
+              y1={pos.y}
+              x2={50}
+              y2={50}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle className={styles.mapConnectorDot} cx={pos.x} cy={pos.y} r={1.4} />
+          </g>
+        );
+      })}
+      <circle className={styles.mapConnectorHub} cx={50} cy={50} r={2.2} />
+    </svg>
+
     <div className={styles.mapCenter}>
       <span className={styles.mapCenterLabel}>本人</span>
       <strong className={styles.mapCenterName}>{shikona}</strong>
       <span className={styles.mapCenterMeta}>{positionLabel}</span>
+      {playerTier.key !== "unknown" ? (
+        <span
+          className={`${styles.tierChip} ${styles.tierChipLg} ${rankTierClassMap[playerTier.key]}`}
+          title={playerTier.shortLabel}
+          aria-label={`最高位 ${playerTier.shortLabel}`}
+        >
+          {playerTier.symbol}
+        </span>
+      ) : null}
     </div>
+
     {nodes.length === 0 ? (
       <div className={styles.mapEmpty}>関係図に出せる相手の記録はまだ少ない。</div>
     ) : (
-      nodes.map((node) => (
-        <article
-          key={`${node.tone}-${node.id}`}
-          className={`${styles.mapNode} ${styles[node.slot]} ${resolveMapToneClass(node.tone)}`}
-        >
-          <span className={styles.mapNodeRole}>{node.role}</span>
-          <strong className={styles.mapNodeName}>{node.name}</strong>
-          <span className={styles.mapNodeMeta}>{node.meta}</span>
-        </article>
-      ))
+      nodes.map((node) => {
+        const winRatio =
+          node.record && node.record.meetings > 0
+            ? (node.record.wins / node.record.meetings) * 100
+            : null;
+        return (
+          <article
+            key={`${node.tone}-${node.id}`}
+            className={`${styles.mapNode} ${styles[node.slot]} ${resolveMapToneClass(node.tone)}`}
+          >
+            <header className={styles.mapNodeHead}>
+              <span className={styles.mapNodeRole}>{node.role}</span>
+              {node.tier.key !== "unknown" ? (
+                <span
+                  className={`${styles.tierChip} ${rankTierClassMap[node.tier.key]}`}
+                  title={node.tier.shortLabel}
+                  aria-label={`最高位 ${node.tier.shortLabel}`}
+                >
+                  {node.tier.symbol}
+                </span>
+              ) : null}
+            </header>
+            <strong className={styles.mapNodeName}>{node.name}</strong>
+            <span className={styles.mapNodeMeta}>{node.meta}</span>
+            {winRatio !== null && node.record ? (
+              <div
+                className={styles.mapNodeRecord}
+                aria-label={`${node.record.wins}勝${node.record.losses}敗`}
+              >
+                <span
+                  className={styles.mapNodeRecordWin}
+                  style={{ width: `${winRatio}%` }}
+                />
+                <span
+                  className={styles.mapNodeRecordLoss}
+                  style={{ width: `${100 - winRatio}%` }}
+                />
+              </div>
+            ) : null}
+          </article>
+        );
+      })
     )}
   </div>
 );
@@ -234,29 +402,88 @@ interface WorldHierarchyProps {
 
 const WorldHierarchy: React.FC<WorldHierarchyProps> = ({ tiers }) => (
   <div className={styles.hierarchyDiagram} aria-label="番付と関係の階層図">
-    {tiers.map((tier) => (
-      <section key={tier.key} className={styles.hierarchyTier}>
-        <header className={styles.hierarchyTierHead}>
-          <span className={styles.hierarchyTierLabel}>{tier.label}</span>
-          <span className={styles.hierarchyTierNote}>{tier.note}</span>
-        </header>
-        <div className={styles.hierarchyItems}>
-          {tier.items.length === 0 ? (
-            <span className={styles.hierarchyEmpty}>該当する記録なし</span>
-          ) : (
-            tier.items.map((item) => (
-              <span
-                key={item.id}
-                className={`${styles.hierarchyItem} ${item.isPlayer ? styles.hierarchyPlayer : ""}`}
-              >
-                <strong className={styles.hierarchyName}>{item.name}</strong>
-                <span className={styles.hierarchyMeta}>{item.meta}</span>
-              </span>
-            ))
-          )}
-        </div>
-      </section>
-    ))}
+    <aside className={styles.hierarchyAxis} aria-hidden="true">
+      <span className={styles.hierarchyAxisCap}>上位</span>
+      <span className={styles.hierarchyAxisLine} />
+      <span className={styles.hierarchyAxisCap}>下位</span>
+    </aside>
+    <div className={styles.hierarchyTiers}>
+      {tiers.map((tier) => (
+        <section
+          key={tier.key}
+          className={`${styles.hierarchyTier} ${tier.key === "player" ? styles.hierarchyTierPlayer : ""}`}
+        >
+          <header className={styles.hierarchyTierHead}>
+            <div className={styles.hierarchyTierTitleLine}>
+              <span className={styles.hierarchyTierMarker} aria-hidden="true" />
+              <span className={styles.hierarchyTierLabel}>{tier.label}</span>
+              {tier.positionBadge ? (
+                <span
+                  className={`${styles.hierarchyTierPos} ${positionClassMap[tier.positionBadge]}`}
+                >
+                  {positionLabelMap[tier.positionBadge]}
+                </span>
+              ) : null}
+            </div>
+            <span className={styles.hierarchyTierNote}>{tier.note}</span>
+          </header>
+          <div className={styles.hierarchyItems}>
+            {tier.items.length === 0 ? (
+              <span className={styles.hierarchyEmpty}>該当する記録なし</span>
+            ) : (
+              tier.items.map((item) => {
+                const itemTier = item.tier ?? RANK_TIER_FALLBACK;
+                const showChip = itemTier.key !== "unknown";
+                const winRatio =
+                  item.record && item.record.meetings > 0
+                    ? (item.record.wins / item.record.meetings) * 100
+                    : null;
+                return (
+                  <span
+                    key={item.id}
+                    className={`${styles.hierarchyItem} ${item.isPlayer ? styles.hierarchyPlayer : ""}`}
+                  >
+                    {showChip ? (
+                      <span
+                        className={`${styles.tierChip} ${rankTierClassMap[itemTier.key]}`}
+                        title={itemTier.shortLabel}
+                        aria-label={`最高位 ${itemTier.shortLabel}`}
+                      >
+                        {itemTier.symbol}
+                      </span>
+                    ) : (
+                      <span className={`${styles.tierChip} ${styles.tierChipEmpty}`} aria-hidden="true" />
+                    )}
+                    <span className={styles.hierarchyItemBody}>
+                      <strong className={styles.hierarchyName}>
+                        {item.isPlayer ? <span className={styles.hierarchyPlayerMark}>本</span> : null}
+                        {item.name}
+                      </strong>
+                      <span className={styles.hierarchyMeta}>{item.meta}</span>
+                      {winRatio !== null && item.record ? (
+                        <span
+                          className={styles.hierarchyItemRecord}
+                          aria-label={`${item.record.wins}勝${item.record.losses}敗`}
+                        >
+                          <span
+                            className={styles.hierarchyItemRecordWin}
+                            style={{ width: `${winRatio}%` }}
+                          />
+                          <span
+                            className={styles.hierarchyItemRecordLoss}
+                            style={{ width: `${100 - winRatio}%` }}
+                          />
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                );
+              })
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
   </div>
 );
 
@@ -349,6 +576,11 @@ const toEraStarItem = (s: EraStarNpcSummary): RelationItem => ({
 const formatPeakMeta = (n: NotableNpcSummary): string =>
   n.peakRankLabel ? `最高位 ${n.peakRankLabel}` : "番付記録あり";
 
+const toNpcRecord = (n: NotableNpcSummary): RelationNodeRecord | undefined =>
+  n.meetings > 0
+    ? { wins: n.playerWins, losses: n.npcWins, meetings: n.meetings }
+    : undefined;
+
 const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] => {
   const nodes: Array<Omit<RelationMapNode, "slot">> = [];
   const usedIds = new Set<string>();
@@ -367,6 +599,8 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
         name: mainRival.shikona,
         meta: formatRecordLabel(mainRival),
         tone: "rival",
+        tier: resolveRankTier(mainRival.peakRankLabel),
+        record: toNpcRecord(mainRival),
       }
       : null,
   );
@@ -380,6 +614,8 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
         name: raceOpponent.shikona,
         meta: `${formatPeakMeta(raceOpponent)} / ${formatRecordLabel(raceOpponent)}`,
         tone: "race",
+        tier: resolveRankTier(raceOpponent.peakRankLabel),
+        record: toNpcRecord(raceOpponent),
       }
       : null,
   );
@@ -393,6 +629,8 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
         name: peer.shikona,
         meta: formatPeakMeta(peer),
         tone: "peer",
+        tier: resolveRankTier(peer.peakRankLabel),
+        record: toNpcRecord(peer),
       }
       : null,
   );
@@ -406,6 +644,7 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
         name: eraStar.shikona,
         meta: `${eraStar.peakRankLabel}${formatEraStarYushoNote(eraStar) ? ` / ${formatEraStarYushoNote(eraStar)}` : ""}`,
         tone: "era",
+        tier: resolveRankTier(eraStar.peakRankLabel),
       }
       : null,
   );
@@ -419,6 +658,8 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
         name: strongOpponent.shikona,
         meta: `${formatPeakMeta(strongOpponent)} / ${formatRecordLabel(strongOpponent)}`,
         tone: "strong",
+        tier: resolveRankTier(strongOpponent.peakRankLabel),
+        record: toNpcRecord(strongOpponent),
       }
       : null,
   );
@@ -433,13 +674,39 @@ const toHierarchyOpponent = (n: NotableNpcSummary): HierarchyItem => ({
   id: n.id,
   name: n.shikona,
   meta: `${formatPeakMeta(n)} / ${formatRecordLabel(n)}`,
+  tier: resolveRankTier(n.peakRankLabel),
+  record: toNpcRecord(n),
 });
 
 const toHierarchyEraStar = (s: EraStarNpcSummary): HierarchyItem => ({
   id: s.id,
   name: s.shikona,
   meta: `${s.peakRankLabel}${formatEraStarYushoNote(s) ? ` / ${formatEraStarYushoNote(s)}` : ""}`,
+  tier: resolveRankTier(s.peakRankLabel),
 });
+
+const aggregateTierPosition = (
+  items: HierarchyItem[],
+  playerTier: RankTierMeta,
+): RelativePosition => {
+  if (playerTier.level < 0 || items.length === 0) return "unknown";
+  let above = 0;
+  let same = 0;
+  let below = 0;
+  let known = 0;
+  for (const item of items) {
+    const t = item.tier;
+    if (!t || t.level < 0) continue;
+    known += 1;
+    if (t.level > playerTier.level) above += 1;
+    else if (t.level < playerTier.level) below += 1;
+    else same += 1;
+  }
+  if (known === 0) return "unknown";
+  if (above >= same && above >= below) return "above";
+  if (below >= same && below >= above) return "below";
+  return "same";
+};
 
 const buildWorldHierarchyTiers = (
   shikona: string,
@@ -449,24 +716,31 @@ const buildWorldHierarchyTiers = (
   const sameWall = summary.promotionRaceOpponents.length > 0
     ? summary.promotionRaceOpponents
     : summary.generationPeers;
+  const playerTier = resolveRankTier(position.highestRankLabel);
+  const eraStarItems = summary.eraStars.slice(0, 4).map(toHierarchyEraStar);
+  const sameWallItems = sameWall.slice(0, 4).map(toHierarchyOpponent);
+  const rivalItems = summary.rivals.slice(0, 5).map(toHierarchyOpponent);
 
   return [
     {
       key: "eraTop",
       label: "時代の上位",
       note: "本人の上にいた物差し",
-      items: summary.eraStars.slice(0, 4).map(toHierarchyEraStar),
+      positionBadge: eraStarItems.length > 0 ? aggregateTierPosition(eraStarItems, playerTier) : "above",
+      items: eraStarItems,
     },
     {
       key: "player",
       label: "本人の到達点",
       note: "この一代の最高到達点",
+      positionBadge: "same",
       items: [
         {
           id: "player",
           name: shikona,
           meta: `${position.highestRankLabel} / ${position.careerTypeLabel}`,
           isPlayer: true,
+          tier: playerTier,
         },
       ],
     },
@@ -474,13 +748,15 @@ const buildWorldHierarchyTiers = (
       key: "sameWall",
       label: "同じ壁",
       note: "同世代・昇進争いで重なった相手",
-      items: sameWall.slice(0, 4).map(toHierarchyOpponent),
+      positionBadge: sameWallItems.length > 0 ? aggregateTierPosition(sameWallItems, playerTier) : "same",
+      items: sameWallItems,
     },
     {
       key: "direct",
       label: "直接対戦",
       note: "土俵で関係が濃かった相手",
-      items: summary.rivals.slice(0, 5).map(toHierarchyOpponent),
+      positionBadge: rivalItems.length > 0 ? aggregateTierPosition(rivalItems, playerTier) : undefined,
+      items: rivalItems,
     },
   ];
 };
@@ -631,6 +907,7 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
             <RelationMap
               shikona={status.shikona}
               positionLabel={position.highestRankLabel}
+              playerTier={resolveRankTier(position.highestRankLabel)}
               nodes={relationMapNodes}
             />
             <div className={styles.visualCharts}>
