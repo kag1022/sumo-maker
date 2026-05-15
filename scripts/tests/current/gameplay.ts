@@ -732,6 +732,36 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'scout: build-mode indirect choices are applied without numeric stat input',
+    run: () => {
+      const rikishi = buildInitialRikishiFromDraft(createScoutDraft({
+        entryAge: 18,
+        entryPath: 'SCHOOL',
+        entryArchetype: 'ELITE_TSUKEDASHI',
+        growthType: 'LATE',
+        preferredStyle: 'TSUKI_OSHI',
+        talentProfile: 'GENIUS',
+      }));
+
+      assert.equal(rikishi.entryAge, 22);
+      assert.equal(rikishi.entryArchetype, 'ELITE_TSUKEDASHI');
+      assert.equal(rikishi.entryDivision, 'Makushita60');
+      assert.equal(rikishi.careerSeed?.entryPath, 'CHAMPION');
+      assert.equal(rikishi.careerSeed?.primaryStyle, 'TSUKI_OSHI');
+      assert.equal(rikishi.careerSeed?.secondaryStyle, 'DOHYOUGIWA');
+      assert.equal(rikishi.tactics, 'PUSH');
+      assert.equal(rikishi.growthType, 'LATE');
+      assert.equal(rikishi.aptitudeTier, 'S');
+      assert.equal(rikishi.archetype, 'GENIUS');
+
+      const genius = buildInitialRikishiFromDraft(createScoutDraft({
+        talentProfile: 'GENIUS',
+      }));
+      assert.equal(genius.growthType, 'GENIUS');
+      assert.equal(genius.aptitudeTier, 'S');
+    },
+  },
+  {
     name: 'scout: buildInitialRikishiFromDraft falls back when stable is missing',
     run: () => {
       const rikishi = buildInitialRikishiFromDraft({

@@ -7,12 +7,30 @@ import { cn } from '../../shared/lib/cn';
 import {
   rollScoutDraft,
   buildInitialRikishiFromDraft,
+  SCOUT_GROWTH_TYPE_LABELS,
+  SCOUT_TALENT_PROFILE_LABELS,
+  type ScoutTalentProfile,
 } from '../../logic/scout/gacha';
 import {
+  AptitudeTier,
+  EntryArchetype,
+  GrowthType,
   Oyakata,
   RikishiStatus,
   SimulationRunOptions,
+  StyleArchetype,
 } from '../../logic/models';
+import { resolveAptitudeProfile } from '../../logic/constants';
+import {
+  ENTRY_ARCHETYPE_LABELS,
+  resolveEntryDivisionFromRank,
+} from '../../logic/career/entryArchetype';
+import {
+  createMakushitaBottomTsukedashiRank,
+  createSandanmeBottomTsukedashiRank,
+} from '../../logic/ranking';
+import { resolveLegacyAptitudeFactor } from '../../logic/simulation/realism';
+import { STYLE_LABELS } from '../../logic/styleProfile';
 import type { SimulationPacing } from '../simulation/store/simulationStore';
 import type { ObservationPointState } from '../../logic/persistence/observationPoints';
 import type { GenerationTokenState } from '../../logic/persistence/generationTokens';
@@ -44,6 +62,160 @@ import type {
   ObservationModifierId,
   ObservationThemeId,
 } from '../../logic/archive/types';
+
+type ObservationGenerationMode = 'OBSERVE_RANDOM' | 'BUILD';
+
+const MODE_OPTIONS: Array<{ id: ObservationGenerationMode; label: string; summary: string }> = [
+  {
+    id: 'OBSERVE_RANDOM',
+    label: '観測モード',
+    summary: '観測テーマだけを選び、部屋・体格・型・素質は候補札のランダム値に任せる。',
+  },
+  {
+    id: 'BUILD',
+    label: 'ビルドモード',
+    summary: '直接能力値を触らず、成長型・得意な型・付出・天才型などの前提を選ぶ。',
+  },
+];
+
+const GROWTH_TYPE_OPTIONS: Array<{ value: GrowthType; label: string; note: string }> = [
+  { value: 'EARLY', label: SCOUT_GROWTH_TYPE_LABELS.EARLY, note: '若いうちに伸び、後半は衰えも早めに出る。' },
+  { value: 'NORMAL', label: SCOUT_GROWTH_TYPE_LABELS.NORMAL, note: '伸び方と衰え方を標準に置く。' },
+  { value: 'LATE', label: SCOUT_GROWTH_TYPE_LABELS.LATE, note: '序盤は重いが、後半の伸び返しを読む。' },
+  { value: 'GENIUS', label: SCOUT_GROWTH_TYPE_LABELS.GENIUS, note: '完成の速さと長いピークを期待する特殊な成長型。' },
+];
+
+const STYLE_OPTIONS: Array<{ value: StyleArchetype; label: string; note: string }> = [
+  { value: 'YOTSU', label: STYLE_LABELS.YOTSU, note: '差して寄る正攻法を入口の型にする。' },
+  { value: 'TSUKI_OSHI', label: STYLE_LABELS.TSUKI_OSHI, note: '前に出る圧力を勝ち筋の中心に置く。' },
+  { value: 'MOROZASHI', label: STYLE_LABELS.MOROZASHI, note: '懐へ入る技術と差し手を重視する。' },
+  { value: 'DOHYOUGIWA', label: STYLE_LABELS.DOHYOUGIWA, note: '残しと反応で山場を作る型に寄せる。' },
+  { value: 'NAGE_TECH', label: STYLE_LABELS.NAGE_TECH, note: '投げと崩しの技巧を読み筋にする。' },
+  { value: 'POWER_PRESSURE', label: STYLE_LABELS.POWER_PRESSURE, note: '馬力で押し込む圧力相撲を狙う。' },
+];
+
+const ENTRY_ARCHETYPE_OPTIONS: Array<{ value: EntryArchetype; label: string; note: string }> = [
+  { value: 'ORDINARY_RECRUIT', label: ENTRY_ARCHETYPE_LABELS.ORDINARY_RECRUIT, note: '付出なし。前相撲から下積みを読む。' },
+  { value: 'EARLY_PROSPECT', label: ENTRY_ARCHETYPE_LABELS.EARLY_PROSPECT, note: '肩書は強くないが、序盤の期待を少し持たせる。' },
+  { value: 'TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.TSUKEDASHI, note: '三段目付出相当として、下位を短縮する。' },
+  { value: 'ELITE_TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.ELITE_TSUKEDASHI, note: '幕下付出相当として、大きな看板を背負う。' },
+  { value: 'MONSTER', label: ENTRY_ARCHETYPE_LABELS.MONSTER, note: 'まれな怪物候補として、期待と落差を大きくする。' },
+];
+
+const TALENT_PROFILE_OPTIONS: Array<{ value: ScoutTalentProfile; label: string; note: string }> = [
+  { value: 'AUTO', label: SCOUT_TALENT_PROFILE_LABELS.AUTO, note: '候補札の素質をそのまま使う。' },
+  { value: 'STANDARD', label: SCOUT_TALENT_PROFILE_LABELS.STANDARD, note: '極端な上振れを抑え、標準的な読み味に寄せる。' },
+  { value: 'PROMISING', label: SCOUT_TALENT_PROFILE_LABELS.PROMISING, note: '有望株として、関取到達の期待を少し厚くする。' },
+  { value: 'GENIUS', label: SCOUT_TALENT_PROFILE_LABELS.GENIUS, note: '天才型として、素質と成長の上振れを明示的に置く。' },
+];
+
+const OptionalBuildChoiceGrid = <T extends string>({
+  value,
+  autoLabel,
+  autoNote,
+  options,
+  onChange,
+}: {
+  value: T | undefined;
+  autoLabel: string;
+  autoNote: string;
+  options: Array<{ value: T; label: string; note: string }>;
+  onChange: (value: T | undefined) => void;
+}) => {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <button
+        type="button"
+        onClick={() => onChange(undefined)}
+        className={cn(
+          'min-h-[7.5rem] border px-4 py-3 text-left transition',
+          value === undefined
+            ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
+            : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+        )}
+      >
+        <div className="text-sm text-text">{autoLabel}</div>
+        <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{autoNote}</div>
+      </button>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            'min-h-[7.5rem] border px-4 py-3 text-left transition',
+            value === option.value
+              ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
+              : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+          )}
+        >
+          <div className="text-sm text-text">{option.label}</div>
+          <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+const resolveTalentProfileTier = (profile: ScoutTalentProfile): AptitudeTier | null => {
+  if (profile === 'GENIUS') return 'S';
+  if (profile === 'PROMISING') return 'A';
+  if (profile === 'STANDARD') return 'B';
+  return null;
+};
+
+const applyDirectEntryArchetypeLock = (
+  status: RikishiStatus,
+  directEntryArchetype: EntryArchetype,
+): void => {
+  status.entryArchetype = directEntryArchetype;
+  if (directEntryArchetype === 'ELITE_TSUKEDASHI') {
+    status.rank = createMakushitaBottomTsukedashiRank();
+    status.entryAge = 22;
+    status.age = 22;
+  } else if (directEntryArchetype === 'TSUKEDASHI') {
+    status.rank = createSandanmeBottomTsukedashiRank();
+    status.entryAge = 22;
+    status.age = 22;
+  } else if (directEntryArchetype === 'ORDINARY_RECRUIT' || directEntryArchetype === 'EARLY_PROSPECT') {
+    status.rank = { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
+  }
+  status.entryDivision = resolveEntryDivisionFromRank(status.rank);
+  status.history.maxRank = { ...status.rank };
+  if (status.careerSeed) {
+    status.careerSeed.entryArchetype = directEntryArchetype;
+    status.careerSeed.entryArchetypeLabel = ENTRY_ARCHETYPE_LABELS[directEntryArchetype];
+  }
+};
+
+const applyDirectBuildLocks = (
+  status: RikishiStatus,
+  input: {
+    growthType?: GrowthType;
+    entryArchetype?: EntryArchetype;
+    talentProfile: ScoutTalentProfile;
+  },
+): RikishiStatus => {
+  if (input.entryArchetype) {
+    applyDirectEntryArchetypeLock(status, input.entryArchetype);
+  }
+  const tier = resolveTalentProfileTier(input.talentProfile);
+  if (tier) {
+    const profile = resolveAptitudeProfile(tier);
+    status.aptitudeTier = tier;
+    status.aptitudeProfile = profile;
+    status.aptitudeFactor = resolveLegacyAptitudeFactor(profile, tier);
+    if (input.talentProfile === 'GENIUS') {
+      status.archetype = 'GENIUS';
+    }
+  }
+  if (input.growthType) {
+    status.growthType = input.growthType;
+  } else if (input.talentProfile === 'GENIUS') {
+    status.growthType = 'GENIUS';
+  }
+  return status;
+};
 
 interface ObservationBuildScreenProps {
   generationTokens: GenerationTokenState | null;
@@ -121,15 +293,21 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const themes = React.useMemo(() => listObservationThemes(), []);
   const modifiers = React.useMemo(() => listObservationModifiers(), []);
   const stableEnvironmentChoices = React.useMemo(() => listStableEnvironmentChoices(), []);
+  const [generationMode, setGenerationMode] = React.useState<ObservationGenerationMode>('OBSERVE_RANDOM');
   const [themeId, setThemeId] = React.useState<ObservationThemeId>('random');
   const [modifierIds, setModifierIds] = React.useState<ObservationModifierId[]>([]);
   const [stableEnvironmentChoiceId, setStableEnvironmentChoiceId] =
     React.useState<StableEnvironmentChoiceId>('AUTO');
+  const [growthType, setGrowthType] = React.useState<GrowthType | undefined>(undefined);
+  const [preferredStyle, setPreferredStyle] = React.useState<StyleArchetype | undefined>(undefined);
+  const [entryArchetype, setEntryArchetype] = React.useState<EntryArchetype | undefined>(undefined);
+  const [talentProfile, setTalentProfile] = React.useState<ScoutTalentProfile>('AUTO');
   const [isStarting, setIsStarting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const totalCost = computeBuildCost(themeId, modifierIds);
-  const validation = validateBuild(themeId, modifierIds);
+  const effectiveModifierIds = generationMode === 'BUILD' ? modifierIds : [];
+  const totalCost = computeBuildCost(themeId, effectiveModifierIds);
+  const validation = validateBuild(themeId, effectiveModifierIds);
   const opBalance = observationPoints?.points ?? 0;
   const tokenBalance = generationTokens?.tokens ?? 0;
   const insufficientOp = totalCost > opBalance;
@@ -151,6 +329,18 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     return map;
   }, [modifiers]);
 
+  const changeGenerationMode = (mode: ObservationGenerationMode) => {
+    setGenerationMode(mode);
+    if (mode === 'OBSERVE_RANDOM') {
+      setModifierIds([]);
+      setStableEnvironmentChoiceId('AUTO');
+      setGrowthType(undefined);
+      setPreferredStyle(undefined);
+      setEntryArchetype(undefined);
+      setTalentProfile('AUTO');
+    }
+  };
+
   const toggleModifier = (id: ObservationModifierId) => {
     const def = OBSERVATION_MODIFIERS[id];
     setModifierIds((prev) => {
@@ -167,6 +357,10 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     });
   };
 
+  const changeEntryArchetype = (value: EntryArchetype | undefined) => {
+    setEntryArchetype(value);
+  };
+
   const handleStart = async () => {
     if (!canStart) return;
     setIsStarting(true);
@@ -181,25 +375,38 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       }
       if (onRefreshMeta) await onRefreshMeta();
 
-      const stable = resolveStableForEnvironmentChoice(stableEnvironmentChoiceId);
+      const stable = resolveStableForEnvironmentChoice(
+        generationMode === 'BUILD' ? stableEnvironmentChoiceId : 'AUTO',
+      );
       const draft = {
         ...rollScoutDraft(),
         selectedStableId: stable.id,
+        ...(generationMode === 'BUILD'
+          ? {
+            growthType,
+            preferredStyle,
+            entryArchetype,
+            talentProfile,
+          }
+          : {}),
       };
       const baseStatus = buildInitialRikishiFromDraft(draft);
-      const config = buildObservationConfig(themeId, modifierIds);
+      const config = buildObservationConfig(themeId, effectiveModifierIds);
       const { status: biasedStatus } = applyObservationBuildBias(baseStatus, config);
+      const finalStatus = generationMode === 'BUILD'
+        ? applyDirectBuildLocks(biasedStatus, { growthType, entryArchetype, talentProfile })
+        : biasedStatus;
 
       const eraSnapshot = selectRandomEraSnapshot();
       const runOptions: SimulationRunOptions = {
         observationRuleMode: 'STANDARD',
         observationStanceId: 'PROMOTION_EXPECTATION',
         observationThemeId: themeId,
-        observationModifierIds: modifierIds,
+        observationModifierIds: effectiveModifierIds,
         ...toEraRunMetadata(eraSnapshot),
       };
 
-      await onStart(biasedStatus, null, 'skip_to_end', runOptions);
+      await onStart(finalStatus, null, 'skip_to_end', runOptions);
       await getObservationPointState();
       if (onRefreshMeta) await onRefreshMeta();
     } finally {
@@ -208,11 +415,19 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   };
 
   const selectedTheme = OBSERVATION_THEMES[themeId];
-  const selectedModifiers = modifierIds
+  const selectedModifiers = effectiveModifierIds
     .map((id) => OBSERVATION_MODIFIERS[id])
     .filter(Boolean);
   const selectedStableEnvironment = stableEnvironmentChoices.find((choice) =>
-    choice.id === stableEnvironmentChoiceId);
+    choice.id === (generationMode === 'BUILD' ? stableEnvironmentChoiceId : 'AUTO'));
+  const selectedBuildLabels = generationMode === 'BUILD'
+    ? [
+      growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : null,
+      preferredStyle ? STYLE_LABELS[preferredStyle] : null,
+      entryArchetype ? ENTRY_ARCHETYPE_LABELS[entryArchetype] : null,
+      talentProfile !== 'AUTO' ? SCOUT_TALENT_PROFILE_LABELS[talentProfile] : null,
+    ].filter((label): label is string => Boolean(label))
+    : [];
 
   const insufficientReason: string | null = (() => {
     if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
@@ -262,6 +477,44 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         </div>
       </section>
 
+      <section className={cn(surface.panel, 'space-y-3 p-5')}>
+        <div className="flex items-baseline justify-between gap-4">
+          <h3 className={cn(typography.heading, 'text-xl text-text')}>生成モード</h3>
+          <div className="text-[11px] text-text-dim">
+            直接能力値は表示せず、観測の幅か入口条件だけを選びます。
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODE_OPTIONS.map((mode) => {
+            const active = generationMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => changeGenerationMode(mode.id)}
+                className={cn(
+                  'min-h-[8rem] border px-4 py-4 text-left transition',
+                  active
+                    ? 'border-action bg-action/15 shadow-[0_0_0_1px_rgba(255,159,64,0.35)]'
+                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-lg text-text">{mode.label}</span>
+                  {active ? (
+                    <span className="inline-flex items-center gap-1 border border-action/60 bg-action/20 px-1.5 py-0.5 text-[10px] tracking-wider text-action">
+                      <CheckCircle2 className="h-3 w-3" />
+                      選択中
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-2 text-xs leading-relaxed text-text-dim">{mode.summary}</div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Themes */}
       <section className={cn(surface.panel, 'space-y-3 p-5')}>
         <div className="flex items-baseline justify-between">
@@ -307,118 +560,194 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         </div>
       </section>
 
-      {/* 所属環境 */}
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Landmark className="h-5 w-5 text-gold" />
-            <div>
-              <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
-              <div className="mt-1 text-xs leading-relaxed text-text-dim">
-                部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
-              </div>
+      {generationMode === 'BUILD' ? (
+        <section className={cn(surface.panel, 'space-y-5 p-5')}>
+          <div className="flex items-baseline justify-between gap-4">
+            <h3 className={cn(typography.heading, 'text-xl text-text')}>ビルド方針</h3>
+            <div className="text-[11px] text-text-dim">ここでは能力値ではなく、キャリア前提だけを選びます。</div>
+          </div>
+
+          <div className="space-y-2">
+            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+              成長型
+            </div>
+            <OptionalBuildChoiceGrid<GrowthType>
+              value={growthType}
+              autoLabel="候補札に任せる"
+              autoNote="経歴と素質から自然な成長型を決めます。"
+              options={GROWTH_TYPE_OPTIONS}
+              onChange={setGrowthType}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+              得意な型
+            </div>
+            <OptionalBuildChoiceGrid<StyleArchetype>
+              value={preferredStyle}
+              autoLabel="体格と部屋に任せる"
+              autoNote="身体素地と所属環境から自然な型を決めます。"
+              options={STYLE_OPTIONS}
+              onChange={setPreferredStyle}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+              付出・入門資格
+            </div>
+            <OptionalBuildChoiceGrid<EntryArchetype>
+              value={entryArchetype}
+              autoLabel="候補札に任せる"
+              autoNote="入門経路に応じた自然な資格で始めます。"
+              options={ENTRY_ARCHETYPE_OPTIONS}
+              onChange={changeEntryArchetype}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+              素質の輪郭
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {TALENT_PROFILE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTalentProfile(option.value)}
+                  className={cn(
+                    'min-h-[7.5rem] border px-4 py-3 text-left transition',
+                    talentProfile === option.value
+                      ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
+                      : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                  )}
+                >
+                  <div className="text-sm text-text">{option.label}</div>
+                  <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
+                </button>
+              ))}
             </div>
           </div>
-          <div className="hidden text-[11px] text-text-dim sm:block">45部屋から直接選ばず、環境の系統だけを選びます。</div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {stableEnvironmentChoices.map((choice) => {
-            const active = choice.id === stableEnvironmentChoiceId;
-            return (
-              <button
-                key={choice.id}
-                type="button"
-                onClick={() => setStableEnvironmentChoiceId(choice.id)}
-                className={cn(
-                  'group relative flex min-h-[9.25rem] flex-col gap-2 border px-4 py-4 text-left transition',
-                  active
-                    ? 'border-gold bg-gold/12 shadow-[0_0_0_1px_rgba(224,181,91,0.28)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                )}
-              >
-                {active ? (
-                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-gold/60 bg-gold/15 px-1.5 py-0.5 text-[10px] tracking-wider text-gold">
-                    <CheckCircle2 className="h-3 w-3" />
-                    選択中
-                  </span>
-                ) : null}
-                <span className={cn('pr-16 text-base', active ? 'text-text' : 'text-text/90')}>
-                  {choice.label}
-                </span>
-                <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
-                <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      {/* Modifiers grouped */}
-      <section className={cn(surface.panel, 'space-y-5 p-5')}>
-        <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>読み口の調整</h3>
-          <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
-        </div>
-
-        {GROUP_ORDER.map((group) => {
-          const list = modifiersByGroup[group];
-          if (!list || list.length === 0) return null;
-          const meta = GROUP_META[group];
-          return (
-            <div key={group} className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <span className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-                  {meta.label}
-                </span>
-                <span className="text-[10px] text-text-dim/70">({meta.hint})</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {list.map((mod) => {
-                  const active = modifierIds.includes(mod.id);
-                  const isDiscount = mod.cost < 0;
-                  const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
-                  return (
-                    <button
-                      key={mod.id}
-                      type="button"
-                      onClick={() => toggleModifier(mod.id)}
-                      className={cn(
-                        'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
-                        active
-                          ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-                          : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                      )}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm text-text">{mod.label}</span>
-                        <div className="flex items-center gap-1.5">
-                          {isDiscount ? (
-                            <span className="border border-emerald-400/40 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] tracking-wider text-emerald-300">
-                              割引
-                            </span>
-                          ) : null}
-                          {mod.riskText ? (
-                            <span className="border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] tracking-wider text-amber-200">
-                              リスク
-                            </span>
-                          ) : null}
-                          <span className={cn('text-xs', isDiscount ? 'text-emerald-400' : 'text-gold')}>
-                            {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-text-dim leading-relaxed">{displayCopy.description}</div>
-                      {displayCopy.riskText ? (
-                        <div className="text-[10px] text-amber-300/70">{displayCopy.riskText}</div>
-                      ) : null}
-                    </button>
-                  );
-                })}
+      {/* 所属環境 */}
+      {generationMode === 'BUILD' ? (
+        <section className={cn(surface.panel, 'space-y-3 p-5')}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Landmark className="h-5 w-5 text-gold" />
+              <div>
+                <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
+                <div className="mt-1 text-xs leading-relaxed text-text-dim">
+                部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
+                </div>
               </div>
             </div>
-          );
-        })}
-      </section>
+            <div className="hidden text-[11px] text-text-dim sm:block">45部屋から直接選ばず、環境の系統だけを選びます。</div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {stableEnvironmentChoices.map((choice) => {
+              const active = choice.id === stableEnvironmentChoiceId;
+              return (
+                <button
+                  key={choice.id}
+                  type="button"
+                  onClick={() => setStableEnvironmentChoiceId(choice.id)}
+                  className={cn(
+                    'group relative flex min-h-[9.25rem] flex-col gap-2 border px-4 py-4 text-left transition',
+                    active
+                      ? 'border-gold bg-gold/12 shadow-[0_0_0_1px_rgba(224,181,91,0.28)]'
+                      : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                  )}
+                >
+                  {active ? (
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-gold/60 bg-gold/15 px-1.5 py-0.5 text-[10px] tracking-wider text-gold">
+                      <CheckCircle2 className="h-3 w-3" />
+                    選択中
+                    </span>
+                  ) : null}
+                  <span className={cn('pr-16 text-base', active ? 'text-text' : 'text-text/90')}>
+                    {choice.label}
+                  </span>
+                  <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
+                  <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Modifiers grouped */}
+      {generationMode === 'BUILD' ? (
+        <section className={cn(surface.panel, 'space-y-5 p-5')}>
+          <div className="flex items-baseline justify-between">
+            <h3 className={cn(typography.heading, 'text-xl text-text')}>読み口の調整</h3>
+            <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
+          </div>
+
+          {GROUP_ORDER.map((group) => {
+            const list = modifiersByGroup[group];
+            if (!list || list.length === 0) return null;
+            const meta = GROUP_META[group];
+            return (
+              <div key={group} className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
+                    {meta.label}
+                  </span>
+                  <span className="text-[10px] text-text-dim/70">({meta.hint})</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {list.map((mod) => {
+                    const active = modifierIds.includes(mod.id);
+                    const isDiscount = mod.cost < 0;
+                    const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
+                    return (
+                      <button
+                        key={mod.id}
+                        type="button"
+                        onClick={() => toggleModifier(mod.id)}
+                        className={cn(
+                          'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
+                          active
+                            ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
+                            : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
+                        )}
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-sm text-text">{mod.label}</span>
+                          <div className="flex items-center gap-1.5">
+                            {isDiscount ? (
+                              <span className="border border-emerald-400/40 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] tracking-wider text-emerald-300">
+                              割引
+                              </span>
+                            ) : null}
+                            {mod.riskText ? (
+                              <span className="border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] tracking-wider text-amber-200">
+                              リスク
+                              </span>
+                            ) : null}
+                            <span className={cn('text-xs', isDiscount ? 'text-emerald-400' : 'text-gold')}>
+                              {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-text-dim leading-relaxed">{displayCopy.description}</div>
+                        {displayCopy.riskText ? (
+                          <div className="text-[10px] text-amber-300/70">{displayCopy.riskText}</div>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
 
       {/* Validation errors (if any) */}
       {validation.errors.length > 0 ? (
@@ -443,11 +772,22 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[11px]">
             <span className="text-text-dim">あなたの観測:</span>
+            <span className="border border-white/15 bg-white/[0.03] px-2 py-0.5 text-text-dim">
+              {generationMode === 'BUILD' ? 'ビルドモード' : '観測モード'}
+            </span>
             {selectedTheme ? (
               <span className="border border-action/40 bg-action/10 px-2 py-0.5 text-text">
                 {selectedTheme.label}
               </span>
             ) : null}
+            {selectedBuildLabels.map((label) => (
+              <span
+                key={label}
+                className="border border-action/30 bg-action/10 px-2 py-0.5 text-action"
+              >
+                {label}
+              </span>
+            ))}
             {selectedModifiers.map((mod) => (
               <span
                 key={mod.id}
@@ -461,8 +801,11 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                 {selectedStableEnvironment.label}
               </span>
             ) : null}
-            {selectedModifiers.length === 0 ? (
-              <span className="text-text-dim/60">読み口の調整なし</span>
+            {generationMode === 'BUILD' && selectedModifiers.length === 0 && selectedBuildLabels.length === 0 ? (
+              <span className="text-text-dim/60">追加調整なし</span>
+            ) : null}
+            {generationMode === 'OBSERVE_RANDOM' ? (
+              <span className="text-text-dim/60">テーマ以外は完全ランダム</span>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

@@ -1,12 +1,16 @@
 import React from "react";
 import { ExperimentPresetId, ObservationStanceId, Oyakata, RikishiStatus, SimulationRunOptions } from "../../../logic/models";
+import { ENTRY_ARCHETYPE_LABELS } from "../../../logic/career/entryArchetype";
 import {
   buildInitialRikishiFromDraft,
   buildScoutResolvedSeed,
   rollScoutDraft,
+  SCOUT_GROWTH_TYPE_LABELS,
+  SCOUT_TALENT_PROFILE_LABELS,
   ScoutDraft,
 } from "../../../logic/scout/gacha";
 import { resolveStableById, STABLE_CATALOG } from "../../../logic/simulation/heya/stableCatalog";
+import { STYLE_LABELS } from "../../../logic/styleProfile";
 import type { SimulationPacing } from "../../simulation/store/simulationStore";
 import type { GenerationTokenState } from "../../../logic/persistence/generationTokens";
 import type { ObservationPointState } from "../../../logic/persistence/observationPoints";
@@ -14,6 +18,7 @@ import { isObserverUpgradeUnlocked } from "../../../logic/observer/upgrades";
 import { useViewportMode } from "../../../shared/hooks/useViewportMode";
 import { cn } from "../../../shared/lib/cn";
 import { ScoutBasicProfileSection } from "./ScoutBasicProfileSection";
+import { ScoutBuildModeSection } from "./ScoutBuildModeSection";
 import { ScoutPremiseSection } from "./ScoutPremiseSection";
 import {
   ScoutEntryLedger,
@@ -25,8 +30,9 @@ import {
   ScoutCandidateShelf,
   ScoutDecisionPanel,
   ScoutHero,
+  ScoutModePanel,
 } from "./ScoutStartPanel";
-import { type ScoutStepId } from "./scoutScreenOptions";
+import { type ScoutGenerationMode, type ScoutStepId } from "./scoutScreenOptions";
 import styles from "./ScoutScreen.module.css";
 
 interface ScoutScreenProps {
@@ -50,6 +56,7 @@ const createInitialScoutDraft = (): ScoutDraft => cloneDraft(rollScoutDraft());
 export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, observationPoints, onStart }) => {
   const { isMobileViewport } = useViewportMode();
   const [draft, setDraft] = React.useState<ScoutDraft>(createInitialScoutDraft);
+  const [generationMode, setGenerationMode] = React.useState<ScoutGenerationMode>("OBSERVE_RANDOM");
   const [activeStep, setActiveStep] = React.useState<ScoutStepId>("identity");
   const [isRegistering, setIsRegistering] = React.useState(false);
   const [experimentUnlocked, setExperimentUnlocked] = React.useState(false);
@@ -85,6 +92,15 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
     setDraft(createInitialScoutDraft());
   }, []);
 
+  const handleModeChange = React.useCallback((mode: ScoutGenerationMode) => {
+    setGenerationMode(mode);
+    if (mode === "OBSERVE_RANDOM") {
+      setDraft(createInitialScoutDraft());
+    } else {
+      setActiveStep("identity");
+    }
+  }, []);
+
   const handleRegister = React.useCallback(async () => {
     setIsRegistering(true);
     try {
@@ -102,9 +118,15 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
   }, [draft, experimentPresetId, observationStanceId, onStart]);
 
   const identitySummary = `${draft.shikona || "未命名"} / ${draft.birthplace || "出身未設定"}`;
-  const seedSummary = `${draft.entryAge}歳 / ${resolvedSeed.entryPathLabel} / ${resolvedSeed.temperamentLabel}`;
+  const seedSummary = `${resolvedSeed.careerSeed.entryAge}歳 / ${resolvedSeed.entryPathLabel} / ${resolvedSeed.temperamentLabel}`;
   const bodySummary = `${draft.startingHeightCm}cm / ${draft.startingWeightKg}kg / ${activeStable.displayName}`;
-  const entryLabel = `${draft.entryAge}歳 / ${resolvedSeed.entryPathLabel}`;
+  const buildSummary = [
+    draft.growthType ? SCOUT_GROWTH_TYPE_LABELS[draft.growthType] : "成長おまかせ",
+    draft.preferredStyle ? STYLE_LABELS[draft.preferredStyle] : "型おまかせ",
+    draft.entryArchetype ? ENTRY_ARCHETYPE_LABELS[draft.entryArchetype] : "資格おまかせ",
+    SCOUT_TALENT_PROFILE_LABELS[draft.talentProfile ?? "AUTO"],
+  ].join(" / ");
+  const entryLabel = `${resolvedSeed.careerSeed.entryAge}歳 / ${resolvedSeed.entryPathLabel}`;
   const register = () => void handleRegister();
 
   const sections = (
@@ -122,6 +144,14 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
         activeStep={activeStep}
         seedSummary={seedSummary}
         bodySummary={bodySummary}
+        onActivate={setActiveStep}
+        onUpdateDraft={updateDraft}
+        onNextFromBody={() => setActiveStep("build")}
+      />
+      <ScoutBuildModeSection
+        draft={draft}
+        activeStep={activeStep}
+        summary={buildSummary}
         onActivate={setActiveStep}
         onUpdateDraft={updateDraft}
       />
@@ -148,10 +178,12 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
           onActivateStep={setActiveStep}
           generationTokens={generationTokens}
           observationPoints={observationPoints}
+          generationMode={generationMode}
         />
         {entryLedger}
         <div className={styles.mobileMain}>
-          {sections}
+          <ScoutModePanel value={generationMode} onChange={handleModeChange} />
+          {generationMode === "BUILD" ? sections : null}
           <ScoutCandidateShelf onCycleCandidate={handleCycleCandidate} mode="mobile" />
           <ObservationStancePanel value={observationStanceId} onChange={setObservationStanceId} />
           <ScoutDecisionPanel
@@ -176,11 +208,13 @@ export const ScoutScreen: React.FC<ScoutScreenProps> = ({ generationTokens, obse
         onActivateStep={setActiveStep}
         generationTokens={generationTokens}
         observationPoints={observationPoints}
+        generationMode={generationMode}
       />
 
       <div className={styles.layout}>
         <main className={styles.main}>
-          {sections}
+          <ScoutModePanel value={generationMode} onChange={handleModeChange} />
+          {generationMode === "BUILD" ? sections : null}
           <ObservationStancePanel value={observationStanceId} onChange={setObservationStanceId} />
           <ScoutDecisionPanel
             generationTokens={generationTokens}

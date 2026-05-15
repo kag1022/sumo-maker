@@ -20,7 +20,8 @@ export const ScoutPremiseSection: React.FC<{
   bodySummary: string;
   onActivate: (step: ScoutStepId) => void;
   onUpdateDraft: <K extends keyof ScoutDraft>(key: K, value: ScoutDraft[K]) => void;
-}> = ({ draft, activeStep, seedSummary, bodySummary, onActivate, onUpdateDraft }) => (
+  onNextFromBody?: () => void;
+}> = ({ draft, activeStep, seedSummary, bodySummary, onActivate, onUpdateDraft, onNextFromBody }) => (
   <>
     <SectionCard
       step="seed"
@@ -72,6 +73,7 @@ export const ScoutPremiseSection: React.FC<{
       summary={bodySummary}
       onActivate={onActivate}
       onBack={() => onActivate("seed")}
+      onNext={onNextFromBody}
     >
       <div className="space-y-5">
         <div className="grid gap-5 md:grid-cols-2">

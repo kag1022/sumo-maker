@@ -6,9 +6,12 @@ import {
   CareerDesignPremise,
   CareerSeed,
   EntryArchetype,
+  GrowthType,
   IchimonId,
   PersonalityType,
   RikishiStatus,
+  StyleArchetype,
+  TalentArchetype,
 } from "../models";
 import {
   STARTER_OYAKATA_BLUEPRINTS,
@@ -40,6 +43,7 @@ type RandomSource = () => number;
 export type ScoutEntryPath = "LOCAL" | "SCHOOL" | "COLLEGE" | "CHAMPION";
 export type ScoutTemperament = "STEADY" | "AMBITION" | "STUBBORN" | "EXPLOSIVE";
 export type ScoutBodySeed = "BALANCED" | "LONG" | "HEAVY" | "SPRING";
+export type ScoutTalentProfile = "AUTO" | "STANDARD" | "PROMISING" | "GENIUS";
 
 export const PERSONALITY_LABELS: Record<PersonalityType, string> = {
   CALM: "冷静",
@@ -71,6 +75,20 @@ export const SCOUT_BODY_SEED_LABELS: Record<ScoutBodySeed, string> = {
   SPRING: "足腰に弾力がある",
 };
 
+export const SCOUT_GROWTH_TYPE_LABELS: Record<GrowthType, string> = {
+  EARLY: "早熟",
+  NORMAL: "標準",
+  LATE: "晩成",
+  GENIUS: "天才型",
+};
+
+export const SCOUT_TALENT_PROFILE_LABELS: Record<ScoutTalentProfile, string> = {
+  AUTO: "候補札に任せる",
+  STANDARD: "標準型",
+  PROMISING: "有望型",
+  GENIUS: "天才型",
+};
+
 export interface ScoutDraft {
   shikona: string;
   birthplace: string;
@@ -85,6 +103,9 @@ export interface ScoutDraft {
   bodySeed: ScoutBodySeed;
   selectedStableId: string | null;
   aptitudeTier: AptitudeTier;
+  growthType?: GrowthType;
+  preferredStyle?: StyleArchetype;
+  talentProfile?: ScoutTalentProfile;
 }
 
 export interface ScoutResolvedSeed {
@@ -151,6 +172,15 @@ const resolveBodyConstitution = (bodySeed: ScoutBodySeed): BodyConstitution => {
   return "BALANCED_FRAME";
 };
 
+const resolveEffectiveEntryAge = (draft: ScoutDraft): ScoutDraft["entryAge"] =>
+  draft.entryArchetype === "TSUKEDASHI" || draft.entryArchetype === "ELITE_TSUKEDASHI" ? 22 : draft.entryAge;
+
+const resolveEffectiveEntryPath = (draft: ScoutDraft): ScoutEntryPath => {
+  if (draft.entryArchetype === "ELITE_TSUKEDASHI") return "CHAMPION";
+  if (draft.entryArchetype === "TSUKEDASHI") return "COLLEGE";
+  return draft.entryPath;
+};
+
 const resolvePotentialFromBodySeed = (
   bodySeed: ScoutBodySeed,
   entryAge: ScoutDraft["entryAge"],
@@ -198,6 +228,7 @@ const buildGrowthLine = (
 };
 
 const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition) => {
+  if (draft.preferredStyle) return draft.preferredStyle;
   if (draft.bodySeed === "HEAVY") return stable.archetypeId === "TSUKI_OSHI_GROUP" ? "POWER_PRESSURE" : "YOTSU";
   if (draft.bodySeed === "LONG") return "TSUKI_OSHI";
   if (draft.bodySeed === "SPRING") return "DOHYOUGIWA";
@@ -206,9 +237,20 @@ const resolvePrimaryStyle = (draft: ScoutDraft, stable: StableDefinition) => {
   return "YOTSU";
 };
 
+const resolvePreferredSecondaryStyle = (primaryStyle: StyleArchetype): StyleArchetype => {
+  if (primaryStyle === "YOTSU") return "MOROZASHI";
+  if (primaryStyle === "TSUKI_OSHI") return "DOHYOUGIWA";
+  if (primaryStyle === "MOROZASHI") return "YOTSU";
+  if (primaryStyle === "DOHYOUGIWA") return "NAGE_TECH";
+  if (primaryStyle === "NAGE_TECH") return "DOHYOUGIWA";
+  return "TSUKI_OSHI";
+};
+
 const resolveSecondaryStyle = (draft: ScoutDraft, primaryStyle: BuildSpecVNext["primaryStyle"]) => {
-  if (draft.entryPath === "CHAMPION") return primaryStyle === "YOTSU" ? "MOROZASHI" : "NAGE_TECH";
-  if (draft.entryPath === "COLLEGE") return "MOROZASHI";
+  const entryPath = resolveEffectiveEntryPath(draft);
+  if (draft.preferredStyle) return resolvePreferredSecondaryStyle(primaryStyle);
+  if (entryPath === "CHAMPION") return primaryStyle === "YOTSU" ? "MOROZASHI" : "NAGE_TECH";
+  if (entryPath === "COLLEGE") return "MOROZASHI";
   if (draft.temperament === "EXPLOSIVE") return "POWER_PRESSURE";
   if (draft.temperament === "STEADY") return "DOHYOUGIWA";
   if (draft.temperament === "AMBITION") return "TSUKI_OSHI";
@@ -223,9 +265,13 @@ const resolveMentalTrait = (temperament: ScoutTemperament) => {
 };
 
 const resolveBackground = (draft: ScoutDraft) => {
-  if (draft.entryAge === 15) return "MIDDLE_SCHOOL" as const;
-  if (draft.entryAge === 18) return "HIGH_SCHOOL" as const;
-  return draft.entryPath === "CHAMPION" ? ("COLLEGE_YOKOZUNA" as const) : ("STUDENT_ELITE" as const);
+  const entryAge = resolveEffectiveEntryAge(draft);
+  const entryPath = resolveEffectiveEntryPath(draft);
+  if (draft.entryArchetype === "ELITE_TSUKEDASHI") return "COLLEGE_YOKOZUNA" as const;
+  if (draft.entryArchetype === "TSUKEDASHI") return "STUDENT_ELITE" as const;
+  if (entryAge === 15) return "MIDDLE_SCHOOL" as const;
+  if (entryAge === 18) return "HIGH_SCHOOL" as const;
+  return entryPath === "CHAMPION" ? ("COLLEGE_YOKOZUNA" as const) : ("STUDENT_ELITE" as const);
 };
 
 const resolveScoutEntryArchetype = (
@@ -240,10 +286,38 @@ const resolveScoutEntryArchetype = (
 };
 
 const resolveAptitudeTier = (draft: ScoutDraft): AptitudeTier => {
-  if (draft.entryPath === "CHAMPION") return "A";
-  if (draft.entryPath === "COLLEGE") return "B";
-  if (draft.entryPath === "SCHOOL") return "B";
+  const entryPath = resolveEffectiveEntryPath(draft);
+  if (draft.talentProfile === "GENIUS") return "S";
+  if (draft.talentProfile === "PROMISING") return "A";
+  if (draft.talentProfile === "STANDARD") return "B";
+  if (entryPath === "CHAMPION") return "A";
+  if (entryPath === "COLLEGE") return "B";
+  if (entryPath === "SCHOOL") return "B";
   return "C";
+};
+
+const resolveDraftAptitudeTier = (draft: ScoutDraft): AptitudeTier => {
+  if (draft.talentProfile && draft.talentProfile !== "AUTO") return resolveAptitudeTier(draft);
+  return draft.aptitudeTier ?? resolveAptitudeTier(draft);
+};
+
+const resolveScoutGrowthType = (
+  draft: ScoutDraft,
+  fallback: GrowthType,
+): GrowthType => {
+  if (draft.growthType) return draft.growthType;
+  if (draft.talentProfile === "GENIUS") return "GENIUS";
+  return fallback;
+};
+
+const resolveScoutTalentArchetype = (
+  draft: ScoutDraft,
+  fallback: TalentArchetype | undefined,
+): TalentArchetype | undefined => {
+  if (draft.talentProfile === "GENIUS") return "GENIUS";
+  if (draft.talentProfile === "PROMISING" && draft.entryPath === "CHAMPION") return "UNIVERSITY_YOKOZUNA";
+  if (draft.talentProfile === "PROMISING" && draft.entryPath === "SCHOOL") return "HIGH_SCHOOL_CHAMP";
+  return fallback;
 };
 
 const pickWeighted = <T,>(
@@ -352,7 +426,7 @@ const buildScoutCareerPremises = (
   {
     category: "入門背景",
     label: seed.entryPathLabel,
-    summary: `${draft.entryAge}歳で${seed.entryPathLabel}として入門する。`,
+    summary: `${seed.careerSeed.entryAge}歳で${seed.entryPathLabel}として入門する。`,
     interpretation: resolveDesignInterpretation(draft).promotion,
   },
   {
@@ -363,7 +437,7 @@ const buildScoutCareerPremises = (
   },
   {
     category: "年齢・開始条件",
-    label: `${draft.entryAge}歳入門`,
+    label: `${seed.careerSeed.entryAge}歳入門`,
     summary: seed.introductionLine,
     interpretation: resolveDesignInterpretation(draft).growth,
   },
@@ -403,6 +477,8 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
   const stable = resolveAssignedStable(draft);
   const oyakata = resolveOyakata(stable);
   const bodyConstitution = resolveBodyConstitution(draft.bodySeed);
+  const entryAge = resolveEffectiveEntryAge(draft);
+  const entryPath = resolveEffectiveEntryPath(draft);
   const primaryStyle = resolvePrimaryStyle(draft, stable);
   const secondaryStyle = resolveSecondaryStyle(draft, primaryStyle);
   const background = resolveBackground(draft);
@@ -410,9 +486,9 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     draft.entryArchetype ?? resolveDefaultEntryArchetypeForAmateurBackground(background);
   const spec: BuildSpecVNext = {
     oyakataId: oyakata.id,
-    aptitudeTier: draft.aptitudeTier,
+    aptitudeTier: resolveDraftAptitudeTier(draft),
     entryArchetype,
-    ...resolvePotentialFromBodySeed(draft.bodySeed, draft.entryAge, draft.startingHeightCm, draft.startingWeightKg),
+    ...resolvePotentialFromBodySeed(draft.bodySeed, entryAge, draft.startingHeightCm, draft.startingWeightKg),
     bodyConstitution,
     amateurBackground: background,
     primaryStyle,
@@ -426,9 +502,9 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     birthplace: draft.birthplace,
     stableId: stable.id,
     stableName: stable.displayName,
-    entryAge: draft.entryAge,
-    entryPath: draft.entryPath,
-    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[draft.entryPath],
+    entryAge,
+    entryPath,
+    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[entryPath],
     entryArchetype,
     entryArchetypeLabel: ENTRY_ARCHETYPE_LABELS[entryArchetype],
     temperament: draft.temperament,
@@ -446,11 +522,11 @@ export const buildScoutResolvedSeed = (draft: ScoutDraft): ScoutResolvedSeed => 
     spec,
     preview,
     careerSeed,
-    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[draft.entryPath],
+    entryPathLabel: SCOUT_ENTRY_PATH_LABELS[entryPath],
     temperamentLabel: SCOUT_TEMPERAMENT_LABELS[draft.temperament],
     bodySeedLabel: SCOUT_BODY_SEED_LABELS[draft.bodySeed],
     stableLabel: stable.displayName,
-    introductionLine: `${draft.birthplace}から${stable.displayName}へ入り、${draft.entryAge}歳で土俵に立つ。`,
+    introductionLine: `${draft.birthplace}から${stable.displayName}へ入り、${entryAge}歳で土俵に立つ。`,
     growthLine: buildGrowthLine(draft, preview),
   };
 };
@@ -538,10 +614,12 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
   status.stableId = stable.id;
   status.ichimonId = stable.ichimonId as IchimonId;
   status.stableArchetypeId = stable.archetypeId;
-  status.entryAge = draft.entryAge;
-  status.age = draft.entryAge;
-  status.aptitudeTier = draft.aptitudeTier ?? resolveAptitudeTier(draft);
+  status.entryAge = seed.careerSeed.entryAge;
+  status.age = seed.careerSeed.entryAge;
+  status.aptitudeTier = resolveDraftAptitudeTier(draft);
   status.entryArchetype = seed.spec.entryArchetype;
+  status.growthType = resolveScoutGrowthType(draft, status.growthType);
+  status.archetype = resolveScoutTalentArchetype(draft, status.archetype);
 
   applyBodyAdjustments(status, draft);
   applyTemperamentAdjustments(status, draft.temperament);
@@ -606,4 +684,4 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
 };
 
 export const getScoutDraftHeadline = (draft: ScoutDraft): string =>
-  `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${draft.entryArchetype ? ENTRY_ARCHETYPE_LABELS[draft.entryArchetype] : "通常入門"} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}`;
+  `${SCOUT_ENTRY_PATH_LABELS[draft.entryPath]} / ${draft.entryArchetype ? ENTRY_ARCHETYPE_LABELS[draft.entryArchetype] : "通常入門"} / ${SCOUT_BODY_SEED_LABELS[draft.bodySeed]} / ${SCOUT_TEMPERAMENT_LABELS[draft.temperament]}${draft.growthType ? ` / ${SCOUT_GROWTH_TYPE_LABELS[draft.growthType]}` : ""}`;
