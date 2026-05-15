@@ -818,6 +818,14 @@ export const tests: TestCase[] = [
       }));
 
       assert.equal(rikishi.entryAge, 22);
+      assert.equal(rikishi.careerSeed?.entryAge, 22);
+      const initialSummary = rikishi.buildSummary?.initialConditionSummary;
+      const lifeCards = rikishi.buildSummary?.lifeCards;
+      if (!initialSummary || !lifeCards) {
+        throw new Error('build summary should keep resolved entry age for encyclopedia display');
+      }
+      assert.equal(initialSummary.entryAge, 22);
+      assert.equal(lifeCards[0]?.previewTag, '22歳');
       assert.equal(rikishi.entryArchetype, 'ELITE_TSUKEDASHI');
       assert.equal(rikishi.entryDivision, 'Makushita60');
       assert.equal(rikishi.careerSeed?.entryPath, 'CHAMPION');

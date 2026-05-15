@@ -648,7 +648,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
     initialConditionSummary: {
       birthplace: draft.birthplace,
       stableName: stable.displayName,
-      entryAge: draft.entryAge,
+      entryAge: seed.careerSeed.entryAge,
       entryPathLabel: seed.entryPathLabel,
       entryArchetypeLabel: seed.careerSeed.entryArchetypeLabel,
       temperamentLabel: seed.temperamentLabel,
@@ -662,7 +662,7 @@ export const buildInitialRikishiFromDraft = (draft: ScoutDraft): RikishiStatus =
       bodyTypeLabel: resolveBodyType(draft.startingHeightCm, draft.startingWeightKg),
     },
     lifeCards: [
-      { slot: "経歴", label: seed.entryPathLabel, previewTag: `${draft.entryAge}歳`, reportLine: seed.introductionLine },
+      { slot: "経歴", label: seed.entryPathLabel, previewTag: `${seed.careerSeed.entryAge}歳`, reportLine: seed.introductionLine },
       { slot: "骨格", label: seed.bodySeedLabel, previewTag: `${draft.startingHeightCm}cm`, reportLine: seed.growthLine },
       { slot: "相撲観", label: "土俵で形になる", previewTag: stable.displayName, reportLine: resolveStableFlavorLine(stable) },
       { slot: "気質", label: seed.temperamentLabel, previewTag: PERSONALITY_LABELS[status.profile.personality], reportLine: `${seed.temperamentLabel}気質が、停滞や復活の受け止め方に表れる。` },
