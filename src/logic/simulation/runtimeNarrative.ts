@@ -1,4 +1,5 @@
 import { Rank } from '../models';
+import { formatHighestRankDisplayName } from '../ranking';
 import { BashoStepResult, CompletedStepResult } from './engine/types';
 
 export type SimulationChapterKind =
@@ -104,7 +105,7 @@ const buildObservation = (
   chapterKind: SimulationChapterKind | null,
 ): SimulationObservationEntry => {
   if (step.kind === 'COMPLETED') {
-    const finalRank = formatRankName(step.statusSnapshot.history.maxRank);
+    const finalRank = formatHighestRankDisplayName(step.statusSnapshot.history.maxRank);
     const retired = step.events.find((event) => event.type === 'RETIREMENT');
     return {
       seq: step.progress.bashoCount,

@@ -14,6 +14,7 @@ import {
   type CareerTrajectorySeriesPoint,
 } from "../../../logic/career/analysis";
 import { Rank, RikishiStatus } from "../../../logic/models";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import type { CareerSaveTag, ObservationRuleMode, ObservationStanceId } from "../../../logic/models";
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
 import { cn } from "../../../shared/lib/cn";
@@ -89,10 +90,11 @@ interface ArchiveShelfSummary {
 }
 
 const formatRankName = (rank: Rank): string => {
-  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
-  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return `${side}${rank.name}`;
+  if (rank.specialStatus && rank.specialStatus !== "NONE") return formatHighestRankDisplayName(rank);
+  if (rank.division === "Maezumo") return formatHighestRankDisplayName(rank);
+  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return formatHighestRankDisplayName(rank);
   const number = rank.number || 1;
-  return number === 1 ? `${side}${rank.name}筆頭` : `${side}${rank.name}${number}枚目`;
+  return number === 1 ? `${rank.name}筆頭` : `${rank.name}${number}枚目`;
 };
 
 const resolveArchiveLabel = (item: ArchiveItem): string => {

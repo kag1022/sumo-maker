@@ -34,3 +34,12 @@ export const formatRankDisplayName = (rank: Rank): string => {
   if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
   return `${side}${rank.name}${rank.number || 1}枚目`;
 };
+
+export const formatHighestRankDisplayName = (rank: Rank): string => {
+  if (rank.specialStatus && rank.specialStatus !== 'NONE') {
+    return RANK_SPECIAL_STATUS_LABELS[rank.specialStatus];
+  }
+  if (rank.division === 'Maezumo') return '前相撲';
+  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return rank.name;
+  return `${rank.name}${rank.number || 1}枚目`;
+};

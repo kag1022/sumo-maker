@@ -1,4 +1,4 @@
-import { formatRankDisplayName } from '../ranking';
+import { formatHighestRankDisplayName, formatRankDisplayName } from '../ranking';
 import type { BashoRecord, RikishiStatus } from '../models';
 import type { ImportantTorikumiNote, PlayerBoutDetail } from './basho';
 import type { SimulationDiagnostics } from './diagnostics';
@@ -290,7 +290,7 @@ export const buildCareerEpilogueView = ({
   nextBeatLabel: string;
 }): LiveBashoViewModel => {
   const lastRecord = status.history.records[status.history.records.length - 1] ?? null;
-  const highestRank = formatRankDisplayName(status.history.maxRank);
+  const highestRank = formatHighestRankDisplayName(status.history.maxRank);
   const careerIdentity =
     status.careerNarrative?.careerIdentity ??
     `${highestRank}まで届き、${formatCareerRecordText(status)}を残した。`;

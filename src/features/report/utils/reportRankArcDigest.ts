@@ -1,6 +1,6 @@
 import { getRankValueForChart } from "../../../logic/ranking";
 import type { CareerTurningPoint, RikishiStatus } from "../../../logic/models";
-import { buildRankChartDataFromStatus, formatBashoLabel, formatRankDisplayName } from "./reportShared";
+import { buildRankChartDataFromStatus, formatBashoLabel, formatHighestRankDisplayName, formatRankDisplayName } from "./reportShared";
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
@@ -201,7 +201,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
       highest
         ? {
           label: "最高到達点",
-          value: formatRankDisplayName(highest.rank),
+          value: formatHighestRankDisplayName(highest.rank),
           detail: `${formatBashoLabel(highest.year, highest.month)}に到達`,
         }
         : null,

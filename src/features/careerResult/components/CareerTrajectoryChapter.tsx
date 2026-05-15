@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Crown, MapPinned, ScrollText, TrendingUp } from "lucide-react";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { Button } from "../../../shared/ui/Button";
 import { BashoHeatmapStrip } from "./BashoHeatmapStrip";
 import {
@@ -144,7 +145,7 @@ const isReturnTarget = (point: CareerLedgerPoint): boolean =>
 const getAnnotationTone = (kind: TrajectoryAnnotationKind): "peak" | "rise" | "fall" | "stagnation" | "return" => kind;
 
 const summarizeAnnotation = (annotation: TrajectoryAnnotation): string => {
-  if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel} / ${annotation.point.recordLabel}`;
+  if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${formatHighestRankDisplayName(annotation.point.rank)} / ${annotation.point.recordLabel}`;
   if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.value ?? annotation.point.deltaValue}枚上昇`;
   if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${Math.abs(annotation.value ?? annotation.point.deltaValue)}枚下降`;
   if (annotation.kind === "stagnation") return `${getBandLabel(annotation.point.bandKey)}に${annotation.length ?? 0}場所`;
@@ -232,7 +233,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
   const peakAnnotation: TrajectoryAnnotation = {
     kind: "peak",
     label: "最高位",
-    summary: `${peak.bashoLabel} / ${peak.rankLabel} / ${peak.recordLabel}`,
+    summary: `${peak.bashoLabel} / ${formatHighestRankDisplayName(peak.rank)} / ${peak.recordLabel}`,
     point: peak,
   };
   const sekitoriCount = points.filter((point) => SEKITORI_BANDS.has(point.bandKey)).length;
@@ -489,7 +490,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         <article className={styles.summaryTile}>
           <Crown className="h-4 w-4" />
           <span>最高位</span>
-          <strong>{peakPoint?.rankLabel ?? "-"}</strong>
+          <strong>{peakPoint ? formatHighestRankDisplayName(peakPoint.rank) : "-"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <ArrowUpRight className="h-4 w-4" />
@@ -652,7 +653,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
               onClick={() => onSelectBasho(annotation.point.bashoSeq)}
             >
               <span>{annotation.label}</span>
-              <strong>{annotation.kind === "peak" ? annotation.point.rankLabel : summarizeAnnotation(annotation)}</strong>
+              <strong>{annotation.kind === "peak" ? formatHighestRankDisplayName(annotation.point.rank) : summarizeAnnotation(annotation)}</strong>
               <em>{annotation.point.bashoLabel} / {annotation.point.recordLabel}</em>
             </button>
           ))}
@@ -797,7 +798,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                 <h4>{resolvedSelectedYear ?? "-"}年</h4>
               </div>
               <div className={styles.focusYearStats}>
-                <span>最高 {selectedYearSummary.best?.rankLabel ?? "-"}</span>
+                <span>最高 {selectedYearSummary.best ? formatHighestRankDisplayName(selectedYearSummary.best.rank) : "-"}</span>
                 <span>{selectedYearSummary.recordLabel}</span>
                 <span>{selectedYearPoints.length}場所</span>
               </div>

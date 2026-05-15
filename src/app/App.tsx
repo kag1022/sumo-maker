@@ -22,7 +22,7 @@ import {
   getLifetimeCareerCount,
   incrementLifetimeCareerCount,
 } from "../logic/persistence/lifetimeStats";
-import { formatRankDisplayName } from "../features/report/utils/reportShared";
+import { formatHighestRankDisplayName } from "../features/report/utils/reportShared";
 import { cn } from "../shared/lib/cn";
 import { Button } from "../shared/ui/Button";
 import typography from "../shared/styles/typography.module.css";
@@ -707,7 +707,7 @@ const RevealReadyView: React.FC<{
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
             <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>最高位</div>
             <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>
-              {status ? formatRankDisplayName(status.history.maxRank) : "-"}
+              {status ? formatHighestRankDisplayName(status.history.maxRank) : "-"}
             </div>
           </div>
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">

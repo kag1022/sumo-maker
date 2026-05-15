@@ -1,5 +1,5 @@
 import { BashoRecord, CollectionTier, Rank, RikishiStatus } from '../models';
-import { formatRankDisplayName, getRankValueForChart } from '../ranking';
+import { formatHighestRankDisplayName, getRankValueForChart } from '../ranking';
 
 export const CLEAR_SCORE_VERSION = 1;
 
@@ -133,7 +133,7 @@ export const buildCareerRecordBadges = (status: RikishiStatus): CareerRecordBadg
   const { history } = status;
   const records = history.records;
   const badges: CareerRecordBadge[] = [];
-  const maxRankLabel = formatRankDisplayName(history.maxRank);
+  const maxRankLabel = formatHighestRankDisplayName(history.maxRank);
   const totalDecisions = history.totalWins + history.totalLosses;
   const winRate = totalDecisions > 0 ? history.totalWins / totalDecisions : 0;
   const sanshoCount = countSansho(records);

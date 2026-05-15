@@ -1,4 +1,4 @@
-import { formatRankDisplayName, getRankValueForChart } from '../../../logic/ranking';
+import { formatHighestRankDisplayName, formatRankDisplayName, getRankValueForChart } from '../../../logic/ranking';
 import { formatBashoLabel } from '../../../logic/bashoLabels';
 import { buildCareerClearScoreSummary, resolveCareerRecordBadgeLabel } from '../../../logic/career/clearScore';
 import { buildCounterfactualInjuryText, buildFantasyHooks } from '../../../logic/careerNarrative';
@@ -20,7 +20,7 @@ import type { BanzukeDecisionLog } from '../../../logic/banzuke/types';
 import type { CareerBashoRecordsBySeq } from '../../../logic/persistence/careerHistory';
 import type { BashoRecordRow, BoutResultType, ImportantTorikumiRow } from '../../../logic/persistence/db';
 
-export { formatBashoLabel, formatRankDisplayName };
+export { formatBashoLabel, formatHighestRankDisplayName, formatRankDisplayName };
 
 const TIMELINE_EVENT_PRIORITY: Record<TimelineEvent['type'], number> = {
   YUSHO: 0,
@@ -79,6 +79,7 @@ export const buildRankChartData = (records: BashoRecord[]) => {
     bashoLabel: formatBashoLabel(record.year, record.month),
     rankValue: getRankValueForChart(record.rank),
     rankLabel: formatRankDisplayName(record.rank),
+    highestRankLabel: formatHighestRankDisplayName(record.rank),
     weightKg: record.bodyWeightKg,
   }));
 };
@@ -221,6 +222,7 @@ export interface ReportSpotlightPoint {
   axisLabel: string;
   bashoLabel: string;
   rankLabel: string;
+  highestRankLabel: string;
   plotValue: number;
   age: number;
 }
@@ -653,7 +655,7 @@ export const buildReportHeroSummary = (status: RikishiStatus): ReportHeroSummary
     metrics: [
       {
         label: '最高位',
-        value: formatRankDisplayName(history.maxRank),
+        value: formatHighestRankDisplayName(history.maxRank),
         meta: `${totalBashoCount}場所を完走`,
         tone: 'brand',
       },
@@ -700,6 +702,7 @@ export const buildReportSpotlightPayload = (
     axisLabel: point.axisLabel,
     bashoLabel: point.bashoLabel,
     rankLabel: point.rankLabel,
+    highestRankLabel: point.highestRankLabel,
     plotValue: -1 * point.rankValue,
     age: entryAge + Math.max(0, (displayRecords[index]?.year ?? baseYear) - baseYear),
   }));
@@ -771,7 +774,7 @@ export const buildReportSpotlightPayload = (
     plotValue: bestPoint.plotValue,
     bashoLabel: bestPoint.bashoLabel,
     label: '最高到達点',
-    summary: `${bestPoint.bashoLabel}に${bestPoint.rankLabel}まで到達した。`,
+    summary: `${bestPoint.bashoLabel}に${bestPoint.highestRankLabel}まで到達した。`,
     tone: 'brand',
     priority: 40,
   });

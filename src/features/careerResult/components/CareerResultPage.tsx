@@ -6,7 +6,7 @@ import type {
   CareerBashoDetail,
   CareerBashoRecordsBySeq,
 } from "../../../logic/persistence/careerHistory";
-import { formatRankDisplayName } from "../../../logic/ranking";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
 import { Button } from "../../../shared/ui/Button";
@@ -113,7 +113,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   const highestRankLabel =
     status.history.maxRank.name === "横綱" && yokozunaOrdinal
       ? `第${yokozunaOrdinal}代横綱`
-      : formatRankDisplayName(status.history.maxRank);
+      : formatHighestRankDisplayName(status.history.maxRank);
   const activeChapterLabel = CHAPTERS.find((chapter) => chapter.id === viewState.activeChapter)?.label ?? "力士名鑑";
   const selectedMeta = selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel;
   const canReadDetails = detailState === "ready";

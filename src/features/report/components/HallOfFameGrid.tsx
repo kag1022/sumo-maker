@@ -1,6 +1,7 @@
 import React from "react";
 import { Trophy, Trash2, X, Star } from "lucide-react";
 import { Rank, CareerHistory } from "../../../logic/models";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { cn } from "../../../shared/lib/cn";
 import typography from "../../../shared/styles/typography.module.css";
 import styles from "./HallOfFameGrid.module.css";
@@ -27,12 +28,7 @@ interface HallOfFameGridProps {
 }
 
 const formatRankName = (rank: Rank): string => {
-  const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
-  if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) {
-    return `${side}${rank.name}`;
-  }
-  const number = rank.number || 1;
-  return `${side}${rank.name}${number}枚目`;
+  return formatHighestRankDisplayName(rank);
 };
 
 const getRarityByRank = (rankName: string): "UR" | "SR" | "R" | "N" => {

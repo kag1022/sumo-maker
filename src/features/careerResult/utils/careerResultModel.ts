@@ -2,7 +2,7 @@ import type { BashoRecord } from "../../../logic/models";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
-import { formatRankDisplayName, getRankValueForChart } from "../../../logic/ranking";
+import { formatHighestRankDisplayName, formatRankDisplayName, getRankValueForChart } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
 
 export interface CareerWindowState {
@@ -281,7 +281,7 @@ const formatDesignRealization = (status: RikishiStatus, category: string): strin
   const yushoTotal = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo + status.history.yushoCount.makushita + status.history.yushoCount.others;
   const injuryBasho = records.filter((record) => record.absent > 0).length;
   if (category === "入門背景" || category === "年齢・開始条件") {
-    return `${records.length}場所を記録し、最高位は${formatRankDisplayName(status.history.maxRank)}。`;
+    return `${records.length}場所を記録し、最高位は${formatHighestRankDisplayName(status.history.maxRank)}。`;
   }
   if (category === "身体的前提") {
     return `${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgで引退時点の体格が残った。`;
@@ -293,7 +293,7 @@ const formatDesignRealization = (status: RikishiStatus, category: string): strin
     return status.careerNarrative?.careerIdentity ?? "気質の発現は番付推移と取組記録から読む。";
   }
   if (category === "期待") {
-    return yushoTotal > 0 ? `優勝${yushoTotal}回まで届いた。` : `${formatRankDisplayName(status.history.maxRank)}まで届いた。`;
+    return yushoTotal > 0 ? `優勝${yushoTotal}回まで届いた。` : `${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`;
   }
   if (category === "不安材料") {
     return injuryBasho > 0 ? `${injuryBasho}場所で休場が記録された。` : "休場の少ない一代として終わった。";
@@ -384,7 +384,7 @@ export const buildCareerDesignReadingModel = (
   const finalRecord = status.history.records
     .filter((record) => record.rank.division !== "Maezumo")
     .slice(-1)[0];
-  const highestRankLabel = formatRankDisplayName(status.history.maxRank);
+  const highestRankLabel = formatHighestRankDisplayName(status.history.maxRank);
   const finalBashoLabel = finalRecord ? formatBashoLabel(finalRecord.year, finalRecord.month) : "未記録";
   return {
     premiseRows,
@@ -542,7 +542,7 @@ export const buildCareerOverviewModel = (
     lifeSummary:
       status.careerNarrative?.turningPoints[0]?.summary ??
       status.careerNarrative?.careerIdentity ??
-      `${status.profile.birthplace}から角界へ入り、${formatRankDisplayName(status.history.maxRank)}まで届いた。`,
+      `${status.profile.birthplace}から角界へ入り、${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`,
     bodyType: status.bodyType,
   };
 };

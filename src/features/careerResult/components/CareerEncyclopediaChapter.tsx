@@ -31,6 +31,7 @@ import {
 } from "../../../logic/style/identity";
 import { summarizeRareKimariteEncounters } from "../../../logic/kimarite/rareEncounters";
 import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { buildStableEnvironmentReading } from "../../../logic/simulation/heya/stableEnvironment";
 import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
@@ -199,7 +200,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
 
   const items: CareerMilestoneView[] = [];
   const used = new Set<string>();
-  const push = (point: CareerLedgerPoint, label: string, description: string, order: number) => {
+  const push = (point: CareerLedgerPoint, label: string, description: string, order: number, displayRankLabel = point.rankLabel) => {
     const key = `${point.bashoSeq}-${label}`;
     if (used.has(key)) return;
     used.add(key);
@@ -207,7 +208,7 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
       key,
       label,
       bashoLabel: point.bashoLabel,
-      rankLabel: point.rankLabel,
+      rankLabel: displayRankLabel,
       recordLabel: point.recordLabel,
       description,
       tone: toMilestoneTone(label, point),
@@ -227,7 +228,8 @@ const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerM
   for (const point of points) {
     for (const tag of point.milestoneTags) {
       const label = tag === "最高位到達" ? "最高位" : tag;
-      push(point, label, `${point.rankLabel} / ${point.recordLabel}`, 20);
+      const rankLabel = label === "最高位" ? formatHighestRankDisplayName(point.rank) : point.rankLabel;
+      push(point, label, `${rankLabel} / ${point.recordLabel}`, 20, rankLabel);
     }
     if (point.eventFlags.includes("yusho")) push(point, "優勝", `${point.rankLabel}で${point.recordLabel}。`, 30);
     if (point.eventFlags.includes("absent")) {
