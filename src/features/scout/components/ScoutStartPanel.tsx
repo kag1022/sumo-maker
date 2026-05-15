@@ -7,7 +7,14 @@ import type { ObservationPointState } from "../../../logic/persistence/observati
 import { Button } from "../../../shared/ui/Button";
 import { cn } from "../../../shared/lib/cn";
 import typography from "../../../shared/styles/typography.module.css";
-import { EXPERIMENT_PRESETS, STEP_COPY, STEP_ORDER, type ScoutStepId } from "./scoutScreenOptions";
+import {
+  EXPERIMENT_PRESETS,
+  GENERATION_MODE_OPTIONS,
+  STEP_COPY,
+  STEP_ORDER,
+  type ScoutGenerationMode,
+  type ScoutStepId,
+} from "./scoutScreenOptions";
 import styles from "./ScoutScreen.module.css";
 
 const formatRegenTime = (seconds: number): string => {
@@ -64,35 +71,74 @@ export const ScoutHero: React.FC<{
   onActivateStep: (step: ScoutStepId) => void;
   generationTokens: GenerationTokenState | null;
   observationPoints: ObservationPointState | null;
-}> = ({ activeStep, onActivateStep, generationTokens, observationPoints }) => (
+  generationMode: ScoutGenerationMode;
+}> = ({ activeStep, onActivateStep, generationTokens, observationPoints, generationMode }) => (
   <section className={styles.hero}>
     <div className={styles.heroCopy}>
       <div className={styles.kicker}>新弟子生成卓</div>
       <h1 className={styles.heroTitle}>候補札を鑑定して、相撲人生を観測に出す</h1>
       <p className={styles.heroDescription}>
-        入口の条件は札として選び、生成札を消費して一代記を走らせます。介入ではなく、観測前の設計です。
+        観測モードでは視点だけを選び、ビルドモードでは能力値ではなく人生の前提を設計します。
       </p>
     </div>
     <div className={styles.heroPanel}>
       <ScoutResourceBoard generationTokens={generationTokens} observationPoints={observationPoints} />
-      <div className={styles.progress} aria-label="設計の進行状況">
-        {STEP_ORDER.map((step) => {
-          const stepIndex = STEP_ORDER.indexOf(step);
-          const activeIndex = STEP_ORDER.indexOf(activeStep);
-          return (
-            <button
-              key={step}
-              type="button"
-              className={styles.progressStep}
-              data-active={step === activeStep}
-              data-complete={stepIndex < activeIndex}
-              onClick={() => onActivateStep(step)}
-            >
-              <span className={styles.progressNumber}>0{stepIndex + 1}</span>
-              <span className={styles.progressLabel}>{STEP_COPY[step].title}</span>
-            </button>
-          );
-        })}
+      {generationMode === "BUILD" ? (
+        <div className={styles.progress} aria-label="設計の進行状況">
+          {STEP_ORDER.map((step) => {
+            const stepIndex = STEP_ORDER.indexOf(step);
+            const activeIndex = STEP_ORDER.indexOf(activeStep);
+            return (
+              <button
+                key={step}
+                type="button"
+                className={styles.progressStep}
+                data-active={step === activeStep}
+                data-complete={stepIndex < activeIndex}
+                onClick={() => onActivateStep(step)}
+              >
+                <span className={styles.progressNumber}>0{stepIndex + 1}</span>
+                <span className={styles.progressLabel}>{STEP_COPY[step].title}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={styles.modeSignal}>
+          <span>観測モード</span>
+          <strong>観測視点以外は候補札のランダム値で確定します。</strong>
+        </div>
+      )}
+    </div>
+  </section>
+);
+
+export const ScoutModePanel: React.FC<{
+  value: ScoutGenerationMode;
+  onChange: (value: ScoutGenerationMode) => void;
+}> = ({ value, onChange }) => (
+  <section className={styles.section} data-active="true">
+    <div className={styles.sectionHead}>
+      <div>
+        <div className={styles.sectionStep}>MODE</div>
+        <h2 className={styles.sectionTitleText}>生成モード</h2>
+        <p className={styles.sectionCopy}>観測だけに任せるか、能力値ではない前提だけを設計するかを選びます。</p>
+      </div>
+    </div>
+    <div className={styles.sectionBody}>
+      <div className={styles.modeGrid}>
+        {GENERATION_MODE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={styles.modeCard}
+            data-active={value === option.value}
+            onClick={() => onChange(option.value)}
+          >
+            <div className={cn(styles.choiceTitle, typography.heading)}>{option.label}</div>
+            <div className={styles.choiceNote}>{option.note}</div>
+          </button>
+        ))}
       </div>
     </div>
   </section>

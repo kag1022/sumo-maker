@@ -8,6 +8,7 @@ export type ObservationThemeId =
   | 'late_bloomer';
 
 export type ObservationModifierId =
+  | 'standard_body'
   | 'small_body'
   | 'large_body'
   | 'oshizumo_style'
@@ -29,6 +30,8 @@ export interface ObservationBiasDefinition {
   initialStatBias?: Record<string, number>;
   /** Soft hint for body metrics (cm/kg deltas applied probabilistically). */
   bodyMetricsBias?: { heightCm?: number; weightKg?: number };
+  /** Soft target for pulling extreme body rolls toward a body shape. */
+  bodyMetricsTargetBias?: { heightCm?: number; weightKg?: number; strength?: number };
   /** Soft hint for injury risk; informational only at MVP. */
   injuryRiskBias?: number;
   /** Soft hint for variance; informational only at MVP. */

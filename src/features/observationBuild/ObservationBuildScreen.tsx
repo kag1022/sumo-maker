@@ -1,18 +1,35 @@
 import React from 'react';
-import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark } from 'lucide-react';
+import { Sparkles, Eye, Coins, CheckCircle2, AlertTriangle, Landmark, ScrollText, ClipboardList } from 'lucide-react';
 import { Button } from '../../shared/ui/Button';
-import surface from '../../shared/styles/surface.module.css';
 import typography from '../../shared/styles/typography.module.css';
 import { cn } from '../../shared/lib/cn';
 import {
   rollScoutDraft,
   buildInitialRikishiFromDraft,
+  SCOUT_GROWTH_TYPE_LABELS,
+  SCOUT_TALENT_PROFILE_LABELS,
+  type ScoutTalentProfile,
 } from '../../logic/scout/gacha';
 import {
+  AptitudeTier,
+  EntryArchetype,
+  GrowthType,
   Oyakata,
   RikishiStatus,
   SimulationRunOptions,
+  StyleArchetype,
 } from '../../logic/models';
+import { resolveAptitudeProfile } from '../../logic/constants';
+import {
+  ENTRY_ARCHETYPE_LABELS,
+  resolveEntryDivisionFromRank,
+} from '../../logic/career/entryArchetype';
+import {
+  createMakushitaBottomTsukedashiRank,
+  createSandanmeBottomTsukedashiRank,
+} from '../../logic/ranking';
+import { resolveLegacyAptitudeFactor } from '../../logic/simulation/realism';
+import { STYLE_LABELS } from '../../logic/styleProfile';
 import type { SimulationPacing } from '../simulation/store/simulationStore';
 import type { ObservationPointState } from '../../logic/persistence/observationPoints';
 import type { GenerationTokenState } from '../../logic/persistence/generationTokens';
@@ -20,7 +37,6 @@ import {
   listObservationThemes,
 } from '../../logic/archive/observationThemes';
 import {
-  listObservationModifiers,
   computeBuildCost,
   validateBuild,
   buildObservationConfig,
@@ -39,11 +55,277 @@ import {
   getObservationPointState,
 } from '../../logic/persistence/observationPoints';
 import type {
-  ObservationModifierDefinition,
-  ObservationModifierGroup,
   ObservationModifierId,
   ObservationThemeId,
 } from '../../logic/archive/types';
+import {
+  computeObservationBuildModeCost,
+  ENTRY_ARCHETYPE_BUILD_COST,
+  GROWTH_TYPE_BUILD_COST,
+  STABLE_ENVIRONMENT_BUILD_COST,
+  STYLE_BUILD_COST,
+  TALENT_PROFILE_BUILD_COST,
+} from './buildModeCosts';
+import styles from './ObservationBuildScreen.module.css';
+
+type ObservationGenerationMode = 'OBSERVE_RANDOM' | 'BUILD';
+
+const MODE_OPTIONS: Array<{ id: ObservationGenerationMode; label: string; summary: string }> = [
+  {
+    id: 'OBSERVE_RANDOM',
+    label: '観測モード',
+    summary: '観測テーマだけを選び、部屋・体格・型・素質は候補札のランダム値に任せる。',
+  },
+  {
+    id: 'BUILD',
+    label: 'ビルドモード',
+    summary: '体格・取り口・成長型・付出・天才型など、候補札の前提を選ぶ。',
+  },
+];
+
+const GROWTH_TYPE_OPTIONS: Array<{ value: GrowthType; label: string; note: string; cost: number }> = [
+  { value: 'EARLY', label: SCOUT_GROWTH_TYPE_LABELS.EARLY, note: '若いうちに伸び、後半は衰えも早めに出る。', cost: GROWTH_TYPE_BUILD_COST.EARLY },
+  { value: 'NORMAL', label: SCOUT_GROWTH_TYPE_LABELS.NORMAL, note: '伸び方と衰え方を標準に置く。', cost: GROWTH_TYPE_BUILD_COST.NORMAL },
+  { value: 'LATE', label: SCOUT_GROWTH_TYPE_LABELS.LATE, note: '序盤は重いが、後半の伸び返しを読む。', cost: GROWTH_TYPE_BUILD_COST.LATE },
+  { value: 'GENIUS', label: SCOUT_GROWTH_TYPE_LABELS.GENIUS, note: '完成の速さと長いピークを期待する特殊な成長型。', cost: GROWTH_TYPE_BUILD_COST.GENIUS },
+];
+
+const STYLE_OPTIONS: Array<{ value: StyleArchetype; label: string; note: string; cost: number }> = [
+  { value: 'YOTSU', label: STYLE_LABELS.YOTSU, note: '差して寄る正攻法を入口の型にする。', cost: STYLE_BUILD_COST.YOTSU },
+  { value: 'TSUKI_OSHI', label: STYLE_LABELS.TSUKI_OSHI, note: '前に出る圧力を勝ち筋の中心に置く。', cost: STYLE_BUILD_COST.TSUKI_OSHI },
+  { value: 'MOROZASHI', label: STYLE_LABELS.MOROZASHI, note: '懐へ入る技術と差し手を重視する。', cost: STYLE_BUILD_COST.MOROZASHI },
+  { value: 'DOHYOUGIWA', label: STYLE_LABELS.DOHYOUGIWA, note: '残しと反応で山場を作る型に寄せる。', cost: STYLE_BUILD_COST.DOHYOUGIWA },
+  { value: 'NAGE_TECH', label: STYLE_LABELS.NAGE_TECH, note: '投げと崩しの技巧を読み筋にする。', cost: STYLE_BUILD_COST.NAGE_TECH },
+  { value: 'POWER_PRESSURE', label: STYLE_LABELS.POWER_PRESSURE, note: '馬力で押し込む圧力相撲を狙う。', cost: STYLE_BUILD_COST.POWER_PRESSURE },
+];
+
+const ENTRY_ARCHETYPE_OPTIONS: Array<{ value: EntryArchetype; label: string; note: string; cost: number }> = [
+  { value: 'ORDINARY_RECRUIT', label: ENTRY_ARCHETYPE_LABELS.ORDINARY_RECRUIT, note: '付出なし。前相撲から下積みを読む。', cost: ENTRY_ARCHETYPE_BUILD_COST.ORDINARY_RECRUIT },
+  { value: 'EARLY_PROSPECT', label: ENTRY_ARCHETYPE_LABELS.EARLY_PROSPECT, note: '肩書は強くないが、序盤の期待を少し持たせる。', cost: ENTRY_ARCHETYPE_BUILD_COST.EARLY_PROSPECT },
+  { value: 'TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.TSUKEDASHI, note: '三段目付出相当として、下位を短縮する。', cost: ENTRY_ARCHETYPE_BUILD_COST.TSUKEDASHI },
+  { value: 'ELITE_TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.ELITE_TSUKEDASHI, note: '幕下付出相当として、大きな看板を背負う。', cost: ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI },
+  { value: 'MONSTER', label: ENTRY_ARCHETYPE_LABELS.MONSTER, note: 'まれな怪物候補として、期待と落差を大きくする。', cost: ENTRY_ARCHETYPE_BUILD_COST.MONSTER },
+];
+
+const TALENT_PROFILE_OPTIONS: Array<{ value: ScoutTalentProfile; label: string; note: string; cost: number }> = [
+  { value: 'AUTO', label: SCOUT_TALENT_PROFILE_LABELS.AUTO, note: '候補札の素質をそのまま使う。', cost: TALENT_PROFILE_BUILD_COST.AUTO },
+  { value: 'STANDARD', label: SCOUT_TALENT_PROFILE_LABELS.STANDARD, note: '極端な上振れを抑え、標準的な読み味に寄せる。', cost: TALENT_PROFILE_BUILD_COST.STANDARD },
+  { value: 'PROMISING', label: SCOUT_TALENT_PROFILE_LABELS.PROMISING, note: '有望株として、関取到達の期待を少し厚くする。', cost: TALENT_PROFILE_BUILD_COST.PROMISING },
+  { value: 'GENIUS', label: SCOUT_TALENT_PROFILE_LABELS.GENIUS, note: '天才型として、素質と成長の上振れを明示的に置く。', cost: TALENT_PROFILE_BUILD_COST.GENIUS },
+];
+
+const formatCostLabel = (cost: number): string => {
+  if (cost === 0) return '無料';
+  return cost > 0 ? `+${cost} OP` : `${cost} OP`;
+};
+
+const formatTimerValue = (seconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+};
+
+const formatGenerationTokenRegen = (seconds: number, tokens: number, cap: number): string => {
+  if (tokens >= cap) return '満札';
+  return formatTimerValue(seconds);
+};
+
+const resolveCostTone = (cost: number): 'free' | 'cost' | 'discount' => {
+  if (cost === 0) return 'free';
+  return cost > 0 ? 'cost' : 'discount';
+};
+
+const CostPill: React.FC<{ cost: number; tone?: 'free' | 'cost' | 'discount' | 'risk' }> = ({
+  cost,
+  tone,
+}) => (
+  <span className={styles.costPill} data-tone={tone ?? resolveCostTone(cost)}>
+    {formatCostLabel(cost)}
+  </span>
+);
+
+const ActiveBadge: React.FC = () => (
+  <span className={styles.activeBadge}>
+    <CheckCircle2 className="h-3 w-3" />
+    選択中
+  </span>
+);
+
+const MetaPill: React.FC<{ children: React.ReactNode; tone?: 'risk' | 'discount' }> = ({
+  children,
+  tone,
+}) => (
+  <span className={styles.metaPill} data-tone={tone}>
+    {children}
+  </span>
+);
+
+const ChoiceCard: React.FC<{
+  title: string;
+  note: string;
+  active: boolean;
+  onClick: () => void;
+  cost?: number;
+  detail?: React.ReactNode;
+  tall?: boolean;
+  children?: React.ReactNode;
+}> = ({ title, note, active, onClick, cost, detail, tall = false, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(styles.choiceCard, tall ? styles.choiceCardTall : undefined)}
+    data-active={active}
+  >
+    <div className={styles.choiceHead}>
+      <span className={styles.choiceTitle}>{title}</span>
+      <div className={styles.pillRow}>
+        {cost !== undefined ? <CostPill cost={cost} /> : null}
+        {active ? <ActiveBadge /> : null}
+      </div>
+    </div>
+    <div className={styles.choiceNote}>{note}</div>
+    {detail ? <div className={styles.choiceDetail}>{detail}</div> : null}
+    {children}
+  </button>
+);
+
+const SectionHeader: React.FC<{
+  title: string;
+  meta?: string;
+  icon?: React.ReactNode;
+}> = ({ title, meta, icon }) => (
+  <div className={styles.sectionHeader}>
+    <div className="flex items-start gap-3">
+      {icon}
+      <div className={styles.headingBlock}>
+        <h3 className={cn(typography.heading, 'text-xl text-text')}>{title}</h3>
+        {meta ? <div className={styles.sectionMeta}>{meta}</div> : null}
+      </div>
+    </div>
+  </div>
+);
+
+const ScoutSlipRow: React.FC<{ label: string; value: string; muted?: boolean }> = ({
+  label,
+  value,
+  muted = false,
+}) => (
+  <div className={styles.scoutSlipRow} data-muted={muted}>
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+const SelectionLog: React.FC<{ items: string[] }> = ({ items }) => (
+  <div className={styles.selectionLog}>
+    <div className={styles.logHeader}>
+      <ClipboardList className="h-4 w-4" />
+      選定ログ
+    </div>
+    <div className={styles.logList}>
+      {items.map((item) => (
+        <div key={item} className={styles.logItem}>{item}</div>
+      ))}
+    </div>
+  </div>
+);
+
+const OptionalBuildChoiceGrid = <T extends string>({
+  value,
+  autoLabel,
+  autoNote,
+  options,
+  onChange,
+}: {
+  value: T | undefined;
+  autoLabel: string;
+  autoNote: string;
+  options: Array<{ value: T; label: string; note: string; cost: number }>;
+  onChange: (value: T | undefined) => void;
+}) => {
+  return (
+    <div className={styles.choiceGrid}>
+      <ChoiceCard
+        title={autoLabel}
+        note={autoNote}
+        active={value === undefined}
+        onClick={() => onChange(undefined)}
+        cost={0}
+      />
+      {options.map((option) => (
+        <ChoiceCard
+          key={option.value}
+          title={option.label}
+          note={option.note}
+          active={value === option.value}
+          onClick={() => onChange(option.value)}
+          cost={option.cost}
+        />
+      ))}
+    </div>
+  );
+};
+
+const resolveTalentProfileTier = (profile: ScoutTalentProfile): AptitudeTier | null => {
+  if (profile === 'GENIUS') return 'S';
+  if (profile === 'PROMISING') return 'A';
+  if (profile === 'STANDARD') return 'B';
+  return null;
+};
+
+const applyDirectEntryArchetypeLock = (
+  status: RikishiStatus,
+  directEntryArchetype: EntryArchetype,
+): void => {
+  status.entryArchetype = directEntryArchetype;
+  if (directEntryArchetype === 'ELITE_TSUKEDASHI') {
+    status.rank = createMakushitaBottomTsukedashiRank();
+    status.entryAge = 22;
+    status.age = 22;
+  } else if (directEntryArchetype === 'TSUKEDASHI') {
+    status.rank = createSandanmeBottomTsukedashiRank();
+    status.entryAge = 22;
+    status.age = 22;
+  } else if (directEntryArchetype === 'ORDINARY_RECRUIT' || directEntryArchetype === 'EARLY_PROSPECT') {
+    status.rank = { division: 'Maezumo', name: '前相撲', side: 'East', number: 1 };
+  }
+  status.entryDivision = resolveEntryDivisionFromRank(status.rank);
+  status.history.maxRank = { ...status.rank };
+  if (status.careerSeed) {
+    status.careerSeed.entryArchetype = directEntryArchetype;
+    status.careerSeed.entryArchetypeLabel = ENTRY_ARCHETYPE_LABELS[directEntryArchetype];
+  }
+};
+
+const applyDirectBuildLocks = (
+  status: RikishiStatus,
+  input: {
+    growthType?: GrowthType;
+    entryArchetype?: EntryArchetype;
+    talentProfile: ScoutTalentProfile;
+  },
+): RikishiStatus => {
+  if (input.entryArchetype) {
+    applyDirectEntryArchetypeLock(status, input.entryArchetype);
+  }
+  const tier = resolveTalentProfileTier(input.talentProfile);
+  if (tier) {
+    const profile = resolveAptitudeProfile(tier);
+    status.aptitudeTier = tier;
+    status.aptitudeProfile = profile;
+    status.aptitudeFactor = resolveLegacyAptitudeFactor(profile, tier);
+    if (input.talentProfile === 'GENIUS') {
+      status.archetype = 'GENIUS';
+    }
+  }
+  if (input.growthType) {
+    status.growthType = input.growthType;
+  } else if (input.talentProfile === 'GENIUS') {
+    status.growthType = 'GENIUS';
+  }
+  return status;
+};
 
 interface ObservationBuildScreenProps {
   generationTokens: GenerationTokenState | null;
@@ -75,6 +357,9 @@ const THEME_DISPLAY_COPY: Record<ObservationThemeId, string> = {
 };
 
 const MODIFIER_DISPLAY_COPY: Record<ObservationModifierId, { description: string; riskText?: string }> = {
+  standard_body: {
+    description: '極端な小兵・大型を避け、平均的な体格の一代として読みやすくする。',
+  },
   small_body: {
     description: '小兵らしい速さや技の見せ場が出やすい。大型相手には苦しい場面も残る。',
   },
@@ -103,14 +388,19 @@ const MODIFIER_DISPLAY_COPY: Record<ObservationModifierId, { description: string
   },
 };
 
-const GROUP_META: Record<ObservationModifierGroup, { label: string; hint: string }> = {
-  body: { label: '体格', hint: '択一' },
-  style: { label: '取り口', hint: '択一' },
-  growth: { label: '成長', hint: '択一' },
-  risk: { label: 'リスク傾向', hint: '複数可' },
-};
+const BODY_MODIFIER_IDS: ObservationModifierId[] = ['standard_body', 'small_body', 'large_body'];
+const RISK_MODIFIER_IDS: ObservationModifierId[] = [
+  'stable_temperament',
+  'volatile_temperament',
+  'injury_risk_high',
+];
 
-const GROUP_ORDER: ObservationModifierGroup[] = ['body', 'style', 'growth', 'risk'];
+const BODY_MODIFIER_OPTIONS = BODY_MODIFIER_IDS.map((id) => ({
+  value: id,
+  label: OBSERVATION_MODIFIERS[id].label,
+  note: MODIFIER_DISPLAY_COPY[id].description,
+  cost: OBSERVATION_MODIFIERS[id].cost,
+}));
 
 export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   generationTokens,
@@ -119,52 +409,104 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   onRefreshMeta,
 }) => {
   const themes = React.useMemo(() => listObservationThemes(), []);
-  const modifiers = React.useMemo(() => listObservationModifiers(), []);
   const stableEnvironmentChoices = React.useMemo(() => listStableEnvironmentChoices(), []);
+  const [generationMode, setGenerationMode] = React.useState<ObservationGenerationMode>('OBSERVE_RANDOM');
   const [themeId, setThemeId] = React.useState<ObservationThemeId>('random');
   const [modifierIds, setModifierIds] = React.useState<ObservationModifierId[]>([]);
   const [stableEnvironmentChoiceId, setStableEnvironmentChoiceId] =
     React.useState<StableEnvironmentChoiceId>('AUTO');
+  const [growthType, setGrowthType] = React.useState<GrowthType | undefined>(undefined);
+  const [preferredStyle, setPreferredStyle] = React.useState<StyleArchetype | undefined>(undefined);
+  const [entryArchetype, setEntryArchetype] = React.useState<EntryArchetype | undefined>(undefined);
+  const [talentProfile, setTalentProfile] = React.useState<ScoutTalentProfile>('AUTO');
   const [isStarting, setIsStarting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [tokenRegenSeconds, setTokenRegenSeconds] = React.useState(
+    generationTokens?.nextRegenInSec ?? 0,
+  );
+  const tokenRefreshRequestedRef = React.useRef(false);
 
-  const totalCost = computeBuildCost(themeId, modifierIds);
-  const validation = validateBuild(themeId, modifierIds);
+  React.useEffect(() => {
+    setTokenRegenSeconds(generationTokens?.nextRegenInSec ?? 0);
+  }, [generationTokens?.lastRegenAt, generationTokens?.nextRegenInSec, generationTokens?.tokens]);
+
+  const effectiveModifierIds = generationMode === 'BUILD' ? modifierIds : [];
+  const directBuildCost = generationMode === 'BUILD'
+    ? computeObservationBuildModeCost({
+      growthType,
+      preferredStyle,
+      entryArchetype,
+      talentProfile,
+      stableEnvironmentChoiceId,
+    })
+    : 0;
+  const biasBuildCost = computeBuildCost(themeId, effectiveModifierIds);
+  const totalCost = biasBuildCost + directBuildCost;
+  const validation = validateBuild(themeId, effectiveModifierIds);
   const opBalance = observationPoints?.points ?? 0;
   const tokenBalance = generationTokens?.tokens ?? 0;
+  const tokenCap = generationTokens?.cap ?? 5;
+  const tokenRegenText = formatGenerationTokenRegen(
+    tokenRegenSeconds,
+    tokenBalance,
+    tokenCap,
+  );
+  const tokenRegenHudText = tokenBalance >= tokenCap ? tokenRegenText : `次回 ${tokenRegenText}`;
+  const tokenAfterGeneration = Math.max(0, tokenBalance - 1);
   const insufficientOp = totalCost > opBalance;
   const insufficientToken = tokenBalance <= 0;
   const canStart = validation.ok && !insufficientOp && !insufficientToken && !isStarting;
   const remainingOp = Math.max(0, opBalance - totalCost);
+  const bodyModifierId = BODY_MODIFIER_IDS.find((id) => modifierIds.includes(id));
 
-  const modifiersByGroup = React.useMemo(() => {
-    const map: Record<ObservationModifierGroup, ObservationModifierDefinition[]> = {
-      body: [],
-      style: [],
-      growth: [],
-      risk: [],
-    };
-    for (const m of modifiers) {
-      const g = m.exclusiveGroup ?? 'risk';
-      map[g].push(m);
+  React.useEffect(() => {
+    if (tokenBalance >= tokenCap || tokenRegenSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setTokenRegenSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [tokenBalance, tokenCap, tokenRegenSeconds]);
+
+  React.useEffect(() => {
+    if (tokenBalance >= tokenCap || tokenRegenSeconds > 0) {
+      tokenRefreshRequestedRef.current = false;
+      return;
     }
-    return map;
-  }, [modifiers]);
+    if (!generationTokens || !onRefreshMeta || tokenRefreshRequestedRef.current) return;
+    tokenRefreshRequestedRef.current = true;
+    void onRefreshMeta();
+  }, [generationTokens, onRefreshMeta, tokenBalance, tokenCap, tokenRegenSeconds]);
 
-  const toggleModifier = (id: ObservationModifierId) => {
+  const changeGenerationMode = (mode: ObservationGenerationMode) => {
+    setGenerationMode(mode);
+    if (mode === 'OBSERVE_RANDOM') {
+      setModifierIds([]);
+      setStableEnvironmentChoiceId('AUTO');
+      setGrowthType(undefined);
+      setPreferredStyle(undefined);
+      setEntryArchetype(undefined);
+      setTalentProfile('AUTO');
+    }
+  };
+
+  const setExclusiveModifier = (id: ObservationModifierId | undefined, groupIds: ObservationModifierId[]) => {
+    setModifierIds((prev) => {
+      const filtered = prev.filter((other) => !groupIds.includes(other));
+      return id ? [...filtered, id] : filtered;
+    });
+  };
+
+  const toggleRiskModifier = (id: ObservationModifierId) => {
     const def = OBSERVATION_MODIFIERS[id];
+    if (def?.exclusiveGroup && def.exclusiveGroup !== 'risk') return;
     setModifierIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      // Exclusive groups (body/style/growth): replace any existing pick in same group.
-      if (def?.exclusiveGroup && def.exclusiveGroup !== 'risk') {
-        const filtered = prev.filter((other) => {
-          const od = OBSERVATION_MODIFIERS[other];
-          return od?.exclusiveGroup !== def.exclusiveGroup;
-        });
-        return [...filtered, id];
-      }
       return [...prev, id];
     });
+  };
+
+  const changeEntryArchetype = (value: EntryArchetype | undefined) => {
+    setEntryArchetype(value);
   };
 
   const handleStart = async () => {
@@ -181,25 +523,38 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       }
       if (onRefreshMeta) await onRefreshMeta();
 
-      const stable = resolveStableForEnvironmentChoice(stableEnvironmentChoiceId);
+      const stable = resolveStableForEnvironmentChoice(
+        generationMode === 'BUILD' ? stableEnvironmentChoiceId : 'AUTO',
+      );
       const draft = {
         ...rollScoutDraft(),
         selectedStableId: stable.id,
+        ...(generationMode === 'BUILD'
+          ? {
+            growthType,
+            preferredStyle,
+            entryArchetype,
+            talentProfile,
+          }
+          : {}),
       };
       const baseStatus = buildInitialRikishiFromDraft(draft);
-      const config = buildObservationConfig(themeId, modifierIds);
+      const config = buildObservationConfig(themeId, effectiveModifierIds);
       const { status: biasedStatus } = applyObservationBuildBias(baseStatus, config);
+      const finalStatus = generationMode === 'BUILD'
+        ? applyDirectBuildLocks(biasedStatus, { growthType, entryArchetype, talentProfile })
+        : biasedStatus;
 
       const eraSnapshot = selectRandomEraSnapshot();
       const runOptions: SimulationRunOptions = {
         observationRuleMode: 'STANDARD',
         observationStanceId: 'PROMOTION_EXPECTATION',
         observationThemeId: themeId,
-        observationModifierIds: modifierIds,
+        observationModifierIds: effectiveModifierIds,
         ...toEraRunMetadata(eraSnapshot),
       };
 
-      await onStart(biasedStatus, null, 'skip_to_end', runOptions);
+      await onStart(finalStatus, null, 'skip_to_end', runOptions);
       await getObservationPointState();
       if (onRefreshMeta) await onRefreshMeta();
     } finally {
@@ -208,11 +563,46 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   };
 
   const selectedTheme = OBSERVATION_THEMES[themeId];
-  const selectedModifiers = modifierIds
+  const selectedModifiers = effectiveModifierIds
     .map((id) => OBSERVATION_MODIFIERS[id])
     .filter(Boolean);
-  const selectedStableEnvironment = stableEnvironmentChoices.find((choice) =>
-    choice.id === stableEnvironmentChoiceId);
+  const selectedStableEnvironment = generationMode === 'BUILD'
+    ? stableEnvironmentChoices.find((choice) => choice.id === stableEnvironmentChoiceId && choice.id !== 'AUTO')
+    : undefined;
+  const selectedBuildLabels = generationMode === 'BUILD'
+    ? [
+      bodyModifierId ? OBSERVATION_MODIFIERS[bodyModifierId].label : null,
+      growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : null,
+      preferredStyle ? STYLE_LABELS[preferredStyle] : null,
+      entryArchetype ? ENTRY_ARCHETYPE_LABELS[entryArchetype] : null,
+      talentProfile !== 'AUTO' ? SCOUT_TALENT_PROFILE_LABELS[talentProfile] : null,
+    ].filter((label): label is string => Boolean(label))
+    : [];
+  const selectedRiskModifiers = selectedModifiers.filter((mod) => RISK_MODIFIER_IDS.includes(mod.id));
+  const bodyLabel = bodyModifierId ? OBSERVATION_MODIFIERS[bodyModifierId].label : '候補札に任せる';
+  const styleLabel = preferredStyle ? STYLE_LABELS[preferredStyle] : '体格と部屋に任せる';
+  const growthLabel = growthType ? SCOUT_GROWTH_TYPE_LABELS[growthType] : '候補札に任せる';
+  const entryLabel = entryArchetype ? ENTRY_ARCHETYPE_LABELS[entryArchetype] : '候補札に任せる';
+  const talentLabel = talentProfile !== 'AUTO' ? SCOUT_TALENT_PROFILE_LABELS[talentProfile] : '候補札に任せる';
+  const stableLabel = selectedStableEnvironment?.label ?? 'おまかせ';
+  const riskLabel = selectedRiskModifiers.length > 0
+    ? selectedRiskModifiers.map((mod) => mod.label).join(' / ')
+    : '通常の揺らぎ';
+  const draftTone = generationMode === 'OBSERVE_RANDOM'
+    ? '観測テーマだけを決め、候補札の乱数をそのまま受ける。'
+    : selectedBuildLabels.length > 0 || selectedStableEnvironment
+      ? '入口条件を絞り、読みたい一代へ少し寄せる。'
+      : 'ビルド枠は開いているが、追加指定は置かない。';
+  const selectionLogItems = [
+    `生成札: 1枚使用 / 残 ${tokenAfterGeneration} / ${tokenCap}`,
+    `回復タイマー: ${tokenRegenText}`,
+    `観測テーマ: ${selectedTheme?.label ?? '未選択'} (${formatCostLabel(selectedTheme?.cost ?? 0)})`,
+    generationMode === 'OBSERVE_RANDOM'
+      ? '観測モード: テーマ以外は完全ランダム'
+      : `ビルド設定: ${selectedBuildLabels.length + (selectedStableEnvironment ? 1 : 0) + selectedRiskModifiers.length}件指定`,
+    totalCost > 0 ? `観測ポイント: ${totalCost} OP 消費` : '観測ポイント: 消費なし',
+    insufficientOp ? `不足: あと ${totalCost - opBalance} OP` : `観測後: ${remainingOp} OP`,
+  ];
 
   const insufficientReason: string | null = (() => {
     if (insufficientToken) return `生成札が足りません (現在 ${tokenBalance})。`;
@@ -222,253 +612,337 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   })();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-32">
-      {/* Header */}
-      <section className={cn(surface.panel, 'space-y-4 p-6')}>
-        <div className="flex items-center gap-3">
-          <Eye className="h-6 w-6 text-action" />
+    <div className={styles.screen}>
+      <section className={styles.draftHeader}>
+        <div className={styles.headerTitleRow}>
+          <ScrollText className="h-6 w-6 text-action" />
           <div>
-            <div className={typography.kicker}>観測設計</div>
-            <h2 className={cn(typography.heading, 'text-3xl text-text')}>どんな相撲人生を観測しますか</h2>
+            <div className={typography.kicker}>新弟子選定所</div>
+            <h2 className={cn(typography.heading, 'text-3xl text-text')}>観測札を切る</h2>
           </div>
         </div>
 
-        <div className="grid gap-2 border-l-2 border-amber-300/30 bg-amber-300/[0.04] px-4 py-3 text-xs text-amber-100/85">
+        <div className={styles.notice}>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
-            <span>テーマと読み口の調整は、キャリアの傾向を少し寄せるだけです。</span>
+            <span>テーマとビルド設定は、キャリアの傾向を少し寄せるだけです。</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
             <span>番付環境・怪我・成長の揺らぎで、思った通りには進みません。</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 select-none text-amber-200/80">・</span>
             <span>思い通りにならないキャリアも、資料館の一部になります。</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border border-gold/15 bg-bg/20 px-4 py-3 text-sm">
-          <div className="flex items-center gap-2">
+        <div className={styles.draftHud}>
+          <div className={styles.hudChip}>
             <Coins className="h-4 w-4 text-gold" />
-            <span className="text-xs text-text-dim">観測ポイント</span>
-            <span className="text-text">{opBalance}</span>
+            <span>観測ポイント</span>
+            <strong>{opBalance}</strong>
           </div>
-          <div className="flex items-center gap-2">
+          <div className={styles.hudChip}>
             <Sparkles className="h-4 w-4 text-action" />
-            <span className="text-xs text-text-dim">生成札</span>
-            <span className="text-text">{tokenBalance}</span>
+            <span className={styles.hudText}>
+              <span>生成札</span>
+              <small>{tokenRegenHudText}</small>
+            </span>
+            <strong>{tokenBalance}/{tokenCap}</strong>
+          </div>
+          <div className={styles.hudChip} data-alert={insufficientOp ? 'true' : 'false'}>
+            <span>消費</span>
+            <strong>{totalCost} OP</strong>
+          </div>
+          <div className={styles.hudChip}>
+            <span>観測後</span>
+            <strong>{remainingOp} OP</strong>
           </div>
         </div>
       </section>
 
-      {/* Themes */}
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>観測テーマ</h3>
-          <div className="text-[11px] text-text-dim">迷ったら 0 OP の「完全ランダム」から。</div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {themes.map((theme) => {
-            const active = theme.id === themeId;
-            const intent = THEME_INTENT_HINT[theme.id];
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => setThemeId(theme.id)}
-                className={cn(
-                  'group relative flex flex-col gap-2 border px-4 py-4 text-left transition',
-                  active
-                    ? 'border-action bg-action/15 shadow-[0_0_0_1px_rgba(255,159,64,0.35)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                )}
-              >
-                {active ? (
-                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-action/60 bg-action/20 px-1.5 py-0.5 text-[10px] tracking-wider text-action">
-                    <CheckCircle2 className="h-3 w-3" />
-                    選択中
-                  </span>
-                ) : null}
-                <div className="flex items-baseline gap-2 pr-16">
-                  <span className={cn('text-lg', active ? 'text-text' : 'text-text/90')}>{theme.label}</span>
-                  <span className={cn('ml-auto text-sm', active ? 'text-gold' : 'text-gold/80')}>
-                    {theme.cost === 0 ? '無料' : `${theme.cost} OP`}
-                  </span>
+      <div className={styles.boardShell}>
+        <main className={styles.boardMain}>
+          <section className={styles.sectionPanel}>
+            <SectionHeader
+              title="生成モード"
+              meta="観測の幅と入口条件だけを札として選びます。"
+            />
+            <div className={styles.choiceGrid}>
+              {MODE_OPTIONS.map((mode) => {
+                const active = generationMode === mode.id;
+                return (
+                  <ChoiceCard
+                    key={mode.id}
+                    title={mode.label}
+                    note={mode.summary}
+                    active={active}
+                    onClick={() => changeGenerationMode(mode.id)}
+                    tall
+                  />
+                );
+              })}
+            </div>
+          </section>
+
+          <section className={styles.sectionPanel}>
+            <SectionHeader title="観測テーマ" meta="迷ったら 0 OP の「完全ランダム」から。" />
+            <div className={styles.choiceGrid}>
+              {themes.map((theme) => {
+                const active = theme.id === themeId;
+                const intent = THEME_INTENT_HINT[theme.id];
+                return (
+                  <ChoiceCard
+                    key={theme.id}
+                    title={theme.label}
+                    note={THEME_DISPLAY_COPY[theme.id]}
+                    active={active}
+                    onClick={() => setThemeId(theme.id)}
+                    cost={theme.cost}
+                    detail={(
+                      <>
+                        {intent ? <span>{intent}</span> : null}
+                        <span>{theme.riskText}</span>
+                      </>
+                    )}
+                  />
+                );
+              })}
+            </div>
+          </section>
+
+          {generationMode === 'BUILD' ? (
+            <section className={styles.sectionPanel}>
+              <SectionHeader
+                title="ビルド設定"
+                meta="体格・型・成長・入門資格・素質・所属環境・リスクをここでまとめて選びます。強い前提ほど OP が重くなります。"
+              />
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>体格</div>
+                <OptionalBuildChoiceGrid<ObservationModifierId>
+                  value={bodyModifierId}
+                  autoLabel="候補札に任せる"
+                  autoNote="小兵、大型、標準寄りのいずれも候補札の揺らぎに任せます。"
+                  options={BODY_MODIFIER_OPTIONS}
+                  onChange={(id) => setExclusiveModifier(id, BODY_MODIFIER_IDS)}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>取り口</div>
+                <OptionalBuildChoiceGrid<StyleArchetype>
+                  value={preferredStyle}
+                  autoLabel="体格と部屋に任せる"
+                  autoNote="身体素地と所属環境から自然な型を決めます。"
+                  options={STYLE_OPTIONS}
+                  onChange={setPreferredStyle}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>成長型</div>
+                <OptionalBuildChoiceGrid<GrowthType>
+                  value={growthType}
+                  autoLabel="候補札に任せる"
+                  autoNote="経歴と素質から自然な成長型を決めます。"
+                  options={GROWTH_TYPE_OPTIONS}
+                  onChange={setGrowthType}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>付出・入門資格</div>
+                <OptionalBuildChoiceGrid<EntryArchetype>
+                  value={entryArchetype}
+                  autoLabel="候補札に任せる"
+                  autoNote="入門経路に応じた自然な資格で始めます。"
+                  options={ENTRY_ARCHETYPE_OPTIONS}
+                  onChange={changeEntryArchetype}
+                />
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className={cn(typography.label, styles.groupLabel)}>素質の輪郭</div>
+                <div className={styles.choiceGrid}>
+                  {TALENT_PROFILE_OPTIONS.map((option) => (
+                    <ChoiceCard
+                      key={option.value}
+                      title={option.label}
+                      note={option.note}
+                      active={talentProfile === option.value}
+                      onClick={() => setTalentProfile(option.value)}
+                      cost={option.cost}
+                    />
+                  ))}
                 </div>
-                <div className="text-xs text-text-dim leading-relaxed">{THEME_DISPLAY_COPY[theme.id]}</div>
-                {intent ? (
-                  <div className="text-[11px] text-action/80 leading-relaxed">→ {intent}</div>
-                ) : null}
-                <div className="text-[11px] text-amber-300/70">{theme.riskText}</div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 所属環境 */}
-      <section className={cn(surface.panel, 'space-y-3 p-5')}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Landmark className="h-5 w-5 text-gold" />
-            <div>
-              <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
-              <div className="mt-1 text-xs leading-relaxed text-text-dim">
-                部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
               </div>
+
+              <div className={styles.optionalGroup}>
+                <div className="flex items-center gap-2">
+                  <Landmark className="h-4 w-4 text-gold" />
+                  <div className={cn(typography.label, styles.groupLabel)}>所属環境</div>
+                </div>
+                <div className={styles.sectionMeta}>
+              45部屋から直接選ばず、入門先の稽古の空気だけを一代の読み筋として置きます。
+                </div>
+                <div className={styles.choiceGridThree}>
+                  {stableEnvironmentChoices.map((choice) => {
+                    const active = choice.id === stableEnvironmentChoiceId;
+                    return (
+                      <ChoiceCard
+                        key={choice.id}
+                        title={choice.label}
+                        note={choice.summary}
+                        active={active}
+                        onClick={() => setStableEnvironmentChoiceId(choice.id)}
+                        cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
+                        detail={<span>{choice.detail}</span>}
+                        tall
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className={styles.optionalGroup}>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn(typography.label, styles.groupLabel)}>リスク傾向</span>
+                  <span className={styles.sectionMeta}>(複数可)</span>
+                </div>
+                <div className={styles.choiceGrid}>
+                  {RISK_MODIFIER_IDS.map((id) => {
+                    const mod = OBSERVATION_MODIFIERS[id];
+                    const active = modifierIds.includes(id);
+                    const isDiscount = mod.cost < 0;
+                    const displayCopy = MODIFIER_DISPLAY_COPY[id];
+                    return (
+                      <ChoiceCard
+                        key={mod.id}
+                        title={mod.label}
+                        note={displayCopy.description}
+                        active={active}
+                        onClick={() => toggleRiskModifier(id)}
+                        cost={mod.cost}
+                        detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
+                      >
+                        <div className={styles.pillRow}>
+                          {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
+                          {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
+                        </div>
+                      </ChoiceCard>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Validation errors (if any) */}
+          {validation.errors.length > 0 ? (
+            <section className={styles.validationPanel}>
+              <ul className="space-y-1">
+                {validation.errors.map((err, i) => (
+                  <li key={`${err}-${i}`} className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>選べない組み合わせが含まれています。選択を見直してください。</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {errorMessage ? (
+            <section className={styles.validationPanel}>{errorMessage}</section>
+          ) : null}
+        </main>
+
+        <aside className={styles.boardRail} aria-label="新弟子札プレビュー">
+          <div className={styles.scoutSlip}>
+            <div className={styles.scoutSlipHeader}>
+              <div>
+                <div className={styles.scoutSlipKicker}>候補札</div>
+                <h3 className={cn(typography.heading, styles.scoutSlipTitle)}>新弟子札</h3>
+              </div>
+              <span className={styles.scoutStamp}>{generationMode === 'BUILD' ? '選定中' : '観測'}</span>
+            </div>
+            <div className={styles.scoutSlipLead}>{draftTone}</div>
+            <div className={styles.scoutSlipRows}>
+              <ScoutSlipRow label="モード" value={generationMode === 'BUILD' ? 'ビルドモード' : '観測モード'} />
+              <ScoutSlipRow label="観測テーマ" value={selectedTheme?.label ?? '未選択'} />
+              {generationMode === 'BUILD' ? (
+                <>
+                  <ScoutSlipRow label="体格" value={bodyLabel} muted={!bodyModifierId} />
+                  <ScoutSlipRow label="取り口" value={styleLabel} muted={!preferredStyle} />
+                  <ScoutSlipRow label="成長" value={growthLabel} muted={!growthType} />
+                  <ScoutSlipRow label="入門資格" value={entryLabel} muted={!entryArchetype} />
+                  <ScoutSlipRow label="素質" value={talentLabel} muted={talentProfile === 'AUTO'} />
+                  <ScoutSlipRow label="所属環境" value={stableLabel} muted={!selectedStableEnvironment} />
+                  <ScoutSlipRow label="リスク" value={riskLabel} muted={selectedRiskModifiers.length === 0} />
+                </>
+              ) : (
+                <ScoutSlipRow label="候補札" value="テーマ以外は完全ランダム" />
+              )}
+            </div>
+            <div className={styles.scoutSlipCost}>
+              <span>合計消費</span>
+              <strong>{totalCost} OP</strong>
             </div>
           </div>
-          <div className="hidden text-[11px] text-text-dim sm:block">45部屋から直接選ばず、環境の系統だけを選びます。</div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {stableEnvironmentChoices.map((choice) => {
-            const active = choice.id === stableEnvironmentChoiceId;
-            return (
-              <button
-                key={choice.id}
-                type="button"
-                onClick={() => setStableEnvironmentChoiceId(choice.id)}
-                className={cn(
-                  'group relative flex min-h-[9.25rem] flex-col gap-2 border px-4 py-4 text-left transition',
-                  active
-                    ? 'border-gold bg-gold/12 shadow-[0_0_0_1px_rgba(224,181,91,0.28)]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                )}
-              >
-                {active ? (
-                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 border border-gold/60 bg-gold/15 px-1.5 py-0.5 text-[10px] tracking-wider text-gold">
-                    <CheckCircle2 className="h-3 w-3" />
-                    選択中
-                  </span>
-                ) : null}
-                <span className={cn('pr-16 text-base', active ? 'text-text' : 'text-text/90')}>
-                  {choice.label}
-                </span>
-                <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
-                <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* Modifiers grouped */}
-      <section className={cn(surface.panel, 'space-y-5 p-5')}>
-        <div className="flex items-baseline justify-between">
-          <h3 className={cn(typography.heading, 'text-xl text-text')}>読み口の調整</h3>
-          <div className="text-[11px] text-text-dim">体格・取り口・成長は択一、リスクは複数可。</div>
-        </div>
-
-        {GROUP_ORDER.map((group) => {
-          const list = modifiersByGroup[group];
-          if (!list || list.length === 0) return null;
-          const meta = GROUP_META[group];
-          return (
-            <div key={group} className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <span className={cn(typography.label, 'text-[10px] tracking-[0.3em] text-text-dim uppercase')}>
-                  {meta.label}
-                </span>
-                <span className="text-[10px] text-text-dim/70">({meta.hint})</span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {list.map((mod) => {
-                  const active = modifierIds.includes(mod.id);
-                  const isDiscount = mod.cost < 0;
-                  const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
-                  return (
-                    <button
-                      key={mod.id}
-                      type="button"
-                      onClick={() => toggleModifier(mod.id)}
-                      className={cn(
-                        'flex flex-col gap-1.5 border px-4 py-3 text-left transition',
-                        active
-                          ? 'border-action bg-action/12 shadow-[0_0_0_1px_rgba(255,159,64,0.3)]'
-                          : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
-                      )}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm text-text">{mod.label}</span>
-                        <div className="flex items-center gap-1.5">
-                          {isDiscount ? (
-                            <span className="border border-emerald-400/40 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] tracking-wider text-emerald-300">
-                              割引
-                            </span>
-                          ) : null}
-                          {mod.riskText ? (
-                            <span className="border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] tracking-wider text-amber-200">
-                              リスク
-                            </span>
-                          ) : null}
-                          <span className={cn('text-xs', isDiscount ? 'text-emerald-400' : 'text-gold')}>
-                            {mod.cost > 0 ? `+${mod.cost}` : mod.cost} OP
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-text-dim leading-relaxed">{displayCopy.description}</div>
-                      {displayCopy.riskText ? (
-                        <div className="text-[10px] text-amber-300/70">{displayCopy.riskText}</div>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Validation errors (if any) */}
-      {validation.errors.length > 0 ? (
-        <section className={cn(surface.panel, 'p-4')}>
-          <ul className="space-y-1 text-xs text-red-300">
-            {validation.errors.map((err, i) => (
-              <li key={`${err}-${i}`} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>選べない組み合わせが含まれています。選択を見直してください。</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {errorMessage ? (
-        <section className={cn(surface.panel, 'p-4 text-xs text-red-300')}>{errorMessage}</section>
-      ) : null}
+          <SelectionLog items={selectionLogItems} />
+        </aside>
+      </div>
 
       {/* Sticky bottom summary */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-bg/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-          <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[11px]">
+      <div className={styles.stickySummary}>
+        <div className={styles.summaryInner}>
+          <div className={styles.summaryChips}>
             <span className="text-text-dim">あなたの観測:</span>
+            <span className={styles.summaryChip}>
+              {generationMode === 'BUILD' ? 'ビルドモード' : '観測モード'}
+            </span>
             {selectedTheme ? (
-              <span className="border border-action/40 bg-action/10 px-2 py-0.5 text-text">
+              <span className={styles.summaryChip}>
                 {selectedTheme.label}
               </span>
             ) : null}
+            {selectedBuildLabels.map((label) => (
+              <span
+                key={label}
+                className={styles.summaryChip}
+              >
+                {label}
+              </span>
+            ))}
             {selectedModifiers.map((mod) => (
               <span
                 key={mod.id}
-                className="border border-white/15 bg-white/[0.03] px-2 py-0.5 text-text-dim"
+                className={styles.summaryChip}
               >
                 {mod.label}
               </span>
             ))}
             {selectedStableEnvironment ? (
-              <span className="border border-gold/30 bg-gold/10 px-2 py-0.5 text-gold">
+              <span className={styles.summaryChip}>
                 {selectedStableEnvironment.label}
               </span>
             ) : null}
-            {selectedModifiers.length === 0 ? (
-              <span className="text-text-dim/60">読み口の調整なし</span>
+            {generationMode === 'BUILD' && selectedModifiers.length === 0 && selectedBuildLabels.length === 0 ? (
+              <span className="text-text-dim/60">追加調整なし</span>
+            ) : null}
+            {generationMode === 'OBSERVE_RANDOM' ? (
+              <span className="text-text-dim/60">テーマ以外は完全ランダム</span>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            {generationMode === 'BUILD' ? (
+              <div>
+                <span className="text-text-dim">ビルド</span>{' '}
+                <span className={styles.summaryCost}>{directBuildCost} OP</span>
+              </div>
+            ) : null}
             <div>
               <span className="text-text-dim">消費</span>{' '}
-              <span className={cn(insufficientOp ? 'text-red-400' : 'text-gold')}>{totalCost} OP</span>
+              <span className={cn(insufficientOp ? 'text-red-400' : styles.summaryCost)}>{totalCost} OP</span>
             </div>
             <div>
               <span className="text-text-dim">観測後</span>{' '}

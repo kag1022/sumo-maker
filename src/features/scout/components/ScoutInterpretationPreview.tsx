@@ -1,5 +1,5 @@
 import React from "react";
-import { CircleDot } from "lucide-react";
+import { CircleDot, ScrollText } from "lucide-react";
 import type { RikishiStatus } from "../../../logic/models";
 import {
   buildScoutResolvedSeed,
@@ -7,7 +7,6 @@ import {
 } from "../../../logic/scout/gacha";
 import { RikishiPortrait } from "../../../shared/ui/RikishiPortrait";
 import { cn } from "../../../shared/lib/cn";
-import { ScoutStatPreview } from "./ScoutStatPreview";
 import styles from "./ScoutScreen.module.css";
 
 type ResolvedSeed = ReturnType<typeof buildScoutResolvedSeed>;
@@ -110,8 +109,49 @@ export const ScoutEntryLedger: React.FC<{
 
 export const ScoutInterpretationPreview: React.FC<{
   status: RikishiStatus;
-}> = ({ status }) => (
-  <section className={styles.previewPanel}>
-    <ScoutStatPreview status={status} />
-  </section>
-);
+}> = ({ status }) => {
+  const summary = status.buildSummary;
+  const initial = summary?.initialConditionSummary;
+  const growth = summary?.growthSummary;
+  const lifeCards = summary?.lifeCards ?? [];
+  const rows = [
+    ["入口", initial?.entryPathLabel],
+    ["資格", initial?.entryArchetypeLabel],
+    ["素地", initial?.bodySeedLabel],
+    ["気質", initial?.temperamentLabel],
+    ["完成像", growth ? `${growth.peakHeightCm}cm / ${growth.peakWeightKg}kg` : undefined],
+  ].filter(([, value]) => Boolean(value));
+
+  return (
+    <section className={styles.previewPanel}>
+      <div className={styles.readingPreviewHead}>
+        <p className={styles.sectionTitle}>設計読み</p>
+        <h2 className={styles.decisionTitle}>数値ではなく、入口条件として読む</h2>
+        <p className={styles.decisionCopy}>
+          能力値の直接確認ではなく、どの前提が記録に残るかだけを確認します。
+        </p>
+      </div>
+      <div className={styles.entryLedgerRows}>
+        {rows.map(([label, value]) => (
+          <div key={label} className={styles.entryLedgerRow}>
+            <span className={styles.metaLabel}>{label}</span>
+            <span className={styles.entryLedgerValue}>{value}</span>
+          </div>
+        ))}
+      </div>
+      {lifeCards.length > 0 ? (
+        <div className={styles.readingSeeds}>
+          {lifeCards.slice(0, 3).map((card) => (
+            <div key={card.slot} className={styles.readingSeed}>
+              <ScrollText className="h-4 w-4" />
+              <div>
+                <span>{card.slot}</span>
+                <strong>{card.label}</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+};

@@ -26,10 +26,24 @@ import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from '../../../
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 import { resolveSimulationPhaseOnCompletion, resolveSimulationPhaseOnStart, shouldCaptureObservations } from '../../../src/logic/simulation/appFlow';
 import {
+  computeObservationBuildModeCost,
+  ENTRY_ARCHETYPE_BUILD_COST,
+  GROWTH_TYPE_BUILD_COST,
+  STABLE_ENVIRONMENT_BUILD_COST,
+  STYLE_BUILD_COST,
+  TALENT_PROFILE_BUILD_COST,
+} from '../../../src/features/observationBuild/buildModeCosts';
+import {
   buildStableEnvironmentReading,
   listStableEnvironmentChoices,
   resolveStableForEnvironmentChoice,
 } from '../../../src/logic/simulation/heya/stableEnvironment';
+import {
+  buildObservationConfig,
+  computeBuildCost,
+  OBSERVATION_MODIFIERS,
+} from '../../../src/logic/archive/observationBuild';
+import { applyObservationBuildBias } from '../../../src/logic/archive/applyObservationBuildBias';
 import { applyTraitAwakeningsForBasho, buildLockedTraitJourney } from '../../../src/logic/traits';
 
 import type { TestCase } from '../types';
@@ -662,6 +676,66 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'observation build: direct build choices charge higher costs for stronger premises',
+    run: () => {
+      assert.equal(TALENT_PROFILE_BUILD_COST.GENIUS > TALENT_PROFILE_BUILD_COST.PROMISING, true);
+      assert.equal(TALENT_PROFILE_BUILD_COST.PROMISING > TALENT_PROFILE_BUILD_COST.STANDARD, true);
+      assert.equal(ENTRY_ARCHETYPE_BUILD_COST.MONSTER > ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI, true);
+      assert.equal(ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI > ENTRY_ARCHETYPE_BUILD_COST.TSUKEDASHI, true);
+      assert.equal(GROWTH_TYPE_BUILD_COST.GENIUS > GROWTH_TYPE_BUILD_COST.LATE, true);
+      assert.equal(STYLE_BUILD_COST.POWER_PRESSURE > STYLE_BUILD_COST.YOTSU, true);
+
+      const defaultCost = computeObservationBuildModeCost({
+        talentProfile: 'AUTO',
+        stableEnvironmentChoiceId: 'AUTO',
+      });
+      const premiumCost = computeObservationBuildModeCost({
+        growthType: 'GENIUS',
+        preferredStyle: 'POWER_PRESSURE',
+        entryArchetype: 'MONSTER',
+        talentProfile: 'GENIUS',
+        stableEnvironmentChoiceId: 'TSUKI_OSHI_GROUP',
+      });
+
+      assert.equal(defaultCost, 0);
+      assert.equal(
+        premiumCost,
+        GROWTH_TYPE_BUILD_COST.GENIUS +
+          STYLE_BUILD_COST.POWER_PRESSURE +
+          ENTRY_ARCHETYPE_BUILD_COST.MONSTER +
+          TALENT_PROFILE_BUILD_COST.GENIUS +
+          STABLE_ENVIRONMENT_BUILD_COST,
+      );
+    },
+  },
+  {
+    name: 'observation build: standard body modifier pulls extreme bodies toward baseline',
+    run: () => {
+      assert.equal(OBSERVATION_MODIFIERS.standard_body.cost, 2);
+      assert.equal(computeBuildCost('random', ['standard_body']), 2);
+
+      const base = buildInitialRikishiFromDraft(createScoutDraft());
+      base.bodyMetrics = {
+        heightCm: 196,
+        weightKg: 180,
+        reachDeltaCm: base.bodyMetrics.reachDeltaCm,
+      };
+      const result = applyObservationBuildBias(
+        base,
+        buildObservationConfig('random', ['standard_body']),
+      ).status;
+
+      assert.ok(
+        Math.abs(result.bodyMetrics.heightCm - 182) < Math.abs(base.bodyMetrics.heightCm - 182),
+        `height should move toward standard baseline, got ${result.bodyMetrics.heightCm}`,
+      );
+      assert.ok(
+        Math.abs(result.bodyMetrics.weightKg - 138) < Math.abs(base.bodyMetrics.weightKg - 138),
+        `weight should move toward standard baseline, got ${result.bodyMetrics.weightKg}`,
+      );
+    },
+  },
+  {
     name: 'scout: historical-like population separates calibration intake from player scout',
     run: () => {
       const runs = 1000;
@@ -729,6 +803,44 @@ export const tests: TestCase[] = [
       }));
       assert.equal(rikishi.aptitudeTier, 'C');
       assert.deepEqual(rikishi.aptitudeProfile, CONSTANTS.APTITUDE_PROFILE_DATA.C);
+    },
+  },
+  {
+    name: 'scout: build-mode indirect choices are applied without numeric stat input',
+    run: () => {
+      const rikishi = buildInitialRikishiFromDraft(createScoutDraft({
+        entryAge: 18,
+        entryPath: 'SCHOOL',
+        entryArchetype: 'ELITE_TSUKEDASHI',
+        growthType: 'LATE',
+        preferredStyle: 'TSUKI_OSHI',
+        talentProfile: 'GENIUS',
+      }));
+
+      assert.equal(rikishi.entryAge, 22);
+      assert.equal(rikishi.careerSeed?.entryAge, 22);
+      const initialSummary = rikishi.buildSummary?.initialConditionSummary;
+      const lifeCards = rikishi.buildSummary?.lifeCards;
+      if (!initialSummary || !lifeCards) {
+        throw new Error('build summary should keep resolved entry age for encyclopedia display');
+      }
+      assert.equal(initialSummary.entryAge, 22);
+      assert.equal(lifeCards[0]?.previewTag, '22歳');
+      assert.equal(rikishi.entryArchetype, 'ELITE_TSUKEDASHI');
+      assert.equal(rikishi.entryDivision, 'Makushita60');
+      assert.equal(rikishi.careerSeed?.entryPath, 'CHAMPION');
+      assert.equal(rikishi.careerSeed?.primaryStyle, 'TSUKI_OSHI');
+      assert.equal(rikishi.careerSeed?.secondaryStyle, 'DOHYOUGIWA');
+      assert.equal(rikishi.tactics, 'PUSH');
+      assert.equal(rikishi.growthType, 'LATE');
+      assert.equal(rikishi.aptitudeTier, 'S');
+      assert.equal(rikishi.archetype, 'GENIUS');
+
+      const genius = buildInitialRikishiFromDraft(createScoutDraft({
+        talentProfile: 'GENIUS',
+      }));
+      assert.equal(genius.growthType, 'GENIUS');
+      assert.equal(genius.aptitudeTier, 'S');
     },
   },
   {

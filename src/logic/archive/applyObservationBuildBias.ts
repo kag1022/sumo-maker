@@ -191,10 +191,29 @@ const applyStatBias = (
 const applyBodyBias = (
   status: RikishiStatus,
   bodyBias: ObservationBiasDefinition['bodyMetricsBias'],
+  bodyTargetBias: ObservationBiasDefinition['bodyMetricsTargetBias'],
 ): void => {
-  if (!bodyBias) return;
+  if (!bodyBias && !bodyTargetBias) return;
   const metrics = status.bodyMetrics;
   if (!metrics) return;
+  if (bodyTargetBias) {
+    const strength = clamp(bodyTargetBias.strength ?? 0.5, 0, 1);
+    if (bodyTargetBias.heightCm && typeof metrics.heightCm === 'number') {
+      metrics.heightCm = clamp(
+        Math.round((metrics.heightCm + (bodyTargetBias.heightCm - metrics.heightCm) * strength) * 10) / 10,
+        150,
+        210,
+      );
+    }
+    if (bodyTargetBias.weightKg && typeof metrics.weightKg === 'number') {
+      metrics.weightKg = clamp(
+        Math.round((metrics.weightKg + (bodyTargetBias.weightKg - metrics.weightKg) * strength) * 10) / 10,
+        70,
+        230,
+      );
+    }
+  }
+  if (!bodyBias) return;
   if (bodyBias.heightCm && typeof metrics.heightCm === 'number') {
     metrics.heightCm = clamp(metrics.heightCm + bodyBias.heightCm, 150, 210);
   }
@@ -398,7 +417,7 @@ export const applyObservationBuildBias = (
   applyRetirementBias(status, bias.retirementProfileBias, bias.injuryRiskBias, rng);
   applyGenomeBias(status, bias.genomeBias, bias.injuryRiskBias, bias.varianceBias);
   applyStatBias(status, bias.initialStatBias);
-  applyBodyBias(status, bias.bodyMetricsBias);
+  applyBodyBias(status, bias.bodyMetricsBias, bias.bodyMetricsTargetBias);
   refreshDerivedAbility(status);
 
   return { status, appliedBias: bias };
