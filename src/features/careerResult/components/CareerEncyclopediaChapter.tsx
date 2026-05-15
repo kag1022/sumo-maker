@@ -361,18 +361,18 @@ const MiniTrajectory: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({
 const ClearScoreBreakdown: React.FC<{ summary: CareerClearScoreSummary }> = ({ summary }) => (
   <section className={styles.clearScorePanel} aria-label="総評点の内訳">
     <div className={styles.clearScoreHead}>
-      <div>
-        <span>総評点</span>
-        <p>保存後の記録帳で並び替えに使う評価点です。</p>
+      <div className={styles.clearScoreTitle}>
+        <span>評定札</span>
+        <strong>総評点</strong>
+        <p>保存後の記録帳で並び替えに使う評価です。</p>
       </div>
       <div className={styles.clearScoreValue}>
         <strong>{summary.clearScore}</strong>
-        <em>pt</em>
+        <em>点</em>
       </div>
     </div>
-    <div className={styles.clearScoreRows}>
+    <div className={styles.clearScoreRows} aria-label="評定内訳">
       {summary.categories.map((category) => {
-        const percent = Math.round((category.score / category.maxScore) * 100);
         const detail = category.items.slice(0, 2).map((item) => item.detail).join(" / ") || category.detail;
         return (
           <article key={category.key} className={styles.clearScoreRow}>
@@ -381,9 +381,6 @@ const ClearScoreBreakdown: React.FC<{ summary: CareerClearScoreSummary }> = ({ s
               <strong>+{category.score}</strong>
             </div>
             <p>{detail}</p>
-            <div className={styles.clearScoreMeter} aria-hidden="true">
-              <span style={{ width: `${Math.min(100, percent)}%` }} />
-            </div>
           </article>
         );
       })}
