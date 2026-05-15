@@ -62,6 +62,14 @@ import type {
   ObservationModifierId,
   ObservationThemeId,
 } from '../../logic/archive/types';
+import {
+  computeObservationBuildModeCost,
+  ENTRY_ARCHETYPE_BUILD_COST,
+  GROWTH_TYPE_BUILD_COST,
+  STABLE_ENVIRONMENT_BUILD_COST,
+  STYLE_BUILD_COST,
+  TALENT_PROFILE_BUILD_COST,
+} from './buildModeCosts';
 
 type ObservationGenerationMode = 'OBSERVE_RANDOM' | 'BUILD';
 
@@ -78,35 +86,35 @@ const MODE_OPTIONS: Array<{ id: ObservationGenerationMode; label: string; summar
   },
 ];
 
-const GROWTH_TYPE_OPTIONS: Array<{ value: GrowthType; label: string; note: string }> = [
-  { value: 'EARLY', label: SCOUT_GROWTH_TYPE_LABELS.EARLY, note: '若いうちに伸び、後半は衰えも早めに出る。' },
-  { value: 'NORMAL', label: SCOUT_GROWTH_TYPE_LABELS.NORMAL, note: '伸び方と衰え方を標準に置く。' },
-  { value: 'LATE', label: SCOUT_GROWTH_TYPE_LABELS.LATE, note: '序盤は重いが、後半の伸び返しを読む。' },
-  { value: 'GENIUS', label: SCOUT_GROWTH_TYPE_LABELS.GENIUS, note: '完成の速さと長いピークを期待する特殊な成長型。' },
+const GROWTH_TYPE_OPTIONS: Array<{ value: GrowthType; label: string; note: string; cost: number }> = [
+  { value: 'EARLY', label: SCOUT_GROWTH_TYPE_LABELS.EARLY, note: '若いうちに伸び、後半は衰えも早めに出る。', cost: GROWTH_TYPE_BUILD_COST.EARLY },
+  { value: 'NORMAL', label: SCOUT_GROWTH_TYPE_LABELS.NORMAL, note: '伸び方と衰え方を標準に置く。', cost: GROWTH_TYPE_BUILD_COST.NORMAL },
+  { value: 'LATE', label: SCOUT_GROWTH_TYPE_LABELS.LATE, note: '序盤は重いが、後半の伸び返しを読む。', cost: GROWTH_TYPE_BUILD_COST.LATE },
+  { value: 'GENIUS', label: SCOUT_GROWTH_TYPE_LABELS.GENIUS, note: '完成の速さと長いピークを期待する特殊な成長型。', cost: GROWTH_TYPE_BUILD_COST.GENIUS },
 ];
 
-const STYLE_OPTIONS: Array<{ value: StyleArchetype; label: string; note: string }> = [
-  { value: 'YOTSU', label: STYLE_LABELS.YOTSU, note: '差して寄る正攻法を入口の型にする。' },
-  { value: 'TSUKI_OSHI', label: STYLE_LABELS.TSUKI_OSHI, note: '前に出る圧力を勝ち筋の中心に置く。' },
-  { value: 'MOROZASHI', label: STYLE_LABELS.MOROZASHI, note: '懐へ入る技術と差し手を重視する。' },
-  { value: 'DOHYOUGIWA', label: STYLE_LABELS.DOHYOUGIWA, note: '残しと反応で山場を作る型に寄せる。' },
-  { value: 'NAGE_TECH', label: STYLE_LABELS.NAGE_TECH, note: '投げと崩しの技巧を読み筋にする。' },
-  { value: 'POWER_PRESSURE', label: STYLE_LABELS.POWER_PRESSURE, note: '馬力で押し込む圧力相撲を狙う。' },
+const STYLE_OPTIONS: Array<{ value: StyleArchetype; label: string; note: string; cost: number }> = [
+  { value: 'YOTSU', label: STYLE_LABELS.YOTSU, note: '差して寄る正攻法を入口の型にする。', cost: STYLE_BUILD_COST.YOTSU },
+  { value: 'TSUKI_OSHI', label: STYLE_LABELS.TSUKI_OSHI, note: '前に出る圧力を勝ち筋の中心に置く。', cost: STYLE_BUILD_COST.TSUKI_OSHI },
+  { value: 'MOROZASHI', label: STYLE_LABELS.MOROZASHI, note: '懐へ入る技術と差し手を重視する。', cost: STYLE_BUILD_COST.MOROZASHI },
+  { value: 'DOHYOUGIWA', label: STYLE_LABELS.DOHYOUGIWA, note: '残しと反応で山場を作る型に寄せる。', cost: STYLE_BUILD_COST.DOHYOUGIWA },
+  { value: 'NAGE_TECH', label: STYLE_LABELS.NAGE_TECH, note: '投げと崩しの技巧を読み筋にする。', cost: STYLE_BUILD_COST.NAGE_TECH },
+  { value: 'POWER_PRESSURE', label: STYLE_LABELS.POWER_PRESSURE, note: '馬力で押し込む圧力相撲を狙う。', cost: STYLE_BUILD_COST.POWER_PRESSURE },
 ];
 
-const ENTRY_ARCHETYPE_OPTIONS: Array<{ value: EntryArchetype; label: string; note: string }> = [
-  { value: 'ORDINARY_RECRUIT', label: ENTRY_ARCHETYPE_LABELS.ORDINARY_RECRUIT, note: '付出なし。前相撲から下積みを読む。' },
-  { value: 'EARLY_PROSPECT', label: ENTRY_ARCHETYPE_LABELS.EARLY_PROSPECT, note: '肩書は強くないが、序盤の期待を少し持たせる。' },
-  { value: 'TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.TSUKEDASHI, note: '三段目付出相当として、下位を短縮する。' },
-  { value: 'ELITE_TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.ELITE_TSUKEDASHI, note: '幕下付出相当として、大きな看板を背負う。' },
-  { value: 'MONSTER', label: ENTRY_ARCHETYPE_LABELS.MONSTER, note: 'まれな怪物候補として、期待と落差を大きくする。' },
+const ENTRY_ARCHETYPE_OPTIONS: Array<{ value: EntryArchetype; label: string; note: string; cost: number }> = [
+  { value: 'ORDINARY_RECRUIT', label: ENTRY_ARCHETYPE_LABELS.ORDINARY_RECRUIT, note: '付出なし。前相撲から下積みを読む。', cost: ENTRY_ARCHETYPE_BUILD_COST.ORDINARY_RECRUIT },
+  { value: 'EARLY_PROSPECT', label: ENTRY_ARCHETYPE_LABELS.EARLY_PROSPECT, note: '肩書は強くないが、序盤の期待を少し持たせる。', cost: ENTRY_ARCHETYPE_BUILD_COST.EARLY_PROSPECT },
+  { value: 'TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.TSUKEDASHI, note: '三段目付出相当として、下位を短縮する。', cost: ENTRY_ARCHETYPE_BUILD_COST.TSUKEDASHI },
+  { value: 'ELITE_TSUKEDASHI', label: ENTRY_ARCHETYPE_LABELS.ELITE_TSUKEDASHI, note: '幕下付出相当として、大きな看板を背負う。', cost: ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI },
+  { value: 'MONSTER', label: ENTRY_ARCHETYPE_LABELS.MONSTER, note: 'まれな怪物候補として、期待と落差を大きくする。', cost: ENTRY_ARCHETYPE_BUILD_COST.MONSTER },
 ];
 
-const TALENT_PROFILE_OPTIONS: Array<{ value: ScoutTalentProfile; label: string; note: string }> = [
-  { value: 'AUTO', label: SCOUT_TALENT_PROFILE_LABELS.AUTO, note: '候補札の素質をそのまま使う。' },
-  { value: 'STANDARD', label: SCOUT_TALENT_PROFILE_LABELS.STANDARD, note: '極端な上振れを抑え、標準的な読み味に寄せる。' },
-  { value: 'PROMISING', label: SCOUT_TALENT_PROFILE_LABELS.PROMISING, note: '有望株として、関取到達の期待を少し厚くする。' },
-  { value: 'GENIUS', label: SCOUT_TALENT_PROFILE_LABELS.GENIUS, note: '天才型として、素質と成長の上振れを明示的に置く。' },
+const TALENT_PROFILE_OPTIONS: Array<{ value: ScoutTalentProfile; label: string; note: string; cost: number }> = [
+  { value: 'AUTO', label: SCOUT_TALENT_PROFILE_LABELS.AUTO, note: '候補札の素質をそのまま使う。', cost: TALENT_PROFILE_BUILD_COST.AUTO },
+  { value: 'STANDARD', label: SCOUT_TALENT_PROFILE_LABELS.STANDARD, note: '極端な上振れを抑え、標準的な読み味に寄せる。', cost: TALENT_PROFILE_BUILD_COST.STANDARD },
+  { value: 'PROMISING', label: SCOUT_TALENT_PROFILE_LABELS.PROMISING, note: '有望株として、関取到達の期待を少し厚くする。', cost: TALENT_PROFILE_BUILD_COST.PROMISING },
+  { value: 'GENIUS', label: SCOUT_TALENT_PROFILE_LABELS.GENIUS, note: '天才型として、素質と成長の上振れを明示的に置く。', cost: TALENT_PROFILE_BUILD_COST.GENIUS },
 ];
 
 const OptionalBuildChoiceGrid = <T extends string>({
@@ -119,7 +127,7 @@ const OptionalBuildChoiceGrid = <T extends string>({
   value: T | undefined;
   autoLabel: string;
   autoNote: string;
-  options: Array<{ value: T; label: string; note: string }>;
+  options: Array<{ value: T; label: string; note: string; cost: number }>;
   onChange: (value: T | undefined) => void;
 }) => {
   return (
@@ -149,7 +157,10 @@ const OptionalBuildChoiceGrid = <T extends string>({
               : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
           )}
         >
-          <div className="text-sm text-text">{option.label}</div>
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-sm text-text">{option.label}</div>
+            <div className="text-xs text-gold">+{option.cost} OP</div>
+          </div>
           <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
         </button>
       ))}
@@ -306,7 +317,17 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const effectiveModifierIds = generationMode === 'BUILD' ? modifierIds : [];
-  const totalCost = computeBuildCost(themeId, effectiveModifierIds);
+  const directBuildCost = generationMode === 'BUILD'
+    ? computeObservationBuildModeCost({
+      growthType,
+      preferredStyle,
+      entryArchetype,
+      talentProfile,
+      stableEnvironmentChoiceId,
+    })
+    : 0;
+  const biasBuildCost = computeBuildCost(themeId, effectiveModifierIds);
+  const totalCost = biasBuildCost + directBuildCost;
   const validation = validateBuild(themeId, effectiveModifierIds);
   const opBalance = observationPoints?.points ?? 0;
   const tokenBalance = generationTokens?.tokens ?? 0;
@@ -564,7 +585,9 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
         <section className={cn(surface.panel, 'space-y-5 p-5')}>
           <div className="flex items-baseline justify-between gap-4">
             <h3 className={cn(typography.heading, 'text-xl text-text')}>ビルド方針</h3>
-            <div className="text-[11px] text-text-dim">ここでは能力値ではなく、キャリア前提だけを選びます。</div>
+            <div className="text-[11px] text-text-dim">
+              ここでは能力値ではなく、キャリア前提だけを選びます。強い前提ほど OP が重くなります。
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -623,7 +646,14 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                       : 'border-white/10 bg-white/[0.02] hover:border-gold/40',
                   )}
                 >
-                  <div className="text-sm text-text">{option.label}</div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="text-sm text-text">{option.label}</div>
+                    {option.cost > 0 ? (
+                      <div className="text-xs text-gold">+{option.cost} OP</div>
+                    ) : (
+                      <div className="text-xs text-text-dim">無料</div>
+                    )}
+                  </div>
                   <div className="mt-1.5 text-[11px] leading-relaxed text-text-dim">{option.note}</div>
                 </button>
               ))}
@@ -642,6 +672,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                 <h3 className={cn(typography.heading, 'text-xl text-text')}>所属環境</h3>
                 <div className="mt-1 text-xs leading-relaxed text-text-dim">
                 部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。
+                  {stableEnvironmentChoiceId !== 'AUTO' ? ` 環境指定は +${STABLE_ENVIRONMENT_BUILD_COST} OP です。` : ''}
                 </div>
               </div>
             </div>
@@ -673,6 +704,9 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
                   </span>
                   <span className="text-xs leading-relaxed text-text-dim">{choice.summary}</span>
                   <span className="text-[11px] leading-relaxed text-gold/70">{choice.detail}</span>
+                  <span className="mt-auto text-xs text-gold">
+                    {choice.id === 'AUTO' ? '無料' : `+${STABLE_ENVIRONMENT_BUILD_COST} OP`}
+                  </span>
                 </button>
               );
             })}
@@ -809,6 +843,12 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            {generationMode === 'BUILD' ? (
+              <div>
+                <span className="text-text-dim">ビルド</span>{' '}
+                <span className="text-gold">{directBuildCost} OP</span>
+              </div>
+            ) : null}
             <div>
               <span className="text-text-dim">消費</span>{' '}
               <span className={cn(insufficientOp ? 'text-red-400' : 'text-gold')}>{totalCost} OP</span>

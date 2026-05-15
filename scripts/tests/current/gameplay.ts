@@ -26,6 +26,14 @@ import { createLogicLabInitialStatus, LOGIC_LAB_DEFAULT_PRESET } from '../../../
 import { runLogicLabToEnd } from '../../../src/features/logicLab/runner';
 import { resolveSimulationPhaseOnCompletion, resolveSimulationPhaseOnStart, shouldCaptureObservations } from '../../../src/logic/simulation/appFlow';
 import {
+  computeObservationBuildModeCost,
+  ENTRY_ARCHETYPE_BUILD_COST,
+  GROWTH_TYPE_BUILD_COST,
+  STABLE_ENVIRONMENT_BUILD_COST,
+  STYLE_BUILD_COST,
+  TALENT_PROFILE_BUILD_COST,
+} from '../../../src/features/observationBuild/buildModeCosts';
+import {
   buildStableEnvironmentReading,
   listStableEnvironmentChoices,
   resolveStableForEnvironmentChoice,
@@ -659,6 +667,39 @@ export const tests: TestCase[] = [
         assert.ok(!reading.lead.includes(stable.id), 'UI reading should not expose stable ids');
         assert.ok(reading.influenceLines.length >= 3);
       }
+    },
+  },
+  {
+    name: 'observation build: direct build choices charge higher costs for stronger premises',
+    run: () => {
+      assert.equal(TALENT_PROFILE_BUILD_COST.GENIUS > TALENT_PROFILE_BUILD_COST.PROMISING, true);
+      assert.equal(TALENT_PROFILE_BUILD_COST.PROMISING > TALENT_PROFILE_BUILD_COST.STANDARD, true);
+      assert.equal(ENTRY_ARCHETYPE_BUILD_COST.MONSTER > ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI, true);
+      assert.equal(ENTRY_ARCHETYPE_BUILD_COST.ELITE_TSUKEDASHI > ENTRY_ARCHETYPE_BUILD_COST.TSUKEDASHI, true);
+      assert.equal(GROWTH_TYPE_BUILD_COST.GENIUS > GROWTH_TYPE_BUILD_COST.LATE, true);
+      assert.equal(STYLE_BUILD_COST.POWER_PRESSURE > STYLE_BUILD_COST.YOTSU, true);
+
+      const defaultCost = computeObservationBuildModeCost({
+        talentProfile: 'AUTO',
+        stableEnvironmentChoiceId: 'AUTO',
+      });
+      const premiumCost = computeObservationBuildModeCost({
+        growthType: 'GENIUS',
+        preferredStyle: 'POWER_PRESSURE',
+        entryArchetype: 'MONSTER',
+        talentProfile: 'GENIUS',
+        stableEnvironmentChoiceId: 'TSUKI_OSHI_GROUP',
+      });
+
+      assert.equal(defaultCost, 0);
+      assert.equal(
+        premiumCost,
+        GROWTH_TYPE_BUILD_COST.GENIUS +
+          STYLE_BUILD_COST.POWER_PRESSURE +
+          ENTRY_ARCHETYPE_BUILD_COST.MONSTER +
+          TALENT_PROFILE_BUILD_COST.GENIUS +
+          STABLE_ENVIRONMENT_BUILD_COST,
+      );
     },
   },
   {
