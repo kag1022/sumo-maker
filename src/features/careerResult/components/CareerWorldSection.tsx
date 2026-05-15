@@ -179,27 +179,22 @@ const rankTierClassMap: Record<RankTierKey, string> = {
   unknown: styles.tierUnknown,
 };
 
-type RelativePosition = "above" | "same" | "below" | "unknown";
+type RelativePosition = "above" | "same" | "below" | "mixed" | "unknown";
 
 const positionLabelMap: Record<RelativePosition, string> = {
-  above: "↑ 本人より上",
-  same: "= 同じ階層",
-  below: "↓ 本人より下",
-  unknown: "・ 比較不能",
+  above: "上位多め",
+  same: "同格中心",
+  below: "下位多め",
+  mixed: "上下混在",
+  unknown: "比較なし",
 };
 
 const positionClassMap: Record<RelativePosition, string> = {
   above: styles.posAbove,
   same: styles.posSame,
   below: styles.posBelow,
+  mixed: styles.posMixed,
   unknown: styles.posUnknown,
-};
-
-const SLOT_POSITIONS: Record<RelationNodeSlot, { x: number; y: number }> = {
-  mapNorthWest: { x: 18, y: 26 },
-  mapNorthEast: { x: 82, y: 26 },
-  mapSouthWest: { x: 18, y: 74 },
-  mapSouthEast: { x: 82, y: 74 },
 };
 
 const resolveMapToneClass = (tone: RelationNodeTone): string => {
@@ -215,22 +210,6 @@ const resolveMapToneClass = (tone: RelationNodeTone): string => {
     case "rival":
     default:
       return styles.mapToneRival;
-  }
-};
-
-const resolveMapLineClass = (tone: RelationNodeTone): string => {
-  switch (tone) {
-    case "race":
-      return styles.lineRace;
-    case "peer":
-      return styles.linePeer;
-    case "era":
-      return styles.lineEra;
-    case "strong":
-      return styles.lineStrong;
-    case "rival":
-    default:
-      return styles.lineRival;
   }
 };
 
@@ -304,97 +283,112 @@ interface RelationMapProps {
   nodes: RelationMapNode[];
 }
 
-const RelationMap: React.FC<RelationMapProps> = ({ shikona, positionLabel, playerTier, nodes }) => (
-  <div className={styles.relationMap} aria-label="このキャリアの関係図">
-    <svg
-      className={styles.mapConnectors}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      {nodes.map((node) => {
-        const pos = SLOT_POSITIONS[node.slot];
-        return (
-          <g key={`line-${node.tone}-${node.id}`} className={resolveMapLineClass(node.tone)}>
-            <line
-              className={styles.mapConnectorLine}
-              x1={pos.x}
-              y1={pos.y}
-              x2={50}
-              y2={50}
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-            <circle className={styles.mapConnectorDot} cx={pos.x} cy={pos.y} r={1.4} />
-          </g>
-        );
-      })}
-      <circle className={styles.mapConnectorHub} cx={50} cy={50} r={2.2} />
-    </svg>
+const buildStarMarks = (record?: RelationNodeRecord): Array<"win" | "loss"> => {
+  if (!record || record.meetings <= 0) return [];
+  const marks: Array<"win" | "loss"> = [];
+  const cappedWins = Math.min(record.wins, 6);
+  const remainingSlots = 6 - cappedWins;
+  const cappedLosses = Math.min(record.losses, remainingSlots);
+  for (let i = 0; i < cappedWins; i += 1) marks.push("win");
+  for (let i = 0; i < cappedLosses; i += 1) marks.push("loss");
+  return marks;
+};
 
-    <div className={styles.mapCenter}>
-      <span className={styles.mapCenterLabel}>本人</span>
-      <strong className={styles.mapCenterName}>{shikona}</strong>
-      <span className={styles.mapCenterMeta}>{positionLabel}</span>
-      {playerTier.key !== "unknown" ? (
-        <span
-          className={`${styles.tierChip} ${styles.tierChipLg} ${rankTierClassMap[playerTier.key]}`}
-          title={playerTier.shortLabel}
-          aria-label={`最高位 ${playerTier.shortLabel}`}
-        >
-          {playerTier.symbol}
-        </span>
-      ) : null}
-    </div>
+const formatRelationBoardRecord = (record?: RelationNodeRecord): string =>
+  record && record.meetings > 0 ? `${record.meetings}戦${record.wins}勝${record.losses}敗` : "番付上の関係";
 
-    {nodes.length === 0 ? (
-      <div className={styles.mapEmpty}>関係図に出せる相手の記録はまだ少ない。</div>
-    ) : (
-      nodes.map((node) => {
-        const winRatio =
-          node.record && node.record.meetings > 0
-            ? (node.record.wins / node.record.meetings) * 100
-            : null;
-        return (
-          <article
-            key={`${node.tone}-${node.id}`}
-            className={`${styles.mapNode} ${styles[node.slot]} ${resolveMapToneClass(node.tone)}`}
-          >
-            <header className={styles.mapNodeHead}>
-              <span className={styles.mapNodeRole}>{node.role}</span>
-              {node.tier.key !== "unknown" ? (
-                <span
-                  className={`${styles.tierChip} ${rankTierClassMap[node.tier.key]}`}
-                  title={node.tier.shortLabel}
-                  aria-label={`最高位 ${node.tier.shortLabel}`}
-                >
-                  {node.tier.symbol}
-                </span>
-              ) : null}
-            </header>
-            <strong className={styles.mapNodeName}>{node.name}</strong>
-            <span className={styles.mapNodeMeta}>{node.meta}</span>
-            {winRatio !== null && node.record ? (
-              <div
-                className={styles.mapNodeRecord}
-                aria-label={`${node.record.wins}勝${node.record.losses}敗`}
+const formatRelationBoardMeta = (node: RelationMapNode): string | null => {
+  if (node.record && node.meta === formatRelationBoardRecord(node.record)) return null;
+  return node.meta;
+};
+
+const RelationMap: React.FC<RelationMapProps> = ({ shikona, positionLabel, playerTier, nodes }) => {
+  const rows = nodes.slice(0, 8);
+
+  return (
+    <div className={styles.relationMap} aria-label="星取相関盤">
+      <header className={styles.relationBoardHead}>
+        <div className={styles.relationBoardSubject}>
+          {playerTier.key !== "unknown" ? (
+            <span
+              className={`${styles.tierChip} ${styles.tierChipLg} ${rankTierClassMap[playerTier.key]}`}
+              title={playerTier.shortLabel}
+              aria-label={`最高位 ${playerTier.shortLabel}`}
+            >
+              {playerTier.symbol}
+            </span>
+          ) : null}
+          <span className={styles.relationBoardSubjectText}>
+            <span className={styles.mapCenterLabel}>本人</span>
+            <strong className={styles.mapCenterName}>{shikona}</strong>
+            <span className={styles.mapCenterMeta}>{positionLabel}</span>
+          </span>
+        </div>
+        <div className={styles.relationBoardLegend} aria-label="星取凡例">
+          <span><span className={styles.starWin} />白星</span>
+          <span><span className={styles.starLoss} />黒星</span>
+        </div>
+      </header>
+
+      {rows.length === 0 ? (
+        <div className={styles.mapEmpty}>相関盤に出せる相手の記録はまだ少ない。</div>
+      ) : (
+        <div className={styles.relationBoardTable}>
+          <div className={styles.relationBoardHeader} aria-hidden="true">
+            <span>関係</span>
+            <span>相手</span>
+            <span>最高位</span>
+            <span>対戦</span>
+            <span>星取</span>
+          </div>
+          {rows.map((node) => {
+            const marks = buildStarMarks(node.record);
+            const boardMeta = formatRelationBoardMeta(node);
+            return (
+              <article
+                key={node.id}
+                className={`${styles.relationBoardRow} ${resolveMapToneClass(node.tone)}`}
               >
-                <span
-                  className={styles.mapNodeRecordWin}
-                  style={{ width: `${winRatio}%` }}
-                />
-                <span
-                  className={styles.mapNodeRecordLoss}
-                  style={{ width: `${100 - winRatio}%` }}
-                />
-              </div>
-            ) : null}
-          </article>
-        );
-      })
-    )}
-  </div>
-);
+                <span className={styles.mapNodeRole}>{node.role}</span>
+                <span className={styles.relationBoardNameBlock}>
+                  <strong className={styles.mapNodeName}>{node.name}</strong>
+                  {boardMeta ? <span className={styles.mapNodeMeta}>{boardMeta}</span> : null}
+                </span>
+                <span className={styles.relationRankCell}>
+                  {node.tier.key !== "unknown" ? (
+                    <span
+                      className={`${styles.tierChip} ${rankTierClassMap[node.tier.key]}`}
+                      title={node.tier.shortLabel}
+                      aria-label={`最高位 ${node.tier.shortLabel}`}
+                    >
+                      {node.tier.symbol}
+                    </span>
+                  ) : (
+                    <span className={`${styles.tierChip} ${styles.tierChipEmpty}`} aria-hidden="true" />
+                  )}
+                  <span>{node.tier.shortLabel}</span>
+                </span>
+                <span className={styles.relationRecordText}>{formatRelationBoardRecord(node.record)}</span>
+                <span className={styles.starStrip} aria-label={formatRelationBoardRecord(node.record)}>
+                  {marks.length > 0 ? (
+                    marks.map((mark, index) => (
+                      <span
+                        key={`${node.id}-${mark}-${index}`}
+                        className={mark === "win" ? styles.starWin : styles.starLoss}
+                      />
+                    ))
+                  ) : (
+                    <span className={styles.starNoRecord}>番付</span>
+                  )}
+                </span>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface WorldHierarchyProps {
   tiers: HierarchyTier[];
@@ -673,7 +667,7 @@ const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] =
 const toHierarchyOpponent = (n: NotableNpcSummary): HierarchyItem => ({
   id: n.id,
   name: n.shikona,
-  meta: `${formatPeakMeta(n)} / ${formatRecordLabel(n)}`,
+  meta: formatPeakMeta(n),
   tier: resolveRankTier(n.peakRankLabel),
   record: toNpcRecord(n),
 });
@@ -703,9 +697,14 @@ const aggregateTierPosition = (
     else same += 1;
   }
   if (known === 0) return "unknown";
-  if (above >= same && above >= below) return "above";
-  if (below >= same && below >= above) return "below";
-  return "same";
+  const ranked: Array<[RelativePosition, number]> = [
+    ["above", above],
+    ["same", same],
+    ["below", below],
+  ];
+  ranked.sort(([, a], [, b]) => b - a);
+  const [position, count] = ranked[0];
+  return count / known >= 0.67 ? position : "mixed";
 };
 
 const buildWorldHierarchyTiers = (
@@ -717,9 +716,9 @@ const buildWorldHierarchyTiers = (
     ? summary.promotionRaceOpponents
     : summary.generationPeers;
   const playerTier = resolveRankTier(position.highestRankLabel);
-  const eraStarItems = summary.eraStars.slice(0, 4).map(toHierarchyEraStar);
-  const sameWallItems = sameWall.slice(0, 4).map(toHierarchyOpponent);
-  const rivalItems = summary.rivals.slice(0, 5).map(toHierarchyOpponent);
+  const eraStarItems = summary.eraStars.slice(0, 3).map(toHierarchyEraStar);
+  const sameWallItems = sameWall.slice(0, 3).map(toHierarchyOpponent);
+  const rivalItems = summary.rivals.slice(0, 3).map(toHierarchyOpponent);
 
   return [
     {
@@ -884,6 +883,7 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
   const opponentSummary = `${rivalVMs.length}人 / 勝ち越し${winningOpponents.length}人 / 苦手${difficultOpponents.length}人`;
   const peerSummary = `${peerMembers.length}人 / 同じ壁${summary.promotionRaceOpponents.length}人`;
   const eraSummary = `${eraStarVMs.length}人 / 強い相手${summary.strongestOpponents.length}人`;
+  const relationScaleSummary = `${rivalVMs.length + peerMembers.length + eraStarVMs.length}件`;
 
   return (
     <section className={styles.section}>
@@ -902,17 +902,41 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
           title="関係の全体像"
           lead="本人を中心に、相手との距離感と関係の量を先に見る。"
         >
+          <div className={styles.overviewLegendRow}>
+            <div className={styles.tierLegend} aria-label="段位チップ凡例">
+              {[
+                ["横", "横綱"],
+                ["大", "大関"],
+                ["役", "三役"],
+                ["前", "前頭"],
+                ["両", "十両"],
+                ["幕", "幕下"],
+                ["下", "下位"],
+              ].map(([symbol, label]) => (
+                <span key={symbol} className={styles.tierLegendItem}>
+                  <span className={styles.tierLegendChip}>{symbol}</span>
+                  <span>{label}</span>
+                </span>
+              ))}
+            </div>
+            <div className={styles.compareLegend} aria-label="比較バッジの意味">
+              <span>比較バッジ</span>
+              <strong>上位多め</strong>
+              <strong>同格中心</strong>
+              <strong>下位多め</strong>
+              <strong>上下混在</strong>
+            </div>
+          </div>
           <WorldHierarchy tiers={hierarchyTiers} />
           <div className={styles.visualOverview}>
-            <RelationMap
-              shikona={status.shikona}
-              positionLabel={position.highestRankLabel}
-              playerTier={resolveRankTier(position.highestRankLabel)}
-              nodes={relationMapNodes}
-            />
-            <div className={styles.visualCharts}>
-              <RelationScaleChart items={relationScaleItems} />
-              <OpponentRecordChart items={opponentRecordItems} />
+            <OpponentRecordChart items={opponentRecordItems} />
+            <div className={styles.desktopRelationBoard}>
+              <RelationMap
+                shikona={status.shikona}
+                positionLabel={position.highestRankLabel}
+                playerTier={resolveRankTier(position.highestRankLabel)}
+                nodes={relationMapNodes}
+              />
             </div>
           </div>
         </ChapterSection>
@@ -946,6 +970,35 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
         </ChapterSection>
 
         <div className={styles.detailStack} aria-label="関係性の詳細記録">
+          <details className={styles.mobileRelationDetails}>
+            <summary className={styles.detailSummary}>
+              <span className={styles.detailSummaryText}>
+                <span className={styles.detailTitle}>星取相関盤</span>
+                <span className={styles.detailLead}>主な相手との関係を星取表風に見る。</span>
+              </span>
+              <span className={styles.detailMeta}>
+                <span className={styles.detailCount}>{relationMapNodes.length}人</span>
+                <span className={styles.detailAction} aria-hidden="true" />
+              </span>
+            </summary>
+            <div className={styles.detailBody}>
+              <RelationMap
+                shikona={status.shikona}
+                positionLabel={position.highestRankLabel}
+                playerTier={resolveRankTier(position.highestRankLabel)}
+                nodes={relationMapNodes}
+              />
+            </div>
+          </details>
+
+          <DetailChapterSection
+            title="関係の広がり"
+            lead="対戦相手・同世代・時代の上位力士の量を確認する。"
+            summary={relationScaleSummary}
+          >
+            <RelationScaleChart items={relationScaleItems} />
+          </DetailChapterSection>
+
           {keyCards.length > 0 ? (
             <DetailChapterSection
               title="中心人物"

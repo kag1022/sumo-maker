@@ -69,7 +69,7 @@
   align-items: center;
   gap: 0.45rem;
   color: rgb(var(--twc-brand) / 0.78);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .worldKicker::before {
@@ -83,7 +83,7 @@
 .worldTitle {
   margin: 0.15rem 0 0;
   font-family: "Yuji Syuku", serif;
-  font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
   line-height: 1.15;
   color: rgb(var(--twc-text) / 0.96);
 }
@@ -92,7 +92,7 @@
   margin: 0;
   max-width: 48rem;
   color: rgb(var(--twc-text) / 0.76);
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   line-height: 1.75;
 }
 
@@ -144,22 +144,30 @@
 
 .positionLabel {
   color: rgb(var(--twc-brand) / 0.7);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
 }
 
 .positionValue {
   color: rgb(var(--twc-text) / 0.95);
   font-weight: 700;
-  font-size: 0.94rem;
+  font-size: 1.02rem;
   line-height: 1.45;
 }
 
 .visualOverview {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  grid-template-columns: minmax(0, 0.86fr) minmax(24rem, 1.14fr);
   gap: 0.8rem;
-  align-items: stretch;
+  align-items: start;
   margin-top: 0.8rem;
+}
+
+.overviewLegendRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: stretch;
+  margin-bottom: 0.75rem;
 }
 
 .hierarchyDiagram {
@@ -198,7 +206,7 @@
   font-family: "DotGothic16", monospace;
   letter-spacing: 0.1em;
   color: rgb(var(--twc-brand) / 0.78);
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   writing-mode: vertical-rl;
   text-orientation: upright;
 }
@@ -246,10 +254,10 @@
 
 .hierarchyTier {
   display: grid;
-  grid-template-columns: minmax(9rem, 0.3fr) minmax(0, 1fr);
-  gap: 0.85rem;
+  grid-template-columns: minmax(10.5rem, 0.32fr) minmax(0, 1fr);
+  gap: 1rem;
   min-width: 0;
-  padding: 0.78rem 0.9rem;
+  padding: 0.9rem 1rem;
   border-bottom: 1px solid rgb(var(--twc-line) / 0.24);
 }
 
@@ -283,24 +291,24 @@
 
 .hierarchyTierLabel {
   color: rgb(var(--twc-brand) / 0.86);
-  font-size: 0.74rem;
+  font-size: 0.86rem;
 }
 
 .hierarchyTierNote {
   color: rgb(var(--twc-text-bright) / 0.5);
-  font-size: 0.62rem;
-  line-height: 1.45;
+  font-size: 0.72rem;
+  line-height: 1.55;
 }
 
 .hierarchyTierPos {
   flex-shrink: 0;
-  padding: 0.1rem 0.42rem;
+  padding: 0.14rem 0.5rem;
   border: 1px solid rgb(var(--twc-line) / 0.32);
   background: rgb(var(--twc-bg-panel) / 0.6);
   color: rgb(var(--twc-text) / 0.78);
   font-family: "DotGothic16", monospace;
   letter-spacing: 0.04em;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   line-height: 1.4;
   white-space: nowrap;
 }
@@ -321,6 +329,12 @@
   border-color: rgb(var(--twc-state) / 0.55);
   background: rgb(var(--twc-state) / 0.14);
   color: rgb(var(--twc-state) / 0.92);
+}
+
+.posMixed {
+  border-color: rgb(var(--twc-action) / 0.5);
+  background: rgb(var(--twc-action) / 0.12);
+  color: rgb(var(--twc-action) / 0.9);
 }
 
 .posUnknown {
@@ -345,7 +359,7 @@
 .hierarchyItems {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.48rem;
+  gap: 0.62rem;
   min-width: 0;
 }
 
@@ -353,9 +367,9 @@
   display: inline-grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.5rem;
-  min-width: min(100%, 11rem);
-  padding: 0.5rem 0.6rem;
+  gap: 0.6rem;
+  min-width: min(100%, 12.8rem);
+  padding: 0.62rem 0.72rem;
   border: 1px solid rgb(var(--twc-line) / 0.26);
   background: rgb(var(--twc-bg-panel) / 0.54);
   box-shadow: inset 2px 0 0 rgb(var(--twc-brand) / 0.24);
@@ -371,8 +385,8 @@
   border: 1px dashed rgb(var(--twc-line) / 0.32);
   background: rgb(var(--twc-bg) / 0.28);
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.64rem;
-  line-height: 1.35;
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .hierarchyItemBody {
@@ -394,14 +408,14 @@
 .hierarchyPlayerMark {
   display: inline-grid;
   place-items: center;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.22rem;
+  height: 1.22rem;
   margin-right: 0.38rem;
   border: 1px solid rgb(var(--twc-brand) / 0.72);
   background: rgb(var(--twc-brand) / 0.3);
   color: rgb(var(--twc-brand));
   font-family: "DotGothic16", monospace;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1;
   vertical-align: middle;
 }
@@ -412,7 +426,7 @@
   overflow: hidden;
   color: rgb(var(--twc-text) / 0.95);
   font-family: "Yuji Syuku", serif;
-  font-size: 1.02rem;
+  font-size: 1.18rem;
   line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -421,8 +435,8 @@
 .hierarchyMeta {
   overflow: hidden;
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.64rem;
-  line-height: 1.35;
+  font-size: 0.74rem;
+  line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -430,8 +444,8 @@
 .hierarchyItemRecord {
   display: flex;
   overflow: hidden;
-  height: 0.28rem;
-  margin-top: 0.22rem;
+  height: 0.38rem;
+  margin-top: 0.3rem;
   border: 1px solid rgb(var(--twc-line) / 0.22);
   background: rgb(var(--twc-bg-panel) / 0.5);
 }
@@ -459,20 +473,20 @@
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border: 1px solid rgb(var(--twc-line) / 0.34);
   background: rgb(var(--twc-bg-panel) / 0.7);
   color: rgb(var(--twc-text) / 0.92);
   font-family: "Yuji Syuku", serif;
-  font-size: 0.98rem;
+  font-size: 1.08rem;
   line-height: 1;
 }
 
 .tierChipLg {
-  width: 1.8rem;
-  height: 1.8rem;
-  font-size: 1.05rem;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.16rem;
 }
 
 .tierChipEmpty {
@@ -530,158 +544,87 @@
   color: rgb(var(--twc-text-bright) / 0.45);
 }
 
+.desktopRelationBoard {
+  min-width: 0;
+}
+
+.mobileRelationDetails {
+  display: none;
+}
+
 .relationMap {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.72fr) minmax(0, 1fr);
-  grid-template-rows: minmax(7.2rem, auto) minmax(7.2rem, auto);
-  gap: 0.75rem 0.85rem;
-  min-height: 16rem;
-  padding: 0.95rem;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 0.9rem;
   border: 1px solid rgb(var(--twc-line) / 0.28);
   background:
-    linear-gradient(180deg, rgb(var(--twc-bg) / 0.28), transparent),
-    rgb(var(--twc-bg) / 0.2);
-  isolation: isolate;
+    linear-gradient(90deg, rgb(var(--twc-brand) / 0.07), transparent 36%),
+    repeating-linear-gradient(
+      0deg,
+      rgb(var(--twc-bg) / 0.24) 0,
+      rgb(var(--twc-bg) / 0.24) 1px,
+      transparent 1px,
+      transparent 2.35rem
+    ),
+    rgb(var(--twc-bg) / 0.18);
 }
 
-.relationMap::after {
-  content: "";
-  position: absolute;
-  inset: 1.35rem;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.55;
-}
-
-.relationMap::after {
-  border: 1px solid rgb(var(--twc-line) / 0.14);
-  transform: scale(0.92);
-}
-
-.mapConnectors {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: visible;
-}
-
-.mapConnectorLine {
-  stroke: var(--map-line-color, rgb(var(--twc-brand) / 0.34));
-  stroke-width: 1.3;
-  stroke-dasharray: 4 5;
-  opacity: 0.76;
-}
-
-.mapConnectorDot,
-.mapConnectorHub {
-  fill: var(--map-line-color, rgb(var(--twc-brand) / 0.42));
-  opacity: 0.85;
-}
-
-.lineRival {
-  --map-line-color: rgb(var(--twc-brand) / 0.48);
-}
-
-.lineRace {
-  --map-line-color: rgb(var(--twc-warning) / 0.5);
-}
-
-.linePeer {
-  --map-line-color: rgb(var(--twc-action) / 0.44);
-}
-
-.lineEra {
-  --map-line-color: rgb(var(--twc-state) / 0.42);
-}
-
-.lineStrong {
-  --map-line-color: rgb(var(--twc-danger) / 0.42);
-}
-
-.mapCenter {
+.relationBoardHead {
   display: grid;
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  justify-items: center;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.22);
+}
+
+.relationBoardSubject {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
   min-width: 0;
-  position: relative;
-  z-index: 2;
-  padding: 1.1rem 0.85rem;
-  border: 1px solid rgb(var(--twc-brand) / 0.42);
-  background:
-    radial-gradient(circle at 50% 0%, rgb(var(--twc-brand) / 0.15), transparent 58%),
-    rgb(var(--twc-bg-panel) / 0.78);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.04),
-    0 12px 26px rgb(0 0 0 / 0.18);
+}
+
+.relationBoardSubjectText {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.relationBoardLegend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgb(var(--twc-text-bright) / 0.54);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.relationBoardLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .mapCenterLabel {
   color: rgb(var(--twc-brand) / 0.78);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .mapCenterName {
   overflow-wrap: anywhere;
-  text-align: center;
   font-family: "Yuji Syuku", serif;
   color: rgb(var(--twc-text) / 0.96);
-  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  font-size: clamp(1.34rem, 1.9vw, 1.66rem);
   line-height: 1.12;
 }
 
 .mapCenterMeta {
   color: rgb(var(--twc-text-bright) / 0.64);
-  font-size: 0.7rem;
-}
-
-.mapNode {
-  display: grid;
-  align-content: center;
-  gap: 0.28rem;
-  min-width: 0;
-  position: relative;
-  z-index: 2;
-  padding: 0.8rem 0.85rem;
-  border: 1px solid rgb(var(--twc-line) / 0.28);
-  background:
-    linear-gradient(180deg, var(--map-tone-bg), transparent 92%),
-    rgb(var(--twc-bg-panel) / 0.62);
-  box-shadow: inset 3px 0 0 var(--map-tone-line);
-}
-
-.mapNodeHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.mapNorthWest {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.mapNorthEast {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.mapSouthWest {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.mapSouthEast {
-  grid-column: 3;
-  grid-row: 2;
+  font-size: 0.78rem;
 }
 
 .mapToneRival {
@@ -709,9 +652,58 @@
   --map-tone-line: rgb(var(--twc-danger) / 0.42);
 }
 
+.relationBoardTable {
+  display: grid;
+  min-width: 0;
+  border: 1px solid rgb(var(--twc-line) / 0.18);
+  background: rgb(var(--twc-bg) / 0.16);
+}
+
+.relationBoardHeader {
+  display: grid;
+  grid-template-columns: minmax(4.6rem, 0.58fr) minmax(8rem, 1.25fr) minmax(5.4rem, 0.76fr) minmax(5.8rem, 0.8fr) minmax(5.1rem, 0.66fr);
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid rgb(var(--twc-line) / 0.22);
+  background: rgb(var(--twc-bg-panel) / 0.36);
+  color: rgb(var(--twc-text-bright) / 0.46);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.relationBoardRow {
+  display: grid;
+  grid-template-columns: minmax(4.6rem, 0.58fr) minmax(8rem, 1.25fr) minmax(5.4rem, 0.76fr) minmax(5.8rem, 0.8fr) minmax(5.1rem, 0.66fr);
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.62rem 0.65rem;
+  border-bottom: 1px solid rgb(var(--twc-line) / 0.18);
+  background:
+    linear-gradient(90deg, var(--map-tone-bg), transparent 58%),
+    rgb(var(--twc-bg-panel) / 0.34);
+  box-shadow: inset 2px 0 0 rgb(var(--twc-line) / 0.2);
+}
+
+.relationBoardRow:last-child {
+  border-bottom: 0;
+}
+
+.relationBoardNameBlock {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
 .mapNodeRole {
+  overflow: hidden;
   color: var(--map-tone-line);
-  font-size: 0.66rem;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mapNodeName {
@@ -720,47 +712,77 @@
   white-space: nowrap;
   font-family: "Yuji Syuku", serif;
   color: rgb(var(--twc-text) / 0.96);
-  font-size: clamp(1.08rem, 1.45vw, 1.34rem);
-  line-height: 1.18;
+  font-size: clamp(1.22rem, 1.55vw, 1.48rem);
+  line-height: 1.2;
 }
 
 .mapNodeMeta {
   overflow: hidden;
   color: rgb(var(--twc-text-bright) / 0.6);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mapNodeRecord {
-  display: flex;
+.relationRankCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  color: rgb(var(--twc-text-bright) / 0.62);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.relationRecordText {
   overflow: hidden;
-  height: 0.32rem;
-  margin-top: 0.18rem;
-  border: 1px solid rgb(var(--twc-line) / 0.2);
-  background: rgb(var(--twc-bg-panel) / 0.56);
+  color: rgb(var(--twc-text) / 0.72);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.mapNodeRecordWin,
-.mapNodeRecordLoss {
-  display: block;
-  height: 100%;
+.starStrip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: end;
+  gap: 0.18rem;
+  min-width: 4.7rem;
 }
 
-.mapNodeRecordWin {
-  background: rgb(var(--twc-state) / 0.7);
+.starWin,
+.starLoss {
+  display: inline-block;
+  width: 0.56rem;
+  height: 0.56rem;
+  border: 1px solid currentcolor;
 }
 
-.mapNodeRecordLoss {
+.starWin {
+  background: rgb(var(--twc-state) / 0.62);
+  color: rgb(var(--twc-state) / 0.8);
+}
+
+.starLoss {
   background:
     repeating-linear-gradient(
       135deg,
-      rgb(var(--twc-danger) / 0.58) 0,
-      rgb(var(--twc-danger) / 0.58) 4px,
-      rgb(var(--twc-danger) / 0.34) 4px,
-      rgb(var(--twc-danger) / 0.34) 8px
+      rgb(var(--twc-danger) / 0.52) 0,
+      rgb(var(--twc-danger) / 0.52) 3px,
+      rgb(var(--twc-danger) / 0.28) 3px,
+      rgb(var(--twc-danger) / 0.28) 6px
     );
+  color: rgb(var(--twc-danger) / 0.72);
+}
+
+.starNoRecord {
+  color: rgb(var(--twc-text-bright) / 0.5);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
 
 .mapEmpty {
@@ -778,11 +800,61 @@
   line-height: 1.7;
 }
 
-.visualCharts {
-  display: grid;
-  grid-template-rows: auto auto;
-  gap: 0.8rem;
+.tierLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
   min-width: 0;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid rgb(var(--twc-line) / 0.24);
+  background: rgb(var(--twc-bg) / 0.18);
+}
+
+.tierLegendItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.42rem;
+  color: rgb(var(--twc-text-bright) / 0.62);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.tierLegendChip {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.36);
+  background: rgb(var(--twc-bg-panel) / 0.55);
+  color: rgb(var(--twc-brand) / 0.86);
+  font-family: "Yuji Syuku", serif;
+  line-height: 1;
+}
+
+.compareLegend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  max-width: 26rem;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid rgb(var(--twc-line) / 0.24);
+  background: rgb(var(--twc-bg) / 0.18);
+  color: rgb(var(--twc-text-bright) / 0.56);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.compareLegend strong {
+  padding: 0.1rem 0.38rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg-panel) / 0.5);
+  color: rgb(var(--twc-text) / 0.72);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .scaleChart,
@@ -806,12 +878,12 @@
 
 .visualCardTitle {
   color: rgb(var(--twc-text) / 0.92);
-  font-size: 0.76rem;
+  font-size: 0.88rem;
 }
 
 .visualCardNote {
   color: rgb(var(--twc-text-bright) / 0.52);
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
@@ -846,19 +918,19 @@
 }
 
 .scaleLabel {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
 }
 
 .recordName {
   font-family: "Yuji Syuku", serif;
-  font-size: 0.96rem;
+  font-size: 1.08rem;
 }
 
 .scaleCount,
 .recordValue {
   flex-shrink: 0;
   color: rgb(var(--twc-brand) / 0.76);
-  font-size: 0.68rem;
+  font-size: 0.78rem;
 }
 
 .scaleTrack,
@@ -879,8 +951,8 @@
 .scaleNote {
   overflow: hidden;
   color: rgb(var(--twc-text-bright) / 0.5);
-  font-size: 0.62rem;
-  line-height: 1.35;
+  font-size: 0.72rem;
+  line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -915,12 +987,12 @@
   border: 1px dashed rgb(var(--twc-line) / 0.34);
   background: rgb(var(--twc-bg) / 0.32);
   color: rgb(var(--twc-text) / 0.66);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   line-height: 1.65;
 }
 
 .chapterSection {
-  padding: 1rem 1.15rem 1.15rem;
+  padding: 1.12rem 1.2rem 1.25rem;
   border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
 }
 
@@ -939,13 +1011,13 @@
 .chapterTitle {
   margin: 0;
   color: rgb(var(--twc-text) / 0.94);
-  font-size: 0.9rem;
+  font-size: 1.08rem;
 }
 
 .chapterLead {
   margin: 0;
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   line-height: 1.6;
   text-align: right;
 }
@@ -969,8 +1041,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  min-height: 4rem;
-  padding: 0.85rem 1.15rem;
+  min-height: 4.4rem;
+  padding: 0.95rem 1.2rem;
   cursor: pointer;
   list-style: none;
 }
@@ -992,14 +1064,14 @@
 
 .detailTitle {
   color: rgb(var(--twc-text) / 0.92);
-  font-size: 0.86rem;
+  font-size: 0.98rem;
 }
 
 .detailLead {
   overflow: hidden;
   color: rgb(var(--twc-text-bright) / 0.5);
-  font-size: 0.68rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.55;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1018,7 +1090,7 @@
   border: 1px solid rgb(var(--twc-line) / 0.26);
   background: rgb(var(--twc-bg-panel) / 0.46);
   color: rgb(var(--twc-brand) / 0.78);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1027,7 +1099,7 @@
   position: relative;
   min-width: 3.2rem;
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   text-align: right;
 }
 
@@ -1086,7 +1158,7 @@
 
 .keyCardKicker {
   color: rgb(var(--twc-brand) / 0.74);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .keyCardName {
@@ -1099,14 +1171,14 @@
 
 .keyCardMeta {
   color: rgb(var(--twc-text-bright) / 0.64);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   line-height: 1.45;
 }
 
 .keyCardDesc {
   margin: 0.1rem 0 0;
   color: rgb(var(--twc-text) / 0.78);
-  font-size: 0.84rem;
+  font-size: 0.92rem;
   line-height: 1.7;
 }
 
@@ -1145,14 +1217,14 @@
 
 .relationTitle {
   color: rgb(var(--twc-text) / 0.92);
-  font-size: 0.8rem;
+  font-size: 0.92rem;
 }
 
 .relationLead {
   overflow: hidden;
   color: rgb(var(--twc-text-bright) / 0.48);
-  font-size: 0.64rem;
-  line-height: 1.45;
+  font-size: 0.74rem;
+  line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1160,7 +1232,7 @@
 .relationCount {
   flex-shrink: 0;
   color: rgb(var(--twc-brand) / 0.72);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
 .relationList {
@@ -1199,20 +1271,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
 }
 
 .rowDesc {
   margin: 0;
   color: rgb(var(--twc-text) / 0.75);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   line-height: 1.65;
 }
 
 .moreCount {
   justify-self: end;
   color: rgb(var(--twc-text-bright) / 0.58);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .emptyState {
@@ -1237,7 +1309,8 @@
 @media (max-width: 1080px) {
   .worldHead,
   .worldHero,
-  .visualOverview {
+  .visualOverview,
+  .overviewLegendRow {
     grid-template-columns: 1fr;
   }
 
@@ -1316,9 +1389,7 @@
   }
 
   .relationMap {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    min-height: 0;
+    padding: 0.72rem;
   }
 
   .hierarchyDiagram::before {
@@ -1333,7 +1404,7 @@
 
   .hierarchyItems {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .hierarchyItem,
@@ -1346,22 +1417,25 @@
     display: none;
   }
 
-  .mapConnectors {
+  .desktopRelationBoard {
     display: none;
   }
 
-  .mapCenter,
-  .mapNorthWest,
-  .mapNorthEast,
-  .mapSouthWest,
-  .mapSouthEast,
-  .mapEmpty {
-    grid-column: 1;
-    grid-row: auto;
+  .mobileRelationDetails {
+    display: block;
+    border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
+    background: rgb(var(--twc-bg) / 0.1);
   }
 
-  .mapCenter {
-    order: -1;
+  .relationBoardHead,
+  .relationBoardHeader,
+  .relationBoardRow {
+    grid-template-columns: 1fr;
+  }
+
+  .relationBoardLegend,
+  .starStrip {
+    justify-content: start;
   }
 
   .visualCardHead,
