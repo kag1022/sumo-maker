@@ -26,6 +26,10 @@ export const EventLog: React.FC<EventLogProps> = ({ milestones }) => {
                 <span>{milestone.bashoLabel}</span>
                 <em>{milestone.recordLabel}</em>
               </div>
+              <div className={styles.age}>
+                <span>年齢</span>
+                <strong>{milestone.ageLabel}</strong>
+              </div>
               <div className={styles.event}>
                 <strong>{milestone.label}</strong>
                 <em>{milestone.rankLabel}</em>

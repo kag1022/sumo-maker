@@ -16,6 +16,31 @@ interface TrajectoryScopeProps {
   onOpenChapter: (chapter: "trajectory") => void;
 }
 
+interface ResidenceBar {
+  key: string;
+  label: string;
+  count: number;
+  ratio: number;
+}
+
+const buildResidenceBars = (points: CareerLedgerPoint[] | undefined): ResidenceBar[] => {
+  if (!points?.length) return [];
+  const counts = new Map<string, number>();
+  for (const point of points) {
+    counts.set(point.bandKey, (counts.get(point.bandKey) ?? 0) + 1);
+  }
+  const maxCount = Math.max(1, ...counts.values());
+  return CAREER_RANK_SCALE_BANDS.map((band) => {
+    const count = counts.get(band.key) ?? 0;
+    return {
+      key: band.key,
+      label: band.label,
+      count,
+      ratio: count / maxCount,
+    };
+  }).filter((bar) => bar.count > 0);
+};
+
 const buildMiniRankScaleLayout = (
   points: CareerLedgerPoint[],
   plotHeight: number,
@@ -47,6 +72,35 @@ const buildMiniRankScaleLayout = (
     cursor += height;
     return result;
   });
+};
+
+const RankResidenceChart: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
+  const bars = React.useMemo(() => buildResidenceBars(points), [points]);
+  const total = points?.length ?? 0;
+
+  if (!points || points.length === 0) {
+    return <div className={styles.residenceEmpty}>在籍数は詳細整理後に表示されます。</div>;
+  }
+
+  return (
+    <aside className={styles.residencePanel} aria-label="階級別の在籍場所数">
+      <div className={styles.residenceHead}>
+        <span>階級別の在籍</span>
+        <strong>{total}場所</strong>
+      </div>
+      <div className={styles.residenceBars}>
+        {bars.map((bar) => (
+          <div key={bar.key} className={styles.residenceRow}>
+            <span className={styles.residenceLabel}>{bar.label}</span>
+            <span className={styles.residenceTrack} aria-hidden="true">
+              <span className={styles.residenceFill} style={{ width: `${Math.max(8, bar.ratio * 100)}%` }} />
+            </span>
+            <strong className={styles.residenceCount}>{bar.count}場所</strong>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
 };
 
 const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
@@ -142,8 +196,11 @@ export const TrajectoryScope: React.FC<TrajectoryScopeProps> = ({ points, onOpen
           </Button>
         }
       />
-      <div className={styles.scopePlot}>
-        <MiniTrajectorySvg points={points} />
+      <div className={styles.scopeBody}>
+        <div className={styles.scopePlot}>
+          <MiniTrajectorySvg points={points} />
+        </div>
+        <RankResidenceChart points={points} />
       </div>
       <div className={styles.legend}>
         <span>

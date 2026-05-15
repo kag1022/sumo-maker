@@ -2,12 +2,8 @@ import React from "react";
 import {
   BarChart3,
   BookOpenText,
-  Landmark,
-  Sparkles,
-  Star,
   Swords,
   Trophy,
-  UserRound,
 } from "lucide-react";
 import { CONSTANTS } from "../../../logic/constants";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
@@ -49,9 +45,6 @@ import {
   ChipList,
   CopyStack,
   Lead,
-  TelemetryGrid,
-  TelemetryGridCell,
-  TelemetryModule,
 } from "./encyclopedia/TelemetryModule";
 import { EventLog } from "./encyclopedia/EventLog";
 import styles from "./CareerEncyclopediaChapter.module.css";
@@ -179,7 +172,10 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     () => summarizeRareKimariteEncounters(status.history.kimariteTotal).slice(0, 4),
     [status.history.kimariteTotal],
   );
-  const careerMilestones = React.useMemo(() => buildCareerMilestones(ledgerPoints), [ledgerPoints]);
+  const careerMilestones = React.useMemo(
+    () => buildCareerMilestones(ledgerPoints, status.entryAge),
+    [ledgerPoints, status.entryAge],
+  );
   const bodyTimeline = status.history.bodyTimeline ?? [];
   const entryWeight = bodyTimeline.length > 0 ? bodyTimeline[0].weightKg : undefined;
   const peakWeight = bodyTimeline.length > 0 ? Math.max(...bodyTimeline.map((b) => b.weightKg)) : undefined;
@@ -240,6 +236,36 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       status.entryAge,
       status.profile.birthplace,
       status.profile.personality,
+    ],
+  );
+
+  const styleRows: DataSheetRow[] = React.useMemo(
+    () => [
+      { label: "得意な型", value: strengthLabel },
+      { label: "苦手な型", value: weaknessLabel },
+      {
+        label: "代表技",
+        value:
+          signatureSummary.selectedMoves.length > 0
+            ? signatureSummary.selectedMoves.join(" / ")
+            : "記録なし",
+      },
+    ],
+    [signatureSummary.selectedMoves, strengthLabel, weaknessLabel],
+  );
+
+  const stableRows: DataSheetRow[] = React.useMemo(
+    () => [
+      { label: "所属部屋", value: stableEnvironment.stableName },
+      { label: "一門", value: stableEnvironment.ichimonName },
+      { label: "部屋系統", value: stableEnvironment.archetypeName },
+      { label: "規模", value: stableEnvironment.scaleLabel },
+    ],
+    [
+      stableEnvironment.archetypeName,
+      stableEnvironment.ichimonName,
+      stableEnvironment.scaleLabel,
+      stableEnvironment.stableName,
     ],
   );
 
@@ -330,192 +356,168 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         </button>
       </BracketFrame>
 
-      <TelemetryGrid>
-        <TelemetryGridCell tone="story">
-          <TelemetryModule title="人物像" tone="story">
-            <CopyStack lines={memoLines.length > 0 ? memoLines : [overview.lifeSummary]} />
-          </TelemetryModule>
-        </TelemetryGridCell>
-        <TelemetryGridCell tone="style">
-          <TelemetryModule title="取り口" tone="style">
-            <DataSheet
-              rows={[
-                { label: "得意な型", value: strengthLabel },
-                { label: "苦手な型", value: weaknessLabel },
-                {
-                  label: "代表技",
-                  value:
-                    signatureSummary.selectedMoves.length > 0
-                      ? signatureSummary.selectedMoves.join(" / ")
-                      : "記録なし",
-                },
-              ]}
-            />
-            {rareKimariteEncounters.length > 0 ? (
-              <ChipList
-                items={rareKimariteEncounters.map((encounter) => ({
-                  key: encounter.kimariteId,
-                  label: `${encounter.name} / ${encounter.count}回`,
-                }))}
-              />
-            ) : null}
-          </TelemetryModule>
-        </TelemetryGridCell>
-        <TelemetryGridCell tone="stable">
-          <TelemetryModule title="所属部屋" tone="stable">
-            <Lead>{stableEnvironment.lead}</Lead>
-            <DataSheet
-              rows={[
-                { label: "所属部屋", value: stableEnvironment.stableName },
-                { label: "一門", value: stableEnvironment.ichimonName },
-                { label: "部屋系統", value: stableEnvironment.archetypeName },
-                { label: "規模", value: stableEnvironment.scaleLabel },
-              ]}
-            />
-          </TelemetryModule>
-        </TelemetryGridCell>
-        <TelemetryGridCell tone="record">
-          <TelemetryModule title="主な実績" tone="record">
-            <DataSheet rows={recordRows} />
-          </TelemetryModule>
-        </TelemetryGridCell>
-      </TelemetryGrid>
-
       <EventLog milestones={careerMilestones} />
 
       <BracketFrame variant="module" padding="default">
         <ModuleHeader
-          kicker="詳細分析"
-          title="記録の根拠"
-          copy="力士名鑑で全体像を掴み、ここで根拠を確認します。詳しい時系列は番付推移と場所別記録で読みます。"
+          kicker="補足記録"
+          title="情報の整理"
+          copy="似ている情報をまとめ、必要なところだけ開いて読めるようにします。"
         />
-        <div className={styles.analysisGrid}>
-          <div className={styles.analysisPanel}>
-            <ModuleHeader
-              kicker="基本情報"
-              title="プロフィール"
-              size="sm"
-              density="compact"
-            />
-            <DataSheet rows={profileRows} layout="grid" mono />
-            <span className="sr-only">
-              <UserRound />
-            </span>
-          </div>
+        <div className={styles.groupedRecords}>
+          <details className={styles.infoGroup} open>
+            <summary className={styles.infoGroupSummary}>
+              <span>プロフィールと取り口</span>
+              <em>人物像、体格、所属、得意な型</em>
+            </summary>
+            <div className={styles.infoGroupBody}>
+              <div className={styles.infoPanel}>
+                <ModuleHeader kicker="人物" title="プロフィール" size="sm" density="compact" />
+                <DataSheet rows={profileRows} layout="grid" mono />
+              </div>
+              <div className={styles.infoPanel}>
+                <ModuleHeader kicker="人物像" title="一代の読み筋" size="sm" density="compact" />
+                <CopyStack lines={memoLines.length > 0 ? memoLines : [overview.lifeSummary]} />
+              </div>
+              <div className={styles.infoPanel}>
+                <ModuleHeader kicker="相撲" title="取り口" size="sm" density="compact" />
+                <DataSheet rows={styleRows} layout="grid" mono />
+                {rareKimariteEncounters.length > 0 ? (
+                  <ChipList
+                    items={rareKimariteEncounters.map((encounter) => ({
+                      key: encounter.kimariteId,
+                      label: `${encounter.name} / ${encounter.count}回`,
+                    }))}
+                  />
+                ) : null}
+              </div>
+              <div className={styles.infoPanel}>
+                <ModuleHeader kicker="環境" title="所属部屋" size="sm" density="compact" />
+                <Lead>{stableEnvironment.lead}</Lead>
+                <DataSheet rows={stableRows} layout="grid" mono />
+              </div>
+            </div>
+          </details>
 
           {designRows.length > 0 ? (
-            <div className={styles.analysisPanel}>
-              <ModuleHeader
-                kicker="入門時"
-                title="入門時の条件"
-                size="sm"
-                density="compact"
-              />
-              <div className={styles.designTable}>
-                {designRows.map((row) => (
-                  <div key={`${row.label}-${row.designed}`} className={styles.designRow}>
-                    <span>{row.label}</span>
-                    <p>{row.interpreted}</p>
-                    <strong>{row.realized}</strong>
+            <details className={styles.infoGroup}>
+              <summary className={styles.infoGroupSummary}>
+                <span>入門時の条件</span>
+                <em>入口条件と実際の一代の差</em>
+              </summary>
+              <div className={styles.infoGroupBody}>
+                <div className={styles.infoPanelWide}>
+                  <div className={styles.designTable}>
+                    {designRows.map((row) => (
+                      <div key={`${row.label}-${row.designed}`} className={styles.designRow}>
+                        <span>{row.label}</span>
+                        <p>{row.interpreted}</p>
+                        <strong>{row.realized}</strong>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
-              <span className="sr-only">
-                <Star />
-              </span>
-            </div>
+            </details>
           ) : null}
 
-          {stablemates.length > 0 ? (
-            <div className={styles.analysisPanel}>
-              <ModuleHeader
-                kicker="同部屋"
-                title="同部屋の主な力士"
-                size="sm"
-                density="compact"
-              />
-              <div className={styles.stablemateGrid}>
-                {stablemates.map((mate) => (
-                  <div
-                    key={mate.entityId}
-                    className={styles.stablemateCard}
-                    data-relation={mate.relation}
-                  >
-                    <span>{mate.relationLabel} / {mate.overlapBashoCount}場所</span>
-                    <strong>{mate.shikona}</strong>
-                    <p>
-                      {mate.rankLabel} / {mate.recordLabel}
-                    </p>
-                  </div>
-                ))}
+          <details className={styles.infoGroup}>
+            <summary className={styles.infoGroupSummary}>
+              <span>成績と実績</span>
+              <em>通算、優勝、三賞、金星</em>
+            </summary>
+            <div className={styles.infoGroupBody}>
+              <div className={styles.infoPanelWide}>
+                <DataSheet rows={recordRows} layout="grid" mono />
               </div>
-              <span className="sr-only">
-                <Landmark />
-              </span>
             </div>
-          ) : null}
+          </details>
 
-          {learnedTraits.length > 0 ? (
-            <div className={styles.analysisPanel}>
-              <ModuleHeader
-                kicker="習得"
-                title="特性"
-                size="sm"
-                density="compact"
-              />
-              <div className={styles.traitGrid}>
-                {learnedTraits.slice(0, 8).map((entry) => (
-                  <div
-                    key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`}
-                    className={styles.traitCard}
-                  >
-                    <strong>{entry.data?.name ?? entry.trait}</strong>
-                    <span>
-                      {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} /{" "}
-                      {formatTraitAcquisitionLabel(entry)}
-                    </span>
-                    <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+          <details className={styles.infoGroup}>
+            <summary className={styles.infoGroupSummary}>
+              <span>周辺力士と特性</span>
+              <em>同部屋の力士、習得した特性</em>
+            </summary>
+            <div className={styles.infoGroupBody}>
+              {stablemates.length > 0 ? (
+                <div className={styles.infoPanel}>
+                  <ModuleHeader kicker="同部屋" title="同部屋の主な力士" size="sm" density="compact" />
+                  <div className={styles.stablemateGrid}>
+                    {stablemates.map((mate) => (
+                      <div
+                        key={mate.entityId}
+                        className={styles.stablemateCard}
+                        data-relation={mate.relation}
+                      >
+                        <span>{mate.relationLabel} / {mate.overlapBashoCount}場所</span>
+                        <strong>{mate.shikona}</strong>
+                        <p>
+                          {mate.rankLabel} / {mate.recordLabel}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <span className="sr-only">
-                <Sparkles />
-              </span>
+                </div>
+              ) : (
+                <div className={styles.groupEmpty}>同部屋で強く重なった力士は記録されていません。</div>
+              )}
+
+              {learnedTraits.length > 0 ? (
+                <div className={styles.infoPanel}>
+                  <ModuleHeader kicker="習得" title="特性" size="sm" density="compact" />
+                  <div className={styles.traitGrid}>
+                    {learnedTraits.slice(0, 8).map((entry) => (
+                      <div
+                        key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`}
+                        className={styles.traitCard}
+                      >
+                        <strong>{entry.data?.name ?? entry.trait}</strong>
+                        <span>
+                          {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} /{" "}
+                          {formatTraitAcquisitionLabel(entry)}
+                        </span>
+                        <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.groupEmpty}>習得済みの特性は記録されていません。</div>
+              )}
+
+              {traitAwakenings.length > 0 ? (
+                <div className={styles.infoPanelWide}>
+                  <ModuleHeader kicker="特性" title="特性の推移" size="sm" density="compact" />
+                  <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
+                </div>
+              ) : null}
             </div>
+          </details>
+
+          {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
+            <details className={styles.infoGroup}>
+              <summary className={styles.infoGroupSummary}>
+                <span>数値の推移</span>
+                <em>勝率と体重の補助グラフ</em>
+              </summary>
+              <div className={styles.infoGroupBody}>
+                <div className={styles.infoPanelWide}>
+                  <div className={styles.chartGrid}>
+                    {ledgerPoints && ledgerPoints.length > 4 ? <WinRateTrendChart points={ledgerPoints} /> : null}
+                    {bodyTimeline.length > 4 ? (
+                      <BodyWeightChart
+                        bodyTimeline={bodyTimeline}
+                        entryWeight={entryWeight}
+                        peakWeight={peakWeight}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </details>
           ) : null}
         </div>
       </BracketFrame>
-
-      {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
-        <BracketFrame variant="module" padding="default">
-          <ModuleHeader
-            kicker="推移グラフ"
-            title="数値の補助線"
-            copy="数値は記録を読むための補助に留めます。"
-          />
-          <div className={styles.chartGrid}>
-            {ledgerPoints && ledgerPoints.length > 4 ? <WinRateTrendChart points={ledgerPoints} /> : null}
-            {bodyTimeline.length > 4 ? (
-              <BodyWeightChart
-                bodyTimeline={bodyTimeline}
-                entryWeight={entryWeight}
-                peakWeight={peakWeight}
-              />
-            ) : null}
-          </div>
-        </BracketFrame>
-      ) : null}
-
-      {traitAwakenings.length > 0 ? (
-        <BracketFrame variant="module" padding="default">
-          <ModuleHeader
-            kicker="特性"
-            title="特性の推移"
-            copy="特性が発現した場所と契機を時系列で読み直します。"
-          />
-          <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
-        </BracketFrame>
-      ) : null}
 
       {import.meta.env.DEV ? (
         <BracketFrame variant="data" padding="default">

@@ -35,6 +35,25 @@
 .positionLabel,
 .chapterTitle,
 .chapterLead,
+.detailTitle,
+.detailLead,
+.detailCount,
+.openText,
+.closeText,
+.visualCardTitle,
+.visualCardNote,
+.hierarchyTierLabel,
+.hierarchyTierNote,
+.hierarchyMeta,
+.hierarchyEmpty,
+.mapCenterLabel,
+.mapCenterMeta,
+.mapNodeRole,
+.mapNodeMeta,
+.scaleLabel,
+.scaleCount,
+.scaleNote,
+.recordValue,
 .keyCardKicker,
 .keyCardMeta,
 .relationTitle,
@@ -136,6 +155,451 @@
   line-height: 1.45;
 }
 
+.visualOverview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: 0.8rem;
+  align-items: stretch;
+  margin-top: 0.8rem;
+}
+
+.hierarchyDiagram {
+  position: relative;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgb(var(--twc-line) / 0.3);
+  background:
+    linear-gradient(90deg, rgb(var(--twc-brand) / 0.08), transparent 38%),
+    rgb(var(--twc-bg) / 0.22);
+}
+
+.hierarchyDiagram::before {
+  content: "";
+  position: absolute;
+  top: 1.1rem;
+  bottom: 1.1rem;
+  left: clamp(8.6rem, 18vw, 12.5rem);
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgb(var(--twc-brand) / 0.36),
+    rgb(var(--twc-brand) / 0.2),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.hierarchyTier {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 0.27fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 0.78rem 0.9rem;
+  border-bottom: 1px solid rgb(var(--twc-line) / 0.24);
+}
+
+.hierarchyTier:last-child {
+  border-bottom: 0;
+}
+
+.hierarchyTierHead {
+  display: grid;
+  align-content: center;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.hierarchyTierLabel {
+  color: rgb(var(--twc-brand) / 0.78);
+  font-size: 0.72rem;
+}
+
+.hierarchyTierNote {
+  color: rgb(var(--twc-text-bright) / 0.5);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.hierarchyItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.hierarchyItem,
+.hierarchyEmpty {
+  display: inline-grid;
+  gap: 0.18rem;
+  min-width: min(100%, 9.5rem);
+  padding: 0.48rem 0.58rem;
+  border: 1px solid rgb(var(--twc-line) / 0.26);
+  background: rgb(var(--twc-bg-panel) / 0.54);
+  box-shadow: inset 2px 0 0 rgb(var(--twc-brand) / 0.24);
+}
+
+.hierarchyPlayer {
+  border-color: rgb(var(--twc-brand) / 0.48);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-brand) / 0.11), transparent),
+    rgb(var(--twc-bg-panel) / 0.68);
+  box-shadow:
+    inset 3px 0 0 rgb(var(--twc-brand) / 0.62),
+    0 6px 16px rgb(0 0 0 / 0.18);
+}
+
+.hierarchyName {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.95);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.02rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hierarchyMeta,
+.hierarchyEmpty {
+  overflow: hidden;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.64rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hierarchyEmpty {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.6rem;
+  border-style: dashed;
+  background: rgb(var(--twc-bg) / 0.28);
+  box-shadow: none;
+}
+
+.relationMap {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.72fr) minmax(0, 1fr);
+  grid-template-rows: minmax(7.2rem, auto) minmax(7.2rem, auto);
+  gap: 0.75rem 0.85rem;
+  min-height: 16rem;
+  padding: 0.95rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg) / 0.28), transparent),
+    rgb(var(--twc-bg) / 0.2);
+  isolation: isolate;
+}
+
+.relationMap::before,
+.relationMap::after {
+  content: "";
+  position: absolute;
+  inset: 1.35rem;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.relationMap::before {
+  background:
+    linear-gradient(
+      27deg,
+      transparent calc(50% - 1px),
+      rgb(var(--twc-brand) / 0.26) 50%,
+      transparent calc(50% + 1px)
+    ),
+    linear-gradient(
+      -27deg,
+      transparent calc(50% - 1px),
+      rgb(var(--twc-brand) / 0.18) 50%,
+      transparent calc(50% + 1px)
+    );
+}
+
+.relationMap::after {
+  border: 1px solid rgb(var(--twc-line) / 0.14);
+  transform: scale(0.92);
+}
+
+.mapCenter {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 1.1rem 0.85rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.42);
+  background:
+    radial-gradient(circle at 50% 0%, rgb(var(--twc-brand) / 0.15), transparent 58%),
+    rgb(var(--twc-bg-panel) / 0.78);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.04),
+    0 12px 26px rgb(0 0 0 / 0.18);
+}
+
+.mapCenterLabel {
+  color: rgb(var(--twc-brand) / 0.78);
+  font-size: 0.68rem;
+}
+
+.mapCenterName {
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-family: "Yuji Syuku", serif;
+  color: rgb(var(--twc-text) / 0.96);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.12;
+}
+
+.mapCenterMeta {
+  color: rgb(var(--twc-text-bright) / 0.64);
+  font-size: 0.7rem;
+}
+
+.mapNode {
+  display: grid;
+  align-content: center;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background:
+    linear-gradient(180deg, var(--map-tone-bg), transparent 92%),
+    rgb(var(--twc-bg-panel) / 0.62);
+  box-shadow: inset 3px 0 0 var(--map-tone-line);
+}
+
+.mapNorthWest {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.mapNorthEast {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.mapSouthWest {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.mapSouthEast {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.mapToneRival {
+  --map-tone-bg: rgb(var(--twc-brand) / 0.12);
+  --map-tone-line: rgb(var(--twc-brand) / 0.58);
+}
+
+.mapToneRace {
+  --map-tone-bg: rgb(var(--twc-warning) / 0.11);
+  --map-tone-line: rgb(var(--twc-warning) / 0.52);
+}
+
+.mapTonePeer {
+  --map-tone-bg: rgb(var(--twc-action) / 0.1);
+  --map-tone-line: rgb(var(--twc-action) / 0.5);
+}
+
+.mapToneEra {
+  --map-tone-bg: rgb(var(--twc-state) / 0.09);
+  --map-tone-line: rgb(var(--twc-state) / 0.44);
+}
+
+.mapToneStrong {
+  --map-tone-bg: rgb(var(--twc-danger) / 0.09);
+  --map-tone-line: rgb(var(--twc-danger) / 0.42);
+}
+
+.mapNodeRole {
+  color: var(--map-tone-line);
+  font-size: 0.66rem;
+}
+
+.mapNodeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Yuji Syuku", serif;
+  color: rgb(var(--twc-text) / 0.96);
+  font-size: clamp(1.08rem, 1.45vw, 1.34rem);
+  line-height: 1.18;
+}
+
+.mapNodeMeta {
+  overflow: hidden;
+  color: rgb(var(--twc-text-bright) / 0.6);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapEmpty {
+  display: grid;
+  grid-column: 1 / -1;
+  align-content: center;
+  justify-self: stretch;
+  min-height: 7rem;
+  padding: 0.85rem;
+  border: 1px dashed rgb(var(--twc-line) / 0.34);
+  background: rgb(var(--twc-bg) / 0.32);
+  color: rgb(var(--twc-text) / 0.68);
+  text-align: center;
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+
+.visualCharts {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.scaleChart,
+.recordChart {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg) / 0.2);
+}
+
+.visualCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.18);
+}
+
+.visualCardTitle {
+  color: rgb(var(--twc-text) / 0.92);
+  font-size: 0.76rem;
+}
+
+.visualCardNote {
+  color: rgb(var(--twc-text-bright) / 0.52);
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.scaleList,
+.recordList {
+  display: grid;
+  gap: 0.62rem;
+}
+
+.scaleRow,
+.recordRow {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.scaleLabelLine,
+.recordLabelLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.scaleLabel,
+.recordName {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.88);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scaleLabel {
+  font-size: 0.7rem;
+}
+
+.recordName {
+  font-family: "Yuji Syuku", serif;
+  font-size: 0.96rem;
+}
+
+.scaleCount,
+.recordValue {
+  flex-shrink: 0;
+  color: rgb(var(--twc-brand) / 0.76);
+  font-size: 0.68rem;
+}
+
+.scaleTrack,
+.recordTrack {
+  overflow: hidden;
+  height: 0.52rem;
+  border: 1px solid rgb(var(--twc-line) / 0.24);
+  background: rgb(var(--twc-bg-panel) / 0.62);
+}
+
+.scaleFill {
+  display: block;
+  height: 100%;
+  background:
+    linear-gradient(90deg, rgb(var(--twc-brand) / 0.62), rgb(var(--twc-brand) / 0.28));
+}
+
+.scaleNote {
+  overflow: hidden;
+  color: rgb(var(--twc-text-bright) / 0.5);
+  font-size: 0.62rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordTrack {
+  display: flex;
+}
+
+.recordWin,
+.recordLoss {
+  display: block;
+  height: 100%;
+}
+
+.recordWin {
+  background: rgb(var(--twc-state) / 0.62);
+}
+
+.recordLoss {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgb(var(--twc-danger) / 0.5) 0,
+      rgb(var(--twc-danger) / 0.5) 5px,
+      rgb(var(--twc-danger) / 0.32) 5px,
+      rgb(var(--twc-danger) / 0.32) 10px
+    );
+}
+
+.compactEmpty {
+  padding: 0.72rem 0.75rem;
+  border: 1px dashed rgb(var(--twc-line) / 0.34);
+  background: rgb(var(--twc-bg) / 0.32);
+  color: rgb(var(--twc-text) / 0.66);
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
 .chapterSection {
   padding: 1rem 1.15rem 1.15rem;
   border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
@@ -165,6 +629,124 @@
   font-size: 0.7rem;
   line-height: 1.6;
   text-align: right;
+}
+
+.detailStack {
+  display: grid;
+  border-top: 1px solid rgb(var(--twc-line) / 0.28);
+}
+
+.detailChapter {
+  border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
+  background: rgb(var(--twc-bg) / 0.1);
+}
+
+.detailChapter:last-child {
+  border-bottom: 0;
+}
+
+.detailSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0.85rem 1.15rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.detailSummary::-webkit-details-marker {
+  display: none;
+}
+
+.detailSummary:focus-visible {
+  outline: 2px solid rgb(var(--twc-brand) / 0.72);
+  outline-offset: -2px;
+}
+
+.detailSummaryText {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.detailTitle {
+  color: rgb(var(--twc-text) / 0.92);
+  font-size: 0.86rem;
+}
+
+.detailLead {
+  overflow: hidden;
+  color: rgb(var(--twc-text-bright) / 0.5);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.detailCount {
+  max-width: 18rem;
+  overflow: hidden;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgb(var(--twc-line) / 0.26);
+  background: rgb(var(--twc-bg-panel) / 0.46);
+  color: rgb(var(--twc-brand) / 0.78);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openText,
+.closeText {
+  position: relative;
+  min-width: 3.2rem;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.openText::before,
+.closeText::before {
+  content: "";
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.38rem;
+  border-right: 1px solid currentcolor;
+  border-bottom: 1px solid currentcolor;
+  transform: translateY(-0.12rem) rotate(45deg);
+}
+
+.closeText {
+  display: none;
+}
+
+.closeText::before {
+  transform: translateY(0.12rem) rotate(225deg);
+}
+
+.detailChapter[open] {
+  background: rgb(var(--twc-bg) / 0.18);
+}
+
+.detailChapter[open] .openText {
+  display: none;
+}
+
+.detailChapter[open] .closeText {
+  display: inline-block;
+}
+
+.detailBody {
+  padding: 0 1.15rem 1.05rem;
 }
 
 .keyCardGrid {
@@ -341,7 +923,8 @@
 
 @media (max-width: 1080px) {
   .worldHead,
-  .worldHero {
+  .worldHero,
+  .visualOverview {
     grid-template-columns: 1fr;
   }
 
@@ -349,7 +932,6 @@
     border-right: 0;
     border-bottom: 1px solid rgb(var(--twc-line) / 0.28);
   }
-
 }
 
 @media (max-width: 767px) {
@@ -364,7 +946,8 @@
   }
 
   .worldHead,
-  .chapterHead {
+  .chapterHead,
+  .detailSummary {
     align-items: start;
   }
 
@@ -374,6 +957,28 @@
 
   .chapterLead {
     text-align: left;
+  }
+
+  .detailSummary {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+    padding-inline: 0.85rem;
+  }
+
+  .detailLead {
+    white-space: normal;
+  }
+
+  .detailMeta {
+    justify-content: space-between;
+  }
+
+  .detailCount {
+    max-width: min(100%, 16rem);
+  }
+
+  .detailBody {
+    padding-inline: 0.85rem;
   }
 
   .positionCard,
@@ -395,6 +1000,62 @@
 
   .narrativeCard {
     padding: 1rem 0.95rem;
+  }
+
+  .relationMap {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    min-height: 0;
+  }
+
+  .hierarchyDiagram::before {
+    display: none;
+  }
+
+  .hierarchyTier {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding-inline: 0.75rem;
+  }
+
+  .hierarchyItems {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hierarchyItem,
+  .hierarchyEmpty {
+    min-width: 0;
+  }
+
+  .relationMap::before,
+  .relationMap::after {
+    display: none;
+  }
+
+  .mapCenter,
+  .mapNorthWest,
+  .mapNorthEast,
+  .mapSouthWest,
+  .mapSouthEast,
+  .mapEmpty {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .mapCenter {
+    order: -1;
+  }
+
+  .visualCardHead,
+  .scaleLabelLine,
+  .recordLabelLine {
+    align-items: start;
+  }
+
+  .visualCardNote,
+  .scaleNote {
+    white-space: normal;
   }
 
   .relationGrid {

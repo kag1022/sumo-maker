@@ -7,6 +7,7 @@ export interface CareerMilestoneView {
   key: string;
   label: string;
   bashoLabel: string;
+  ageLabel: string;
   rankLabel: string;
   recordLabel: string;
   description: string;
@@ -57,6 +58,9 @@ const getMilestonePriority = (label: string): number => {
   return 8;
 };
 
+const estimateAgeAtBashoSeq = (entryAge: number, bashoSeq: number): number =>
+  entryAge + Math.max(0, Math.floor((bashoSeq - 1) / 6));
+
 const selectCareerMilestones = (items: CareerMilestoneView[]): CareerMilestoneView[] => {
   const sorted = items.sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
   const unique = sorted.filter((item, index, current) =>
@@ -86,8 +90,12 @@ const selectCareerMilestones = (items: CareerMilestoneView[]): CareerMilestoneVi
   return [...selected.values()].sort((a, b) => a.bashoSeq - b.bashoSeq || a.order - b.order);
 };
 
-export const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): CareerMilestoneView[] => {
+export const buildCareerMilestones = (
+  points: CareerLedgerPoint[] | undefined,
+  entryAge?: number,
+): CareerMilestoneView[] => {
   if (!points?.length) return [];
+  const resolvedEntryAge = typeof entryAge === "number" && Number.isFinite(entryAge) ? entryAge : 15;
 
   const items: CareerMilestoneView[] = [];
   const used = new Set<string>();
@@ -105,6 +113,7 @@ export const buildCareerMilestones = (points: CareerLedgerPoint[] | undefined): 
       key,
       label,
       bashoLabel: point.bashoLabel,
+      ageLabel: `${estimateAgeAtBashoSeq(resolvedEntryAge, point.bashoSeq)}歳`,
       rankLabel: displayRankLabel,
       recordLabel: point.recordLabel,
       description,

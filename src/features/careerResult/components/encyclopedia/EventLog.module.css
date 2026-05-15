@@ -10,7 +10,7 @@
   max-height: 22rem;
   overflow-y: auto;
   counter-reset: log-event;
-  padding: 0.45rem 0.45rem 0.45rem 0.9rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.75rem;
   border: 1px solid rgb(var(--twc-action) / 0.18);
   background:
     repeating-linear-gradient(0deg, transparent 0 28px, rgb(var(--twc-award) / 0.018) 28px 29px),
@@ -23,7 +23,7 @@
   position: absolute;
   top: 0.6rem;
   bottom: 0.6rem;
-  left: 11.4rem;
+  left: 1.45rem;
   width: 1px;
   background: linear-gradient(
     180deg,
@@ -38,10 +38,10 @@
 .item {
   position: relative;
   display: grid;
-  grid-template-columns: 8.6rem 8.4rem minmax(0, 1fr);
-  gap: 1.1rem;
-  align-items: center;
-  padding: 0.7rem 0.7rem 0.7rem 0.1rem;
+  grid-template-columns: minmax(7.2rem, 0.68fr) minmax(4.8rem, 0.34fr) minmax(8.5rem, 0.72fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.72rem 0.7rem 0.72rem 2.05rem;
   border-bottom: 1px solid rgb(var(--twc-line) / 0.22);
   counter-increment: log-event;
   transition: background-color 140ms ease;
@@ -59,8 +59,8 @@
 .item::before {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 10.94rem;
+  top: 1.15rem;
+  left: 0.42rem;
   width: 0.6rem;
   height: 0.6rem;
   border: 1px solid rgb(var(--twc-bg) / 0.96);
@@ -68,20 +68,19 @@
   box-shadow:
     0 0 0 2px rgb(var(--twc-action) / 0.16),
     0 0 12px rgb(var(--twc-action) / 0.18);
-  transform: translateY(-50%) rotate(45deg);
+  transform: rotate(45deg);
   z-index: 1;
 }
 
 .item::after {
   content: counter(log-event, decimal-leading-zero);
   position: absolute;
-  top: 50%;
-  left: 12.05rem;
+  top: 1rem;
+  left: 1.2rem;
   color: rgb(var(--twc-action) / 0.42);
   font-family: "DotGothic16", monospace;
   font-size: 0.62rem;
   letter-spacing: 0.16em;
-  transform: translateY(-50%);
   pointer-events: none;
 }
 
@@ -114,64 +113,72 @@
 .timestamp {
   display: grid;
   gap: 0.22rem;
-  padding-right: 1.05rem;
-  text-align: right;
   min-width: 0;
 }
 
 .timestamp span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: rgb(var(--twc-action) / 0.88);
   font-family: "DotGothic16", monospace;
   font-size: 0.74rem;
   letter-spacing: 0.08em;
+  line-height: 1.35;
 }
 
 .timestamp em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: rgb(var(--twc-text-faint) / 0.6);
   font-family: "DotGothic16", monospace;
   font-size: 0.64rem;
   font-style: normal;
   letter-spacing: 0.06em;
+  line-height: 1.35;
+}
+
+.age {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid rgb(var(--twc-action) / 0.18);
+  background: rgb(var(--twc-bg-panel) / 0.42);
+}
+
+.age span {
+  color: rgb(var(--twc-text-bright) / 0.52);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.age strong {
+  color: rgb(var(--twc-text) / 0.92);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 .event {
   display: grid;
   gap: 0.18rem;
   min-width: 0;
-  padding-left: 1.6rem;
 }
 
 .event strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: rgb(var(--twc-text) / 0.98);
   font-family: "Yuji Syuku", serif;
   font-size: 1.12rem;
-  line-height: 1.18;
+  line-height: 1.28;
 }
 
 .event em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: rgb(var(--twc-text-bright) / 0.62);
   font-family: "DotGothic16", monospace;
   font-size: 0.66rem;
   font-style: normal;
   letter-spacing: 0.06em;
+  line-height: 1.35;
 }
 
 .desc {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: rgb(var(--twc-text) / 0.78);
   font-size: 0.83rem;
   line-height: 1.58;
@@ -188,7 +195,7 @@
   }
 
   .item {
-    grid-template-columns: 7.4rem minmax(0, 1fr);
+    grid-template-columns: minmax(6.8rem, 0.82fr) minmax(4.8rem, 0.42fr) minmax(0, 1fr);
     gap: 0.8rem;
   }
 
@@ -197,7 +204,7 @@
   }
 
   .item::before {
-    left: 7.95rem;
+    left: 0.42rem;
   }
 }
 
@@ -234,6 +241,10 @@
   .timestamp {
     padding-right: 0;
     text-align: left;
+  }
+
+  .age {
+    width: fit-content;
   }
 
   .event {
