@@ -37,7 +37,6 @@ import {
   listObservationThemes,
 } from '../../logic/archive/observationThemes';
 import {
-  listObservationModifiers,
   computeBuildCost,
   validateBuild,
   buildObservationConfig,
@@ -56,8 +55,6 @@ import {
   getObservationPointState,
 } from '../../logic/persistence/observationPoints';
 import type {
-  ObservationModifierDefinition,
-  ObservationModifierGroup,
   ObservationModifierId,
   ObservationThemeId,
 } from '../../logic/archive/types';
@@ -82,7 +79,7 @@ const MODE_OPTIONS: Array<{ id: ObservationGenerationMode; label: string; summar
   {
     id: 'BUILD',
     label: 'ビルドモード',
-    summary: '直接能力値を触らず、成長型・得意な型・付出・天才型などの前提を選ぶ。',
+    summary: '直接能力値を触らず、体格・取り口・成長型・付出・天才型などの前提を選ぶ。',
   },
 ];
 
@@ -323,6 +320,9 @@ const THEME_DISPLAY_COPY: Record<ObservationThemeId, string> = {
 };
 
 const MODIFIER_DISPLAY_COPY: Record<ObservationModifierId, { description: string; riskText?: string }> = {
+  standard_body: {
+    description: '極端な小兵・大型を避け、平均的な体格の一代として読みやすくする。',
+  },
   small_body: {
     description: '小兵らしい速さや技の見せ場が出やすい。大型相手には苦しい場面も残る。',
   },
@@ -351,14 +351,19 @@ const MODIFIER_DISPLAY_COPY: Record<ObservationModifierId, { description: string
   },
 };
 
-const GROUP_META: Record<ObservationModifierGroup, { label: string; hint: string }> = {
-  body: { label: '体格', hint: '択一' },
-  style: { label: '取り口', hint: '択一' },
-  growth: { label: '成長', hint: '択一' },
-  risk: { label: 'リスク傾向', hint: '複数可' },
-};
+const BODY_MODIFIER_IDS: ObservationModifierId[] = ['standard_body', 'small_body', 'large_body'];
+const RISK_MODIFIER_IDS: ObservationModifierId[] = [
+  'stable_temperament',
+  'volatile_temperament',
+  'injury_risk_high',
+];
 
-const GROUP_ORDER: ObservationModifierGroup[] = ['body', 'style', 'growth', 'risk'];
+const BODY_MODIFIER_OPTIONS = BODY_MODIFIER_IDS.map((id) => ({
+  value: id,
+  label: OBSERVATION_MODIFIERS[id].label,
+  note: MODIFIER_DISPLAY_COPY[id].description,
+  cost: OBSERVATION_MODIFIERS[id].cost,
+}));
 
 export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   generationTokens,
@@ -367,7 +372,6 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   onRefreshMeta,
 }) => {
   const themes = React.useMemo(() => listObservationThemes(), []);
-  const modifiers = React.useMemo(() => listObservationModifiers(), []);
   const stableEnvironmentChoices = React.useMemo(() => listStableEnvironmentChoices(), []);
   const [generationMode, setGenerationMode] = React.useState<ObservationGenerationMode>('OBSERVE_RANDOM');
   const [themeId, setThemeId] = React.useState<ObservationThemeId>('random');
@@ -400,20 +404,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const insufficientToken = tokenBalance <= 0;
   const canStart = validation.ok && !insufficientOp && !insufficientToken && !isStarting;
   const remainingOp = Math.max(0, opBalance - totalCost);
-
-  const modifiersByGroup = React.useMemo(() => {
-    const map: Record<ObservationModifierGroup, ObservationModifierDefinition[]> = {
-      body: [],
-      style: [],
-      growth: [],
-      risk: [],
-    };
-    for (const m of modifiers) {
-      const g = m.exclusiveGroup ?? 'risk';
-      map[g].push(m);
-    }
-    return map;
-  }, [modifiers]);
+  const bodyModifierId = BODY_MODIFIER_IDS.find((id) => modifierIds.includes(id));
 
   const changeGenerationMode = (mode: ObservationGenerationMode) => {
     setGenerationMode(mode);
@@ -427,18 +418,18 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     }
   };
 
-  const toggleModifier = (id: ObservationModifierId) => {
+  const setExclusiveModifier = (id: ObservationModifierId | undefined, groupIds: ObservationModifierId[]) => {
+    setModifierIds((prev) => {
+      const filtered = prev.filter((other) => !groupIds.includes(other));
+      return id ? [...filtered, id] : filtered;
+    });
+  };
+
+  const toggleRiskModifier = (id: ObservationModifierId) => {
     const def = OBSERVATION_MODIFIERS[id];
+    if (def?.exclusiveGroup && def.exclusiveGroup !== 'risk') return;
     setModifierIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      // Exclusive groups (body/style/growth): replace any existing pick in same group.
-      if (def?.exclusiveGroup && def.exclusiveGroup !== 'risk') {
-        const filtered = prev.filter((other) => {
-          const od = OBSERVATION_MODIFIERS[other];
-          return od?.exclusiveGroup !== def.exclusiveGroup;
-        });
-        return [...filtered, id];
-      }
       return [...prev, id];
     });
   };
@@ -505,7 +496,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
     .map((id) => OBSERVATION_MODIFIERS[id])
     .filter(Boolean);
   const selectedStableEnvironment = generationMode === 'BUILD'
-    ? stableEnvironmentChoices.find((choice) => choice.id === stableEnvironmentChoiceId)
+    ? stableEnvironmentChoices.find((choice) => choice.id === stableEnvironmentChoiceId && choice.id !== 'AUTO')
     : undefined;
   const selectedBuildLabels = generationMode === 'BUILD'
     ? [
@@ -536,7 +527,7 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
 
         <div className={styles.notice}>
           <div className="flex items-start gap-2">
-            <span>テーマと読み口の調整は、キャリアの傾向を少し寄せるだけです。</span>
+            <span>テーマとビルド設定は、キャリアの傾向を少し寄せるだけです。</span>
           </div>
           <div className="flex items-start gap-2">
             <span>番付環境・怪我・成長の揺らぎで、思った通りには進みません。</span>
@@ -611,9 +602,31 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       {generationMode === 'BUILD' ? (
         <section className={styles.sectionPanel}>
           <SectionHeader
-            title="ビルド方針"
-            meta="ここでは能力値ではなく、キャリア前提だけを選びます。強い前提ほど OP が重くなります。"
+            title="ビルド設定"
+            meta="体格・型・成長・入門資格・素質・所属環境・リスクをここでまとめて選びます。強い前提ほど OP が重くなります。"
           />
+
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>体格</div>
+            <OptionalBuildChoiceGrid<ObservationModifierId>
+              value={bodyModifierId}
+              autoLabel="候補札に任せる"
+              autoNote="小兵、大型、標準寄りのいずれも候補札の揺らぎに任せます。"
+              options={BODY_MODIFIER_OPTIONS}
+              onChange={(id) => setExclusiveModifier(id, BODY_MODIFIER_IDS)}
+            />
+          </div>
+
+          <div className={styles.optionalGroup}>
+            <div className={cn(typography.label, styles.groupLabel)}>取り口</div>
+            <OptionalBuildChoiceGrid<StyleArchetype>
+              value={preferredStyle}
+              autoLabel="体格と部屋に任せる"
+              autoNote="身体素地と所属環境から自然な型を決めます。"
+              options={STYLE_OPTIONS}
+              onChange={setPreferredStyle}
+            />
+          </div>
 
           <div className={styles.optionalGroup}>
             <div className={cn(typography.label, styles.groupLabel)}>成長型</div>
@@ -623,17 +636,6 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
               autoNote="経歴と素質から自然な成長型を決めます。"
               options={GROWTH_TYPE_OPTIONS}
               onChange={setGrowthType}
-            />
-          </div>
-
-          <div className={styles.optionalGroup}>
-            <div className={cn(typography.label, styles.groupLabel)}>得意な型</div>
-            <OptionalBuildChoiceGrid<StyleArchetype>
-              value={preferredStyle}
-              autoLabel="体格と部屋に任せる"
-              autoNote="身体素地と所属環境から自然な型を決めます。"
-              options={STYLE_OPTIONS}
-              onChange={setPreferredStyle}
             />
           </div>
 
@@ -663,78 +665,64 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
               ))}
             </div>
           </div>
-        </section>
-      ) : null}
 
-      {/* 所属環境 */}
-      {generationMode === 'BUILD' ? (
-        <section className={styles.sectionPanel}>
-          <SectionHeader
-            title="所属環境"
-            meta={`部屋そのものを運営せず、入門先の稽古の空気を一代の読み筋として置きます。45部屋から直接選ばず、環境の系統だけを選びます。${stableEnvironmentChoiceId !== 'AUTO' ? ` 環境指定は +${STABLE_ENVIRONMENT_BUILD_COST} OP です。` : ''}`}
-            icon={<Landmark className="h-5 w-5 text-gold" />}
-          />
-          <div className={styles.choiceGridThree}>
-            {stableEnvironmentChoices.map((choice) => {
-              const active = choice.id === stableEnvironmentChoiceId;
-              return (
-                <ChoiceCard
-                  key={choice.id}
-                  title={choice.label}
-                  note={choice.summary}
-                  active={active}
-                  onClick={() => setStableEnvironmentChoiceId(choice.id)}
-                  cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
-                  detail={<span>{choice.detail}</span>}
-                  tall
-                />
-              );
-            })}
+          <div className={styles.optionalGroup}>
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-gold" />
+              <div className={cn(typography.label, styles.groupLabel)}>所属環境</div>
+            </div>
+            <div className={styles.sectionMeta}>
+              45部屋から直接選ばず、入門先の稽古の空気だけを一代の読み筋として置きます。
+            </div>
+            <div className={styles.choiceGridThree}>
+              {stableEnvironmentChoices.map((choice) => {
+                const active = choice.id === stableEnvironmentChoiceId;
+                return (
+                  <ChoiceCard
+                    key={choice.id}
+                    title={choice.label}
+                    note={choice.summary}
+                    active={active}
+                    onClick={() => setStableEnvironmentChoiceId(choice.id)}
+                    cost={choice.id === 'AUTO' ? 0 : STABLE_ENVIRONMENT_BUILD_COST}
+                    detail={<span>{choice.detail}</span>}
+                    tall
+                  />
+                );
+              })}
+            </div>
           </div>
-        </section>
-      ) : null}
 
-      {/* Modifiers grouped */}
-      {generationMode === 'BUILD' ? (
-        <section className={styles.sectionPanel}>
-          <SectionHeader title="読み口の調整" meta="体格・取り口・成長は択一、リスクは複数可。" />
-
-          {GROUP_ORDER.map((group) => {
-            const list = modifiersByGroup[group];
-            if (!list || list.length === 0) return null;
-            const meta = GROUP_META[group];
-            return (
-              <div key={group} className={styles.optionalGroup}>
-                <div className="flex items-baseline gap-2">
-                  <span className={cn(typography.label, styles.groupLabel)}>{meta.label}</span>
-                  <span className={styles.sectionMeta}>({meta.hint})</span>
-                </div>
-                <div className={styles.choiceGrid}>
-                  {list.map((mod) => {
-                    const active = modifierIds.includes(mod.id);
-                    const isDiscount = mod.cost < 0;
-                    const displayCopy = MODIFIER_DISPLAY_COPY[mod.id];
-                    return (
-                      <ChoiceCard
-                        key={mod.id}
-                        title={mod.label}
-                        note={displayCopy.description}
-                        active={active}
-                        onClick={() => toggleModifier(mod.id)}
-                        cost={mod.cost}
-                        detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
-                      >
-                        <div className={styles.pillRow}>
-                          {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
-                          {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
-                        </div>
-                      </ChoiceCard>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+          <div className={styles.optionalGroup}>
+            <div className="flex items-baseline gap-2">
+              <span className={cn(typography.label, styles.groupLabel)}>リスク傾向</span>
+              <span className={styles.sectionMeta}>(複数可)</span>
+            </div>
+            <div className={styles.choiceGrid}>
+              {RISK_MODIFIER_IDS.map((id) => {
+                const mod = OBSERVATION_MODIFIERS[id];
+                const active = modifierIds.includes(id);
+                const isDiscount = mod.cost < 0;
+                const displayCopy = MODIFIER_DISPLAY_COPY[id];
+                return (
+                  <ChoiceCard
+                    key={mod.id}
+                    title={mod.label}
+                    note={displayCopy.description}
+                    active={active}
+                    onClick={() => toggleRiskModifier(id)}
+                    cost={mod.cost}
+                    detail={displayCopy.riskText ? <span>{displayCopy.riskText}</span> : undefined}
+                  >
+                    <div className={styles.pillRow}>
+                      {isDiscount ? <MetaPill tone="discount">割引</MetaPill> : null}
+                      {mod.riskText ? <MetaPill tone="risk">リスク</MetaPill> : null}
+                    </div>
+                  </ChoiceCard>
+                );
+              })}
+            </div>
+          </div>
         </section>
       ) : null}
 

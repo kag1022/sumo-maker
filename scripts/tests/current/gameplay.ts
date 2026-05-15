@@ -38,6 +38,12 @@ import {
   listStableEnvironmentChoices,
   resolveStableForEnvironmentChoice,
 } from '../../../src/logic/simulation/heya/stableEnvironment';
+import {
+  buildObservationConfig,
+  computeBuildCost,
+  OBSERVATION_MODIFIERS,
+} from '../../../src/logic/archive/observationBuild';
+import { applyObservationBuildBias } from '../../../src/logic/archive/applyObservationBuildBias';
 import { applyTraitAwakeningsForBasho, buildLockedTraitJourney } from '../../../src/logic/traits';
 
 import type { TestCase } from '../types';
@@ -699,6 +705,33 @@ export const tests: TestCase[] = [
           ENTRY_ARCHETYPE_BUILD_COST.MONSTER +
           TALENT_PROFILE_BUILD_COST.GENIUS +
           STABLE_ENVIRONMENT_BUILD_COST,
+      );
+    },
+  },
+  {
+    name: 'observation build: standard body modifier pulls extreme bodies toward baseline',
+    run: () => {
+      assert.equal(OBSERVATION_MODIFIERS.standard_body.cost, 2);
+      assert.equal(computeBuildCost('random', ['standard_body']), 2);
+
+      const base = buildInitialRikishiFromDraft(createScoutDraft());
+      base.bodyMetrics = {
+        heightCm: 196,
+        weightKg: 180,
+        reachDeltaCm: base.bodyMetrics.reachDeltaCm,
+      };
+      const result = applyObservationBuildBias(
+        base,
+        buildObservationConfig('random', ['standard_body']),
+      ).status;
+
+      assert.ok(
+        Math.abs(result.bodyMetrics.heightCm - 182) < Math.abs(base.bodyMetrics.heightCm - 182),
+        `height should move toward standard baseline, got ${result.bodyMetrics.heightCm}`,
+      );
+      assert.ok(
+        Math.abs(result.bodyMetrics.weightKg - 138) < Math.abs(base.bodyMetrics.weightKg - 138),
+        `weight should move toward standard baseline, got ${result.bodyMetrics.weightKg}`,
       );
     },
   },

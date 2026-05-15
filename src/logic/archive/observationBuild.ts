@@ -9,6 +9,17 @@ import type {
 } from './types';
 
 export const OBSERVATION_MODIFIERS: Record<ObservationModifierId, ObservationModifierDefinition> = {
+  standard_body: {
+    id: 'standard_body',
+    label: '標準型',
+    description: '極端な小兵・大型を避け、平均的な体格へ寄せる。',
+    cost: 2,
+    exclusiveGroup: 'body',
+    bias: {
+      bodyMetricsTargetBias: { heightCm: 182, weightKg: 138, strength: 0.55 },
+      genomeBias: { styleFit: 1, ringSense: 1 },
+    },
+  },
   small_body: {
     id: 'small_body',
     label: '小兵型',
@@ -200,6 +211,9 @@ export const composeBias = (
   let initialStatBias: Record<string, number> | undefined;
   let heightCm = 0;
   let weightKg = 0;
+  let bodyTargetHeightCm: number | undefined;
+  let bodyTargetWeightKg: number | undefined;
+  let bodyTargetStrength: number | undefined;
   let injuryRiskBias = 0;
   let varianceBias = 0;
 
@@ -213,6 +227,11 @@ export const composeBias = (
     initialStatBias = mergeRecord(initialStatBias, b.initialStatBias);
     if (b.bodyMetricsBias?.heightCm) heightCm += b.bodyMetricsBias.heightCm;
     if (b.bodyMetricsBias?.weightKg) weightKg += b.bodyMetricsBias.weightKg;
+    if (b.bodyMetricsTargetBias) {
+      bodyTargetHeightCm = b.bodyMetricsTargetBias.heightCm ?? bodyTargetHeightCm;
+      bodyTargetWeightKg = b.bodyMetricsTargetBias.weightKg ?? bodyTargetWeightKg;
+      bodyTargetStrength = b.bodyMetricsTargetBias.strength ?? bodyTargetStrength;
+    }
     if (b.injuryRiskBias) injuryRiskBias += b.injuryRiskBias;
     if (b.varianceBias) varianceBias += b.varianceBias;
   }
@@ -226,6 +245,9 @@ export const composeBias = (
     genomeBias,
     initialStatBias,
     bodyMetricsBias: heightCm || weightKg ? { heightCm, weightKg } : undefined,
+    bodyMetricsTargetBias: bodyTargetHeightCm || bodyTargetWeightKg
+      ? { heightCm: bodyTargetHeightCm, weightKg: bodyTargetWeightKg, strength: bodyTargetStrength }
+      : undefined,
     injuryRiskBias: injuryRiskBias || undefined,
     varianceBias: varianceBias || undefined,
   };
