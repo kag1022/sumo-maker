@@ -119,6 +119,18 @@ const formatCostLabel = (cost: number): string => {
   return cost > 0 ? `+${cost} OP` : `${cost} OP`;
 };
 
+const formatTimerValue = (seconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+};
+
+const formatGenerationTokenRegen = (seconds: number, tokens: number, cap: number): string => {
+  if (tokens >= cap) return '満札';
+  return formatTimerValue(seconds);
+};
+
 const resolveCostTone = (cost: number): 'free' | 'cost' | 'discount' => {
   if (cost === 0) return 'free';
   return cost > 0 ? 'cost' : 'discount';
@@ -409,6 +421,14 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const [talentProfile, setTalentProfile] = React.useState<ScoutTalentProfile>('AUTO');
   const [isStarting, setIsStarting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [tokenRegenSeconds, setTokenRegenSeconds] = React.useState(
+    generationTokens?.nextRegenInSec ?? 0,
+  );
+  const tokenRefreshRequestedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    setTokenRegenSeconds(generationTokens?.nextRegenInSec ?? 0);
+  }, [generationTokens?.lastRegenAt, generationTokens?.nextRegenInSec, generationTokens?.tokens]);
 
   const effectiveModifierIds = generationMode === 'BUILD' ? modifierIds : [];
   const directBuildCost = generationMode === 'BUILD'
@@ -425,12 +445,37 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
   const validation = validateBuild(themeId, effectiveModifierIds);
   const opBalance = observationPoints?.points ?? 0;
   const tokenBalance = generationTokens?.tokens ?? 0;
+  const tokenCap = generationTokens?.cap ?? 5;
+  const tokenRegenText = formatGenerationTokenRegen(
+    tokenRegenSeconds,
+    tokenBalance,
+    tokenCap,
+  );
+  const tokenRegenHudText = tokenBalance >= tokenCap ? tokenRegenText : `次回 ${tokenRegenText}`;
   const tokenAfterGeneration = Math.max(0, tokenBalance - 1);
   const insufficientOp = totalCost > opBalance;
   const insufficientToken = tokenBalance <= 0;
   const canStart = validation.ok && !insufficientOp && !insufficientToken && !isStarting;
   const remainingOp = Math.max(0, opBalance - totalCost);
   const bodyModifierId = BODY_MODIFIER_IDS.find((id) => modifierIds.includes(id));
+
+  React.useEffect(() => {
+    if (tokenBalance >= tokenCap || tokenRegenSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setTokenRegenSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [tokenBalance, tokenCap, tokenRegenSeconds]);
+
+  React.useEffect(() => {
+    if (tokenBalance >= tokenCap || tokenRegenSeconds > 0) {
+      tokenRefreshRequestedRef.current = false;
+      return;
+    }
+    if (!generationTokens || !onRefreshMeta || tokenRefreshRequestedRef.current) return;
+    tokenRefreshRequestedRef.current = true;
+    void onRefreshMeta();
+  }, [generationTokens, onRefreshMeta, tokenBalance, tokenCap, tokenRegenSeconds]);
 
   const changeGenerationMode = (mode: ObservationGenerationMode) => {
     setGenerationMode(mode);
@@ -549,7 +594,8 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
       ? '入口条件を絞り、読みたい一代へ少し寄せる。'
       : 'ビルド枠は開いているが、追加指定は置かない。';
   const selectionLogItems = [
-    `生成札: 1枚使用 / 残 ${tokenAfterGeneration}`,
+    `生成札: 1枚使用 / 残 ${tokenAfterGeneration} / ${tokenCap}`,
+    `回復タイマー: ${tokenRegenText}`,
     `観測テーマ: ${selectedTheme?.label ?? '未選択'} (${formatCostLabel(selectedTheme?.cost ?? 0)})`,
     generationMode === 'OBSERVE_RANDOM'
       ? '観測モード: テーマ以外は完全ランダム'
@@ -596,8 +642,11 @@ export const ObservationBuildScreen: React.FC<ObservationBuildScreenProps> = ({
           </div>
           <div className={styles.hudChip}>
             <Sparkles className="h-4 w-4 text-action" />
-            <span>生成札</span>
-            <strong>{tokenBalance}</strong>
+            <span className={styles.hudText}>
+              <span>生成札</span>
+              <small>{tokenRegenHudText}</small>
+            </span>
+            <strong>{tokenBalance}/{tokenCap}</strong>
           </div>
           <div className={styles.hudChip} data-alert={insufficientOp ? 'true' : 'false'}>
             <span>消費</span>

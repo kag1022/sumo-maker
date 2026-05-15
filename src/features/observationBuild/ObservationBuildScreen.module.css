@@ -115,6 +115,22 @@
   line-height: 1;
 }
 
+.hudText {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.hudText small {
+  overflow: hidden;
+  color: rgb(var(--twc-text-dim));
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hudChip[data-alert='true'] {
   border-color: rgb(var(--twc-danger) / 0.42);
   background: rgb(var(--twc-danger) / 0.08);
