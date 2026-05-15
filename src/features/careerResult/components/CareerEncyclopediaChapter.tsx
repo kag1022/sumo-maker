@@ -365,7 +365,10 @@ const ClearScoreBreakdown: React.FC<{ summary: CareerClearScoreSummary }> = ({ s
         <span>総評点</span>
         <p>保存後の記録帳で並び替えに使う評価点です。</p>
       </div>
-      <strong>{summary.clearScore}</strong>
+      <div className={styles.clearScoreValue}>
+        <strong>{summary.clearScore}</strong>
+        <em>pt</em>
+      </div>
     </div>
     <div className={styles.clearScoreRows}>
       {summary.categories.map((category) => {
@@ -386,6 +389,14 @@ const ClearScoreBreakdown: React.FC<{ summary: CareerClearScoreSummary }> = ({ s
       })}
     </div>
   </section>
+);
+
+const SaveJudgement: React.FC<{ label: string; copy: string }> = ({ label, copy }) => (
+  <div className={styles.saveJudgement}>
+    <span>記録価値</span>
+    <strong>{label}</strong>
+    <p>{copy}</p>
+  </div>
 );
 
 export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps> = ({
@@ -472,7 +483,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const saveProgress = `${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}`;
   const saveCopy = saveDisabled
     ? `詳細記録を整理中 ${saveProgress}。保存判断は読めますが、保存操作は整理完了後に開きます。`
-    : `分類「${analysis.classificationLabel}」。保存推奨 ${analysis.saveRecommendation.score}点、珍記録度 ${analysis.saveRecommendation.rarityScore}点。`;
+    : `分類「${analysis.classificationLabel}」。比較母集団に加える価値があります。`;
   const memoLines = React.useMemo(
     () =>
       [
@@ -621,13 +632,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
         <aside className={styles.decisionPanel}>
           {!isSaved ? (
             <>
-              <div className={styles.decisionScore}>
-                <span>保存推奨</span>
-                <strong>{analysis.saveRecommendation.score}</strong>
-                <em>{analysis.classificationLabel}</em>
-              </div>
-              <p className={styles.decisionCopy}>{saveCopy}</p>
               <ClearScoreBreakdown summary={clearScoreSummary} />
+              <SaveJudgement label={analysis.classificationLabel} copy={saveCopy} />
               <div className={styles.reasonList}>
                 {analysis.saveRecommendation.reasons.slice(0, 4).map((reason) => (
                   <div key={reason}>{reason}</div>
