@@ -23,7 +23,7 @@ import {
   ReportSpotlightPayload,
 } from "../utils/reportHero";
 import {
-  formatRankDisplayName,
+  formatHighestRankDisplayName,
 } from "../utils/reportFormatters";
 import reportCommon from "./reportCommon.module.css";
 import styles from "./ReportHero.module.css";
@@ -198,7 +198,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             <div className="text-center border-b border-gold/10 pb-4">
               <div className={cn(typography.label, "text-[10px] text-gold/60 mb-2 uppercase tracking-widest")}>最高位</div>
               <div className={cn(typography.metric, "text-4xl text-text")}>
-                {formatRankDisplayName(maxRank)}
+                {formatHighestRankDisplayName(maxRank)}
               </div>
             </div>
             

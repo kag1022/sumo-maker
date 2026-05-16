@@ -18,7 +18,7 @@ import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { BanzukeReviewTab } from "./BanzukeReviewTab";
-import { formatRankDisplayName } from "../utils/reportFormatters";
+import { formatHighestRankDisplayName } from "../utils/reportFormatters";
 import { buildBanzukeReviewTabModel } from "../utils/banzukeReview";
 import { RankTrajectoryTab } from "./RankTrajectoryTab";
 import { RecordTab } from "./RecordTab";
@@ -204,7 +204,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
               <div className="flex flex-wrap items-end gap-4">
                 <h1 className={cn(typography.heading, "text-5xl sm:text-7xl text-text")}>{status.shikona}</h1>
                 <div className={cn(typography.label, "mb-2 inline-flex items-center border border-gold/15 bg-bg/30 px-3 py-1 text-[10px] tracking-[0.3em] text-gold/70 uppercase")}>
-                  最高位 {formatRankDisplayName(status.history.maxRank)}
+                  最高位 {formatHighestRankDisplayName(status.history.maxRank)}
                 </div>
               </div>
               <p className="text-sm leading-relaxed text-text/68">
@@ -217,7 +217,7 @@ export const ReportScreen: React.FC<ReportScreenProps> = ({
                 <div className="absolute inset-y-0 left-0 w-1 bg-gold/35" />
                 <p className={cn(typography.label, "text-[10px] tracking-[0.3em] text-gold/55 uppercase")}>到達点</p>
                 <div className="mt-3 space-y-2">
-                  <InfoRow label="最高位" value={formatRankDisplayName(status.history.maxRank)} />
+                  <InfoRow label="最高位" value={formatHighestRankDisplayName(status.history.maxRank)} />
                   <InfoRow label="通算成績" value={totalRecord} />
                   <InfoRow label="幕内優勝" value={`${status.history.yushoCount.makuuchi}回`} />
                   <InfoRow label="引退年齢" value={`${status.age}歳`} />

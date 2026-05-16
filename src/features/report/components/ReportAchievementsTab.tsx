@@ -5,7 +5,7 @@ import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { AchievementView } from "./AchievementView";
-import { formatRankDisplayName } from "../utils/reportFormatters";
+import { formatHighestRankDisplayName } from "../utils/reportFormatters";
 
 interface ReportAchievementsTabProps {
   status: RikishiStatus;
@@ -31,7 +31,7 @@ export const ReportAchievementsTab: React.FC<ReportAchievementsTabProps> = ({
         </h3>
         <p className="text-sm text-text leading-relaxed">{achievementSummary}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <AchievementFact label="最高位" value={formatRankDisplayName(status.history.maxRank)} />
+          <AchievementFact label="最高位" value={formatHighestRankDisplayName(status.history.maxRank)} />
           <AchievementFact label="通算勝率" value={`${winRate}%`} />
           <AchievementFact label="幕内優勝" value={`${status.history.yushoCount.makuuchi}回`} />
           <AchievementFact label="金星 / 三賞" value={`${awardsSummary.kinboshi} / ${awardsSummary.totalSansho}`} />

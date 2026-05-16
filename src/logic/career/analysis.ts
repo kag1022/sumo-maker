@@ -4,7 +4,7 @@ import {
   Rank,
   RikishiStatus,
 } from '../models';
-import { getRankValue, getRankValueForChart } from '../ranking';
+import { formatHighestRankDisplayName, formatRankDisplayName, getRankValue, getRankValueForChart } from '../ranking';
 
 export interface ObservationStanceDefinition {
   id: ObservationStanceId;
@@ -268,10 +268,7 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
 const formatRankName = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
+  return formatRankDisplayName(rank);
 };
 
 const rankTier = (rank: Rank): number => {
@@ -460,7 +457,7 @@ const suggestManualTags = (classification: CareerClassification, autoTags: Caree
 const resolveSaveReasons = (status: RikishiStatus, metrics: CareerAnalysisSummary['metrics'], autoTags: CareerAutoTag[]): string[] => {
   const reasons: string[] = [];
   const tier = rankTier(status.history.maxRank);
-  if (tier >= 6) reasons.push(`最高位が${formatRankName(status.history.maxRank)}まで届いている。`);
+  if (tier >= 6) reasons.push(`最高位が${formatHighestRankDisplayName(status.history.maxRank)}まで届いている。`);
   if (metrics.makuuchiBasho >= 20) reasons.push(`幕内在位が${metrics.makuuchiBasho}場所あり、読み返す価値がある。`);
   if (metrics.yushoTotal > 0) reasons.push(`優勝経験が${metrics.yushoTotal}回ある。`);
   if (metrics.lateMaxRankUpdates > 0) reasons.push(`28歳以降に最高位を${metrics.lateMaxRankUpdates}回更新している。`);
@@ -578,7 +575,7 @@ export const buildCareerAnalysisSummary = (status: RikishiStatus): CareerAnalysi
   return {
     status,
     metrics,
-    maxRankLabel: formatRankName(status.history.maxRank),
+    maxRankLabel: formatHighestRankDisplayName(status.history.maxRank),
     finalRankLabel: records.length > 0 ? formatRankName(records[records.length - 1].rank) : formatRankName(status.rank),
     classification,
     classificationLabel: CLASSIFICATION_LABELS[classification],

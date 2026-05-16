@@ -1,5 +1,5 @@
 import React from 'react';
-import { getRankValueForChart } from '../../../logic/ranking';
+import { formatHighestRankDisplayName, formatRankDisplayName, getRankValueForChart } from '../../../logic/ranking';
 import { Rank } from '../../../logic/models';
 import { LOGIC_LAB_PRESETS, resolveLogicLabPresetLabel } from '../presets';
 import { useLogicLabStore } from '../store/logicLabStore';
@@ -21,9 +21,7 @@ const LOG_FILTERS: Array<{ id: LogFilter; label: string }> = [
 ];
 
 const formatRankName = (rank: Rank): string => {
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結', '前相撲'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}`;
+  return formatRankDisplayName(rank);
 };
 const formatRecord = (wins: number, losses: number, absent: number): string =>
   `${wins}-${losses}${absent > 0 ? `-${absent}` : ''}`;
@@ -386,7 +384,7 @@ export const LogicLabScreen: React.FC = () => {
             <div className="space-y-1">
               <div className={cn(typography.label, "text-[9px] text-text-faint uppercase tracking-tighter")}>現在 / 最高</div>
               <div className={cn(typography.metric, "text-xl text-gold uppercase tracking-tighter")}>
-                {formatRankName(summary.currentRank)} <span className="text-text-faint mx-2 opacity-30">/</span> {formatRankName(summary.maxRank)}
+                {formatRankName(summary.currentRank)} <span className="text-text-faint mx-2 opacity-30">/</span> {formatHighestRankDisplayName(summary.maxRank)}
               </div>
             </div>
           </div>

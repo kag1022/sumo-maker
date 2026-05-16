@@ -1,6 +1,6 @@
-import { getRankValueForChart } from "../../../logic/ranking";
+import { formatRankMovementDisplay, getRankValueForChart } from "../../../logic/ranking";
 import type { CareerTurningPoint, RikishiStatus } from "../../../logic/models";
-import { buildRankChartDataFromStatus, formatBashoLabel, formatRankDisplayName } from "./reportShared";
+import { buildRankChartDataFromStatus, formatBashoLabel, formatHighestRankDisplayName, formatRankDisplayName } from "./reportShared";
 
 const formatRecordText = (wins: number, losses: number, absent: number): string =>
   `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
@@ -35,12 +35,6 @@ export interface ReportRankArcDigest {
   storyItems: RankArcStoryItem[];
   movementRows: RankMovementRow[];
 }
-
-const deltaLabel = (delta: number): string => {
-  if (delta === 0) return "±0";
-  const abs = Math.abs(delta);
-  return `${delta > 0 ? "+" : "-"}${Number.isInteger(abs) ? abs : abs.toFixed(1)}`;
-};
 
 const toTurningPointItem = (point: CareerTurningPoint): RankArcStoryItem => ({
   key: `turning-${point.bashoSeq}-${point.kind}`,
@@ -99,7 +93,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
       rankLabel: formatRankDisplayName(record.rank),
       recordText: formatRecordText(record.wins, record.losses, record.absent),
       nextRankLabel: formatRankDisplayName(next.rank),
-      deltaText: deltaLabel(delta),
+      deltaText: formatRankMovementDisplay(record.rank, next.rank, delta),
       deltaKind: delta > 0 ? "up" : delta < 0 ? "down" : "stay",
     };
   });
@@ -132,7 +126,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
         biggestRise = {
           label: "最大上昇",
           value: formatBashoLabel(current.year, current.month),
-          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${deltaLabel(delta)}動いた。`,
+          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
         };
       }
       if (Math.abs(delta) > biggestDropDelta && delta < 0) {
@@ -140,7 +134,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
         biggestDrop = {
           label: "最大下落",
           value: formatBashoLabel(current.year, current.month),
-          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${deltaLabel(delta)}動いた。`,
+          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
         };
       }
     }
@@ -201,7 +195,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
       highest
         ? {
           label: "最高到達点",
-          value: formatRankDisplayName(highest.rank),
+          value: formatHighestRankDisplayName(highest.rank),
           detail: `${formatBashoLabel(highest.year, highest.month)}に到達`,
         }
         : null,

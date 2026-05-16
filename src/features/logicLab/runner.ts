@@ -1,4 +1,4 @@
-import { RikishiStatus } from '../../logic/models';
+import { Rank, RikishiStatus } from '../../logic/models';
 import {
   BashoStepResult,
   createSeededRandom,
@@ -27,6 +27,7 @@ import {
   LogicLabSummary,
 } from './types';
 import { buildCareerRealismSnapshot } from '../../logic/simulation/realism';
+import { formatRankDisplayName } from '../../logic/ranking';
 
 export const LOGIC_LAB_DEFAULT_SEED = 7331;
 export const LOGIC_LAB_DEFAULT_MAX_BASHO = 240;
@@ -201,11 +202,12 @@ const toLogRow = (step: BashoStepResult): LogicLabBashoLogRow => {
   };
 
   const formatRankLabel = (rankName: string, rankNumber?: number, rankSide?: 'East' | 'West'): string => {
-    const side = rankSide === 'West' ? '西' : '東';
-    if (['横綱', '大関', '関脇', '小結'].includes(rankName)) {
-      return `${side}${rankName}`;
-    }
-    return `${side}${rankName}${rankNumber ?? 1}`;
+    return formatRankDisplayName({
+      division: rankName === '前相撲' ? 'Maezumo' : 'Makuuchi',
+      name: rankName,
+      number: rankNumber,
+      side: rankSide ?? 'East',
+    } as Rank);
   };
   const formatRank = (rank: { name: string; number?: number; side?: 'East' | 'West' }): string =>
     formatRankLabel(rank.name, rank.number, rank.side);

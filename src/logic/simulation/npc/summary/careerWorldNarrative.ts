@@ -67,13 +67,13 @@ export const formatRivalDescription = (n: NotableNpcSummary): string => {
   const meetings = n.meetings;
   if (meetings === 0) return "土俵で再会する機会を逃した相手";
   if (wins === 0 && meetings >= 3) return "一度も勝てなかった壁";
-  if (losses - wins >= 3) return "苦手とした宿敵";
-  if (wins - losses >= 3) return "勝ち越したライバル";
-  if (meetings >= 5 && wins > losses) return "何度も顔を合わせた好敵手";
+  if (losses - wins >= 3) return "苦手だった相手";
+  if (wins - losses >= 3) return "勝ち越した相手";
+  if (meetings >= 5 && wins > losses) return "何度も競り合った相手";
   if (meetings >= 5) return "何度も土俵で交えた相手";
   if (n.rivalryKinds.includes("titleRace")) return "優勝争いでぶつかった相手";
   if (n.rivalryKinds.includes("promotionRace")) return "昇進争いでぶつかった相手";
-  if (n.rivalryKinds.includes("sameGeneration")) return "同期のライバル";
+  if (n.rivalryKinds.includes("sameGeneration")) return "同期で競い合った相手";
   if (losses > wins) return "押され気味だった相手";
   return "幾度か土俵で当たった相手";
 };
@@ -93,12 +93,12 @@ export const formatDominanceLabel = (s: EraStarNpcSummary): string => {
   const score = s.dominanceScore;
   const peak = s.peakRankLabel;
   if (peak.startsWith("横綱")) {
-    if (score >= 80) return "時代を支配した横綱";
-    if (score >= 30) return "この時代に君臨した横綱";
+    if (score >= 80) return "時代を代表する横綱";
+    if (score >= 30) return "この時代を引っ張った横綱";
     return "この時代に名を刻んだ横綱";
   }
   if (peak.startsWith("大関")) {
-    if (score >= 60) return "上位を支配した大関";
+    if (score >= 60) return "上位を引っ張った大関";
     return "この時代の大関";
   }
   if (peak.startsWith("関脇") || peak.startsWith("小結")) {
@@ -160,7 +160,7 @@ export const selectKeyNpcCards = (
   if (rival) {
     cards.push({
       kind: "rival",
-      heading: "宿敵",
+      heading: "対戦の中心",
       shikona: rival.shikona,
       metaLabel: formatRecordLabel(rival),
       description: formatRivalDescription(rival),
@@ -180,7 +180,7 @@ export const selectKeyNpcCards = (
   if (peerLeader && peerLeader.id !== rival?.id) {
     cards.push({
       kind: "peerLeader",
-      heading: "同期の出世頭",
+      heading: "同世代の上位力士",
       shikona: peerLeader.shikona,
       metaLabel: peerLeader.peakRankLabel ? `最高位 ${peerLeader.peakRankLabel}` : "同世代の力士",
       description: formatGenerationPeerDescription(peerLeader),
@@ -192,7 +192,7 @@ export const selectKeyNpcCards = (
   if (eraTop && eraTop.id !== rival?.id && eraTop.id !== peerLeader?.id) {
     cards.push({
       kind: "eraTop",
-      heading: "時代の頂点",
+      heading: "時代の中心",
       shikona: eraTop.shikona,
       metaLabel: eraTop.peakRankLabel,
       description: formatDominanceLabel(eraTop),
@@ -235,7 +235,7 @@ export const buildPeerSections = (
   const sections: PeerSection[] = [];
   if (leaders.length) {
     sections.push({
-      heading: "同期の出世頭",
+      heading: "同世代の上位力士",
       members: leaders.slice(0, 3).map((p) => ({
         id: p.id,
         shikona: p.shikona,
@@ -294,7 +294,7 @@ export const buildEraStarViewModels = (
 const summarizeRivalForNarrative = (n: NotableNpcSummary | undefined): string | null => {
   if (!n) return null;
   const desc = formatRivalDescription(n);
-  return `宿敵${n.shikona}とは${desc}関係になった`;
+  return `対戦相手の${n.shikona}は、${desc}だった`;
 };
 
 const summarizePeerLeaderForNarrative = (
@@ -365,11 +365,11 @@ export const buildCareerWorldNarrative = (
     sentences.push(`${rivalLine}。`);
   } else if (summary.eraStars.length > 0) {
     const top = summary.eraStars[0];
-    sentences.push(`この時代には${top.shikona}(${top.peakRankLabel})が君臨していた。`);
+    sentences.push(`この時代には${top.shikona}(${top.peakRankLabel})が上位にいた。`);
   } else {
     // empty — fallback by bucket
     if (bucket === "三段目" || bucket === "序二段" || bucket === "序ノ口") {
-      sentences.push("同期や宿敵との対戦が、このキャリアの中心となった。");
+      sentences.push("同期や対戦相手との取組が、このキャリアの中心となった。");
     } else {
       sentences.push("土俵を共にした力士たちと、この一代を歩んだ。");
     }

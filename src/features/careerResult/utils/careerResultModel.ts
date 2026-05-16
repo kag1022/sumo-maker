@@ -2,7 +2,7 @@ import type { BashoRecord } from "../../../logic/models";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import type { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/persistence/careerHistory";
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
-import { formatRankDisplayName, getRankValueForChart } from "../../../logic/ranking";
+import { formatHighestRankDisplayName, formatRankDisplayName, formatRankMovementDisplay, getRankValueForChart } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
 
 export interface CareerWindowState {
@@ -56,6 +56,19 @@ export interface CareerYearBand {
   endSeq: number;
   label: string;
   size: number;
+}
+
+export interface CareerRankScaleBand {
+  key: CareerLedgerBandKey;
+  label: string;
+  min: number;
+  max: number;
+  weight: number;
+}
+
+export interface CareerRankScaleLayoutBand extends CareerRankScaleBand {
+  y: number;
+  height: number;
 }
 
 export interface CareerLedgerModel {
@@ -122,6 +135,49 @@ const BAND_DEFINITIONS: Array<{ key: CareerLedgerBandKey; label: string; weight:
 
 export const CAREER_LEDGER_BANDS = BAND_DEFINITIONS;
 
+export const CAREER_RANK_SCALE_BANDS: CareerRankScaleBand[] = [
+  { key: "YOKOZUNA", label: "横綱", min: 0, max: 9, weight: 0.5 },
+  { key: "OZEKI", label: "大関", min: 10, max: 19, weight: 0.5 },
+  { key: "SEKIWAKE", label: "関脇", min: 20, max: 29, weight: 0.5 },
+  { key: "KOMUSUBI", label: "小結", min: 30, max: 39, weight: 0.5 },
+  { key: "MAEGASHIRA", label: "前頭", min: 40, max: 59, weight: 0.95 },
+  { key: "JURYO", label: "十両", min: 60, max: 79, weight: 0.95 },
+  { key: "MAKUSHITA", label: "幕下", min: 80, max: 149, weight: 2.25 },
+  { key: "SANDANME", label: "三段目", min: 150, max: 259, weight: 3.1 },
+  { key: "JONIDAN", label: "序二段", min: 260, max: 369, weight: 3.1 },
+  { key: "JONOKUCHI", label: "序ノ口", min: 370, max: 460, weight: 2.45 },
+];
+
+export const getCareerRankScaleLayout = (plotHeight: number): CareerRankScaleLayoutBand[] => {
+  const totalWeight = CAREER_RANK_SCALE_BANDS.reduce((sum, band) => sum + band.weight, 0);
+  let cursor = 0;
+  return CAREER_RANK_SCALE_BANDS.map((band) => {
+    const height = (band.weight / totalWeight) * plotHeight;
+    const result = {
+      ...band,
+      y: cursor,
+      height,
+    };
+    cursor += height;
+    return result;
+  });
+};
+
+export const getCareerRankScalePosition = (
+  rankValue: number,
+  layout: CareerRankScaleLayoutBand[],
+): { y: number; band: CareerRankScaleLayoutBand } => {
+  const band =
+    layout.find((entry) => rankValue >= entry.min && rankValue <= entry.max) ??
+    layout[layout.length - 1];
+  const range = Math.max(1, band.max - band.min);
+  const ratio = Math.max(0, Math.min(1, (rankValue - band.min) / range));
+  return {
+    y: band.y + band.height * (0.12 + ratio * 0.76),
+    band,
+  };
+};
+
 const toBandKey = (rank: Rank): CareerLedgerBandKey => {
   if (rank.name === "横綱") return "YOKOZUNA";
   if (rank.name === "大関") return "OZEKI";
@@ -165,7 +221,8 @@ const resolveMilestoneTags = (
   lastSeq: number,
   hasSeenJuryo: boolean,
   hasSeenMakuuchi: boolean,
-  hasSeenSanyaku: boolean,
+  hasSeenKomusubi: boolean,
+  hasSeenSekiwake: boolean,
   hasSeenOzeki: boolean,
 ): string[] => {
   const tags: string[] = [];
@@ -176,8 +233,15 @@ const resolveMilestoneTags = (
   if (prev && prev.rank.division !== "Makuuchi" && record.rank.division === "Makuuchi") {
     tags.push(hasSeenMakuuchi ? "再入幕" : "新入幕");
   }
-  if (prev && !SANYAKU_NAMES.has(prev.rank.name) && SANYAKU_NAMES.has(record.rank.name)) {
-    tags.push(hasSeenSanyaku ? "再三役" : "新三役");
+  const isPromotionToCurrentRank = prev
+    ? getRankValueForChart(prev.rank) > getRankValueForChart(record.rank)
+    : false;
+  if (prev && isPromotionToCurrentRank && SANYAKU_NAMES.has(record.rank.name) && prev.rank.name !== record.rank.name) {
+    if (record.rank.name === "関脇") {
+      tags.push(hasSeenSekiwake ? "再関脇" : "新関脇");
+    } else {
+      tags.push(hasSeenKomusubi ? "再小結" : "新小結");
+    }
   }
   if (prev && prev.rank.name !== "大関" && record.rank.name === "大関") {
     tags.push(hasSeenOzeki ? "再大関" : "新大関");
@@ -202,7 +266,7 @@ const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined):
   }
   return {
     deltaValue,
-    deltaLabel: deltaValue > 0 ? `+${deltaValue}枚` : `${deltaValue}枚`,
+    deltaLabel: formatRankMovementDisplay(current.rank, next.rank, deltaValue),
   };
 };
 
@@ -225,7 +289,7 @@ const formatDesignRealization = (status: RikishiStatus, category: string): strin
   const yushoTotal = status.history.yushoCount.makuuchi + status.history.yushoCount.juryo + status.history.yushoCount.makushita + status.history.yushoCount.others;
   const injuryBasho = records.filter((record) => record.absent > 0).length;
   if (category === "入門背景" || category === "年齢・開始条件") {
-    return `${records.length}場所を記録し、最高位は${formatRankDisplayName(status.history.maxRank)}。`;
+    return `${records.length}場所を記録し、最高位は${formatHighestRankDisplayName(status.history.maxRank)}。`;
   }
   if (category === "身体的前提") {
     return `${Math.round(status.bodyMetrics.heightCm)}cm・${Math.round(status.bodyMetrics.weightKg)}kgで引退時点の体格が残った。`;
@@ -237,7 +301,7 @@ const formatDesignRealization = (status: RikishiStatus, category: string): strin
     return status.careerNarrative?.careerIdentity ?? "気質の発現は番付推移と取組記録から読む。";
   }
   if (category === "期待") {
-    return yushoTotal > 0 ? `優勝${yushoTotal}回まで届いた。` : `${formatRankDisplayName(status.history.maxRank)}まで届いた。`;
+    return yushoTotal > 0 ? `優勝${yushoTotal}回まで届いた。` : `${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`;
   }
   if (category === "不安材料") {
     return injuryBasho > 0 ? `${injuryBasho}場所で休場が記録された。` : "休場の少ない一代として終わった。";
@@ -328,7 +392,7 @@ export const buildCareerDesignReadingModel = (
   const finalRecord = status.history.records
     .filter((record) => record.rank.division !== "Maezumo")
     .slice(-1)[0];
-  const highestRankLabel = formatRankDisplayName(status.history.maxRank);
+  const highestRankLabel = formatHighestRankDisplayName(status.history.maxRank);
   const finalBashoLabel = finalRecord ? formatBashoLabel(finalRecord.year, finalRecord.month) : "未記録";
   return {
     premiseRows,
@@ -364,7 +428,8 @@ export const buildCareerLedgerModel = (
   const lastSeq = records.length;
   let hasSeenJuryo = false;
   let hasSeenMakuuchi = false;
-  let hasSeenSanyaku = false;
+  let hasSeenKomusubi = false;
+  let hasSeenSekiwake = false;
   let hasSeenOzeki = false;
 
   const rawPoints = records.map((record, index) => {
@@ -376,7 +441,8 @@ export const buildCareerLedgerModel = (
       lastSeq,
       hasSeenJuryo,
       hasSeenMakuuchi,
-      hasSeenSanyaku,
+      hasSeenKomusubi,
+      hasSeenSekiwake,
       hasSeenOzeki,
     );
     if (record.rank.division === "Juryo" || record.rank.division === "Makuuchi") {
@@ -385,8 +451,11 @@ export const buildCareerLedgerModel = (
     if (record.rank.division === "Makuuchi") {
       hasSeenMakuuchi = true;
     }
-    if (SANYAKU_NAMES.has(record.rank.name)) {
-      hasSeenSanyaku = true;
+    if (record.rank.name === "小結") {
+      hasSeenKomusubi = true;
+    }
+    if (record.rank.name === "関脇") {
+      hasSeenSekiwake = true;
     }
     if (record.rank.name === "大関" || record.rank.name === "横綱") {
       hasSeenOzeki = true;
@@ -486,7 +555,7 @@ export const buildCareerOverviewModel = (
     lifeSummary:
       status.careerNarrative?.turningPoints[0]?.summary ??
       status.careerNarrative?.careerIdentity ??
-      `${status.profile.birthplace}から角界へ入り、${formatRankDisplayName(status.history.maxRank)}まで届いた。`,
+      `${status.profile.birthplace}から角界へ入り、${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`,
     bodyType: status.bodyType,
   };
 };

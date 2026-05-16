@@ -5,7 +5,7 @@ import { RikishiStatus } from "../../../logic/models";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
-import { formatRankDisplayName } from "../utils/reportFormatters";
+import { formatHighestRankDisplayName } from "../utils/reportFormatters";
 import styles from "./ReportOverviewTab.module.css";
 
 interface ReportOverviewTabProps {
@@ -39,7 +39,7 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-4">
           <OverviewFact
             label="最高位"
-            value={formatRankDisplayName(status.history.maxRank)}
+            value={formatHighestRankDisplayName(status.history.maxRank)}
             icon={<Trophy className="w-3.5 h-3.5" />}
           />
           <OverviewFact label="通算勝率" value={`${winRate}%`} icon={<Activity className="w-3.5 h-3.5 text-action" />} />
@@ -67,7 +67,7 @@ export const ReportOverviewTab: React.FC<ReportOverviewTabProps> = ({
           <OverviewHint
             icon={<Gauge className="h-4 w-4 text-action/60" />}
             title="殿堂入り基準"
-            text={`${formatRankDisplayName(status.history.maxRank)}の到達価値を最重視した絶対評価です。`}
+            text={`${formatHighestRankDisplayName(status.history.maxRank)}の到達価値を最重視した絶対評価です。`}
           />
           <OverviewHint
             icon={<Trophy className="h-4 w-4 text-award/60" />}

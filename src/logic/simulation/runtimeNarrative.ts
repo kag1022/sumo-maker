@@ -1,4 +1,5 @@
 import { Rank } from '../models';
+import { formatHighestRankDisplayName, formatRankDisplayName } from '../ranking';
 import { BashoStepResult, CompletedStepResult } from './engine/types';
 
 export type SimulationChapterKind =
@@ -38,12 +39,7 @@ export interface RuntimeNarrativeStep {
 }
 
 const formatRankName = (rank: Rank): string => {
-  if (rank.name === '前相撲') return rank.name;
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) {
-    return `${side}${rank.name}`;
-  }
-  return `${side}${rank.name}${rank.number || 1}枚目`;
+  return formatRankDisplayName(rank);
 };
 
 const hasTitleRaceSignal = (step: BashoStepResult): boolean =>
@@ -104,7 +100,7 @@ const buildObservation = (
   chapterKind: SimulationChapterKind | null,
 ): SimulationObservationEntry => {
   if (step.kind === 'COMPLETED') {
-    const finalRank = formatRankName(step.statusSnapshot.history.maxRank);
+    const finalRank = formatHighestRankDisplayName(step.statusSnapshot.history.maxRank);
     const retired = step.events.find((event) => event.type === 'RETIREMENT');
     return {
       seq: step.progress.bashoCount,

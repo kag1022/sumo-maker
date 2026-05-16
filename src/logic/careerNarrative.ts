@@ -14,6 +14,7 @@ import {
   resolveDisplayedStrengthStyles,
   resolveStyleLabels,
 } from './style/identity';
+import { formatHighestRankDisplayName } from './ranking';
 import { normalizeTraitProgress } from './traits';
 
 interface RivalHeadToHeadInput {
@@ -328,7 +329,7 @@ export const buildFantasyHooks = (status: RikishiStatus): string[] => {
     hooks.push(`土俵では${resolveStyleLabels(strengths).join(' / ')}を得意な型として残した。`);
   }
   if (hooks.length < 3) {
-    hooks.push(`最高位 ${status.history.maxRank.name} までの曲線に、この力士らしい癖がはっきり残った。`);
+    hooks.push(`最高位 ${formatHighestRankDisplayName(status.history.maxRank)} までの曲線に、この力士らしい癖がはっきり残った。`);
   }
   return hooks.slice(0, 5);
 };
@@ -392,8 +393,8 @@ export const buildCareerNarrativeSummary = (status: RikishiStatus): CareerNarrat
       : `番付の浮沈とともに、体格と地力の輪郭が固まっていった。`;
   const careerIdentity =
     strengths.length > 0
-      ? `実戦では${styleLabel}を得意な型として残し、最高位は${status.history.maxRank.name}まで届いた。`
-      : `どの型にも収まり切らないまま、それでも最高位は${status.history.maxRank.name}まで届いた。`;
+      ? `実戦では${styleLabel}を得意な型として残し、最高位は${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`
+      : `どの型にも収まり切らないまま、それでも最高位は${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`;
   const retirementReason = resolveRetirementEventReason(status) ?? getRetirementSpiritReason(status);
   const retirementDigest = `引退時は${status.age}歳。${retirementReason}。`;
   return {

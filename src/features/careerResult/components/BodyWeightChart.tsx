@@ -37,7 +37,7 @@ const CustomTooltip: React.FC<{
     <div style={TOOLTIP_STYLE}>
       <div style={{ fontSize: 10, color: "rgba(228, 218, 192, 0.6)", letterSpacing: "0.08em" }}>{label}</div>
       <div style={{ fontSize: 12, color: "#f5ecd8", fontFamily: "'DotGothic16', monospace", marginTop: 2 }}>
-        {payload[0].value.toFixed(1)} <span style={{ fontSize: 9, opacity: 0.6 }}>貫目（kg）</span>
+        {payload[0].value.toFixed(1)} <span style={{ fontSize: 9, opacity: 0.6 }}>kg</span>
       </div>
     </div>
   );
@@ -77,7 +77,7 @@ export const BodyWeightChart: React.FC<BodyWeightChartProps> = ({
   return (
     <ChartCard
       title="体重推移"
-      subtitle={peakWeight ? `ピーク ${peakWeight.toFixed(0)}kg` : "貫目の歩み"}
+      subtitle={peakWeight ? `ピーク ${peakWeight.toFixed(0)}kg` : "体重の変化"}
     >
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 4 }}>

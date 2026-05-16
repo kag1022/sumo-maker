@@ -3,6 +3,7 @@ import { RankChangeResult } from '../banzuke';
 import { BashoRecord, BodyType, Rank, RikishiStatus } from '../models';
 import { DEFAULT_CAREER_BAND, resolveAptitudeProfile } from '../constants';
 import { resolveAbilityFromStats, resolveRankBaselineAbility } from './strength/model';
+import { formatRankDisplayName } from '../ranking';
 import { getRankValue } from '../ranking/rankScore';
 import { ensureKataProfile } from '../style/kata';
 import { ensureStyleIdentityProfile } from '../style/identity';
@@ -36,10 +37,7 @@ const DIVISION_LABEL: Record<Rank['division'], string> = {
 };
 
 const formatFullRankLabel = (rank: Rank): string => {
-  if (rank.division === 'Maezumo') return '前相撲';
-  const side = rank.side === 'West' ? '西' : rank.side === 'East' ? '東' : '';
-  if (['横綱', '大関', '関脇', '小結'].includes(rank.name)) return `${side}${rank.name}`;
-  return `${side}${rank.name}${rank.number || 1}枚目`;
+  return formatRankDisplayName(rank);
 };
 
 export const initializeSimulationStatus = (initialStats: RikishiStatus): RikishiStatus => {

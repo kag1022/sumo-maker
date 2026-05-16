@@ -2,10 +2,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Crown, MapPinned, ScrollText, TrendingUp } from "lucide-react";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { Button } from "../../../shared/ui/Button";
 import { BashoHeatmapStrip } from "./BashoHeatmapStrip";
 import {
   CAREER_LEDGER_BANDS,
+  getCareerRankScaleLayout,
+  getCareerRankScalePosition,
   type CareerLedgerModel,
   type CareerLedgerPoint,
   type CareerPlaceSummaryModel,
@@ -33,8 +36,10 @@ const MILESTONE_PRIORITY = [
   "横綱昇進",
   "新大関",
   "再大関",
-  "新三役",
-  "再三役",
+  "新関脇",
+  "再関脇",
+  "新小結",
+  "再小結",
   "新入幕",
   "再入幕",
   "新十両",
@@ -46,6 +51,21 @@ const MILESTONE_PRIORITY = [
 ] as const;
 
 const HIDDEN_VISUAL_TAGS = new Set<string>();
+const GRAPH_TEXT_LABELS = new Set(["最高位到達", "横綱昇進", "新大関"]);
+const PROMOTION_MARKER_TAGS = new Set(["横綱昇進", "新大関", "再大関", "新関脇", "再関脇", "新小結", "再小結", "新入幕", "再入幕", "新十両", "再十両"]);
+
+const AXIS_GROUP_LABELS: Array<{
+  key: CareerLedgerPoint["bandKey"];
+  label: string;
+  includes: CareerLedgerPoint["bandKey"][];
+}> = [
+  { key: "YOKOZUNA", label: "横綱・大関", includes: ["YOKOZUNA", "OZEKI"] },
+  { key: "SEKIWAKE", label: "三役", includes: ["SEKIWAKE", "KOMUSUBI"] },
+  { key: "MAEGASHIRA", label: "幕内", includes: ["MAEGASHIRA"] },
+  { key: "JURYO", label: "十両", includes: ["JURYO"] },
+  { key: "MAKUSHITA", label: "幕下", includes: ["MAKUSHITA"] },
+  { key: "SANDANME", label: "三段目以下", includes: ["SANDANME", "JONIDAN", "JONOKUCHI"] },
+];
 
 const resolvePrimaryMilestone = (tags: string[]): string | null => {
   const visibleTags = tags.filter((tag) => !HIDDEN_VISUAL_TAGS.has(tag));
@@ -106,21 +126,15 @@ interface TrajectorySummary {
 }
 
 const toDeltaText = (point: CareerLedgerPoint): string => {
-  if (Math.abs(point.deltaValue) < 0.01) return "変動なし";
-  return point.deltaValue > 0 ? `+${point.deltaValue}枚` : `${point.deltaValue}枚`;
+  return point.deltaLabel;
 };
 
 const resolvePointLabel = (point: CareerLedgerPoint, isPeak: boolean): { label: string | null; priority: number } => {
   const milestone = resolvePrimaryMilestone(point.milestoneTags);
   if (isPeak) return { label: "最高位", priority: 100 };
-  if (milestone) return { label: milestone, priority: 90 };
-  if (Math.abs(point.deltaValue) >= 10) return { label: toDeltaText(point), priority: 70 };
-  if (Math.abs(point.deltaValue) >= BIG_DELTA_THRESHOLD) return { label: toDeltaText(point), priority: 58 };
+  if (milestone && GRAPH_TEXT_LABELS.has(milestone)) return { label: milestone, priority: 90 };
   return { label: null, priority: 0 };
 };
-
-const getBandIndex = (point: Pick<CareerLedgerPoint, "bandKey">): number =>
-  Math.max(0, CAREER_LEDGER_BANDS.findIndex((band) => band.key === point.bandKey));
 
 const getBandLabel = (bandKey: CareerLedgerPoint["bandKey"]): string =>
   CAREER_LEDGER_BANDS.find((band) => band.key === bandKey)?.label ?? bandKey;
@@ -132,9 +146,9 @@ const isReturnTarget = (point: CareerLedgerPoint): boolean =>
 const getAnnotationTone = (kind: TrajectoryAnnotationKind): "peak" | "rise" | "fall" | "stagnation" | "return" => kind;
 
 const summarizeAnnotation = (annotation: TrajectoryAnnotation): string => {
-  if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel} / ${annotation.point.recordLabel}`;
-  if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.value ?? annotation.point.deltaValue}枚上昇`;
-  if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${Math.abs(annotation.value ?? annotation.point.deltaValue)}枚下降`;
+  if (annotation.kind === "peak") return `${annotation.point.bashoLabel} / ${formatHighestRankDisplayName(annotation.point.rank)} / ${annotation.point.recordLabel}`;
+  if (annotation.kind === "rise") return `${annotation.point.bashoLabel}から${annotation.point.deltaLabel}`;
+  if (annotation.kind === "fall") return `${annotation.point.bashoLabel}から${annotation.point.deltaLabel}`;
   if (annotation.kind === "stagnation") return `${getBandLabel(annotation.point.bandKey)}に${annotation.length ?? 0}場所`;
   return `${annotation.point.bashoLabel} / ${annotation.point.rankLabel}へ戻る`;
 };
@@ -203,7 +217,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
     ? {
       kind: "rise" as const,
       label: "急上昇",
-      summary: `${maxRisePoint.bashoLabel}から${maxRisePoint.deltaValue}枚上昇`,
+      summary: `${maxRisePoint.bashoLabel}から${maxRisePoint.deltaLabel}`,
       point: maxRisePoint,
       value: maxRisePoint.deltaValue,
     }
@@ -212,7 +226,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
     ? {
       kind: "fall" as const,
       label: "急落",
-      summary: `${maxFallPoint.bashoLabel}から${Math.abs(maxFallPoint.deltaValue)}枚下降`,
+      summary: `${maxFallPoint.bashoLabel}から${maxFallPoint.deltaLabel}`,
       point: maxFallPoint,
       value: maxFallPoint.deltaValue,
     }
@@ -220,7 +234,7 @@ const buildTrajectorySummary = (points: CareerLedgerPoint[]): TrajectorySummary 
   const peakAnnotation: TrajectoryAnnotation = {
     kind: "peak",
     label: "最高位",
-    summary: `${peak.bashoLabel} / ${peak.rankLabel} / ${peak.recordLabel}`,
+    summary: `${peak.bashoLabel} / ${formatHighestRankDisplayName(peak.rank)} / ${peak.recordLabel}`,
     point: peak,
   };
   const sekitoriCount = points.filter((point) => SEKITORI_BANDS.has(point.bandKey)).length;
@@ -250,15 +264,7 @@ const buildLifeLinePoints = (
   const xRange = Math.max(1, points.length - 1);
   const plotWidth = LIFE_LINE_WIDTH - LIFE_LINE_PADDING.left - LIFE_LINE_PADDING.right;
   const plotHeight = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom;
-  const bandHeight = plotHeight / CAREER_LEDGER_BANDS.length;
-  const bandRanges = new Map<CareerLedgerPoint["bandKey"], { min: number; max: number }>();
-  for (const point of points) {
-    const current = bandRanges.get(point.bandKey);
-    bandRanges.set(point.bandKey, {
-      min: current ? Math.min(current.min, point.rankValue) : point.rankValue,
-      max: current ? Math.max(current.max, point.rankValue) : point.rankValue,
-    });
-  }
+  const bandLayout = getCareerRankScaleLayout(plotHeight);
   const peakSeq = points.reduce((best, point) => (point.rankValue < best.rankValue ? point : best), points[0]).bashoSeq;
   const minLabelGap = points.length > 72 ? 84 : points.length > 42 ? 70 : 54;
   const sortedLabelCandidates = points
@@ -266,12 +272,7 @@ const buildLifeLinePoints = (
       const isPeak = point.bashoSeq === peakSeq;
       const { label, priority } = resolvePointLabel(point, isPeak);
       const x = LIFE_LINE_PADDING.left + (index / xRange) * plotWidth;
-      const bandIndex = getBandIndex(point);
-      const range = bandRanges.get(point.bandKey);
-      const localRatio = range && range.max > range.min
-        ? (point.rankValue - range.min) / (range.max - range.min)
-        : 0.5;
-      const y = LIFE_LINE_PADDING.top + bandIndex * bandHeight + bandHeight * (0.18 + localRatio * 0.64);
+      const y = LIFE_LINE_PADDING.top + getCareerRankScalePosition(point.rankValue, bandLayout).y;
       return {
         ...point,
         x,
@@ -280,7 +281,7 @@ const buildLifeLinePoints = (
         labelPriority: priority,
         isSelected: point.bashoSeq === selectedBashoSeq,
         isPeak,
-        isPromoted: point.milestoneTags.some((tag) => tag.includes("昇進") || tag.includes("入幕") || tag.includes("十両") || tag.includes("三役")),
+        isPromoted: point.milestoneTags.some((tag) => PROMOTION_MARKER_TAGS.has(tag)),
         isBigMove: Math.abs(point.deltaValue) >= BIG_DELTA_THRESHOLD,
       };
     })
@@ -302,6 +303,16 @@ const buildLifeLinePoints = (
   return points.map((point) => bySeq.get(point.bashoSeq)).filter((point): point is LifeLinePoint => Boolean(point));
 };
 
+const resolveAxisGroupY = (
+  group: (typeof AXIS_GROUP_LABELS)[number],
+  layout: ReturnType<typeof getCareerRankScaleLayout>,
+): number => {
+  const groupBands = layout.filter((band) => group.includes.includes(band.key));
+  const first = groupBands[0] ?? layout[0];
+  const last = groupBands[groupBands.length - 1] ?? first;
+  return first.y + (last.y + last.height - first.y) / 2;
+};
+
 const buildLifeLineEvents = (points: LifeLinePoint[]): LifeLinePoint[] =>
   points
     .filter((point) => point.isSelected || point.isPeak || point.isPromoted || point.isBigMove)
@@ -314,6 +325,13 @@ const buildLifeLineEvents = (points: LifeLinePoint[]): LifeLinePoint[] =>
     })
     .slice(0, MAX_LIFE_LINE_EVENTS)
     .sort((left, right) => left.bashoSeq - right.bashoSeq);
+
+const resolveEventLabel = (point: LifeLinePoint): string => {
+  const milestone = resolvePrimaryMilestone(point.milestoneTags);
+  if (milestone) return milestone;
+  if (point.isBigMove) return toDeltaText(point);
+  return point.rankShortLabel;
+};
 
 const BASHO_MONTHS = [1, 3, 5, 7, 9, 11] as const;
 
@@ -451,6 +469,10 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
     const eventPoints = buildLifeLineEvents(lifeLinePoints).filter((point) => !annotationSeqs.has(point.bashoSeq));
     return eventPoints.slice(0, Math.max(0, MAX_LIFE_LINE_EVENTS - trajectorySummary.annotations.length));
   }, [lifeLinePoints, trajectorySummary.annotations]);
+  const lifeLineAxisLayout = React.useMemo(
+    () => getCareerRankScaleLayout(LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom),
+    [],
+  );
 
   return (
     <section className={styles.shell}>
@@ -469,17 +491,17 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
         <article className={styles.summaryTile}>
           <Crown className="h-4 w-4" />
           <span>最高位</span>
-          <strong>{peakPoint?.rankLabel ?? "-"}</strong>
+          <strong>{peakPoint ? formatHighestRankDisplayName(peakPoint.rank) : "-"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <ArrowUpRight className="h-4 w-4" />
           <span>最大上昇</span>
-          <strong>{trajectorySummary.maxRise ? `${trajectorySummary.maxRise.value}枚` : "該当なし"}</strong>
+          <strong>{trajectorySummary.maxRise ? trajectorySummary.maxRise.point.deltaLabel : "該当なし"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <ArrowDownRight className="h-4 w-4" />
           <span>最大下降</span>
-          <strong>{trajectorySummary.maxFall ? `${Math.abs(trajectorySummary.maxFall.value ?? 0)}枚` : "該当なし"}</strong>
+          <strong>{trajectorySummary.maxFall ? trajectorySummary.maxFall.point.deltaLabel : "該当なし"}</strong>
         </article>
         <article className={styles.summaryTile}>
           <MapPinned className="h-4 w-4" />
@@ -524,7 +546,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
             <span className={styles.summaryKicker}>番付人生ライン</span>
             <h4>入門から引退まで</h4>
           </div>
-          <div className={styles.lifeLineHint}>上ほど高位 / 点で場所選択</div>
+          <div className={styles.lifeLineHint}>上ほど高位 / 文字は重要節目だけ表示 / 点で場所選択</div>
         </div>
         <div className={styles.lifeLineFrame}>
           <svg
@@ -545,29 +567,29 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                 <stop offset="100%" stopColor="rgb(var(--twc-bg))" stopOpacity="0" />
               </linearGradient>
             </defs>
-            {CAREER_LEDGER_BANDS.map((band, index) => {
-              const plotHeight = LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom;
-              const bandHeight = plotHeight / CAREER_LEDGER_BANDS.length;
-              const y = LIFE_LINE_PADDING.top + index * bandHeight;
+            {lifeLineAxisLayout.map((band) => {
+              const y = LIFE_LINE_PADDING.top + band.y;
               return (
                 <g key={`life-band-${band.key}`}>
                   <rect
                     x={LIFE_LINE_PADDING.left}
                     y={y}
                     width={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.left - LIFE_LINE_PADDING.right}
-                    height={bandHeight}
+                    height={band.height}
                     className={styles.lifeLineBand}
                     data-band={band.key}
                   />
-                  <text x={LIFE_LINE_PADDING.left - 8} y={y + bandHeight / 2 + 4} className={styles.lifeLineBandLabel}>
-                    {band.label}
-                  </text>
+                  <line x1={LIFE_LINE_PADDING.left} x2={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.right} y1={y} y2={y} className={styles.lifeLineGrid} />
                 </g>
               );
             })}
-            {[0, 1, 2, 3].map((line) => {
-              const y = LIFE_LINE_PADDING.top + line * ((LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.top - LIFE_LINE_PADDING.bottom) / 3);
-              return <line key={`life-grid-${line}`} x1={LIFE_LINE_PADDING.left} x2={LIFE_LINE_WIDTH - LIFE_LINE_PADDING.right} y1={y} y2={y} className={styles.lifeLineGrid} />;
+            {AXIS_GROUP_LABELS.map((group) => {
+              const y = LIFE_LINE_PADDING.top + resolveAxisGroupY(group, lifeLineAxisLayout);
+              return (
+                <text key={`life-axis-group-${group.key}`} x={LIFE_LINE_PADDING.left - 8} y={y + 4} className={styles.lifeLineBandLabel}>
+                  {group.label}
+                </text>
+              );
             })}
             <text x="12" y={LIFE_LINE_PADDING.top + 4} className={styles.lifeLineAxis}>高位</text>
             <text x="12" y={LIFE_LINE_HEIGHT - LIFE_LINE_PADDING.bottom + 4} className={styles.lifeLineAxis}>下位</text>
@@ -632,12 +654,12 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
               onClick={() => onSelectBasho(annotation.point.bashoSeq)}
             >
               <span>{annotation.label}</span>
-              <strong>{annotation.kind === "peak" ? annotation.point.rankLabel : summarizeAnnotation(annotation)}</strong>
+              <strong>{annotation.kind === "peak" ? formatHighestRankDisplayName(annotation.point.rank) : summarizeAnnotation(annotation)}</strong>
               <em>{annotation.point.bashoLabel} / {annotation.point.recordLabel}</em>
             </button>
           ))}
           {lifeLineEvents.map((point) => {
-            const label = point.label ?? (point.isBigMove ? toDeltaText(point) : point.rankShortLabel);
+            const label = resolveEventLabel(point);
             return (
               <button
                 key={`life-event-${point.bashoSeq}-${label}`}
@@ -777,7 +799,7 @@ export const CareerTrajectoryChapter: React.FC<CareerTrajectoryChapterProps> = (
                 <h4>{resolvedSelectedYear ?? "-"}年</h4>
               </div>
               <div className={styles.focusYearStats}>
-                <span>最高 {selectedYearSummary.best?.rankLabel ?? "-"}</span>
+                <span>最高 {selectedYearSummary.best ? formatHighestRankDisplayName(selectedYearSummary.best.rank) : "-"}</span>
                 <span>{selectedYearSummary.recordLabel}</span>
                 <span>{selectedYearPoints.length}場所</span>
               </div>

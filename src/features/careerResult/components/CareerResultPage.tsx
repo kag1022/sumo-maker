@@ -1,19 +1,18 @@
 import React from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { BookUser, Menu, ScrollText, Table2, Trophy, X } from "lucide-react";
+import { motion } from "framer-motion";
 import { type CareerSaveTag, type ObservationStanceId, type RikishiStatus } from "../../../logic/models";
 import type {
   CareerBashoDetail,
   CareerBashoRecordsBySeq,
 } from "../../../logic/persistence/careerHistory";
-import { formatRankDisplayName } from "../../../logic/ranking";
+import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import { NpcCareerPanel } from "../../shared/components/NpcCareerPanel";
 import { buildNpcCareerDetail } from "../../shared/utils/npcCareerDetail";
-import { Button } from "../../../shared/ui/Button";
 import { CareerEncyclopediaChapter } from "./CareerEncyclopediaChapter";
 import { CareerWorldSection } from "./CareerWorldSection";
 import { CareerPlaceChapter } from "./CareerPlaceChapter";
 import { CareerTrajectoryChapter } from "./CareerTrajectoryChapter";
+import { ObservationConsoleHeader } from "./page/ObservationConsoleHeader";
 import {
   buildCareerLedgerModel,
   buildCareerDesignReadingModel,
@@ -52,20 +51,9 @@ interface CareerResultPageProps {
   onOpenArchive: () => void;
 }
 
-const CHAPTERS: Array<{
-  id: CareerChapterId;
-  label: string;
-  icon: typeof Trophy;
-}> = [
-  { id: "encyclopedia", label: "力士名鑑", icon: BookUser },
-  { id: "trajectory", label: "番付推移", icon: ScrollText },
-  { id: "place", label: "場所別", icon: Table2 },
-];
-
 const chapterTransition = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
   transition: { duration: 0.2, ease: "easeOut" as const },
 };
 
@@ -113,8 +101,7 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
   const highestRankLabel =
     status.history.maxRank.name === "横綱" && yokozunaOrdinal
       ? `第${yokozunaOrdinal}代横綱`
-      : formatRankDisplayName(status.history.maxRank);
-  const activeChapterLabel = CHAPTERS.find((chapter) => chapter.id === viewState.activeChapter)?.label ?? "力士名鑑";
+      : formatHighestRankDisplayName(status.history.maxRank);
   const selectedMeta = selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel;
   const canReadDetails = detailState === "ready";
   const detailLoadingLabel =
@@ -154,172 +141,109 @@ export const CareerResultPage: React.FC<CareerResultPageProps> = ({
 
   return (
     <div className={styles.page}>
-      <div className={styles.ribbonShell}>
-        <div className={styles.ribbon}>
-          <div className={styles.ribbonCurrent}>
-            <div className={styles.ribbonLabel}>{activeChapterLabel}</div>
-            <div className={styles.ribbonMeta}>
-              {selectedMeta}
-            </div>
-          </div>
-
-          <div className={styles.ribbonTrack} role="tablist" aria-label="キャリア結果ナビゲーション">
-            {CHAPTERS.map((chapter) => {
-              const Icon = chapter.icon;
-              return (
-                <button
-                  key={chapter.id}
-                  type="button"
-                  className={styles.ribbonTab}
-                  data-active={viewState.activeChapter === chapter.id}
-                  disabled={!canReadDetails && chapter.id !== "encyclopedia"}
-                  onClick={() => setChapter(chapter.id)}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{chapter.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className={styles.mobileToggle}
-            aria-label={mobileNavOpen ? "章メニューを閉じる" : "章メニューを開く"}
-            onClick={() => setMobileNavOpen((current) => !current)}
-          >
-            {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {mobileNavOpen ? (
-            <motion.div
-              className={styles.drawer}
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-            >
-              <div className={styles.drawerCurrent}>
-                <div>{selectedPoint?.bashoLabel ?? "-"}</div>
-                <div>{selectedPoint?.rankLabel ?? highestRankLabel}</div>
-              </div>
-              <div className={styles.drawerList}>
-                {CHAPTERS.map((chapter) => {
-                  const Icon = chapter.icon;
-                  return (
-                    <button
-                      key={`mobile-${chapter.id}`}
-                      type="button"
-                      className={styles.drawerTab}
-                      data-active={viewState.activeChapter === chapter.id}
-                      disabled={!canReadDetails && chapter.id !== "encyclopedia"}
-                      onClick={() => setChapter(chapter.id)}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{chapter.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
+      <ObservationConsoleHeader
+        subjectId={status.shikona}
+        subjectName={status.shikona}
+        highestRankLabel={highestRankLabel}
+        selectedMeta={selectedMeta}
+        activeChapter={viewState.activeChapter}
+        detailState={detailState}
+        canReadDetails={canReadDetails}
+        onSelectChapter={setChapter}
+        mobileNavOpen={mobileNavOpen}
+        onToggleMobileNav={() => setMobileNavOpen((current) => !current)}
+      />
 
       <div ref={chapterRef} className={styles.body}>
-        <>
-          {viewState.activeChapter === "encyclopedia" ? (
-            <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
-              <CareerEncyclopediaChapter
-                status={status}
-                overview={overview}
-                designReading={designReading}
-                highestRankLabel={highestRankLabel}
-                ledgerPoints={ledger.points}
-                bashoRows={bashoRows}
-                isSaved={isSaved}
-                detailState={detailState}
-                detailBuildProgress={detailBuildProgress}
-                observationPointsAwarded={observationPointsAwarded}
-                observationStanceId={observationStanceId}
-                onSave={onSave}
-                onReturnToScout={onReturnToScout}
-                onOpenArchive={onOpenArchive}
-              />
-              <section className={styles.readingNote}>
-                <div className={styles.readingKicker}>閲覧ガイド</div>
-                <div className={styles.readingTitle}>
-                  {canReadDetails ? "力士名鑑から番付推移と場所別へ読み進めます。" : "名鑑は先に開けますが、詳細章は記録整理後に開きます。"}
-                </div>
-                <p className={styles.readingCopy}>
-                  {canReadDetails
-                    ? "人物像を掴んだあと、番付推移と場所別でこの一代を追います。"
-                    : detailLoadingLabel}
-                </p>
-              </section>
-              <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
-            </motion.div>
-          ) : null}
-
-          {viewState.activeChapter === "trajectory" && canReadDetails ? (
-            <motion.div key="trajectory" {...chapterTransition}>
-              <CareerTrajectoryChapter
-                ledger={ledger}
-                selectedPoint={selectedPoint}
-                selectionSummary={placeSummary}
-                detail={detail}
-                detailLoading={detailLoading}
-                hasPersistence={Boolean(careerId)}
-                viewState={viewState}
-                onSelectBasho={onSelectBasho}
-                onWindowChange={(window) => onViewStateChange(window)}
-                onOpenChapter={(chapter) => openChapterWithPoint(chapter, selectedPoint?.bashoSeq)}
-              />
-            </motion.div>
-          ) : null}
-
-          {viewState.activeChapter === "place" && canReadDetails ? (
-            <motion.div key="place" className={styles.split} {...chapterTransition}>
-              <div className={styles.mainPane}>
-                <CareerPlaceChapter
-                  ledger={ledger}
-                  point={selectedPoint}
-                  detail={detail}
-                  summary={placeSummary}
-                  playerStableId={status.stableId}
-                  placeTab={viewState.placeTab}
-                  isLoading={detailLoading}
-                  hasPersistence={Boolean(careerId)}
-                  onSelectBasho={onSelectBasho}
-                  onSelectNpc={setSelectedNpcId}
-                  onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
-                />
+        {viewState.activeChapter === "encyclopedia" ? (
+          <motion.div key="encyclopedia" className="space-y-4" {...chapterTransition}>
+            <CareerEncyclopediaChapter
+              status={status}
+              overview={overview}
+              designReading={designReading}
+              highestRankLabel={highestRankLabel}
+              ledgerPoints={ledger.points}
+              bashoRows={bashoRows}
+              isSaved={isSaved}
+              detailState={detailState}
+              detailBuildProgress={detailBuildProgress}
+              observationPointsAwarded={observationPointsAwarded}
+              observationStanceId={observationStanceId}
+              onSave={onSave}
+              onReturnToScout={onReturnToScout}
+              onOpenArchive={onOpenArchive}
+              onOpenChapter={(chapter) => setChapter(chapter)}
+            />
+            <section className={styles.readingNote}>
+              <div className={styles.readingKicker}>閲覧案内</div>
+              <div className={styles.readingTitle}>
+                {canReadDetails ? "力士名鑑から番付推移と場所別記録へ読み進めます。" : "力士名鑑は先に開けますが、他のページは整理完了後に開きます。"}
               </div>
-              <aside className={styles.sidePane}>
-                {selectedNpc ? (
-                  <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
-                ) : (
-                  <div className={styles.sideEmpty}>
-                    <div className={styles.sideEmptyKicker}>補助欄</div>
-                    <div className={styles.sideEmptyTitle}>近傍力士を開く</div>
-                    <p className={styles.sideEmptyCopy}>番付や取組に表示される力士名を選ぶと、この場所で保存された番付行を右側に表示します。</p>
-                  </div>
-                )}
-              </aside>
-            </motion.div>
-          ) : null}
+              <p className={styles.readingCopy}>
+                {canReadDetails
+                  ? "まず一代の輪郭を力士名鑑で掴み、番付推移と場所別記録で根拠を読み込みます。"
+                  : detailLoadingLabel}
+              </p>
+            </section>
+            <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
+          </motion.div>
+        ) : null}
 
-          {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
-            <motion.section key="detail-lock" className={styles.readingNote} {...chapterTransition}>
-              <div className={styles.readingKicker}>記録整理中</div>
-              <div className={styles.readingTitle}>詳細章はまだ開けません。</div>
-              <p className={styles.readingCopy}>{detailLoadingLabel}</p>
-            </motion.section>
-          ) : null}
-        </>
+        {viewState.activeChapter === "trajectory" && canReadDetails ? (
+          <motion.div key="trajectory" {...chapterTransition}>
+            <CareerTrajectoryChapter
+              ledger={ledger}
+              selectedPoint={selectedPoint}
+              selectionSummary={placeSummary}
+              detail={detail}
+              detailLoading={detailLoading}
+              hasPersistence={Boolean(careerId)}
+              viewState={viewState}
+              onSelectBasho={onSelectBasho}
+              onWindowChange={(window) => onViewStateChange(window)}
+              onOpenChapter={(chapter) => openChapterWithPoint(chapter, selectedPoint?.bashoSeq)}
+            />
+          </motion.div>
+        ) : null}
+
+        {viewState.activeChapter === "place" && canReadDetails ? (
+          <motion.div key="place" className={styles.split} {...chapterTransition}>
+            <div className={styles.mainPane}>
+              <CareerPlaceChapter
+                ledger={ledger}
+                point={selectedPoint}
+                detail={detail}
+                summary={placeSummary}
+                playerStableId={status.stableId}
+                placeTab={viewState.placeTab}
+                isLoading={detailLoading}
+                hasPersistence={Boolean(careerId)}
+                onSelectBasho={onSelectBasho}
+                onSelectNpc={setSelectedNpcId}
+                onPlaceTabChange={(placeTab) => onViewStateChange({ placeTab })}
+              />
+            </div>
+            <aside className={styles.sidePane}>
+              {selectedNpc ? (
+                <NpcCareerPanel detail={selectedNpc} onClear={() => setSelectedNpcId(null)} />
+              ) : (
+                <div className={styles.sideEmpty}>
+                  <div className={styles.sideEmptyKicker}>補助欄</div>
+                  <div className={styles.sideEmptyTitle}>周辺力士を見る</div>
+                  <p className={styles.sideEmptyCopy}>場所別記録の番付や取組から力士名を選ぶと、この場所で残った番付行をこの補助欄に表示します。</p>
+                </div>
+              )}
+            </aside>
+          </motion.div>
+        ) : null}
+
+        {viewState.activeChapter !== "encyclopedia" && !canReadDetails ? (
+          <motion.section key="detail-lock" className={styles.readingNote} {...chapterTransition}>
+            <div className={styles.readingKicker}>整理中</div>
+            <div className={styles.readingTitle}>詳細ページはまだ開けません。</div>
+            <p className={styles.readingCopy}>{detailLoadingLabel}</p>
+          </motion.section>
+        ) : null}
       </div>
     </div>
   );
