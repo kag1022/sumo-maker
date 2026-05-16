@@ -218,6 +218,9 @@ const applyMakekoshiDirectionGuard = (
   const currentSlot = resolveRankSlot(currentRecord.rank, context);
   const nextSlot = resolveRankSlot(nextRank, context);
   if (nextSlot > currentSlot) return { nextRank, adjusted: false };
+  if (isMakekoshiPopulationCompressionRank(currentRecord, nextRank, context)) {
+    return { nextRank, adjusted: false };
+  }
 
   const strictDemotion = MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division);
   if (!strictDemotion && nextSlot === currentSlot) {
@@ -457,6 +460,57 @@ const shouldApplyBoundaryAssignedRank = (
   );
 };
 
+const resolveLowerDivisionTotalFromContext = (context: SlotContext): number =>
+  context.offsets.Maezumo - context.offsets.Makushita;
+
+const resolveLowerDivisionHalfSlots = (
+  division: LowerDivisionKey,
+  context: SlotContext,
+): number => {
+  if (division === 'Makushita') return context.limits.MAKUSHITA_MAX * 2;
+  if (division === 'Sandanme') return context.limits.SANDANME_MAX * 2;
+  if (division === 'Jonidan') return context.limits.JONIDAN_MAX * 2;
+  return context.limits.JONOKUCHI_MAX * 2;
+};
+
+const isMakekoshiPopulationCompressionRank = (
+  currentRecord: BashoRecord,
+  candidateRank: Rank,
+  context: SlotContext,
+): boolean => {
+  if (currentRecord.rank.division !== 'Jonokuchi') return false;
+  if (candidateRank.division !== 'Jonokuchi') return false;
+  if (currentRecord.absent >= 7) return false;
+  if (currentRecord.wins >= totalLosses(currentRecord)) return false;
+
+  const currentSlot = resolveRankSlot(currentRecord.rank, context);
+  const candidateSlot = resolveRankSlot(candidateRank, context);
+  if (candidateSlot >= currentSlot) return false;
+
+  const currentLowerSlot = currentSlot - context.offsets.Makushita + 1;
+  const candidateLowerSlot = candidateSlot - context.offsets.Makushita + 1;
+  const empirical = resolveEmpiricalSlotBand({
+    division: currentRecord.rank.division,
+    rankName: currentRecord.rank.name,
+    rankNumber: currentRecord.rank.number,
+    currentSlot: currentLowerSlot,
+    totalSlots: resolveLowerDivisionTotalFromContext(context),
+    divisionTotalSlots: resolveLowerDivisionHalfSlots(currentRecord.rank.division, context),
+    wins: currentRecord.wins,
+    losses: currentRecord.losses,
+    absent: currentRecord.absent,
+    mandatoryDemotion: false,
+    mandatoryPromotion: false,
+  });
+
+  return (
+    empirical.sampleSize >= 20 &&
+    empirical.expectedSlot < currentLowerSlot &&
+    candidateLowerSlot >= empirical.minSlot &&
+    candidateLowerSlot <= empirical.maxSlot
+  );
+};
+
 const isBoundaryAssignmentDirectionCompatible = (
   currentRecord: BashoRecord,
   assignedRank: Rank,
@@ -475,6 +529,7 @@ const isBoundaryAssignmentDirectionCompatible = (
     return assignedSlot < currentSlot;
   }
   if (wins < losses) {
+    if (isMakekoshiPopulationCompressionRank(currentRecord, assignedRank, context)) return true;
     if (MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division)) {
       return assignedSlot > currentSlot;
     }
@@ -954,8 +1009,14 @@ const resolveLowerMovementDiagnostics = (
       ? -resolveStrictDivisionDemotionGuardSlots(currentRecord)
       : rawRecordMovement;
   const residual = finalMovement - recordMovement;
+  const populationCompressionApplied =
+    diff < 0 &&
+    finalMovement > 0 &&
+    isMakekoshiPopulationCompressionRank(currentRecord, finalRank, context);
+  const populationCompression = populationCompressionApplied ? residual : 0;
   const progress = resolveLowerRankProgress(currentRecord.rank, context);
   const pressureLike =
+    !populationCompressionApplied &&
     residual > 0 &&
     (
       currentRecord.rank.division === 'Jonokuchi' ||
@@ -963,7 +1024,8 @@ const resolveLowerMovementDiagnostics = (
       progress >= 0.9
     );
   const newRecruitPressure = pressureLike ? residual : 0;
-  const vacancyPressure = residual > 0 && !pressureLike ? residual : 0;
+  const vacancyPressure =
+    residual > 0 && !pressureLike && !populationCompressionApplied ? residual : 0;
   const boundaryProjection = residual < 0 ? residual : 0;
   const rankScaleExtended =
     usesDynamicScaleExtension(currentRecord.rank, context) ||
@@ -990,12 +1052,17 @@ const resolveLowerMovementDiagnostics = (
   if (diff > 0) {
     reasons.add(finalMovement > 0 ? 'KACHIKOSHI_REWARD_PRESERVED' : 'KACHIKOSHI_REWARD_LOST');
   }
-  if (diff < 0 && finalMovement > 0) reasons.add('MAKEKOSHI_PROMOTION_BY_PRESSURE');
+  if (populationCompressionApplied) {
+    reasons.add('POPULATION_COMPRESSION');
+  } else if (diff < 0 && finalMovement > 0) {
+    reasons.add('MAKEKOSHI_PROMOTION_BY_PRESSURE');
+  }
 
   return {
     recordMovement,
     newRecruitPressure,
     vacancyPressure,
+    populationCompression,
     boundaryProjection,
     finalMovement,
     reasonCodes: [...reasons],
