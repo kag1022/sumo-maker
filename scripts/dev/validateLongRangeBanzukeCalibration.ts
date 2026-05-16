@@ -5,8 +5,15 @@ import { LONG_RANGE_BANZUKE_CALIBRATION } from '../../src/logic/calibration/banz
 const ROOT = process.cwd();
 const OUT_JSON = path.join(ROOT, 'docs', 'design', 'lower_division_long_range_calibration_validation.json');
 const OUT_MD = path.join(ROOT, 'docs', 'design', 'lower_division_long_range_calibration_validation.md');
-const LOWER_DIVISIONS = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
-const REQUIRED_RECORDS = ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
+const RECORD_AWARE_DIVISIONS = ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
+const REQUIRED_RECORDS_BY_DIVISION: Record<string, string[]> = {
+  Makuuchi: ['7-8', '8-7', '10-5', '12-3', '0-0-15'],
+  Juryo: ['7-8', '8-7', '10-5', '12-3', '0-0-15'],
+  Makushita: ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'],
+  Sandanme: ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'],
+  Jonidan: ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'],
+  Jonokuchi: ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'],
+};
 
 interface BucketSampleRow {
   division: string;
@@ -27,9 +34,12 @@ const main = (): void => {
   if (!target.boundaryExchangeRates) fail('missing boundaryExchangeRates');
   if (!target.recordBucketRules?.rankBands) fail('missing recordBucketRules.rankBands');
   if (!target.recordBucketRules?.recordAwareQuantiles) fail('missing recordBucketRules.recordAwareQuantiles');
+  if (target.meta.movementClassSemantics !== 'sameDivisionBoundary') {
+    fail(`runtime movementClassSemantics must be sameDivisionBoundary, got ${target.meta.movementClassSemantics ?? 'missing'}`);
+  }
 
   const bucketSamples: BucketSampleRow[] = [];
-  for (const division of LOWER_DIVISIONS) {
+  for (const division of RECORD_AWARE_DIVISIONS) {
     const rankBands = target.recordBucketRules.rankBands[division];
     const quantileBands = target.recordBucketRules.recordAwareQuantiles[division];
     if (!rankBands?.length) fail(`missing rank bands for ${division}`);
@@ -38,7 +48,7 @@ const main = (): void => {
     for (const [, , rankBand] of rankBands) {
       const buckets = quantileBands[rankBand];
       if (!buckets) fail(`missing bucket map for ${division}/${rankBand}`);
-      for (const record of REQUIRED_RECORDS) {
+      for (const record of REQUIRED_RECORDS_BY_DIVISION[division]) {
         const quantiles = buckets[record];
         if (!quantiles) fail(`missing ${division}/${rankBand}/${record}`);
         if (quantiles.sampleSize <= 0) fail(`empty ${division}/${rankBand}/${record}`);
@@ -58,8 +68,8 @@ const main = (): void => {
     generatedAt: new Date().toISOString(),
     source: target.meta.source,
     sampleSize: target.meta.sampleSize,
-    divisions: LOWER_DIVISIONS,
-    requiredRecords: REQUIRED_RECORDS,
+    divisions: RECORD_AWARE_DIVISIONS,
+    requiredRecordsByDivision: REQUIRED_RECORDS_BY_DIVISION,
     bucketSamples,
   };
   fs.mkdirSync(path.dirname(OUT_JSON), { recursive: true });

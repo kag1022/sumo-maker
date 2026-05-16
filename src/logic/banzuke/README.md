@@ -40,8 +40,8 @@
 - banzuke 側は merit 判定の結果を返し、headcount 補充の責務を持たない
 - population 調整が必要でも、幕下以上の昇降を枠埋め目的で決めない
 - 下位番付は `scaleSlots` で渡された runtime の可変 headcount を rankIndex 解決に使う
-- `BanzukeDecisionLog.lowerMovementDiagnostics` は成績移動、新弟子流入圧、空き圧、境界投影を分けて記録する
-- 序ノ口・序二段下位の負け越し上昇は人口流量そのものではなく、runtime scale へ投影された結果として理由コードで説明する
+- `BanzukeDecisionLog.lowerMovementDiagnostics` は成績移動、新弟子流入圧、空き圧、人口圧縮、境界投影を分けて記録する
+- 序ノ口の負け越し上昇は record-aware calibration の帯内に限り、merit 昇進ではなく `POPULATION_COMPRESSION` として説明する
 
 ## テスト
 

@@ -218,6 +218,9 @@ const applyMakekoshiDirectionGuard = (
   const currentSlot = resolveRankSlot(currentRecord.rank, context);
   const nextSlot = resolveRankSlot(nextRank, context);
   if (nextSlot > currentSlot) return { nextRank, adjusted: false };
+  if (isMakekoshiPopulationCompressionRank(currentRecord, nextRank, context)) {
+    return { nextRank, adjusted: false };
+  }
 
   const strictDemotion = MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division);
   if (!strictDemotion && nextSlot === currentSlot) {
@@ -457,38 +460,55 @@ const shouldApplyBoundaryAssignedRank = (
   );
 };
 
-const resolveMakekoshiPressurePromotionCap = (
-  currentRecord: BashoRecord,
+const resolveLowerDivisionTotalFromContext = (context: SlotContext): number =>
+  context.offsets.Maezumo - context.offsets.Makushita;
+
+const resolveLowerDivisionHalfSlots = (
+  division: LowerDivisionKey,
   context: SlotContext,
 ): number => {
-  if (!isLowerDivision(currentRecord.rank.division)) return 0;
-  if (currentRecord.absent >= 7) return 0;
-  const progress = resolveLowerRankProgress(currentRecord.rank, context);
-  const lowerTailEligible =
-    currentRecord.rank.division === 'Jonokuchi' ||
-    currentRecord.rank.division === 'Jonidan'
-      ? progress >= 0.65
-      : false;
-  if (!lowerTailEligible) return 0;
-  const deficit = Math.max(1, totalLosses(currentRecord) - currentRecord.wins);
-  if (deficit <= 1) return currentRecord.rank.division === 'Jonokuchi' ? 72 : 54;
-  if (deficit === 2) return currentRecord.rank.division === 'Jonokuchi' ? 36 : 28;
-  if (deficit === 3) return currentRecord.rank.division === 'Jonokuchi' ? 20 : 14;
-  return currentRecord.rank.division === 'Jonokuchi' ? 8 : 4;
+  if (division === 'Makushita') return context.limits.MAKUSHITA_MAX * 2;
+  if (division === 'Sandanme') return context.limits.SANDANME_MAX * 2;
+  if (division === 'Jonidan') return context.limits.JONIDAN_MAX * 2;
+  return context.limits.JONOKUCHI_MAX * 2;
 };
 
-const isMakekoshiPressurePromotionAssignment = (
+const isMakekoshiPopulationCompressionRank = (
   currentRecord: BashoRecord,
-  assignedRank: Rank,
+  candidateRank: Rank,
   context: SlotContext,
 ): boolean => {
-  if (!isLowerDivision(currentRecord.rank.division) || !isLowerDivision(assignedRank.division)) return false;
+  if (currentRecord.rank.division !== 'Jonokuchi') return false;
+  if (candidateRank.division !== 'Jonokuchi') return false;
+  if (currentRecord.absent >= 7) return false;
   if (currentRecord.wins >= totalLosses(currentRecord)) return false;
+
   const currentSlot = resolveRankSlot(currentRecord.rank, context);
-  const assignedSlot = resolveRankSlot(assignedRank, context);
-  if (assignedSlot >= currentSlot) return false;
-  const pressureCap = resolveMakekoshiPressurePromotionCap(currentRecord, context);
-  return pressureCap > 0 && currentSlot - assignedSlot <= pressureCap;
+  const candidateSlot = resolveRankSlot(candidateRank, context);
+  if (candidateSlot >= currentSlot) return false;
+
+  const currentLowerSlot = currentSlot - context.offsets.Makushita + 1;
+  const candidateLowerSlot = candidateSlot - context.offsets.Makushita + 1;
+  const empirical = resolveEmpiricalSlotBand({
+    division: currentRecord.rank.division,
+    rankName: currentRecord.rank.name,
+    rankNumber: currentRecord.rank.number,
+    currentSlot: currentLowerSlot,
+    totalSlots: resolveLowerDivisionTotalFromContext(context),
+    divisionTotalSlots: resolveLowerDivisionHalfSlots(currentRecord.rank.division, context),
+    wins: currentRecord.wins,
+    losses: currentRecord.losses,
+    absent: currentRecord.absent,
+    mandatoryDemotion: false,
+    mandatoryPromotion: false,
+  });
+
+  return (
+    empirical.sampleSize >= 20 &&
+    empirical.expectedSlot < currentLowerSlot &&
+    candidateLowerSlot >= empirical.minSlot &&
+    candidateLowerSlot <= empirical.maxSlot
+  );
 };
 
 const isBoundaryAssignmentDirectionCompatible = (
@@ -509,7 +529,7 @@ const isBoundaryAssignmentDirectionCompatible = (
     return assignedSlot < currentSlot;
   }
   if (wins < losses) {
-    if (isMakekoshiPressurePromotionAssignment(currentRecord, assignedRank, context)) return true;
+    if (isMakekoshiPopulationCompressionRank(currentRecord, assignedRank, context)) return true;
     if (MAKEKOSHI_STRICT_DEMOTION_DIVISIONS.has(currentRecord.rank.division)) {
       return assignedSlot > currentSlot;
     }
@@ -718,6 +738,18 @@ const calculateMakuuchiChange = (
   return { nextRank: { ...currentRank, number: Math.floor(newNumber) } };
 };
 
+const isJuryoMakushitaExchangeCandidate = (
+  juryoNumber: number,
+  wins: number,
+  absent: number,
+): boolean => {
+  if (absent >= 15 && juryoNumber >= 12) return true;
+  if (juryoNumber >= 14 && wins <= 7) return true;
+  if (juryoNumber >= 13 && wins <= 6) return true;
+  if (juryoNumber >= 12 && wins <= 5) return true;
+  return juryoNumber >= 10 && wins <= 3;
+};
+
 const calculateJuryoChange = (
   record: BashoRecord,
   wins: number,
@@ -812,14 +844,11 @@ const calculateJuryoChange = (
   }
 
   // 十両→幕下（危険水域）
-  const shouldDemote =
-    (num >= 14 && wins <= 7) ||
-    (num >= 13 && wins <= 6) ||
-    (num >= 12 && wins <= 5) ||
-    (num >= 10 && wins <= 3);
+  const shouldDemote = isJuryoMakushitaExchangeCandidate(num, wins, record.absent);
   const forcedByQuota =
     options?.sekitoriQuota?.canDemoteToMakushita === true &&
-    losses > wins;
+    losses > wins &&
+    isJuryoMakushitaExchangeCandidate(num, wins, record.absent);
   if ((shouldDemote || forcedByQuota) && !demotionByQuotaBlocked) {
     const mkNumber = resolveMaxMakushitaDemotionNumber(num, wins, losses, {
       fullAbsence: record.absent >= 15,
@@ -890,10 +919,14 @@ const normalizeBoundaryAssignedRank = (
   if (currentRecord.rank.division === 'Juryo' && assignedRank.division === 'Makushita') {
     const wins = currentRecord.wins;
     const losses = totalLosses(currentRecord);
+    const currentNumber = currentRecord.rank.number ?? LIMITS.JURYO_MAX;
+    if (!isJuryoMakushitaExchangeCandidate(currentNumber, wins, currentRecord.absent)) {
+      return undefined;
+    }
     const diff = scoreDiff(currentRecord);
     const calibrated = calculateJuryoChange(currentRecord, wins, losses, diff, options, rng).nextRank;
     const cappedNumber = resolveMaxMakushitaDemotionNumber(
-      currentRecord.rank.number ?? LIMITS.JURYO_MAX,
+      currentNumber,
       wins,
       losses,
       { fullAbsence: currentRecord.absent >= 15 },
@@ -976,8 +1009,14 @@ const resolveLowerMovementDiagnostics = (
       ? -resolveStrictDivisionDemotionGuardSlots(currentRecord)
       : rawRecordMovement;
   const residual = finalMovement - recordMovement;
+  const populationCompressionApplied =
+    diff < 0 &&
+    finalMovement > 0 &&
+    isMakekoshiPopulationCompressionRank(currentRecord, finalRank, context);
+  const populationCompression = populationCompressionApplied ? residual : 0;
   const progress = resolveLowerRankProgress(currentRecord.rank, context);
   const pressureLike =
+    !populationCompressionApplied &&
     residual > 0 &&
     (
       currentRecord.rank.division === 'Jonokuchi' ||
@@ -985,7 +1024,8 @@ const resolveLowerMovementDiagnostics = (
       progress >= 0.9
     );
   const newRecruitPressure = pressureLike ? residual : 0;
-  const vacancyPressure = residual > 0 && !pressureLike ? residual : 0;
+  const vacancyPressure =
+    residual > 0 && !pressureLike && !populationCompressionApplied ? residual : 0;
   const boundaryProjection = residual < 0 ? residual : 0;
   const rankScaleExtended =
     usesDynamicScaleExtension(currentRecord.rank, context) ||
@@ -1012,12 +1052,17 @@ const resolveLowerMovementDiagnostics = (
   if (diff > 0) {
     reasons.add(finalMovement > 0 ? 'KACHIKOSHI_REWARD_PRESERVED' : 'KACHIKOSHI_REWARD_LOST');
   }
-  if (diff < 0 && finalMovement > 0) reasons.add('MAKEKOSHI_PROMOTION_BY_PRESSURE');
+  if (populationCompressionApplied) {
+    reasons.add('POPULATION_COMPRESSION');
+  } else if (diff < 0 && finalMovement > 0) {
+    reasons.add('MAKEKOSHI_PROMOTION_BY_PRESSURE');
+  }
 
   return {
     recordMovement,
     newRecruitPressure,
     vacancyPressure,
+    populationCompression,
     boundaryProjection,
     finalMovement,
     reasonCodes: [...reasons],
@@ -1203,22 +1248,14 @@ export const calculateNextRank = (
       return finalize(calculateStandardRankChange(currentRecord, options, rng));
     }
     const recordOnly = calculateStandardRankChange(currentRecord, options, rng);
-    const pressurePromotion = isMakekoshiPressurePromotionAssignment(
-      currentRecord,
-      assignedBoundaryRank,
-      slotContext,
-    );
     return finalize({
       nextRank: assignedBoundaryRank,
       event: resolveBoundaryAssignedEvent(currentRank, assignedBoundaryRank),
     }, {
       recordOnlyRank: recordOnly.nextRank,
       boundaryAssigned: true,
-      skipDirectionGuards: pressurePromotion,
     });
   }
 
-  return finalize(calculateStandardRankChange(currentRecord, options, rng), {
-    skipDirectionGuards: isLowerDivision(currentRank.division) && currentRecord.absent < 7,
-  });
+  return finalize(calculateStandardRankChange(currentRecord, options, rng));
 };

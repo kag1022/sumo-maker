@@ -2337,7 +2337,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: jonokuchi bottom makekoshi can accept pressure promotion with diagnostics',
+    name: 'ranking: jonokuchi makekoshi can rise by population compression without merit promotion',
     run: () => {
       const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 60 };
       const result = calculateNextRank(
@@ -2359,8 +2359,39 @@ export const tests: TestCase[] = [
       );
       assert.equal(result.nextRank.division, 'Jonokuchi');
       assert.equal(result.nextRank.number, 53);
-      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
-      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('NEW_RECRUIT_PRESSURE'));
+      assert.ok((result.lowerMovementDiagnostics?.finalMovement ?? 0) > 0);
+      assert.ok(!result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('RECORD_DEMOTION'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('POPULATION_COMPRESSION'));
+      assert.ok((result.lowerMovementDiagnostics?.populationCompression ?? 0) > 0);
+    },
+  },
+  {
+    name: 'ranking: jonokuchi 3-4 follows record-aware compression lane',
+    run: () => {
+      const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 19 };
+      const result = calculateNextRank(
+        createBashoRecord(jonokuchi, 3, 4),
+        [],
+        false,
+        () => 0.5,
+        {
+          scaleSlots: {
+            Makuuchi: 42,
+            Juryo: 28,
+            Makushita: 120,
+            Sandanme: 200,
+            Jonidan: 276,
+            Jonokuchi: 122,
+          },
+        },
+      );
+      assert.equal(result.nextRank.division, 'Jonokuchi');
+      assert.equal(result.nextRank.number, 14);
+      assert.equal(result.nextRank.side, 'East');
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('RECORD_DEMOTION'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('POPULATION_COMPRESSION'));
+      assert.ok(!result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
     },
   },
   {

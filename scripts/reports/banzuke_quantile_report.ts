@@ -6,7 +6,6 @@ import { Rank, RikishiStatus } from '../../src/logic/models';
 import type {
   BanzukeCalibrationTarget,
   BanzukeMovementQuantiles,
-  CalibrationBundle,
 } from '../../src/logic/calibration/types';
 
 type Scenario = {
@@ -45,12 +44,14 @@ type ComparisonRow = {
     p90HalfStep: number;
   } | null;
   historical: BanzukeMovementQuantiles | null;
+  heiseiReference: BanzukeMovementQuantiles | null;
   pass: boolean | null;
   note?: string;
 };
 
 const ROOT_DIR = process.cwd();
-const BUNDLE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'calibration_bundle.json');
+const RUNTIME_TARGET_PATH = path.join(ROOT_DIR, 'sumo-api-db', 'data', 'analysis', 'banzuke_calibration_long_range.json');
+const HEISEI_TARGET_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'banzuke_calibration_heisei.json');
 const REPORT_PATH = path.join(ROOT_DIR, 'docs', 'balance', 'banzuke-quantile-report.md');
 const JSON_PATH = path.join(ROOT_DIR, '.tmp', 'banzuke-quantile-report.json');
 
@@ -176,11 +177,11 @@ const writeFile = (filePath: string, text: string): void => {
   fs.writeFileSync(filePath, text, 'utf8');
 };
 
-const loadCalibrationBundle = (): CalibrationBundle => {
-  if (!fs.existsSync(BUNDLE_PATH)) {
-    throw new Error(`Calibration bundle is missing: ${BUNDLE_PATH}`);
+const loadCalibrationTarget = (filePath: string): BanzukeCalibrationTarget => {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Banzuke calibration target is missing: ${filePath}`);
   }
-  return JSON.parse(fs.readFileSync(BUNDLE_PATH, 'utf8')) as CalibrationBundle;
+  return JSON.parse(fs.readFileSync(filePath, 'utf8')) as BanzukeCalibrationTarget;
 };
 
 const buildComparisonKeys = (_target: BanzukeCalibrationTarget): ComparisonKey[] => [
@@ -259,8 +260,8 @@ const comparisonLabelMap: Record<ComparisonKey, string> = {
 };
 
 const run = async (): Promise<void> => {
-  const calibrationBundle = loadCalibrationBundle();
-  const banzukeTarget = calibrationBundle.banzuke;
+  const banzukeTarget = loadCalibrationTarget(RUNTIME_TARGET_PATH);
+  const heiseiReferenceTarget = loadCalibrationTarget(HEISEI_TARGET_PATH);
   const comparisonKeys = buildComparisonKeys(banzukeTarget);
 
   let transitions = 0;
@@ -310,6 +311,7 @@ const run = async (): Promise<void> => {
       .map((row) => row.deltaHalfStep);
     const actual = toActualQuantiles(matching);
     const historical = resolveHistoricalTarget(banzukeTarget, key);
+    const heiseiReference = resolveHistoricalTarget(heiseiReferenceTarget, key);
     const pass =
       actual && historical
         ? actual.p50HalfStep >= historical.p10HalfStep &&
@@ -321,11 +323,12 @@ const run = async (): Promise<void> => {
       sampleSize: matching.length,
       actual,
       historical,
+      heiseiReference,
       pass,
       note:
         actual && historical
-          ? 'actual p50 must stay inside historical p10-p90 band'
-          : 'insufficient sample or missing historical target',
+          ? 'actual p50 must stay inside runtime target p10-p90 band; heisei is reference only'
+          : 'insufficient sample or missing runtime target',
     };
   });
 
@@ -335,8 +338,13 @@ const run = async (): Promise<void> => {
       scenarioCount: scenarios.length,
       generatedAt: new Date().toISOString(),
       engineVersion: 'optimizer-v2',
+      targetPath: path.relative(ROOT_DIR, RUNTIME_TARGET_PATH),
       calibrationSource: banzukeTarget.meta.source,
       calibrationEra: banzukeTarget.meta.era,
+      calibrationMovementClassSemantics: banzukeTarget.meta.movementClassSemantics ?? 'unknown',
+      heiseiReferencePath: path.relative(ROOT_DIR, HEISEI_TARGET_PATH),
+      heiseiReferenceSource: heiseiReferenceTarget.meta.source,
+      heiseiReferenceEra: heiseiReferenceTarget.meta.era,
       recordBucketSupported: banzukeTarget.recordBucketRules.supported,
     },
     comparison: comparisonRows,
@@ -349,8 +357,11 @@ const run = async (): Promise<void> => {
     '',
     `- 実行日: ${summary.meta.generatedAt}`,
     `- engineVersion: ${summary.meta.engineVersion}`,
+    `- runtime target: ${summary.meta.targetPath}`,
     `- calibration source: ${summary.meta.calibrationSource}`,
     `- calibration era: ${summary.meta.calibrationEra}`,
+    `- movement semantics: ${summary.meta.calibrationMovementClassSemantics}`,
+    `- heisei reference: ${summary.meta.heiseiReferencePath}`,
     `- シナリオ数: ${summary.meta.scenarioCount}`,
     `- 遷移数: ${summary.meta.transitions}`,
     '',
@@ -365,7 +376,10 @@ const run = async (): Promise<void> => {
     const historicalText = row.historical
       ? `p10=${row.historical.p10Rank.toFixed(1)} / p50=${row.historical.p50Rank.toFixed(1)} / p90=${row.historical.p90Rank.toFixed(1)}`
       : 'n/a';
-    lines.push(`- ${row.label}: target ${historicalText} / actual ${actualText} / ${row.pass === null ? 'N/A' : row.pass ? 'PASS' : 'WARN'}`);
+    const heiseiText = row.heiseiReference
+      ? `p10=${row.heiseiReference.p10Rank.toFixed(1)} / p50=${row.heiseiReference.p50Rank.toFixed(1)} / p90=${row.heiseiReference.p90Rank.toFixed(1)}`
+      : 'n/a';
+    lines.push(`- ${row.label}: runtime target ${historicalText} / actual ${actualText} / heisei ref ${heiseiText} / ${row.pass === null ? 'N/A' : row.pass ? 'PASS' : 'WARN'}`);
   }
 
   lines.push('');

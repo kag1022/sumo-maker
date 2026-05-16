@@ -16,6 +16,8 @@ interface BashoRecordRow {
   bashoId?: string;
   division: string;
   rikishiId: number;
+  rankName?: string;
+  rankNumber?: number;
   wins: number;
   losses: number;
   absences?: number;
@@ -36,6 +38,7 @@ interface IndexedRecord {
   wins: number;
   losses: number;
   absences: number;
+  rankName?: string;
   rankNumber: number;
 }
 
@@ -53,7 +56,16 @@ const TARGET_INLINE_BYTES = 3 * 1024 * 1024;
 
 const DIVISIONS: Division[] = ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
 const LOWER_DIVISIONS: LowerDivision[] = ['Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
-const REQUIRED_RECORD_BUCKETS = ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
+const TOP_RECORD_BUCKETS = Array.from({ length: 16 }, (_, wins) => `${wins}-${15 - wins}`);
+const LOWER_RECORD_BUCKETS = ['0-7', '0-0-7', '1-6', '2-5', '3-4', '4-3', '5-2', '6-1', '7-0'];
+const REQUIRED_RECORD_BUCKETS_BY_DIVISION: Record<Division, string[]> = {
+  Makuuchi: TOP_RECORD_BUCKETS,
+  Juryo: TOP_RECORD_BUCKETS,
+  Makushita: LOWER_RECORD_BUCKETS,
+  Sandanme: LOWER_RECORD_BUCKETS,
+  Jonidan: LOWER_RECORD_BUCKETS,
+  Jonokuchi: LOWER_RECORD_BUCKETS,
+};
 const BOUNDARY_KEYS = [
   'JuryoToMakuuchi',
   'MakuuchiToJuryo',
@@ -67,12 +79,16 @@ const BOUNDARY_KEYS = [
   'JonidanToJonokuchi',
 ];
 
-const RANK_BANDS: Record<LowerDivision, BanzukeRankBandTuple[]> = {
+const RANK_BANDS: Record<Division, BanzukeRankBandTuple[]> = {
+  Makuuchi: [[1, 0, 'Y/O'], [1, 0, 'S/K'], [1, 5, '1-5'], [6, 10, '6-10'], [11, null, '11+']],
+  Juryo: [[1, 3, '1-3'], [4, 7, '4-7'], [8, 11, '8-11'], [12, 14, '12-14']],
   Makushita: [[1, 5, '1-5'], [6, 15, '6-15'], [16, 30, '16-30'], [31, 45, '31-45'], [46, null, '46+']],
   Sandanme: [[1, 10, '1-10'], [11, 30, '11-30'], [31, 60, '31-60'], [61, 90, '61-90'], [91, null, '91+']],
   Jonidan: [[1, 20, '1-20'], [21, 50, '21-50'], [51, 100, '51-100'], [101, 150, '101-150'], [151, null, '151+']],
   Jonokuchi: [[1, 10, '1-10'], [11, 20, '11-20'], [21, 30, '21-30'], [31, null, '31+']],
 };
+
+const DIVISION_ORDER: Division[] = ['Makuuchi', 'Juryo', 'Makushita', 'Sandanme', 'Jonidan', 'Jonokuchi'];
 
 async function* streamJsonArrayObjects<T>(filePath: string): AsyncGenerator<T> {
   const stream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 256 });
@@ -121,9 +137,6 @@ async function* streamJsonArrayObjects<T>(filePath: string): AsyncGenerator<T> {
 const isDivision = (value: string | undefined): value is Division =>
   DIVISIONS.includes(value as Division);
 
-const isLowerDivision = (value: string | undefined): value is LowerDivision =>
-  LOWER_DIVISIONS.includes(value as LowerDivision);
-
 const recordKey = (basho: string, rikishiId: number): string => `${basho}:${rikishiId}`;
 
 const resolveRecordBucket = (wins: number, losses: number, absences: number): string => {
@@ -132,15 +145,30 @@ const resolveRecordBucket = (wins: number, losses: number, absences: number): st
   return `${wins}-${losses}-${absences}`;
 };
 
-const resolveRankBand = (division: LowerDivision, rankNumber: number): string => {
+const resolveRankBand = (division: Division, rankNumber: number, rankName?: string): string => {
+  if (division === 'Makuuchi') {
+    if (rankName === '横綱' || rankName === '大関') return 'Y/O';
+    if (rankName === '関脇' || rankName === '小結') return 'S/K';
+  }
   for (const [lower, upper, label] of RANK_BANDS[division]) {
     if (rankNumber >= lower && (upper === null || rankNumber <= upper)) return label;
   }
   return RANK_BANDS[division][RANK_BANDS[division].length - 1][2];
 };
 
-const resolveMovementClass = (movement: number): MovementClass =>
-  movement > 0 ? 'promoted' : movement < 0 ? 'demoted' : 'stayed';
+const resolveMovementClass = (
+  fromDivision: Division,
+  toDivision: string | undefined,
+  movement: number,
+): MovementClass => {
+  if (toDivision === fromDivision) return 'stayed';
+  if (isDivision(toDivision)) {
+    return DIVISION_ORDER.indexOf(toDivision) < DIVISION_ORDER.indexOf(fromDivision)
+      ? 'promoted'
+      : 'demoted';
+  }
+  return movement > 0 ? 'promoted' : movement < 0 ? 'demoted' : 'stayed';
+};
 
 const percentile = (values: number[], ratio: number): number => {
   if (!values.length) return 0;
@@ -184,7 +212,7 @@ const assertCalibrationShape = (target: BanzukeCalibrationTarget): void => {
   if (!target.recordBucketRules?.rankBands) missing.push('recordBucketRules.rankBands');
   if (!target.recordBucketRules?.recordAwareQuantiles) missing.push('recordBucketRules.recordAwareQuantiles');
 
-  for (const division of LOWER_DIVISIONS) {
+  for (const division of DIVISIONS) {
     if (!target.recordBucketRules.rankBands[division]) missing.push(`rankBands.${division}`);
     const bands = target.recordBucketRules.recordAwareQuantiles[division];
     if (!bands) {
@@ -192,7 +220,7 @@ const assertCalibrationShape = (target: BanzukeCalibrationTarget): void => {
       continue;
     }
     for (const [, , band] of RANK_BANDS[division]) {
-      for (const record of REQUIRED_RECORD_BUCKETS) {
+      for (const record of REQUIRED_RECORD_BUCKETS_BY_DIVISION[division]) {
         const quantiles = bands[band]?.[record];
         if (!quantiles || quantiles.sampleSize <= 0) {
           missing.push(`recordAwareQuantiles.${division}.${band}.${record}`);
@@ -219,13 +247,22 @@ const main = async (): Promise<void> => {
       wins: record.wins,
       losses: record.losses,
       absences: record.absences ?? 0,
+      rankName: record.rankName,
       rankNumber: Math.max(1, Math.floor(record.rankNumber ?? 1)),
     });
   }
 
   const divisionClassValues = new Map<string, number[]>();
-  const lowerRecordValues = new Map<string, number[]>();
-  const lowerDivisionRecordValues = new Map<string, number[]>();
+  const recordValues = new Map<string, number[]>();
+  const divisionRecordValues = new Map<string, number[]>();
+  const observedRecordBuckets: Record<Division, Set<string>> = {
+    Makuuchi: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Makuuchi),
+    Juryo: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Juryo),
+    Makushita: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Makushita),
+    Sandanme: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Sandanme),
+    Jonidan: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Jonidan),
+    Jonokuchi: new Set(REQUIRED_RECORD_BUCKETS_BY_DIVISION.Jonokuchi),
+  };
   const boundaryTotals = new Map<string, { sampleSize: number; count: number }>();
   let scannedMovements = 0;
   let joinedMovements = 0;
@@ -243,14 +280,13 @@ const main = async (): Promise<void> => {
     if (typeof movementSteps !== 'number') continue;
     joinedMovements += 1;
 
-    pushValue(divisionClassValues, `${record.division}:${resolveMovementClass(movementSteps)}`, movementSteps);
+    pushValue(divisionClassValues, `${record.division}:${resolveMovementClass(record.division, movement.toDivision, movementSteps)}`, movementSteps);
 
-    if (isLowerDivision(record.division)) {
-      const bucket = resolveRecordBucket(record.wins, record.losses, record.absences);
-      const band = resolveRankBand(record.division, record.rankNumber);
-      pushValue(lowerRecordValues, `${record.division}:${band}:${bucket}`, movementSteps);
-      pushValue(lowerDivisionRecordValues, `${record.division}:${bucket}`, movementSteps);
-    }
+    const bucket = resolveRecordBucket(record.wins, record.losses, record.absences);
+    const band = resolveRankBand(record.division, record.rankNumber, record.rankName);
+    observedRecordBuckets[record.division].add(bucket);
+    pushValue(recordValues, `${record.division}:${band}:${bucket}`, movementSteps);
+    pushValue(divisionRecordValues, `${record.division}:${bucket}`, movementSteps);
 
     if (movement.toDivision && movement.toDivision !== movement.fromDivision) {
       const key = `${movement.fromDivision}To${movement.toDivision}`;
@@ -288,15 +324,15 @@ const main = async (): Promise<void> => {
 
   const recordAwareQuantiles: BanzukeCalibrationTarget['recordBucketRules']['recordAwareQuantiles'] = {};
   const bucketSamples: Record<string, Record<string, Record<string, BucketStats>>> = {};
-  for (const division of LOWER_DIVISIONS) {
+  for (const division of DIVISIONS) {
     recordAwareQuantiles[division] = {};
     bucketSamples[division] = {};
     for (const [, , band] of RANK_BANDS[division]) {
       recordAwareQuantiles[division][band] = {};
       bucketSamples[division][band] = {};
-      for (const bucket of REQUIRED_RECORD_BUCKETS) {
-        const direct = lowerRecordValues.get(`${division}:${band}:${bucket}`) ?? [];
-        const fallback = lowerDivisionRecordValues.get(`${division}:${bucket}`) ?? [];
+      for (const bucket of [...observedRecordBuckets[division]].sort()) {
+        const direct = recordValues.get(`${division}:${band}:${bucket}`) ?? [];
+        const fallback = divisionRecordValues.get(`${division}:${bucket}`) ?? [];
         const values = direct.length ? direct : fallback;
         recordAwareQuantiles[division][band][bucket] = toQuantiles(values);
         bucketSamples[division][band][bucket] = {
@@ -314,7 +350,9 @@ const main = async (): Promise<void> => {
       era: 'showa-heisei-reiwa',
       sampleSize: joinedMovements,
       divisionScope: DIVISIONS,
-      note: 'Generated from sumo-api long-range records/movements. Movement values are half-step slot units; positive means promotion.',
+      movementClassSemantics: 'sameDivisionBoundary',
+      recordAwareDivisionScope: DIVISIONS,
+      note: 'Generated from sumo-api long-range records/movements. Movement values are half-step slot units; positive means promotion. Division movement classes mean same-division stay or boundary promotion/demotion.',
       dataQuality: {
         rikishiBashoRecordCount: scannedRecords,
         candidatePairCount: scannedMovements,
@@ -332,6 +370,7 @@ const main = async (): Promise<void> => {
       source: 'sumo-api-long-range',
       recordLinkMeaning: 'from basho record joined to next-basho rank movement by basho and rikishi id',
       lowerDivisionScope: LOWER_DIVISIONS,
+      recordAwareDivisionScope: DIVISIONS,
       rankBands: RANK_BANDS,
       recordAwareQuantiles,
     },

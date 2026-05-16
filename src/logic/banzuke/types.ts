@@ -42,6 +42,7 @@ export type BanzukeDecisionReasonCode =
   | 'KACHIKOSHI_REWARD_PRESERVED'
   | 'KACHIKOSHI_REWARD_LOST'
   | 'MAKEKOSHI_PROMOTION_BY_PRESSURE'
+  | 'POPULATION_COMPRESSION'
   | 'VARIABLE_HEADCOUNT_PROJECTION'
   | 'TARGET_RANK_RESOLVED_BY_DYNAMIC_SCALE';
 
@@ -49,6 +50,7 @@ export interface LowerDivisionMovementDiagnostics {
   recordMovement: number;
   newRecruitPressure: number;
   vacancyPressure: number;
+  populationCompression: number;
   boundaryProjection: number;
   finalMovement: number;
   reasonCodes: BanzukeDecisionReasonCode[];

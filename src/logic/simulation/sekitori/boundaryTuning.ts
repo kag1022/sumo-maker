@@ -5,7 +5,7 @@ export const resolveMaxMakushitaDemotionNumber = (
   juryoNumber: number,
   wins: number,
   losses: number,
-  _options?: { fullAbsence?: boolean },
+  options?: { fullAbsence?: boolean },
 ): number => {
   const boundedJuryo = clamp(juryoNumber, 1, 14);
   const deficit = Math.max(1, losses - wins);
@@ -15,7 +15,12 @@ export const resolveMaxMakushitaDemotionNumber = (
         boundedJuryo >= 10 ? 6 :
           boundedJuryo >= 8 ? 10 :
             14;
-  const depth = Math.floor(Math.max(0, deficit - 1) / 2);
+  const depth =
+    options?.fullAbsence || deficit >= 8
+      ? 2
+      : deficit >= 5
+        ? 1
+        : 0;
   return clamp(base + depth, 1, 15);
 };
 

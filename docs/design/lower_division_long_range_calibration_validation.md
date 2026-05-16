@@ -1,11 +1,56 @@
 # Long Range Banzuke Calibration Validation
 
-- generatedAt: 2026-05-12T16:11:49.902Z
+- generatedAt: 2026-05-16T13:51:21.252Z
 - source: sumo-api-db/data/analysis/era_*_196007_202603.json
 - sampleSize: 265745
 
 | division | rankBand | record | sample | p50HalfStep | p90HalfStep |
 | --- | --- | --- | ---: | ---: | ---: |
+| Makuuchi | Y/O | 7-8 | 32 | -2 | 0 |
+| Makuuchi | Y/O | 8-7 | 212 | 0 | 4 |
+| Makuuchi | Y/O | 10-5 | 294 | 0 | 6 |
+| Makuuchi | Y/O | 12-3 | 211 | 0 | 5 |
+| Makuuchi | Y/O | 0-0-15 | 134 | 0 | 0 |
+| Makuuchi | S/K | 7-8 | 194 | -1 | 4 |
+| Makuuchi | S/K | 8-7 | 345 | 0 | 5 |
+| Makuuchi | S/K | 10-5 | 145 | 0 | 6 |
+| Makuuchi | S/K | 12-3 | 64 | 0 | 5.7 |
+| Makuuchi | S/K | 0-0-15 | 17 | -19 | 0.4 |
+| Makuuchi | 1-5 | 7-8 | 477 | -2 | -0.6 |
+| Makuuchi | 1-5 | 8-7 | 528 | 5 | 11 |
+| Makuuchi | 1-5 | 10-5 | 179 | 8 | 14 |
+| Makuuchi | 1-5 | 12-3 | 31 | 10 | 15 |
+| Makuuchi | 1-5 | 0-0-15 | 47 | -20 | 0 |
+| Makuuchi | 6-10 | 7-8 | 548 | -2 | 0 |
+| Makuuchi | 6-10 | 8-7 | 1000 | 7 | 12 |
+| Makuuchi | 6-10 | 10-5 | 265 | 13 | 19 |
+| Makuuchi | 6-10 | 12-3 | 55 | 16 | 21 |
+| Makuuchi | 6-10 | 0-0-15 | 56 | -18 | 0 |
+| Makuuchi | 11+ | 7-8 | 433 | -2 | 0 |
+| Makuuchi | 11+ | 8-7 | 886 | 6 | 10 |
+| Makuuchi | 11+ | 10-5 | 266 | 14 | 19 |
+| Makuuchi | 11+ | 12-3 | 29 | 21 | 25 |
+| Makuuchi | 11+ | 0-0-15 | 65 | -19 | 0 |
+| Juryo | 1-3 | 7-8 | 262 | -3 | -1 |
+| Juryo | 1-3 | 8-7 | 426 | 2 | 6 |
+| Juryo | 1-3 | 10-5 | 259 | 7 | 11 |
+| Juryo | 1-3 | 12-3 | 67 | 11 | 14.4 |
+| Juryo | 1-3 | 0-0-15 | 27 | -2 | 0 |
+| Juryo | 4-7 | 7-8 | 485 | -3 | -1 |
+| Juryo | 4-7 | 8-7 | 665 | 4 | 7 |
+| Juryo | 4-7 | 10-5 | 229 | 9 | 12 |
+| Juryo | 4-7 | 12-3 | 56 | 13 | 19 |
+| Juryo | 4-7 | 0-0-15 | 50 | 0 | 0 |
+| Juryo | 8-11 | 7-8 | 496 | -2 | -1 |
+| Juryo | 8-11 | 8-7 | 771 | 5 | 8 |
+| Juryo | 8-11 | 10-5 | 206 | 12 | 15 |
+| Juryo | 8-11 | 12-3 | 38 | 15.5 | 19.3 |
+| Juryo | 8-11 | 0-0-15 | 47 | -4 | 0 |
+| Juryo | 12-14 | 7-8 | 249 | -2 | 0 |
+| Juryo | 12-14 | 8-7 | 545 | 6 | 11 |
+| Juryo | 12-14 | 10-5 | 167 | 14 | 19 |
+| Juryo | 12-14 | 12-3 | 27 | 20 | 23.4 |
+| Juryo | 12-14 | 0-0-15 | 21 | 0 | 0 |
 | Makushita | 1-5 | 0-7 | 6 | -63.5 | -54.5 |
 | Makushita | 1-5 | 0-0-7 | 73 | -80 | 0 |
 | Makushita | 1-5 | 1-6 | 146 | -38 | -25.5 |

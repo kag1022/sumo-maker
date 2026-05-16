@@ -1,9 +1,14 @@
 import { clamp } from '../../simulation/boundary/shared';
-import { HEISEI_BANZUKE_CALIBRATION, getHeiseiDivisionQuantiles } from '../../calibration/banzukeHeisei';
-import { LONG_RANGE_BANZUKE_CALIBRATION, getLongRangeDivisionQuantiles } from '../../calibration/banzukeLongRange';
 import { BanzukeCalibrationTarget, BanzukeMovementQuantiles, BanzukeRankBandTuple } from '../../calibration/types';
+import {
+  BanzukeCalibrationSourceId,
+  getActiveBanzukeCalibrationProfile,
+  getActiveBanzukeCalibrationSource,
+  resolveProfileDivisionQuantiles,
+  setActiveBanzukeCalibrationSource,
+} from '../../calibration/banzukeProfile';
 
-export type EmpiricalBanzukeCalibrationSource = 'long-range' | 'heisei';
+export type EmpiricalBanzukeCalibrationSource = BanzukeCalibrationSourceId;
 
 export interface EmpiricalBanzukeCalibration {
   target: BanzukeCalibrationTarget;
@@ -55,21 +60,17 @@ const TOP_DIVISION_RANK_BANDS: Record<string, BanzukeRankBandTuple[]> = {
   ],
 };
 
-let activeCalibrationSource: EmpiricalBanzukeCalibrationSource = 'long-range';
-
 export const setEmpiricalBanzukeCalibrationSource = (
   source: EmpiricalBanzukeCalibrationSource,
 ): void => {
-  activeCalibrationSource = source;
+  setActiveBanzukeCalibrationSource(source);
 };
 
 export const getEmpiricalBanzukeCalibrationSource = (): EmpiricalBanzukeCalibrationSource =>
-  activeCalibrationSource;
+  getActiveBanzukeCalibrationSource();
 
 export const resolveActiveBanzukeCalibration = (): BanzukeCalibrationTarget =>
-  activeCalibrationSource === 'heisei'
-    ? HEISEI_BANZUKE_CALIBRATION
-    : LONG_RANGE_BANZUKE_CALIBRATION;
+  getActiveBanzukeCalibrationProfile().target;
 
 const resolveEffectiveLosses = (losses: number, absent: number): number => losses + absent;
 
@@ -238,9 +239,11 @@ const resolveFallbackQuantiles = (
   division: string,
   movementClass: 'stayed' | 'promoted' | 'demoted',
 ): BanzukeMovementQuantiles | null =>
-  activeCalibrationSource === 'heisei'
-    ? getHeiseiDivisionQuantiles(division, movementClass)
-    : getLongRangeDivisionQuantiles(division, movementClass);
+  resolveProfileDivisionQuantiles(
+    getActiveBanzukeCalibrationProfile(),
+    division,
+    movementClass,
+  );
 
 const resolveScore = (
   wins: number,

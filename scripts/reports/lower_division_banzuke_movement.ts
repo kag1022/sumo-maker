@@ -25,6 +25,7 @@ interface MovementObservation {
   movement: number;
   recordMovement: number;
   pressureMovement: number;
+  populationCompression: number;
   boundaryProjection: number;
   stayed: boolean;
   kachikoshiButNoPromotion: boolean;
@@ -38,6 +39,7 @@ interface MovementObservation {
   boundaryProjectionApplied: boolean;
   dynamicScaleResolved: boolean;
   makekoshiPromotionWithPressure: boolean;
+  makekoshiPopulationCompression: boolean;
   kachikoshiRewardLost: boolean;
   kachikoshiRewardPreserved: boolean;
   fallbackReasons: string[];
@@ -59,6 +61,7 @@ interface SummaryRow {
   averageMovement: number;
   recordMovementAverage: number;
   pressureMovementAverage: number;
+  populationCompressionAverage: number;
   boundaryProjectionAverage: number;
   finalMovementAverage: number;
   p10Movement: number;
@@ -76,6 +79,7 @@ interface SummaryRow {
   boundaryProjectionRate: number;
   dynamicScaleResolvedRate: number;
   makekoshiPromotionWithPressureRate: number;
+  makekoshiPopulationCompressionRate: number;
   kachikoshiRewardLostRate: number;
   kachikoshiRewardPreservedRate: number;
   fallbackReasons: Record<string, number>;
@@ -208,6 +212,7 @@ const observeSeed = async (seed: number): Promise<WorkerResult> => {
     const pressureMovement =
       (decision?.lowerMovementDiagnostics?.newRecruitPressure ?? 0) +
       (decision?.lowerMovementDiagnostics?.vacancyPressure ?? 0);
+    const populationCompression = decision?.lowerMovementDiagnostics?.populationCompression ?? 0;
     const boundaryProjection = decision?.lowerMovementDiagnostics?.boundaryProjection ?? 0;
     const fallbackReasons = resolveFallbackReasons(decision);
     const movementReasons = decision?.lowerMovementDiagnostics?.reasonCodes ?? [];
@@ -224,6 +229,7 @@ const observeSeed = async (seed: number): Promise<WorkerResult> => {
       movement,
       recordMovement,
       pressureMovement,
+      populationCompression,
       boundaryProjection,
       stayed: movement === 0,
       kachikoshiButNoPromotion: isKachikoshi && movement <= 0,
@@ -243,6 +249,8 @@ const observeSeed = async (seed: number): Promise<WorkerResult> => {
       dynamicScaleResolved: decision?.lowerMovementDiagnostics?.dynamicScaleResolved ?? false,
       makekoshiPromotionWithPressure:
         decision?.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE') ?? false,
+      makekoshiPopulationCompression:
+        decision?.lowerMovementDiagnostics?.reasonCodes.includes('POPULATION_COMPRESSION') ?? false,
       kachikoshiRewardLost:
         decision?.lowerMovementDiagnostics?.reasonCodes.includes('KACHIKOSHI_REWARD_LOST') ?? false,
       kachikoshiRewardPreserved:
@@ -280,6 +288,7 @@ const summarizeGroup = (
   const movements = rows.map((row) => row.movement);
   const recordMovements = rows.map((row) => row.recordMovement);
   const pressureMovements = rows.map((row) => row.pressureMovement);
+  const populationCompressions = rows.map((row) => row.populationCompression);
   const boundaryProjections = rows.map((row) => row.boundaryProjection);
   const fallbackReasons: Record<string, number> = {};
   for (const row of rows) {
@@ -295,6 +304,7 @@ const summarizeGroup = (
     averageMovement: mean(movements),
     recordMovementAverage: mean(recordMovements),
     pressureMovementAverage: mean(pressureMovements),
+    populationCompressionAverage: mean(populationCompressions),
     boundaryProjectionAverage: mean(boundaryProjections),
     finalMovementAverage: mean(movements),
     p10Movement: percentile(movements, 0.1),
@@ -312,6 +322,7 @@ const summarizeGroup = (
     boundaryProjectionRate: rate(rows, (row) => row.boundaryProjectionApplied),
     dynamicScaleResolvedRate: rate(rows, (row) => row.dynamicScaleResolved),
     makekoshiPromotionWithPressureRate: rate(rows, (row) => row.makekoshiPromotionWithPressure),
+    makekoshiPopulationCompressionRate: rate(rows, (row) => row.makekoshiPopulationCompression),
     kachikoshiRewardLostRate: rate(rows, (row) => row.kachikoshiRewardLost),
     kachikoshiRewardPreservedRate: rate(rows, (row) => row.kachikoshiRewardPreserved),
     fallbackReasons,
@@ -339,7 +350,7 @@ const buildSummary = (observations: MovementObservation[], seeds: number, worker
       seeds,
       observations: observations.length,
       workerCount,
-      note: 'movement は半枚単位。正の値が昇進、負の値が降下。record/pressure/boundary は decision log の lowerMovementDiagnostics から読む。',
+      note: 'movement は半枚単位。正の値が番付上昇、負の値が降下。record/pressure/compression/boundary は decision log の lowerMovementDiagnostics から読む。',
     },
     rows,
     focusJonokuchiBottomKachikoshi: rows.filter((row) =>
@@ -366,6 +377,7 @@ const renderRow = (row: SummaryRow): string =>
     formatNumber(row.averageMovement),
     formatNumber(row.recordMovementAverage),
     formatNumber(row.pressureMovementAverage),
+    formatNumber(row.populationCompressionAverage),
     formatNumber(row.boundaryProjectionAverage),
     formatNumber(row.finalMovementAverage),
     formatNumber(row.p10Movement),
@@ -383,14 +395,15 @@ const renderRow = (row: SummaryRow): string =>
     formatRate(row.boundaryProjectionRate),
     formatRate(row.dynamicScaleResolvedRate),
     formatRate(row.makekoshiPromotionWithPressureRate),
+    formatRate(row.makekoshiPopulationCompressionRate),
     formatRate(row.kachikoshiRewardLostRate),
     formatRate(row.kachikoshiRewardPreservedRate),
     Object.entries(row.fallbackReasons).map(([key, count]) => `${key}:${count}`).join(' / ') || '-',
   ].join(' | ');
 
 const renderReport = (payload: ReportPayload): string => {
-  const header = 'division | rankBand | record | sample | avg | recordAvg | pressureAvg | boundaryAvg | finalAvg | p10 | p50 | p90 | stay | KK no promo | MK no demotion | next division | fallback | unresolved | newRecruit | vacancy | scaleExt | boundaryProj | dynamicScale | MK pressure promo | KK lost | KK preserved | fallback reasons';
-  const separator = '--- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---';
+  const header = 'division | rankBand | record | sample | avg | recordAvg | pressureAvg | compressionAvg | boundaryAvg | finalAvg | p10 | p50 | p90 | stay | KK no promo | MK no demotion | next division | fallback | unresolved | newRecruit | vacancy | scaleExt | boundaryProj | dynamicScale | MK pressure promo | MK compression | KK lost | KK preserved | fallback reasons';
+  const separator = '--- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---';
   const lines = [
     '# 下位番付移動 Audit',
     '',

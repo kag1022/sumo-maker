@@ -24,7 +24,8 @@ type ScenarioRunResult = {
   transitions: number;
   topMaegashira87ToSanyaku: number;
   juryoTop14PlusToSanyaku: number;
-  komusubi9PlusStayedKomusubi: number;
+  komusubiPromotionPressureStayedKomusubi: number;
+  komusubi9PlusContextualStay: number;
   maegashira8_87CaseCount: number;
   maegashira8_87AfterRanks: string[];
   juryoTop14PlusAfterRanks: string[];
@@ -46,11 +47,12 @@ type QuickSummary = {
   checks: {
     topMaegashira87ToSanyaku: number;
     juryoTop14PlusToSanyaku: number;
-    komusubi9PlusStayedKomusubi: number;
+    komusubiPromotionPressureStayedKomusubi: number;
     constraintHitsByBucket: Record<string, number>;
   };
   signals: {
     maegashira8_87CaseCount: number;
+    komusubi9PlusContextualStay: number;
     maegashira8_87AfterRanks: string[];
     juryoTop14PlusAfterRanks: string[];
     lower70AfterRankCount: number;
@@ -205,12 +207,12 @@ const sumConstraintHits = (constraintHitsByBucket: Record<string, number>): numb
 const buildVerdict = (
   topMaegashira87ToSanyaku: number,
   juryoTop14PlusToSanyaku: number,
-  komusubi9PlusStayedKomusubi: number,
+  komusubiPromotionPressureStayedKomusubi: number,
 ): QuickSummary['verdict'] => {
   const hardFailures =
     topMaegashira87ToSanyaku +
     juryoTop14PlusToSanyaku +
-    komusubi9PlusStayedKomusubi;
+    komusubiPromotionPressureStayedKomusubi;
   if (hardFailures === 0) {
     return {
       overall: 'PASS',
@@ -257,7 +259,7 @@ const renderReport = (summary: QuickSummary): string => {
     '',
     renderJudgeLine('前頭上位 8-7 が三役へ飛ぶ', summary.checks.topMaegashira87ToSanyaku),
     renderJudgeLine('十両上位 14勝以上が三役へ飛ぶ', summary.checks.juryoTop14PlusToSanyaku),
-    renderJudgeLine('小結 9勝以上が小結据え置き', summary.checks.komusubi9PlusStayedKomusubi),
+    renderJudgeLine('小結 昇進圧力ありの小結据え置き', summary.checks.komusubiPromotionPressureStayedKomusubi),
     '',
     '## 制約ヒット回数',
     '',
@@ -268,6 +270,7 @@ const renderReport = (summary: QuickSummary): string => {
     '## 観測シグナル',
     '',
     `- 前頭8の 8-7 ケース数: ${summary.signals.maegashira8_87CaseCount}件`,
+    `- 小結9勝以上の文脈上許容する据え置き: ${summary.signals.komusubi9PlusContextualStay}件`,
     `- 前頭8の 8-7 着地: ${formatRankList(summary.signals.maegashira8_87AfterRanks)}`,
     `- 十両上位 14勝以上 の着地: ${formatRankList(summary.signals.juryoTop14PlusAfterRanks)}`,
     `- 幕下以下 7-0 の着地バリエーション数: ${summary.signals.lower70AfterRankCount}`,
@@ -296,7 +299,8 @@ const runScenarioTask = async ({ scenario, seed }: ScenarioTask): Promise<Scenar
   let transitions = 0;
   let topMaegashira87ToSanyaku = 0;
   let juryoTop14PlusToSanyaku = 0;
-  let komusubi9PlusStayedKomusubi = 0;
+  let komusubiPromotionPressureStayedKomusubi = 0;
+  let komusubi9PlusContextualStay = 0;
   let maegashira8_87CaseCount = 0;
   const m8After = new Set<string>();
   const juryoTopAfter = new Set<string>();
@@ -326,6 +330,10 @@ const runScenarioTask = async ({ scenario, seed }: ScenarioTask): Promise<Scenar
     const wins = step.playerRecord.wins;
     const losses = step.playerRecord.losses;
     const absent = step.playerRecord.absent;
+    const sekiwakeMakekoshiCount = step.npcBashoRecords.filter((record) =>
+      record.division === 'Makuuchi' &&
+      record.rankName === '関脇' &&
+      record.wins < record.losses + record.absent).length;
     const playerDecision = step.banzukeDecisions.find((decision) => decision.rikishiId === 'PLAYER');
     if (playerDecision?.constraintHits?.length) {
       const bucket = (playerDecision.ruleBucket ?? 'LOWER') as ConstraintBucket;
@@ -364,7 +372,12 @@ const runScenarioTask = async ({ scenario, seed }: ScenarioTask): Promise<Scenar
       wins >= 9
     ) {
       if (after.division === 'Makuuchi' && after.name === '小結') {
-        komusubi9PlusStayedKomusubi += 1;
+        const hasPromotionPressure = wins >= 10 || sekiwakeMakekoshiCount > 0;
+        if (hasPromotionPressure) {
+          komusubiPromotionPressureStayedKomusubi += 1;
+        } else {
+          komusubi9PlusContextualStay += 1;
+        }
       }
     }
 
@@ -407,7 +420,8 @@ const runScenarioTask = async ({ scenario, seed }: ScenarioTask): Promise<Scenar
     transitions,
     topMaegashira87ToSanyaku,
     juryoTop14PlusToSanyaku,
-    komusubi9PlusStayedKomusubi,
+    komusubiPromotionPressureStayedKomusubi,
+    komusubi9PlusContextualStay,
     maegashira8_87CaseCount,
     maegashira8_87AfterRanks: [...m8After],
     juryoTop14PlusAfterRanks: [...juryoTopAfter],
@@ -480,7 +494,8 @@ const runMain = async (): Promise<void> => {
   let transitions = 0;
   let topMaegashira87ToSanyaku = 0;
   let juryoTop14PlusToSanyaku = 0;
-  let komusubi9PlusStayedKomusubi = 0;
+  let komusubiPromotionPressureStayedKomusubi = 0;
+  let komusubi9PlusContextualStay = 0;
   let maegashira8_87CaseCount = 0;
   const m8After = new Set<string>();
   const juryoTopAfter = new Set<string>();
@@ -499,7 +514,8 @@ const runMain = async (): Promise<void> => {
     transitions += result.transitions;
     topMaegashira87ToSanyaku += result.topMaegashira87ToSanyaku;
     juryoTop14PlusToSanyaku += result.juryoTop14PlusToSanyaku;
-    komusubi9PlusStayedKomusubi += result.komusubi9PlusStayedKomusubi;
+    komusubiPromotionPressureStayedKomusubi += result.komusubiPromotionPressureStayedKomusubi;
+    komusubi9PlusContextualStay += result.komusubi9PlusContextualStay;
     maegashira8_87CaseCount += result.maegashira8_87CaseCount;
     for (const rank of result.maegashira8_87AfterRanks) m8After.add(rank);
     for (const rank of result.juryoTop14PlusAfterRanks) juryoTopAfter.add(rank);
@@ -519,16 +535,17 @@ const runMain = async (): Promise<void> => {
     verdict: buildVerdict(
       topMaegashira87ToSanyaku,
       juryoTop14PlusToSanyaku,
-      komusubi9PlusStayedKomusubi,
+      komusubiPromotionPressureStayedKomusubi,
     ),
     checks: {
       topMaegashira87ToSanyaku,
       juryoTop14PlusToSanyaku,
-      komusubi9PlusStayedKomusubi,
+      komusubiPromotionPressureStayedKomusubi,
       constraintHitsByBucket,
     },
     signals: {
       maegashira8_87CaseCount,
+      komusubi9PlusContextualStay,
       maegashira8_87AfterRanks: [...m8After].sort(),
       juryoTop14PlusAfterRanks: [...juryoTopAfter].sort(),
       lower70AfterRankCount: lower70After.size,
