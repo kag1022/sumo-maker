@@ -1,6 +1,7 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookUser, Menu, ScrollText, Table2, X } from "lucide-react";
+import { useLocale } from "../../../../shared/hooks/useLocale";
 import { Button } from "../../../../shared/ui/Button";
 import { SignalLed, type SignalLedState } from "../encyclopedia/SignalLed";
 import type { CareerChapterId } from "../../utils/careerResultModel";
@@ -12,10 +13,16 @@ interface ConsoleChapter {
   icon: typeof BookUser;
 }
 
-const CONSOLE_CHAPTERS: ConsoleChapter[] = [
+const CONSOLE_CHAPTERS_JA: ConsoleChapter[] = [
   { id: "encyclopedia", label: "力士名鑑", icon: BookUser },
   { id: "trajectory", label: "番付推移", icon: ScrollText },
   { id: "place", label: "場所別記録", icon: Table2 },
+];
+
+const CONSOLE_CHAPTERS_EN: ConsoleChapter[] = [
+  { id: "encyclopedia", label: "Career Record", icon: BookUser },
+  { id: "trajectory", label: "Rank Trajectory", icon: ScrollText },
+  { id: "place", label: "Basho Records", icon: Table2 },
 ];
 
 interface ObservationConsoleHeaderProps {
@@ -36,6 +43,13 @@ const STATE_LABELS: Record<"idle" | "building" | "ready" | "error", string> = {
   building: "整理中",
   ready: "観測完了",
   error: "整理失敗",
+};
+
+const STATE_LABELS_EN: Record<"idle" | "building" | "ready" | "error", string> = {
+  idle: "Pending",
+  building: "Building",
+  ready: "Ready",
+  error: "Failed",
 };
 
 const STATE_LEDS: Record<"idle" | "building" | "ready" | "error", SignalLedState> = {
@@ -62,7 +76,10 @@ export const ObservationConsoleHeader: React.FC<ObservationConsoleHeaderProps> =
   mobileNavOpen,
   onToggleMobileNav,
 }) => {
-  const stateLabel = STATE_LABELS[detailState];
+  const { locale } = useLocale();
+  const isEnglish = locale === "en";
+  const chapters = isEnglish ? CONSOLE_CHAPTERS_EN : CONSOLE_CHAPTERS_JA;
+  const stateLabel = isEnglish ? STATE_LABELS_EN[detailState] : STATE_LABELS[detailState];
   const stateLed = STATE_LEDS[detailState];
   const stateLedPulse = detailState === "building";
   const idCode = shortIdentifier(subjectId);
@@ -73,9 +90,9 @@ export const ObservationConsoleHeader: React.FC<ObservationConsoleHeaderProps> =
         <div className={styles.subject}>
           <div className={styles.subjectHead}>
             <SignalLed state={stateLed} pulse={stateLedPulse} size="sm" label={stateLabel} />
-            <strong>力士記録</strong>
+            <strong>{isEnglish ? "Rikishi Record" : "力士記録"}</strong>
             <span className={styles.divider}>／</span>
-            <em>記録番号 {idCode}</em>
+            <em>{isEnglish ? `Record No. ${idCode}` : `記録番号 ${idCode}`}</em>
             <span className={styles.divider}>／</span>
             <em>{stateLabel}</em>
           </div>
@@ -85,8 +102,8 @@ export const ObservationConsoleHeader: React.FC<ObservationConsoleHeaderProps> =
         </div>
 
         <div className={styles.modeArea}>
-          <div className={styles.modeTrack} role="tablist" aria-label="観測モード切替">
-            {CONSOLE_CHAPTERS.map((chapter) => {
+          <div className={styles.modeTrack} role="tablist" aria-label={isEnglish ? "Observation chapter switcher" : "観測モード切替"}>
+            {chapters.map((chapter) => {
               const Icon = chapter.icon;
               const disabled = !canReadDetails && chapter.id !== "encyclopedia";
               const isActive = activeChapter === chapter.id;
@@ -111,7 +128,7 @@ export const ObservationConsoleHeader: React.FC<ObservationConsoleHeaderProps> =
             variant="ghost"
             size="sm"
             className={styles.mobileToggle}
-            aria-label={mobileNavOpen ? "モードを閉じる" : "モードを開く"}
+            aria-label={mobileNavOpen ? (isEnglish ? "Close modes" : "モードを閉じる") : (isEnglish ? "Open modes" : "モードを開く")}
             onClick={onToggleMobileNav}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -133,7 +150,7 @@ export const ObservationConsoleHeader: React.FC<ObservationConsoleHeaderProps> =
               <em>{selectedMeta || highestRankLabel}</em>
             </div>
             <div className={styles.drawerList}>
-              {CONSOLE_CHAPTERS.map((chapter) => {
+              {chapters.map((chapter) => {
                 const Icon = chapter.icon;
                 const disabled = !canReadDetails && chapter.id !== "encyclopedia";
                 const isActive = activeChapter === chapter.id;

@@ -11,12 +11,15 @@ import {
   listSimilarCareers,
   resolveObservationStanceLabel,
   type CareerAnalysisSummary,
+  type CareerComparisonMetric,
   type CareerTrajectorySeriesPoint,
 } from "../../../logic/career/analysis";
 import { Rank, RikishiStatus } from "../../../logic/models";
 import { formatHighestRankDisplayName } from "../../../logic/ranking";
 import type { CareerSaveTag, ObservationRuleMode, ObservationStanceId } from "../../../logic/models";
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
+import type { LocaleCode } from "../../../shared/lib/locale";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
@@ -89,7 +92,118 @@ interface ArchiveShelfSummary {
   recentItem: ArchiveViewItem | null;
 }
 
-const formatRankName = (rank: Rank): string => {
+const MANUAL_SAVE_TAG_EN_LABELS: Record<CareerSaveTag, string> = {
+  GREAT_RIKISHI: "Great rikishi",
+  UNFINISHED_TALENT: "Unfinished talent",
+  LATE_BLOOM_SUCCESS: "Late bloom",
+  INJURY_TRAGEDY: "Injury shadow",
+  TURBULENT_LIFE: "Turbulent career",
+  STABLE_MAKUUCHI: "Stable makuuchi",
+  JURYO_CRAFTSMAN: "Juryo craft",
+  GENERATION_LEADER: "Generation leader",
+  RIVALRY_MEMORY: "Memorable rivalry",
+  RARE_RECORD: "Rare record",
+  RESEARCH_SAMPLE: "Research sample",
+  FAVORITE: "Favorite",
+  MEMORABLE_SUPPORT: "Memorable support",
+  UNEXPECTED: "Unexpected",
+  REREAD: "Reread",
+};
+
+const AUTO_TAG_EN_LABELS: Record<keyof typeof AUTO_TAG_LABELS, string> = {
+  LATE_BLOOM: "Late bloom",
+  INJURY_COMEBACK: "Injury comeback",
+  STABLE_TOP_DIVISION: "Stable top division",
+  JURYO_CRAFT: "Juryo craft",
+  TURBULENT: "Turbulent",
+  RARE_RECORD: "Rare record",
+  LONGEVITY: "Longevity",
+  FAST_RISE: "Fast rise",
+  SANYAKU_NEAR_MISS: "Sanyaku near miss",
+  RIVALRY: "Rivalry",
+};
+
+const OBSERVATION_STANCE_EN_LABELS: Record<ObservationStanceId, string> = {
+  PROMOTION_EXPECTATION: "Promotion",
+  LATE_BLOOM: "Late bloom",
+  STABILITY: "Stability",
+  TURBULENCE: "Turbulence",
+  RIVALRY: "Rivalry",
+  RARE_RECORD: "Rare record",
+  INJURY_COMEBACK: "Comeback",
+  LONGEVITY: "Longevity",
+};
+
+const CLASSIFICATION_EN_LABELS: Record<string, string> = {
+  名力士: "Great rikishi",
+  三役中核: "Sanyaku core",
+  安定幕内: "Stable makuuchi",
+  十両職人: "Juryo craft",
+  未完の大器: "Unfinished talent",
+  怪我に泣いた力士: "Injury-shadowed career",
+  波乱型: "Turbulent career",
+  長寿型: "Long career",
+  短期爆発型: "Short burst",
+  記憶に残る脇役: "Memorable supporting career",
+  標準記録: "Standard record",
+};
+
+const COMPARISON_METRIC_EN_LABELS: Record<string, string> = {
+  maxRank: "Highest rank",
+  record: "Career record",
+  winRate: "Win rate",
+  firstSekitoriAge: "First sekitori age",
+  firstMakuuchiAge: "Top division debut age",
+  maxRankAge: "Peak rank age",
+  makuuchiBasho: "Makuuchi basho",
+  sekitoriBasho: "Sekitori basho",
+  sanyakuBasho: "Sanyaku+ basho",
+  yusho: "Yusho",
+  junYusho: "Runner-up",
+  injury: "Injuries",
+  absent: "Absences",
+  peakAge: "Prime age",
+  retirementAge: "Retirement age",
+  classification: "Class",
+  tags: "Auto tags",
+};
+
+const CAREER_RECORD_BADGE_EN_LABELS: Record<string, string> = {
+  YOKOZUNA_REACHED: "Reached Yokozuna",
+  OZEKI_REACHED: "Reached Ozeki",
+  MAKUUCHI_REACHED: "Reached Makuuchi",
+  SEKITORI_REACHED: "Reached Sekitori",
+  MAKUUCHI_YUSHO: "Makuuchi yusho",
+  JURYO_YUSHO: "Juryo yusho",
+  SANSHO: "Special prize",
+  KINBOSHI: "Kinboshi",
+  DOUBLE_DIGIT_WINS: "Double-digit wins",
+  HIGH_WIN_RATE: "High win rate",
+  LONG_CAREER: "Long career",
+  KACHIKOSHI_STREAK: "Kachi-koshi streak",
+};
+
+const formatManualTagLabel = (tag: CareerSaveTag, locale: LocaleCode): string =>
+  locale === "en" ? MANUAL_SAVE_TAG_EN_LABELS[tag] : MANUAL_SAVE_TAG_LABELS[tag];
+
+const formatAutoTagLabel = (tag: keyof typeof AUTO_TAG_LABELS, locale: LocaleCode): string =>
+  locale === "en" ? AUTO_TAG_EN_LABELS[tag] : AUTO_TAG_LABELS[tag];
+
+const formatObservationStance = (stanceId: ObservationStanceId | undefined, locale: LocaleCode): string =>
+  locale === "en" ? (stanceId ? OBSERVATION_STANCE_EN_LABELS[stanceId] : "Default") : resolveObservationStanceLabel(stanceId);
+
+const formatClassificationLabel = (label: string, locale: LocaleCode): string =>
+  locale === "en" ? CLASSIFICATION_EN_LABELS[label] ?? label : label;
+
+const formatRecordBadgeLabel = (badgeKey: string, locale: LocaleCode): string =>
+  locale === "en"
+    ? CAREER_RECORD_BADGE_EN_LABELS[badgeKey] ?? badgeKey
+    : resolveCareerRecordBadgeLabel(
+      badgeKey as Parameters<typeof resolveCareerRecordBadgeLabel>[0],
+    );
+
+const formatRankName = (rank: Rank, locale: LocaleCode): string => {
+  if (locale === "en") return formatHighestRankDisplayName(rank, "en");
   if (rank.specialStatus && rank.specialStatus !== "NONE") return formatHighestRankDisplayName(rank);
   if (rank.division === "Maezumo") return formatHighestRankDisplayName(rank);
   if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) return formatHighestRankDisplayName(rank);
@@ -97,7 +211,16 @@ const formatRankName = (rank: Rank): string => {
   return number === 1 ? `${rank.name}筆頭` : `${rank.name}${number}枚目`;
 };
 
-const resolveArchiveLabel = (item: ArchiveItem): string => {
+const resolveArchiveLabel = (item: ArchiveItem, locale: LocaleCode): string => {
+  if (locale === "en") {
+    if (item.bestScoreRank && item.bestScoreRank <= 10) return `All-time score No. ${item.bestScoreRank}`;
+    if (item.maxRank.name === "横綱") return "Reached Yokozuna";
+    if (item.maxRank.name === "大関") return "Reached Ozeki";
+    if (item.yushoCount.makuuchi > 0) return `${item.yushoCount.makuuchi} makuuchi yusho`;
+    if (item.maxRank.division === "Makuuchi") return "Makuuchi career";
+    if (item.maxRank.division === "Juryo") return "Sekitori career";
+    return "Saved record";
+  }
   if (item.bestScoreRank && item.bestScoreRank <= 10) return `総評点歴代${item.bestScoreRank}位`;
   if (item.maxRank.name === "横綱") return "横綱到達";
   if (item.maxRank.name === "大関") return "大関到達";
@@ -107,8 +230,8 @@ const resolveArchiveLabel = (item: ArchiveItem): string => {
   return "保存済み記録";
 };
 
-const toDateText = (value?: string): string => {
-  if (!value) return "未保存";
+const toDateText = (value: string | undefined, locale: LocaleCode): string => {
+  if (!value) return locale === "en" ? "Not saved" : "未保存";
   if (/^\d{4}-\d{2}$/.test(value)) return value;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
@@ -123,34 +246,40 @@ const resolveWinRate = (item: Pick<ArchiveItem, "totalWins" | "totalLosses">): n
 const formatWinRatePercent = (rate: number): string =>
   `${(rate * 100).toFixed(1)}%`;
 
-const formatRecordLabel = (item: Pick<ArchiveItem, "totalWins" | "totalLosses" | "totalAbsent">): string =>
-  `${item.totalWins}勝${item.totalLosses}敗${item.totalAbsent > 0 ? `${item.totalAbsent}休` : ""}`;
+const formatRecordLabel = (item: Pick<ArchiveItem, "totalWins" | "totalLosses" | "totalAbsent">, locale: LocaleCode): string =>
+  locale === "en"
+    ? `${item.totalWins}-${item.totalLosses}${item.totalAbsent > 0 ? `, ${item.totalAbsent} absences` : ""}`
+    : `${item.totalWins}勝${item.totalLosses}敗${item.totalAbsent > 0 ? `${item.totalAbsent}休` : ""}`;
 
-const formatCareerPeriod = (item: Pick<ArchiveItem, "careerStartYearMonth" | "careerEndYearMonth">): string =>
-  `${item.careerStartYearMonth} - ${item.careerEndYearMonth || "現在"}`;
+const formatCareerPeriod = (item: Pick<ArchiveItem, "careerStartYearMonth" | "careerEndYearMonth">, locale: LocaleCode): string =>
+  `${item.careerStartYearMonth} - ${item.careerEndYearMonth || (locale === "en" ? "current" : "現在")}`;
 
-const resolveStableName = (item: ArchiveViewItem): string =>
+const resolveStableName = (item: ArchiveViewItem, locale: LocaleCode): string =>
   item.finalStatus?.buildSummary?.initialConditionSummary?.stableName ??
   item.finalStatus?.careerSeed?.stableName ??
   (item.finalStatus ? resolveStableById(item.finalStatus.stableId)?.displayName : undefined) ??
-  "所属部屋未詳";
+  (locale === "en" ? "Unknown stable" : "所属部屋未詳");
 
-const resolveReadingLine = (item: ArchiveViewItem): string =>
-  item.finalStatus?.buildSummary?.designPremises?.find((row) => row.category === "期待")?.interpretation ??
-  item.finalStatus?.buildSummary?.designInterpretation?.promotion ??
-  item.finalStatus?.careerNarrative?.careerIdentity ??
-  item.analysis?.saveRecommendation.reasons[0] ??
-  item.observerMemo ??
-  resolveArchiveLabel(item);
+const resolveReadingLine = (item: ArchiveViewItem, locale: LocaleCode): string => {
+  if (locale === "en") {
+    return `Reached ${formatRankName(item.maxRank, locale)} with ${formatRecordLabel(item, locale)}.`;
+  }
+  return item.finalStatus?.buildSummary?.designPremises?.find((row) => row.category === "期待")?.interpretation ??
+    item.finalStatus?.buildSummary?.designInterpretation?.promotion ??
+    item.finalStatus?.careerNarrative?.careerIdentity ??
+    item.analysis?.saveRecommendation.reasons[0] ??
+    item.observerMemo ??
+    resolveArchiveLabel(item, locale);
+};
 
-const buildShelfSummary = (items: ArchiveViewItem[]): ArchiveShelfSummary => {
+const buildShelfSummary = (items: ArchiveViewItem[], locale: LocaleCode): ArchiveShelfSummary => {
   const total = items.length;
   const rankGroups = [
-    { label: "横綱", count: items.filter((item) => item.maxRank.name === "横綱").length },
-    { label: "大関", count: items.filter((item) => item.maxRank.name === "大関").length },
-    { label: "三役", count: items.filter((item) => ["関脇", "小結"].includes(item.maxRank.name)).length },
-    { label: "幕内", count: items.filter((item) => item.maxRank.division === "Makuuchi" && !["横綱", "大関", "関脇", "小結"].includes(item.maxRank.name)).length },
-    { label: "十両以下", count: items.filter((item) => item.maxRank.division !== "Makuuchi").length },
+    { label: locale === "en" ? "Yokozuna" : "横綱", count: items.filter((item) => item.maxRank.name === "横綱").length },
+    { label: locale === "en" ? "Ozeki" : "大関", count: items.filter((item) => item.maxRank.name === "大関").length },
+    { label: locale === "en" ? "Sanyaku" : "三役", count: items.filter((item) => ["関脇", "小結"].includes(item.maxRank.name)).length },
+    { label: locale === "en" ? "Makuuchi" : "幕内", count: items.filter((item) => item.maxRank.division === "Makuuchi" && !["横綱", "大関", "関脇", "小結"].includes(item.maxRank.name)).length },
+    { label: locale === "en" ? "Juryo or lower" : "十両以下", count: items.filter((item) => item.maxRank.division !== "Makuuchi").length },
   ].filter((entry) => entry.count > 0);
   const ratedItems = items.filter((item) => item.totalWins + item.totalLosses > 0);
   const averageWinRate = ratedItems.length > 0
@@ -158,12 +287,12 @@ const buildShelfSummary = (items: ArchiveViewItem[]): ArchiveShelfSummary => {
     : 0;
   const winRateBand =
     ratedItems.length === 0
-      ? "未集計"
+      ? (locale === "en" ? "Not counted" : "未集計")
       : averageWinRate >= 0.58
-        ? "高勝率帯"
+        ? (locale === "en" ? "high win-rate band" : "高勝率帯")
         : averageWinRate >= 0.48
-          ? "標準帯"
-          : "苦闘帯";
+          ? (locale === "en" ? "standard band" : "標準帯")
+          : (locale === "en" ? "struggle band" : "苦闘帯");
   const tagCounts = new Map<CareerSaveTag, number>();
   for (const item of items) {
     for (const tag of item.saveTags ?? []) {
@@ -173,7 +302,7 @@ const buildShelfSummary = (items: ArchiveViewItem[]): ArchiveShelfSummary => {
   const topTags = [...tagCounts.entries()]
     .sort((a, b) => b[1] - a[1] || MANUAL_SAVE_TAG_LABELS[a[0]].localeCompare(MANUAL_SAVE_TAG_LABELS[b[0]], "ja"))
     .slice(0, 4)
-    .map(([tag, count]) => ({ label: MANUAL_SAVE_TAG_LABELS[tag], count }));
+    .map(([tag, count]) => ({ label: formatManualTagLabel(tag, locale), count }));
   const recentItem = [...items].sort((left, right) =>
     (right.savedAt || right.updatedAt || "").localeCompare(left.savedAt || left.updatedAt || ""),
   )[0] ?? null;
@@ -181,7 +310,7 @@ const buildShelfSummary = (items: ArchiveViewItem[]): ArchiveShelfSummary => {
   return {
     total,
     rankBreakdown: rankGroups,
-    winRateLabel: ratedItems.length > 0 ? `${formatWinRatePercent(averageWinRate)} / ${winRateBand}` : "未集計",
+    winRateLabel: ratedItems.length > 0 ? `${formatWinRatePercent(averageWinRate)} / ${winRateBand}` : locale === "en" ? "Not counted" : "未集計",
     topTags,
     recentItem,
   };
@@ -216,6 +345,58 @@ const resolveSortValue = (item: ArchiveViewItem, sortBy: ArchiveSort): number =>
   return 0;
 };
 
+const localizeMetricUnitText = (value: string, locale: LocaleCode): string => {
+  if (locale !== "en") return value;
+  return value
+    .replace(/(\d+)勝(\d+)敗(\d+)休/g, "$1-$2, $3 absences")
+    .replace(/(\d+)勝(\d+)敗/g, "$1-$2")
+    .replace(/(\d+)歳/g, "$1 yrs")
+    .replace(/(\d+)場所/g, "$1 basho")
+    .replace(/(\d+)回/g, "$1")
+    .replace(/(\d+)休/g, "$1 absences");
+};
+
+const formatComparisonValue = (
+  row: CareerComparisonMetric,
+  side: "left" | "right",
+  analysis: CareerAnalysisSummary,
+  locale: LocaleCode,
+): string => {
+  if (locale !== "en") return row[side];
+  if (row.key === "maxRank") return formatHighestRankDisplayName(analysis.status.history.maxRank, "en");
+  if (row.key === "record") {
+    return formatRecordLabel({
+      totalWins: analysis.status.history.totalWins,
+      totalLosses: analysis.status.history.totalLosses,
+      totalAbsent: analysis.status.history.totalAbsent,
+    }, locale);
+  }
+  if (row.key === "classification") return formatClassificationLabel(analysis.classificationLabel, locale);
+  if (row.key === "tags") return analysis.autoTags.map((tag) => formatAutoTagLabel(tag, locale)).join(" / ") || "-";
+  return localizeMetricUnitText(row[side], locale);
+};
+
+const buildComparisonComments = (
+  comparisonComments: string[],
+  left: CareerAnalysisSummary | null | undefined,
+  right: CareerAnalysisSummary | null | undefined,
+  locale: LocaleCode,
+): string[] => {
+  if (locale !== "en") return comparisonComments;
+  if (!left || !right) return ["Select two saved careers with detail data to compare them."];
+  const comments: string[] = [];
+  if (left.status.history.maxRank.name !== right.status.history.maxRank.name || left.status.history.maxRank.division !== right.status.history.maxRank.division) {
+    comments.push("The two careers reached different rank ceilings.");
+  }
+  if (Math.abs(left.metrics.winRate - right.metrics.winRate) >= 0.03) {
+    comments.push("The career win rates diverge enough to change the reading.");
+  }
+  if (Math.abs(left.metrics.yushoTotal - right.metrics.yushoTotal) > 0) {
+    comments.push("Yusho count is one of the clearest differences.");
+  }
+  return comments.length > 0 ? comments.slice(0, 3) : ["The major metrics are close; inspect basho records for the difference."];
+};
+
 const buildPolyline = (
   points: CareerTrajectorySeriesPoint[],
   mode: "rank" | "winRate",
@@ -245,7 +426,8 @@ const MiniSeriesChart: React.FC<{
   rightLabel: string;
   left: CareerTrajectorySeriesPoint[];
   right: CareerTrajectorySeriesPoint[];
-}> = ({ title, mode, leftLabel, rightLabel, left, right }) => {
+  locale: LocaleCode;
+}> = ({ title, mode, leftLabel, rightLabel, left, right, locale }) => {
   const width = 520;
   const height = 160;
   const leftLine = buildPolyline(left, mode, width, height);
@@ -255,7 +437,7 @@ const MiniSeriesChart: React.FC<{
     <section className={styles.miniChart}>
       <div className={styles.miniChartHead}>
         <span>{title}</span>
-        <em>{mode === "rank" ? "上ほど高位" : "累積勝率"}</em>
+        <em>{mode === "rank" ? (locale === "en" ? "Higher is better" : "上ほど高位") : (locale === "en" ? "Cumulative win rate" : "累積勝率")}</em>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
         <line x1="0" y1={height / 2} x2={width} y2={height / 2} className={styles.chartGridLine} />
@@ -274,13 +456,13 @@ const MiniSeriesChart: React.FC<{
   );
 };
 
-const RivalDigestCards: React.FC<{ analysis: CareerAnalysisSummary }> = ({ analysis }) => {
+const RivalDigestCards: React.FC<{ analysis: CareerAnalysisSummary; locale: LocaleCode }> = ({ analysis, locale }) => {
   const digest = analysis.status.careerRivalryDigest;
   if (!digest) return null;
   const entries = [
-    ...digest.titleBlockers.map((entry) => ({ key: `title-${entry.opponentId}`, label: "優勝争いの宿敵", name: entry.shikona, record: `${entry.headToHead.wins}勝${entry.headToHead.losses}敗`, reason: entry.featuredReason })),
-    ...digest.eraTitans.map((entry) => ({ key: `era-${entry.opponentId}`, label: "時代の壁", name: entry.shikona, record: `${entry.headToHead.wins}勝${entry.headToHead.losses}敗`, reason: entry.featuredReason })),
-    ...digest.nemesis.map((entry) => ({ key: `nemesis-${entry.opponentId}`, label: "天敵", name: entry.shikona, record: `${entry.headToHead.wins}勝${entry.headToHead.losses}敗`, reason: entry.featuredReason })),
+    ...digest.titleBlockers.map((entry) => ({ key: `title-${entry.opponentId}`, label: locale === "en" ? "Title-race rival" : "優勝争いの宿敵", name: entry.shikona, record: formatRecordLabel({ totalWins: entry.headToHead.wins, totalLosses: entry.headToHead.losses, totalAbsent: 0 }, locale), reason: entry.featuredReason })),
+    ...digest.eraTitans.map((entry) => ({ key: `era-${entry.opponentId}`, label: locale === "en" ? "Era wall" : "時代の壁", name: entry.shikona, record: formatRecordLabel({ totalWins: entry.headToHead.wins, totalLosses: entry.headToHead.losses, totalAbsent: 0 }, locale), reason: entry.featuredReason })),
+    ...digest.nemesis.map((entry) => ({ key: `nemesis-${entry.opponentId}`, label: locale === "en" ? "Nemesis" : "天敵", name: entry.shikona, record: formatRecordLabel({ totalWins: entry.headToHead.wins, totalLosses: entry.headToHead.losses, totalAbsent: 0 }, locale), reason: entry.featuredReason })),
   ].slice(0, 4);
   if (entries.length === 0) return null;
   return (
@@ -289,8 +471,8 @@ const RivalDigestCards: React.FC<{ analysis: CareerAnalysisSummary }> = ({ analy
         <article key={entry.key} className={styles.rivalCard}>
           <div className={styles.detailChip}>{entry.label}</div>
           <div className={styles.cardTitle}>{entry.name}</div>
-          <div className={styles.cardRecord}>通算 {entry.record}</div>
-          <p>{entry.reason}</p>
+          <div className={styles.cardRecord}>{locale === "en" ? `Career ${entry.record}` : `通算 ${entry.record}`}</div>
+          <p>{locale === "en" ? "A rivalry note is recorded for this saved career." : entry.reason}</p>
         </article>
       ))}
     </div>
@@ -317,13 +499,14 @@ const CareerSelect: React.FC<{
   label: string;
   value: string;
   items: ArchiveViewItem[];
+  locale: LocaleCode;
   onChange: (value: string) => void;
-}> = ({ label, value, items, onChange }) => (
+}> = ({ label, value, items, locale, onChange }) => (
   <label className={styles.selectFilter}>
     <span>{label}</span>
     <select value={value} onChange={(event) => onChange(event.target.value)}>
       {items.map((item) => (
-        <option key={item.id} value={item.id}>{item.shikona} / {formatRankName(item.maxRank)}</option>
+        <option key={item.id} value={item.id}>{item.shikona} / {formatRankName(item.maxRank, locale)}</option>
       ))}
     </select>
   </label>
@@ -334,6 +517,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
   onOpen,
   onDelete,
 }) => {
+  const { locale } = useLocale();
   const [mode, setMode] = React.useState<ArchiveMode>("SHELF");
   const [filter, setFilter] = React.useState<ArchiveFilter>("ALL");
   const [sortBy, setSortBy] = React.useState<ArchiveSort>("RECENT");
@@ -365,8 +549,8 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
     [items],
   );
   const shelfSummary = React.useMemo(
-    () => buildShelfSummary(viewItems),
-    [viewItems],
+    () => buildShelfSummary(viewItems, locale),
+    [locale, viewItems],
   );
 
   const filteredItems = React.useMemo(() => {
@@ -394,7 +578,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
       if (!normalized) return true;
       return (
         item.shikona.includes(normalized) ||
-        formatRankName(item.maxRank).includes(normalized) ||
+        formatRankName(item.maxRank, locale).includes(normalized) ||
         (item.title ?? "").includes(normalized) ||
         (item.observerMemo ?? "").includes(normalized) ||
         (item.analysis?.classificationLabel ?? "").includes(normalized)
@@ -412,7 +596,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
       if (savedDelta !== 0) return savedDelta;
       return right.shikona.localeCompare(left.shikona, "ja");
     });
-  }, [filter, keyword, rankFilter, sortBy, stanceFilter, tagFilter, viewItems, winRateFilter]);
+  }, [filter, keyword, locale, rankFilter, sortBy, stanceFilter, tagFilter, viewItems, winRateFilter]);
 
   const selectedItem =
     filteredItems.find((item) => item.id === selectedId) ?? filteredItems[0] ?? null;
@@ -454,21 +638,21 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
     <div className={styles.layout}>
       <section className={cn(surface.panel, styles.indexPanel, "space-y-4")}>
         <div>
-          <div className={typography.kicker}>私設書架</div>
-          <div className={typography.panelTitle}>書架の索引</div>
+          <div className={typography.kicker}>{locale === "en" ? "Private Archive" : "私設書架"}</div>
+          <div className={typography.panelTitle}>{locale === "en" ? "Record Index" : "書架の索引"}</div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <button type="button" className={styles.filterChip} data-active={mode === "SHELF"} onClick={() => setMode("SHELF")}>
-            <span>書架</span>
+            <span>{locale === "en" ? "Shelf" : "書架"}</span>
             <Archive className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={styles.filterChip} data-active={mode === "COMPARE"} onClick={() => setMode("COMPARE")}>
-            <span>二人を並べる</span>
+            <span>{locale === "en" ? "Compare Two" : "二人を並べる"}</span>
             <GitCompare className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={styles.filterChip} data-active={mode === "SIMILAR"} onClick={() => setMode("SIMILAR")}>
-            <span>似た一代を探す</span>
+            <span>{locale === "en" ? "Find Similar" : "似た一代を探す"}</span>
             <BarChart3 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -478,34 +662,34 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           <input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="四股名や最高位で検索"
-            aria-label="保存済み記録を検索"
+            placeholder={locale === "en" ? "Search shikona or highest rank" : "四股名や最高位で検索"}
+            aria-label={locale === "en" ? "Search saved records" : "保存済み記録を検索"}
           />
         </div>
 
         <div className={styles.filterGroup}>
-          <div className={typography.panelTitle}>基本フィルタ</div>
+          <div className={typography.panelTitle}>{locale === "en" ? "Basic Filters" : "基本フィルタ"}</div>
           {[
-            { id: "ALL" as const, label: "すべて", count: items.length },
+            { id: "ALL" as const, label: locale === "en" ? "All" : "すべて", count: items.length },
             {
               id: "YUSHO" as const,
-              label: "幕内優勝経験",
+              label: locale === "en" ? "Makuuchi yusho" : "幕内優勝経験",
               count: items.filter((item) => item.yushoCount.makuuchi > 0).length,
             },
             {
               id: "YOKOZUNA" as const,
-              label: "横綱到達",
+              label: locale === "en" ? "Reached Yokozuna" : "横綱到達",
               count: items.filter((item) => item.maxRank.name === "横綱").length,
             },
             {
               id: "TAGGED" as const,
-              label: "分類あり",
+              label: locale === "en" ? "Tagged" : "分類あり",
               count: items.filter((item) => item.saveTags?.length).length,
             },
             ...(import.meta.env.DEV
               ? [{
                 id: "EXPERIMENT" as const,
-                label: "実験記録 (Legacy)",
+                label: locale === "en" ? "Experiment (Legacy)" : "実験記録 (Legacy)",
                 count: items.filter((item) => item.observationRuleMode === "EXPERIMENT").length,
               }]
               : []),
@@ -518,32 +702,32 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               onClick={() => setFilter(entry.id)}
             >
               <span>{entry.label}</span>
-              <span>{entry.count}件</span>
+              <span>{locale === "en" ? entry.count : `${entry.count}件`}</span>
             </button>
           ))}
         </div>
 
         <div className={styles.filterGroup}>
-          <div className={typography.panelTitle}>詳細フィルタ</div>
+          <div className={typography.panelTitle}>{locale === "en" ? "Detail Filters" : "詳細フィルタ"}</div>
           {[
             {
               id: "RARE" as const,
-              label: "珍記録候補",
+              label: locale === "en" ? "Rare record" : "珍記録候補",
               count: viewItems.filter((item) => (item.analysis?.metrics.rarityScore ?? 0) >= 45).length,
             },
             {
               id: "INJURY" as const,
-              label: "怪我・休場",
+              label: locale === "en" ? "Injury/absence" : "怪我・休場",
               count: viewItems.filter((item) => (item.analysis?.metrics.injuryEventCount ?? 0) > 0).length,
             },
             {
               id: "RIVAL" as const,
-              label: "宿敵あり",
+              label: locale === "en" ? "Rivalry" : "宿敵あり",
               count: viewItems.filter((item) => (item.analysis?.metrics.rivalScore ?? 0) >= 25).length,
             },
             {
               id: "STABLE" as const,
-              label: "安定型",
+              label: locale === "en" ? "Stable" : "安定型",
               count: viewItems.filter((item) => (item.analysis?.metrics.stabilityScore ?? 0) >= 60).length,
             },
           ].map((entry) => (
@@ -555,62 +739,62 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               onClick={() => setFilter(entry.id)}
             >
               <span>{entry.label}</span>
-              <span>{entry.count}件</span>
+              <span>{locale === "en" ? entry.count : `${entry.count}件`}</span>
             </button>
           ))}
         </div>
 
         <div className={styles.filterGroup}>
-          <div className={typography.panelTitle}>条件を掘る</div>
-          <SelectFilter label="最高位" value={rankFilter} onChange={(value) => setRankFilter(value as RankFilter)} options={[
-            ["ALL", "すべて"],
-            ["YOKOZUNA_OZEKI", "横綱・大関"],
-            ["SANYAKU", "三役以上"],
-            ["MAKUUCHI", "幕内"],
-            ["JURYO_OR_LOWER", "十両以下"],
+          <div className={typography.panelTitle}>{locale === "en" ? "Drill Down" : "条件を掘る"}</div>
+          <SelectFilter label={locale === "en" ? "Highest rank" : "最高位"} value={rankFilter} onChange={(value) => setRankFilter(value as RankFilter)} options={[
+            ["ALL", locale === "en" ? "All" : "すべて"],
+            ["YOKOZUNA_OZEKI", locale === "en" ? "Yokozuna/Ozeki" : "横綱・大関"],
+            ["SANYAKU", locale === "en" ? "Sanyaku+" : "三役以上"],
+            ["MAKUUCHI", locale === "en" ? "Makuuchi" : "幕内"],
+            ["JURYO_OR_LOWER", locale === "en" ? "Juryo or lower" : "十両以下"],
           ]} />
-          <SelectFilter label="勝率" value={winRateFilter} onChange={(value) => setWinRateFilter(value as WinRateFilter)} options={[
-            ["ALL", "すべて"],
-            ["HIGH", "高勝率"],
-            ["MID", "標準"],
-            ["LOW", "低勝率"],
+          <SelectFilter label={locale === "en" ? "Win rate" : "勝率"} value={winRateFilter} onChange={(value) => setWinRateFilter(value as WinRateFilter)} options={[
+            ["ALL", locale === "en" ? "All" : "すべて"],
+            ["HIGH", locale === "en" ? "High" : "高勝率"],
+            ["MID", locale === "en" ? "Standard" : "標準"],
+            ["LOW", locale === "en" ? "Low" : "低勝率"],
           ]} />
           {import.meta.env.DEV ? (
-            <SelectFilter label="表示視点 (Legacy)" value={stanceFilter} onChange={(value) => setStanceFilter(value as ObservationStanceId | "ALL")} options={[
-              ["ALL", "すべて"],
-              ["PROMOTION_EXPECTATION", "出世期待"],
-              ["LATE_BLOOM", "晩成"],
-              ["STABILITY", "安定"],
-              ["TURBULENCE", "波乱"],
-              ["RIVALRY", "宿敵"],
-              ["RARE_RECORD", "珍記録"],
-              ["INJURY_COMEBACK", "復帰"],
-              ["LONGEVITY", "長寿"],
+            <SelectFilter label={locale === "en" ? "Viewpoint (Legacy)" : "表示視点 (Legacy)"} value={stanceFilter} onChange={(value) => setStanceFilter(value as ObservationStanceId | "ALL")} options={[
+              ["ALL", locale === "en" ? "All" : "すべて"],
+              ["PROMOTION_EXPECTATION", locale === "en" ? "Promotion" : "出世期待"],
+              ["LATE_BLOOM", locale === "en" ? "Late bloom" : "晩成"],
+              ["STABILITY", locale === "en" ? "Stability" : "安定"],
+              ["TURBULENCE", locale === "en" ? "Turbulence" : "波乱"],
+              ["RIVALRY", locale === "en" ? "Rivalry" : "宿敵"],
+              ["RARE_RECORD", locale === "en" ? "Rare record" : "珍記録"],
+              ["INJURY_COMEBACK", locale === "en" ? "Comeback" : "復帰"],
+              ["LONGEVITY", locale === "en" ? "Longevity" : "長寿"],
             ]} />
           ) : null}
-          <SelectFilter label="保存タグ" value={tagFilter} onChange={(value) => setTagFilter(value as CareerSaveTag | "ALL")} options={[
-            ["ALL", "すべて"],
-            ...Object.entries(MANUAL_SAVE_TAG_LABELS).map(([key, label]) => [key, label] as [string, string]),
+          <SelectFilter label={locale === "en" ? "Save tag" : "保存タグ"} value={tagFilter} onChange={(value) => setTagFilter(value as CareerSaveTag | "ALL")} options={[
+            ["ALL", locale === "en" ? "All" : "すべて"],
+            ...Object.keys(MANUAL_SAVE_TAG_LABELS).map((key) => [key, formatManualTagLabel(key as CareerSaveTag, locale)] as [string, string]),
           ]} />
         </div>
 
         <div className={styles.filterGroup}>
-          <div className={typography.panelTitle}>並び順</div>
+          <div className={typography.panelTitle}>{locale === "en" ? "Sort" : "並び順"}</div>
           <div className="space-y-2">
             {[
-              { id: "RECENT" as const, label: "新しい順" },
-              { id: "SCORE" as const, label: "スコア順" },
-              { id: "MAX_RANK" as const, label: "最高位順" },
-              { id: "WIN_RATE" as const, label: "勝率順" },
-              { id: "MAKUUCHI" as const, label: "幕内在位順" },
-              { id: "SANYAKU" as const, label: "三役在位順" },
-              { id: "YUSHO" as const, label: "優勝順" },
-              { id: "RETIRE_AGE" as const, label: "引退年齢順" },
-              { id: "MAX_RANK_AGE" as const, label: "最高位到達年齢順" },
-              { id: "PROMOTION" as const, label: "昇進速度順" },
-              { id: "STABILITY" as const, label: "安定度順" },
-              { id: "TURBULENCE" as const, label: "波乱度順" },
-              { id: "RARITY" as const, label: "珍記録度順" },
+              { id: "RECENT" as const, label: locale === "en" ? "Newest" : "新しい順" },
+              { id: "SCORE" as const, label: locale === "en" ? "Score" : "スコア順" },
+              { id: "MAX_RANK" as const, label: locale === "en" ? "Highest rank" : "最高位順" },
+              { id: "WIN_RATE" as const, label: locale === "en" ? "Win rate" : "勝率順" },
+              { id: "MAKUUCHI" as const, label: locale === "en" ? "Makuuchi tenure" : "幕内在位順" },
+              { id: "SANYAKU" as const, label: locale === "en" ? "Sanyaku tenure" : "三役在位順" },
+              { id: "YUSHO" as const, label: locale === "en" ? "Yusho" : "優勝順" },
+              { id: "RETIRE_AGE" as const, label: locale === "en" ? "Retirement age" : "引退年齢順" },
+              { id: "MAX_RANK_AGE" as const, label: locale === "en" ? "Peak rank age" : "最高位到達年齢順" },
+              { id: "PROMOTION" as const, label: locale === "en" ? "Promotion speed" : "昇進速度順" },
+              { id: "STABILITY" as const, label: locale === "en" ? "Stability" : "安定度順" },
+              { id: "TURBULENCE" as const, label: locale === "en" ? "Turbulence" : "波乱度順" },
+              { id: "RARITY" as const, label: locale === "en" ? "Rarity" : "珍記録度順" },
             ].map((entry) => (
               <button
                 key={entry.id}
@@ -630,37 +814,39 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
-              <div className={typography.kicker}>保存した人生</div>
-              <div className={typography.panelTitle}>私設書架</div>
-              <div className="text-sm text-text-dim">観測して残した力士人生を、書架の記録票として読み返します。</div>
+              <div className={typography.kicker}>{locale === "en" ? "Saved Careers" : "保存した人生"}</div>
+              <div className={typography.panelTitle}>{locale === "en" ? "Private Shelf" : "私設書架"}</div>
+              <div className="text-sm text-text-dim">
+                {locale === "en" ? "Revisit saved rikishi careers as archive record cards." : "観測して残した力士人生を、書架の記録票として読み返します。"}
+              </div>
             </div>
-            <div className="text-xs text-text-dim">{filteredItems.length}件を表示中</div>
+            <div className="text-xs text-text-dim">{locale === "en" ? `${filteredItems.length} shown` : `${filteredItems.length}件を表示中`}</div>
           </div>
 
           <div className={styles.shelfSummary}>
             <article className={styles.summaryHero}>
-              <span>保存済み</span>
-              <strong>{shelfSummary.total}件</strong>
-              <em>{shelfSummary.recentItem ? `最近: ${shelfSummary.recentItem.shikona}` : "まだ記録はありません"}</em>
+              <span>{locale === "en" ? "Saved" : "保存済み"}</span>
+              <strong>{locale === "en" ? shelfSummary.total : `${shelfSummary.total}件`}</strong>
+              <em>{shelfSummary.recentItem ? `${locale === "en" ? "Recent" : "最近"}: ${shelfSummary.recentItem.shikona}` : (locale === "en" ? "No records yet" : "まだ記録はありません")}</em>
             </article>
             <article className={styles.summaryBlock}>
-              <span>最高位到達者</span>
+              <span>{locale === "en" ? "Highest Ranks" : "最高位到達者"}</span>
               <div className={styles.summaryChips}>
                 {shelfSummary.rankBreakdown.length > 0 ? shelfSummary.rankBreakdown.map((entry) => (
                   <span key={entry.label}>{entry.label} {entry.count}</span>
-                )) : <span>未集計</span>}
+                )) : <span>{locale === "en" ? "Not counted" : "未集計"}</span>}
               </div>
             </article>
             <article className={styles.summaryBlock}>
-              <span>勝率帯</span>
+              <span>{locale === "en" ? "Win-rate Band" : "勝率帯"}</span>
               <strong>{shelfSummary.winRateLabel}</strong>
             </article>
             <article className={styles.summaryBlock}>
-              <span>よく残る札</span>
+              <span>{locale === "en" ? "Common Tags" : "よく残る札"}</span>
               <div className={styles.summaryChips}>
                 {shelfSummary.topTags.length > 0 ? shelfSummary.topTags.map((tag) => (
                   <span key={tag.label}>{tag.label} {tag.count}</span>
-                )) : <span>保存タグなし</span>}
+                )) : <span>{locale === "en" ? "No save tags" : "保存タグなし"}</span>}
               </div>
             </article>
           </div>
@@ -668,7 +854,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           {filteredItems.length === 0 ? (
             <div className={cn(surface.emptyState, "min-h-[320px]")}>
               <Archive className="h-10 w-10" />
-              <div className={surface.emptyStateTitle}>条件に合う保存済み記録はありません</div>
+              <div className={surface.emptyStateTitle}>{locale === "en" ? "No saved records match these filters" : "条件に合う保存済み記録はありません"}</div>
             </div>
           ) : (
             <div className={styles.shelfList}>
@@ -683,38 +869,38 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                   <div className={styles.cardHead}>
                     <div>
                       <div className={styles.cardTitle}>{item.shikona}</div>
-                      <div className={styles.cardLabel}>{resolveArchiveLabel(item)}</div>
+                      <div className={styles.cardLabel}>{resolveArchiveLabel(item, locale)}</div>
                     </div>
-                    <div className={styles.cardDate}>{toDateText(item.savedAt || item.updatedAt)}</div>
+                    <div className={styles.cardDate}>{toDateText(item.savedAt || item.updatedAt, locale)}</div>
                   </div>
                   <div className={styles.cardMeta}>
-                    <span>{formatRankName(item.maxRank)}</span>
-                    <span>{formatRecordLabel(item)}</span>
+                    <span>{formatRankName(item.maxRank, locale)}</span>
+                    <span>{formatRecordLabel(item, locale)}</span>
                   </div>
                   {item.analysis ? (
                     <div className={styles.cardMeta}>
-                      <span>{resolveStableName(item)}</span>
+                      <span>{resolveStableName(item, locale)}</span>
                       {import.meta.env.DEV ? (
-                        <span>{resolveObservationStanceLabel(item.observationStanceId)}</span>
+                        <span>{formatObservationStance(item.observationStanceId, locale)}</span>
                       ) : null}
                       <span>{formatWinRatePercent(item.analysis.metrics.winRate)}</span>
                     </div>
                   ) : null}
                   <div className={styles.cardRecord}>
-                    {formatCareerPeriod(item)}
+                    {formatCareerPeriod(item, locale)}
                   </div>
-                  <div className={styles.cardRecord}>{resolveReadingLine(item)}</div>
+                  <div className={styles.cardRecord}>{resolveReadingLine(item, locale)}</div>
                   {item.saveTags?.length ? (
                     <div className={styles.badges}>
                       {item.saveTags.slice(0, 4).map((tag) => (
-                        <span key={tag} className={styles.pill} data-tone="state">{MANUAL_SAVE_TAG_LABELS[tag]}</span>
+                        <span key={tag} className={styles.pill} data-tone="state">{formatManualTagLabel(tag, locale)}</span>
                       ))}
                     </div>
                   ) : null}
                   {item.analysis?.autoTags.length ? (
                     <div className={styles.badges}>
                       {item.analysis.autoTags.slice(0, 3).map((tag) => (
-                        <span key={tag} className={styles.pill}>{AUTO_TAG_LABELS[tag]}</span>
+                        <span key={tag} className={styles.pill}>{formatAutoTagLabel(tag, locale)}</span>
                       ))}
                     </div>
                   ) : null}
@@ -727,21 +913,23 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
-              <div className={typography.kicker}>比較</div>
-              <div className={typography.panelTitle}>二人比較</div>
-              <div className="text-sm text-text-dim">保存済み力士を二人選び、同じ分析軸で読み比べます。</div>
+              <div className={typography.kicker}>{locale === "en" ? "Compare" : "比較"}</div>
+              <div className={typography.panelTitle}>{locale === "en" ? "Two Career Comparison" : "二人比較"}</div>
+              <div className="text-sm text-text-dim">
+                {locale === "en" ? "Select two saved rikishi and read them against the same metrics." : "保存済み力士を二人選び、同じ分析軸で読み比べます。"}
+              </div>
             </div>
           </div>
           <div className={styles.compareSelectors}>
-            <CareerSelect label="左" value={compareLeft?.id ?? ""} items={viewItems} onChange={setCompareLeftId} />
-            <CareerSelect label="右" value={compareRight?.id ?? ""} items={viewItems} onChange={setCompareRightId} />
+            <CareerSelect label={locale === "en" ? "Left" : "左"} value={compareLeft?.id ?? ""} items={viewItems} locale={locale} onChange={setCompareLeftId} />
+            <CareerSelect label={locale === "en" ? "Right" : "右"} value={compareRight?.id ?? ""} items={viewItems} locale={locale} onChange={setCompareRightId} />
           </div>
           {comparison && compareLeft && compareRight ? (
             <div className={styles.compareBody}>
               <div className={styles.compareCommentBox}>
                 <BarChart3 className="h-4 w-4" />
                 <div>
-                  {comparison.comments.map((comment) => (
+                  {buildComparisonComments(comparison.comments, compareLeft.analysis, compareRight.analysis, locale).map((comment) => (
                     <p key={comment}>{comment}</p>
                   ))}
                 </div>
@@ -749,29 +937,31 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               <div className={styles.compareTable}>
                 {comparison.metrics.map((row) => (
                   <div key={row.key} className={styles.compareRow} data-winner={row.winner}>
-                    <span>{row.label}</span>
-                    <strong data-side="left">{row.left}</strong>
-                    <strong data-side="right">{row.right}</strong>
+                    <span>{locale === "en" ? COMPARISON_METRIC_EN_LABELS[row.key] ?? row.label : row.label}</span>
+                    <strong data-side="left">{compareLeft.analysis ? formatComparisonValue(row, "left", compareLeft.analysis, locale) : row.left}</strong>
+                    <strong data-side="right">{compareRight.analysis ? formatComparisonValue(row, "right", compareRight.analysis, locale) : row.right}</strong>
                   </div>
                 ))}
               </div>
               {compareLeft.analysis && compareRight.analysis ? (
                 <div className={styles.chartCompareGrid}>
                   <MiniSeriesChart
-                    title="番付推移比較"
+                    title={locale === "en" ? "Rank trajectory comparison" : "番付推移比較"}
                     mode="rank"
                     leftLabel={compareLeft.shikona}
                     rightLabel={compareRight.shikona}
                     left={buildCareerTrajectorySeries(compareLeft.analysis.status)}
                     right={buildCareerTrajectorySeries(compareRight.analysis.status)}
+                    locale={locale}
                   />
                   <MiniSeriesChart
-                    title="勝率推移比較"
+                    title={locale === "en" ? "Win-rate trajectory comparison" : "勝率推移比較"}
                     mode="winRate"
                     leftLabel={compareLeft.shikona}
                     rightLabel={compareRight.shikona}
                     left={buildCareerTrajectorySeries(compareLeft.analysis.status)}
                     right={buildCareerTrajectorySeries(compareRight.analysis.status)}
+                    locale={locale}
                   />
                 </div>
               ) : null}
@@ -779,7 +969,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
           ) : (
             <div className={cn(surface.emptyState, "min-h-[320px]")}>
               <GitCompare className="h-10 w-10" />
-              <div className={surface.emptyStateTitle}>比較には詳細ステータスを持つ保存記録が二つ必要です</div>
+              <div className={surface.emptyStateTitle}>{locale === "en" ? "Comparison needs two saved records with detail status" : "比較には詳細ステータスを持つ保存記録が二つ必要です"}</div>
             </div>
           )}
         </section>
@@ -787,13 +977,15 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
         <section className={cn(surface.panel, styles.shelfPanel, "min-w-0")}>
           <div className={styles.shelfHead}>
             <div>
-              <div className={typography.kicker}>類似検索</div>
-              <div className={typography.panelTitle}>似た人生を探す</div>
-              <div className="text-sm text-text-dim">最高位、到達年齢、在位、勝率、怪我、成長の流れから近い保存記録を探します。</div>
+              <div className={typography.kicker}>{locale === "en" ? "Similarity" : "類似検索"}</div>
+              <div className={typography.panelTitle}>{locale === "en" ? "Find Similar Careers" : "似た人生を探す"}</div>
+              <div className="text-sm text-text-dim">
+                {locale === "en" ? "Find saved records close in highest rank, timing, tenure, win rate, injury, and growth pattern." : "最高位、到達年齢、在位、勝率、怪我、成長の流れから近い保存記録を探します。"}
+              </div>
             </div>
           </div>
           <div className={styles.compareSelectors}>
-            <CareerSelect label="基準力士" value={similarTarget?.id ?? ""} items={viewItems} onChange={setSimilarTargetId} />
+            <CareerSelect label={locale === "en" ? "Reference rikishi" : "基準力士"} value={similarTarget?.id ?? ""} items={viewItems} locale={locale} onChange={setSimilarTargetId} />
           </div>
           <div className={styles.similarList}>
             {similarItems.length > 0 ? similarItems.map(({ summary, similarity }) => {
@@ -802,17 +994,19 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
                 <article key={`${summary.status.shikona}-${similarity.score}`} className={styles.similarCard}>
                   <div>
                     <div className={styles.cardTitle}>{summary.status.shikona}</div>
-                    <div className={styles.cardRecord}>{summary.maxRankLabel} / {summary.classificationLabel}</div>
+                    <div className={styles.cardRecord}>
+                      {formatHighestRankDisplayName(summary.status.history.maxRank, locale)} / {formatClassificationLabel(summary.classificationLabel, locale)}
+                    </div>
                   </div>
                   <div className={styles.similarScore}>{similarity.score}</div>
                   <div className={styles.badges}>
-                    {similarity.reasons.map((reason) => (
-                      <span key={reason} className={styles.pill}>{reason}</span>
+                    {similarity.reasons.map((reason, index) => (
+                      <span key={reason} className={styles.pill}>{locale === "en" ? `Shared trait ${index + 1}` : reason}</span>
                     ))}
                   </div>
                   {item ? (
                     <Button variant="secondary" size="sm" onClick={() => onOpen(item.id)}>
-                      この記録を開く
+                      {locale === "en" ? "Open Record" : "この記録を開く"}
                     </Button>
                   ) : null}
                 </article>
@@ -820,7 +1014,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             }) : (
               <div className={cn(surface.emptyState, "min-h-[320px]")}>
                 <Search className="h-10 w-10" />
-                <div className={surface.emptyStateTitle}>類似検索には詳細ステータスを持つ保存記録が必要です</div>
+                <div className={surface.emptyStateTitle}>{locale === "en" ? "Similarity search needs saved records with detail status" : "類似検索には詳細ステータスを持つ保存記録が必要です"}</div>
               </div>
             )}
           </div>
@@ -829,8 +1023,8 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
       <section className={cn(surface.panel, styles.detailPanel, "space-y-4")}>
         <div>
-          <div className={typography.kicker}>閲覧面</div>
-          <div className={typography.panelTitle}>開きかけの記録帳</div>
+          <div className={typography.kicker}>{locale === "en" ? "Reading Desk" : "閲覧面"}</div>
+          <div className={typography.panelTitle}>{locale === "en" ? "Open Record Book" : "開きかけの記録帳"}</div>
         </div>
 
         {selectedItem ? (
@@ -838,59 +1032,59 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             <div className={styles.recordCover}>
               <div className={styles.detailChip}>
                 <Star className="h-3.5 w-3.5" />
-                {resolveArchiveLabel(selectedItem)}
+                {resolveArchiveLabel(selectedItem, locale)}
               </div>
               <div>
                 <div className={styles.detailTitle}>{selectedItem.shikona}</div>
                 <div className={styles.detailSubtitle}>
-                  最高位 {formatRankName(selectedItem.maxRank)}
+                  {locale === "en" ? "Highest rank" : "最高位"} {formatRankName(selectedItem.maxRank, locale)}
                   {selectedItem.title ? ` / ${selectedItem.title}` : ""}
                 </div>
               </div>
-              <div className={styles.coverLine}>{resolveReadingLine(selectedItem)}</div>
+              <div className={styles.coverLine}>{resolveReadingLine(selectedItem, locale)}</div>
               <div className={styles.coverFacts}>
-                <span>{resolveStableName(selectedItem)}</span>
-                <span>{formatCareerPeriod(selectedItem)}</span>
-                <span>{formatRecordLabel(selectedItem)}</span>
+                <span>{resolveStableName(selectedItem, locale)}</span>
+                <span>{formatCareerPeriod(selectedItem, locale)}</span>
+                <span>{formatRecordLabel(selectedItem, locale)}</span>
               </div>
             </div>
 
             <div className={styles.metrics}>
               <div className={styles.metric}>
-                <div className={styles.metricLabel}>総評点</div>
+                <div className={styles.metricLabel}>{locale === "en" ? "Score" : "総評点"}</div>
                 <div className={styles.metricValue}>{selectedItem.clearScore ?? 0}</div>
               </div>
               <div className={styles.metric}>
-                <div className={styles.metricLabel}>通算成績</div>
+                <div className={styles.metricLabel}>{locale === "en" ? "Career Record" : "通算成績"}</div>
                 <div className={styles.metricValue}>
-                  {selectedItem.totalWins}勝 {selectedItem.totalLosses}敗
+                  {formatRecordLabel(selectedItem, locale)}
                 </div>
               </div>
               <div className={styles.metric}>
-                <div className={styles.metricLabel}>幕内優勝</div>
-                <div className={styles.metricValue}>{selectedItem.yushoCount.makuuchi}回</div>
+                <div className={styles.metricLabel}>{locale === "en" ? "Makuuchi Yusho" : "幕内優勝"}</div>
+                <div className={styles.metricValue}>{locale === "en" ? selectedItem.yushoCount.makuuchi : `${selectedItem.yushoCount.makuuchi}回`}</div>
               </div>
             </div>
 
             {selectedItem.analysis ? (
               <div className={styles.detailRows}>
                 <div className={styles.infoRow}>
-                  <span>分類</span>
-                  <span>{selectedItem.analysis.classificationLabel}</span>
+                  <span>{locale === "en" ? "Class" : "分類"}</span>
+                  <span>{formatClassificationLabel(selectedItem.analysis.classificationLabel, locale)}</span>
                 </div>
                 <div className={styles.infoRow}>
-                  <span>入口条件の読み取り</span>
-                  <span>{resolveReadingLine(selectedItem)}</span>
+                  <span>{locale === "en" ? "Entry Reading" : "入口条件の読み取り"}</span>
+                  <span>{resolveReadingLine(selectedItem, locale)}</span>
                 </div>
                 {import.meta.env.DEV ? (
                   <div className={styles.infoRow}>
-                    <span>表示視点 (Legacy)</span>
-                    <span>{resolveObservationStanceLabel(selectedItem.observationStanceId)}</span>
+                    <span>{locale === "en" ? "Viewpoint (Legacy)" : "表示視点 (Legacy)"}</span>
+                    <span>{formatObservationStance(selectedItem.observationStanceId, locale)}</span>
                   </div>
                 ) : null}
                 <div className={styles.infoRow}>
-                  <span>保存推奨</span>
-                  <span>{selectedItem.analysis.saveRecommendation.score}点</span>
+                  <span>{locale === "en" ? "Save Score" : "保存推奨"}</span>
+                  <span>{locale === "en" ? selectedItem.analysis.saveRecommendation.score : `${selectedItem.analysis.saveRecommendation.score}点`}</span>
                 </div>
               </div>
             ) : null}
@@ -898,37 +1092,35 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
             {generationSummary ? (
               <div className={styles.detailRows}>
                 <div className={styles.infoRow}>
-                  <span>世代</span>
-                  <span>{generationSummary.label} / {generationSummary.cohortSize}人</span>
+                  <span>{locale === "en" ? "Cohort" : "世代"}</span>
+                  <span>{locale === "en" ? `${selectedItem.careerStartYearMonth.slice(0, 4)} cohort / ${generationSummary.cohortSize} rikishi` : `${generationSummary.label} / ${generationSummary.cohortSize}人`}</span>
                 </div>
                 <div className={styles.infoRow}>
-                  <span>最高位順位</span>
-                  <span>{generationSummary.maxRankStanding ? `${generationSummary.maxRankStanding}位` : "-"}</span>
+                  <span>{locale === "en" ? "Highest-rank standing" : "最高位順位"}</span>
+                  <span>{generationSummary.maxRankStanding ? (locale === "en" ? `No. ${generationSummary.maxRankStanding}` : `${generationSummary.maxRankStanding}位`) : "-"}</span>
                 </div>
                 <div className={styles.infoRow}>
-                  <span>勝率順位</span>
-                  <span>{generationSummary.winRateStanding ? `${generationSummary.winRateStanding}位` : "-"}</span>
+                  <span>{locale === "en" ? "Win-rate standing" : "勝率順位"}</span>
+                  <span>{generationSummary.winRateStanding ? (locale === "en" ? `No. ${generationSummary.winRateStanding}` : `${generationSummary.winRateStanding}位`) : "-"}</span>
                 </div>
-                {generationSummary.notes.map((note) => (
+                {locale === "ja" ? generationSummary.notes.map((note) => (
                   <div key={note} className={styles.infoRow}>
                     <span>世代評</span>
                     <span>{note}</span>
                   </div>
-                ))}
+                )) : null}
               </div>
             ) : null}
 
             {selectedItem.analysis?.status.careerRivalryDigest ? (
-              <RivalDigestCards analysis={selectedItem.analysis} />
+              <RivalDigestCards analysis={selectedItem.analysis} locale={locale} />
             ) : null}
 
             {!!selectedItem.recordBadgeKeys?.length && (
               <div className={styles.badges}>
                 {selectedItem.recordBadgeKeys.slice(0, 3).map((badgeKey) => (
                   <span key={badgeKey} className={styles.pill} data-tone="state">
-                    {resolveCareerRecordBadgeLabel(
-                      badgeKey as Parameters<typeof resolveCareerRecordBadgeLabel>[0],
-                    )}
+                    {formatRecordBadgeLabel(badgeKey, locale)}
                   </span>
                 ))}
               </div>
@@ -938,7 +1130,7 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               <div className={styles.badges}>
                 {selectedItem.saveTags.map((tag) => (
                   <span key={tag} className={styles.pill} data-tone="state">
-                    {MANUAL_SAVE_TAG_LABELS[tag] ?? tag}
+                    {formatManualTagLabel(tag, locale) ?? tag}
                   </span>
                 ))}
               </div>
@@ -948,13 +1140,13 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
               <div className={styles.badges}>
                 {selectedItem.analysis.autoTags.map((tag) => (
                   <span key={tag} className={styles.pill}>
-                    {AUTO_TAG_LABELS[tag]}
+                    {formatAutoTagLabel(tag, locale)}
                   </span>
                 ))}
               </div>
             )}
 
-            {selectedItem.observerMemo ? (
+            {selectedItem.observerMemo && locale === "ja" ? (
               <div className={styles.detailRows}>
                 <div className={styles.infoRow}>
                   <span>観測メモ</span>
@@ -965,54 +1157,54 @@ export const ArchiveScreen: React.FC<ArchiveScreenProps> = ({
 
             <div className={styles.detailRows}>
               <div className={styles.infoRow}>
-                <span>在位期間</span>
+                <span>{locale === "en" ? "Career Span" : "在位期間"}</span>
                 <span>
-                  {selectedItem.careerStartYearMonth} 〜 {selectedItem.careerEndYearMonth || "現在"}
+                  {selectedItem.careerStartYearMonth} - {selectedItem.careerEndYearMonth || (locale === "en" ? "current" : "現在")}
                 </span>
               </div>
               <div className={styles.infoRow}>
-                <span>保存日</span>
-                <span>{toDateText(selectedItem.savedAt || selectedItem.updatedAt)}</span>
+                <span>{locale === "en" ? "Saved Date" : "保存日"}</span>
+                <span>{toDateText(selectedItem.savedAt || selectedItem.updatedAt, locale)}</span>
               </div>
               <div className={styles.infoRow}>
-                <span>休場</span>
-                <span>{selectedItem.totalAbsent}休</span>
+                <span>{locale === "en" ? "Absences" : "休場"}</span>
+                <span>{locale === "en" ? selectedItem.totalAbsent : `${selectedItem.totalAbsent}休`}</span>
               </div>
             </div>
 
             <div className={styles.actions}>
               <Button className="w-full" onClick={() => onOpen(selectedItem.id)}>
-                番付推移・場所別を読む
+                {locale === "en" ? "Read Rank and Basho Records" : "番付推移・場所別を読む"}
               </Button>
               <Button variant="secondary" className="w-full" onClick={() => setMode("COMPARE")}>
                 <GitCompare className="mr-2 h-4 w-4" />
-                二人を並べる
+                {locale === "en" ? "Compare Two" : "二人を並べる"}
               </Button>
               <Button variant="secondary" className="w-full" onClick={() => {
                 setSimilarTargetId(selectedItem.id);
                 setMode("SIMILAR");
               }}>
                 <BarChart3 className="mr-2 h-4 w-4" />
-                似た一代を探す
+                {locale === "en" ? "Find Similar Career" : "似た一代を探す"}
               </Button>
               <Button
                 variant="danger"
                 className="w-full"
                 onClick={() => {
-                  if (confirm(`${selectedItem.shikona}の保存済み記録を削除しますか？`)) {
+                  if (confirm(locale === "en" ? `Delete the saved record for ${selectedItem.shikona}?` : `${selectedItem.shikona}の保存済み記録を削除しますか？`)) {
                     onDelete(selectedItem.id);
                   }
                 }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                この記録を削除する
+                {locale === "en" ? "Delete This Record" : "この記録を削除する"}
               </Button>
             </div>
           </>
         ) : (
           <div className={cn(surface.emptyState, "min-h-[240px]")}>
             <Archive className="h-10 w-10" />
-            <div className={surface.emptyStateTitle}>まだ保存済み記録がありません</div>
+            <div className={surface.emptyStateTitle}>{locale === "en" ? "No saved records yet" : "まだ保存済み記録がありません"}</div>
           </div>
         )}
       </section>

@@ -4,6 +4,7 @@ import type { CareerBashoDetail, CareerBashoRecordsBySeq } from "../../../logic/
 import { resolveStableById } from "../../../logic/simulation/heya/stableCatalog";
 import { formatHighestRankDisplayName, formatRankDisplayName, formatRankMovementDisplay, getRankValueForChart } from "../../../logic/ranking";
 import { formatBashoLabel } from "../../../logic/bashoLabels";
+import type { LocaleCode } from "../../../shared/lib/locale";
 
 export interface CareerWindowState {
   visibleWindowStartSeq: number;
@@ -135,6 +136,27 @@ const BAND_DEFINITIONS: Array<{ key: CareerLedgerBandKey; label: string; weight:
 
 export const CAREER_LEDGER_BANDS = BAND_DEFINITIONS;
 
+const BAND_LABELS_EN: Record<CareerLedgerBandKey, string> = {
+  YOKOZUNA: "Yokozuna",
+  OZEKI: "Ozeki",
+  SEKIWAKE: "Sekiwake",
+  KOMUSUBI: "Komusubi",
+  MAEGASHIRA: "Maegashira",
+  JURYO: "Juryo",
+  MAKUSHITA: "Makushita",
+  SANDANME: "Sandanme",
+  JONIDAN: "Jonidan",
+  JONOKUCHI: "Jonokuchi",
+};
+
+export const formatCareerLedgerBandLabel = (
+  bandKey: CareerLedgerBandKey,
+  locale: LocaleCode = "ja",
+): string =>
+  locale === "en"
+    ? BAND_LABELS_EN[bandKey]
+    : BAND_DEFINITIONS.find((band) => band.key === bandKey)?.label ?? bandKey;
+
 export const CAREER_RANK_SCALE_BANDS: CareerRankScaleBand[] = [
   { key: "YOKOZUNA", label: "横綱", min: 0, max: 9, weight: 0.5 },
   { key: "OZEKI", label: "大関", min: 10, max: 19, weight: 0.5 },
@@ -194,16 +216,36 @@ const toBandKey = (rank: Rank): CareerLedgerBandKey => {
 const toOrdinalBucket = (bandKey: CareerLedgerBandKey): number =>
   BAND_DEFINITIONS.findIndex((band) => band.key === bandKey);
 
-const formatCompactRecord = (record: Pick<BashoRecord, "wins" | "losses" | "absent">): string => {
-  if (record.absent >= 15 && record.wins === 0 && record.losses === 0) return "全休";
+const formatCompactRecord = (
+  record: Pick<BashoRecord, "wins" | "losses" | "absent">,
+  locale: LocaleCode = "ja",
+): string => {
+  if (record.absent >= 15 && record.wins === 0 && record.losses === 0) return locale === "en" ? "Absent" : "全休";
   if (record.absent > 0) return `${record.wins}-${record.losses}-${record.absent}`;
   return `${record.wins}-${record.losses}`;
 };
 
-const formatFullRecord = (record: Pick<BashoRecord, "wins" | "losses" | "absent">): string =>
-  `${record.wins}勝${record.losses}敗${record.absent > 0 ? `${record.absent}休` : ""}`;
+const formatFullRecord = (
+  record: Pick<BashoRecord, "wins" | "losses" | "absent">,
+  locale: LocaleCode = "ja",
+): string =>
+  locale === "en"
+    ? `${record.wins}-${record.losses}${record.absent > 0 ? `, ${record.absent} absences` : ""}`
+    : `${record.wins}勝${record.losses}敗${record.absent > 0 ? `${record.absent}休` : ""}`;
 
-const toShortRankLabel = (rank: Rank): string => {
+const toShortRankLabel = (rank: Rank, locale: LocaleCode = "ja"): string => {
+  if (locale === "en") {
+    if (rank.name === "横綱") return "Y";
+    if (rank.name === "大関") return "O";
+    if (rank.name === "関脇") return "S";
+    if (rank.name === "小結") return "K";
+    if (rank.division === "Makuuchi") return `M${rank.number ?? ""}`;
+    if (rank.division === "Juryo") return `J${rank.number ?? ""}`;
+    if (rank.division === "Makushita") return `Ms${rank.number ?? ""}`;
+    if (rank.division === "Sandanme") return `Sd${rank.number ?? ""}`;
+    if (rank.division === "Jonidan") return `Jd${rank.number ?? ""}`;
+    return `Jk${rank.number ?? ""}`;
+  }
   if (rank.name === "横綱" || rank.name === "大関" || rank.name === "関脇" || rank.name === "小結") {
     return rank.name;
   }
@@ -254,7 +296,11 @@ const resolveMilestoneTags = (
   return [...new Set(tags)];
 };
 
-const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined): { deltaValue: number; deltaLabel: string } => {
+const computeDeltaLabel = (
+  current: BashoRecord,
+  next: BashoRecord | undefined,
+  locale: LocaleCode = "ja",
+): { deltaValue: number; deltaLabel: string } => {
   if (!next) {
     return { deltaValue: 0, deltaLabel: "-" };
   }
@@ -262,11 +308,11 @@ const computeDeltaLabel = (current: BashoRecord, next: BashoRecord | undefined):
   const nextValue = getRankValueForChart(next.rank);
   const deltaValue = Math.round((currentValue - nextValue) * 10) / 10;
   if (Math.abs(deltaValue) < 0.01) {
-    return { deltaValue, deltaLabel: "変動なし" };
+    return { deltaValue, deltaLabel: locale === "en" ? "No change" : "変動なし" };
   }
   return {
     deltaValue,
-    deltaLabel: formatRankMovementDisplay(current.rank, next.rank, deltaValue),
+    deltaLabel: formatRankMovementDisplay(current.rank, next.rank, deltaValue, locale),
   };
 };
 
@@ -421,6 +467,7 @@ export const buildCareerDesignReadingModel = (
 export const buildCareerLedgerModel = (
   status: RikishiStatus,
   _bashoRows: CareerBashoRecordsBySeq[],
+  locale: LocaleCode = "ja",
 ): CareerLedgerModel => {
   const records = status.history.records
     .filter((record) => record.rank.division !== "Maezumo")
@@ -462,10 +509,10 @@ export const buildCareerLedgerModel = (
     }
     const rankValue = getRankValueForChart(record.rank);
     const bandKey = toBandKey(record.rank);
-    const { deltaValue, deltaLabel } = computeDeltaLabel(record, next);
+    const { deltaValue, deltaLabel } = computeDeltaLabel(record, next, locale);
     return {
       bashoSeq: record.bashoSeq,
-      bashoLabel: formatBashoLabel(record.year, record.month),
+      bashoLabel: formatBashoLabel(record.year, record.month, locale),
       axisLabel:
         index % 3 === 0 || index === records.length - 1
           ? `${record.year}.${String(record.month).padStart(2, "0")}`
@@ -473,13 +520,13 @@ export const buildCareerLedgerModel = (
       year: record.year,
       month: record.month,
       rank: record.rank,
-      rankLabel: formatRankDisplayName(record.rank),
-      rankShortLabel: toShortRankLabel(record.rank),
+      rankLabel: formatRankDisplayName(record.rank, locale),
+      rankShortLabel: toShortRankLabel(record.rank, locale),
       rankValue,
       bandKey,
       ordinalBucket: toOrdinalBucket(bandKey),
-      recordLabel: formatFullRecord(record),
-      recordCompactLabel: formatCompactRecord(record),
+      recordLabel: formatFullRecord(record, locale),
+      recordCompactLabel: formatCompactRecord(record, locale),
       wins: record.wins,
       losses: record.losses,
       absent: record.absent,
@@ -536,26 +583,33 @@ export const buildCareerYearBands = (
 export const buildCareerOverviewModel = (
   status: RikishiStatus,
   _bashoRows: CareerBashoRecordsBySeq[],
+  locale: LocaleCode = "ja",
 ): CareerOverviewModel => {
   const records = status.history.records.filter((record) => record.rank.division !== "Maezumo");
   const totalDecisions = status.history.totalWins + status.history.totalLosses;
   const winRate = totalDecisions > 0 ? (status.history.totalWins / totalDecisions) * 100 : 0;
   const careerPeriodLabel =
     records.length > 0
-      ? `${formatBashoLabel(records[0].year, records[0].month)} - ${formatBashoLabel(records[records.length - 1].year, records[records.length - 1].month)}`
+      ? `${formatBashoLabel(records[0].year, records[0].month, locale)} - ${formatBashoLabel(records[records.length - 1].year, records[records.length - 1].month, locale)}`
       : "-";
 
   return {
     shikona: status.shikona,
     birthplace: status.profile.birthplace,
     stableName: resolveStableById(status.stableId)?.displayName ?? "所属部屋未詳",
-    totalRecordLabel: `${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`,
+    totalRecordLabel: formatFullRecord({
+      wins: status.history.totalWins,
+      losses: status.history.totalLosses,
+      absent: status.history.totalAbsent,
+    }, locale),
     winRateLabel: `${winRate.toFixed(1)}%`,
     careerPeriodLabel,
     lifeSummary:
-      status.careerNarrative?.turningPoints[0]?.summary ??
-      status.careerNarrative?.careerIdentity ??
-      `${status.profile.birthplace}から角界へ入り、${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`,
+      locale === "en"
+        ? `A full career record reaching ${formatHighestRankDisplayName(status.history.maxRank, "en")}.`
+        : status.careerNarrative?.turningPoints[0]?.summary ??
+          status.careerNarrative?.careerIdentity ??
+          `${status.profile.birthplace}から角界へ入り、${formatHighestRankDisplayName(status.history.maxRank)}まで届いた。`,
     bodyType: status.bodyType,
   };
 };
