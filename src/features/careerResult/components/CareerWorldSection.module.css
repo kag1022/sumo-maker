@@ -154,6 +154,370 @@
   line-height: 1.45;
 }
 
+.insightGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.visualBlock {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  min-width: 0;
+  min-height: 18rem;
+  padding: 0.95rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background:
+    linear-gradient(180deg, rgb(var(--twc-bg-panel) / 0.58), transparent),
+    repeating-linear-gradient(
+      0deg,
+      rgb(var(--twc-line) / 0.045) 0,
+      rgb(var(--twc-line) / 0.045) 1px,
+      transparent 1px,
+      transparent 2.15rem
+    ),
+    rgb(var(--twc-bg) / 0.2);
+  box-shadow: inset 3px 0 0 rgb(var(--twc-brand) / 0.22);
+}
+
+.visualBlockHead {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+  padding-bottom: 0.62rem;
+  border-bottom: 1px solid rgb(var(--twc-brand) / 0.22);
+}
+
+.visualBlockKicker {
+  color: rgb(var(--twc-brand) / 0.72);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+}
+
+.visualBlockTitle {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.96);
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.28rem, 1.7vw, 1.62rem);
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visualBlockNote {
+  margin: 0;
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.powerMountain {
+  display: grid;
+  gap: 0.68rem;
+}
+
+.powerRow {
+  display: grid;
+  grid-template-columns: minmax(5.4rem, 0.34fr) minmax(0, 1fr) minmax(4.6rem, auto);
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.powerLabel {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.powerLabel span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.42);
+  background: rgb(var(--twc-bg-panel) / 0.72);
+  color: rgb(var(--twc-brand) / 0.92);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.powerLabel em,
+.powerValue {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.76);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.powerTrack {
+  overflow: hidden;
+  height: 1.05rem;
+  border: 1px solid rgb(var(--twc-line) / 0.26);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgb(var(--twc-line) / 0.11) 0,
+      rgb(var(--twc-line) / 0.11) 1px,
+      transparent 1px,
+      transparent 10%
+    ),
+    rgb(var(--twc-bg-panel) / 0.55);
+}
+
+.powerTrack span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--twc-brand) / 0.62), rgb(var(--twc-warning) / 0.44));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+.peerHistogram {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-height: 11.5rem;
+  align-items: end;
+  padding-top: 0.5rem;
+}
+
+.peerBin {
+  display: grid;
+  justify-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.peerDots {
+  position: relative;
+  display: grid;
+  align-items: end;
+  width: 100%;
+  min-height: 7rem;
+  padding: 0 0.18rem;
+  border-bottom: 1px solid rgb(var(--twc-line) / 0.34);
+}
+
+.peerDots > span {
+  display: block;
+  min-height: 0.4rem;
+  border: 1px solid rgb(var(--twc-line) / 0.28);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgb(var(--twc-brand) / 0.58) 0,
+      rgb(var(--twc-brand) / 0.58) 4px,
+      rgb(var(--twc-brand) / 0.28) 4px,
+      rgb(var(--twc-brand) / 0.28) 8px
+    );
+}
+
+.peerDots strong {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 0.5rem);
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid rgb(var(--twc-warning) / 0.7);
+  background: rgb(var(--twc-warning) / 0.16);
+  color: rgb(var(--twc-warning));
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.1rem;
+  transform: translateX(-50%);
+}
+
+.peerBinPlayer .peerDots {
+  border-bottom-color: rgb(var(--twc-warning) / 0.62);
+}
+
+.peerBin em {
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.positionTimeline {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  padding-left: 0.55rem;
+}
+
+.positionTimeline::before {
+  content: "";
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.95rem;
+  width: 1px;
+  background: linear-gradient(180deg, rgb(var(--twc-brand) / 0.42), rgb(var(--twc-line) / 0.18));
+}
+
+.timelineEvent {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.4rem minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.timelineStamp {
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  align-self: start;
+  min-height: 2.2rem;
+  border: 1px solid rgb(var(--twc-line) / 0.32);
+  background: rgb(var(--twc-bg-panel) / 0.78);
+  color: rgb(var(--twc-brand) / 0.88);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.timelineBody {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgb(var(--twc-line) / 0.24);
+  background: rgb(var(--twc-bg-panel) / 0.42);
+  box-shadow: inset 2px 0 0 rgb(var(--twc-brand) / 0.26);
+}
+
+.timelineEvent[data-tone="peak"] .timelineBody {
+  border-color: rgb(var(--twc-warning) / 0.42);
+  background:
+    linear-gradient(90deg, rgb(var(--twc-warning) / 0.12), transparent),
+    rgb(var(--twc-bg-panel) / 0.48);
+}
+
+.timelineHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.timelineHead strong {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.94);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timelineHead em,
+.timelineRank {
+  color: rgb(var(--twc-text-bright) / 0.58);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.74rem;
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.timelineBody p {
+  margin: 0;
+  color: rgb(var(--twc-text) / 0.72);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.wallNetwork {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.38fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: stretch;
+}
+
+.wallHub {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.3rem;
+  min-height: 10rem;
+  border: 1px solid rgb(var(--twc-brand) / 0.34);
+  background:
+    radial-gradient(circle, rgb(var(--twc-brand) / 0.16), transparent 62%),
+    rgb(var(--twc-bg-panel) / 0.5);
+}
+
+.wallHub span {
+  color: rgb(var(--twc-brand) / 0.74);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+}
+
+.wallHub strong {
+  color: rgb(var(--twc-text) / 0.96);
+  font-family: "Yuji Syuku", serif;
+  font-size: clamp(1.45rem, 2vw, 1.9rem);
+  line-height: 1.1;
+}
+
+.wallNodes {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.wallNode {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.58rem 0.68rem;
+  border: 1px solid rgb(var(--twc-line) / 0.24);
+  background:
+    linear-gradient(90deg, var(--map-tone-bg), transparent 70%),
+    rgb(var(--twc-bg-panel) / 0.42);
+  box-shadow: inset 2px 0 0 var(--map-tone-line);
+}
+
+.wallNodeLabel {
+  color: var(--map-tone-line);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.74rem;
+}
+
+.wallNode strong {
+  overflow: hidden;
+  color: rgb(var(--twc-text) / 0.96);
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.18rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallNode em {
+  color: rgb(var(--twc-text-bright) / 0.62);
+  font-family: "DotGothic16", monospace;
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.wallNode p {
+  margin: 0.1rem 0 0;
+  color: rgb(var(--twc-text) / 0.72);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
 .visualOverview {
   display: grid;
   grid-template-columns: minmax(0, 0.86fr) minmax(24rem, 1.14fr);
@@ -1310,6 +1674,7 @@
   .worldHead,
   .worldHero,
   .visualOverview,
+  .insightGrid,
   .overviewLegendRow {
     grid-template-columns: 1fr;
   }
@@ -1390,6 +1755,43 @@
 
   .relationMap {
     padding: 0.72rem;
+  }
+
+  .visualBlock {
+    min-height: 0;
+    padding: 0.82rem;
+  }
+
+  .powerRow,
+  .timelineEvent,
+  .wallNetwork {
+    grid-template-columns: 1fr;
+  }
+
+  .powerValue {
+    justify-self: start;
+  }
+
+  .peerHistogram {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 0.85rem;
+  }
+
+  .peerDots {
+    min-height: 5.6rem;
+  }
+
+  .positionTimeline {
+    padding-left: 0;
+  }
+
+  .positionTimeline::before {
+    left: 0.4rem;
+  }
+
+  .timelineStamp {
+    justify-self: start;
+    min-width: 4.4rem;
   }
 
   .hierarchyDiagram::before {

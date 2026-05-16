@@ -1,10 +1,13 @@
 import React from "react";
 import type { RikishiStatus } from "../../../logic/models";
+import { formatBashoLabel } from "../../../logic/bashoLabels";
 import { listCareerPlayerBoutsByBasho } from "../../../logic/persistence/careerHistory";
+import type { BashoRecordRow } from "../../../logic/persistence/db";
 import type {
   CareerBashoRecordsBySeq,
   CareerPlayerBoutsByBasho,
 } from "../../../logic/persistence/shared";
+import { formatRankDisplayName, getRankValueForChart } from "../../../logic/ranking";
 import {
   buildCareerWorldSummary,
   buildCareerWorldNarrative,
@@ -100,6 +103,50 @@ interface HierarchyTier {
   note: string;
   positionBadge?: RelativePosition;
   items: HierarchyItem[];
+}
+
+type EraPowerKey = "yokozuna" | "ozeki" | "sanyaku" | "makuuchiTop" | "juryoWall";
+
+interface EraPowerItem {
+  key: EraPowerKey;
+  label: string;
+  shortLabel: string;
+  count: number;
+  average: number;
+  note: string;
+}
+
+interface PeerDistributionBin {
+  key: RankTierKey;
+  label: string;
+  count: number;
+  isPlayerTier: boolean;
+}
+
+interface PeerDistributionModel {
+  bins: PeerDistributionBin[];
+  playerTier: RankTierMeta;
+  total: number;
+  rankText: string;
+}
+
+interface CareerTimelineEvent {
+  key: string;
+  label: string;
+  bashoLabel: string;
+  ageLabel: string;
+  rankLabel: string;
+  context: string;
+  tone: "entry" | "promotion" | "peak" | "exit";
+}
+
+interface WallNetworkNode {
+  key: string;
+  label: string;
+  name: string;
+  meta: string;
+  note: string;
+  tone: RelationNodeTone;
 }
 
 interface ChapterSectionProps {
@@ -550,6 +597,145 @@ const OpponentRecordChart: React.FC<OpponentRecordChartProps> = ({ items }) => (
   </div>
 );
 
+interface EraPowerMapProps {
+  items: EraPowerItem[];
+  label: string;
+}
+
+const EraPowerMap: React.FC<EraPowerMapProps> = ({ items, label }) => {
+  const maxCount = Math.max(1, ...items.map((item) => item.count));
+
+  return (
+    <section className={`${styles.visualBlock} ${styles.eraPowerBlock}`} aria-label="時代の番付勢力図">
+      <header className={styles.visualBlockHead}>
+        <span className={styles.visualBlockKicker}>時代の番付勢力図</span>
+        <strong className={styles.visualBlockTitle}>{label}</strong>
+      </header>
+      <div className={styles.powerMountain}>
+        {items.map((item) => {
+          const width = item.count > 0 ? `${Math.max(10, (item.count / maxCount) * 100)}%` : "0%";
+          return (
+            <div key={item.key} className={styles.powerRow} data-tier={item.key}>
+              <div className={styles.powerLabel}>
+                <span>{item.shortLabel}</span>
+                <em>{item.label}</em>
+              </div>
+              <div className={styles.powerTrack} aria-label={`${item.label} ${item.note}`}>
+                <span style={{ width }} />
+              </div>
+              <strong className={styles.powerValue}>{item.note}</strong>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+interface PeerDistributionProps {
+  model: PeerDistributionModel;
+}
+
+const PeerDistribution: React.FC<PeerDistributionProps> = ({ model }) => {
+  const maxCount = Math.max(1, ...model.bins.map((bin) => bin.count));
+
+  return (
+    <section className={styles.visualBlock} aria-label="同期最高位分布">
+      <header className={styles.visualBlockHead}>
+        <span className={styles.visualBlockKicker}>同期最高位分布</span>
+        <strong className={styles.visualBlockTitle}>{model.rankText}</strong>
+      </header>
+      <div className={styles.peerHistogram}>
+        {model.bins.map((bin) => {
+          const height = bin.count > 0 ? `${Math.max(18, (bin.count / maxCount) * 100)}%` : "8%";
+          const chipClass = rankTierClassMap[bin.key] ?? styles.tierUnknown;
+          return (
+            <div
+              key={bin.key}
+              className={`${styles.peerBin} ${bin.isPlayerTier ? styles.peerBinPlayer : ""}`}
+            >
+              <div className={styles.peerDots} aria-label={`${bin.label} ${bin.count}人`}>
+                <span style={{ height }} />
+                {bin.isPlayerTier ? <strong aria-label="本人の最高位">◎</strong> : null}
+              </div>
+              <span className={`${styles.tierChip} ${chipClass}`}>{rankTierSymbol(bin.key)}</span>
+              <em>{bin.count}人</em>
+            </div>
+          );
+        })}
+      </div>
+      <p className={styles.visualBlockNote}>
+        ◎は本人の最高到達点。同期の中でどの高さまで届いたかを見る。
+      </p>
+    </section>
+  );
+};
+
+interface CareerPositionTimelineProps {
+  events: CareerTimelineEvent[];
+}
+
+const CareerPositionTimeline: React.FC<CareerPositionTimelineProps> = ({ events }) => (
+  <section className={styles.visualBlock} aria-label="キャリア位置タイムライン">
+    <header className={styles.visualBlockHead}>
+      <span className={styles.visualBlockKicker}>キャリア位置タイムライン</span>
+      <strong className={styles.visualBlockTitle}>節目だけで読む一代</strong>
+    </header>
+    <div className={styles.positionTimeline}>
+      {events.map((event) => (
+        <article key={event.key} className={styles.timelineEvent} data-tone={event.tone}>
+          <span className={styles.timelineStamp}>{event.ageLabel}</span>
+          <div className={styles.timelineBody}>
+            <div className={styles.timelineHead}>
+              <strong>{event.label}</strong>
+              <em>{event.bashoLabel}</em>
+            </div>
+            <span className={styles.timelineRank}>{event.rankLabel}</span>
+            <p>{event.context}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+);
+
+interface WallNetworkProps {
+  shikona: string;
+  nodes: WallNetworkNode[];
+}
+
+const WallNetwork: React.FC<WallNetworkProps> = ({ shikona, nodes }) => (
+  <section className={styles.visualBlock} aria-label="宿敵・壁ネットワーク">
+    <header className={styles.visualBlockHead}>
+      <span className={styles.visualBlockKicker}>宿敵・壁ネットワーク</span>
+      <strong className={styles.visualBlockTitle}>関係の意味だけを見る</strong>
+    </header>
+    <div className={styles.wallNetwork}>
+      <div className={styles.wallHub}>
+        <span>本人</span>
+        <strong>{shikona}</strong>
+      </div>
+      <div className={styles.wallNodes}>
+        {nodes.length === 0 ? (
+          <div className={styles.compactEmpty}>関係性として強く残る相手はまだ少ない。</div>
+        ) : (
+          nodes.map((node) => (
+            <article
+              key={node.key}
+              className={`${styles.wallNode} ${resolveMapToneClass(node.tone)}`}
+            >
+              <span className={styles.wallNodeLabel}>{node.label}</span>
+              <strong>{node.name}</strong>
+              <em>{node.meta}</em>
+              <p>{node.note}</p>
+            </article>
+          ))
+        )}
+      </div>
+    </div>
+  </section>
+);
+
 const formatRecordLabel = (n: NotableNpcSummary): string =>
   n.meetings > 0 ? `${n.meetings}戦${n.playerWins}勝${n.npcWins}敗` : "対戦記録なし";
 
@@ -574,6 +760,300 @@ const toNpcRecord = (n: NotableNpcSummary): RelationNodeRecord | undefined =>
   n.meetings > 0
     ? { wins: n.playerWins, losses: n.npcWins, meetings: n.meetings }
     : undefined;
+
+const isMakuuchiTopRank = (row: BashoRecordRow): boolean =>
+  row.division === "Makuuchi" && row.rankName === "前頭" && (row.rankNumber ?? 99) <= 8;
+
+const resolvePowerKey = (row: BashoRecordRow): EraPowerKey | null => {
+  if (row.rankName === "横綱") return "yokozuna";
+  if (row.rankName === "大関") return "ozeki";
+  if (row.rankName === "関脇" || row.rankName === "小結") return "sanyaku";
+  if (isMakuuchiTopRank(row)) return "makuuchiTop";
+  if (row.division === "Juryo") return "juryoWall";
+  return null;
+};
+
+const ERA_POWER_DEFS: Array<Pick<EraPowerItem, "key" | "label" | "shortLabel">> = [
+  { key: "yokozuna", label: "横綱", shortLabel: "横" },
+  { key: "ozeki", label: "大関", shortLabel: "大" },
+  { key: "sanyaku", label: "三役", shortLabel: "役" },
+  { key: "makuuchiTop", label: "幕内上位", shortLabel: "前" },
+  { key: "juryoWall", label: "十両壁", shortLabel: "両" },
+];
+
+const buildEraPowerItems = (bashoRows: CareerBashoRecordsBySeq[]): EraPowerItem[] => {
+  const counts = new Map<EraPowerKey, number>();
+  for (const row of bashoRows.flatMap((basho) => basho.rows)) {
+    if (row.entityType !== "NPC") continue;
+    const key = resolvePowerKey(row);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const bashoCount = Math.max(1, bashoRows.length);
+  return ERA_POWER_DEFS.map((definition) => {
+    const count = counts.get(definition.key) ?? 0;
+    const average = Math.round((count / bashoCount) * 10) / 10;
+    return {
+      ...definition,
+      count,
+      average,
+      note: average > 0 ? `平均${average}人` : "記録少",
+    };
+  });
+};
+
+const resolveEraPowerLabel = (
+  summary: CareerWorldSummary,
+  items: EraPowerItem[],
+): string => {
+  const yokozunaAvg = items.find((item) => item.key === "yokozuna")?.average ?? 0;
+  const ozekiAvg = items.find((item) => item.key === "ozeki")?.average ?? 0;
+  const sanyakuAvg = items.find((item) => item.key === "sanyaku")?.average ?? 0;
+  const activeTop = summary.eraStars.length;
+  if (yokozunaAvg + ozekiAvg >= 2.4 && activeTop <= 4) return "上位固定期";
+  if (activeTop >= 6 || sanyakuAvg >= 3.5) return "混戦期";
+  if (summary.generationPeers.length + summary.promotionRaceOpponents.length >= 8) return "世代交代期";
+  return "標準的な番付環境";
+};
+
+const uniqueNotables = (items: NotableNpcSummary[]): NotableNpcSummary[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};
+
+const buildPeerDistribution = (
+  summary: CareerWorldSummary,
+  highestRankLabel: string,
+): PeerDistributionModel => {
+  const peers = uniqueNotables([
+    ...summary.generationPeers,
+    ...summary.promotionRaceOpponents,
+    ...summary.rivals.filter((rival) => rival.rivalryKinds.includes("sameGeneration")),
+  ]);
+  const playerTier = resolveRankTier(highestRankLabel);
+  const counts = new Map<RankTierKey, number>();
+  for (const peer of peers) {
+    const tier = resolveRankTier(peer.peakRankLabel);
+    if (tier.key === "unknown") continue;
+    counts.set(tier.key, (counts.get(tier.key) ?? 0) + 1);
+  }
+  const higherCount = peers.filter((peer) => resolveRankTier(peer.peakRankLabel).level > playerTier.level).length;
+  const total = peers.length + 1;
+  const rankText =
+    total > 1
+      ? `同期${total}人中 上から${higherCount + 1}番目`
+      : "同期記録は限定的";
+  const tierOrder: RankTierKey[] = [
+    "yokozuna",
+    "ozeki",
+    "sanyaku",
+    "maegashira",
+    "juryo",
+    "makushita",
+    "lower",
+  ];
+  return {
+    playerTier,
+    total,
+    rankText,
+    bins: tierOrder.map((key) => ({
+      key,
+      label: rankTierLabel(key),
+      count: counts.get(key) ?? 0,
+      isPlayerTier: key === playerTier.key,
+    })),
+  };
+};
+
+const rankTierLabel = (key: RankTierKey): string => {
+  switch (key) {
+    case "yokozuna":
+      return "横綱";
+    case "ozeki":
+      return "大関";
+    case "sanyaku":
+      return "三役";
+    case "maegashira":
+      return "前頭";
+    case "juryo":
+      return "十両";
+    case "makushita":
+      return "幕下";
+    case "lower":
+      return "下位";
+    case "unknown":
+    default:
+      return "不明";
+  }
+};
+
+const rankTierSymbol = (key: RankTierKey): string => {
+  switch (key) {
+    case "yokozuna":
+      return "横";
+    case "ozeki":
+      return "大";
+    case "sanyaku":
+      return "役";
+    case "maegashira":
+      return "前";
+    case "juryo":
+      return "両";
+    case "makushita":
+      return "幕";
+    case "lower":
+      return "下";
+    case "unknown":
+    default:
+      return "?";
+  }
+};
+
+const formatAgeAtBasho = (status: RikishiStatus, bashoIndex: number): string =>
+  `${status.entryAge + Math.floor(Math.max(0, bashoIndex) / 6)}歳`;
+
+const buildTimelineEvent = (
+  key: string,
+  label: string,
+  record: RikishiStatus["history"]["records"][number],
+  index: number,
+  status: RikishiStatus,
+  context: string,
+  tone: CareerTimelineEvent["tone"],
+): CareerTimelineEvent => ({
+  key,
+  label,
+  bashoLabel: formatBashoLabel(record.year, record.month),
+  ageLabel: formatAgeAtBasho(status, index),
+  rankLabel: formatRankDisplayName(record.rank),
+  context,
+  tone,
+});
+
+const buildCareerTimelineEvents = (
+  status: RikishiStatus,
+  peerDistribution: PeerDistributionModel,
+): CareerTimelineEvent[] => {
+  const records = status.history.records.filter((record) => record.rank.division !== "Maezumo");
+  if (records.length === 0) return [];
+  const events: CareerTimelineEvent[] = [];
+  const first = records[0];
+  events.push(buildTimelineEvent("entry", "入門", first, 0, status, "この一代の観測が始まる。", "entry"));
+
+  const firstJuryoIndex = records.findIndex((record) =>
+    record.rank.division === "Juryo" || record.rank.division === "Makuuchi",
+  );
+  if (firstJuryoIndex >= 0) {
+    events.push(
+      buildTimelineEvent(
+        "juryo",
+        "十両到達",
+        records[firstJuryoIndex],
+        firstJuryoIndex,
+        status,
+        peerDistribution.rankText,
+        "promotion",
+      ),
+    );
+  }
+
+  const firstMakuuchiIndex = records.findIndex((record) => record.rank.division === "Makuuchi");
+  if (firstMakuuchiIndex >= 0) {
+    events.push(
+      buildTimelineEvent(
+        "makuuchi",
+        "幕内到達",
+        records[firstMakuuchiIndex],
+        firstMakuuchiIndex,
+        status,
+        "番付の上位環境に直接触れた節目。",
+        "promotion",
+      ),
+    );
+  }
+
+  const highestIndex = records.reduce((bestIndex, record, index) => {
+    const best = records[bestIndex];
+    return getRankValueForChart(record.rank) < getRankValueForChart(best.rank) ? index : bestIndex;
+  }, 0);
+  events.push(
+    buildTimelineEvent(
+      "peak",
+      "最高位",
+      records[highestIndex],
+      highestIndex,
+      status,
+      peerDistribution.rankText,
+      "peak",
+    ),
+  );
+
+  const lastIndex = records.length - 1;
+  events.push(
+    buildTimelineEvent(
+      "last",
+      "終幕",
+      records[lastIndex],
+      lastIndex,
+      status,
+      "最後に残った番付と記録。",
+      "exit",
+    ),
+  );
+
+  return events.filter((event, index, array) =>
+    array.findIndex((candidate) => candidate.key === event.key || candidate.bashoLabel === event.bashoLabel && candidate.label === event.label) === index,
+  );
+};
+
+const buildWallNetworkNodes = (summary: CareerWorldSummary): WallNetworkNode[] => {
+  const byMeetings = summary.rivals.slice().sort((a, b) => b.meetings - a.meetings)[0];
+  const nemesis = summary.rivals
+    .filter((rival) => rival.npcWins > rival.playerWins)
+    .slice()
+    .sort((a, b) => (b.npcWins - b.playerWins) - (a.npcWins - a.playerWins))[0];
+  const favorite = summary.rivals
+    .filter((rival) => rival.playerWins > rival.npcWins)
+    .slice()
+    .sort((a, b) => (b.playerWins - b.npcWins) - (a.playerWins - a.npcWins))[0];
+
+  const nodes: WallNetworkNode[] = [];
+  if (byMeetings) {
+    nodes.push({
+      key: "most",
+      label: "最多対戦",
+      name: byMeetings.shikona,
+      meta: formatRecordLabel(byMeetings),
+      note: "土俵で最も接点が多かった相手。",
+      tone: "rival",
+    });
+  }
+  if (nemesis && nemesis.id !== byMeetings?.id) {
+    nodes.push({
+      key: "wall",
+      label: "壁",
+      name: nemesis.shikona,
+      meta: formatRecordLabel(nemesis),
+      note: "黒星が先行し、キャリアの壁として残った相手。",
+      tone: "strong",
+    });
+  }
+  if (favorite && favorite.id !== byMeetings?.id && favorite.id !== nemesis?.id) {
+    nodes.push({
+      key: "favorite",
+      label: "得意",
+      name: favorite.shikona,
+      meta: formatRecordLabel(favorite),
+      note: "白星が先行し、上昇を支えた相手。",
+      tone: "peer",
+    });
+  }
+  return nodes;
+};
 
 const buildRelationMapNodes = (summary: CareerWorldSummary): RelationMapNode[] => {
   const nodes: Array<Omit<RelationMapNode, "slot">> = [];
@@ -836,6 +1316,11 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
   const strongOpponentItems = summary.strongestOpponents.slice(0, SECONDARY_PREVIEW_LIMIT).map(toOpponentItem);
   const relationMapNodes = buildRelationMapNodes(summary);
   const hierarchyTiers = buildWorldHierarchyTiers(status.shikona, position, summary);
+  const eraPowerItems = buildEraPowerItems(bashoRows);
+  const eraPowerLabel = resolveEraPowerLabel(summary, eraPowerItems);
+  const peerDistribution = buildPeerDistribution(summary, position.highestRankLabel);
+  const timelineEvents = buildCareerTimelineEvents(status, peerDistribution);
+  const wallNetworkNodes = buildWallNetworkNodes(summary);
   const relationScaleItems: RelationScaleItem[] = [
     {
       key: "rivals",
@@ -900,44 +1385,13 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
 
         <ChapterSection
           title="関係の全体像"
-          lead="本人を中心に、相手との距離感と関係の量を先に見る。"
+          lead="時代の厚み、同期の到達点、節目、壁を先に見る。"
         >
-          <div className={styles.overviewLegendRow}>
-            <div className={styles.tierLegend} aria-label="段位チップ凡例">
-              {[
-                ["横", "横綱"],
-                ["大", "大関"],
-                ["役", "三役"],
-                ["前", "前頭"],
-                ["両", "十両"],
-                ["幕", "幕下"],
-                ["下", "下位"],
-              ].map(([symbol, label]) => (
-                <span key={symbol} className={styles.tierLegendItem}>
-                  <span className={styles.tierLegendChip}>{symbol}</span>
-                  <span>{label}</span>
-                </span>
-              ))}
-            </div>
-            <div className={styles.compareLegend} aria-label="比較バッジの意味">
-              <span>比較バッジ</span>
-              <strong>上位多め</strong>
-              <strong>同格中心</strong>
-              <strong>下位多め</strong>
-              <strong>上下混在</strong>
-            </div>
-          </div>
-          <WorldHierarchy tiers={hierarchyTiers} />
-          <div className={styles.visualOverview}>
-            <OpponentRecordChart items={opponentRecordItems} />
-            <div className={styles.desktopRelationBoard}>
-              <RelationMap
-                shikona={status.shikona}
-                positionLabel={position.highestRankLabel}
-                playerTier={resolveRankTier(position.highestRankLabel)}
-                nodes={relationMapNodes}
-              />
-            </div>
+          <div className={styles.insightGrid}>
+            <EraPowerMap items={eraPowerItems} label={eraPowerLabel} />
+            <PeerDistribution model={peerDistribution} />
+            <CareerPositionTimeline events={timelineEvents} />
+            <WallNetwork shikona={status.shikona} nodes={wallNetworkNodes} />
           </div>
         </ChapterSection>
 
@@ -970,11 +1424,44 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
         </ChapterSection>
 
         <div className={styles.detailStack} aria-label="関係性の詳細記録">
-          <details className={styles.mobileRelationDetails}>
+          <DetailChapterSection
+            title="番付階層の補助図"
+            lead="初期表示の勢力図を、相手名つきの階層で確認する。"
+            summary={`${hierarchyTiers.reduce((sum, tier) => sum + tier.items.length, 0)}件`}
+          >
+            <div className={styles.overviewLegendRow}>
+              <div className={styles.tierLegend} aria-label="段位チップ凡例">
+                {[
+                  ["横", "横綱"],
+                  ["大", "大関"],
+                  ["役", "三役"],
+                  ["前", "前頭"],
+                  ["両", "十両"],
+                  ["幕", "幕下"],
+                  ["下", "下位"],
+                ].map(([symbol, label]) => (
+                  <span key={symbol} className={styles.tierLegendItem}>
+                    <span className={styles.tierLegendChip}>{symbol}</span>
+                    <span>{label}</span>
+                  </span>
+                ))}
+              </div>
+              <div className={styles.compareLegend} aria-label="比較バッジの意味">
+                <span>比較バッジ</span>
+                <strong>上位多め</strong>
+                <strong>同格中心</strong>
+                <strong>下位多め</strong>
+                <strong>上下混在</strong>
+              </div>
+            </div>
+            <WorldHierarchy tiers={hierarchyTiers} />
+          </DetailChapterSection>
+
+          <details className={styles.detailChapter}>
             <summary className={styles.detailSummary}>
               <span className={styles.detailSummaryText}>
                 <span className={styles.detailTitle}>星取相関盤</span>
-                <span className={styles.detailLead}>主な相手との関係を星取表風に見る。</span>
+                <span className={styles.detailLead}>必要なときだけ、主な相手との星取を確認する。</span>
               </span>
               <span className={styles.detailMeta}>
                 <span className={styles.detailCount}>{relationMapNodes.length}人</span>
@@ -1023,6 +1510,7 @@ export const CareerWorldSection: React.FC<CareerWorldSectionProps> = ({
             lead="対戦成績バーの内訳を、相手別に詳しく読む。"
             summary={opponentSummary}
           >
+            <OpponentRecordChart items={opponentRecordItems} />
             <div className={styles.relationGrid}>
               <RelationGroup
                 title="よく当たった相手"
