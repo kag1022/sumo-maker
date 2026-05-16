@@ -29,11 +29,6 @@ const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   MUSCULAR: "筋骨型",
 };
 
-const SHORT_ID = (raw: string): string => {
-  const cleaned = (raw || "未詳").replace(/\s+/g, "");
-  return cleaned.slice(0, 8).padEnd(4, "・");
-};
-
 const computeGaugeFill = (winRate: string): number => {
   const match = winRate.match(/([\d.]+)%/);
   if (!match) return 0.5;
@@ -50,41 +45,13 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
   coverSummaryLine,
   coverReadingLine,
   profileRows,
-  subjectId,
-  isSaved,
-  detailReady,
 }) => {
-  const idCode = SHORT_ID(subjectId);
   const winRateFill = computeGaugeFill(overview.winRateLabel);
   const observationCount = observationPointsAwarded ?? 0;
   const observationFill = Math.min(1, observationCount / 100);
 
   return (
     <BracketFrame variant="subject" padding="zero" bodyClassName={styles.card}>
-      <div className={styles.statusBar}>
-        <div className={styles.statusLeft}>
-          <span className={styles.statusGroup}>
-            <SignalLed state={detailReady ? "active" : "info"} pulse={!detailReady} size="sm" />
-            <strong>{detailReady ? "詳細準備完了" : "詳細整理中"}</strong>
-          </span>
-          <span className={styles.statusDivider}>／</span>
-          <span className={styles.statusGroup}>
-            <em>記録番号 {idCode}</em>
-          </span>
-        </div>
-        <div className={styles.statusRight}>
-          <span className={styles.statusGroup}>
-            <em>状態</em>
-            <span className={styles.statusDivider}>:</span>
-            <em>{isSaved ? "保存済み" : "未保存"}</em>
-          </span>
-          <span className={styles.statusDivider}>／</span>
-          <span className={styles.statusGroup}>
-            <em>{overview.careerPeriodLabel}</em>
-          </span>
-        </div>
-      </div>
-
       <div className={styles.top}>
         <div className={styles.portraitCol}>
           <div className={styles.colLabel}>
