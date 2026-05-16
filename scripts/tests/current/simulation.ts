@@ -24,6 +24,11 @@ import {
 } from '../../../src/logic/simulation/engine';
 import { createSekitoriBoundaryWorld, runSekitoriQuotaStep } from '../../../src/logic/simulation/sekitoriQuota';
 import { applyNpcFusenBout, createDailyMatchups, createFacedMap, simulateNpcBout } from '../../../src/logic/simulation/matchmaking';
+import {
+  createLowerDivisionBoutDayMap,
+  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
+} from '../../../src/logic/simulation/torikumi/policy';
+import { scheduleTorikumiBasho } from '../../../src/logic/simulation/torikumi/scheduler';
 import { createLowerDivisionQuotaWorld, runLowerDivisionQuotaStep } from '../../../src/logic/simulation/lowerQuota';
 import {
   advanceTopDivisionBanzuke,
@@ -1905,6 +1910,154 @@ export const tests: TestCase[] = [
     },
   },
   {
+    name: 'torikumi: makuuchi opening template pairs top ranks with correct joi lanes',
+    run: () => {
+      const west = <T extends ReturnType<typeof createTorikumiParticipant>>(participant: T): T => ({
+        ...participant,
+        rankScore: (participant.rankNumber ?? 1) * 2,
+        rankSide: 'West',
+      });
+      const east = <T extends ReturnType<typeof createTorikumiParticipant>>(participant: T): T => ({
+        ...participant,
+        rankSide: 'East',
+      });
+      const participants = [
+        east(createTorikumiParticipant('Y_E', 'Makuuchi', '横綱', 1, 'stable-y-e')),
+        west(createTorikumiParticipant('Y_W', 'Makuuchi', '横綱', 1, 'stable-y-w')),
+        east(createTorikumiParticipant('O_E', 'Makuuchi', '大関', 1, 'stable-o-e')),
+        west(createTorikumiParticipant('O_W', 'Makuuchi', '大関', 1, 'stable-o-w')),
+        east(createTorikumiParticipant('S_E', 'Makuuchi', '関脇', 1, 'stable-s-e')),
+        west(createTorikumiParticipant('S_W', 'Makuuchi', '関脇', 1, 'stable-s-w')),
+        east(createTorikumiParticipant('K_E', 'Makuuchi', '小結', 1, 'stable-k-e')),
+        west(createTorikumiParticipant('K_W', 'Makuuchi', '小結', 1, 'stable-k-w')),
+        east(createTorikumiParticipant('M1_E', 'Makuuchi', '前頭', 1, 'stable-m1-e')),
+        west(createTorikumiParticipant('M1_W', 'Makuuchi', '前頭', 1, 'stable-m1-w')),
+        east(createTorikumiParticipant('M2_E', 'Makuuchi', '前頭', 2, 'stable-m2-e')),
+        west(createTorikumiParticipant('M2_W', 'Makuuchi', '前頭', 2, 'stable-m2-w')),
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [1],
+        boundaryBands: [],
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const pairKeys = new Set(
+        result.days[0].pairs.map((pair) => [pair.a.id, pair.b.id].sort().join(':')),
+      );
+
+      assert.ok(pairKeys.has('K_W:Y_E'), 'Expected east yokozuna vs west komusubi on day 1');
+      assert.ok(pairKeys.has('K_E:Y_W'), 'Expected west yokozuna vs east komusubi on day 1');
+      assert.ok(pairKeys.has('M1_W:O_E'), 'Expected east ozeki vs west maegashira 1 on day 1');
+      assert.ok(pairKeys.has('M1_E:O_W'), 'Expected west ozeki vs east maegashira 1 on day 1');
+      assert.ok(pairKeys.has('M2_W:S_E'), 'Expected east sekiwake vs west maegashira 2 on day 1');
+      assert.ok(pairKeys.has('M2_E:S_W'), 'Expected west sekiwake vs east maegashira 2 on day 1');
+    },
+  },
+  {
+    name: 'torikumi: makuuchi-juryo boundary pool schedules late exchange candidates',
+    run: () => {
+      const participants = [
+        {
+          ...createTorikumiParticipant('M16E', 'Makuuchi', '前頭', 16, 'stable-m16'),
+          wins: 6,
+          losses: 7,
+          boutsDone: 13,
+        },
+        {
+          ...createTorikumiParticipant('J1E', 'Juryo', '十両', 1, 'stable-j1'),
+          wins: 10,
+          losses: 3,
+          boutsDone: 13,
+        },
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [13],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const boundaryPair = result.days[0].pairs.find((pair) => pair.boundaryId === 'MakuuchiJuryo');
+
+      assert.ok(Boolean(boundaryPair), 'Expected a late makuuchi-juryo boundary bout');
+      assert.equal(boundaryPair?.crossDivision, true);
+      assert.equal(boundaryPair?.matchReason, 'BOUNDARY_CROSSOVER');
+    },
+  },
+  {
+    name: 'torikumi: juryo guests are reserved for makushita exchange bouts',
+    run: () => {
+      const participants = [
+        {
+          ...createTorikumiParticipant('J12G', 'Juryo', '十両', 12, 'stable-j12'),
+          targetBouts: 1,
+          wins: 5,
+          losses: 8,
+        },
+        {
+          ...createTorikumiParticipant('J13G', 'Juryo', '十両', 13, 'stable-j13'),
+          targetBouts: 1,
+          wins: 5,
+          losses: 8,
+        },
+        {
+          ...createTorikumiParticipant('J14G', 'Juryo', '十両', 14, 'stable-j14'),
+          targetBouts: 1,
+          wins: 4,
+          losses: 9,
+        },
+        {
+          ...createTorikumiParticipant('MS1', 'Makushita', '幕下', 1, 'stable-ms1'),
+          wins: 6,
+          losses: 0,
+          boutsDone: 6,
+        },
+        {
+          ...createTorikumiParticipant('MS2', 'Makushita', '幕下', 2, 'stable-ms2'),
+          wins: 5,
+          losses: 1,
+          boutsDone: 6,
+        },
+        {
+          ...createTorikumiParticipant('MS3', 'Makushita', '幕下', 3, 'stable-ms3'),
+          wins: 5,
+          losses: 1,
+          boutsDone: 6,
+        },
+      ];
+      const result = scheduleTorikumiBasho({
+        participants,
+        days: [13],
+        boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
+        facedMap: createFacedMap(participants),
+        dayEligibility: () => true,
+      });
+      const guestOnlyPairs = result.days[0].pairs.filter((pair) =>
+        pair.a.division === 'Juryo' && pair.b.division === 'Juryo');
+      const exchangePairs = result.days[0].pairs.filter((pair) =>
+        pair.boundaryId === 'JuryoMakushita');
+
+      assert.equal(guestOnlyPairs.length, 0);
+      assert.ok(exchangePairs.length > 0, 'Expected juryo guests to be used for makushita exchange bouts');
+    },
+  },
+  {
+    name: 'torikumi: lower division first-bout schedule follows odd-even rank template',
+    run: () => {
+      const participants = [
+        createTorikumiParticipant('MS1', 'Makushita', '幕下', 1, 'stable-ms1'),
+        createTorikumiParticipant('MS2', 'Makushita', '幕下', 2, 'stable-ms2'),
+      ];
+      const dayMap = createLowerDivisionBoutDayMap(participants, () => 0.5);
+
+      assert.equal(dayMap.get('MS1')?.has(1), true);
+      assert.equal(dayMap.get('MS1')?.has(2), false);
+      assert.equal(dayMap.get('MS2')?.has(1), false);
+      assert.equal(dayMap.get('MS2')?.has(2), true);
+    },
+  },
+  {
     name: 'simulation: maegashira kinboshi can be recorded with sansho',
     run: () => {
       const world = createSimulationWorld(() => 0.5);
@@ -2423,7 +2576,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'matchmaking: staged fallback resolves strict byes with same-stable final stage',
+    name: 'matchmaking: same-stable and rematch constraints stay hard when no legal pair exists',
     run: () => {
       const participants = Array.from({ length: 4 }, (_, i) => ({
         id: `X${i + 1}`,
@@ -2439,8 +2592,8 @@ export const tests: TestCase[] = [
       const faced = createFacedMap(participants);
       const result = createDailyMatchups(participants, faced, () => 0.5, 1, 15);
 
-      assert.equal(result.pairs.length, 2);
-      assert.equal(result.byeIds.length, 0);
+      assert.equal(result.pairs.length, 0);
+      assert.equal(result.byeIds.length, 4);
     },
   },
   {

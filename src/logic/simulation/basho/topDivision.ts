@@ -35,6 +35,7 @@ import {
 } from '../world';
 import { scheduleTorikumiBasho } from '../torikumi/scheduler';
 import { TorikumiParticipant } from '../torikumi/types';
+import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from '../torikumi/policy';
 import { resolvePerformanceMetrics } from './shared';
 import {
   createBoutOrdinalContext,
@@ -79,6 +80,19 @@ const toDivisionParticipants = (
     kyujoStartDay: participant.kyujoStartDay,
     kyujoReason: participant.kyujoReason,
   }));
+
+const resolvePlayerSekitoriBoundaryImplication = (
+  pair: { a: TorikumiParticipant; b: TorikumiParticipant; boundaryId?: string; boundaryImplication?: BoutContext['boundaryImplication'] },
+  playerId: string,
+): BoutContext['boundaryImplication'] => {
+  const self = pair.a.id === playerId ? pair.a : pair.b.id === playerId ? pair.b : null;
+  const opponent = self ? (self.id === pair.a.id ? pair.b : pair.a) : null;
+  if (!self || !opponent) return pair.boundaryImplication ?? 'NONE';
+  if (pair.boundaryId === 'MakuuchiJuryo') {
+    return self.division === 'Juryo' ? 'PROMOTION' : 'DEMOTION';
+  }
+  return pair.boundaryImplication ?? 'NONE';
+};
 
 export const runTopDivisionBasho = (
   status: RikishiStatus,
@@ -169,7 +183,7 @@ export const runTopDivisionBasho = (
   const torikumiResult = scheduleTorikumiBasho({
     participants,
     days: Array.from({ length: 15 }, (_, index) => index + 1),
-    boundaryBands: [],
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'MakuuchiJuryo'),
     simulationModelVersion,
     rng,
     facedMap: createFacedMap(participants),
@@ -444,6 +458,7 @@ export const runTopDivisionBasho = (
         totalBouts: formatPolicy.totalBouts,
       });
       const isLastDay = ordinal.isFinalBout;
+      const boundaryImplication = resolvePlayerSekitoriBoundaryImplication(pair, player.id);
       const isYushoContention =
         pair.titleImplication === 'DIRECT' ||
         pair.titleImplication === 'CHASE' ||
@@ -456,7 +471,7 @@ export const runTopDivisionBasho = (
         {
           isYushoRelevant: isYushoContention,
           titleImplication: pair.titleImplication,
-          boundaryImplication: pair.boundaryImplication,
+          boundaryImplication,
         },
       );
       const boutContext: BoutContext = {
@@ -475,7 +490,7 @@ export const runTopDivisionBasho = (
         pressure,
         contentionTier: pair.contentionTier,
         titleImplication: pair.titleImplication,
-        boundaryImplication: pair.boundaryImplication,
+        boundaryImplication,
         schedulePhase: pair.phaseId,
         previousResult,
         bashoFormDelta: playerBashoFormDelta,

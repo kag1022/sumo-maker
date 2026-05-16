@@ -394,6 +394,80 @@ const isJuryoMakushitaExchangeCandidate = (
   resolveRankNumber(makushita) <= makushitaMaxRank &&
   makushita.wins >= 4;
 
+const isSingleBoutJuryoGuest = (participant: TorikumiParticipant): boolean =>
+  participant.division === 'Juryo' && participant.targetBouts <= 1;
+
+const isMakuuchiJuryoExchangeCandidate = (
+  makuuchi: TorikumiParticipant,
+  juryo: TorikumiParticipant,
+): boolean => {
+  if (makuuchi.division !== 'Makuuchi' || juryo.division !== 'Juryo') return false;
+  if (makuuchi.rankName !== '前頭') return false;
+  const makuuchiNumber = resolveRankNumber(makuuchi);
+  const juryoNumber = resolveRankNumber(juryo);
+  const makuuchiAtRisk =
+    makuuchiNumber >= 14 &&
+    (makuuchi.losses >= 7 || makuuchi.bashoKyujo === true);
+  const juryoPushing =
+    juryoNumber <= 3 &&
+    (juryo.wins >= 8 || juryo.wins - juryo.losses >= 2);
+  return makuuchiAtRisk && juryoPushing;
+};
+
+const resolveTopTemplateScoreAdjustment = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+  day: number,
+): number => {
+  if (a.division !== 'Makuuchi' || b.division !== 'Makuuchi') return 0;
+  const rows = [a, b];
+  const has = (rankName: string, rankNumber?: number): boolean =>
+    rows.some((participant) =>
+      participant.rankName === rankName &&
+      (rankNumber === undefined || resolveRankNumber(participant) === rankNumber));
+  const hasMaegashira = (rankNumber: number): boolean => has('前頭', rankNumber);
+  const hasTop = (rankName: '横綱' | '大関' | '関脇' | '小結'): boolean => has(rankName);
+  const oppositeSide =
+    a.rankSide !== undefined &&
+    b.rankSide !== undefined &&
+    a.rankSide !== b.rankSide;
+  const sideBonus = oppositeSide ? -36 : 18;
+
+  if (day === 1) {
+    if (hasTop('横綱') && hasTop('小結')) return -620 + sideBonus;
+    if (hasTop('大関') && hasMaegashira(1)) return -560 + sideBonus;
+    if (hasTop('関脇') && hasMaegashira(2)) return -500 + sideBonus;
+    if (hasTop('横綱') && hasMaegashira(1)) return -320 + sideBonus;
+    if (hasTop('大関') && hasTop('小結')) return -260 + sideBonus;
+  }
+
+  if (day === 2) {
+    if (hasTop('横綱') && hasMaegashira(1)) return -560 + sideBonus;
+    if (hasTop('大関') && (hasTop('小結') || hasMaegashira(2))) return -440 + sideBonus;
+    if (hasTop('関脇') && hasMaegashira(3)) return -360 + sideBonus;
+    if (hasTop('小結') && hasMaegashira(4)) return -280 + sideBonus;
+  }
+
+  if (day >= 3 && day <= 5) {
+    if (hasTop('横綱') && (hasMaegashira(2) || hasMaegashira(3) || hasMaegashira(4))) {
+      return -300 + sideBonus;
+    }
+    if (hasTop('大関') && (hasTop('小結') || hasMaegashira(2) || hasMaegashira(3) || hasMaegashira(4))) {
+      return -260 + sideBonus;
+    }
+    if (hasTop('関脇') && (hasTop('小結') || hasMaegashira(3) || hasMaegashira(4) || hasMaegashira(5))) {
+      return -220 + sideBonus;
+    }
+  }
+
+  if (day <= 2 && a.rankName === '前頭' && b.rankName === '前頭') {
+    const sameNumber = resolveRankNumber(a) === resolveRankNumber(b);
+    return sameNumber ? -140 + sideBonus : 0;
+  }
+
+  return 0;
+};
+
 const resolveSchedulingPriority = (participant: TorikumiParticipant, day: number, repair = false): number => {
   const tier = resolveTorikumiTier(participant);
   const divisionPriority = DIVISION_PRIORITY[participant.division];
@@ -453,6 +527,7 @@ const evaluateMakuuchiPair = (
   const title = resolveTitleImplication(a, b, day);
   const obligation = obligations.get(canonicalPairKey(a.id, b.id));
   let score = rankDiff * 10 + winDiff * (phaseId === 'LATE' ? 10 : 13) + Math.abs(a.losses - b.losses) * 3;
+  score += resolveTopTemplateScoreAdjustment(a, b, day);
   if (obligation?.reason === 'SANYAKU_ROUND_ROBIN') {
     score -= phaseId === 'EARLY' ? 420 : phaseId === 'MID_A' ? 380 : 320;
   }
@@ -507,6 +582,40 @@ const evaluateMakuuchiPair = (
   };
 };
 
+const evaluateMakuuchiJuryoBoundaryPair = (
+  a: TorikumiParticipant,
+  b: TorikumiParticipant,
+  day: number,
+  bandMap: Map<BoundaryId, BoundaryBandSpec>,
+  crossDivisionById: Map<string, number>,
+): PairEval | null => {
+  if (day < DEFAULT_TORIKUMI_LATE_EVAL_START_DAY) return null;
+  const makuuchi = a.division === 'Makuuchi' ? a : b.division === 'Makuuchi' ? b : null;
+  const juryo = a.division === 'Juryo' ? a : b.division === 'Juryo' ? b : null;
+  if (!makuuchi || !juryo) return null;
+  if ((crossDivisionById.get(makuuchi.id) ?? 0) >= 1 || (crossDivisionById.get(juryo.id) ?? 0) >= 1) {
+    return null;
+  }
+  if (!isMakuuchiJuryoExchangeCandidate(makuuchi, juryo)) return null;
+  const boundary = hasBoundaryBand(bandMap, a, b);
+  if (boundary.boundaryId !== 'MakuuchiJuryo') return null;
+  const baseBonus = day === 15 ? -430 : day === 14 ? -380 : -330;
+  return {
+    score:
+      baseBonus +
+      Math.abs(makuuchi.wins - juryo.wins) * 8 +
+      Math.abs(resolveRankNumber(makuuchi) - resolveRankNumber(juryo)) * 5,
+    matchReason: 'BOUNDARY_CROSSOVER',
+    boundaryId: 'MakuuchiJuryo',
+    activationReasons: ['LATE_EVAL', 'SCORE_ALIGNMENT'],
+    crossDivision: true,
+    phaseId: resolveTopPhase(day),
+    contentionTier: 'Outside',
+    titleImplication: 'NONE',
+    boundaryImplication: 'PROMOTION',
+  };
+};
+
 const evaluateJuryoPair = (
   a: TorikumiParticipant,
   b: TorikumiParticipant,
@@ -518,6 +627,7 @@ const evaluateJuryoPair = (
 ): PairEval | null => {
   const title = resolveTitleImplication(a, b, day);
   if (a.division === 'Juryo' && b.division === 'Juryo') {
+    if (isSingleBoutJuryoGuest(a) || isSingleBoutJuryoGuest(b)) return null;
     const obligation = obligations.get(canonicalPairKey(a.id, b.id));
     const rankDiff = Math.abs(resolveRankNumber(a) - resolveRankNumber(b));
     const winDiff = Math.abs(a.wins - b.wins);
@@ -1148,6 +1258,15 @@ export const scheduleTorikumiBasho = (
         dayPairs.push(pair);
       }
     };
+
+    if (bandMap.has('MakuuchiJuryo') && day >= DEFAULT_TORIKUMI_LATE_EVAL_START_DAY) {
+      schedulePool(
+        eligible.filter((participant) =>
+          participant.division === 'Makuuchi' || participant.division === 'Juryo'),
+        (a, b) => evaluateMakuuchiJuryoBoundaryPair(a, b, day, bandMap, crossDivisionById),
+        { optimizeLocally: true },
+      );
+    }
 
     schedulePool(
       eligible.filter((participant) => participant.division === 'Makuuchi'),

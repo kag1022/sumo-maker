@@ -281,7 +281,7 @@ export const runLowerDivisionBasho = (
     const guestCandidates = topWorld.rosters.Juryo
       .slice()
       .sort((a, b) => b.rankScore - a.rankScore)
-      .slice(0, 6);
+      .slice(0, 3);
     for (const guest of guestCandidates) {
       const guestId = `JURYO_GUEST_${guest.id}`;
       const rank = decodeJuryoRankFromScore(guest.rankScore);
@@ -370,7 +370,7 @@ export const runLowerDivisionBasho = (
     rng,
     facedMap: createFacedMap(participants),
     dayEligibility: (participant, day) => {
-      if (participant.id.startsWith('JURYO_GUEST_')) return day >= 1 && day <= 15;
+      if (participant.id.startsWith('JURYO_GUEST_')) return day >= 12 && day <= 15;
       return resolveLowerDivisionEligibility(participant, day, lowerDayMap);
     },
     onPair: (pair, day) => {

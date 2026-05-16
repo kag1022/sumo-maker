@@ -1,7 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { createFacedMap } from '../../src/logic/simulation/matchmaking';
-import { DEFAULT_TORIKUMI_BOUNDARY_BANDS } from '../../src/logic/simulation/torikumi/policy';
+import {
+  createLowerDivisionBoutDayMap,
+  DEFAULT_TORIKUMI_BOUNDARY_BANDS,
+} from '../../src/logic/simulation/torikumi/policy';
 import { scheduleTorikumiBasho } from '../../src/logic/simulation/torikumi/scheduler';
 import { TorikumiParticipant } from '../../src/logic/simulation/torikumi/types';
 
@@ -14,8 +17,11 @@ type QuickSummary = {
   checks: {
     makuuchiJuryoCrossCount: number;
     juryoMakushitaCrossCount: number;
+    productionLikeJuryoGuestExchangeCount: number;
     lowerBoundaryCrossCount: number;
     lateDirectTitleBoutCount: number;
+    topOpeningTemplateHitCount: number;
+    lowerOddEvenTemplateOk: boolean;
     scheduleViolationCount: number;
   };
   signals: {
@@ -57,10 +63,8 @@ const createParticipant = (
 });
 
 const buildSekitoriSeparationScenario = (): TorikumiParticipant[] => [
-  createParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-a'),
-  createParticipant('M17W', 'Makuuchi', '前頭', 17, 'm-b'),
-  createParticipant('J1E', 'Juryo', '十両', 1, 'j-a'),
-  createParticipant('J2W', 'Juryo', '十両', 2, 'j-b'),
+  { ...createParticipant('M16E', 'Makuuchi', '前頭', 16, 'm-a'), wins: 6, losses: 7, boutsDone: 13 },
+  { ...createParticipant('J1E', 'Juryo', '十両', 1, 'j-a'), wins: 10, losses: 3, boutsDone: 13 },
 ];
 
 const buildJuryoMakushitaScenario = (): TorikumiParticipant[] => [
@@ -68,6 +72,15 @@ const buildJuryoMakushitaScenario = (): TorikumiParticipant[] => [
   { ...createParticipant('J14W', 'Juryo', '十両', 14, 'j-b'), wins: 4, losses: 9, boutsDone: 13 },
   { ...createParticipant('MS2E', 'Makushita', '幕下', 2, 'm-a'), wins: 5, losses: 1, boutsDone: 6 },
   { ...createParticipant('MS4W', 'Makushita', '幕下', 4, 'm-b'), wins: 4, losses: 2, boutsDone: 6 },
+];
+
+const buildProductionLikeJuryoGuestScenario = (): TorikumiParticipant[] => [
+  { ...createParticipant('J12G', 'Juryo', '十両', 12, 'j-12'), targetBouts: 1, wins: 5, losses: 8 },
+  { ...createParticipant('J13G', 'Juryo', '十両', 13, 'j-13'), targetBouts: 1, wins: 5, losses: 8 },
+  { ...createParticipant('J14G', 'Juryo', '十両', 14, 'j-14'), targetBouts: 1, wins: 4, losses: 9 },
+  { ...createParticipant('MS1E', 'Makushita', '幕下', 1, 'ms-1'), wins: 6, losses: 0, boutsDone: 6 },
+  { ...createParticipant('MS2W', 'Makushita', '幕下', 2, 'ms-2'), wins: 5, losses: 1, boutsDone: 6 },
+  { ...createParticipant('MS3E', 'Makushita', '幕下', 3, 'ms-3'), wins: 5, losses: 1, boutsDone: 6 },
 ];
 
 const buildLowerBoundaryScenario = (): TorikumiParticipant[] => [
@@ -83,6 +96,32 @@ const buildTitleScenario = (): TorikumiParticipant[] => [
   { ...createParticipant('M1E', 'Makuuchi', '前頭', 1, 'm-c'), wins: 10, losses: 3 },
   { ...createParticipant('M2W', 'Makuuchi', '前頭', 2, 'm-d'), wins: 9, losses: 4 },
 ];
+
+const buildTopOpeningScenario = (): TorikumiParticipant[] => {
+  const east = (participant: TorikumiParticipant): TorikumiParticipant => ({
+    ...participant,
+    rankSide: 'East',
+  });
+  const west = (participant: TorikumiParticipant): TorikumiParticipant => ({
+    ...participant,
+    rankScore: (participant.rankNumber ?? 1) * 2,
+    rankSide: 'West',
+  });
+  return [
+    east(createParticipant('Y_E', 'Makuuchi', '横綱', 1, 'y-e')),
+    west(createParticipant('Y_W', 'Makuuchi', '横綱', 1, 'y-w')),
+    east(createParticipant('O_E', 'Makuuchi', '大関', 1, 'o-e')),
+    west(createParticipant('O_W', 'Makuuchi', '大関', 1, 'o-w')),
+    east(createParticipant('S_E', 'Makuuchi', '関脇', 1, 's-e')),
+    west(createParticipant('S_W', 'Makuuchi', '関脇', 1, 's-w')),
+    east(createParticipant('K_E', 'Makuuchi', '小結', 1, 'k-e')),
+    west(createParticipant('K_W', 'Makuuchi', '小結', 1, 'k-w')),
+    east(createParticipant('M1_E', 'Makuuchi', '前頭', 1, 'm1-e')),
+    west(createParticipant('M1_W', 'Makuuchi', '前頭', 1, 'm1-w')),
+    east(createParticipant('M2_E', 'Makuuchi', '前頭', 2, 'm2-e')),
+    west(createParticipant('M2_W', 'Makuuchi', '前頭', 2, 'm2-w')),
+  ];
+};
 
 const run = (): void => {
   const sekitoriParticipants = buildSekitoriSeparationScenario();
@@ -100,6 +139,15 @@ const run = (): void => {
     days: [14],
     boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
     facedMap: createFacedMap(exchangeParticipants),
+    dayEligibility: () => true,
+  });
+
+  const guestParticipants = buildProductionLikeJuryoGuestScenario();
+  const guestResult = scheduleTorikumiBasho({
+    participants: guestParticipants,
+    days: [13],
+    boundaryBands: DEFAULT_TORIKUMI_BOUNDARY_BANDS.filter((band) => band.id === 'JuryoMakushita'),
+    facedMap: createFacedMap(guestParticipants),
     dayEligibility: () => true,
   });
 
@@ -121,23 +169,60 @@ const run = (): void => {
     dayEligibility: () => true,
   });
 
+  const topOpeningParticipants = buildTopOpeningScenario();
+  const topOpeningResult = scheduleTorikumiBasho({
+    participants: topOpeningParticipants,
+    days: [1],
+    boundaryBands: [],
+    facedMap: createFacedMap(topOpeningParticipants),
+    dayEligibility: () => true,
+  });
+
+  const lowerTemplateParticipants = [
+    createParticipant('MS1', 'Makushita', '幕下', 1, 'ms-1'),
+    createParticipant('MS2', 'Makushita', '幕下', 2, 'ms-2'),
+  ];
+  const lowerTemplateMap = createLowerDivisionBoutDayMap(lowerTemplateParticipants, () => 0.5);
+
   const makuuchiJuryoCrossCount = sekitoriResult.days[0]?.pairs.filter((pair) => pair.boundaryId === 'MakuuchiJuryo').length ?? 0;
   const juryoMakushitaPairs = exchangeResult.days[0]?.pairs.filter((pair) => pair.boundaryId === 'JuryoMakushita') ?? [];
+  const productionLikeJuryoGuestExchangeCount = guestResult.days[0]?.pairs.filter((pair) => pair.boundaryId === 'JuryoMakushita').length ?? 0;
   const lowerBoundaryPairs = lowerResult.days[0]?.pairs.filter((pair) => pair.boundaryId === 'MakushitaSandanme') ?? [];
   const titlePair = titleResult.days[0]?.pairs.find((pair) => pair.matchReason === 'YUSHO_DIRECT');
+  const topOpeningPairKeys = new Set(
+    topOpeningResult.days[0]?.pairs.map((pair) => [pair.a.id, pair.b.id].sort().join(':')) ?? [],
+  );
+  const topOpeningTemplateHitCount = [
+    'K_W:Y_E',
+    'K_E:Y_W',
+    'M1_W:O_E',
+    'M1_E:O_W',
+    'M2_W:S_E',
+    'M2_E:S_W',
+  ].filter((key) => topOpeningPairKeys.has(key)).length;
+  const lowerOddEvenTemplateOk =
+    lowerTemplateMap.get('MS1')?.has(1) === true &&
+    lowerTemplateMap.get('MS1')?.has(2) === false &&
+    lowerTemplateMap.get('MS2')?.has(1) === false &&
+    lowerTemplateMap.get('MS2')?.has(2) === true;
   const scheduleViolationCount =
     sekitoriResult.diagnostics.scheduleViolations.length +
     exchangeResult.diagnostics.scheduleViolations.length +
+    guestResult.diagnostics.scheduleViolations.length +
     lowerResult.diagnostics.scheduleViolations.length +
-    titleResult.diagnostics.scheduleViolations.length;
+    titleResult.diagnostics.scheduleViolations.length +
+    topOpeningResult.diagnostics.scheduleViolations.length;
 
   const summary: QuickSummary = {
     generatedAt: new Date().toISOString(),
     verdict:
-      makuuchiJuryoCrossCount === 0 &&
+      makuuchiJuryoCrossCount > 0 &&
       juryoMakushitaPairs.length > 0 &&
+      productionLikeJuryoGuestExchangeCount > 0 &&
       lowerBoundaryPairs.length > 0 &&
       (titleResult.diagnostics.lateDirectTitleBoutCount ?? 0) > 0 &&
+      topOpeningTemplateHitCount === 6 &&
+      lowerOddEvenTemplateOk &&
       scheduleViolationCount === 0
         ? {
           overall: 'PASS',
@@ -150,8 +235,11 @@ const run = (): void => {
     checks: {
       makuuchiJuryoCrossCount,
       juryoMakushitaCrossCount: juryoMakushitaPairs.length,
+      productionLikeJuryoGuestExchangeCount,
       lowerBoundaryCrossCount: lowerBoundaryPairs.length,
       lateDirectTitleBoutCount: titleResult.diagnostics.lateDirectTitleBoutCount,
+      topOpeningTemplateHitCount,
+      lowerOddEvenTemplateOk,
       scheduleViolationCount,
     },
     signals: {
@@ -170,10 +258,13 @@ const run = (): void => {
     '',
     '## 主要チェック',
     '',
-    `- 幕内-十両 regular 越境戦: ${summary.checks.makuuchiJuryoCrossCount}件`,
+    `- 幕内-十両 境界戦: ${summary.checks.makuuchiJuryoCrossCount}件`,
     `- 十両-幕下 交換戦: ${summary.checks.juryoMakushitaCrossCount}件`,
+    `- production-like 十両ゲスト交換戦: ${summary.checks.productionLikeJuryoGuestExchangeCount}件`,
     `- 下位境界戦: ${summary.checks.lowerBoundaryCrossCount}件`,
     `- 終盤優勝直接戦: ${summary.checks.lateDirectTitleBoutCount}件`,
+    `- 幕内初日テンプレ hit: ${summary.checks.topOpeningTemplateHitCount}/6`,
+    `- 下位初番 奇偶テンプレ: ${summary.checks.lowerOddEvenTemplateOk ? 'OK' : 'NG'}`,
     `- schedule violation: ${summary.checks.scheduleViolationCount}件`,
     '',
     '## シグナル',

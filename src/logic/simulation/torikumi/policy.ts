@@ -216,14 +216,22 @@ export const buildLowerDivisionBoutDays = (rng: RandomSource): number[] => {
   return days;
 };
 
+export const buildLowerDivisionTemplateBoutDays = (
+  participant: Pick<TorikumiParticipant, 'rankNumber' | 'rankScore'>,
+): number[] => {
+  const rankNumber = participant.rankNumber ?? Math.floor((participant.rankScore - 1) / 2) + 1;
+  const startDay = rankNumber % 2 === 1 ? 1 : 2;
+  return Array.from({ length: 7 }, (_, index) => startDay + index * 2);
+};
+
 export const createLowerDivisionBoutDayMap = (
   participants: TorikumiParticipant[],
-  rng: RandomSource,
+  _rng: RandomSource,
 ): Map<string, Set<number>> => {
   const map = new Map<string, Set<number>>();
   for (const participant of participants) {
     if (!isLowerDivision(participant.division)) continue;
-    map.set(participant.id, new Set(buildLowerDivisionBoutDays(rng)));
+    map.set(participant.id, new Set(buildLowerDivisionTemplateBoutDays(participant)));
   }
   return map;
 };

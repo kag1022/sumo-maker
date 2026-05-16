@@ -209,30 +209,8 @@ export const createDailyMatchups = (
     allowSameStable: false,
     allowRematch: false,
   });
-  let pairs = strict.pairs.slice();
-  let byeIds = strict.byeIds.slice();
-
-  if (byeIds.length > 1) {
-    const byeSet = new Set(byeIds);
-    const rematchPool = activeParticipants.filter((participant) => byeSet.has(participant.id));
-    const rematchRelaxed = buildBestForPool(rematchPool, {
-      allowSameStable: false,
-      allowRematch: true,
-    });
-    pairs = pairs.concat(rematchRelaxed.pairs);
-    byeIds = rematchRelaxed.byeIds.slice();
-  }
-
-  if (byeIds.length > 1) {
-    const byeSet = new Set(byeIds);
-    const sameStablePool = activeParticipants.filter((participant) => byeSet.has(participant.id));
-    const fullyRelaxed = buildBestForPool(sameStablePool, {
-      allowSameStable: true,
-      allowRematch: true,
-    });
-    pairs = pairs.concat(fullyRelaxed.pairs);
-    byeIds = fullyRelaxed.byeIds.slice();
-  }
+  const pairs = strict.pairs.slice();
+  const byeIds = strict.byeIds.slice();
 
   for (const { a, b } of pairs) {
     markPaired(faced, a, b);
