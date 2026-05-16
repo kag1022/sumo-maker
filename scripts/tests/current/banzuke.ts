@@ -2337,7 +2337,7 @@ export const tests: TestCase[] = [
     },
   },
   {
-    name: 'ranking: jonokuchi bottom makekoshi can accept pressure promotion with diagnostics',
+    name: 'ranking: jonokuchi bottom makekoshi rejects pressure promotion with diagnostics',
     run: () => {
       const jonokuchi: Rank = { division: 'Jonokuchi', name: '序ノ口', side: 'West', number: 60 };
       const result = calculateNextRank(
@@ -2358,8 +2358,11 @@ export const tests: TestCase[] = [
         },
       );
       assert.equal(result.nextRank.division, 'Jonokuchi');
-      assert.equal(result.nextRank.number, 53);
-      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
+      assert.equal(result.nextRank.number, 61);
+      assert.equal(result.event, 'DEMOTION');
+      assert.ok((result.lowerMovementDiagnostics?.finalMovement ?? 1) <= 0);
+      assert.ok(!result.lowerMovementDiagnostics?.reasonCodes.includes('MAKEKOSHI_PROMOTION_BY_PRESSURE'));
+      assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('RECORD_DEMOTION'));
       assert.ok(result.lowerMovementDiagnostics?.reasonCodes.includes('NEW_RECRUIT_PRESSURE'));
     },
   },

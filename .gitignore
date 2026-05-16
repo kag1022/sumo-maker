@@ -16,6 +16,9 @@ sumo-db/data/raw_html
 sumo/
 .playwright-cli/
 sumo-db/data/sumodb.sqlite
+sumo-api-db/data/analysis/*.json
+!sumo-api-db/data/analysis/banzuke_calibration_long_range.json
+!sumo-api-db/data/analysis/game_calibration_long_range.json
 
 # Claude Code の個人設定（ローカルマシン固有のものだけ無視）
 CLAUDE.local.md

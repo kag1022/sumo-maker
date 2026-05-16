@@ -5,6 +5,7 @@ import { TestCase, TestModule } from '../types';
 const ROOT_DIR = process.cwd();
 const CAREER_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'career_calibration_1965plus.json');
 const BANZUKE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'banzuke_calibration_heisei.json');
+const LONG_RANGE_BANZUKE_PATH = path.join(ROOT_DIR, 'sumo-api-db', 'data', 'analysis', 'banzuke_calibration_long_range.json');
 const POPULATION_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'population_calibration_heisei.json');
 const BUNDLE_PATH = path.join(ROOT_DIR, 'sumo-db', 'data', 'analysis', 'calibration_bundle.json');
 const SUMMARY_PATH = path.join(ROOT_DIR, 'docs', 'balance', 'calibration-targets.md');
@@ -60,6 +61,8 @@ type BanzukeCalibration = {
     source: string;
     era: string;
     divisionScope: string[];
+    movementClassSemantics?: string;
+    recordAwareDivisionScope?: string[];
     note?: string;
     dataQuality?: Record<string, number>;
   };
@@ -73,6 +76,7 @@ type BanzukeCalibration = {
     source: string;
     recordLinkMeaning: string;
     lowerDivisionScope: string[];
+    recordAwareDivisionScope?: string[];
     rankBands: Record<string, Array<[number, number | null, string]>>;
     recordAwareQuantiles: Record<string, Record<string, Record<string, { sampleSize: number } | null>>>;
   };
@@ -186,6 +190,33 @@ const cases: TestCase[] = [
       assert.ok(
         (banzuke.divisionMovementQuantiles.Juryo?.promoted?.sampleSize ?? 0) > 0,
         'Expected Juryo promoted calibration sample',
+      );
+    },
+  ),
+  createVerificationCase(
+    'calibration: runtime banzuke profile has compatible movement semantics',
+    () => {
+      const longRange = readJson<BanzukeCalibration>(LONG_RANGE_BANZUKE_PATH);
+      assert.equal(longRange.meta.movementClassSemantics, 'sameDivisionBoundary');
+      assert.ok(
+        longRange.recordBucketRules.recordAwareDivisionScope?.includes('Makuuchi'),
+        'Expected runtime record-aware scope to include Makuuchi',
+      );
+      assert.ok(
+        (longRange.recordBucketRules.recordAwareQuantiles.Makuuchi?.['6-10']?.['8-7']?.sampleSize ?? 0) > 0,
+        'Expected Makuuchi 6-10 8-7 runtime calibration sample',
+      );
+      assert.ok(
+        (longRange.recordBucketRules.recordAwareQuantiles.Juryo?.['1-3']?.['12-3']?.sampleSize ?? 0) > 0,
+        'Expected Juryo 1-3 12-3 runtime calibration sample',
+      );
+      assert.ok(
+        (longRange.divisionMovementQuantiles.Makuuchi?.stayed?.p10Rank ?? 0) < 0,
+        'Expected Makuuchi stayed to include same-division demotion movement, not just zero movement',
+      );
+      assert.ok(
+        (longRange.divisionMovementQuantiles.Juryo?.demoted?.sampleSize ?? 0) > 0,
+        'Expected Juryo demoted boundary target samples',
       );
     },
   ),

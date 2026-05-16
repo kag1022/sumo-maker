@@ -26,6 +26,8 @@ export interface BanzukeDataQuality {
   banzukeAlignmentRate: number;
 }
 
+export type BanzukeMovementClassSemantics = 'sameDivisionBoundary' | 'signedMovement';
+
 export interface DistributionCalibrationStats {
   sampleSize: number;
   min: number;
@@ -90,6 +92,8 @@ export interface RecordAwareQuantileMap {
 export interface BanzukeCalibrationTarget {
   meta: CalibrationMeta & {
     divisionScope: string[];
+    movementClassSemantics?: BanzukeMovementClassSemantics;
+    recordAwareDivisionScope?: string[];
     note?: string;
     dataQuality?: BanzukeDataQuality;
   };
@@ -103,6 +107,7 @@ export interface BanzukeCalibrationTarget {
     source: string;
     recordLinkMeaning: string;
     lowerDivisionScope: string[];
+    recordAwareDivisionScope?: string[];
     rankBands: Record<string, BanzukeRankBandTuple[]>;
     recordAwareQuantiles: RecordAwareQuantileMap;
   };
