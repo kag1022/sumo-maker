@@ -24,6 +24,8 @@ import {
   type CollectionCatalogType,
   type CollectionDashboardSummary,
 } from "../../../logic/persistence/collections";
+import type { LocaleCode } from "../../../shared/lib/locale";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
@@ -47,12 +49,128 @@ const KIMARITE_FILTERS = [
 ] as const;
 type KimariteFilter = (typeof KIMARITE_FILTERS)[number];
 
+const TAB_LABELS_EN: Record<CollectionCatalogType, { label: string; shortLabel: string }> = {
+  RECORD: { label: "Career Records", shortLabel: "Records" },
+  ACHIEVEMENT: { label: "Achievements", shortLabel: "Feats" },
+  KIMARITE: { label: "Kimarite", shortLabel: "Kimarite" },
+};
+
+const KIMARITE_FILTER_LABELS_EN: Record<KimariteFilter, string> = {
+  ALL: "All",
+  "押し・突き": "Push/Thrust",
+  "寄り・極め": "Force-out/Lock",
+  投げ: "Throws",
+  "捻り・落とし": "Twist/Drop",
+  "足取り・掛け": "Trips/Picks",
+  反り: "Back bends",
+  送り: "Rear attacks",
+  非技: "Non-technique",
+};
+
+const RARITY_LABELS_EN: Record<string, string> = {
+  常用: "Common",
+  準レア: "Uncommon",
+  珍技: "Rare",
+  極珍: "Very rare",
+};
+
+const OBSERVER_UPGRADE_EN_LABELS: Record<string, string> = {
+  SCOUT_NOTES: "Observation Notes",
+  SAVE_TAGS_PLUS: "Save Tags",
+  ARCHIVE_FILTERS: "Shelf Index",
+  RIVALRY_READING: "Rivalry Reading",
+  KEY_BASHO_PICKUP: "Key Basho Picks",
+  EXPERIMENT_LAB: "Experimental Observation",
+};
+
+const RECORD_ENTRY_EN: Record<string, { label: string; description: string }> = {
+  YOKOZUNA_REACHED: { label: "Reached Yokozuna", description: "Highest rank reached Yokozuna." },
+  OZEKI_REACHED: { label: "Reached Ozeki", description: "Highest rank reached Ozeki." },
+  MAKUUCHI_REACHED: { label: "Reached Makuuchi", description: "Highest rank reached the top division." },
+  SEKITORI_REACHED: { label: "Reached Sekitori", description: "Highest rank reached Juryo or above." },
+  MAKUUCHI_YUSHO: { label: "Makuuchi Yusho", description: "Won a top-division championship." },
+  JURYO_YUSHO: { label: "Juryo Yusho", description: "Won a Juryo championship." },
+  SANSHO: { label: "Special Prize", description: "Received a special prize." },
+  KINBOSHI: { label: "Kinboshi", description: "Defeated a Yokozuna as a maegashira." },
+  DOUBLE_DIGIT_WINS: { label: "Double-digit Wins", description: "Recorded at least 10 wins in one basho." },
+  HIGH_WIN_RATE: { label: "High Win Rate", description: "Maintained a high career win rate over a long career." },
+  LONG_CAREER: { label: "Long Career", description: "Stayed on the dohyo for a long career." },
+  KACHIKOSHI_STREAK: { label: "Kachi-koshi Streak", description: "Recorded winning records across multiple basho." },
+};
+
+const ACHIEVEMENT_ENTRY_EN: Record<string, { label: string; description: string }> = {
+  YUSHO_1: { label: "1 Makuuchi Yusho", description: "Win one top-division championship." },
+  YUSHO_10: { label: "10 Makuuchi Yusho", description: "Win ten top-division championships." },
+  YUSHO_20: { label: "20 Makuuchi Yusho", description: "Win at least twenty top-division championships." },
+  ZENSHO_1: { label: "1 Zensho Yusho", description: "Win one perfect top-division championship." },
+  ZENSHO_5: { label: "5 Zensho Yusho", description: "Win five perfect top-division championships." },
+  WINS_100: { label: "100 Career Wins", description: "Reach 100 career wins." },
+  WINS_300: { label: "300 Career Wins", description: "Reach 300 career wins." },
+  WINS_500: { label: "500 Career Wins", description: "Reach 500 career wins." },
+  WINS_1000: { label: "1000 Career Wins", description: "Reach 1000 career wins." },
+  AGE_35: { label: "Active at 35", description: "Stay active through age 35 or older." },
+  AGE_40: { label: "Active at 40", description: "Stay active through age 40 or older." },
+  IRONMAN_30: { label: "30 Basho Ironman", description: "Continue for 30 or more basho without absences." },
+  IRONMAN: { label: "60 Basho Ironman", description: "Continue for 60 or more basho without absences." },
+  STREAK_8: { label: "8 Makuuchi Kachi-koshi", description: "Record eight straight winning records in makuuchi." },
+  STREAK_15: { label: "15 Makuuchi Kachi-koshi", description: "Record fifteen straight winning records in makuuchi." },
+  STREAK_30: { label: "30 Makuuchi Kachi-koshi", description: "Record thirty straight winning records in makuuchi." },
+  RAPID_PROMOTION_18: { label: "Makuuchi Within 18 Basho", description: "Reach makuuchi within 18 basho of debut." },
+  RAPID_PROMOTION: { label: "Makuuchi Within 12 Basho", description: "Reach makuuchi within 12 basho of debut." },
+  SANSHO_3: { label: "3 Special Prizes", description: "Receive at least three special prizes." },
+  SANSHO_10: { label: "10 Special Prizes", description: "Receive at least ten special prizes." },
+  SANSHO_ALL: { label: "All Special Prizes x5", description: "Receive each special prize at least five times." },
+  GRAND_SLAM: { label: "Lower-Juryo-Makuuchi Yusho", description: "Win championships in Makushita, Juryo, and Makuuchi." },
+  KINBOSHI_1: { label: "1 Kinboshi", description: "Earn at least one kinboshi." },
+  KINBOSHI_5: { label: "5 Kinboshi", description: "Earn at least five kinboshi." },
+  KIMARITE_20: { label: "20 Winning Kimarite", description: "Win with at least twenty different kimarite." },
+  FIRST_STEP: { label: "First Win", description: "Record a first win on the ozumo stage." },
+};
+
 interface CollectionScreenProps {
   onOpenArchive: () => void;
   observationPoints: ObservationPointState | null;
 }
 
+const resolveTabLabel = (type: CollectionCatalogType, locale: LocaleCode): string =>
+  locale === "en" ? TAB_LABELS_EN[type].label : TAB_DEFS.find((tab) => tab.id === type)?.label ?? type;
+
+const resolveKimariteFilterLabel = (filter: KimariteFilter, locale: LocaleCode): string =>
+  locale === "en" ? KIMARITE_FILTER_LABELS_EN[filter] : filter === "ALL" ? "すべて" : filter;
+
+const resolveUpgradeTitle = (upgrade: ObserverUpgradeView, locale: LocaleCode): string =>
+  locale === "en" ? OBSERVER_UPGRADE_EN_LABELS[upgrade.id] ?? upgrade.title : upgrade.title;
+
+const resolveEntryCopy = (
+  entry: CollectionCatalogEntry,
+  locale: LocaleCode,
+): { label: string; description?: string } => {
+  if (locale !== "en") return { label: entry.label, description: entry.description };
+  if (entry.state === "LOCKED") return { label: "?????", description: "Unlock this entry by meeting its condition." };
+  if (entry.type === "RECORD") return RECORD_ENTRY_EN[entry.key] ?? { label: entry.label, description: "A saved career record entry." };
+  if (entry.type === "ACHIEVEMENT") return ACHIEVEMENT_ENTRY_EN[entry.key] ?? { label: entry.label, description: "An achievement unlocked by a completed career." };
+  const family = typeof entry.meta?.familyLabel === "string" ? KIMARITE_FILTER_LABELS_EN[entry.meta.familyLabel as KimariteFilter] ?? entry.meta.familyLabel : "kimarite";
+  const nonTechnique = entry.meta?.isNonTechnique === true;
+  return {
+    label: entry.label,
+    description: nonTechnique ? "A non-technique result outside the official kimarite list." : `An official kimarite in the ${family} family.`,
+  };
+};
+
+const resolveRecentUnlockLabel = (
+  item: { id: string; type: CollectionCatalogType; label: string },
+  locale: LocaleCode,
+): string => {
+  if (locale !== "en") return item.label;
+  const key = item.id.startsWith(`${item.type}:`) ? item.id.slice(item.type.length + 1) : item.id;
+  if (item.type === "RECORD") return RECORD_ENTRY_EN[key]?.label ?? item.label;
+  if (item.type === "ACHIEVEMENT") return ACHIEVEMENT_ENTRY_EN[key]?.label ?? item.label;
+  if (item.type === "KIMARITE") return item.label.replace(/^決まり手：/, "Kimarite: ");
+  return item.label;
+};
+
 export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchive, observationPoints }) => {
+  const { locale } = useLocale();
   const [activeTab, setActiveTab] = React.useState<CollectionCatalogType>("RECORD");
   const [kimariteFilter, setKimariteFilter] = React.useState<KimariteFilter>("ALL");
   const [dashboard, setDashboard] = React.useState<CollectionDashboardSummary | null>(null);
@@ -124,18 +242,18 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
             label={<span className="text-[10px] font-bold" style={{ color: "var(--ui-brand-line)" }}>{totalPct}%</span>}
           />
           <div>
-            <div className="text-xs text-text-dim mb-0.5">資料館</div>
+            <div className="text-xs text-text-dim mb-0.5">{locale === "en" ? "Collection" : "資料館"}</div>
             <div className={cn(typography.heading, "text-lg leading-tight text-text")}>
-              {isLoading ? "読み込み中…" : `全${totalAll}件中 ${totalUnlocked}件を解放`}
+              {isLoading ? (locale === "en" ? "Loading..." : "読み込み中…") : (locale === "en" ? `${totalUnlocked} of ${totalAll} unlocked` : `全${totalAll}件中 ${totalUnlocked}件を解放`)}
             </div>
             {dashboard?.totalNew ? (
-              <div className="mt-1 text-[11px] text-action">新着 {dashboard.totalNew}件</div>
+              <div className="mt-1 text-[11px] text-action">{locale === "en" ? `New ${dashboard.totalNew}` : `新着 ${dashboard.totalNew}件`}</div>
             ) : null}
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={onOpenArchive}>
           <BookOpenText className="h-3.5 w-3.5 mr-1.5" />
-          保存済み記録
+          {locale === "en" ? "Saved Records" : "保存済み記録"}
         </Button>
       </div>
 
@@ -145,11 +263,13 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
             <Unlock className="h-4 w-4" />
           </span>
           <div>
-            <div className="text-xs text-text-dim mb-0.5">観測室</div>
+            <div className="text-xs text-text-dim mb-0.5">{locale === "en" ? "Observation Room" : "観測室"}</div>
             <div className={cn(typography.heading, "text-lg leading-tight text-text")}>
-              観測点 {observationPoints?.points ?? 0}
+              {locale === "en" ? `Observation Points ${observationPoints?.points ?? 0}` : `観測点 ${observationPoints?.points ?? 0}`}
             </div>
-            <div className="mt-1 text-[11px] text-text-dim">完走した人生から得た点で、読み解く道具を増やします。</div>
+            <div className="mt-1 text-[11px] text-text-dim">
+              {locale === "en" ? "Use points earned from completed careers to unlock better reading tools." : "完走した人生から得た点で、読み解く道具を増やします。"}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
@@ -161,8 +281,8 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
               disabled={upgrade.unlocked || (observationPoints?.points ?? 0) < upgrade.cost}
               onClick={() => void handlePurchaseUpgrade(upgrade.id)}
             >
-              {upgrade.unlocked ? "解放済み" : `${upgrade.cost}点`}
-              <span className="ml-1.5">{upgrade.title}</span>
+              {upgrade.unlocked ? (locale === "en" ? "Unlocked" : "解放済み") : (locale === "en" ? `${upgrade.cost} pts` : `${upgrade.cost}点`)}
+              <span className="ml-1.5">{resolveUpgradeTitle(upgrade, locale)}</span>
             </Button>
           ))}
         </div>
@@ -187,7 +307,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                   <span className={styles.categoryIcon}>
                     <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className={styles.categoryLabel}>{row.label}</span>
+                  <span className={styles.categoryLabel}>{resolveTabLabel(row.type, locale)}</span>
                   {row.newCount > 0 && (
                     <span className={styles.categoryNew}>NEW {row.newCount}</span>
                   )}
@@ -211,7 +331,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
       {isLoading && (
         <div className={styles.loading}>
           <Activity className="h-6 w-6 text-text-dim animate-pulse" />
-          <span className="text-sm text-text-dim">読み込み中…</span>
+          <span className="text-sm text-text-dim">{locale === "en" ? "Loading..." : "読み込み中…"}</span>
         </div>
       )}
 
@@ -234,7 +354,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                     onClick={() => setActiveTab(tab.id)}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{tab.label}</span>
+                    <span>{locale === "en" ? TAB_LABELS_EN[tab.id].label : tab.label}</span>
                     {row && (
                       <span className={styles.tabCount}>{row.unlocked}/{row.total}</span>
                     )}
@@ -254,7 +374,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                     data-active={kimariteFilter === f}
                     onClick={() => setKimariteFilter(f)}
                   >
-                    {f === "ALL" ? "すべて" : f}
+                    {resolveKimariteFilterLabel(f, locale)}
                   </button>
                 ))}
               </div>
@@ -264,7 +384,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
             <div className={styles.list}>
               {filteredEntries.length === 0 && (
                 <div className={styles.empty}>
-                  <span className="text-sm text-text-dim">該当する項目がありません</span>
+                  <span className="text-sm text-text-dim">{locale === "en" ? "No matching entries" : "該当する項目がありません"}</span>
                 </div>
               )}
               {filteredEntries.map((entry) => {
@@ -285,11 +405,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
                         : <Lock className="h-3 w-3" />}
                     </span>
                     <span className={styles.entryName}>
-                      {isUnlocked ? entry.label : "?????"}
+                      {isUnlocked ? resolveEntryCopy(entry, locale).label : "?????"}
                     </span>
                     {entry.tier && isUnlocked && (
                       <span className={styles.entryTier} data-tier={entry.tier}>
-                        {entry.tier === "GOLD" ? "金" : entry.tier === "SILVER" ? "銀" : "銅"}
+                        {resolveTierLabel(entry.tier, locale)}
                       </span>
                     )}
                   </button>
@@ -301,11 +421,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
           {/* 右: 詳細パネル */}
           <section className={cn(surface.panel, styles.detail)}>
             {selectedEntry ? (
-              <EntryDetail entry={selectedEntry} />
+              <EntryDetail entry={selectedEntry} locale={locale} />
             ) : (
               <div className={styles.detailEmpty}>
                 <BookOpenText className="h-8 w-8 text-text-dim/40" />
-                <span className="text-sm text-text-dim">左のリストから項目を選択してください</span>
+                <span className="text-sm text-text-dim">{locale === "en" ? "Select an entry from the list" : "左のリストから項目を選択してください"}</span>
               </div>
             )}
           </section>
@@ -317,12 +437,12 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
         <div className={cn(surface.panel, styles.recent)}>
           <div className={styles.recentHeader}>
             <Clock className="h-3.5 w-3.5 text-text-dim" />
-            <span className="text-xs text-text-dim">最近の解放</span>
+            <span className="text-xs text-text-dim">{locale === "en" ? "Recent Unlocks" : "最近の解放"}</span>
           </div>
           <div className={styles.recentList}>
             {dashboard.recentUnlocks.slice(0, 8).map((item) => (
               <div key={item.id} className={styles.recentItem}>
-                <span className={styles.recentName}>{item.label}</span>
+                <span className={styles.recentName}>{resolveRecentUnlockLabel(item, locale)}</span>
                 <span className={styles.recentDate}>{formatDate(item.unlockedAt)}</span>
               </div>
             ))}
@@ -334,40 +454,41 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({ onOpenArchiv
 };
 
 /* ── 詳細パネルの中身 ── */
-const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => {
+const EntryDetail: React.FC<{ entry: CollectionCatalogEntry; locale: LocaleCode }> = ({ entry, locale }) => {
   const isUnlocked = entry.state === "UNLOCKED";
+  const copy = resolveEntryCopy(entry, locale);
   return (
     <div className={cn(styles.detailInner, "animate-in fade-in duration-300")}>
       {/* カテゴリバッジ */}
-      <div className={styles.detailType}>{resolveTypeLabel(entry.type)}</div>
+      <div className={styles.detailType}>{resolveTypeLabel(entry.type, locale)}</div>
 
       {/* タイトル */}
       <div className={styles.detailTitle}>
-        {isUnlocked ? entry.label : "?????"}
+        {isUnlocked ? copy.label : "?????"}
       </div>
 
       {/* 説明 */}
       <div className={styles.detailDesc}>
         {isUnlocked
-          ? entry.description
-          : "条件を満たすと解放されます。"}
+          ? copy.description
+          : locale === "en" ? "Unlock this entry by meeting its condition." : "条件を満たすと解放されます。"}
       </div>
 
       {/* メタ情報 */}
       <div className={styles.detailMeta}>
-        <MetaRow label="状態" value={isUnlocked ? "解放済み" : "未解放"} highlight={isUnlocked} />
-        {entry.tier && <MetaRow label="レアリティ" value={resolveTierLabel(entry.tier)} />}
-        {entry.unlockedAt && <MetaRow label="解放日" value={formatDate(entry.unlockedAt)} />}
+        <MetaRow label={locale === "en" ? "State" : "状態"} value={isUnlocked ? (locale === "en" ? "Unlocked" : "解放済み") : (locale === "en" ? "Locked" : "未解放")} highlight={isUnlocked} />
+        {entry.tier && <MetaRow label={locale === "en" ? "Rarity" : "レアリティ"} value={resolveTierLabel(entry.tier, locale)} />}
+        {entry.unlockedAt && <MetaRow label={locale === "en" ? "Unlocked Date" : "解放日"} value={formatDate(entry.unlockedAt)} />}
         {typeof entry.progress === "number" && (
           <MetaRow
-            label="進捗"
+            label={locale === "en" ? "Progress" : "進捗"}
             value={entry.target ? `${entry.progress} / ${entry.target}` : String(entry.progress)}
           />
         )}
         {entry.meta && Object.entries(entry.meta)
           .filter(([, v]) => v !== false && typeof v !== "object")
           .map(([key, value]) => (
-            <MetaRow key={key} label={resolveMetaLabel(key)} value={value === true ? "達成" : String(value)} />
+            <MetaRow key={key} label={resolveMetaLabel(key, locale)} value={formatMetaValue(key, value, locale)} />
           ))}
       </div>
 
@@ -390,7 +511,7 @@ const EntryDetail: React.FC<{ entry: CollectionCatalogEntry }> = ({ entry }) => 
       {!isUnlocked && (
         <div className={styles.detailHint}>
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          <span>条件を達成すると解放されます。特定の成績・実績が必要です。</span>
+          <span>{locale === "en" ? "Meet the condition to unlock this entry. Specific records or achievements may be required." : "条件を達成すると解放されます。特定の成績・実績が必要です。"}</span>
         </div>
       )}
     </div>
@@ -407,19 +528,36 @@ const MetaRow: React.FC<{ label: string; value: string; highlight?: boolean }> =
 );
 
 /* ── ユーティリティ ── */
-const resolveTypeLabel = (type: CollectionCatalogType): string => {
+const resolveTypeLabel = (type: CollectionCatalogType, locale: LocaleCode): string => {
+  if (locale === "en") return TAB_LABELS_EN[type].label;
   if (type === "RECORD") return "生涯記録";
   if (type === "ACHIEVEMENT") return "偉業";
   return "決まり手";
 };
 
-const resolveTierLabel = (tier: string): string => {
+const resolveTierLabel = (tier: string, locale: LocaleCode): string => {
+  if (locale === "en") {
+    if (tier === "GOLD") return "Gold";
+    if (tier === "SILVER") return "Silver";
+    return "Bronze";
+  }
   if (tier === "GOLD") return "金";
   if (tier === "SILVER") return "銀";
   return "銅";
 };
 
-const resolveMetaLabel = (key: string): string => {
+const resolveMetaLabel = (key: string, locale: LocaleCode): string => {
+  if (locale === "en") {
+    const map: Record<string, string> = {
+      scoreBonus: "Score bonus",
+      category: "Category",
+      tier: "Tier",
+      familyLabel: "Technique family",
+      rarityLabel: "Frequency",
+      isNonTechnique: "Non-technique",
+    };
+    return map[key] ?? key;
+  }
   const map: Record<string, string> = {
     scoreBonus: "評点ボーナス",
     category: "技の分類",
@@ -429,6 +567,36 @@ const resolveMetaLabel = (key: string): string => {
     isNonTechnique: "特殊勝負",
   };
   return map[key] ?? key;
+};
+
+const formatMetaValue = (
+  key: string,
+  value: string | number | boolean,
+  locale: LocaleCode,
+): string => {
+  if (locale !== "en") return value === true ? "達成" : String(value);
+  if (value === true) return "Achieved";
+  if (typeof value !== "string") return String(value);
+  if (key === "familyLabel") return KIMARITE_FILTER_LABELS_EN[value as KimariteFilter] ?? value;
+  if (key === "rarityLabel") return RARITY_LABELS_EN[value] ?? value;
+  if (key === "category") {
+    const map: Record<string, string> = {
+      優勝: "Yusho",
+      全勝優勝: "Perfect yusho",
+      通算勝利: "Career wins",
+      現役年齢: "Active age",
+      無休場: "Ironman",
+      連続勝ち越し: "Kachi-koshi streak",
+      新入幕速度: "Top division speed",
+      三賞: "Special prizes",
+      各段優勝: "Division yusho",
+      金星: "Kinboshi",
+      決まり手: "Kimarite",
+      初勝利: "First win",
+    };
+    return map[value] ?? value;
+  }
+  return value;
 };
 
 const formatDate = (value: string): string => {

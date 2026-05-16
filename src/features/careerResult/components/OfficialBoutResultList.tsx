@@ -2,6 +2,8 @@ import React from "react";
 import { type Division, type Rank } from "../../../logic/models";
 import type { CareerBashoDetail } from "../../../logic/persistence/careerHistory";
 import { formatRankDisplayName } from "../../../logic/ranking";
+import type { LocaleCode } from "../../../shared/lib/locale";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { BoutExplanationPanel } from "../../shared/components/BoutExplanationPanel";
 import styles from "./OfficialBoutResultList.module.css";
 
@@ -57,19 +59,37 @@ const IMPORTANT_LABELS: Record<ImportantTorikumiItem["trigger"], string> = {
   LATE_RELAXATION: "編成修復",
 };
 
-const formatRecordLabel = (row: Pick<BashoRecordItem, "wins" | "losses" | "absent"> | undefined): string | null => {
-  if (!row) return null;
-  return `${row.wins}勝${row.losses}敗${row.absent > 0 ? `${row.absent}休` : ""}`;
+const IMPORTANT_LABELS_EN: Record<ImportantTorikumiItem["trigger"], string> = {
+  YUSHO_RACE: "Yusho race",
+  YUSHO_DIRECT: "Yusho race",
+  YUSHO_PURSUIT: "Yusho race",
+  JOI_DUTY: "Upper-rank duty",
+  JOI_ASSIGNMENT: "Upper-rank bout",
+  SEKITORI_BOUNDARY: "Sekitori boundary",
+  JURYO_BOUNDARY: "Sekitori boundary",
+  CROSS_DIVISION_EVAL: "Cross-division test",
+  LOWER_BOUNDARY: "Division boundary",
+  LATE_RELAXATION: "Schedule repair",
 };
 
-const formatRankFromRow = (row: BashoRecordItem): string =>
+const formatRecordLabel = (
+  row: Pick<BashoRecordItem, "wins" | "losses" | "absent"> | undefined,
+  locale: LocaleCode,
+): string | null => {
+  if (!row) return null;
+  return locale === "en"
+    ? `${row.wins}-${row.losses}${row.absent > 0 ? `, ${row.absent} absences` : ""}`
+    : `${row.wins}勝${row.losses}敗${row.absent > 0 ? `${row.absent}休` : ""}`;
+};
+
+const formatRankFromRow = (row: BashoRecordItem, locale: LocaleCode): string =>
   formatRankDisplayName({
     division: row.division as Division,
     name: row.rankName,
     number: row.rankNumber ?? undefined,
     side: row.rankSide ?? undefined,
     specialStatus: row.rankSpecialStatus,
-  });
+  }, locale);
 
 const formatOpponentRank = (
   detail: CareerBashoDetail,
@@ -77,8 +97,9 @@ const formatOpponentRank = (
   opponentRankName: string | undefined,
   opponentRankNumber: number | undefined,
   opponentRankSide: RankSide | undefined,
+  locale: LocaleCode,
 ): string | null => {
-  if (opponentRecord) return formatRankFromRow(opponentRecord);
+  if (opponentRecord) return formatRankFromRow(opponentRecord, locale);
   if (!opponentRankName) return null;
 
   return formatRankDisplayName({
@@ -86,7 +107,7 @@ const formatOpponentRank = (
     name: opponentRankName,
     number: opponentRankNumber ?? undefined,
     side: opponentRankSide ?? undefined,
-  });
+  }, locale);
 };
 
 const buildRecordLookup = (rows: BashoRecordItem[]): {
@@ -118,14 +139,16 @@ const findOpponentRecord = (
   return opponentShikona ? lookup.byShikona.get(opponentShikona) : undefined;
 };
 
-const buildOfficialRows = (detail: CareerBashoDetail): OfficialBoutRow[] => {
+const buildOfficialRows = (detail: CareerBashoDetail, locale: LocaleCode): OfficialBoutRow[] => {
   const playerRecord = detail.playerRecord;
   const lookup = buildRecordLookup(detail.rows);
   const importantByDay = new Map(detail.importantTorikumi.map((note) => [note.day, note]));
 
   return detail.bouts.map((bout) => {
     const result = (bout.result ?? "ABSENT") as BoutResult;
-    const resultMark = RESULT_MARK[result] ?? RESULT_MARK.ABSENT;
+    const resultMark = locale === "en" && result === "ABSENT"
+      ? { player: "A", opponent: "-", playerTone: "absence" as const, opponentTone: "muted" as const }
+      : RESULT_MARK[result] ?? RESULT_MARK.ABSENT;
     const opponentRecord = findOpponentRecord(lookup, bout.opponentId, bout.opponentShikona);
     const playerSide = playerRecord?.rankSide;
     const opponentSide = bout.opponentRankSide ?? opponentRecord?.rankSide;
@@ -134,24 +157,25 @@ const buildOfficialRows = (detail: CareerBashoDetail): OfficialBoutRow[] => {
 
     const playerCell: ParticipantCell = {
       role: "player",
-      shikona: playerRecord?.shikona ?? "本人",
-      rankLabel: playerRecord ? formatRankFromRow(playerRecord) : null,
-      recordLabel: formatRecordLabel(playerRecord),
+      shikona: playerRecord?.shikona ?? (locale === "en" ? "Player" : "本人"),
+      rankLabel: playerRecord ? formatRankFromRow(playerRecord, locale) : null,
+      recordLabel: formatRecordLabel(playerRecord, locale),
       entityId: null,
       mark: resultMark.player,
       tone: resultMark.playerTone,
     };
     const opponentCell: ParticipantCell = {
       role: "opponent",
-      shikona: bout.opponentShikona ?? "記録未詳",
+      shikona: bout.opponentShikona ?? (locale === "en" ? "Unknown record" : "記録未詳"),
       rankLabel: formatOpponentRank(
         detail,
         opponentRecord,
         bout.opponentRankName,
         bout.opponentRankNumber,
         opponentSide,
+        locale,
       ),
-      recordLabel: formatRecordLabel(opponentRecord),
+      recordLabel: formatRecordLabel(opponentRecord, locale),
       entityId: bout.opponentId ?? null,
       mark: resultMark.opponent,
       tone: resultMark.opponentTone,
@@ -165,9 +189,9 @@ const buildOfficialRows = (detail: CareerBashoDetail): OfficialBoutRow[] => {
       bout,
       east,
       west,
-      kimarite: bout.kimarite ?? (result === "ABSENT" ? "休場" : "決まり手未詳"),
+      kimarite: bout.kimarite ?? (result === "ABSENT" ? (locale === "en" ? "Absence" : "休場") : (locale === "en" ? "Unknown kimarite" : "決まり手未詳")),
       importantNote,
-      importantLabel: importantNote ? IMPORTANT_LABELS[importantNote.trigger] : null,
+      importantLabel: importantNote ? (locale === "en" ? IMPORTANT_LABELS_EN[importantNote.trigger] : IMPORTANT_LABELS[importantNote.trigger]) : null,
       isFallbackPlacement: !canPlaceBySide,
       isAbsence: result === "ABSENT",
     };
@@ -215,19 +239,20 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
   detail,
   onSelectNpc,
 }) => {
-  const rows = React.useMemo(() => buildOfficialRows(detail), [detail]);
+  const { locale } = useLocale();
+  const rows = React.useMemo(() => buildOfficialRows(detail, locale), [detail, locale]);
   const playerRank = React.useMemo(() => resolvePlayerRank(detail.playerRecord), [detail.playerRecord]);
   const [selectedExplanationDay, setSelectedExplanationDay] = React.useState<number | null>(null);
 
   return (
     <div className={styles.shell}>
       <div className={styles.header} aria-hidden="true">
-        <span>日</span>
-        <span>東力士</span>
-        <span>東最終成績</span>
-        <span>決まり手</span>
-        <span>西最終成績</span>
-        <span>西力士</span>
+        <span>{locale === "en" ? "Day" : "日"}</span>
+        <span>{locale === "en" ? "East" : "東力士"}</span>
+        <span>{locale === "en" ? "East Final" : "東最終成績"}</span>
+        <span>{locale === "en" ? "Kimarite" : "決まり手"}</span>
+        <span>{locale === "en" ? "West Final" : "西最終成績"}</span>
+        <span>{locale === "en" ? "West" : "西力士"}</span>
       </div>
       <div className={styles.list}>
         {rows.map((row) => {
@@ -245,14 +270,14 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
             >
               <div className={styles.day}>
                 <strong>{row.day}</strong>
-                <span>日</span>
+                <span>{locale === "en" ? "Day" : "日"}</span>
               </div>
               {row.isAbsence ? (
                 <div className={styles.absencePanel}>
-                  <strong>休場により取組なし</strong>
+                  <strong>{locale === "en" ? "No bout because of absence" : "休場により取組なし"}</strong>
                   <span>
                     {row.east.shikona}
-                    {row.east.recordLabel ? ` / 最終成績 ${row.east.recordLabel}` : ""}
+                    {row.east.recordLabel ? ` / ${locale === "en" ? "Final record" : "最終成績"} ${row.east.recordLabel}` : ""}
                   </span>
                 </div>
               ) : (
@@ -266,10 +291,10 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
                         type="button"
                         className={styles.explanationButton}
                         aria-expanded={isExplanationOpen}
-                        aria-label={`${row.day}日目の取組解説を${isExplanationOpen ? "閉じる" : "開く"}`}
+                        aria-label={locale === "en" ? `${isExplanationOpen ? "Close" : "Open"} day ${row.day} bout commentary` : `${row.day}日目の取組解説を${isExplanationOpen ? "閉じる" : "開く"}`}
                         onClick={() => setSelectedExplanationDay((current) => current === row.day ? null : row.day)}
                       >
-                        {isExplanationOpen ? "閉じる" : "取組解説"}
+                        {isExplanationOpen ? (locale === "en" ? "Close" : "閉じる") : (locale === "en" ? "Commentary" : "取組解説")}
                       </button>
                     ) : null}
                   </div>
@@ -280,7 +305,7 @@ export const OfficialBoutResultList: React.FC<OfficialBoutResultListProps> = ({
               {row.importantNote ? (
                 <div className={styles.detailPanel}>
                   <span className={styles.importantTag}>{row.importantLabel}</span>
-                  <p>{row.importantNote.summary}</p>
+                  <p>{locale === "en" ? "This bout is marked as important in the saved basho record." : row.importantNote.summary}</p>
                 </div>
               ) : null}
               {canShowExplanation && isExplanationOpen && commentary && playerRank && detail.playerRecord ? (

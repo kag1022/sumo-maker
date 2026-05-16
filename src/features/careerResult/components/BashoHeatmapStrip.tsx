@@ -1,6 +1,7 @@
 import React from "react";
 import { clsx } from "clsx";
 import type { CareerLedgerPoint } from "../utils/careerResultModel";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import typography from "../../../shared/styles/typography.module.css";
 
 interface BashoHeatmapStripProps {
@@ -26,12 +27,13 @@ export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
   selectedBashoSeq,
   onSelectBasho,
 }) => {
+  const { locale } = useLocale();
   if (points.length === 0) return null;
 
   return (
     <div className="border border-white/10 bg-white/[0.02] px-4 py-3">
       <div className={clsx(typography.kicker, "mb-2")}>
-        場所別成績ヒートマップ
+        {locale === "en" ? "Basho Record Heatmap" : "場所別成績ヒートマップ"}
       </div>
       <div className="flex gap-0.5 overflow-x-auto pb-1" role="list">
         {points.map((point) => {
@@ -58,9 +60,9 @@ export const BashoHeatmapStrip: React.FC<BashoHeatmapStripProps> = ({
         })}
       </div>
       <div className="mt-1 flex gap-4 text-[9px] text-text-dim">
-        <span style={{ color: "rgba(88,181,135,0.85)" }}>■ 勝ち越し</span>
-        <span style={{ color: "rgba(203,122,92,0.7)" }}>■ 負け越し</span>
-        <span style={{ color: "rgba(76,93,121,0.5)" }}>■ 全休</span>
+        <span style={{ color: "rgba(88,181,135,0.85)" }}>■ {locale === "en" ? "Winning" : "勝ち越し"}</span>
+        <span style={{ color: "rgba(203,122,92,0.7)" }}>■ {locale === "en" ? "Losing" : "負け越し"}</span>
+        <span style={{ color: "rgba(76,93,121,0.5)" }}>■ {locale === "en" ? "Absent" : "全休"}</span>
       </div>
     </div>
   );
