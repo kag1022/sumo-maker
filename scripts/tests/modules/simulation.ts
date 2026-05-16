@@ -16,6 +16,7 @@ export const simulationTestModule = createScopedModule('simulation', currentTest
   'simulation engine',
   'simulation runtime',
   'simulation model normalization',
+  'torikumi',
   'variance',
   'yusho',
 ]);

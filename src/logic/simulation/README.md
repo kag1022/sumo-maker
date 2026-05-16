@@ -68,7 +68,8 @@ runtime API を唯一の入口として使います。
 
 - `basho/formatPolicy.ts` は 15番制 / 7番制の場所形式を扱う。
 - `day` はカレンダー日、`boutOrdinal` は当人にとっての取組順を表す。
-- 下位は 15日間のカレンダー内に 7番を配置し、関取は 15日間に15番を取る。
+- 下位は奇数枚目が初日、偶数枚目が2日目から始まる7番制テンプレで 15日間のカレンダー内に7番を配置し、関取は 15日間に15番を取る。
+- 本割 scheduler は幕内上位の序盤テンプレ、終盤の幕内↔十両境界 pool、十両↔幕下の予約ゲスト pool を持つ。境界戦は自動昇降格ではなく、取組文脈として保存される。
 - `isLastDay` は legacy 名で、意味は千秋楽ではなく当人の最終予定取組。
 - プレイヤー取組の実在相手は raw ability と `bashoFormDelta` を分けて渡し、勝敗計算側で場所調子を一度だけ適用する。
 - 前相撲はこの段階では新 policy に入れず、legacy passthrough とする。
@@ -96,6 +97,7 @@ runtime API を唯一の入口として使います。
 - worker は章判定や観測文言を直接所有せず、`runtimeNarrative.ts` の結果を protocol に詰める
 - `BoutFlowModel` は取組読解語彙であり、player bout の結果後 commentary に限って production path / persistence へ載せる。勝敗確率、result roll、engagement sampling、route selection、kimarite selection、worker protocol は変更しない
 - orchestration 層に係数や policy 判定を追加しない
+- 同部屋・forbidden・既対戦は本割制約として緩和しない。組めない場合は未消化診断へ出し、schedule 完了率のために制度禁忌を破らない
 - 下位定着・関取定着・幕内上位の realism 係数は `playerRealism.ts` と `retirement/` に閉じ込める
 - population 調整と promotion 判定を同じ関数に混ぜない
 - 付出 NPC は population plan で年次計画し、`reconcile` の不足補充では発生させない
