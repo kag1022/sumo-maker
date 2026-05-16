@@ -24,6 +24,8 @@ import {
 } from "../logic/persistence/lifetimeStats";
 import { formatHighestRankDisplayName } from "../features/report/utils/reportShared";
 import { cn } from "../shared/lib/cn";
+import { useLocale } from "../shared/hooks/useLocale";
+import type { LocaleCode } from "../shared/lib/locale";
 import { Button } from "../shared/ui/Button";
 import typography from "../shared/styles/typography.module.css";
 import surface from "../shared/styles/surface.module.css";
@@ -50,6 +52,7 @@ const DEFAULT_CAREER_VIEW_STATE: CareerResultViewState = {
 };
 
 export const App: React.FC = () => {
+  const { locale } = useLocale();
   const {
     phase,
     status,
@@ -254,7 +257,11 @@ export const App: React.FC = () => {
       if (section === "scout") {
         const hasUnsavedCurrent = Boolean(currentCareerId) && !isCurrentCareerSaved;
         if (hasUnsavedCurrent) {
-          const accepted = window.confirm("未保存のキャリアを破棄して観測設計に戻りますか。");
+          const accepted = window.confirm(
+            locale === "en"
+              ? "Discard the unsaved career and return to observation setup?"
+              : "未保存のキャリアを破棄して観測設計に戻りますか。",
+          );
           if (!accepted) return;
         }
         await resetView();
@@ -263,7 +270,7 @@ export const App: React.FC = () => {
       }
       setActiveSection(section);
     },
-    [currentCareerId, isCurrentCareerSaved, resetView],
+    [currentCareerId, isCurrentCareerSaved, locale, resetView],
   );
 
   const handleStart = React.useCallback(
@@ -314,13 +321,13 @@ export const App: React.FC = () => {
     if (status && currentCareerId) {
       if (phase === "chapter_ready" || phase === "running") {
         return {
-          label: "節目劇場へ戻る",
+          label: locale === "en" ? "Return to Basho Theater" : "節目劇場へ戻る",
           onClick: () => setActiveSection("basho"),
         };
       }
       if (phase === "completed" || phase === "reveal_ready" || phase === "simulating") {
         return {
-          label: "力士記録へ戻る",
+          label: locale === "en" ? "Return to Career Record" : "力士記録へ戻る",
           onClick: () => setActiveSection("career"),
         };
       }
@@ -329,15 +336,15 @@ export const App: React.FC = () => {
     const latestUnshelved = unshelvedCareers[0];
     if (latestUnshelved) {
       return {
-        label: "未保存の一代を開く",
+        label: locale === "en" ? "Open Unsaved Career" : "未保存の一代を開く",
         onClick: () => void handleOpenCareer(latestUnshelved.id),
       };
     }
 
     return null;
-  }, [currentCareerId, handleOpenCareer, phase, status, unshelvedCareers]);
+  }, [currentCareerId, handleOpenCareer, locale, phase, status, unshelvedCareers]);
 
-  const shellTitle = getShellTitle(activeSection, status?.shikona);
+  const shellTitle = getShellTitle(activeSection, status?.shikona, locale);
   const shellStatusLine = getStatusLine({
     phase,
     progress,
@@ -345,12 +352,14 @@ export const App: React.FC = () => {
     latestObservation,
     errorMessage,
     bashoRowsLoading,
+    locale,
   });
   const shellActions = getShellActions({
     phase,
     onSkipToEnd: skipToEnd,
     onReveal: revealCurrentResult,
     onStop: stopSimulation,
+    locale,
   });
 
   return (
@@ -369,6 +378,7 @@ export const App: React.FC = () => {
     >
       {renderSection({
         activeSection,
+        locale,
         phase,
         simulationPacing,
         status,
@@ -430,6 +440,7 @@ export const App: React.FC = () => {
 
 const renderSection = ({
   activeSection,
+  locale,
   phase,
   simulationPacing,
   status,
@@ -467,6 +478,7 @@ const renderSection = ({
   onClearAllData,
 }: {
   activeSection: AppSection;
+  locale: LocaleCode;
   phase: ReturnType<typeof useSimulation>["phase"];
   simulationPacing: ReturnType<typeof useSimulation>["simulationPacing"];
   status: ReturnType<typeof useSimulation>["status"];
@@ -540,7 +552,9 @@ const renderSection = ({
         <LogicLabScreen />
         {import.meta.env.DEV ? (
           <div className="border border-amber-300/30 bg-amber-300/5 p-4 text-xs text-amber-200/80">
-            旧「新弟子設計（スカウト）」UI は ObservationBuild に置換されました。下にレガシーUIを残しています。
+            {locale === "en"
+              ? "The old recruit design UI has been replaced by Observation Build. The legacy UI remains below in development."
+              : "旧「新弟子設計（スカウト）」UI は ObservationBuild に置換されました。下にレガシーUIを残しています。"}
           </div>
         ) : null}
         {import.meta.env.DEV ? (
@@ -573,7 +587,7 @@ const renderSection = ({
   }
 
   if (!status) {
-    return <EmptyCareerState />;
+    return <EmptyCareerState locale={locale} />;
   }
 
   if (
@@ -587,11 +601,11 @@ const renderSection = ({
         primaryActionLabel={
           phase === "chapter_ready"
             ? latestBashoView?.chapterKind === "RETIREMENT" || latestBashoView?.chapterKind === "EPILOGUE"
-              ? "記録を見る"
-              : "続きを読む"
+              ? locale === "en" ? "Read Record" : "記録を見る"
+              : locale === "en" ? "Continue" : "続きを読む"
             : null
         }
-        secondaryActionLabel={phase === "chapter_ready" ? "最後まで進める" : null}
+        secondaryActionLabel={phase === "chapter_ready" ? locale === "en" ? "Skip to End" : "最後まで進める" : null}
         onPrimaryAction={phase === "chapter_ready" ? onContinueChapter : undefined}
         onSecondaryAction={phase === "chapter_ready" ? onSkipToEnd : undefined}
       />
@@ -599,7 +613,7 @@ const renderSection = ({
   }
 
   if (phase === "simulating" || phase === "running") {
-    return <SimulationProgressView progress={progress} status={status} />;
+    return <SimulationProgressView progress={progress} status={status} locale={locale} />;
   }
 
   if (phase === "reveal_ready") {
@@ -610,6 +624,7 @@ const renderSection = ({
         detailState={detailState}
         detailBuildProgress={detailBuildProgress}
         onReveal={onRevealCurrentResult}
+        locale={locale}
       />
     );
   }
@@ -640,22 +655,27 @@ const renderSection = ({
 const SimulationProgressView: React.FC<{
   progress: ReturnType<typeof useSimulation>["progress"];
   status: ReturnType<typeof useSimulation>["status"];
-}> = ({ progress, status }) => (
+  locale: LocaleCode;
+}> = ({ progress, status, locale }) => (
   <div className="mx-auto max-w-5xl">
     <div className={cn(surface.panel, "grid gap-8 lg:grid-cols-[1.2fr_0.8fr]")}>
       <div className="space-y-5">
         <div className="space-y-3">
-          <div className={typography.kicker}>結果を準備中</div>
-          <h2 className={cn(typography.heading, "text-3xl text-text")}>力士人生を整理しています</h2>
+          <div className={typography.kicker}>{locale === "en" ? "Preparing Results" : "結果を準備中"}</div>
+          <h2 className={cn(typography.heading, "text-3xl text-text")}>
+            {locale === "en" ? "Organizing the career record" : "力士人生を整理しています"}
+          </h2>
           <p className="max-w-2xl text-sm text-text-dim">
-            番付や勝敗は伏せたまま、あとで読める記録帳を裏で整えています。
+            {locale === "en"
+              ? "Ranks and results are being compiled into a readable career ledger."
+              : "番付や勝敗は伏せたまま、あとで読める記録帳を裏で整えています。"}
           </p>
         </div>
 
         <div className="space-y-3">
           <div className={cn(typography.label, "flex items-center justify-between text-xs text-text-dim")}>
-            <span>整理済み</span>
-            <span>{progress ? `${progress.bashoCount}場所` : "演算中"}</span>
+            <span>{locale === "en" ? "Compiled" : "整理済み"}</span>
+            <span>{progress ? locale === "en" ? `${progress.bashoCount} basho` : `${progress.bashoCount}場所` : locale === "en" ? "Running" : "演算中"}</span>
           </div>
           <div className="h-2 overflow-hidden border border-white/10 bg-white/[0.03]">
             <div className="h-full w-1/3 animate-pulse bg-action/70" />
@@ -665,12 +685,12 @@ const SimulationProgressView: React.FC<{
 
       <div className="grid gap-3">
         <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>四股名</div>
-          <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{status?.shikona ?? "記録編集中"}</div>
+          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>{locale === "en" ? "Shikona" : "四股名"}</div>
+          <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{status?.shikona ?? (locale === "en" ? "Editing record" : "記録編集中")}</div>
         </div>
         <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>進み具合</div>
-          <div className="mt-2 text-xl text-text">{progress ? `${progress.bashoCount}場所を整理済み` : "-"}</div>
+          <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>{locale === "en" ? "Progress" : "進み具合"}</div>
+          <div className="mt-2 text-xl text-text">{progress ? locale === "en" ? `${progress.bashoCount} basho compiled` : `${progress.bashoCount}場所を整理済み` : "-"}</div>
         </div>
       </div>
     </div>
@@ -683,47 +703,54 @@ const RevealReadyView: React.FC<{
   detailState: ReturnType<typeof useSimulation>["detailState"];
   detailBuildProgress: ReturnType<typeof useSimulation>["detailBuildProgress"];
   onReveal: () => void;
-}> = ({ status, progress, detailState, detailBuildProgress, onReveal }) => {
+  locale: LocaleCode;
+}> = ({ status, progress, detailState, detailBuildProgress, onReveal, locale }) => {
   const totalRecordLabel = status
-    ? `${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`
+    ? locale === "en"
+      ? `${status.history.totalWins}-${status.history.totalLosses}${status.history.totalAbsent > 0 ? `-${status.history.totalAbsent} abs` : ""}`
+      : `${status.history.totalWins}勝${status.history.totalLosses}敗${status.history.totalAbsent > 0 ? `${status.history.totalAbsent}休` : ""}`
     : "-";
   const detailMessage =
     detailState === "building"
-      ? `詳細記録を整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? progress?.bashoCount ?? 0}`
-      : "詳細章もすぐ読めます。";
+      ? locale === "en"
+        ? `Building detailed record ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? progress?.bashoCount ?? 0}`
+        : `詳細記録を整理中 ${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? progress?.bashoCount ?? 0}`
+      : locale === "en" ? "Detailed chapters are ready to read." : "詳細章もすぐ読めます。";
 
   return (
     <div className="mx-auto max-w-5xl">
       <div className={cn(surface.panel, "space-y-8")}>
         <div className="space-y-3 text-center">
-          <div className={typography.kicker}>開封の前</div>
-          <h2 className={cn(typography.heading, "text-3xl text-text")}>結果の準備ができました</h2>
+          <div className={typography.kicker}>{locale === "en" ? "Before Opening" : "開封の前"}</div>
+          <h2 className={cn(typography.heading, "text-3xl text-text")}>{locale === "en" ? "The result is ready" : "結果の準備ができました"}</h2>
           <p className="mx-auto max-w-2xl text-sm text-text-dim">
-            表紙はすぐ開けます。細部の帳面は裏で整理を続けています。
+            {locale === "en"
+              ? "You can open the cover now. Detailed ledgers may still be finishing in the background."
+              : "表紙はすぐ開けます。細部の帳面は裏で整理を続けています。"}
           </p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>最高位</div>
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>{locale === "en" ? "Highest Rank" : "最高位"}</div>
             <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>
-              {status ? formatHighestRankDisplayName(status.history.maxRank) : "-"}
+              {status ? formatHighestRankDisplayName(status.history.maxRank, locale) : "-"}
             </div>
           </div>
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>通算</div>
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>{locale === "en" ? "Career" : "通算"}</div>
             <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{totalRecordLabel}</div>
           </div>
           <div className="border border-gold/15 bg-bg/20 px-5 py-5">
-            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>在位</div>
-            <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{progress ? `${progress.bashoCount}場所` : "-"}</div>
+            <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>{locale === "en" ? "Basho" : "在位"}</div>
+            <div className={cn(typography.heading, "mt-2 text-2xl text-text")}>{progress ? locale === "en" ? `${progress.bashoCount} basho` : `${progress.bashoCount}場所` : "-"}</div>
           </div>
         </div>
 
         <div className="flex flex-col items-center gap-3 border border-white/10 bg-white/[0.02] px-5 py-6 text-center">
           <Button size="lg" onClick={onReveal}>
             <Play className="mr-2 h-4 w-4" />
-            結果を見る
+            {locale === "en" ? "Open Result" : "結果を見る"}
           </Button>
           <div className="text-sm text-text-dim">{detailMessage}</div>
         </div>
@@ -732,23 +759,25 @@ const RevealReadyView: React.FC<{
   );
 };
 
-const EmptyCareerState: React.FC = () => (
+const EmptyCareerState: React.FC<{ locale: LocaleCode }> = ({ locale }) => (
   <section className={cn(surface.premium, "p-5 sm:p-6")}>
     <div className="border border-gold/10 bg-bg/20 px-4 py-10 text-center text-sm text-text-dim">
-      読み込める記録がありません。ホームから観測設計または保存済み記録を開いてください。
+      {locale === "en"
+        ? "No career record is loaded. Start an observation or open the archive from Home."
+        : "読み込める記録がありません。ホームから観測設計または保存済み記録を開いてください。"}
     </div>
   </section>
 );
 
-const getShellTitle = (section: AppSection, shikona?: string | null): string => {
-  if (section === "home") return "ホーム";
-  if (section === "basho") return shikona ? `${shikona} 節目劇場` : "節目劇場";
-  if (section === "career") return shikona ? `${shikona} 力士記録` : "力士記録";
-  if (section === "archive") return "保存済み記録";
-  if (section === "collection") return "記録 / 偉業";
-  if (section === "settings") return "設定";
-  if (section === "logicLab") return "ロジック検証";
-  return "観測設計";
+const getShellTitle = (section: AppSection, shikona?: string | null, locale: LocaleCode = "ja"): string => {
+  if (section === "home") return locale === "en" ? "Home" : "ホーム";
+  if (section === "basho") return shikona ? `${shikona} ${locale === "en" ? "Basho Theater" : "節目劇場"}` : locale === "en" ? "Basho Theater" : "節目劇場";
+  if (section === "career") return shikona ? `${shikona} ${locale === "en" ? "Career Record" : "力士記録"}` : locale === "en" ? "Career Record" : "力士記録";
+  if (section === "archive") return locale === "en" ? "Archive" : "保存済み記録";
+  if (section === "collection") return locale === "en" ? "Records" : "記録 / 偉業";
+  if (section === "settings") return locale === "en" ? "Settings" : "設定";
+  if (section === "logicLab") return locale === "en" ? "Logic Lab" : "ロジック検証";
+  return locale === "en" ? "Observation Setup" : "観測設計";
 };
 
 const getStatusLine = ({
@@ -758,6 +787,7 @@ const getStatusLine = ({
   latestObservation,
   errorMessage,
   bashoRowsLoading,
+  locale,
 }: {
   phase: ReturnType<typeof useSimulation>["phase"];
   progress: ReturnType<typeof useSimulation>["progress"];
@@ -765,18 +795,21 @@ const getStatusLine = ({
   latestObservation: ReturnType<typeof useSimulation>["latestObservation"];
   errorMessage: string | undefined;
   bashoRowsLoading: boolean;
+  locale: LocaleCode;
 }) => {
   if (errorMessage) return errorMessage;
   if (phase === "simulating" || phase === "running") {
-    return `${progress?.bashoCount ?? 0}場所を整理中`;
+    return locale === "en" ? `Compiling ${progress?.bashoCount ?? 0} basho` : `${progress?.bashoCount ?? 0}場所を整理中`;
   }
   if (phase === "chapter_ready") {
-    return latestObservation?.headline ?? "節目待機";
+    return latestObservation?.headline ?? (locale === "en" ? "Chapter ready" : "節目待機");
   }
   if (phase === "reveal_ready") {
-    return latestPauseReason ? `停止: ${latestPauseReason}` : "結果待機";
+    return latestPauseReason
+      ? locale === "en" ? `Stopped: ${latestPauseReason}` : `停止: ${latestPauseReason}`
+      : locale === "en" ? "Result ready" : "結果待機";
   }
-  if (bashoRowsLoading) return "記録読込中";
+  if (bashoRowsLoading) return locale === "en" ? "Loading records" : "記録読込中";
   return undefined;
 };
 
@@ -785,11 +818,13 @@ const getShellActions = ({
   onSkipToEnd,
   onReveal,
   onStop,
+  locale,
 }: {
   phase: ReturnType<typeof useSimulation>["phase"];
   onSkipToEnd: () => void;
   onReveal: () => void;
   onStop: () => Promise<void>;
+  locale: LocaleCode;
 }) => {
   if (phase === "chapter_ready") {
     return null;
@@ -800,11 +835,11 @@ const getShellActions = ({
       <>
         <Button variant="secondary" size="sm" onClick={onSkipToEnd}>
           <FastForward className="mr-2 h-4 w-4" />
-          最後まで進める
+          {locale === "en" ? "Skip to End" : "最後まで進める"}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => void onStop()}>
           <Square className="mr-2 h-4 w-4" />
-          中断
+          {locale === "en" ? "Stop" : "中断"}
         </Button>
       </>
     );
@@ -814,7 +849,7 @@ const getShellActions = ({
     return (
       <Button size="sm" onClick={onReveal}>
         <Play className="mr-2 h-4 w-4" />
-        結果を開く
+        {locale === "en" ? "Open Result" : "結果を開く"}
       </Button>
     );
   }
