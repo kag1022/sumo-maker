@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Button } from "../../../shared/ui/Button";
 import { StatCard } from "../../../shared/ui/StatCard";
 import { cn } from "../../../shared/lib/cn";
+import { useLocale } from "../../../shared/hooks/useLocale";
+import type { LocaleCode } from "../../../shared/lib/locale";
 import typography from "../../../shared/styles/typography.module.css";
 import styles from "./HomeScreen.module.css";
 
@@ -20,39 +22,51 @@ interface HomeScreenProps {
 }
 
 const NAV_CARDS: Array<{
-  title: string;
-  body: string;
+  title: Record<LocaleCode, string>;
+  body: Record<LocaleCode, string>;
   icon: React.ComponentType<{ className?: string }>;
-  actionLabel: string;
+  actionLabel: Record<LocaleCode, string>;
   key: string;
 }> = [
   {
     key: "scout",
-    title: "観測する",
-    body: "観測テーマとビルド設定で方向性を少し寄せ、新しい相撲人生を観測する。結果は保証されない。",
+    title: { ja: "観測する", en: "Observe" },
+    body: {
+      ja: "観測テーマとビルド設定で方向性を少し寄せ、新しい相撲人生を観測する。結果は保証されない。",
+      en: "Set a theme and optional build hints, then observe a new sumo career. Nothing is guaranteed.",
+    },
     icon: ScrollText,
-    actionLabel: "観測設計へ",
+    actionLabel: { ja: "観測設計へ", en: "Open setup" },
   },
   {
     key: "archive",
-    title: "保存済み記録",
-    body: "残しておいた一代を読み返す。戦績・番付推移・宿敵関係を読む。",
+    title: { ja: "保存済み記録", en: "Archive" },
+    body: {
+      ja: "残しておいた一代を読み返す。戦績・番付推移・宿敵関係を読む。",
+      en: "Reopen saved careers and review records, rank movement, and rivalries.",
+    },
     icon: Archive,
-    actionLabel: "記録を開く",
+    actionLabel: { ja: "記録を開く", en: "Open records" },
   },
   {
     key: "collection",
-    title: "記録 / 偉業",
-    body: "解放済みの決まり手・実績・希少記録をまとめて確認する。",
+    title: { ja: "記録 / 偉業", en: "Records" },
+    body: {
+      ja: "解放済みの決まり手・実績・希少記録をまとめて確認する。",
+      en: "Review unlocked kimarite, achievements, and rare records.",
+    },
     icon: LibraryBig,
-    actionLabel: "記録を開く",
+    actionLabel: { ja: "記録を開く", en: "Open records" },
   },
   {
     key: "settings",
-    title: "設定",
-    body: "テーマの切り替えや保存データの管理を行う。",
+    title: { ja: "設定", en: "Settings" },
+    body: {
+      ja: "テーマの切り替えや保存データの管理を行う。",
+      en: "Change theme, language, and local data settings.",
+    },
     icon: Settings,
-    actionLabel: "設定へ",
+    actionLabel: { ja: "設定へ", en: "Open settings" },
   },
 ];
 
@@ -75,6 +89,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenCollection,
   onOpenSettings,
 }) => {
+  const { locale } = useLocale();
   const handlers: Record<string, () => void> = {
     scout: onOpenScout,
     archive: onOpenArchive,
@@ -105,20 +120,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="relative">
           <div className="mb-4 inline-flex items-center gap-2 border border-[var(--ui-brand-line)]/25 bg-[var(--ui-brand-line)]/8 px-3 py-1.5">
             <span className={cn(typography.label, "text-[9px] tracking-[0.45em] text-[var(--ui-brand-line)] uppercase")}>
-              相撲記録帳 · SUMO MAKER
+              {locale === "en" ? "SUMO MAKER · CAREER RECORDS" : "相撲記録帳 · SUMO MAKER"}
             </span>
           </div>
           <h2 className={cn(typography.heading, "text-3xl sm:text-4xl lg:text-5xl text-text leading-tight tracking-wide")}>
-            一人の力士の一生を、<br />記録として読む。
+            {locale === "en" ? (
+              <>Read one rikishi's life<br />as a career record.</>
+            ) : (
+              <>一人の力士の一生を、<br />記録として読む。</>
+            )}
           </h2>
           <p className="mt-4 max-w-xl text-sm sm:text-base text-text-dim leading-relaxed">
-            観測テーマとビルド設定で方向性を少し寄せ、一人の相撲人生を観測する。
-            番付・戦績・宿敵・怪我——整理された記録から人物像が立ち上がる。
+            {locale === "en"
+              ? "Choose an observation theme, nudge the starting conditions, and watch a full sumo career resolve into ranks, records, rivals, and injuries."
+              : "観測テーマとビルド設定で方向性を少し寄せ、一人の相撲人生を観測する。番付・戦績・宿敵・怪我——整理された記録から人物像が立ち上がる。"}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" onClick={onOpenScout}>
               <ScrollText className="mr-2 h-4 w-4" />
-              観測を始める
+              {locale === "en" ? "Start Observation" : "観測を始める"}
             </Button>
             {onResume && resumeLabel ? (
               <Button variant="secondary" size="lg" onClick={onResume}>
@@ -137,17 +157,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, delay: 0.08 }}
       >
-        <StatCard label="保存済み記録" value={savedCount} subtext="読み返せる一代" tone="gold" />
         <StatCard
-          label="観測した一代"
+          label={locale === "en" ? "Saved Records" : "保存済み記録"}
+          value={savedCount}
+          subtext={locale === "en" ? "Careers to reread" : "読み返せる一代"}
+          tone="gold"
+        />
+        <StatCard
+          label={locale === "en" ? "Observed Careers" : "観測した一代"}
           value={lifetimeCount}
-          subtext={lifetimeCount > 0 ? "これまでの一代" : "観測を始めてみる"}
+          subtext={lifetimeCount > 0
+            ? locale === "en" ? "All-time careers" : "これまでの一代"
+            : locale === "en" ? "Start observing" : "観測を始めてみる"}
           tone={lifetimeCount > 0 ? "action" : "default"}
         />
         <StatCard
-          label="現在の注目"
+          label={locale === "en" ? "Current Focus" : "現在の注目"}
           value={currentShikona ?? "—"}
-          subtext={currentShikona ? "キャリア閲覧中" : "観測設計から開始"}
+          subtext={currentShikona
+            ? locale === "en" ? "Viewing career" : "キャリア閲覧中"
+            : locale === "en" ? "Start from setup" : "観測設計から開始"}
         />
       </motion.div>
 
@@ -160,9 +189,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           className={cn(styles.resumeBanner, "flex flex-col gap-4 border border-[var(--ui-brand-line)]/30 px-6 py-5 sm:flex-row sm:items-center sm:justify-between")}
         >
           <div>
-            <div className={cn(typography.label, "mb-2 text-[9px] tracking-[0.4em] text-[var(--ui-brand-line)]/60 uppercase")}>続きから</div>
+            <div className={cn(typography.label, "mb-2 text-[9px] tracking-[0.4em] text-[var(--ui-brand-line)]/60 uppercase")}>{locale === "en" ? "Resume" : "続きから"}</div>
             <div className={cn(typography.heading, "text-lg text-text")}>{currentShikona}</div>
-            <div className="mt-1 text-sm text-text-dim">前回の記録を続きから開けます。</div>
+            <div className="mt-1 text-sm text-text-dim">{locale === "en" ? "Continue from the previous record." : "前回の記録を続きから開けます。"}</div>
           </div>
           <Button variant="secondary" onClick={onResume}>
             <Waypoints className="mr-2 h-4 w-4" />
@@ -174,7 +203,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Nav cards */}
       <div>
         <div className={cn(typography.label, "mb-4 text-[9px] tracking-[0.4em] text-[var(--ui-brand-line)]/50 uppercase")}>
-          メニュー
+          {locale === "en" ? "Menu" : "メニュー"}
         </div>
         <motion.section
           className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
@@ -194,15 +223,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <div className={cn(styles.navCardIcon, "flex h-10 w-10 items-center justify-center border border-[var(--ui-brand-line)]/25 bg-[var(--ui-brand-line)]/8 transition-colors group-hover:border-[var(--ui-brand-line)]/40")}>
                     <Icon className="h-5 w-5 text-[var(--ui-brand-line)]/70" />
                   </div>
-                  <div className={cn(typography.heading, "text-sm text-text")}>{card.title}</div>
-                  <p className="text-xs text-text-dim leading-relaxed">{card.body}</p>
+                  <div className={cn(typography.heading, "text-sm text-text")}>{card.title[locale]}</div>
+                  <p className="text-xs text-text-dim leading-relaxed">{card.body[locale]}</p>
                 </div>
                 <button
                   type="button"
                   className={cn(styles.navAction, typography.label, "w-full px-3 py-2 text-xs transition-all tracking-wide")}
                   onClick={handlers[card.key]}
                 >
-                  {card.actionLabel} →
+                  {card.actionLabel[locale]} →
                 </button>
               </motion.article>
             );
