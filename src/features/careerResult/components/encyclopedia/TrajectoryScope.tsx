@@ -1,5 +1,7 @@
 import React from "react";
 import { BarChart3 } from "lucide-react";
+import { useLocale } from "../../../../shared/hooks/useLocale";
+import type { LocaleCode } from "../../../../shared/lib/locale";
 import { Button } from "../../../../shared/ui/Button";
 import {
   CAREER_RANK_SCALE_BANDS,
@@ -23,7 +25,23 @@ interface ResidenceBar {
   ratio: number;
 }
 
-const buildResidenceBars = (points: CareerLedgerPoint[] | undefined): ResidenceBar[] => {
+const BAND_EN_LABELS: Record<string, string> = {
+  YOKOZUNA: "Yokozuna",
+  OZEKI: "Ozeki",
+  SEKIWAKE: "Sekiwake",
+  KOMUSUBI: "Komusubi",
+  MAEGASHIRA: "Maegashira",
+  JURYO: "Juryo",
+  MAKUSHITA: "Makushita",
+  SANDANME: "Sandanme",
+  JONIDAN: "Jonidan",
+  JONOKUCHI: "Jonokuchi",
+};
+
+const formatBandLabel = (band: { key: string; label: string }, locale: LocaleCode): string =>
+  locale === "en" ? BAND_EN_LABELS[band.key] ?? band.label : band.label;
+
+const buildResidenceBars = (points: CareerLedgerPoint[] | undefined, locale: LocaleCode): ResidenceBar[] => {
   if (!points?.length) return [];
   const counts = new Map<string, number>();
   for (const point of points) {
@@ -34,7 +52,7 @@ const buildResidenceBars = (points: CareerLedgerPoint[] | undefined): ResidenceB
     const count = counts.get(band.key) ?? 0;
     return {
       key: band.key,
-      label: band.label,
+      label: formatBandLabel(band, locale),
       count,
       ratio: count / maxCount,
     };
@@ -74,19 +92,19 @@ const buildMiniRankScaleLayout = (
   });
 };
 
-const RankResidenceChart: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
-  const bars = React.useMemo(() => buildResidenceBars(points), [points]);
+const RankResidenceChart: React.FC<{ points: CareerLedgerPoint[] | undefined; locale: LocaleCode }> = ({ points, locale }) => {
+  const bars = React.useMemo(() => buildResidenceBars(points, locale), [locale, points]);
   const total = points?.length ?? 0;
 
   if (!points || points.length === 0) {
-    return <div className={styles.residenceEmpty}>在籍数は詳細整理後に表示されます。</div>;
+    return <div className={styles.residenceEmpty}>{locale === "en" ? "Residence counts appear after detail records are ready." : "在籍数は詳細整理後に表示されます。"}</div>;
   }
 
   return (
-    <aside className={styles.residencePanel} aria-label="階級別の在籍場所数">
+    <aside className={styles.residencePanel} aria-label={locale === "en" ? "Basho count by rank band" : "階級別の在籍場所数"}>
       <div className={styles.residenceHead}>
-        <span>階級別の在籍</span>
-        <strong>{total}場所</strong>
+        <span>{locale === "en" ? "Rank Residence" : "階級別の在籍"}</span>
+        <strong>{locale === "en" ? `${total} basho` : `${total}場所`}</strong>
       </div>
       <div className={styles.residenceBars}>
         {bars.map((bar) => (
@@ -95,7 +113,7 @@ const RankResidenceChart: React.FC<{ points: CareerLedgerPoint[] | undefined }> 
             <span className={styles.residenceTrack} aria-hidden="true">
               <span className={styles.residenceFill} style={{ width: `${Math.max(8, bar.ratio * 100)}%` }} />
             </span>
-            <strong className={styles.residenceCount}>{bar.count}場所</strong>
+            <strong className={styles.residenceCount}>{locale === "en" ? `${bar.count} basho` : `${bar.count}場所`}</strong>
           </div>
         ))}
       </div>
@@ -103,9 +121,9 @@ const RankResidenceChart: React.FC<{ points: CareerLedgerPoint[] | undefined }> 
   );
 };
 
-const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined }> = ({ points }) => {
+const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined; locale: LocaleCode }> = ({ points, locale }) => {
   if (!points || points.length < 2) {
-    return <div className={styles.sparkEmpty}>番付推移は詳細整理後に表示されます。</div>;
+    return <div className={styles.sparkEmpty}>{locale === "en" ? "Rank trajectory appears after detail records are ready." : "番付推移は詳細整理後に表示されます。"}</div>;
   }
   const width = 560;
   const height = 176;
@@ -142,7 +160,7 @@ const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined }> =
       className={styles.sparkline}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label="階級帯上の番付推移要約"
+      aria-label={locale === "en" ? "Rank trajectory summary by band" : "階級帯上の番付推移要約"}
     >
       {bandLayout.map((band) => (
         <g key={`mini-band-${band.key}`}>
@@ -159,7 +177,7 @@ const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined }> =
             y={padding.top + band.y + band.height / 2 + 4}
             className={styles.sparkBandLabel}
           >
-            {band.label}
+            {formatBandLabel(band, locale)}
           </text>
         </g>
       ))}
@@ -169,47 +187,48 @@ const MiniTrajectorySvg: React.FC<{ points: CareerLedgerPoint[] | undefined }> =
       <circle cx={lastPosition.x} cy={lastPosition.y} r="4" className={styles.sparkEndpoint} />
       <circle cx={peakPosition.x} cy={peakPosition.y} r="6" className={styles.sparkPeak} />
       <text x={peakLabelX} y={peakLabelY} className={styles.sparkLabel}>
-        最高位
+        {locale === "en" ? "Peak" : "最高位"}
       </text>
       <text x={firstPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">
-        初土俵
+        {locale === "en" ? "Start" : "初土俵"}
       </text>
       <text x={lastPosition.x} y={height - 6} className={styles.sparkAxisLabel} textAnchor="middle">
-        終幕
+        {locale === "en" ? "End" : "終幕"}
       </text>
     </svg>
   );
 };
 
 export const TrajectoryScope: React.FC<TrajectoryScopeProps> = ({ points, onOpenChapter }) => {
+  const { locale } = useLocale();
   return (
     <BracketFrame variant="log" padding="default" bodyClassName={styles.scope}>
       <ModuleHeader
-        title="階級帯で見る番付推移"
-        copy="横方向は時間、線は場所ごとの在位階級を表します。"
-        kicker="番付推移"
+        title={locale === "en" ? "Rank Trajectory by Band" : "階級帯で見る番付推移"}
+        copy={locale === "en" ? "The horizontal axis is time; the line shows each basho's rank band." : "横方向は時間、線は場所ごとの在位階級を表します。"}
+        kicker={locale === "en" ? "Rank Arc" : "番付推移"}
         led="info"
         action={
           <Button variant="secondary" size="sm" onClick={() => onOpenChapter("trajectory")}>
             <BarChart3 className="mr-2 h-4 w-4" />
-            番付推移を見る
+            {locale === "en" ? "Open Rank Trajectory" : "番付推移を見る"}
           </Button>
         }
       />
       <div className={styles.scopeBody}>
         <div className={styles.scopePlot}>
-          <MiniTrajectorySvg points={points} />
+          <MiniTrajectorySvg points={points} locale={locale} />
         </div>
-        <RankResidenceChart points={points} />
+        <RankResidenceChart points={points} locale={locale} />
       </div>
       <div className={styles.legend}>
         <span>
           <i className={styles.dotPeak} aria-hidden="true" />
-          <em>最高位</em>
+          <em>{locale === "en" ? "Peak rank" : "最高位"}</em>
         </span>
         <span>
           <i className={styles.dotEdge} aria-hidden="true" />
-          <em>初土俵・終幕</em>
+          <em>{locale === "en" ? "Start / End" : "初土俵・終幕"}</em>
         </span>
       </div>
     </BracketFrame>

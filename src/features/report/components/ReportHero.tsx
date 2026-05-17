@@ -12,7 +12,9 @@ import {
   YAxis,
 } from "recharts";
 import { Rank } from "../../../logic/models";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
+import type { LocaleCode } from "../../../shared/lib/locale";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
@@ -23,8 +25,12 @@ import {
   ReportSpotlightPayload,
 } from "../utils/reportHero";
 import {
-  formatHighestRankDisplayName,
-} from "../utils/reportFormatters";
+  formatReportAxisRankLabel,
+  formatReportDivisionLabel,
+  formatReportHighestRankLabel,
+  formatReportRecordText,
+  textForLocale,
+} from "../utils/reportLocale";
 import reportCommon from "./reportCommon.module.css";
 import styles from "./ReportHero.module.css";
 
@@ -59,17 +65,101 @@ const resolveMetricToneColor = (tone: ReportHeroMetric["tone"]): string => {
   return "#efe6cf";
 };
 
-const formatAxisRank = (value: number): string => {
-  const abs = Math.abs(value);
-  if (abs === 0) return "横綱";
-  if (abs === 10) return "大関";
-  if (abs === 40) return "幕内";
-  if (abs === 60) return "十両";
-  if (abs === 80) return "幕下";
-  if (abs === 150) return "三段目";
-  if (abs === 260) return "序二段";
-  if (abs === 470) return "序ノ口";
-  return "";
+const HERO_METRIC_EN_LABELS = [
+  "Highest Rank",
+  "Career Win Rate",
+  "Makuuchi Tenure",
+  "Yusho",
+  "Kinboshi / Sansho",
+] as const;
+
+const formatAxisRank = (value: number, locale: LocaleCode): string =>
+  formatReportAxisRankLabel(value, locale);
+
+const localizeReportHeroUnitText = (value: string, locale: LocaleCode): string => {
+  if (locale !== "en") return value;
+  return value
+    .replace(/(\d+)勝\s*(\d+)敗/g, "$1-$2")
+    .replace(/(\d+)休/g, "$1 absences")
+    .replace(/(\d+)場所/g, "$1 basho")
+    .replace(/(\d+)回/g, "$1")
+    .replace(/(\d+)歳/g, "$1 yrs")
+    .replace(/幕内/g, "Makuuchi")
+    .replace(/十両以下/g, "lower divisions")
+    .replace(/下位優勝なし/g, "No lower-division yusho")
+    .replace(/幕内経験なし/g, "No Makuuchi record")
+    .replace(/表彰なし/g, "No special awards")
+    .replace(/勝負強さを示す勲章あり/g, "Special achievements recorded");
+};
+
+const formatHeroMetric = (
+  metric: ReportHeroMetric,
+  index: number,
+  locale: LocaleCode,
+  context: {
+    maxRank: Rank;
+    totalWins: number;
+    totalLosses: number;
+    totalAbsent: number;
+    yushoCountMakuuchi: number;
+    awardsSummary: { kinboshi: number; totalSansho: number };
+  },
+): ReportHeroMetric => {
+  if (locale !== "en") return metric;
+  const label = HERO_METRIC_EN_LABELS[index] ?? textForLocale(locale, metric.label, "Metric");
+  if (index === 0) {
+    return {
+      ...metric,
+      label,
+      value: formatReportHighestRankLabel(context.maxRank, locale),
+      meta: textForLocale(locale, metric.meta, "Highest career rank"),
+    };
+  }
+  if (index === 1) {
+    return {
+      ...metric,
+      label,
+      value: metric.value,
+      meta: formatReportRecordText(context.totalWins, context.totalLosses, context.totalAbsent, locale),
+    };
+  }
+  if (index === 3) {
+    return {
+      ...metric,
+      label,
+      value: String(context.yushoCountMakuuchi),
+      meta: textForLocale(locale, metric.meta, "Lower-division yusho are tracked separately."),
+    };
+  }
+  if (index === 4) {
+    return {
+      ...metric,
+      label,
+      value: `${context.awardsSummary.kinboshi} / ${context.awardsSummary.totalSansho}`,
+      meta: context.awardsSummary.kinboshi + context.awardsSummary.totalSansho > 0
+        ? "Special achievements recorded"
+        : "No special awards",
+    };
+  }
+  return {
+    ...metric,
+    label,
+    value: localizeReportHeroUnitText(metric.value, locale),
+    meta: localizeReportHeroUnitText(textForLocale(locale, metric.meta, "Career record detail"), locale),
+  };
+};
+
+const buildHeroHeadlineFallback = (
+  maxRank: Rank,
+  yushoCountMakuuchi: number,
+  locale: LocaleCode,
+): string => {
+  if (locale !== "en") return "";
+  if (yushoCountMakuuchi > 0) return `${yushoCountMakuuchi} Makuuchi yusho career`;
+  if (maxRank.name === "横綱") return "A career that reached Yokozuna";
+  if (maxRank.division === "Makuuchi") return "A career that reached Makuuchi";
+  if (maxRank.division === "Juryo") return "A career that reached sekitori status";
+  return "A career built from the lower divisions";
 };
 
 export interface ReportHeroProps {
@@ -125,6 +215,39 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
   onShowTimeline,
   onTabChange,
 }) => {
+  const { locale } = useLocale();
+  const heroTitleBadge = textForLocale(
+    locale,
+    summary.titleBadge,
+    `${formatReportHighestRankLabel(maxRank, locale)} record`,
+  );
+  const heroJourneyLabel = textForLocale(locale, summary.journeyLabel, "Entry to retirement");
+  const heroHeadline = textForLocale(
+    locale,
+    summary.careerHeadline,
+    buildHeroHeadlineFallback(maxRank, yushoCountMakuuchi, locale),
+  );
+  const heroNarrative = textForLocale(
+    locale,
+    summary.narrative,
+    "This saved record is read through rank movement, basho results, and turning points.",
+  );
+  const localizedMetrics = summary.metrics.map((metric, index) =>
+    formatHeroMetric(metric, index, locale, {
+      maxRank,
+      totalWins,
+      totalLosses,
+      totalAbsent,
+      yushoCountMakuuchi,
+      awardsSummary,
+    }),
+  );
+  const spotlightNote = textForLocale(
+    locale,
+    spotlight.note,
+    "The rank chart tracks each saved basho and highlights major movements.",
+  );
+
   return (
     <>
       <section className="relative overflow-hidden mb-8 lg:mb-12 animate-in fade-in duration-1000">
@@ -146,7 +269,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
               </div>
             </div>
             <div className={cn(surface.washi, "px-4 py-2 border-gold/20 text-center bg-bg-panel/60")}>
-              <p className={cn(typography.label, "text-[10px] text-gold uppercase tracking-widest")}>{summary.titleBadge}</p>
+              <p className={cn(typography.label, "text-[10px] text-gold uppercase tracking-widest")}>{heroTitleBadge}</p>
             </div>
           </div>
 
@@ -155,39 +278,39 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-sumi/20" />
-                <p className={cn(typography.label, "text-sm text-gold italic")}>{summary.journeyLabel}</p>
+                <p className={cn(typography.label, "text-sm text-gold italic")}>{heroJourneyLabel}</p>
               </div>
               <h1 className={cn(typography.heading, "text-5xl sm:text-7xl text-text leading-tight drop-shadow-sm font-bold")}>
                 {shikona}
               </h1>
               <p className={cn(typography.label, "text-xl sm:text-2xl text-text/80 border-b border-gold/20 pb-4 inline-block")}>
-                {summary.careerHeadline}
+                {heroHeadline}
               </p>
               <div className="relative">
                 <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gold/30" />
                 <p className="text-sm sm:text-base text-text/70 leading-relaxed max-w-2xl italic pl-4">
-                  “{summary.narrative}”
+                  “{heroNarrative}”
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {summary.lifeCards.map((card) => (
+              {summary.lifeCards.map((card, index) => (
                 <span
                   key={`${card.slot}-${card.label}`}
                   className={cn(typography.label, "px-3 py-1 bg-brand-line/10 border border-brand-line/20 text-[10px] text-brand-line")}
                 >
-                  {card.slot} | {card.label}
+                  {textForLocale(locale, card.slot, `Note ${index + 1}`)} | {textForLocale(locale, card.label, "Recorded premise")}
                 </span>
               ))}
-              {summary.profileFacts.map((fact) => (
-                <span key={fact} className={cn(typography.label, "px-3 py-1 bg-bg-light/40 border border-gold/10 text-[10px] text-text/60")}>
-                  {fact}
+              {summary.profileFacts.map((fact, index) => (
+                <span key={`${fact}-${index}`} className={cn(typography.label, "px-3 py-1 bg-bg-light/40 border border-gold/10 text-[10px] text-text/60")}>
+                  {textForLocale(locale, fact, index === 2 ? fact : "Profile recorded")}
                 </span>
               ))}
               {summary.pills.map((pill) => (
                 <span key={pill.label} className={cn(typography.label, "px-3 py-1 bg-gold/20 border border-gold/30 text-[10px] text-gold")}>
-                  {pill.label}
+                  {textForLocale(locale, pill.label, "Career milestone")}
                 </span>
               ))}
             </div>
@@ -196,18 +319,18 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
           {/* 右: 主要戦績スタッツ */}
           <div className={cn(surface.washi, "p-8 border-gold/20 shadow-2xl space-y-6 flex flex-col justify-center bg-bg-panel/60")}>
             <div className="text-center border-b border-gold/10 pb-4">
-              <div className={cn(typography.label, "text-[10px] text-gold/60 mb-2 uppercase tracking-widest")}>最高位</div>
+              <div className={cn(typography.label, "text-[10px] text-gold/60 mb-2 uppercase tracking-widest")}>{locale === "en" ? "Highest Rank" : "最高位"}</div>
               <div className={cn(typography.metric, "text-4xl text-text")}>
-                {formatHighestRankDisplayName(maxRank)}
+                {formatReportHighestRankLabel(maxRank, locale)}
               </div>
             </div>
             
             <div className="space-y-4">
               {[
-                { label: "通算成績", val: `${totalWins}勝 ${totalLosses}敗${totalAbsent > 0 ? ` ${totalAbsent}休` : ""}` },
-                { label: "勝率", val: `${winRate}%` },
-                { label: "優勝回数", val: `${yushoCountMakuuchi}回` },
-                { label: "金星 / 三賞", val: `${awardsSummary.kinboshi} / ${awardsSummary.totalSansho}` },
+                { label: locale === "en" ? "Career Record" : "通算成績", val: formatReportRecordText(totalWins, totalLosses, totalAbsent, locale) },
+                { label: locale === "en" ? "Win Rate" : "勝率", val: `${winRate}%` },
+                { label: locale === "en" ? "Yusho" : "優勝回数", val: locale === "en" ? String(yushoCountMakuuchi) : `${yushoCountMakuuchi}回` },
+                { label: locale === "en" ? "Kinboshi / Sansho" : "金星 / 三賞", val: `${awardsSummary.kinboshi} / ${awardsSummary.totalSansho}` },
               ].map((item) => (
                 <div key={item.label} className="flex justify-between items-end border-b border-gold/5 pb-2">
                   <div className={cn(typography.label, "text-[10px] text-text/40")}>{item.label}</div>
@@ -218,7 +341,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
 
             <div className="pt-2 text-center">
               <p className="text-[9px] text-sumi/30 font-serif italic">
-                この歩みは西之海部屋の歴史に永劫刻まれる。
+                {locale === "en" ? "This career remains part of the saved record." : "この歩みは西之海部屋の歴史に永劫刻まれる。"}
               </p>
             </div>
           </div>
@@ -229,14 +352,14 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
         <div className="absolute inset-0 bg-bg/20 pointer-events-none" />
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 relative z-10">
           <div className="space-y-2">
-            <p className={cn(typography.label, "text-[10px] tracking-[0.4em] text-text/40 uppercase")}>番付の推移</p>
+            <p className={cn(typography.label, "text-[10px] tracking-[0.4em] text-text/40 uppercase")}>{locale === "en" ? "Rank Trajectory" : "番付の推移"}</p>
             <h2 className={cn(typography.heading, "text-3xl text-text flex items-center gap-3")}>
               <ScrollText className="w-8 h-8 text-gold" />
-              <span>これまでの番付の動き</span>
+              <span>{locale === "en" ? "Banzuke Movement" : "これまでの番付の動き"}</span>
             </h2>
           </div>
           <div className="text-sm text-sumi/60 max-w-xl leading-relaxed italic border-l-4 border-gold/40 pl-6">
-            {spotlight.note}
+            {spotlightNote}
           </div>
         </div>
 
@@ -249,13 +372,13 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                     className="inline-block w-2.5 h-2.5 border border-white/10"
                     style={{ backgroundColor: band.color, opacity: 0.6 }}
                   />
-                  {band.label}
+                  {locale === "en" ? formatReportDivisionLabel(band.key, locale) : band.label}
                 </span>
               ))}
               {spotlight.peakBand && (
                 <span className="inline-flex items-center gap-2 border-l border-gold-muted/20 pl-4 ml-2">
                   <span className="inline-block w-2.5 h-2.5 border border-action/40 bg-action/30" />
-                  黄金期: {spotlight.peakBand.label}
+                  {locale === "en" ? "Prime band" : "黄金期"}: {textForLocale(locale, spotlight.peakBand.label, "Prime years")}
                 </span>
               )}
             </div>
@@ -274,17 +397,20 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                   />
                   <YAxis
                     domain={[chartMin, 10]}
-                    tickFormatter={formatAxisRank}
+                    tickFormatter={(value) => formatAxisRank(Number(value), locale)}
                     ticks={[0, -10, -40, -60, -80, -150, -260, -470]}
                     width={54}
                     tick={{ fontSize: 9, fill: "#6f7b90", fontFamily: "DotGothic16" }}
                     axisLine={{ stroke: "rgba(196, 154, 77, 0.2)" }}
                   />
                   <Tooltip
-                    labelFormatter={(slot) => spotlight.points.find((point) => point.slot === slot)?.bashoLabel || ""}
+                    labelFormatter={(slot) => {
+                      const point = spotlight.points.find((entry) => entry.slot === slot);
+                      return point ? textForLocale(locale, point.bashoLabel, `Basho ${point.slot}`) : "";
+                    }}
                     formatter={(_value: number, _name: string, payload: { payload?: { rankLabel: string; age: number } }) => [
-                      payload.payload ? `${payload.payload.rankLabel} / ${payload.payload.age}歳` : "",
-                      "番付",
+                      payload.payload ? `${textForLocale(locale, payload.payload.rankLabel, "Rank record")} / ${locale === "en" ? `${payload.payload.age} yrs` : `${payload.payload.age}歳`}` : "",
+                      locale === "en" ? "Rank" : "番付",
                     ]}
                     contentStyle={{ ...TOOLTIP_STYLE, backgroundColor: "rgba(8, 18, 35, 0.95)", backdropFilter: "blur(4px)" }}
                   />
@@ -353,8 +479,8 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
                       background: "rgba(12, 18, 27, 0.5)"
                     }}
                   >
-                    <div className={cn(typography.label, "text-[10px] text-text-dim mb-1")}>{event.bashoLabel}</div>
-                    <div className="text-xs text-text leading-relaxed">{event.label}</div>
+                    <div className={cn(typography.label, "text-[10px] text-text-dim mb-1")}>{textForLocale(locale, event.bashoLabel, `Basho ${event.slot}`)}</div>
+                    <div className="text-xs text-text leading-relaxed">{textForLocale(locale, event.label, "Career event")}</div>
                   </div>
                 ))}
               </div>
@@ -363,14 +489,14 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
         ) : (
           <div className={cn(reportCommon.empty, "border-dashed border-gold-muted/20 text-center py-20 flex flex-col items-center gap-3")}>
             <Activity className="w-8 h-8 text-gold/20" />
-            <p className="text-sm italic">番付推移を描くほどの記録がまだありません。</p>
+            <p className="text-sm italic">{locale === "en" ? "There are not enough rank records to draw a trajectory yet." : "番付推移を描くほどの記録がまだありません。"}</p>
           </div>
         )}
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.4fr)] gap-4 items-stretch">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {summary.metrics.map((metric) => (
+          {localizedMetrics.map((metric) => (
             <div key={metric.label} className={cn(surface.card, surface.interactiveCard, "p-4 flex flex-col justify-between min-h-[100px] border-gold-muted/10 group hover:border-gold/30 transition-all")} data-tone={metric.tone}>
               <div className={cn(typography.label, "text-[10px] tracking-widest text-text-dim group-hover:text-gold/70 transition-colors uppercase")}>{metric.label}</div>
               <div
@@ -386,7 +512,7 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
 
         <div className={cn(surface.panel, "p-4 flex flex-col gap-2.5 border-gold/20 bg-bg-panel/40")}>
           <Button size="sm" variant="outline" onClick={onReset} className={cn(typography.label, "w-full justify-start text-[10px] opacity-60 hover:opacity-100 italic transition-all")}>
-            <ArrowLeft className="w-3.5 h-3.5 mr-2" /> 新弟子を待つ
+            <ArrowLeft className="w-3.5 h-3.5 mr-2" /> {locale === "en" ? "New Observation" : "新弟子を待つ"}
           </Button>
           <Button
             size="sm"
@@ -397,26 +523,26 @@ export const ReportHero: React.FC<ReportHeroProps> = ({
           >
             {saveState === "saved" || isSaved ? (
               <>
-                <Check className="w-3.5 h-3.5 mr-2" /> 永久保存済み
+                <Check className="w-3.5 h-3.5 mr-2" /> {locale === "en" ? "Saved" : "永久保存済み"}
               </>
             ) : saveState === "saving" ? (
               <>
-                <Activity className="w-3.5 h-3.5 mr-2 animate-spin" /> 保存中...
+                <Activity className="w-3.5 h-3.5 mr-2 animate-spin" /> {locale === "en" ? "Saving..." : "保存中..."}
               </>
             ) : (
               <>
-                <Save className="w-3.5 h-3.5 mr-2" /> この人生を保存
+                <Save className="w-3.5 h-3.5 mr-2" /> {locale === "en" ? "Save Career" : "この人生を保存"}
               </>
             )}
           </Button>
           <Button size="sm" variant="ghost" onClick={onShowTimeline} className={cn(typography.label, "w-full justify-start text-[10px] opacity-80 hover:opacity-100 hover:bg-gold/5")}>
-            <ScrollText className="w-3.5 h-3.5 mr-2" /> 転機を振り返る
+            <ScrollText className="w-3.5 h-3.5 mr-2" /> {locale === "en" ? "Review Turning Points" : "転機を振り返る"}
           </Button>
         </div>
       </section>
 
       <section className={cn(surface.panel, "p-1 border-gold/10 bg-bg-panel/40 backdrop-blur-sm sticky bottom-2 z-30 shadow-2xl")}>
-        <nav className="flex flex-wrap gap-1" aria-label="詳細分析タブ">
+        <nav className="flex flex-wrap gap-1" aria-label={locale === "en" ? "Detailed analysis tabs" : "詳細分析タブ"}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (

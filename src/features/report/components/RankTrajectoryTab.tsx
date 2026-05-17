@@ -2,10 +2,12 @@ import React from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ScrollText } from "lucide-react";
 import type { RikishiStatus } from "../../../logic/models";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { buildReportRankArcDigest } from "../utils/reportRankArcDigest";
+import { formatReportAxisRankLabel } from "../utils/reportLocale";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
 import { useCareerBashoDetail } from "./useCareerBashoDetail";
 
@@ -23,7 +25,8 @@ interface RankTrajectoryTabProps {
 }
 
 export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, careerId = null }) => {
-  const digest = React.useMemo(() => buildReportRankArcDigest(status), [status]);
+  const { locale } = useLocale();
+  const digest = React.useMemo(() => buildReportRankArcDigest(status, locale), [locale, status]);
   const [selectedState, setSelectedState] = React.useState<BashoDetailModalState | null>(null);
   const { detail, isLoading, errorMessage } = useCareerBashoDetail(careerId, selectedState, status);
   const chartTicks = React.useMemo(
@@ -42,9 +45,11 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
             <h3 className={typography.sectionHeader}>
-              <ScrollText className="w-4 h-4 text-warning" /> 番付の山谷
+              <ScrollText className="w-4 h-4 text-warning" /> {locale === "en" ? "Rank Peaks And Valleys" : "番付の山谷"}
             </h3>
-            <p className="mt-1 text-xs text-text-dim">昇進の数ではなく、上がり方、落ち方、停滞の重さを読みます。</p>
+            <p className="mt-1 text-xs text-text-dim">
+              {locale === "en" ? "Read how the career rose, fell, and held position over time." : "昇進の数ではなく、上がり方、落ち方、停滞の重さを読みます。"}
+            </p>
           </div>
         </div>
 
@@ -73,18 +78,7 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                 />
                 <YAxis
                   domain={[rankChartMin, 10]}
-                  tickFormatter={(value: number) => {
-                    const abs = Math.abs(value);
-                    if (abs === 0) return "横綱";
-                    if (abs === 10) return "大関";
-                    if (abs === 40) return "幕内";
-                    if (abs === 60) return "十両";
-                    if (abs === 80) return "幕下";
-                    if (abs === 150) return "三段目";
-                    if (abs === 260) return "序二段";
-                    if (abs === 470) return "序ノ口";
-                    return "";
-                  }}
+                  tickFormatter={(value: number) => formatReportAxisRankLabel(value, locale)}
                   ticks={[0, -10, -40, -60, -80, -150, -260, -470]}
                   width={54}
                   tick={{ fontSize: 9, fill: "#9dacbf" }}
@@ -94,7 +88,7 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                   labelFormatter={(slot) => digest.chartPoints.find((point) => point.slot === slot)?.bashoLabel || ""}
                   formatter={(_value: number, _name: string, payload: { payload?: { rankLabel: string } }) => [
                     payload.payload ? payload.payload.rankLabel : "",
-                    "番付",
+                    locale === "en" ? "Rank" : "番付",
                   ]}
                   contentStyle={TOOLTIP_STYLE}
                 />
@@ -124,15 +118,15 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                             : {
                               kind: "rank",
                               bashoSeq: item.bashoSeq,
-                              sourceLabel: "番付推移",
-                              title: `${item.bashoLabel}の場所詳細`,
+                              sourceLabel: locale === "en" ? "Rank Arc" : "番付推移",
+                              title: locale === "en" ? `${item.bashoLabel} detail` : `${item.bashoLabel}の場所詳細`,
                               subtitle: item.summary,
                               highlightReason: item.summary,
                             },
                         )
                       }
                     >
-                      {selectedState?.bashoSeq === item.bashoSeq ? "閉じる" : "この山場の理由を見る"}
+                      {selectedState?.bashoSeq === item.bashoSeq ? (locale === "en" ? "Close" : "閉じる") : (locale === "en" ? "Open Reason" : "この山場の理由を見る")}
                     </button>
                   )}
                 </div>
@@ -142,8 +136,8 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                 <div className="border border-warning/35 bg-bg/18 px-4 py-4">
                   <div className="mb-4 border-b border-brand-muted/40 pb-3">
                     <div>
-                      <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>番付推移詳細</div>
-                      <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{item.bashoLabel}の山場</div>
+                      <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>{locale === "en" ? "Rank Arc Detail" : "番付推移詳細"}</div>
+                      <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{locale === "en" ? `${item.bashoLabel} turning point` : `${item.bashoLabel}の山場`}</div>
                       <div className="mt-1 text-xs text-text-dim">{item.summary}</div>
                     </div>
                   </div>
@@ -164,9 +158,11 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
         <div className="absolute inset-y-0 left-0 w-1 bg-brand-line/35" />
         <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className={typography.sectionHeader}>
-            <ScrollText className="w-4 h-4 text-brand-line" /> 番付変動の比較表
+            <ScrollText className="w-4 h-4 text-brand-line" /> {locale === "en" ? "Rank Movement Table" : "番付変動の比較表"}
           </h3>
-          <p className="text-xs text-text-dim">各場所の成績と次場所への移動だけを並べます。</p>
+          <p className="text-xs text-text-dim">
+            {locale === "en" ? "Compare each basho record with the next rank movement." : "各場所の成績と次場所への移動だけを並べます。"}
+          </p>
         </div>
         <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
           {digest.movementRows.map((row, index) => (
@@ -191,7 +187,7 @@ export const RankTrajectoryTab: React.FC<RankTrajectoryTabProps> = ({ status, ca
                         : "text-text-dim"
                 }
               >
-                {row.deltaKind === "up" ? "↑" : row.deltaKind === "down" ? "↓" : row.deltaKind === "entry" ? "新" : "→"} {row.deltaText}
+                {row.deltaKind === "up" ? "↑" : row.deltaKind === "down" ? "↓" : row.deltaKind === "entry" ? (locale === "en" ? "New" : "新") : "→"} {row.deltaText}
               </div>
             </div>
           ))}

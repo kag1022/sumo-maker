@@ -1,9 +1,15 @@
 import { formatRankMovementDisplay, getRankValueForChart } from "../../../logic/ranking";
 import type { CareerTurningPoint, RikishiStatus } from "../../../logic/models";
-import { buildRankChartDataFromStatus, formatBashoLabel, formatHighestRankDisplayName, formatRankDisplayName } from "./reportShared";
-
-const formatRecordText = (wins: number, losses: number, absent: number): string =>
-  `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
+import type { LocaleCode } from "../../../shared/lib/locale";
+import { buildRankChartDataFromStatus } from "./reportShared";
+import {
+  formatReportBashoCount,
+  formatReportBashoLabel,
+  formatReportHighestRankLabel,
+  formatReportRankLabel,
+  formatReportRankMovement,
+  formatReportRecordText,
+} from "./reportLocale";
 
 export interface RankArcSummaryCard {
   label: string;
@@ -36,12 +42,22 @@ export interface ReportRankArcDigest {
   movementRows: RankMovementRow[];
 }
 
-const toTurningPointItem = (point: CareerTurningPoint): RankArcStoryItem => ({
+const TURNING_POINT_EN_LABELS: Record<CareerTurningPoint["kind"], string> = {
+  FIRST_SEKITORI: "First Sekitori",
+  MAKUUCHI_PROMOTION: "Makuuchi Promotion",
+  YUSHO: "Yusho",
+  MAJOR_INJURY: "Major Absence",
+  JURYO_DROP: "Juryo Drop",
+  SLUMP_RECOVERY: "Recovery",
+  RETIREMENT: "Retirement",
+};
+
+const toTurningPointItem = (point: CareerTurningPoint, locale: LocaleCode): RankArcStoryItem => ({
   key: `turning-${point.bashoSeq}-${point.kind}`,
   bashoSeq: point.bashoSeq,
-  bashoLabel: formatBashoLabel(point.year, point.month),
-  title: point.label,
-  summary: point.reason,
+  bashoLabel: formatReportBashoLabel(point.year, point.month, locale),
+  title: locale === "en" ? TURNING_POINT_EN_LABELS[point.kind] : point.label,
+  summary: locale === "en" ? "This basho is recorded as a turning point in the saved career." : point.reason,
   tone:
     point.kind === "MAJOR_INJURY" || point.kind === "JURYO_DROP" || point.kind === "RETIREMENT"
       ? "warning"
@@ -56,21 +72,31 @@ const isMaezumoTransition = (from: RikishiStatus["history"]["records"][number], 
 const getRankDelta = (from: RikishiStatus["history"]["records"][number], to: RikishiStatus["history"]["records"][number]): number =>
   (getRankValueForChart(from.rank) - getRankValueForChart(to.rank)) / 2;
 
-export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDigest => {
+export const buildReportRankArcDigest = (
+  status: RikishiStatus,
+  locale: LocaleCode = "ja",
+): ReportRankArcDigest => {
   const records = status.history.records;
-  const chartPoints = buildRankChartDataFromStatus(status).map((point) => ({
-    ...point,
-    plotValue: -1 * point.rankValue,
-  }));
+  const displayRecords = records.filter((record) => record.rank.division !== "Maezumo");
+  const chartPoints = buildRankChartDataFromStatus(status).map((point, index) => {
+    const record = displayRecords[index];
+    return {
+      ...point,
+      bashoLabel: record ? formatReportBashoLabel(record.year, record.month, locale) : point.bashoLabel,
+      rankLabel: record ? formatReportRankLabel(record.rank, locale) : point.rankLabel,
+      highestRankLabel: record ? formatReportHighestRankLabel(record.rank, locale) : point.highestRankLabel,
+      plotValue: -1 * point.rankValue,
+    };
+  });
 
   const movementRows: RankMovementRow[] = records.map((record, index) => {
     const next = records[index + 1];
     if (!next) {
       return {
-        bashoLabel: formatBashoLabel(record.year, record.month),
-        rankLabel: formatRankDisplayName(record.rank),
-        recordText: formatRecordText(record.wins, record.losses, record.absent),
-        nextRankLabel: "最終場所",
+        bashoLabel: formatReportBashoLabel(record.year, record.month, locale),
+        rankLabel: formatReportRankLabel(record.rank, locale),
+        recordText: formatReportRecordText(record.wins, record.losses, record.absent, locale),
+        nextRankLabel: locale === "en" ? "Final basho" : "最終場所",
         deltaText: "-",
         deltaKind: "last",
       };
@@ -78,22 +104,22 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
 
     if (record.rank.division === "Maezumo" && next.rank.division !== "Maezumo") {
       return {
-        bashoLabel: formatBashoLabel(record.year, record.month),
-        rankLabel: formatRankDisplayName(record.rank),
-        recordText: formatRecordText(record.wins, record.losses, record.absent),
-        nextRankLabel: formatRankDisplayName(next.rank),
-        deltaText: "番付掲載",
+        bashoLabel: formatReportBashoLabel(record.year, record.month, locale),
+        rankLabel: formatReportRankLabel(record.rank, locale),
+        recordText: formatReportRecordText(record.wins, record.losses, record.absent, locale),
+        nextRankLabel: formatReportRankLabel(next.rank, locale),
+        deltaText: locale === "en" ? "Entered banzuke" : "番付掲載",
         deltaKind: "entry",
       };
     }
 
     const delta = getRankDelta(record, next);
     return {
-      bashoLabel: formatBashoLabel(record.year, record.month),
-      rankLabel: formatRankDisplayName(record.rank),
-      recordText: formatRecordText(record.wins, record.losses, record.absent),
-      nextRankLabel: formatRankDisplayName(next.rank),
-      deltaText: formatRankMovementDisplay(record.rank, next.rank, delta),
+      bashoLabel: formatReportBashoLabel(record.year, record.month, locale),
+      rankLabel: formatReportRankLabel(record.rank, locale),
+      recordText: formatReportRecordText(record.wins, record.losses, record.absent, locale),
+      nextRankLabel: formatReportRankLabel(next.rank, locale),
+      deltaText: formatReportRankMovement(record.rank, next.rank, delta, locale),
       deltaKind: delta > 0 ? "up" : delta < 0 ? "down" : "stay",
     };
   });
@@ -124,30 +150,36 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
       if (delta > biggestRiseDelta) {
         biggestRiseDelta = delta;
         biggestRise = {
-          label: "最大上昇",
-          value: formatBashoLabel(current.year, current.month),
-          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
+          label: locale === "en" ? "Biggest Rise" : "最大上昇",
+          value: formatReportBashoLabel(current.year, current.month, locale),
+          detail: locale === "en"
+            ? `${formatReportRankLabel(current.rank, locale)} to ${formatReportRankLabel(next.rank, locale)}: ${formatReportRankMovement(current.rank, next.rank, delta, locale)}.`
+            : `${formatReportRankLabel(current.rank, locale)}から${formatReportRankLabel(next.rank, locale)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
         };
       }
       if (Math.abs(delta) > biggestDropDelta && delta < 0) {
         biggestDropDelta = Math.abs(delta);
         biggestDrop = {
-          label: "最大下落",
-          value: formatBashoLabel(current.year, current.month),
-          detail: `${formatRankDisplayName(current.rank)}から${formatRankDisplayName(next.rank)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
+          label: locale === "en" ? "Biggest Drop" : "最大下落",
+          value: formatReportBashoLabel(current.year, current.month, locale),
+          detail: locale === "en"
+            ? `${formatReportRankLabel(current.rank, locale)} to ${formatReportRankLabel(next.rank, locale)}: ${formatReportRankMovement(current.rank, next.rank, delta, locale)}.`
+            : `${formatReportRankLabel(current.rank, locale)}から${formatReportRankLabel(next.rank, locale)}へ${formatRankMovementDisplay(current.rank, next.rank, delta)}。`,
         };
       }
     }
 
-    if (next && formatRankDisplayName(current.rank) === formatRankDisplayName(next.rank)) {
+    if (next && formatReportRankLabel(current.rank, locale) === formatReportRankLabel(next.rank, locale)) {
       stayCount += 1;
     } else {
       if (stayCount > longestStayCount) {
         longestStayCount = stayCount;
         longestStay = {
-          label: "停滞の長さ",
-          value: `${stayCount}場所`,
-          detail: `${formatRankDisplayName(current.rank)}に${stayCount}場所とどまった。`,
+          label: locale === "en" ? "Longest Plateau" : "停滞の長さ",
+          value: formatReportBashoCount(stayCount, locale),
+          detail: locale === "en"
+            ? `${formatReportRankLabel(current.rank, locale)} held for ${formatReportBashoCount(stayCount, locale)}.`
+            : `${formatReportRankLabel(current.rank, locale)}に${stayCount}場所とどまった。`,
         };
       }
       stayCount = 1;
@@ -155,7 +187,7 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
   }
 
   const storyItems: RankArcStoryItem[] = [
-    ...(status.history.careerTurningPoints ?? []).map(toTurningPointItem),
+    ...(status.history.careerTurningPoints ?? []).map((point) => toTurningPointItem(point, locale)),
     ...records.flatMap<RankArcStoryItem>((record, index) => {
       const next = records[index + 1];
       if (!next) return [];
@@ -163,9 +195,11 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
         return [{
           key: `movement-entry-${index + 1}`,
           bashoSeq: index + 1,
-          bashoLabel: formatBashoLabel(record.year, record.month),
-          title: "初めて番付に載る",
-          summary: `前相撲を${formatRecordText(record.wins, record.losses, record.absent)}で終え、次は${formatRankDisplayName(next.rank)}から番付に載った。`,
+          bashoLabel: formatReportBashoLabel(record.year, record.month, locale),
+          title: locale === "en" ? "First Banzuke Entry" : "初めて番付に載る",
+          summary: locale === "en"
+            ? `Finished maezumo at ${formatReportRecordText(record.wins, record.losses, record.absent, locale)} and entered at ${formatReportRankLabel(next.rank, locale)}.`
+            : `前相撲を${formatReportRecordText(record.wins, record.losses, record.absent, locale)}で終え、次は${formatReportRankLabel(next.rank, locale)}から番付に載った。`,
           tone: "brand" as const,
         }];
       }
@@ -175,12 +209,14 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
       return [{
         key: `movement-${index + 1}`,
         bashoSeq: index + 1,
-        bashoLabel: formatBashoLabel(record.year, record.month),
-        title: delta > 0 ? "大幅上昇" : "大幅下降",
+        bashoLabel: formatReportBashoLabel(record.year, record.month, locale),
+        title: locale === "en" ? (delta > 0 ? "Major Rise" : "Major Drop") : delta > 0 ? "大幅上昇" : "大幅下降",
         summary:
-          delta > 0
-            ? `${formatRankDisplayName(record.rank)}で${formatRecordText(record.wins, record.losses, record.absent)}を残し、次は${formatRankDisplayName(next.rank)}まで上がった。`
-            : `${formatRankDisplayName(record.rank)}で${formatRecordText(record.wins, record.losses, record.absent)}に終わり、次は${formatRankDisplayName(next.rank)}まで落ちた。`,
+          locale === "en"
+            ? `${formatReportRankLabel(record.rank, locale)} with ${formatReportRecordText(record.wins, record.losses, record.absent, locale)} led to ${formatReportRankLabel(next.rank, locale)}.`
+            : delta > 0
+              ? `${formatReportRankLabel(record.rank, locale)}で${formatReportRecordText(record.wins, record.losses, record.absent, locale)}を残し、次は${formatReportRankLabel(next.rank, locale)}まで上がった。`
+              : `${formatReportRankLabel(record.rank, locale)}で${formatReportRecordText(record.wins, record.losses, record.absent, locale)}に終わり、次は${formatReportRankLabel(next.rank, locale)}まで落ちた。`,
         tone: delta > 0 ? "state" as const : "warning" as const,
       }];
     }) as RankArcStoryItem[],
@@ -194,9 +230,11 @@ export const buildReportRankArcDigest = (status: RikishiStatus): ReportRankArcDi
     summaryCards: [
       highest
         ? {
-          label: "最高到達点",
-          value: formatHighestRankDisplayName(highest.rank),
-          detail: `${formatBashoLabel(highest.year, highest.month)}に到達`,
+          label: locale === "en" ? "Peak Rank" : "最高到達点",
+          value: formatReportHighestRankLabel(highest.rank, locale),
+          detail: locale === "en"
+            ? `Reached in ${formatReportBashoLabel(highest.year, highest.month, locale)}`
+            : `${formatReportBashoLabel(highest.year, highest.month, locale)}に到達`,
         }
         : null,
       biggestRise,

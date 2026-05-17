@@ -24,6 +24,8 @@ import { summarizeSignatureKimarite } from "../../../logic/kimarite/signature";
 import { TRAIT_CATEGORY_LABELS, formatTraitAcquisitionLabel } from "../../../logic/traits";
 import { buildStableEnvironmentReading } from "../../../logic/simulation/heya/stableEnvironment";
 import { buildStablemateSummaries } from "../../shared/utils/stablemateReading";
+import { useLocale } from "../../../shared/hooks/useLocale";
+import type { LocaleCode } from "../../../shared/lib/locale";
 import type {
   CareerDesignReadingModel,
   CareerLedgerPoint,
@@ -74,8 +76,55 @@ const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   MUSCULAR: "筋骨型",
 };
 
-const formatRecordText = (wins: number, losses: number, absent: number): string =>
-  `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
+const BODY_LABELS_EN: Record<RikishiStatus["bodyType"], string> = {
+  NORMAL: "Balanced",
+  SOPPU: "Lean",
+  ANKO: "Heavy",
+  MUSCULAR: "Muscular",
+};
+
+const PERSONALITY_LABELS_EN: Record<string, string> = {
+  CALM: "Calm",
+  AGGRESSIVE: "Combative",
+  SERIOUS: "Serious",
+  WILD: "Unrestrained",
+  CHEERFUL: "Cheerful",
+  SHY: "Reserved",
+};
+
+const TRAIT_CATEGORY_EN_LABELS: Record<string, string> = {
+  BODY: "Body",
+  MENTAL: "Mental",
+  TECHNIQUE: "Technique",
+};
+
+const JAPANESE_TEXT_PATTERN = /[ぁ-んァ-ン一-龥]/;
+
+const hasJapaneseText = (value: string | null | undefined): boolean =>
+  Boolean(value && JAPANESE_TEXT_PATTERN.test(value));
+
+const textForLocale = (
+  locale: LocaleCode,
+  value: string | null | undefined,
+  englishFallback: string,
+): string => {
+  if (locale !== "en") return value ?? englishFallback;
+  if (!value || hasJapaneseText(value)) return englishFallback;
+  return value;
+};
+
+const humanizeCode = (value: string): string =>
+  value
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const formatRecordText = (wins: number, losses: number, absent: number, locale: LocaleCode): string =>
+  locale === "en"
+    ? `${wins}-${losses}${absent > 0 ? `, ${absent} absences` : ""}`
+    : `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
 
 const formatWinRate = (wins: number, losses: number): string => {
   const total = wins + losses;
@@ -83,29 +132,37 @@ const formatWinRate = (wins: number, losses: number): string => {
   return `${((wins / total) * 100).toFixed(1)}%`;
 };
 
-const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"]): string => {
+const toBodyTypeLabel = (raw: string | undefined, fallback: RikishiStatus["bodyType"], locale: LocaleCode): string => {
+  if (locale === "en") {
+    if (raw && !hasJapaneseText(raw)) return raw;
+    return BODY_LABELS_EN[fallback] ?? fallback;
+  }
   if (raw && BODY_LABELS[raw as keyof typeof BODY_LABELS]) return BODY_LABELS[raw as keyof typeof BODY_LABELS];
   if (raw && raw.length > 0) return raw;
   return BODY_LABELS[fallback];
 };
 
-const resolveRetirementReason = (status: RikishiStatus): string | null => {
+const resolveRetirementReason = (status: RikishiStatus, locale: LocaleCode): string | null => {
   const event = [...status.history.events].reverse().find((entry) => entry.type === "RETIREMENT");
   if (!event) return null;
-  return event.description.replace(/^引退 \(/, "").replace(/\)$/, "") || null;
+  const reason = event.description.replace(/^引退 \(/, "").replace(/\)$/, "") || null;
+  if (locale === "en") return textForLocale(locale, reason, "Retired after accumulated career wear");
+  return reason;
 };
 
 const toCoverReadingLine = (
   designReading: CareerDesignReadingModel,
   initial: NonNullable<RikishiStatus["buildSummary"]>["initialConditionSummary"] | undefined,
+  locale: LocaleCode,
 ): string => {
   const expectation = designReading.premiseRows.find((row) => row.label === "期待")?.interpreted;
-  if (expectation) return expectation;
+  if (expectation) return textForLocale(locale, expectation, "Use the entry premise as a starting point, then read the rank arc and stalls.");
   const firstInterpretation = designReading.interpretationRows[0]?.interpreted;
-  if (firstInterpretation) return firstInterpretation;
+  if (firstInterpretation) return textForLocale(locale, firstInterpretation, "Compare the entry premise with the actual career record.");
   const entryLine = [initial?.entryPathLabel, initial?.temperamentLabel, initial?.bodySeedLabel]
     .filter(Boolean)
     .join("、");
+  if (locale === "en") return "Read the gap between the entry premise and the actual record through rank movement and basho results.";
   return entryLine ? `${entryLine}として入口条件を読む。` : "入口条件と実結果の差を、番付推移と場所別記録から読む。";
 };
 
@@ -126,6 +183,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   onOpenArchive,
   onOpenChapter,
 }) => {
+  const { locale } = useLocale();
   const analysis = React.useMemo(() => buildCareerAnalysisSummary(status), [status]);
   const clearScoreSummary = React.useMemo(() => buildCareerClearScoreSummary(status), [status]);
   const stanceAnalysis = React.useMemo(
@@ -138,7 +196,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const narrative = status.careerNarrative;
   const stableEnvironment = React.useMemo(() => buildStableEnvironmentReading(status), [status]);
   const stablemates = React.useMemo(() => buildStablemateSummaries(status, bashoRows), [bashoRows, status]);
-  const retirementReason = React.useMemo(() => resolveRetirementReason(status), [status]);
+  const retirementReason = React.useMemo(() => resolveRetirementReason(status, locale), [locale, status]);
   const learnedTraits = React.useMemo(
     () =>
       (status.traitJourney ?? [])
@@ -184,23 +242,31 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const nonMaezumoRecords = status.history.records.filter((record) => record.rank.division !== "Maezumo");
   const makuuchiBasho = nonMaezumoRecords.filter((record) => record.rank.division === "Makuuchi").length;
   const yushoCount = status.history.yushoCount;
-  const coverReadingLine = React.useMemo(() => toCoverReadingLine(designReading, initial), [designReading, initial]);
-  const coverSummaryLine = narrative?.careerIdentity ?? narrative?.retirementDigest ?? overview.lifeSummary;
+  const coverReadingLine = React.useMemo(() => toCoverReadingLine(designReading, initial, locale), [designReading, initial, locale]);
+  const coverSummaryLine = textForLocale(
+    locale,
+    narrative?.careerIdentity ?? narrative?.retirementDigest ?? overview.lifeSummary,
+    overview.lifeSummary,
+  );
 
   const detailReady = detailState === "ready";
   const saveProgressLabel = `${detailBuildProgress?.flushedBashoCount ?? 0}/${detailBuildProgress?.totalBashoCount ?? status.history.records.length}`;
 
   const memoLines = React.useMemo(
-    () =>
-      [
+    () => {
+      const lines = [
         narrative?.initialConditions,
         narrative?.careerIdentity,
         narrative?.growthArc,
         narrative?.retirementDigest,
       ]
+        .map((line) => textForLocale(locale, line, "A saved career note is attached to this record."))
         .filter((line): line is string => Boolean(line))
-        .slice(0, 4),
+        .filter((line, index, array) => array.indexOf(line) === index);
+      return lines.slice(0, 4);
+    },
     [
+      locale,
       narrative?.careerIdentity,
       narrative?.growthArc,
       narrative?.initialConditions,
@@ -211,23 +277,26 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
   const profileRows: DataSheetRow[] = React.useMemo(
     () =>
       [
-        { label: "出身", value: initial?.birthplace ?? status.profile.birthplace },
-        { label: "所属", value: stableEnvironment.stableName },
+        { label: locale === "en" ? "Birthplace" : "出身", value: initial?.birthplace ?? status.profile.birthplace },
+        { label: locale === "en" ? "Stable" : "所属", value: stableEnvironment.stableName },
         {
-          label: "入門",
-          value: `${initial?.entryAge ?? status.entryAge}歳 / ${initial?.entryPathLabel ?? "経路未詳"}`,
+          label: locale === "en" ? "Entry" : "入門",
+          value: locale === "en"
+            ? `${initial?.entryAge ?? status.entryAge} yrs / ${textForLocale(locale, initial?.entryPathLabel, "Entry route recorded")}`
+            : `${initial?.entryAge ?? status.entryAge}歳 / ${initial?.entryPathLabel ?? "経路未詳"}`,
         },
-        { label: "気質", value: initial?.temperamentLabel ?? status.profile.personality },
-        { label: "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType) },
+        { label: locale === "en" ? "Temperament" : "気質", value: locale === "en" ? PERSONALITY_LABELS_EN[status.profile.personality] ?? humanizeCode(status.profile.personality) : initial?.temperamentLabel ?? status.profile.personality },
+        { label: locale === "en" ? "Body Type" : "体型", value: toBodyTypeLabel(growth?.bodyTypeLabel, status.bodyType, locale) },
         {
-          label: "晩年体格",
+          label: locale === "en" ? "Final Body" : "晩年体格",
           value: `${Math.round(status.bodyMetrics.heightCm)}cm / ${Math.round(status.bodyMetrics.weightKg)}kg`,
         },
-        retirementReason ? { label: "終幕", value: retirementReason } : null,
+        retirementReason ? { label: locale === "en" ? "Ending" : "終幕", value: retirementReason } : null,
       ].filter((row): row is DataSheetRow => Boolean(row)),
     [
       growth?.bodyTypeLabel,
       initial,
+      locale,
       retirementReason,
       stableEnvironment.stableName,
       status.bodyMetrics.heightCm,
@@ -241,27 +310,28 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
   const styleRows: DataSheetRow[] = React.useMemo(
     () => [
-      { label: "得意な型", value: strengthLabel },
-      { label: "苦手な型", value: weaknessLabel },
+      { label: locale === "en" ? "Strength Style" : "得意な型", value: textForLocale(locale, strengthLabel, "Recorded strength style") },
+      { label: locale === "en" ? "Weak Style" : "苦手な型", value: textForLocale(locale, weaknessLabel, "No clear weak style") },
       {
-        label: "代表技",
+        label: locale === "en" ? "Signature Kimarite" : "代表技",
         value:
           signatureSummary.selectedMoves.length > 0
-            ? signatureSummary.selectedMoves.join(" / ")
-            : "記録なし",
+            ? signatureSummary.selectedMoves.map((move) => textForLocale(locale, move, "Recorded kimarite")).join(" / ")
+            : locale === "en" ? "No record" : "記録なし",
       },
     ],
-    [signatureSummary.selectedMoves, strengthLabel, weaknessLabel],
+    [locale, signatureSummary.selectedMoves, strengthLabel, weaknessLabel],
   );
 
   const stableRows: DataSheetRow[] = React.useMemo(
     () => [
-      { label: "所属部屋", value: stableEnvironment.stableName },
-      { label: "一門", value: stableEnvironment.ichimonName },
-      { label: "部屋系統", value: stableEnvironment.archetypeName },
-      { label: "規模", value: stableEnvironment.scaleLabel },
+      { label: locale === "en" ? "Stable" : "所属部屋", value: stableEnvironment.stableName },
+      { label: locale === "en" ? "Ichimon" : "一門", value: textForLocale(locale, stableEnvironment.ichimonName, "Ichimon recorded") },
+      { label: locale === "en" ? "Stable Type" : "部屋系統", value: textForLocale(locale, stableEnvironment.archetypeName, "Stable profile recorded") },
+      { label: locale === "en" ? "Scale" : "規模", value: textForLocale(locale, stableEnvironment.scaleLabel, "Scale recorded") },
     ],
     [
+      locale,
       stableEnvironment.archetypeName,
       stableEnvironment.ichimonName,
       stableEnvironment.scaleLabel,
@@ -273,27 +343,29 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
     () =>
       [
         {
-          label: "通算成績",
+          label: locale === "en" ? "Career Record" : "通算成績",
           value: formatRecordText(
             status.history.totalWins,
             status.history.totalLosses,
             status.history.totalAbsent,
+            locale,
           ),
         },
-        { label: "通算勝率", value: formatWinRate(status.history.totalWins, status.history.totalLosses) },
-        { label: "最高位", value: highestRankLabel },
-        { label: "在位場所", value: `${nonMaezumoRecords.length}場所` },
-        { label: "幕内在位", value: `${makuuchiBasho}場所` },
-        { label: "幕内優勝", value: `${yushoCount.makuuchi}回` },
-        { label: "十両優勝", value: `${yushoCount.juryo ?? 0}回` },
-        { label: "幕下優勝", value: `${yushoCount.makushita ?? 0}回` },
-        { label: "下位優勝", value: `${yushoCount.others ?? 0}回` },
-        { label: "三賞", value: `${totalSansho}回` },
-        { label: "金星", value: `${kinboshi}個` },
+        { label: locale === "en" ? "Career Win Rate" : "通算勝率", value: formatWinRate(status.history.totalWins, status.history.totalLosses) },
+        { label: locale === "en" ? "Highest Rank" : "最高位", value: highestRankLabel },
+        { label: locale === "en" ? "Basho" : "在位場所", value: locale === "en" ? `${nonMaezumoRecords.length} basho` : `${nonMaezumoRecords.length}場所` },
+        { label: locale === "en" ? "Makuuchi Basho" : "幕内在位", value: locale === "en" ? `${makuuchiBasho} basho` : `${makuuchiBasho}場所` },
+        { label: locale === "en" ? "Makuuchi Yusho" : "幕内優勝", value: locale === "en" ? `${yushoCount.makuuchi}` : `${yushoCount.makuuchi}回` },
+        { label: locale === "en" ? "Juryo Yusho" : "十両優勝", value: locale === "en" ? `${yushoCount.juryo ?? 0}` : `${yushoCount.juryo ?? 0}回` },
+        { label: locale === "en" ? "Makushita Yusho" : "幕下優勝", value: locale === "en" ? `${yushoCount.makushita ?? 0}` : `${yushoCount.makushita ?? 0}回` },
+        { label: locale === "en" ? "Lower Yusho" : "下位優勝", value: locale === "en" ? `${yushoCount.others ?? 0}` : `${yushoCount.others ?? 0}回` },
+        { label: locale === "en" ? "Sansho" : "三賞", value: locale === "en" ? `${totalSansho}` : `${totalSansho}回` },
+        { label: locale === "en" ? "Kinboshi" : "金星", value: locale === "en" ? `${kinboshi}` : `${kinboshi}個` },
       ],
     [
       highestRankLabel,
       kinboshi,
+      locale,
       makuuchiBasho,
       nonMaezumoRecords.length,
       status.history.totalAbsent,
@@ -346,13 +418,13 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       <BracketFrame variant="phantom" padding="zero" bodyClassName={styles.crossModeStrip}>
         <button type="button" className={styles.crossModeButton} onClick={() => onOpenChapter("trajectory")}>
           <BarChart3 className="h-4 w-4" />
-          <span className={styles.crossModeLabel}>番付推移を見る</span>
-          <span className={styles.crossModeDesc}>上昇、停滞、陥落、復帰の流れを読む</span>
+          <span className={styles.crossModeLabel}>{locale === "en" ? "Open Rank Trajectory" : "番付推移を見る"}</span>
+          <span className={styles.crossModeDesc}>{locale === "en" ? "Read rise, stalls, drops, and recoveries" : "上昇、停滞、陥落、復帰の流れを読む"}</span>
         </button>
         <button type="button" className={styles.crossModeButton} onClick={() => onOpenChapter("place")}>
           <BookOpenText className="h-4 w-4" />
-          <span className={styles.crossModeLabel}>場所別記録を見る</span>
-          <span className={styles.crossModeDesc}>番付表、取組、周辺力士の詳細</span>
+          <span className={styles.crossModeLabel}>{locale === "en" ? "Open Basho Records" : "場所別記録を見る"}</span>
+          <span className={styles.crossModeDesc}>{locale === "en" ? "Inspect banzuke rows, bouts, and nearby rikishi" : "番付表、取組、周辺力士の詳細"}</span>
         </button>
       </BracketFrame>
 
@@ -360,40 +432,42 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
       <BracketFrame variant="module" padding="default">
         <ModuleHeader
-          kicker="補足記録"
-          title="情報の整理"
-          copy="似ている情報をまとめ、必要なところだけ開いて読めるようにします。"
+          kicker={locale === "en" ? "Supplement" : "補足記録"}
+          title={locale === "en" ? "Record Details" : "情報の整理"}
+          copy={locale === "en" ? "Related information is grouped so the record can be read in layers." : "似ている情報をまとめ、必要なところだけ開いて読めるようにします。"}
         />
         <div className={styles.groupedRecords}>
           <details className={styles.infoGroup} open>
             <summary className={styles.infoGroupSummary}>
-              <span>プロフィールと取り口</span>
-              <em>人物像、体格、所属、得意な型</em>
+              <span>{locale === "en" ? "Profile And Style" : "プロフィールと取り口"}</span>
+              <em>{locale === "en" ? "Identity, body, stable, and strength style" : "人物像、体格、所属、得意な型"}</em>
             </summary>
             <div className={styles.infoGroupBody}>
               <div className={styles.infoPanel}>
-                <ModuleHeader kicker="人物" title="プロフィール" size="sm" density="compact" />
+                <ModuleHeader kicker={locale === "en" ? "Identity" : "人物"} title={locale === "en" ? "Profile" : "プロフィール"} size="sm" density="compact" />
                 <DataSheet rows={profileRows} layout="grid" mono />
               </div>
               <div className={styles.infoPanel}>
-                <ModuleHeader kicker="人物像" title="一代の読み筋" size="sm" density="compact" />
+                <ModuleHeader kicker={locale === "en" ? "Reading" : "人物像"} title={locale === "en" ? "Career Reading" : "一代の読み筋"} size="sm" density="compact" />
                 <CopyStack lines={memoLines.length > 0 ? memoLines : [overview.lifeSummary]} />
               </div>
               <div className={styles.infoPanel}>
-                <ModuleHeader kicker="相撲" title="取り口" size="sm" density="compact" />
+                <ModuleHeader kicker={locale === "en" ? "Sumo" : "相撲"} title={locale === "en" ? "Style" : "取り口"} size="sm" density="compact" />
                 <DataSheet rows={styleRows} layout="grid" mono />
                 {rareKimariteEncounters.length > 0 ? (
                   <ChipList
                     items={rareKimariteEncounters.map((encounter) => ({
                       key: encounter.kimariteId,
-                      label: `${encounter.name} / ${encounter.count}回`,
+                      label: locale === "en"
+                        ? `${textForLocale(locale, encounter.name, "Rare kimarite")} / ${encounter.count}`
+                        : `${encounter.name} / ${encounter.count}回`,
                     }))}
                   />
                 ) : null}
               </div>
               <div className={styles.infoPanel}>
-                <ModuleHeader kicker="環境" title="所属部屋" size="sm" density="compact" />
-                <Lead>{stableEnvironment.lead}</Lead>
+                <ModuleHeader kicker={locale === "en" ? "Environment" : "環境"} title={locale === "en" ? "Stable" : "所属部屋"} size="sm" density="compact" />
+                <Lead>{textForLocale(locale, stableEnvironment.lead, "The stable environment is part of the career context.")}</Lead>
                 <DataSheet rows={stableRows} layout="grid" mono />
               </div>
             </div>
@@ -402,17 +476,17 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           {designRows.length > 0 ? (
             <details className={styles.infoGroup}>
               <summary className={styles.infoGroupSummary}>
-                <span>入門時の条件</span>
-                <em>入口条件と実際の一代の差</em>
+                <span>{locale === "en" ? "Entry Conditions" : "入門時の条件"}</span>
+                <em>{locale === "en" ? "The gap between premise and actual career" : "入口条件と実際の一代の差"}</em>
               </summary>
               <div className={styles.infoGroupBody}>
                 <div className={styles.infoPanelWide}>
                   <div className={styles.designTable}>
                     {designRows.map((row) => (
                       <div key={`${row.label}-${row.designed}`} className={styles.designRow}>
-                        <span>{row.label}</span>
-                        <p>{row.interpreted}</p>
-                        <strong>{row.realized}</strong>
+                        <span>{textForLocale(locale, row.label, "Premise")}</span>
+                        <p>{textForLocale(locale, row.interpreted, "This premise is recorded for later comparison.")}</p>
+                        <strong>{textForLocale(locale, row.realized, "Actual outcome recorded")}</strong>
                       </div>
                     ))}
                   </div>
@@ -423,8 +497,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
           <details className={styles.infoGroup}>
             <summary className={styles.infoGroupSummary}>
-              <span>成績と実績</span>
-              <em>通算、優勝、三賞、金星</em>
+              <span>{locale === "en" ? "Records And Honors" : "成績と実績"}</span>
+              <em>{locale === "en" ? "Career record, yusho, sansho, and kinboshi" : "通算、優勝、三賞、金星"}</em>
             </summary>
             <div className={styles.infoGroupBody}>
               <div className={styles.infoPanelWide}>
@@ -435,13 +509,13 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
 
           <details className={styles.infoGroup}>
             <summary className={styles.infoGroupSummary}>
-              <span>周辺力士と特性</span>
-              <em>同部屋の力士、習得した特性</em>
+              <span>{locale === "en" ? "Nearby Rikishi And Traits" : "周辺力士と特性"}</span>
+              <em>{locale === "en" ? "Stablemates and learned traits" : "同部屋の力士、習得した特性"}</em>
             </summary>
             <div className={styles.infoGroupBody}>
               {stablemates.length > 0 ? (
                 <div className={styles.infoPanel}>
-                  <ModuleHeader kicker="同部屋" title="同部屋の主な力士" size="sm" density="compact" />
+                  <ModuleHeader kicker={locale === "en" ? "Stablemates" : "同部屋"} title={locale === "en" ? "Notable Stablemates" : "同部屋の主な力士"} size="sm" density="compact" />
                   <div className={styles.stablemateGrid}>
                     {stablemates.map((mate) => (
                       <div
@@ -449,7 +523,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                         className={styles.stablemateCard}
                         data-relation={mate.relation}
                       >
-                        <span>{mate.relationLabel} / {mate.overlapBashoCount}場所</span>
+                        <span>{locale === "en" ? "Stablemate" : mate.relationLabel} / {locale === "en" ? `${mate.overlapBashoCount} basho` : `${mate.overlapBashoCount}場所`}</span>
                         <strong>{mate.shikona}</strong>
                         <p>
                           {mate.rankLabel} / {mate.recordLabel}
@@ -459,35 +533,43 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
                   </div>
                 </div>
               ) : (
-                <div className={styles.groupEmpty}>同部屋で強く重なった力士は記録されていません。</div>
+                <div className={styles.groupEmpty}>{locale === "en" ? "No strongly overlapping stablemate was recorded." : "同部屋で強く重なった力士は記録されていません。"}</div>
               )}
 
               {learnedTraits.length > 0 ? (
                 <div className={styles.infoPanel}>
-                  <ModuleHeader kicker="習得" title="特性" size="sm" density="compact" />
+                  <ModuleHeader kicker={locale === "en" ? "Learned" : "習得"} title={locale === "en" ? "Traits" : "特性"} size="sm" density="compact" />
                   <div className={styles.traitGrid}>
                     {learnedTraits.slice(0, 8).map((entry) => (
                       <div
                         key={`${entry.trait}-${entry.learnedAtBashoSeq ?? "legacy"}`}
                         className={styles.traitCard}
                       >
-                        <strong>{entry.data?.name ?? entry.trait}</strong>
+                        <strong>{locale === "en" ? humanizeCode(entry.trait) : entry.data?.name ?? entry.trait}</strong>
                         <span>
-                          {TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} /{" "}
-                          {formatTraitAcquisitionLabel(entry)}
+                          {locale === "en"
+                            ? TRAIT_CATEGORY_EN_LABELS[entry.data?.category ?? ""] ?? "Trait"
+                            : TRAIT_CATEGORY_LABELS[entry.data?.category ?? ""] ?? "特性"} /{" "}
+                          {locale === "en"
+                            ? entry.legacy
+                              ? "Legacy career"
+                              : entry.learnedAtBashoSeq
+                                ? `Basho ${entry.learnedAtBashoSeq}`
+                                : "Timing unknown"
+                            : formatTraitAcquisitionLabel(entry)}
                         </span>
-                        <p>{entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
+                        <p>{locale === "en" ? "Trait effect recorded." : entry.data?.description ?? entry.triggerDetail ?? "特性の説明は記録されていません。"}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className={styles.groupEmpty}>習得済みの特性は記録されていません。</div>
+                <div className={styles.groupEmpty}>{locale === "en" ? "No learned traits were recorded." : "習得済みの特性は記録されていません。"}</div>
               )}
 
               {traitAwakenings.length > 0 ? (
                 <div className={styles.infoPanelWide}>
-                  <ModuleHeader kicker="特性" title="特性の推移" size="sm" density="compact" />
+                  <ModuleHeader kicker={locale === "en" ? "Traits" : "特性"} title={locale === "en" ? "Trait Timeline" : "特性の推移"} size="sm" density="compact" />
                   <TraitTimeline traitAwakenings={traitAwakenings} totalBasho={totalBashoForTimeline} />
                 </div>
               ) : null}
@@ -497,8 +579,8 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
           {(ledgerPoints && ledgerPoints.length > 4) || bodyTimeline.length > 4 ? (
             <details className={styles.infoGroup}>
               <summary className={styles.infoGroupSummary}>
-                <span>数値の推移</span>
-                <em>勝率と体重の補助グラフ</em>
+                <span>{locale === "en" ? "Metric Trends" : "数値の推移"}</span>
+                <em>{locale === "en" ? "Win rate and body weight support charts" : "勝率と体重の補助グラフ"}</em>
               </summary>
               <div className={styles.infoGroupBody}>
                 <div className={styles.infoPanelWide}>
@@ -522,18 +604,18 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
       {import.meta.env.DEV ? (
         <BracketFrame variant="data" padding="default">
           <ModuleHeader
-            kicker="開発検証"
-            title="検証欄"
-            copy="通常の読解画面から分離した開発確認用の領域です。"
+            kicker={locale === "en" ? "Dev Check" : "開発検証"}
+            title={locale === "en" ? "Verification Panel" : "検証欄"}
+            copy={locale === "en" ? "Developer-only checks are kept separate from the normal reading flow." : "通常の読解画面から分離した開発確認用の領域です。"}
             led="warn"
           />
           <div className={styles.devGrid}>
             <div className={styles.observationPanel} data-tone={stanceAnalysis.tone}>
-              <span>{stanceAnalysis.stanceLabel}</span>
-              <strong>{stanceAnalysis.verdict}</strong>
+              <span>{textForLocale(locale, stanceAnalysis.stanceLabel, "Observation Stance")}</span>
+              <strong>{textForLocale(locale, stanceAnalysis.verdict, "Observation verdict recorded")}</strong>
               <em>{stanceAnalysis.score}</em>
               {stanceAnalysis.reasonLines.map((line) => (
-                <p key={line}>{line}</p>
+                <p key={line}>{textForLocale(locale, line, "A stance-specific reason is recorded.")}</p>
               ))}
               <span className="sr-only">
                 <Swords />
@@ -542,7 +624,7 @@ export const CareerEncyclopediaChapter: React.FC<CareerEncyclopediaChapterProps>
             </div>
             <div className={styles.limitList}>
               {RELEASE_KNOWN_LIMITATIONS.map((limitation) => (
-                <span key={limitation}>{limitation}</span>
+                <span key={limitation}>{textForLocale(locale, limitation, "Known limitation recorded")}</span>
               ))}
             </div>
           </div>

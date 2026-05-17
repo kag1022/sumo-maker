@@ -1,10 +1,18 @@
 import React from "react";
 import { Rank } from "../../../logic/models";
 import { PlayerBoutDetail } from "../../../logic/simulation/basho";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { buildHoshitoriGrid } from "../utils/hoshitori";
+import {
+  formatReportBashoLabel,
+  formatReportRankLabel,
+  formatReportRecordText,
+  formatReportSpecialPrizeLabel,
+  textForLocale,
+} from "../utils/reportLocale";
 
 export interface HoshitoriCareerRecord {
   year: number;
@@ -24,7 +32,8 @@ interface HoshitoriTableProps {
 
 type SortOrder = "desc" | "asc";
 
-const formatRankName = (rank: Rank): string => {
+const formatRankName = (rank: Rank, locale: "ja" | "en"): string => {
+  if (locale === "en") return formatReportRankLabel(rank, locale);
   if (rank.name === "前相撲") return rank.name;
   const side = rank.side === "West" ? "西" : rank.side === "East" ? "東" : "";
   if (["横綱", "大関", "関脇", "小結"].includes(rank.name)) {
@@ -35,25 +44,19 @@ const formatRankName = (rank: Rank): string => {
   return `${side}${rank.name}${number}枚目`;
 };
 
-const formatBashoLabel = (year: number, month: number): string =>
-  `${year}年${month}月`;
-
-const formatRecord = (wins: number, losses: number, absent: number): string =>
-  `${wins}勝${losses}敗${absent > 0 ? `${absent}休` : ""}`;
-
 const isFusenWin = (bout: PlayerBoutDetail): boolean =>
   bout.result === "WIN" && bout.kimarite === "不戦勝";
 
 const isFusenLoss = (bout: PlayerBoutDetail): boolean =>
   bout.result === "LOSS" && bout.kimarite === "不戦敗";
 
-const resolveSymbol = (bout: PlayerBoutDetail | null): string => {
-  if (!bout) return "や";
+const resolveSymbol = (bout: PlayerBoutDetail | null, locale: "ja" | "en"): string => {
+  if (!bout) return locale === "en" ? "A" : "や";
   if (isFusenWin(bout)) return "■";
   if (isFusenLoss(bout)) return "□";
   if (bout.result === "WIN") return "●";
   if (bout.result === "LOSS") return "◯";
-  return "や";
+  return locale === "en" ? "A" : "や";
 };
 
 const resolveSymbolColor = (bout: PlayerBoutDetail | null): string => {
@@ -63,13 +66,13 @@ const resolveSymbolColor = (bout: PlayerBoutDetail | null): string => {
   return "text-sumi-light";
 };
 
-const resolveOpponentLabel = (bout: PlayerBoutDetail | null): string => {
+const resolveOpponentLabel = (bout: PlayerBoutDetail | null, locale: "ja" | "en"): string => {
   if (!bout) return "";
   if (bout.opponentShikona) return bout.opponentShikona;
-  if (bout.result === "ABSENT") return "休場で取組なし";
-  if (bout.result === "WIN" && bout.kimarite === "不戦勝") return "不戦勝";
-  if (bout.result === "LOSS" && bout.kimarite === "不戦敗") return "不戦敗";
-  return "記録未詳";
+  if (bout.result === "ABSENT") return locale === "en" ? "Absent" : "休場で取組なし";
+  if (bout.result === "WIN" && bout.kimarite === "不戦勝") return locale === "en" ? "Fusen win" : "不戦勝";
+  if (bout.result === "LOSS" && bout.kimarite === "不戦敗") return locale === "en" ? "Fusen loss" : "不戦敗";
+  return locale === "en" ? "Unknown" : "記録未詳";
 };
 
 export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }> = ({
@@ -78,6 +81,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
   isLoading = false,
   errorMessage,
 }) => {
+  const { locale } = useLocale();
   const [sortOrder, setSortOrder] = React.useState<SortOrder>("desc");
   const [activeTooltipId, setActiveTooltipId] = React.useState<string | null>(null);
 
@@ -95,7 +99,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
   return (
     <div className={cn(surface.gamePanel, "overflow-hidden")}>
       <div className="px-3 sm:px-5 pt-4 pb-3 border-b border-kiniro-muted/15 flex flex-wrap items-center justify-between gap-2">
-        <h3 className={typography.sectionHeader}>生涯星取表</h3>
+        <h3 className={typography.sectionHeader}>{locale === "en" ? "Career Hoshitori" : "生涯星取表"}</h3>
         <div className="flex items-center gap-0.5 border border-kiniro-muted/20 p-0.5 text-xs">
           <button
             type="button"
@@ -103,7 +107,7 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
             className={`px-2 py-1 font-bold transition-all ${sortOrder === "desc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
             }`}
           >
-            新しい順
+            {locale === "en" ? "Newest" : "新しい順"}
           </button>
           <button
             type="button"
@@ -111,23 +115,23 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
             className={`px-2 py-1 font-bold transition-all ${sortOrder === "asc" ? "bg-kiniro/15 text-kiniro" : "text-sumi-light hover:text-kiniro"
             }`}
           >
-            古い順
+            {locale === "en" ? "Oldest" : "古い順"}
           </button>
         </div>
       </div>
 
       {isLoading && (
-        <div className="px-5 py-4 text-sm text-sumi-light">星取表データを読み込み中です...</div>
+        <div className="px-5 py-4 text-sm text-sumi-light">{locale === "en" ? "Loading hoshitori data..." : "星取表データを読み込み中です..."}</div>
       )}
 
       {errorMessage && (
         <div className="px-5 py-3 text-xs font-bold text-shuiro bg-shuiro/5 border-b border-kiniro-muted/15">
-          {errorMessage}
+          {textForLocale(locale, errorMessage, "Hoshitori data could not be loaded.")}
         </div>
       )}
 
       {!isLoading && !hasRows && (
-        <div className="px-5 py-5 text-sm text-sumi-light">表示できる場所データがありません。</div>
+        <div className="px-5 py-5 text-sm text-sumi-light">{locale === "en" ? "No basho records can be shown." : "表示できる場所データがありません。"}</div>
       )}
 
       {hasRows && (
@@ -150,10 +154,10 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                 <div className="w-full sm:w-40 sm:min-w-[160px] p-2 sm:p-3 sm:border-r border-kiniro-muted/20 flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-start bg-bg-light/30 shrink-0 gap-2 sm:gap-1">
                   <div className="flex flex-col sm:gap-0.5 shrink-0 min-w-0">
                     <div className="font-bold text-sumi whitespace-nowrap text-[11px] sm:text-xs">
-                      {formatBashoLabel(record.year, record.month)}
+                      {formatReportBashoLabel(record.year, record.month, locale)}
                     </div>
                     <div className="font-bold text-kiniro text-[11px] sm:text-xs truncate max-w-[140px]">
-                      {formatRankName(record.rank)}
+                      {formatRankName(record.rank, locale)}
                     </div>
                     {shikona && (
                       <div className="text-sumi-light text-[10px] sm:text-[11px] truncate max-w-[140px] hidden sm:block">
@@ -164,18 +168,18 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                   <div className="flex flex-col items-end sm:items-start shrink-0">
                     <div className={`font-bold whitespace-nowrap text-xs sm:text-sm ${record.wins >= 8 ? 'text-shuiro' : 'text-sumi'
                     }`}>
-                      {formatRecord(record.wins, record.losses, record.absent)}
+                      {formatReportRecordText(record.wins, record.losses, record.absent, locale)}
                     </div>
                     {(yusho || (specialPrizes && specialPrizes.length > 0)) && (
                       <div className="flex gap-1 mt-0.5">
                         {yusho && (
                           <span className="text-[10px] bg-kiniro/20 text-kiniro border border-kiniro px-1 rounded-sm tracking-tighter whitespace-nowrap">
-                            優勝
+                            {locale === "en" ? "Yusho" : "優勝"}
                           </span>
                         )}
                         {specialPrizes?.map((prize: string, pIdx: number) => (
                           <span key={pIdx} className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/30 px-1 rounded-sm tracking-tighter whitespace-nowrap">
-                            {prize[0]}
+                            {locale === "en" ? formatReportSpecialPrizeLabel(prize, locale) : prize[0]}
                           </span>
                         ))}
                       </div>
@@ -189,8 +193,8 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                     {grid.map((bout, dayIndex) => {
                       const tooltipId = `${rowKey}-${dayIndex + 1}`;
                       const showTooltip = activeTooltipId === tooltipId && Boolean(bout);
-                      const symbol = resolveSymbol(bout);
-                      const opponent = resolveOpponentLabel(bout);
+                      const symbol = resolveSymbol(bout, locale);
+                      const opponent = resolveOpponentLabel(bout, locale);
                       const kimarite = bout?.kimarite ?? "-";
 
                       return (
@@ -237,11 +241,11 @@ export const HoshitoriTable: React.FC<HoshitoriTableProps & { shikona?: string }
                               : "left-full ml-1 before:right-full before:border-r-kiniro/30"
                             } z-20 -translate-y-1/2 w-40 border border-kiniro/30 bg-washi p-2 shadow-game shadow-black/40 text-left pointer-events-none before:content-[''] before:absolute before:top-1/2 before:-translate-y-1/2 before:border-[6px] before:border-transparent`}>
                               <div className="flex justify-between items-baseline mb-1 border-b border-kiniro-muted/30 pb-1">
-                                <span className="text-[10px] text-kiniro font-bold">{dayIndex + 1}日目</span>
+                                <span className="text-[10px] text-kiniro font-bold">{locale === "en" ? `Day ${dayIndex + 1}` : `${dayIndex + 1}日目`}</span>
                                 <span className={`text-[11px] font-bold ${resolveSymbolColor(bout)}`}>{symbol}</span>
                               </div>
                               <p className="text-xs font-bold text-sumi mb-0.5">
-                                {opponent || "対戦なし"}
+                                {opponent || (locale === "en" ? "No bout" : "対戦なし")}
                               </p>
                               {kimarite !== "-" && (
                                 <p className="text-[10px] text-sumi-light">

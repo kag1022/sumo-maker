@@ -1,5 +1,6 @@
 import React from "react";
 import { type RikishiStatus } from "../../../../logic/models";
+import { useLocale } from "../../../../shared/hooks/useLocale";
 import { RankBadge } from "../../../../shared/ui/RankBadge";
 import { RikishiPortrait } from "../../../../shared/ui/RikishiPortrait";
 import type { CareerOverviewModel } from "../../utils/careerResultModel";
@@ -29,6 +30,13 @@ const BODY_LABELS: Record<RikishiStatus["bodyType"], string> = {
   MUSCULAR: "筋骨型",
 };
 
+const BODY_LABELS_EN: Record<RikishiStatus["bodyType"], string> = {
+  NORMAL: "Balanced",
+  SOPPU: "Lean",
+  ANKO: "Heavy",
+  MUSCULAR: "Muscular",
+};
+
 const computeGaugeFill = (winRate: string): number => {
   const match = winRate.match(/([\d.]+)%/);
   if (!match) return 0.5;
@@ -46,17 +54,21 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
   coverReadingLine,
   profileRows,
 }) => {
+  const { locale } = useLocale();
   const winRateFill = computeGaugeFill(overview.winRateLabel);
   const observationCount = observationPointsAwarded ?? 0;
   const observationFill = Math.min(1, observationCount / 100);
+  const bodyLabel = locale === "en"
+    ? BODY_LABELS_EN[status.bodyType] ?? status.bodyType
+    : BODY_LABELS[status.bodyType] ?? status.bodyType;
 
   return (
     <BracketFrame variant="subject" padding="zero" bodyClassName={styles.card}>
       <div className={styles.top}>
         <div className={styles.portraitCol}>
           <div className={styles.colLabel}>
-            <span>力士の姿</span>
-            <em>{BODY_LABELS[status.bodyType] ?? status.bodyType}</em>
+            <span>{locale === "en" ? "Rikishi Form" : "力士の姿"}</span>
+            <em>{bodyLabel}</em>
           </div>
           <div className={styles.portraitStage}>
             <span className={styles.reticleCorner} data-corner="tl" aria-hidden="true" />
@@ -78,7 +90,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
           <div className={styles.coverHeader}>
             <div className={styles.coverKicker}>
               <SignalLed state="locked" size="sm" />
-              <span>力士名鑑</span>
+              <span>{locale === "en" ? "Career Record" : "力士名鑑"}</span>
             </div>
             <h1 className={styles.shikona}>{status.shikona}</h1>
             <div className={styles.rankLine}>
@@ -90,7 +102,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
           <div className={styles.statementBlock}>
             <p className={styles.statement}>{coverSummaryLine}</p>
             <div className={styles.note}>
-              <span>入口条件</span>
+              <span>{locale === "en" ? "Entry Premise" : "入口条件"}</span>
               <strong>{coverReadingLine}</strong>
             </div>
           </div>
@@ -101,7 +113,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         <article className={styles.gauge} data-tone="primary">
           <div className={styles.gaugeLabel}>
             <SignalLed state="locked" size="sm" />
-            <span>通算</span>
+            <span>{locale === "en" ? "Career" : "通算"}</span>
           </div>
           <div className={styles.gaugeValue}>
             <strong>{overview.totalRecordLabel}</strong>
@@ -113,7 +125,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         <article className={styles.gauge} data-tone="state">
           <div className={styles.gaugeLabel}>
             <SignalLed state="active" size="sm" />
-            <span>勝率</span>
+            <span>{locale === "en" ? "Win Rate" : "勝率"}</span>
           </div>
           <div className={styles.gaugeValue}>
             <strong>{overview.winRateLabel}</strong>
@@ -124,7 +136,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         </article>
         <article className={styles.gauge}>
           <div className={styles.gaugeLabel}>
-            <span>在位</span>
+            <span>{locale === "en" ? "Span" : "在位"}</span>
           </div>
           <div className={styles.gaugeValue}>
             <strong>{overview.careerPeriodLabel}</strong>
@@ -136,11 +148,11 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
         <article className={styles.gauge} data-tone="primary">
           <div className={styles.gaugeLabel}>
             <SignalLed state="locked" size="sm" />
-            <span>観測点</span>
+            <span>{locale === "en" ? "Observation" : "観測点"}</span>
           </div>
           <div className={styles.gaugeValue}>
             <strong>{observationCount}</strong>
-            <small>点</small>
+            <small>{locale === "en" ? "OP" : "点"}</small>
           </div>
           <div className={styles.gaugeBar} aria-hidden="true">
             <span style={{ width: `${Math.round(observationFill * 100)}%` }} />
@@ -151,8 +163,8 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
       <div className={styles.profileRow}>
         <div className={styles.profileHead}>
           <ModuleHeader
-            kicker="基本情報"
-            title="プロフィール"
+            kicker={locale === "en" ? "Basic Info" : "基本情報"}
+            title={locale === "en" ? "Profile" : "プロフィール"}
             size="sm"
             density="compact"
           />

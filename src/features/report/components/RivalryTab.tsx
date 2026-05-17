@@ -1,18 +1,18 @@
 import React from "react";
 import { Eye, ScrollText, Swords, Trophy } from "lucide-react";
-import type { CareerRivalryDigest, EraTitanEntry, NemesisEntry, RikishiStatus, TitleBlockerEntry } from "../../../logic/models";
+import type { CareerRivalryDigest, RikishiStatus } from "../../../logic/models";
 import { getCareerHeadToHead, listCareerBashoRecordsBySeq, listCareerPlayerBoutsByBasho } from "../../../logic/persistence/careerHistory";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import typography from "../../../shared/styles/typography.module.css";
 import { Button } from "../../../shared/ui/Button";
 import { WinLossBar } from "../../../shared/ui/WinLossBar";
 import { buildCareerRivalryDigest } from "../utils/reportRivalry";
+import { formatReportRecordText, textForLocale } from "../utils/reportLocale";
 import { BashoDetailBody, type BashoDetailModalState } from "./BashoDetailModal";
 import reportCommon from "./reportCommon.module.css";
 import { useCareerBashoDetail } from "./useCareerBashoDetail";
-
-type RivalryEntry = TitleBlockerEntry | EraTitanEntry | NemesisEntry;
 
 const EMPTY_RIVALRY_DIGEST: CareerRivalryDigest = {
   titleBlockers: [],
@@ -25,10 +25,8 @@ interface RivalryTabProps {
   careerId?: string | null;
 }
 
-const headToHeadLabel = (entry: RivalryEntry): string =>
-  `${entry.headToHead.wins}勝${entry.headToHead.losses}敗${entry.headToHead.absences > 0 ? ` ${entry.headToHead.absences}や` : ""}`;
-
 export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null }) => {
+  const { locale } = useLocale();
   const [digest, setDigest] = React.useState<CareerRivalryDigest>(status.careerRivalryDigest ?? EMPTY_RIVALRY_DIGEST);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -69,7 +67,7 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
       } catch {
         if (!cancelled) {
           setDigest(EMPTY_RIVALRY_DIGEST);
-          setErrorMessage("対戦記録の復元に失敗したため、この画面だけ簡易表示です。");
+          setErrorMessage(locale === "en" ? "Rivalry records could not be restored, so this tab is showing a simplified view." : "対戦記録の復元に失敗したため、この画面だけ簡易表示です。");
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -79,22 +77,22 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
     return () => {
       cancelled = true;
     };
-  }, [careerId, status]);
+  }, [careerId, locale, status]);
 
   const sections = [
     {
-      title: "優勝を阻んだ相手",
-      description: "賜杯や最高到達点の手前で立ちはだかった相手です。",
+      title: locale === "en" ? "Title Blocker" : "優勝を阻んだ相手",
+      description: locale === "en" ? "Opponents who stood in front of a title or peak moment." : "賜杯や最高到達点の手前で立ちはだかった相手です。",
       entries: digest.titleBlockers.slice(0, 1),
     },
     {
-      title: "時代を共にした強敵",
-      description: "何度も同じ番付帯で向き合った相手です。",
+      title: locale === "en" ? "Era Rival" : "時代を共にした強敵",
+      description: locale === "en" ? "Opponents repeatedly met around the same rank band." : "何度も同じ番付帯で向き合った相手です。",
       entries: digest.eraTitans.slice(0, 1),
     },
     {
-      title: "乗り越えきれなかった壁",
-      description: "黒星が先行し続け、人生の影を落とした相手です。",
+      title: locale === "en" ? "Uncleared Wall" : "乗り越えきれなかった壁",
+      description: locale === "en" ? "Opponents whose record stayed difficult across the career." : "黒星が先行し続け、人生の影を落とした相手です。",
       entries: digest.nemesis.slice(0, 1),
     },
   ] as const;
@@ -106,9 +104,11 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
             <h3 className={typography.sectionHeader}>
-              <Swords className="w-4 h-4 text-warning" /> 立ちはだかったライバル
+              <Swords className="w-4 h-4 text-warning" /> {locale === "en" ? "Career Rivals" : "立ちはだかったライバル"}
             </h3>
-            <p className="mt-1 text-xs text-text-dim">大量の対戦表ではなく、この人生を揺らした相手だけを残します。</p>
+            <p className="mt-1 text-xs text-text-dim">
+              {locale === "en" ? "This tab keeps the opponents that shaped the saved career, not every matchup." : "大量の対戦表ではなく、この人生を揺らした相手だけを残します。"}
+            </p>
           </div>
         </div>
         <div className="space-y-6">
@@ -120,7 +120,9 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
               </div>
               {section.entries.length === 0 ? (
                 <div className={cn(reportCommon.empty, "text-[11px]")}>
-                  {isLoading ? "対戦史を読み込んでいます..." : "この軸で残すべき相手は見つかりませんでした。"}
+                  {isLoading
+                    ? locale === "en" ? "Loading rivalry history..." : "対戦史を読み込んでいます..."
+                    : locale === "en" ? "No opponent was recorded for this lens." : "この軸で残すべき相手は見つかりませんでした。"}
                 </div>
               ) : (
                 section.entries.map((entry) => (
@@ -130,15 +132,19 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
                             <div className={cn(typography.heading, "text-lg text-text tracking-wide")}>{entry.shikona}</div>
-                            <div className="text-[10px] uppercase tracking-[0.2em] text-text-dim">{entry.representativeRankLabel}</div>
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-text-dim">{textForLocale(locale, entry.representativeRankLabel, "Recorded rank")}</div>
                           </div>
-                          <p className="text-sm leading-relaxed text-text/80">「{entry.summary}」</p>
+                          <p className="text-sm leading-relaxed text-text/80">
+                            {locale === "en"
+                              ? "A rivalry marker is saved for this opponent."
+                              : `「${entry.summary}」`}
+                          </p>
                           <div className="grid gap-2 sm:grid-cols-3 text-[11px] text-text-dim">
                             <div className="border border-brand-muted/40 bg-bg/20 px-3 py-2">
                               <div className="mb-1 flex items-center gap-1">
-                                <Trophy className="w-3 h-3 text-warning" /> 通算
+                                <Trophy className="w-3 h-3 text-warning" /> {locale === "en" ? "Career" : "通算"}
                               </div>
-                              <div className="text-text">{headToHeadLabel(entry)}</div>
+                              <div className="text-text">{formatReportRecordText(entry.headToHead.wins, entry.headToHead.losses, entry.headToHead.absences, locale)}</div>
                               <WinLossBar
                                 wins={entry.headToHead.wins}
                                 losses={entry.headToHead.losses}
@@ -150,18 +156,20 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                             </div>
                             <div className="border border-brand-muted/40 bg-bg/20 px-3 py-2">
                               <div className="mb-1 flex items-center gap-1">
-                                <ScrollText className="w-3 h-3 text-brand-line" /> 象徴の場所
+                                <ScrollText className="w-3 h-3 text-brand-line" /> {locale === "en" ? "Featured Basho" : "象徴の場所"}
                               </div>
-                              <div className="text-text">{entry.featuredBashoLabel}</div>
+                              <div className="text-text">{textForLocale(locale, entry.featuredBashoLabel, `Basho ${entry.featuredSeq}`)}</div>
                             </div>
                             <div className="border border-brand-muted/40 bg-bg/20 px-3 py-2">
                               <div className="mb-1 flex items-center gap-1">
-                                <Swords className="w-3 h-3 text-action" /> 濃さ
+                                <Swords className="w-3 h-3 text-action" /> {locale === "en" ? "Weight" : "濃さ"}
                               </div>
-                              <div className="text-text">{entry.evidenceCount}件の記録</div>
+                              <div className="text-text">{locale === "en" ? `${entry.evidenceCount} records` : `${entry.evidenceCount}件の記録`}</div>
                             </div>
                           </div>
-                          <p className="text-xs leading-relaxed text-text-dim">{entry.featuredReason}</p>
+                          <p className="text-xs leading-relaxed text-text-dim">
+                            {textForLocale(locale, entry.featuredReason, "This basho is the saved reference point for the rivalry.")}
+                          </p>
                         </div>
                         {careerId && (
                           <Button
@@ -175,19 +183,23 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                                   : {
                                     kind: "rival",
                                     bashoSeq: entry.featuredSeq,
-                                    sourceLabel: "対戦・宿敵",
-                                    title: `${entry.featuredBashoLabel}の場所詳細`,
+                                    sourceLabel: locale === "en" ? "Rivals" : "対戦・宿敵",
+                                    title: locale === "en" ? `${textForLocale(locale, entry.featuredBashoLabel, `Basho ${entry.featuredSeq}`)} detail` : `${entry.featuredBashoLabel}の場所詳細`,
                                     subtitle: `${section.title} / ${entry.shikona}`,
                                     highlightOpponentId: entry.opponentId,
-                                    highlightReason: entry.featuredReason,
+                                    highlightReason: textForLocale(locale, entry.featuredReason, "This basho is the saved reference point for the rivalry."),
                                   },
                               )
                             }
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            {selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId
-                              ? "閉じる"
-                              : "この因縁の場所を見る"}
+                            {locale === "en"
+                              ? selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId
+                                ? "Close"
+                                : "Open Rival Basho"
+                              : selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId
+                                ? "閉じる"
+                                : "この因縁の場所を見る"}
                           </Button>
                         )}
                       </div>
@@ -195,8 +207,8 @@ export const RivalryTab: React.FC<RivalryTabProps> = ({ status, careerId = null 
                     {selectedState?.bashoSeq === entry.featuredSeq && selectedState?.highlightOpponentId === entry.opponentId && (
                       <div className="border border-warning/35 bg-bg/18 px-4 py-4">
                         <div className="mb-4 border-b border-brand-muted/40 pb-3">
-                          <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>宿敵詳細</div>
-                          <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{entry.featuredBashoLabel}の因縁</div>
+                          <div className={cn(typography.label, "text-[10px] tracking-[0.25em] text-warning/80 uppercase")}>{locale === "en" ? "Rival Detail" : "宿敵詳細"}</div>
+                          <div className={cn(typography.heading, "mt-1 text-sm text-text")}>{locale === "en" ? `${textForLocale(locale, entry.featuredBashoLabel, `Basho ${entry.featuredSeq}`)} rivalry` : `${entry.featuredBashoLabel}の因縁`}</div>
                           <div className="mt-1 text-xs text-text-dim">{section.title} / {entry.shikona}</div>
                         </div>
                         <BashoDetailBody

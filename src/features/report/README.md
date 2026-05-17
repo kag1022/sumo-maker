@@ -26,7 +26,7 @@
 - `components/BashoDetailModal.tsx` 場所詳細モーダル
 - `components/DockedBashoDetailPane.tsx` 横付け版場所詳細
 - `components/BoutExplanationPreviewPanel.tsx` `features/shared` の player 取組解説パネルを report 側へ再 export する互換入口。保存済み `PlayerBoutDetail.boutFlowCommentary` を優先し、dev 固定 seed preview も同じ表示 contract で確認できる
-- `utils/` 表示整形
+- `utils/` 表示整形。`reportLocale.ts` は保存済み詳細レポートの英語モード向け固定文言、番付・成績・実績・特性の表示変換、日本語生成文の英語フォールバックを集約する
 
 ## 依存
 

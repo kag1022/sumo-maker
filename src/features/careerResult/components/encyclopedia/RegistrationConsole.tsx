@@ -7,6 +7,7 @@ import {
   type CareerAnalysisSummary,
 } from "../../../../logic/career/analysis";
 import type { CareerClearScoreSummary } from "../../../../logic/career/clearScore";
+import { useLocale } from "../../../../shared/hooks/useLocale";
 import { Button } from "../../../../shared/ui/Button";
 import { FEEDBACK_FORM_URL } from "../../utils/releaseFeedback";
 import type { CareerDesignReadingModel } from "../../utils/careerResultModel";
@@ -29,6 +30,78 @@ const SAVE_TAGS: CareerSaveTag[] = [
   "RESEARCH_SAMPLE",
   "FAVORITE",
 ];
+
+const MANUAL_SAVE_TAG_EN_LABELS: Record<CareerSaveTag, string> = {
+  GREAT_RIKISHI: "Great rikishi",
+  UNFINISHED_TALENT: "Unfinished talent",
+  LATE_BLOOM_SUCCESS: "Late bloom",
+  INJURY_TRAGEDY: "Injury shadow",
+  TURBULENT_LIFE: "Turbulent career",
+  STABLE_MAKUUCHI: "Stable makuuchi",
+  JURYO_CRAFTSMAN: "Juryo craft",
+  GENERATION_LEADER: "Generation leader",
+  RIVALRY_MEMORY: "Memorable rivalry",
+  RARE_RECORD: "Rare record",
+  RESEARCH_SAMPLE: "Research sample",
+  FAVORITE: "Favorite",
+  MEMORABLE_SUPPORT: "Memorable support",
+  UNEXPECTED: "Unexpected",
+  REREAD: "Reread",
+};
+
+const AUTO_TAG_EN_LABELS: Record<keyof typeof AUTO_TAG_LABELS, string> = {
+  LATE_BLOOM: "Late bloom",
+  INJURY_COMEBACK: "Injury comeback",
+  STABLE_TOP_DIVISION: "Stable top division",
+  JURYO_CRAFT: "Juryo craft",
+  TURBULENT: "Turbulent",
+  RARE_RECORD: "Rare record",
+  LONGEVITY: "Longevity",
+  FAST_RISE: "Fast rise",
+  SANYAKU_NEAR_MISS: "Sanyaku near miss",
+  RIVALRY: "Rivalry",
+};
+
+const CLASSIFICATION_EN_LABELS: Record<string, string> = {
+  名力士: "Great rikishi",
+  三役中核: "Sanyaku core",
+  安定幕内: "Stable makuuchi",
+  十両職人: "Juryo craft",
+  未完の大器: "Unfinished talent",
+  怪我に泣いた力士: "Injury-shadowed career",
+  波乱型: "Turbulent career",
+  長寿型: "Long career",
+  短期爆発型: "Short burst",
+  記憶に残る脇役: "Memorable supporting career",
+  標準記録: "Standard record",
+};
+
+const CATEGORY_EN_LABELS: Record<string, string> = {
+  最高位: "Peak Rank",
+  優勝: "Yusho",
+  通算成績: "Career Record",
+  在位: "Tenure",
+  表彰: "Awards",
+  希少性: "Rarity",
+  安定性: "Stability",
+};
+
+const JAPANESE_TEXT_PATTERN = /[ぁ-んァ-ン一-龥]/;
+
+const textForEnglish = (value: string | null | undefined, fallback: string): string =>
+  !value || JAPANESE_TEXT_PATTERN.test(value) ? fallback : value;
+
+const formatManualSaveTag = (tag: CareerSaveTag, locale: "ja" | "en"): string =>
+  locale === "en" ? MANUAL_SAVE_TAG_EN_LABELS[tag] ?? tag : MANUAL_SAVE_TAG_LABELS[tag];
+
+const formatAutoTag = (tag: keyof typeof AUTO_TAG_LABELS, locale: "ja" | "en"): string =>
+  locale === "en" ? AUTO_TAG_EN_LABELS[tag] ?? tag : AUTO_TAG_LABELS[tag];
+
+const formatClassification = (label: string, locale: "ja" | "en"): string =>
+  locale === "en" ? CLASSIFICATION_EN_LABELS[label] ?? textForEnglish(label, "Saved career") : label;
+
+const formatScoreCategory = (label: string, locale: "ja" | "en"): string =>
+  locale === "en" ? CATEGORY_EN_LABELS[label] ?? textForEnglish(label, "Score Category") : label;
 
 interface RegistrationConsoleProps {
   analysis: CareerAnalysisSummary;
@@ -53,6 +126,7 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
   onReturnToScout,
   onOpenArchive,
 }) => {
+  const { locale } = useLocale();
   const [selectedSaveTags, setSelectedSaveTags] = React.useState<CareerSaveTag[]>([]);
   const [saveState, setSaveState] = React.useState<"idle" | "saving" | "error">("idle");
   const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
@@ -89,16 +163,20 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
   }, [designReading.feedbackReportText]);
 
   const statusTag = isSaved
-    ? "保存済み"
+    ? locale === "en" ? "Saved" : "保存済み"
     : !detailReady
-      ? "整理中"
+      ? locale === "en" ? "Building" : "整理中"
       : saveState === "saving"
-        ? "保存中"
-        : "保存可能";
+        ? locale === "en" ? "Saving" : "保存中"
+        : locale === "en" ? "Ready to Save" : "保存可能";
 
   const judgementCopy = !detailReady
-    ? `詳細記録を整理中です (${saveProgressLabel})。総評点は読めますが、保存は整理完了後にできます。`
-    : `分類「${analysis.classificationLabel}」。比較母集団に加える価値があります。`;
+    ? locale === "en"
+      ? `Detail records are still building (${saveProgressLabel}). The score can be read now; saving unlocks after details are ready.`
+      : `詳細記録を整理中です (${saveProgressLabel})。総評点は読めますが、保存は整理完了後にできます。`
+    : locale === "en"
+      ? `Class: ${formatClassification(analysis.classificationLabel, locale)}. This career is useful as a saved comparison record.`
+      : `分類「${analysis.classificationLabel}」。比較母集団に加える価値があります。`;
 
   const headLed: SignalLedState = isSaved ? "active" : !detailReady ? "info" : "active";
 
@@ -107,9 +185,9 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
       <div className={styles.console}>
         <div className={styles.scorePane}>
           <ModuleHeader
-            kicker="評価"
-            title="総評点"
-            copy="保存後の記録で並び替えに使う評価です。"
+            kicker={locale === "en" ? "Evaluation" : "評価"}
+            title={locale === "en" ? "Record Score" : "総評点"}
+            copy={locale === "en" ? "This score is used to sort saved career records." : "保存後の記録で並び替えに使う評価です。"}
             led={headLed}
             statusTag={statusTag}
           />
@@ -117,29 +195,29 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
             <div className={styles.scoreLabelGroup}>
               <div className={styles.scoreCaption}>
                 <SignalLed state="active" size="sm" />
-                <span>記録価値</span>
+                <span>{locale === "en" ? "Record Value" : "記録価値"}</span>
               </div>
-              <div className={styles.scoreTitle}>{analysis.classificationLabel}</div>
+              <div className={styles.scoreTitle}>{formatClassification(analysis.classificationLabel, locale)}</div>
               <p className={styles.scoreCopy}>{judgementCopy}</p>
             </div>
             <div className={styles.scoreDigitsBlock}>
               <div className={styles.scoreDigits}>
                 <strong>{clearScoreSummary.clearScore}</strong>
-                <em>点</em>
+                <em>{locale === "en" ? "pts" : "点"}</em>
               </div>
             </div>
           </div>
-          <div className={styles.scoreRows} aria-label="評定内訳">
+          <div className={styles.scoreRows} aria-label={locale === "en" ? "Score breakdown" : "評定内訳"}>
             {clearScoreSummary.categories.map((category) => {
               const detail =
                 category.items.slice(0, 2).map((item) => item.detail).join(" / ") || category.detail;
               return (
                 <div key={category.key} className={styles.scoreRow}>
                   <div className={styles.scoreRowTop}>
-                    <span>{category.label}</span>
+                    <span>{formatScoreCategory(category.label, locale)}</span>
                     <strong>+{category.score}</strong>
                   </div>
-                  <p>{detail}</p>
+                  <p>{locale === "en" ? textForEnglish(detail, "This category contributes to the saved-record score.") : detail}</p>
                 </div>
               );
             })}
@@ -148,9 +226,9 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
 
         <div className={styles.tagsPane}>
           <ModuleHeader
-            kicker="保存"
-            title="分類タグ"
-            copy="自動分類タグと手動分類タグを保存記録に付けられます。"
+            kicker={locale === "en" ? "Save" : "保存"}
+            title={locale === "en" ? "Archive Tags" : "分類タグ"}
+            copy={locale === "en" ? "Automatic and manual tags can be attached to the saved record." : "自動分類タグと手動分類タグを保存記録に付けられます。"}
           />
 
           {!isSaved ? (
@@ -158,22 +236,22 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
               {analysis.saveRecommendation.reasons.length > 0 ? (
                 <div className={styles.reasonList}>
                   {analysis.saveRecommendation.reasons.slice(0, 4).map((reason) => (
-                    <div key={reason}>{reason}</div>
+                    <div key={reason}>{locale === "en" ? textForEnglish(reason, "The record has a reason to be saved.") : reason}</div>
                   ))}
                 </div>
               ) : null}
 
               {analysis.saveRecommendation.autoTags.length > 0 ? (
-                <div className={styles.tagCloud} aria-label="自動分類タグ">
+                <div className={styles.tagCloud} aria-label={locale === "en" ? "Automatic save tags" : "自動分類タグ"}>
                   {analysis.saveRecommendation.autoTags.map((tag) => (
                     <span key={tag} className={styles.autoTag}>
-                      自動：{AUTO_TAG_LABELS[tag]}
+                      {locale === "en" ? "Auto: " : "自動："}{formatAutoTag(tag, locale)}
                     </span>
                   ))}
                 </div>
               ) : null}
 
-              <div className={styles.tagToggleGrid} role="group" aria-label="手動分類タグ">
+              <div className={styles.tagToggleGrid} role="group" aria-label={locale === "en" ? "Manual save tags" : "手動分類タグ"}>
                 {SAVE_TAGS.map((tag) => (
                   <button
                     key={tag}
@@ -183,7 +261,7 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
                     data-suggested={analysis.saveRecommendation.suggestedManualTags.includes(tag)}
                     onClick={() => toggleSaveTag(tag)}
                   >
-                    {MANUAL_SAVE_TAG_LABELS[tag]}
+                    {formatManualSaveTag(tag, locale)}
                   </button>
                 ))}
               </div>
@@ -195,13 +273,17 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
                   onClick={() => void handleSave()}
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  {!detailReady ? "詳細整理中" : saveState === "saving" ? "保存中" : "この一代を保存"}
+                  {!detailReady
+                    ? locale === "en" ? "Building Details" : "詳細整理中"
+                    : saveState === "saving"
+                      ? locale === "en" ? "Saving" : "保存中"
+                      : locale === "en" ? "Save Career" : "この一代を保存"}
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
-                  保存せず次へ
+                  {locale === "en" ? "Skip and Continue" : "保存せず次へ"}
                 </Button>
                 {saveState === "error" ? (
-                  <div className={styles.saveError}>保存に失敗しました。再試行してください。</div>
+                  <div className={styles.saveError}>{locale === "en" ? "Save failed. Please retry." : "保存に失敗しました。再試行してください。"}</div>
                 ) : null}
               </div>
             </>
@@ -210,20 +292,22 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
               <div className={styles.savedState}>
                 <Check className="h-5 w-5" />
                 <div>
-                  <span>保存済み</span>
-                  <strong>この一代は保存済み記録に残っています。</strong>
+                  <span>{locale === "en" ? "Saved" : "保存済み"}</span>
+                  <strong>{locale === "en" ? "This career is preserved in the archive." : "この一代は保存済み記録に残っています。"}</strong>
                 </div>
               </div>
               <p className={styles.decisionCopy}>
-                保存済み記録から再読、比較、類似検索に進めます。次の力士を生成するか、保存済み記録を開いて参照してください。
+                {locale === "en"
+                  ? "Saved records can be reread, compared, and searched for similar careers. Start another rikishi or open the archive."
+                  : "保存済み記録から再読、比較、類似検索に進めます。次の力士を生成するか、保存済み記録を開いて参照してください。"}
               </p>
               <div className={styles.commandStack}>
                 <Button size="lg" onClick={onOpenArchive}>
                   <Archive className="mr-2 h-4 w-4" />
-                  保存済み記録を開く
+                  {locale === "en" ? "Open Archive" : "保存済み記録を開く"}
                 </Button>
                 <Button variant="outline" onClick={onReturnToScout}>
-                  次の力士へ
+                  {locale === "en" ? "Next Rikishi" : "次の力士へ"}
                 </Button>
               </div>
             </>
@@ -233,13 +317,13 @@ export const RegistrationConsole: React.FC<RegistrationConsoleProps> = ({
             <div className={styles.devCommands}>
               <Button variant="secondary" size="sm" onClick={() => void handleCopyReport()}>
                 <Copy className="mr-2 h-4 w-4" />
-                {copyState === "copied" ? "コピー済" : "検証情報"}
+                {copyState === "copied" ? (locale === "en" ? "Copied" : "コピー済") : (locale === "en" ? "Debug Info" : "検証情報")}
               </Button>
               <a href={FEEDBACK_FORM_URL} target="_blank" rel="noreferrer">
                 <ExternalLink className="h-4 w-4" />
-                検証フォーム
+                {locale === "en" ? "Feedback Form" : "検証フォーム"}
               </a>
-              {copyState === "error" ? <span>コピーに失敗しました。</span> : null}
+              {copyState === "error" ? <span>{locale === "en" ? "Copy failed." : "コピーに失敗しました。"}</span> : null}
             </div>
           ) : null}
         </div>

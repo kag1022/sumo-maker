@@ -2,9 +2,11 @@ import React from "react";
 import { RikishiStatus } from "../../../logic/models";
 import { Achievement, evaluateAchievements } from "../../../logic/achievements";
 import { Award, Star, Medal, Sparkles, Trophy, Swords, Activity, Sun, TrendingUp, BarChart3, Shield } from "lucide-react";
+import { useLocale } from "../../../shared/hooks/useLocale";
 import { cn } from "../../../shared/lib/cn";
 import surface from "../../../shared/styles/surface.module.css";
 import { BodyText, Heading, LabelText } from "../../../shared/ui/Typography";
+import { localizeAchievement } from "../utils/reportLocale";
 
 interface AchievementViewProps {
   status: RikishiStatus;
@@ -49,9 +51,10 @@ const getAchievementStyle = (rarity: Achievement["rarity"]) => {
 };
 
 export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
+  const { locale } = useLocale();
   const achievements = React.useMemo(
-    () => evaluateAchievements(status),
-    [status],
+    () => evaluateAchievements(status).map((achievement) => localizeAchievement(achievement, locale)),
+    [locale, status],
   );
 
   const getAchievementIcon = (achievement: Achievement) => {
@@ -87,7 +90,7 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
     return (
       <div className={cn(surface.gamePanel, "flex flex-col items-center justify-center p-12 text-sumi-light")}>
         <Award className="w-16 h-16 mb-4 opacity-20" />
-        <BodyText as="p">まだ実績はありません</BodyText>
+        <BodyText as="p">{locale === "en" ? "No achievements yet" : "まだ実績はありません"}</BodyText>
       </div>
     );
   }
@@ -115,16 +118,16 @@ export const AchievementView: React.FC<AchievementViewProps> = ({ status }) => {
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <Heading as="h3" className="text-sumi">獲得実績</Heading>
+            <Heading as="h3" className="text-sumi">{locale === "en" ? "Achievements" : "獲得実績"}</Heading>
             <BodyText as="p" className="text-sm text-sumi-light">
-              全 {achievements.length} 個のアチーブメントを達成
+              {locale === "en" ? `${achievements.length} achievements unlocked` : `全 ${achievements.length} 個のアチーブメントを達成`}
             </BodyText>
           </div>
         </div>
         {legendaryCount > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-kiniro/10 border border-kiniro/30 text-kiniro text-sm animate-pulse-slow">
             <Sparkles className="w-4 h-4" />
-            <LabelText>殿堂入り級の活躍！</LabelText>
+            <LabelText>{locale === "en" ? "Hall-of-fame level record" : "殿堂入り級の活躍！"}</LabelText>
           </div>
         )}
       </div>

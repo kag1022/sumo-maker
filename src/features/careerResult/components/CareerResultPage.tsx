@@ -24,10 +24,6 @@ import {
 } from "../utils/careerResultModel";
 import type { DetailBuildProgress } from "../../../logic/simulation/workerProtocol";
 import { useLocale } from "../../../shared/hooks/useLocale";
-import { cn } from "../../../shared/lib/cn";
-import surface from "../../../shared/styles/surface.module.css";
-import typography from "../../../shared/styles/typography.module.css";
-import { Button } from "../../../shared/ui/Button";
 import styles from "./CareerResultPage.module.css";
 
 export interface CareerResultViewState extends CareerWindowState {
@@ -262,9 +258,6 @@ const CareerResultJapanesePage: React.FC<CareerResultPageProps> = ({
   );
 };
 
-const formatEnglishRecord = (wins: number, losses: number, absent: number): string =>
-  `${wins}-${losses}${absent > 0 ? `, ${absent} absences` : ""}`;
-
 const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
   status,
   careerId,
@@ -275,6 +268,7 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
   detailState,
   detailBuildProgress,
   observationPointsAwarded,
+  observationStanceId,
   bashoRows,
   viewState,
   onSelectBasho,
@@ -288,6 +282,10 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const ledger = React.useMemo(() => buildCareerLedgerModel(status, bashoRows, "en"), [bashoRows, status]);
   const overview = React.useMemo(() => buildCareerOverviewModel(status, bashoRows, "en"), [bashoRows, status]);
+  const designReading = React.useMemo(
+    () => buildCareerDesignReadingModel(status, { careerId }),
+    [careerId, status],
+  );
   const selectedPoint =
     ledger.points.find((point) => point.bashoSeq === viewState.selectedBashoSeq) ??
     ledger.points[ledger.points.length - 1] ??
@@ -300,21 +298,10 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
     () => buildCareerPlaceSummary(detail, selectedPoint),
     [detail, selectedPoint],
   );
-  const nonMaezumoRecords = status.history.records.filter((record) => record.rank.division !== "Maezumo");
   const highestRankLabel =
     status.history.maxRank.name === "横綱" && yokozunaOrdinal
       ? `No. ${yokozunaOrdinal} Yokozuna`
       : formatHighestRankDisplayName(status.history.maxRank, "en");
-  const totalRecordLabel = formatEnglishRecord(
-    status.history.totalWins,
-    status.history.totalLosses,
-    status.history.totalAbsent,
-  );
-  const makuuchiYusho = status.history.yushoCount.makuuchi ?? 0;
-  const lowerYusho =
-    (status.history.yushoCount.juryo ?? 0) +
-    (status.history.yushoCount.makushita ?? 0) +
-    (status.history.yushoCount.others ?? 0);
   const detailLabel =
     detailState === "ready"
       ? "Detailed record ready"
@@ -323,8 +310,6 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
         : detailState === "error"
           ? "Detail build failed"
           : "Detailed record pending";
-  const finalRecord = nonMaezumoRecords[nonMaezumoRecords.length - 1];
-  const finalRank = finalRecord ? formatHighestRankDisplayName(finalRecord.rank, "en") : "-";
   const selectedMeta = selectedPoint ? `${selectedPoint.bashoLabel} / ${selectedPoint.rankLabel}` : highestRankLabel;
   const canReadDetails = detailState === "ready";
 
@@ -374,67 +359,23 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
       <div ref={chapterRef} className={styles.body}>
         {viewState.activeChapter === "encyclopedia" ? (
           <motion.div key="english-encyclopedia" className="space-y-4" {...chapterTransition}>
-            <section className={cn(surface.panel, "space-y-6")}>
-              <div className="space-y-3">
-                <div className={typography.kicker}>Career Record</div>
-                <h2 className={cn(typography.heading, "text-3xl text-text")}>{status.shikona}</h2>
-                <p className="max-w-3xl text-sm leading-relaxed text-text-dim">
-                  {overview.lifeSummary}
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>Highest Rank</div>
-                  <div className={cn(typography.heading, "mt-2 text-xl text-text")}>{highestRankLabel}</div>
-                </div>
-                <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>Career Record</div>
-                  <div className={cn(typography.heading, "mt-2 text-xl text-text")}>{totalRecordLabel}</div>
-                </div>
-                <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>Length</div>
-                  <div className={cn(typography.heading, "mt-2 text-xl text-text")}>{nonMaezumoRecords.length} basho</div>
-                </div>
-                <div className="border border-gold/15 bg-bg/20 px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.35em] text-gold/55 uppercase")}>Final Rank</div>
-                  <div className={cn(typography.heading, "mt-2 text-xl text-text")}>{finalRank}</div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="border border-white/10 bg-white/[0.02] px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.3em] text-text-dim uppercase")}>Makuuchi Yusho</div>
-                  <div className="mt-2 text-lg text-text">{makuuchiYusho}</div>
-                </div>
-                <div className="border border-white/10 bg-white/[0.02] px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.3em] text-text-dim uppercase")}>Lower Division Yusho</div>
-                  <div className="mt-2 text-lg text-text">{lowerYusho}</div>
-                </div>
-                <div className="border border-white/10 bg-white/[0.02] px-4 py-4">
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.3em] text-text-dim uppercase")}>Observation Reward</div>
-                  <div className="mt-2 text-lg text-text">{observationPointsAwarded ?? 0} OP</div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 border border-white/10 bg-white/[0.02] px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className={cn(typography.label, "text-[10px] tracking-[0.3em] text-text-dim uppercase")}>Record State</div>
-                  <div className="mt-1 text-sm text-text-dim">{detailLabel}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button disabled={isSaved} onClick={() => void onSave()}>
-                    {isSaved ? "Saved" : "Save Career"}
-                  </Button>
-                  <Button variant="secondary" onClick={onReturnToScout}>
-                    New Observation
-                  </Button>
-                  <Button variant="ghost" onClick={onOpenArchive}>
-                    Open Archive
-                  </Button>
-                </div>
-              </div>
-            </section>
+            <CareerEncyclopediaChapter
+              status={status}
+              overview={overview}
+              designReading={designReading}
+              highestRankLabel={highestRankLabel}
+              ledgerPoints={ledger.points}
+              bashoRows={bashoRows}
+              isSaved={isSaved}
+              detailState={detailState}
+              detailBuildProgress={detailBuildProgress}
+              observationPointsAwarded={observationPointsAwarded}
+              observationStanceId={observationStanceId}
+              onSave={onSave}
+              onReturnToScout={onReturnToScout}
+              onOpenArchive={onOpenArchive}
+              onOpenChapter={(chapter) => setChapter(chapter)}
+            />
 
             <section className={styles.readingNote}>
               <div className={styles.readingKicker}>Reading Guide</div>
@@ -447,6 +388,7 @@ const CareerResultEnglishPage: React.FC<CareerResultPageProps> = ({
                   : detailLabel}
               </p>
             </section>
+            <CareerWorldSection status={status} careerId={careerId} bashoRows={bashoRows} />
           </motion.div>
         ) : null}
 
